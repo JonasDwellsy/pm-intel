@@ -1,0 +1,412 @@
+{
+  "$schema": "https://iq.dwellsy.com/schema/scorecard-v0.3.4.json",
+  "methodologyVersion": "v0.3.4",
+  "dataAsOf": "2026-03-05",
+  "markets": [
+    {
+      "id": "chattanooga-tn",
+      "msaCode": "16860",
+      "city": "Chattanooga",
+      "state": "TN",
+      "fullName": "Chattanooga, TN-GA MSA",
+      "operatorCountTotal": 55,
+      "operatorCountEligible": 20,
+      "medianDomT12": 24.6,
+      "medianDomLifetime": 19.0,
+      "msaIndexUrus": 5290,
+      "msaTotalListings": 19733,
+      "quadrantSummary": {
+        "MF/BTR / Institutional": { "count": 3, "medianDomT12": 22.2, "medianDomLifetime": 12.2 },
+        "MF/BTR / Independent": { "count": 0, "medianDomT12": null, "medianDomLifetime": null },
+        "Scattered Site / Institutional": { "count": 0, "medianDomT12": null, "medianDomLifetime": null },
+        "Scattered Site / Independent": { "count": 17, "medianDomT12": 23.9, "medianDomLifetime": 20.2 }
+      },
+      "marketDomByAsset": {
+        "house": { "t12": 27.2, "lifetime": 21.7 },
+        "apartment": { "t12": 22.3, "lifetime": 16.8 }
+      },
+      "marketConcessionT12": 5.8,
+      "cohortTenancy": {
+        "house": {
+          "cohortN": 5,
+          "p25": 14.8, "p50": 16.0, "p75": 16.3,
+          "min": 14.2, "max": 17.7
+        },
+        "apartment": {
+          "cohortN": 8,
+          "p25": 12.9, "p50": 13.3, "p75": 14.0,
+          "min": 12.3, "max": 16.3
+        }
+      },
+      "marketingPeerMedians": {
+        "MF/BTR / Institutional": {
+          "completeness": 3.75, "amenities": 20.3, "descLen": 645
+        },
+        "Scattered Site / Independent": {
+          "completeness": 3.64, "amenities": 6.3, "descLen": 932
+        }
+      }
+    }
+  ],
+  "pms": [
+    {
+      "slug": "doorby-property-management-chattanooga-tn",
+      "name": "Doorby Property Management",
+      "marketId": "chattanooga-tn",
+      "primaryCity": "Chattanooga",
+      "claimed": false,
+      "accentColor": "#D97834",
+      "quadrant": "Scattered Site / Independent",
+      "hybrid": false,
+      "rank": {
+        "overall": 12,
+        "overallTotal": 20,
+        "quadrant": 10,
+        "quadrantTotal": 17,
+        "quadrantMedianDomT12": 23.9
+      },
+      "coverage": {
+        "firstListing": "2021-01-04",
+        "monthsOnPlatform": 62,
+        "lifetimeListings": 1290,
+        "t6Listings": 272,
+        "t12Listings": 425,
+        "urusLifetime": 655,
+        "urusT12": 235,
+        "activeListings": 80,
+        "institutionalUnits": 0,
+        "institutionalBuildings": 0,
+        "smallMfUnits": 239,
+        "smallMfBuildings": 93,
+        "unitLevelCount": 71,
+        "sfrCount": 405,
+        "totalObservedUnits": 750,
+        "citiesObserved": 24,
+        "dataTier": "Full ranking"
+      },
+      "performance": {
+        "domT12": 25.9,
+        "domT12N": 425,
+        "domLifetime": 25.7,
+        "houseDomT12": 24.0,
+        "houseUrusT12": 147,
+        "houseEligible": true,
+        "aptDomT12": 30.8,
+        "aptUrusT12": 81,
+        "aptEligible": true,
+        "timeSeries": [
+          { "year": 2021, "domDays": 11.4, "marketDomDays": 13.4, "gapPct": -15 },
+          { "year": 2022, "domDays": 19.7, "marketDomDays": 14.3, "gapPct": 38 },
+          { "year": 2023, "domDays": 26.3, "marketDomDays": 16.1, "gapPct": 63 },
+          { "year": 2024, "domDays": 29.8, "marketDomDays": 20.1, "gapPct": 48 },
+          { "year": 2025, "domDays": 30.8, "marketDomDays": 25.0, "gapPct": 23 }
+        ]
+      },
+      "rentTrajectory": [
+        { "year": 2021, "premiumPct": -13.2, "n": 105 },
+        { "year": 2022, "premiumPct": -13.7, "n": 234 },
+        { "year": 2023, "premiumPct": -8.8, "n": 122 },
+        { "year": 2024, "premiumPct": -1.4, "n": 366 },
+        { "year": 2025, "premiumPct": -2.2, "n": 334 }
+      ],
+      "pricing": {
+        "t12MedianPremium": -4.4,
+        "t12PctAbove10": 23.8,
+        "t12PctBelow10": 40.0,
+        "t12ConcessionRate": 15.5
+      },
+      "marketing": {
+        "completeness": 3.88,
+        "amenitiesMentioned": 7.2,
+        "descLen": 1837,
+        "zeroPhotoT12": 0.0,
+        "amenitiesT12": 100.0,
+        "medianPhotosT12": 17
+      },
+      "selectionBias": {
+        "buildings": 122,
+        "observedIntensity": 1.34,
+        "expectedIntensity": 1.63,
+        "ratio": 0.82,
+        "belowExpected": 56,
+        "atOrAboveExpected": 59,
+        "assessment": "Within expected range",
+        "assessmentColor": "green"
+      },
+      "tenancy": {
+        "totalUnits": 655,
+        "multiEpisodeUnits": 203,
+        "multiEpisodePct": 31,
+        "overallGap": 16.3,
+        "house": {
+          "gap": 17.7,
+          "n": 145,
+          "cohortP25": 14.8,
+          "cohortP50": 16.0,
+          "cohortP75": 16.3,
+          "cohortN": 5,
+          "pctOfCohortMedian": 111,
+          "position": "above cohort range"
+        },
+        "apartment": {
+          "gap": 13.5,
+          "n": 58,
+          "cohortP25": 12.9,
+          "cohortP50": 13.3,
+          "cohortP75": 14.0,
+          "cohortN": 8,
+          "pctOfCohortMedian": 101,
+          "position": "within cohort range"
+        }
+      },
+      "geographicCoverage": {
+        "citiesText": "Chattanooga 79% · Hixson · Rossville (GA) · Ringgold (GA) · Ooltewah · 24 cities total observed in Chattanooga MSA data",
+        "topCities": [
+          { "name": "Chattanooga", "pct": 79 },
+          { "name": "Hixson", "pct": 5 },
+          { "name": "Rossville (GA)", "pct": 4 },
+          { "name": "Ringgold (GA)", "pct": 3 },
+          { "name": "Ooltewah", "pct": 2 }
+        ]
+      },
+      "classificationRationale": "Within the Chattanooga MSA data observed, Doorby's portfolio consists of 405 single-family addresses, 71 unit-level managed apartments in larger buildings, and 93 small-multifamily whole-property managed buildings averaging 2 units each. Zero buildings exceed the 50-unit institutional threshold. Total observed managed units in Chattanooga: 750. The operator may operate in other MSAs not represented in this dataset; classification reflects only the Chattanooga MSA observed activity. Within Chattanooga, the portfolio operates entirely as scattered-site management with no institutional-class assets, placing the operator on the Independent side of the operating axis at the MSA level."
+    },
+    {
+      "slug": "brookside-properties-chattanooga-tn",
+      "name": "Brookside Properties",
+      "marketId": "chattanooga-tn",
+      "primaryCity": "Chattanooga",
+      "claimed": false,
+      "accentColor": "#3E7C3E",
+      "quadrant": "MF/BTR / Institutional",
+      "hybrid": false,
+      "rank": {
+        "overall": 1,
+        "overallTotal": 20,
+        "quadrant": 1,
+        "quadrantTotal": 3,
+        "quadrantMedianDomT12": 22.2
+      },
+      "coverage": {
+        "firstListing": "2022-06-02",
+        "monthsOnPlatform": 45,
+        "lifetimeListings": 2210,
+        "t6Listings": 283,
+        "t12Listings": 635,
+        "urusLifetime": 340,
+        "urusT12": 195,
+        "activeListings": 17,
+        "institutionalUnits": 868,
+        "institutionalBuildings": 4,
+        "smallMfUnits": 0,
+        "smallMfBuildings": 0,
+        "unitLevelCount": 0,
+        "sfrCount": 0,
+        "totalObservedUnits": 868,
+        "citiesObserved": 1,
+        "dataTier": "Full ranking"
+      },
+      "performance": {
+        "domT12": 6.0,
+        "domT12N": 635,
+        "domLifetime": 5.0,
+        "houseDomT12": null,
+        "houseUrusT12": 0,
+        "houseEligible": false,
+        "aptDomT12": 6.0,
+        "aptUrusT12": 195,
+        "aptEligible": true,
+        "timeSeries": [
+          { "year": 2022, "domDays": 4.0, "marketDomDays": 14.3, "gapPct": -72 },
+          { "year": 2023, "domDays": 4.0, "marketDomDays": 16.1, "gapPct": -75 },
+          { "year": 2024, "domDays": 5.0, "marketDomDays": 20.1, "gapPct": -75 },
+          { "year": 2025, "domDays": 5.0, "marketDomDays": 25.0, "gapPct": -80 }
+        ]
+      },
+      "rentTrajectory": [
+        { "year": 2022, "premiumPct": -0.1, "n": 156 },
+        { "year": 2023, "premiumPct": 9.7, "n": 696 },
+        { "year": 2024, "premiumPct": 7.6, "n": 596 },
+        { "year": 2025, "premiumPct": 4.5, "n": 672 }
+      ],
+      "pricing": {
+        "t12MedianPremium": 3.8,
+        "t12PctAbove10": 16.5,
+        "t12PctBelow10": 0.2,
+        "t12ConcessionRate": 0.0
+      },
+      "marketing": {
+        "completeness": 4.00,
+        "amenitiesMentioned": 20.3,
+        "descLen": 645,
+        "zeroPhotoT12": 0.0,
+        "amenitiesT12": 100.0,
+        "medianPhotosT12": 41
+      },
+      "selectionBias": {
+        "buildings": 4,
+        "observedIntensity": 0.74,
+        "expectedIntensity": 0.36,
+        "ratio": 2.06,
+        "belowExpected": 0,
+        "atOrAboveExpected": 3,
+        "assessment": "Above expected — comprehensive listing coverage indicated",
+        "assessmentColor": "green"
+      },
+      "tenancy": {
+        "totalUnits": 340,
+        "multiEpisodeUnits": 235,
+        "multiEpisodePct": 69,
+        "overallGap": 12.5,
+        "house": {
+          "gap": null,
+          "n": 0,
+          "cohortP25": null,
+          "cohortP50": null,
+          "cohortP75": null,
+          "cohortN": 0,
+          "pctOfCohortMedian": null,
+          "position": null
+        },
+        "apartment": {
+          "gap": 12.5,
+          "n": 235,
+          "cohortP25": 12.9,
+          "cohortP50": 13.3,
+          "cohortP75": 14.0,
+          "cohortN": 8,
+          "pctOfCohortMedian": 94,
+          "position": "below cohort range"
+        }
+      },
+      "geographicCoverage": {
+        "citiesText": "100% Chattanooga (Meridian at Hamilton Place, The Emery) within observed MSA data",
+        "topCities": [
+          { "name": "Chattanooga", "pct": 100 }
+        ]
+      },
+      "classificationRationale": "Within the Chattanooga MSA data observed, Brookside's portfolio consists of 4 institutional-class multifamily buildings (151–239 units each) across 2 communities, totaling 868 units. All four properties exceed the 50-unit institutional threshold, qualifying the operator for the Institutional operating axis on asset class. Listings cycle at 2.06× the expected MSA intensity for buildings of this size, consistent with whole-property leasing operations. There is no scattered-portfolio book in the observed Chattanooga data. The operator may operate in other MSAs not represented in this dataset; classification reflects only the Chattanooga MSA observed activity."
+    },
+    {
+      "slug": "generation-property-management-chattanooga-tn",
+      "name": "Generation Property Management",
+      "marketId": "chattanooga-tn",
+      "primaryCity": "Chattanooga",
+      "claimed": false,
+      "accentColor": "#1B6E8C",
+      "quadrant": "Scattered Site / Independent",
+      "hybrid": false,
+      "rank": {
+        "overall": 4,
+        "overallTotal": 20,
+        "quadrant": 3,
+        "quadrantTotal": 17,
+        "quadrantMedianDomT12": 23.9
+      },
+      "coverage": {
+        "firstListing": "2020-12-07",
+        "monthsOnPlatform": 63,
+        "lifetimeListings": 1341,
+        "t6Listings": 214,
+        "t12Listings": 371,
+        "urusLifetime": 555,
+        "urusT12": 253,
+        "activeListings": 38,
+        "institutionalUnits": 0,
+        "institutionalBuildings": 0,
+        "smallMfUnits": 447,
+        "smallMfBuildings": 83,
+        "unitLevelCount": 81,
+        "sfrCount": 153,
+        "totalObservedUnits": 711,
+        "citiesObserved": 10,
+        "dataTier": "Full ranking"
+      },
+      "performance": {
+        "domT12": 16.1,
+        "domT12N": 371,
+        "domLifetime": 15.0,
+        "houseDomT12": 15.0,
+        "houseUrusT12": 56,
+        "houseEligible": true,
+        "aptDomT12": 16.4,
+        "aptUrusT12": 67,
+        "aptEligible": true,
+        "timeSeries": [
+          { "year": 2021, "domDays": 13.7, "marketDomDays": 13.4, "gapPct": 2 },
+          { "year": 2022, "domDays": 8.5, "marketDomDays": 14.3, "gapPct": -41 },
+          { "year": 2023, "domDays": 13.6, "marketDomDays": 16.1, "gapPct": -16 },
+          { "year": 2024, "domDays": 19.0, "marketDomDays": 20.1, "gapPct": -5 },
+          { "year": 2025, "domDays": 18.1, "marketDomDays": 25.0, "gapPct": -28 }
+        ]
+      },
+      "rentTrajectory": [
+        { "year": 2021, "premiumPct": -2.2, "n": 108 },
+        { "year": 2022, "premiumPct": 0.0, "n": 169 },
+        { "year": 2023, "premiumPct": 6.2, "n": 213 },
+        { "year": 2024, "premiumPct": 0.0, "n": 443 },
+        { "year": 2025, "premiumPct": -4.8, "n": 278 }
+      ],
+      "pricing": {
+        "t12MedianPremium": -3.6,
+        "t12PctAbove10": 30.2,
+        "t12PctBelow10": 32.3,
+        "t12ConcessionRate": 12.1
+      },
+      "marketing": {
+        "completeness": 3.74,
+        "amenitiesMentioned": 13.7,
+        "descLen": 900,
+        "zeroPhotoT12": 0.5,
+        "amenitiesT12": 93.3,
+        "medianPhotosT12": 20
+      },
+      "selectionBias": {
+        "buildings": 91,
+        "observedIntensity": 0.95,
+        "expectedIntensity": 0.98,
+        "ratio": 0.97,
+        "belowExpected": 30,
+        "atOrAboveExpected": 52,
+        "assessment": "Within expected range",
+        "assessmentColor": "green"
+      },
+      "tenancy": {
+        "totalUnits": 555,
+        "multiEpisodeUnits": 270,
+        "multiEpisodePct": 49,
+        "overallGap": 13.2,
+        "house": {
+          "gap": 14.8,
+          "n": 88,
+          "cohortP25": 14.8,
+          "cohortP50": 16.0,
+          "cohortP75": 16.3,
+          "cohortN": 5,
+          "pctOfCohortMedian": 93,
+          "position": "at cohort low end (p25)"
+        },
+        "apartment": {
+          "gap": 13.0,
+          "n": 182,
+          "cohortP25": 12.9,
+          "cohortP50": 13.3,
+          "cohortP75": 14.0,
+          "cohortN": 8,
+          "pctOfCohortMedian": 98,
+          "position": "within cohort range"
+        }
+      },
+      "geographicCoverage": {
+        "citiesText": "Chattanooga 75% · Hixson 15% · Ringgold (GA) · Fort Oglethorpe (GA) · 10 cities total observed in Chattanooga MSA data",
+        "topCities": [
+          { "name": "Chattanooga", "pct": 75 },
+          { "name": "Hixson", "pct": 15 },
+          { "name": "Ringgold (GA)", "pct": 6 },
+          { "name": "Fort Oglethorpe (GA)", "pct": 2 }
+        ]
+      },
+      "classificationRationale": "Within the Chattanooga MSA data observed, Generation's portfolio consists of 153 single-family addresses, 81 unit-level managed apartments in larger buildings, and 83 whole-property managed small-multifamily buildings (median 2 units, max 41 units). Zero buildings exceed the 50-unit institutional threshold. Total observed managed units in Chattanooga: 711, across 10 distinct cities within the MSA. The operator may operate in other MSAs not represented in this dataset; classification reflects only the Chattanooga MSA observed activity. Within Chattanooga, no institutional-class assets and sub-1,000-unit scale place the operator on the Independent side of the operating axis at the MSA level."
+    }
+  ]
+}
