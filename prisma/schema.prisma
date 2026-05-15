@@ -1,0 +1,72 @@
+// Prisma schema for the Dwellsy IQ PM Intel Platform.
+// Local-first: SQLite for dev, swap `provider` to "postgresql" at deploy.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Market {
+  id                    String   @id // e.g., "chattanooga-tn"
+  msaCode               String // e.g., "16860"
+  city                  String
+  state                 String // 2-letter
+  fullName              String // "Chattanooga, TN-GA MSA"
+  operatorCountTotal    Int
+  operatorCountEligible Int
+  medianDomT12          Float
+  medianDomLifetime     Float
+  quadrantSummary       String // JSON blob
+  pms                   PM[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model PM {
+  slug               String   @id // e.g., "doorby-property-management-chattanooga-tn"
+  name               String
+  marketId           String
+  market             Market   @relation(fields: [marketId], references: [id])
+  quadrant           String // "Scattered Site / Independent" etc.
+  hybrid             Boolean  @default(false)
+  rankOverall        Int?
+  rankOverallTotal   Int?
+  rankQuadrant       Int?
+  rankQuadrantTotal  Int?
+  claimed            Boolean  @default(false)
+  scorecardData      String // JSON blob: full structured scorecard
+  methodologyVersion String // "v0.3.4"
+  dataAsOf           DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Lead {
+  id                String   @id @default(cuid())
+  marketId          String?
+  propertyType      String // "single-family", "small-mf", "multifamily", "condo"
+  unitCount         Int?
+  preferredQuadrant String?
+  ownerName         String
+  ownerEmail        String
+  ownerPhone        String?
+  notes             String?
+  matchedPms        String // JSON array of pm slugs
+  source            String? // referring page
+  createdAt         DateTime @default(now())
+}
+
+model Claim {
+  id             String   @id @default(cuid())
+  pmSlug         String
+  contactEmail   String
+  contactName    String
+  domainVerified Boolean  @default(false)
+  status         String   @default("pending") // pending | verified | rejected
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
