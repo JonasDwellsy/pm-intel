@@ -25,5 +25,12 @@ export function fmtDays(n: number | null | undefined): string {
 
 export function fmtDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  // Methodology dates are calendar dates, not local-clock dates. Format in UTC
+  // so a "2026-03-05" data-as-of renders as Mar 5 in every timezone.
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
