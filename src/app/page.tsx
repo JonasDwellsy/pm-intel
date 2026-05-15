@@ -1,18 +1,22 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { stateCodeToSlug, citySlug } from "@/lib/slugify";
 
 export default async function Home() {
-  const pms = await prisma.pM.findMany({
-    select: {
-      slug: true,
-      name: true,
-      quadrant: true,
-      rankOverall: true,
-      rankOverallTotal: true,
-      market: { select: { city: true, state: true, fullName: true } },
-    },
-    orderBy: { rankOverall: "asc" },
-  });
+  const [pms, markets] = await Promise.all([
+    prisma.pM.findMany({
+      select: {
+        slug: true,
+        name: true,
+        quadrant: true,
+        rankOverall: true,
+        rankOverallTotal: true,
+        market: { select: { city: true, state: true, fullName: true } },
+      },
+      orderBy: { rankOverall: "asc" },
+    }),
+    prisma.market.count(),
+  ]);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
@@ -27,19 +31,33 @@ export default async function Home() {
         </p>
       </section>
 
+      <section className="mb-10">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            Browse markets
+          </h2>
+          <Link
+            href="/property-managers"
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            All markets ({markets}) →
+          </Link>
+        </div>
+      </section>
+
       <section>
         <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-muted-foreground">
-          Currently covered
+          Highlighted operators
         </h2>
         <ul className="divide-y divide-border rounded-lg border border-border bg-card">
           {pms.map((pm) => {
-            const stateSlug = pm.market.state.toLowerCase();
-            const citySlug = pm.market.city.toLowerCase().replace(/\s+/g, "-");
+            const state = stateCodeToSlug(pm.market.state);
+            const city = citySlug(pm.market.city);
             return (
               <li key={pm.slug} className="flex items-center justify-between p-4">
                 <div>
                   <Link
-                    href={`/property-managers/${stateSlug}/${citySlug}/${pm.slug}`}
+                    href={`/property-managers/${state}/${city}/${pm.slug}`}
                     className="text-base font-medium hover:underline"
                   >
                     {pm.name}
