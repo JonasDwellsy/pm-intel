@@ -4,6 +4,7 @@ import { QuadrantSummaryCard } from "./QuadrantSummaryCard";
 import { FilterChips } from "./FilterChips";
 import { PMListItem } from "./PMListItem";
 import { MarketMap } from "./MarketMap";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
 import type { LoadedMarket } from "@/lib/market-data";
 import type { QuadrantSegment } from "@/lib/slugify";
 import { segmentLabel } from "@/lib/slugify";
@@ -28,6 +29,13 @@ export function MarketView({
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
+      <TrackEvent
+        event="market_page_view"
+        properties={{
+          marketId: market.id,
+          segment: activeSegment ?? "all",
+        }}
+      />
       <div className="grid gap-10 lg:grid-cols-[1fr_320px]">
         <div className="space-y-8">
           <MarketHero
@@ -40,6 +48,7 @@ export function MarketView({
             <FilterChips
               stateSlug={stateSlug}
               citySlug={citySlug}
+              marketId={market.id}
               active={activeSegment}
               countsBySegment={countsBySegment}
             />

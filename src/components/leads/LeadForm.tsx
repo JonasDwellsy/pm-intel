@@ -23,6 +23,7 @@ import {
   QUADRANTS,
   type LeadFormValues,
 } from "@/lib/lead-schema";
+import { capture } from "@/lib/analytics";
 
 type MarketOption = { id: string; fullName: string };
 
@@ -59,12 +60,29 @@ export function LeadForm({ markets }: { markets: MarketOption[] }) {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setSubmitError(body.error ?? "Submission failed. Please try again.");
+        const message = body.error ?? "Submission failed. Please try again.";
+        capture("lead_form_submit_error", {
+          marketId: payload.marketId,
+          propertyType: payload.propertyType,
+          status: res.status,
+          errorReason: message,
+        });
+        setSubmitError(message);
         return;
       }
       const { leadId } = await res.json();
+      capture("lead_form_submit_success", {
+        marketId: payload.marketId,
+        propertyType: payload.propertyType,
+        leadId,
+      });
       router.push(`/get-matched/confirmation?leadId=${leadId}`);
     } catch {
+      capture("lead_form_submit_error", {
+        marketId: payload.marketId,
+        propertyType: payload.propertyType,
+        errorReason: "network_error",
+      });
       setSubmitError("Network error. Please try again.");
     }
   };

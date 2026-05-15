@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { stateCodeToSlug, citySlug } from "@/lib/slugify";
+import { TrackedLink } from "@/components/analytics/TrackedLink";
 
 export default async function Home() {
   const [pms, markets] = await Promise.all([
@@ -56,12 +57,18 @@ export default async function Home() {
             return (
               <li key={pm.slug} className="flex items-center justify-between p-4">
                 <div>
-                  <Link
+                  <TrackedLink
+                    event="pm_card_click"
+                    properties={{
+                      pmSlug: pm.slug,
+                      rank: pm.rankOverall,
+                      source: "home",
+                    }}
                     href={`/property-managers/${state}/${city}/${pm.slug}`}
                     className="text-base font-medium hover:underline"
                   >
                     {pm.name}
-                  </Link>
+                  </TrackedLink>
                   <p className="text-sm text-muted-foreground">
                     {pm.market.fullName} · {pm.quadrant}
                   </p>

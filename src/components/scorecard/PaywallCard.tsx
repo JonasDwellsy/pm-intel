@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
+import { PaywallViewTracker } from "@/components/analytics/PaywallViewTracker";
+import { TrackedLink } from "@/components/analytics/TrackedLink";
 import type { ScorecardData } from "@/lib/types";
 
 const SECTIONS_IN_FULL_VIEW = [
@@ -38,16 +39,30 @@ export function PaywallCard({ scorecard }: { scorecard: ScorecardData }) {
           ))}
         </ul>
         <div className="flex flex-wrap items-center gap-3 pt-2">
-          <Link href={unlockHref} className={buttonVariants({ size: "lg" })}>
+          <TrackedLink
+            event="paywall_cta_click"
+            properties={{ pmSlug: scorecard.pm.slug, action: "unlock" }}
+            href={unlockHref}
+            className={buttonVariants({ size: "lg" })}
+          >
             Unlock full scorecard
-          </Link>
-          <Link
+          </TrackedLink>
+          <TrackedLink
+            event="paywall_cta_click"
+            properties={{ pmSlug: scorecard.pm.slug, action: "get_matched" }}
             href="/get-matched"
             className={buttonVariants({ variant: "outline", size: "lg" })}
           >
             Get matched to a PM in your market
-          </Link>
+          </TrackedLink>
         </div>
+        <PaywallViewTracker
+          targetId="paywall"
+          properties={{
+            pmSlug: scorecard.pm.slug,
+            marketId: scorecard.market.id,
+          }}
+        />
         <p className="text-xs text-muted-foreground">
           Local dev: paywall is toggled by{" "}
           <code className="rounded bg-muted px-1.5 py-0.5">?unlocked=true</code>

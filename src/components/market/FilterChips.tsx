@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { TrackedLink } from "@/components/analytics/TrackedLink";
 import {
   QUADRANT_SEGMENTS,
   segmentLabel,
@@ -8,11 +8,13 @@ import {
 export function FilterChips({
   stateSlug,
   citySlug,
+  marketId,
   active,
   countsBySegment,
 }: {
   stateSlug: string;
   citySlug: string;
+  marketId: string;
   active: QuadrantSegment | null;
   countsBySegment: Partial<Record<QuadrantSegment, number>>;
 }) {
@@ -27,18 +29,21 @@ export function FilterChips({
     href: string;
     count: number;
     isActive: boolean;
+    segment: QuadrantSegment | "all";
   }> = [
     {
       label: "All operators",
       href: baseHref,
       count: totalCount,
       isActive: active === null,
+      segment: "all",
     },
     ...QUADRANT_SEGMENTS.map((seg) => ({
       label: segmentLabel(seg),
       href: `${baseHref}/${seg}`,
       count: countsBySegment[seg] ?? 0,
       isActive: active === seg,
+      segment: seg,
     })),
   ];
 
@@ -48,8 +53,10 @@ export function FilterChips({
       className="flex flex-wrap items-center gap-2"
     >
       {chips.map((chip) => (
-        <Link
+        <TrackedLink
           key={chip.label}
+          event="quadrant_filter_click"
+          properties={{ marketId, segment: chip.segment }}
           href={chip.href}
           aria-current={chip.isActive ? "page" : undefined}
           className={
@@ -72,7 +79,7 @@ export function FilterChips({
           >
             {chip.count}
           </span>
-        </Link>
+        </TrackedLink>
       ))}
     </nav>
   );

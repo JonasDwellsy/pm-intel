@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
 import { ClaimForm } from "@/components/claim/ClaimForm";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
 
 type RouteParams = { pmSlug: string };
 
@@ -48,6 +49,10 @@ export default async function ClaimPage({
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
+      <TrackEvent
+        event="claim_landing_view"
+        properties={{ pmSlug: pm.slug, claimed: pm.claimed }}
+      />
       <header className="mb-8 border-b border-border pb-6">
         <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
           Claim profile

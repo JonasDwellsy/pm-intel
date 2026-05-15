@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { LeadForm } from "@/components/leads/LeadForm";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
 
 export const metadata: Metadata = {
   title: "Get matched to a property manager",
@@ -16,6 +17,7 @@ export default async function GetMatchedPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
+      <TrackEvent event="lead_form_view" />
       <header className="mb-8 border-b border-border pb-6">
         <h1 className="text-3xl font-semibold tracking-tight">
           Get matched to a property manager

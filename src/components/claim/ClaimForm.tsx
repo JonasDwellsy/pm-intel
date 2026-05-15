@@ -15,6 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { claimSchema, type ClaimInput } from "@/lib/lead-schema";
+import { capture } from "@/lib/analytics";
 
 export function ClaimForm({ pmSlug }: { pmSlug: string }) {
   const [submitState, setSubmitState] = useState<
@@ -45,6 +46,7 @@ export function ClaimForm({ pmSlug }: { pmSlug: string }) {
         return;
       }
       const { claimId } = await res.json();
+      capture("claim_form_submit_success", { pmSlug, claimId });
       setSubmitState({ kind: "submitted", claimId });
       form.reset({ pmSlug, contactName: "", contactEmail: "" });
     } catch {

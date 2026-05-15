@@ -1,5 +1,6 @@
 import type { ScorecardData } from "@/lib/types";
 
+import { TrackEvent } from "@/components/analytics/TrackEvent";
 import { ScorecardHeader } from "@/components/scorecard/ScorecardHeader";
 import { HeadlineMetrics } from "@/components/scorecard/HeadlineMetrics";
 import { PaywallCard } from "@/components/scorecard/PaywallCard";
@@ -24,6 +25,14 @@ export function ScorecardBody({
 }) {
   return (
     <div className="mx-auto max-w-7xl px-6 py-10">
+      <TrackEvent
+        event={isUnlocked ? "scorecard_full_view" : "scorecard_preview_view"}
+        properties={{
+          pmSlug: scorecard.pm.slug,
+          marketId: scorecard.market.id,
+          rank: scorecard.rank.overall,
+        }}
+      />
       <div className="grid gap-10 lg:grid-cols-[1fr_220px]">
         <main className="space-y-8">
           <ScorecardHeader scorecard={scorecard} />

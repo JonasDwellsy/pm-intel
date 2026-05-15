@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
+import { DownloadPdfLink } from "@/components/analytics/DownloadPdfLink";
 
 type SectionLink = { id: string; label: string };
 
@@ -54,14 +54,9 @@ export function ScorecardSidebar({
         </div>
         {isUnlocked && (
           <div className="border-t border-border pt-4">
-            <a
-              href={`/api/pms/${pmSlug}/pdf?user=guest`}
-              className={buttonVariants({ variant: "outline", className: "w-full" })}
-            >
-              Download PDF
-            </a>
+            <DownloadPdfLink pmSlug={pmSlug} />
             <p className="mt-2 text-xs text-muted-foreground">
-              PDF export wires in Session 6.
+              Watermarked with your email + date.
             </p>
           </div>
         )}

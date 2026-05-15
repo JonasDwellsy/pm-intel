@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { Badge } from "@/components/ui/badge";
 import { fmtDays, fmtInt } from "@/lib/format";
 import type { PMListItem as PMListItemData } from "@/lib/types";
@@ -20,9 +20,18 @@ export function PMListItem({
       </div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={href} className="text-base font-medium hover:underline">
+          <TrackedLink
+            event="pm_card_click"
+            properties={{
+              pmSlug: pm.slug,
+              rank: pm.rankOverall,
+              source: "market_list",
+            }}
+            href={href}
+            className="text-base font-medium hover:underline"
+          >
             {pm.name}
-          </Link>
+          </TrackedLink>
           <Badge variant="secondary">{pm.quadrant}</Badge>
           {pm.hybrid && <Badge variant="outline">Hybrid</Badge>}
           {pm.claimed && <Badge variant="outline">Claimed</Badge>}

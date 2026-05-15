@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +8,7 @@ import {
   PROPERTY_TYPE_LABELS,
   type PropertyType,
 } from "@/lib/lead-schema";
+import { TrackedLink } from "@/components/analytics/TrackedLink";
 
 export const metadata: Metadata = {
   title: "Your matched property managers",
@@ -113,9 +113,18 @@ export default async function ConfirmationPage({
                       Match #{i + 1}
                     </span>
                     <h2 className="text-lg font-medium">
-                      <Link href={href} className="hover:underline">
+                      <TrackedLink
+                        event="match_card_click"
+                        properties={{
+                          pmSlug: pm.slug,
+                          rank: i + 1,
+                          leadId: lead.id,
+                        }}
+                        href={href}
+                        className="hover:underline"
+                      >
                         {pm.name}
-                      </Link>
+                      </TrackedLink>
                     </h2>
                   </div>
                   <span className="text-sm text-muted-foreground tabular-nums">
@@ -132,12 +141,19 @@ export default async function ConfirmationPage({
                   {fmtDays(pm.domT12)} DOM T12 · {pm.primaryCity}
                 </p>
                 <div className="mt-4">
-                  <Link
+                  <TrackedLink
+                    event="match_card_click"
+                    properties={{
+                      pmSlug: pm.slug,
+                      rank: i + 1,
+                      leadId: lead.id,
+                      cta: "view_scorecard",
+                    }}
                     href={href}
                     className="text-sm font-medium text-foreground hover:underline"
                   >
                     View full scorecard →
-                  </Link>
+                  </TrackedLink>
                 </div>
               </li>
             );
