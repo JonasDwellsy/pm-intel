@@ -1,74 +1,95 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
 import { PaywallViewTracker } from "@/components/analytics/PaywallViewTracker";
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import type { ScorecardData } from "@/lib/types";
 
-const SECTIONS_IN_FULL_VIEW = [
-  "Coverage & data tier — what we observe and how complete it is",
-  "Performance — DOM by asset class, vs peer quadrant and market",
-  "Five-year time context — how this PM's leasing velocity has tracked the market",
-  "Rent trajectory — premium / discount vs comparable units, year by year",
-  "Pricing — concession rate, premium distribution",
-  "Listing quality — completeness, amenities, description depth",
-  "Coverage confidence — observed vs expected listing intensity",
-  "Tenancy retention — months held vs cohort medians",
-  "Why this quadrant — full classification rationale",
+const SECTIONS_IN_FULL_VIEW: Array<{ num: string; title: string; sub: string }> = [
+  { num: "02", title: "Coverage universe", sub: "What we observe and how complete it is" },
+  { num: "03", title: "Geographic coverage", sub: "Where the portfolio sits in the MSA" },
+  { num: "04", title: "Operating performance", sub: "DOM by asset class, vs peer quadrant and market" },
+  { num: "05", title: "Time context — DOM", sub: "Five-year leasing-velocity trajectory" },
+  { num: "06", title: "Rent trajectory", sub: "Mix-adjusted premium / discount by year" },
+  { num: "07", title: "Pricing posture", sub: "Concession use & rent distribution" },
+  { num: "08", title: "Listing quality", sub: "Completeness, amenities, description depth" },
+  { num: "09", title: "Coverage confidence", sub: "Observed vs expected listing intensity" },
+  { num: "10", title: "Tenancy retention", sub: "Months held vs cohort medians" },
+  { num: "11", title: "Why this quadrant", sub: "Full classification rationale" },
 ];
 
 export function PaywallCard({ scorecard }: { scorecard: ScorecardData }) {
   const unlockHref = `?unlocked=true`;
   return (
-    <Card id="paywall" className="border-2">
-      <CardHeader>
-        <CardTitle className="text-2xl">
-          Unlock the full scorecard for {scorecard.pm.name}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <p className="text-sm text-muted-foreground">
-          Everything below the headline metrics is paywalled. The full report
-          includes:
-        </p>
-        <ul className="space-y-2 text-sm">
-          {SECTIONS_IN_FULL_VIEW.map((line) => (
-            <li key={line} className="flex gap-2">
-              <span aria-hidden className="text-muted-foreground">·</span>
-              <span>{line}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="flex flex-wrap items-center gap-3 pt-2">
-          <TrackedLink
-            event="paywall_cta_click"
-            properties={{ pmSlug: scorecard.pm.slug, action: "unlock" }}
-            href={unlockHref}
-            className={buttonVariants({ size: "lg" })}
-          >
-            Unlock full scorecard
-          </TrackedLink>
-          <TrackedLink
-            event="paywall_cta_click"
-            properties={{ pmSlug: scorecard.pm.slug, action: "get_matched" }}
-            href="/get-matched"
-            className={buttonVariants({ variant: "outline", size: "lg" })}
-          >
-            Get matched to a PM in your market
-          </TrackedLink>
+    <section id="paywall" className="dq-section">
+      <PaywallViewTracker
+        targetId="paywall"
+        properties={{
+          pmSlug: scorecard.pm.slug,
+          marketId: scorecard.market.id,
+        }}
+      />
+      <div className="relative overflow-hidden rounded-lg border-2 border-orange/40 bg-white">
+        <div className="absolute inset-x-0 top-0 h-1 bg-orange" />
+        <div className="grid gap-10 px-8 py-10 md:grid-cols-[1fr_360px]">
+          <div>
+            <p className="dq-eyebrow" style={{ color: "#B85F22" }}>
+              Paywalled · Full scorecard
+            </p>
+            <h2 className="dq-h2 mt-2">
+              Unlock the full scorecard for {scorecard.pm.name}
+            </h2>
+            <p className="mt-3 max-w-[560px] text-[15px] text-muted-foreground">
+              Everything below the headline metrics is paywalled. The full
+              report includes ten analytical sections plus a watermarked PDF
+              export, methodology references, and shareable links.
+            </p>
+
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <TrackedLink
+                event="paywall_cta_click"
+                properties={{ pmSlug: scorecard.pm.slug, action: "unlock" }}
+                href={unlockHref}
+                className="inline-flex h-11 items-center justify-center rounded-md bg-orange px-6 text-[14px] font-semibold text-white transition-colors hover:bg-orange-700"
+              >
+                Unlock full scorecard
+              </TrackedLink>
+              <TrackedLink
+                event="paywall_cta_click"
+                properties={{ pmSlug: scorecard.pm.slug, action: "get_matched" }}
+                href="/get-matched"
+                className="inline-flex h-11 items-center justify-center rounded-md border border-navy bg-white px-6 text-[14px] font-semibold text-navy transition-colors hover:bg-navy-soft"
+              >
+                Get matched to a PM in your market
+              </TrackedLink>
+            </div>
+
+            <p className="mt-6 text-[12px] text-muted-2">
+              Local dev: paywall is toggled by{" "}
+              <code className="rounded bg-surface-soft px-1.5 py-0.5 font-mono text-[11px] text-navy">
+                ?unlocked=true
+              </code>{" "}
+              in the URL. Real auth lands in Journey 3.
+            </p>
+          </div>
+
+          <ul className="space-y-2 rounded-md bg-surface-soft p-5">
+            {SECTIONS_IN_FULL_VIEW.map((s) => (
+              <li
+                key={s.num}
+                className="grid grid-cols-[28px_minmax(0,1fr)] items-baseline gap-2 text-[13px]"
+              >
+                <span className="dq-mono text-[10px] font-medium text-muted-2">
+                  {s.num}
+                </span>
+                <span>
+                  <span className="font-semibold text-navy">{s.title}</span>
+                  <span className="block text-[12px] text-muted-foreground">
+                    {s.sub}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
-        <PaywallViewTracker
-          targetId="paywall"
-          properties={{
-            pmSlug: scorecard.pm.slug,
-            marketId: scorecard.market.id,
-          }}
-        />
-        <p className="text-xs text-muted-foreground">
-          Local dev: paywall is toggled by{" "}
-          <code className="rounded bg-muted px-1.5 py-0.5">?unlocked=true</code>
-          {" "}in the URL. Real auth lands in Journey 3.
-        </p>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

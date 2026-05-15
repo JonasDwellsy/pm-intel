@@ -1,196 +1,283 @@
-"use client";
-
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ErrorBar,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { fmtNumber, fmtInt, fmtPct } from "@/lib/format";
+import { SectionHead } from "./SectionHead";
+import { fmtInt, fmtNumber } from "@/lib/format";
 import type { ScorecardData } from "@/lib/types";
+
+type TenancyRow = {
+  asset: "Apartments" | "Houses";
+  op: number | null;
+  p25: number | null;
+  p50: number | null;
+  p75: number | null;
+  n_op: number;
+  n_cohort: number;
+  position: string | null;
+  pctMedian: number | null;
+};
+
+// Layered range bar:
+//  back  — grey full-range context bar (4mo to 32mo)
+//  middle — green cohort p25–p75 band
+//  fore   — green p50 vertical tick + label
+//  pin    — rose operator marker (vertical line + dot + bold label)
+function TenancyRangeBar({ row }: { row: TenancyRow }) {
+  const W = 720;
+  const H = 130;
+  const padL = 24;
+  const padR = 36;
+  const minM = 4;
+  const maxM = 32;
+  const xOf = (m: number) =>
+    padL + ((Math.max(minM, Math.min(maxM, m)) - minM) / (maxM - minM)) * (W - padL - padR);
+  const trackY = 60;
+  const trackH = 24;
+
+  const hasCohort = row.p25 !== null && row.p75 !== null;
+  const hasOp = row.op !== null;
+  const cohortX0 = hasCohort ? xOf(row.p25!) : 0;
+  const cohortX1 = hasCohort ? xOf(row.p75!) : 0;
+  const p50X = row.p50 !== null ? xOf(row.p50) : null;
+  const opX = hasOp ? xOf(row.op!) : null;
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="block h-auto w-full"
+      aria-label={`${row.asset} tenancy range`}
+    >
+      {/* Full-range context bar */}
+      <rect
+        x={padL}
+        y={trackY}
+        width={W - padL - padR}
+        height={trackH}
+        rx={3}
+        fill="#EEF2F6"
+        stroke="#E6EAF0"
+      />
+      {/* Cohort p25–p75 band */}
+      {hasCohort && (
+        <rect
+          x={cohortX0}
+          y={trackY}
+          width={Math.max(2, cohortX1 - cohortX0)}
+          height={trackH}
+          fill="#D9E7CE"
+          stroke="#A8C792"
+        />
+      )}
+      {/* p50 tick + label */}
+      {p50X !== null && (
+        <g>
+          <line
+            x1={p50X}
+            x2={p50X}
+            y1={trackY - 4}
+            y2={trackY + trackH + 4}
+            stroke="#3E7C3E"
+            strokeWidth={2}
+          />
+          <text
+            x={p50X}
+            y={trackY - 8}
+            textAnchor="middle"
+            fill="#3E7C3E"
+            fontSize="11"
+            fontWeight={600}
+          >
+            p50 {row.p50!.toFixed(1)}
+          </text>
+        </g>
+      )}
+      {/* Operator marker */}
+      {opX !== null && (
+        <g>
+          <line
+            x1={opX}
+            x2={opX}
+            y1={trackY - 18}
+            y2={trackY + trackH + 12}
+            stroke="#C97B70"
+            strokeWidth={2.5}
+          />
+          <circle
+            cx={opX}
+            cy={trackY + trackH / 2}
+            r={7}
+            fill="#C97B70"
+            stroke="#FFFFFF"
+            strokeWidth={2}
+          />
+          <text
+            x={opX}
+            y={trackY + trackH + 26}
+            textAnchor="middle"
+            fill="#843225"
+            fontSize="12"
+            fontWeight={700}
+          >
+            {row.op!.toFixed(1)} mo
+          </text>
+        </g>
+      )}
+      {/* Axis ticks */}
+      {[4, 12, 20, 28, 32].map((t) => (
+        <g key={t}>
+          <line
+            x1={xOf(t)}
+            x2={xOf(t)}
+            y1={trackY + trackH}
+            y2={trackY + trackH + 4}
+            stroke="#8A92A2"
+            strokeWidth={1}
+          />
+          <text
+            x={xOf(t)}
+            y={trackY + trackH + 16}
+            textAnchor="middle"
+            fill="#8A92A2"
+            fontSize="10"
+            fontFamily='var(--font-mono), monospace'
+          >
+            {t}mo
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function TenancyAssetCard({ row }: { row: TenancyRow }) {
+  return (
+    <div className="rounded-lg border border-grid bg-white p-6">
+      <div className="grid grid-cols-1 items-center gap-4 md:grid-cols-[160px_minmax(0,1fr)_180px]">
+        <div>
+          <p className="text-[15px] font-bold text-navy">{row.asset}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            n = {fmtInt(row.n_op)} operator · {fmtInt(row.n_cohort)} cohort
+          </p>
+        </div>
+        <div className="min-w-0">
+          <TenancyRangeBar row={row} />
+        </div>
+        <div className="text-right">
+          {row.position ? (
+            <p className="text-[12px] font-semibold text-rose">{row.position}</p>
+          ) : (
+            <p className="text-[12px] text-muted-foreground">not assessed</p>
+          )}
+          {row.pctMedian !== null && (
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              {fmtInt(row.pctMedian)}% of cohort median
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function TenancySection({ scorecard }: { scorecard: ScorecardData }) {
   const t = scorecard.tenancy;
-
-  type Row = {
-    asset: string;
-    gap: number;
-    p25: number;
-    p50: number;
-    p75: number;
-    n: number;
-    position: string | null;
-    pctMedian: number | null;
-    errLow: number;
-    errHigh: number;
-  };
-
-  const rows: Row[] = [];
-  if (t.aptGap !== null && t.aptP25 !== null && t.aptP50 !== null && t.aptP75 !== null) {
-    rows.push({
+  const rows: TenancyRow[] = [
+    {
       asset: "Apartments",
-      gap: t.aptGap,
+      op: t.aptGap,
       p25: t.aptP25,
       p50: t.aptP50,
       p75: t.aptP75,
-      n: t.aptN,
+      n_op: t.aptN,
+      n_cohort: t.aptCohortN,
       position: t.aptPosition,
       pctMedian: t.aptPctMedian,
-      errLow: t.aptP50 - t.aptP25,
-      errHigh: t.aptP75 - t.aptP50,
-    });
-  }
-  if (t.sfrGap !== null && t.sfrP25 !== null && t.sfrP50 !== null && t.sfrP75 !== null) {
-    rows.push({
+    },
+    {
       asset: "Houses",
-      gap: t.sfrGap,
+      op: t.sfrGap,
       p25: t.sfrP25,
       p50: t.sfrP50,
       p75: t.sfrP75,
-      n: t.sfrN,
+      n_op: t.sfrN,
+      n_cohort: t.sfrCohortN,
       position: t.sfrPosition,
       pctMedian: t.sfrPctMedian,
-      errLow: t.sfrP50 - t.sfrP25,
-      errHigh: t.sfrP75 - t.sfrP50,
-    });
-  }
-
-  // Chart data places the cohort median bar, with error bars covering p25→p75,
-  // and a separate "PM" marker bar in front.
-  const chartData = rows.map((r) => ({
-    asset: r.asset,
-    cohort: r.p50,
-    pm: r.gap,
-    error: [r.errLow, r.errHigh] as [number, number],
-  }));
+    },
+  ];
 
   return (
-    <section id="tenancy" className="scroll-mt-20">
-      <Card>
-        <CardHeader>
-          <CardTitle>Tenancy retention</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <p className="text-sm text-muted-foreground">
-            Median months units stay leased before turning over. Cohort range
-            shows the p25–p75 of comparable operators; this PM's value is plotted
-            alongside.
-          </p>
+    <section id="tenancy" className="dq-section">
+      <SectionHead
+        num="10"
+        title="Tenancy position vs. MSA cohort"
+        lede={`How long tenants stay before turning over. Cohort range shows the p25–p75 of comparable operators; ${scorecard.pm.name}'s median is plotted alongside.`}
+      />
 
-          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Total units
-              </p>
-              <p className="mt-1 text-xl font-semibold tabular-nums">
-                {fmtInt(t.totalUnits)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Multi-episode units
-              </p>
-              <p className="mt-1 text-xl font-semibold tabular-nums">
-                {fmtInt(t.multiEpisodeUnits)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Multi-episode share
-              </p>
-              <p className="mt-1 text-xl font-semibold tabular-nums">
-                {fmtPct(t.multiEpisodePct, 0)}
-              </p>
-            </div>
-          </div>
+      <div className="flex flex-col gap-3">
+        {rows.map((row) => (
+          <TenancyAssetCard key={row.asset} row={row} />
+        ))}
+      </div>
 
-          {chartData.length > 0 ? (
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={chartData}
-                  margin={{ left: 8, right: 32, top: 8, bottom: 8 }}
-                >
-                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-                  <XAxis dataKey="asset" tick={{ fontSize: 12 }} />
-                  <YAxis
-                    tick={{ fontSize: 12 }}
-                    label={{
-                      value: "Months held",
-                      angle: -90,
-                      position: "insideLeft",
-                      style: { fontSize: 11, fill: "#64748b" },
-                    }}
-                  />
-                  <Tooltip
-                    formatter={(v) =>
-                      typeof v === "number" ? `${v.toFixed(1)} mo` : String(v ?? "")
-                    }
-                  />
-                  <Bar dataKey="cohort" name="Cohort median" fill="#cbd5e1">
-                    <ErrorBar
-                      dataKey="error"
-                      width={6}
-                      strokeWidth={2}
-                      stroke="#475569"
-                    />
-                  </Bar>
-                  <Bar dataKey="pm" name="This PM" fill="#0f172a">
-                    {chartData.map((d) => (
-                      <Cell
-                        key={d.asset}
-                        fill={d.pm >= d.cohort ? "#15803d" : "#b91c1c"}
-                      />
-                    ))}
-                    <LabelList
-                      dataKey="pm"
-                      position="top"
-                      formatter={(v) =>
-                        typeof v === "number" ? `${v.toFixed(1)}mo` : String(v ?? "")
-                      }
-                      style={{ fontSize: 11, fill: "#0f172a" }}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No tenancy data available for this asset mix.
-            </p>
-          )}
-
-          <div className="grid gap-3 md:grid-cols-2">
-            {rows.map((r) => (
-              <div
-                key={r.asset}
-                className="rounded-md border border-border bg-muted/30 p-3 text-sm"
-              >
-                <div className="font-medium">{r.asset}</div>
-                <div className="mt-1 text-muted-foreground">
-                  PM {fmtNumber(r.gap, 1)} mo · cohort p25–p75{" "}
-                  {fmtNumber(r.p25, 1)}–{fmtNumber(r.p75, 1)} mo · n={fmtInt(r.n)}
-                </div>
-                {r.position && (
-                  <div className="mt-1 text-xs">
-                    Position: <span className="font-medium">{r.position}</span>
-                    {r.pctMedian !== null && (
-                      <> · {fmtInt(r.pctMedian)}% of cohort median</>
-                    )}
-                  </div>
+      <table className="dq-table mt-7">
+        <thead>
+          <tr>
+            <th>Asset class</th>
+            <th className="num">Operator</th>
+            <th className="num">Cohort typical range</th>
+            <th>Position</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.asset}>
+              <td>{row.asset}</td>
+              <td className="num">
+                {row.op !== null ? (
+                  <span className="dq-val-soft">{row.op.toFixed(1)} mo</span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
                 )}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              </td>
+              <td className="num">
+                {row.p25 !== null && row.p75 !== null ? (
+                  <>
+                    {fmtNumber(row.p25, 1)} – {fmtNumber(row.p75, 1)} mo{" "}
+                    <span className="text-muted-foreground">(p25–p75)</span>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">insufficient n</span>
+                )}
+              </td>
+              <td>
+                {row.position ? (
+                  <>
+                    <span className="dq-pill dq-pill-rose">{row.position}</span>{" "}
+                    {row.pctMedian !== null && (
+                      <span className="text-muted-foreground">
+                        · {fmtInt(row.pctMedian)}% of cohort median
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">not assessed</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <aside className="dq-callout-important">
+        <p className="dq-callout-tag">Important — read this caveat</p>
+        <p>
+          Tenancy is a <strong>comparative</strong> metric, not an absolute one.
+          A median sitting just below cohort p25 is not, on its own, a quality
+          signal — high-turnover sub-markets and large-floorplate buildings
+          routinely sit there. Use this row to ask whether{" "}
+          {scorecard.pm.name}'s tenant base is structurally shorter-tenured
+          than peers, then triangulate with renewal-rate and rent-growth data
+          when available.
+        </p>
+      </aside>
     </section>
   );
 }

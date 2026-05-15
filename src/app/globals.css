@@ -4,117 +4,102 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================
+   Dwellsy IQ Brand Tokens — Tailwind v4 @theme bindings.
+   Color names map to brand palette; shadcn semantic tokens
+   route to the same palette via :root vars below.
+   ============================================================ */
 @theme inline {
+  /* shadcn semantic tokens (read from :root) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Dwellsy IQ brand palette */
+  --color-navy: #0f1f3f;
+  --color-navy-700: #1a2d54;
+  --color-navy-soft: #e4e8ef;
+  --color-teal: #1b6e8c;
+  --color-teal-700: #155772;
+  --color-teal-soft: #e1eef3;
+  --color-orange: #d97834;
+  --color-orange-700: #b85f22;
+  --color-orange-soft: #fbeedf;
+  --color-good: #3e7c3e;
+  --color-good-soft: #e4eedd;
+  --color-bad: #a63a2a;
+  --color-rose: #c97b70;
+  --color-rose-soft: #f5e3df;
+  --color-grid: #d5dbe3;
+  --color-grid-soft: #e6eaf0;
+  --color-surface-soft: #f2f5f8;
+  --color-muted-2: #8a92a2;
+
+  /* Typography */
+  --font-sans: var(--font-inter), Arial, Helvetica, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-heading: var(--font-inter), Arial, Helvetica, system-ui, sans-serif;
+
+  /* Letter spacing */
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+  --tracking-snug: -0.018em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+  --tracking-eyebrow: 0.14em;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(15 31 63 / 0.05);
+  --shadow-tile-hover: 0 4px 18px rgb(15 31 63 / 0.06);
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+  /* Surfaces + text */
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Brand semantic */
+  --primary: #0f1f3f;
+  --primary-foreground: #ffffff;
+  --secondary: #1b6e8c;
+  --secondary-foreground: #ffffff;
+  --muted: #f2f5f8;
+  --muted-foreground: #5c6573;
+  --accent: #d97834;
+  --accent-foreground: #ffffff;
+  --destructive: #a63a2a;
+  --destructive-foreground: #ffffff;
+  --border: #d5dbe3;
+  --input: #d5dbe3;
+  --ring: #1b6e8c;
+  --radius: 0.5rem;
 }
 
 @layer base {
@@ -123,8 +108,353 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    font-feature-settings: "tnum", "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   html {
-    @apply font-sans;
+    font-family: var(--font-sans);
   }
+}
+
+/* ============================================================
+   Dwellsy IQ utility classes used across the scorecard.
+   ============================================================ */
+
+/* Eyebrows: small caps labels */
+.dq-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-teal);
+}
+.dq-eyebrow-muted {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-muted-foreground);
+}
+
+/* Headings */
+.dq-h1 {
+  font-size: 38px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  color: var(--color-navy);
+  margin: 0;
+}
+.dq-h2 {
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  color: var(--color-navy);
+  margin: 0;
+}
+
+/* Section rhythm */
+.dq-section {
+  scroll-margin-top: 88px;
+}
+.dq-section-rule {
+  width: 36px;
+  height: 2px;
+  background: var(--color-teal);
+  margin-top: 12px;
+}
+.dq-section-lede {
+  margin-top: 16px;
+  max-width: 720px;
+  font-size: 15px;
+  color: var(--color-muted-foreground);
+  text-wrap: pretty;
+}
+
+/* Table */
+.dq-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: #fff;
+  border: 1px solid var(--color-grid);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.dq-table thead th {
+  background: var(--color-navy);
+  color: #fff;
+  font-weight: 600;
+  text-align: left;
+  padding: 11px 16px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--color-navy);
+}
+.dq-table th.num,
+.dq-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.dq-table tbody td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--color-grid-soft);
+  color: var(--color-foreground);
+}
+.dq-table tbody tr:nth-child(even) td {
+  background: var(--color-surface-soft);
+}
+.dq-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.dq-table .tr-total td {
+  background: #ffffff !important;
+  border-top: 1px solid var(--color-grid);
+  font-weight: 600;
+}
+.dq-table .row-group td {
+  background: #eef2f6 !important;
+  color: var(--color-teal-700) !important;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  padding: 8px 16px !important;
+  border-bottom: 1px solid var(--color-grid) !important;
+}
+
+/* Value colorings */
+.dq-val-good {
+  color: var(--color-good);
+  font-weight: 600;
+}
+.dq-val-bad {
+  color: var(--color-bad);
+  font-weight: 600;
+}
+.dq-val-soft {
+  color: var(--color-rose);
+  font-weight: 600;
+}
+
+/* Pills */
+.dq-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.dq-pill-green {
+  background: var(--color-good-soft);
+  color: var(--color-good);
+  border: 1px solid #c7daba;
+}
+.dq-pill-rose {
+  background: var(--color-rose-soft);
+  color: #843225;
+  border: 1px solid #e7cbc4;
+}
+.dq-pill-navy-soft {
+  background: var(--color-navy-soft);
+  color: var(--color-navy);
+  border: 1px solid #c6cfde;
+}
+.dq-pill-orange {
+  background: var(--color-orange-soft);
+  color: var(--color-orange-700);
+  border: 1px solid #f3d7b3;
+}
+
+/* Chart card */
+.dq-chart-card {
+  background: #fff;
+  border: 1px solid var(--color-grid);
+  border-radius: 8px;
+  padding: 28px 28px 24px;
+}
+.dq-chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-grid-soft);
+  flex-wrap: wrap;
+}
+.dq-chart-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-navy);
+}
+.dq-chart-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--color-muted-foreground);
+}
+.dq-chart-sub-axis {
+  margin: 28px 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-teal);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.dq-chart-legend {
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.dq-legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.dq-legend-line {
+  display: inline-block;
+  width: 18px;
+  height: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.dq-legend-line-dashed {
+  background: repeating-linear-gradient(
+    to right,
+    currentColor 0 4px,
+    transparent 4px 7px
+  );
+  height: 2px;
+}
+.dq-explainer {
+  margin: 20px 0 0;
+  padding: 14px 18px;
+  background: var(--color-surface-soft);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-muted-foreground);
+  line-height: 1.6;
+}
+.dq-explainer strong {
+  color: var(--color-navy);
+}
+
+/* Headline tile */
+.dq-tile {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--color-grid);
+  border-radius: 8px;
+  padding: 22px 22px 20px;
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+.dq-tile:hover {
+  box-shadow: 0 4px 18px rgb(15 31 63 / 0.06);
+  border-color: #c6cfde;
+}
+.dq-tile::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 22px;
+  right: 22px;
+  height: 2px;
+  background: var(--color-teal);
+}
+
+/* Callout */
+.dq-callout-important {
+  margin-top: 28px;
+  padding: 20px 24px;
+  border-radius: 6px;
+  border-left: 3px solid var(--color-orange);
+  background: var(--color-orange-soft);
+}
+.dq-callout-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-orange-700);
+  margin-bottom: 8px;
+}
+.dq-callout-important p {
+  margin: 0;
+  color: var(--color-navy);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+/* Rationale block */
+.dq-rationale {
+  margin-top: 28px;
+  padding: 24px 28px;
+  background: var(--color-surface-soft);
+  border-radius: 8px;
+  border: 1px solid var(--color-grid);
+}
+.dq-rationale-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-teal);
+  margin-bottom: 10px;
+}
+.dq-rationale p {
+  margin: 0;
+  color: var(--color-foreground);
+  font-size: 14.5px;
+  line-height: 1.7;
+  max-width: 780px;
+  text-wrap: pretty;
+}
+
+/* Methodology badge (header pill) */
+.dq-methodology-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+  background: var(--color-surface-soft);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-feature-settings: "tnum";
+}
+.dq-methodology-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-good);
+}
+
+/* Numeric, tabular */
+.dq-tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.dq-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum";
 }

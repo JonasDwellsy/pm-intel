@@ -1,116 +1,141 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { SectionHead } from "./SectionHead";
+import { PerformanceRankChart } from "./PerformanceRankChart";
 import { fmtDays, fmtInt } from "@/lib/format";
 import type { ScorecardData } from "@/lib/types";
-import { PerformanceRankChart } from "./PerformanceRankChart";
+
+function fasterClass(pmValue: number | null, marketValue: number | null): string {
+  if (pmValue === null || marketValue === null) return "";
+  return pmValue <= marketValue ? "dq-val-good" : "dq-val-bad";
+}
 
 export function PerformanceSection({ scorecard }: { scorecard: ScorecardData }) {
   const p = scorecard.performance;
-  return (
-    <section id="performance" className="scroll-mt-20 space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Performance</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Metric</TableHead>
-                <TableHead className="text-right">This PM</TableHead>
-                <TableHead className="text-right">Peer quadrant</TableHead>
-                <TableHead className="text-right">Market</TableHead>
-                <TableHead className="text-right">N</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">DOM T12 (all)</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtDays(p.domT12)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtDays(p.peerQuadrantDomT12)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtDays(p.marketDomT12)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {fmtInt(p.domT12N)}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">DOM lifetime</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtDays(p.domLifetime)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtDays(p.peerQuadrantDomLifetime)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtDays(p.marketDomLifetime)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  —
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">
-                  DOM T12 — houses
-                  {!p.houseEligible && (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      (insufficient N)
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtDays(p.houseDomT12)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  —
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtDays(p.marketHouseDomT12)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {fmtInt(p.houseUrusT12)}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">
-                  DOM T12 — apartments
-                  {!p.aptEligible && (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      (insufficient N)
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtDays(p.aptDomT12)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  —
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtDays(p.marketAptDomT12)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {fmtInt(p.aptUrusT12)}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+  const { rank } = scorecard;
 
-          <PerformanceRankChart scorecard={scorecard} />
-        </CardContent>
-      </Card>
+  return (
+    <section id="performance" className="dq-section">
+      <SectionHead
+        num="04"
+        title="Operating performance"
+        lede={`Ranking of ${scorecard.pm.name} against the ${rank.overallTotal} eligible cohort peers in the ${scorecard.market.fullName.split(",")[0]} MSA, by T12 median days on market.`}
+      />
+
+      <PerformanceRankChart scorecard={scorecard} />
+
+      <div className="mt-9 mb-3 text-[13px] font-bold uppercase tracking-[0.1em] text-navy">
+        Days on market — detail
+      </div>
+      <table className="dq-table">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th className="num">Operator</th>
+            <th className="num">Peer quadrant median</th>
+            <th className="num">MSA market median</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="row-group">
+            <td colSpan={4}>DOM, T12 — by asset class</td>
+          </tr>
+          <tr>
+            <td>Overall</td>
+            <td className="num">
+              <span className={fasterClass(p.domT12, p.marketDomT12)}>
+                {fmtDays(p.domT12)}
+              </span>
+            </td>
+            <td className="num">{fmtDays(p.peerQuadrantDomT12)}</td>
+            <td className="num">{fmtDays(p.marketDomT12)}</td>
+          </tr>
+          <tr>
+            <td>
+              Apartments
+              {!p.aptEligible && (
+                <span className="ml-2 text-muted-foreground">(insufficient n)</span>
+              )}
+            </td>
+            <td className="num">
+              <span className={fasterClass(p.aptDomT12, p.marketAptDomT12)}>
+                {fmtDays(p.aptDomT12)}
+              </span>
+            </td>
+            <td className="num">{fmtDays(p.peerQuadrantAptDomT12)}</td>
+            <td className="num">{fmtDays(p.marketAptDomT12)}</td>
+          </tr>
+          <tr>
+            <td>
+              Houses
+              {!p.houseEligible && (
+                <span className="ml-2 text-muted-foreground">(insufficient n)</span>
+              )}
+            </td>
+            <td className="num">
+              <span className={fasterClass(p.houseDomT12, p.marketHouseDomT12)}>
+                {fmtDays(p.houseDomT12)}
+              </span>
+            </td>
+            <td className="num">{fmtDays(p.peerQuadrantHouseDomT12)}</td>
+            <td className="num">{fmtDays(p.marketHouseDomT12)}</td>
+          </tr>
+
+          <tr className="row-group">
+            <td colSpan={4}>DOM, lifetime</td>
+          </tr>
+          <tr>
+            <td>Overall</td>
+            <td className="num">
+              <span className={fasterClass(p.domLifetime, p.marketDomLifetime)}>
+                {fmtDays(p.domLifetime)}
+              </span>
+            </td>
+            <td className="num">{fmtDays(p.peerQuadrantDomLifetime)}</td>
+            <td className="num">{fmtDays(p.marketDomLifetime)}</td>
+          </tr>
+
+          <tr className="row-group">
+            <td colSpan={4}>Ranking</td>
+          </tr>
+          <tr>
+            <td>Overall rank</td>
+            <td className="num">
+              <strong>
+                {rank.overall} / {rank.overallTotal}
+              </strong>
+            </td>
+            <td className="num">
+              <span className="text-muted-foreground">—</span>
+            </td>
+            <td className="num">
+              <span className="text-muted-foreground">—</span>
+            </td>
+          </tr>
+          <tr>
+            <td>Within-quadrant rank</td>
+            <td className="num">
+              <strong>
+                {rank.quadrant ?? "—"} / {rank.quadrantTotal}
+              </strong>
+            </td>
+            <td className="num">
+              <span className="text-muted-foreground">—</span>
+            </td>
+            <td className="num">
+              <span className="text-muted-foreground">—</span>
+            </td>
+          </tr>
+          <tr>
+            <td>T12 sample size</td>
+            <td className="num">{fmtInt(p.domT12N)} listings</td>
+            <td className="num">
+              <span className="text-muted-foreground">—</span>
+            </td>
+            <td className="num">
+              <span className="text-muted-foreground">—</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </section>
   );
 }

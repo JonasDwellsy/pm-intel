@@ -24,7 +24,7 @@ export function ScorecardBody({
   isUnlocked: boolean;
 }) {
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10">
+    <div className="mx-auto max-w-[1440px] px-6 sm:px-10">
       <TrackEvent
         event={isUnlocked ? "scorecard_full_view" : "scorecard_preview_view"}
         properties={{
@@ -33,8 +33,8 @@ export function ScorecardBody({
           rank: scorecard.rank.overall,
         }}
       />
-      <div className="grid gap-10 lg:grid-cols-[1fr_220px]">
-        <main className="space-y-8">
+      <div className="grid gap-x-16 gap-y-10 pt-10 pb-16 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <article className="min-w-0 space-y-14">
           <ScorecardHeader scorecard={scorecard} />
           <HeadlineMetrics scorecard={scorecard} />
 
@@ -54,7 +54,7 @@ export function ScorecardBody({
               <WhyThisQuadrantSection scorecard={scorecard} />
             </>
           )}
-        </main>
+        </article>
         <ScorecardSidebar isUnlocked={isUnlocked} pmSlug={scorecard.pm.slug} />
       </div>
     </div>

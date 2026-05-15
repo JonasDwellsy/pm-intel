@@ -1,27 +1,16 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { fmtNumber, fmtInt } from "@/lib/format";
+import { SectionHead } from "./SectionHead";
+import { fmtInt, fmtNumber } from "@/lib/format";
 import type { ScorecardData } from "@/lib/types";
 
-function delta(pm: number, peer: number) {
-  const diff = pm - peer;
-  if (diff === 0 || peer === 0) return null;
-  const pct = (diff / peer) * 100;
+function deltaPct(pm: number, peer: number): { text: string; tone: string } {
+  if (peer === 0) return { text: "—", tone: "" };
+  const pct = ((pm - peer) / peer) * 100;
+  if (Math.abs(pct) < 1) return { text: "at par", tone: "text-muted-foreground" };
   const sign = pct > 0 ? "+" : "";
-  const tone = pct >= 0 ? "text-emerald-700" : "text-rose-700";
-  return (
-    <span className={`ml-2 text-xs font-medium tabular-nums ${tone}`}>
-      {sign}
-      {pct.toFixed(0)}% vs peer
-    </span>
-  );
+  return {
+    text: `${sign}${pct.toFixed(0)}%`,
+    tone: pct >= 0 ? "dq-val-good" : "dq-val-bad",
+  };
 }
 
 export function ListingQualitySection({
@@ -30,66 +19,71 @@ export function ListingQualitySection({
   scorecard: ScorecardData;
 }) {
   const m = scorecard.marketing;
+  const completenessΔ = deltaPct(m.completeness, m.peerCompleteness);
+  const amenitiesΔ = deltaPct(m.amenitiesMentioned, m.peerAmenities);
+  const descLenΔ = deltaPct(m.descLen, m.peerDescLen);
+
   return (
-    <section id="listing-quality" className="scroll-mt-20">
-      <Card>
-        <CardHeader>
-          <CardTitle>Listing quality</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="mb-4 text-sm text-muted-foreground">
-            How this PM's listings stack up vs the median operator in the same
-            quadrant.
-          </p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Metric</TableHead>
-                <TableHead className="text-right">This PM</TableHead>
-                <TableHead className="text-right">Peer median</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">
-                  Completeness score (0–5)
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtNumber(m.completeness, 2)}
-                  {delta(m.completeness, m.peerCompleteness)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtNumber(m.peerCompleteness, 2)}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">
-                  Amenities mentioned (avg)
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtNumber(m.amenitiesMentioned, 1)}
-                  {delta(m.amenitiesMentioned, m.peerAmenities)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtNumber(m.peerAmenities, 1)}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">
-                  Description length (chars)
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtInt(m.descLen)}
-                  {delta(m.descLen, m.peerDescLen)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {fmtInt(m.peerDescLen)}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+    <section id="listing-quality" className="dq-section">
+      <SectionHead
+        num="08"
+        title="Listing quality"
+        lede="A coarse proxy for marketing discipline. Higher completeness and richer descriptions correlate with faster lease-up."
+      />
+
+      <table className="dq-table">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th className="num">Operator</th>
+            <th className="num">Peer quadrant median</th>
+            <th className="num">Δ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              Completeness score{" "}
+              <span className="text-muted-foreground">(0–5)</span>
+            </td>
+            <td className="num">
+              <span
+                className={
+                  m.completeness >= m.peerCompleteness ? "dq-val-good" : ""
+                }
+              >
+                {fmtNumber(m.completeness, 2)}
+              </span>
+            </td>
+            <td className="num">{fmtNumber(m.peerCompleteness, 2)}</td>
+            <td className="num">
+              <span className={completenessΔ.tone}>{completenessΔ.text}</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Amenities mentioned{" "}
+              <span className="text-muted-foreground">(avg per listing)</span>
+            </td>
+            <td className="num">{fmtNumber(m.amenitiesMentioned, 1)}</td>
+            <td className="num">{fmtNumber(m.peerAmenities, 1)}</td>
+            <td className="num">
+              <span className={amenitiesΔ.tone}>{amenitiesΔ.text}</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Description length{" "}
+              <span className="text-muted-foreground">(median chars)</span>
+            </td>
+            <td className="num">{fmtInt(m.descLen)}</td>
+            <td className="num">{fmtInt(m.peerDescLen)}</td>
+            <td className="num">
+              <span className={descLenΔ.tone}>{descLenΔ.text}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </section>
   );
 }
