@@ -105,16 +105,35 @@ type PmRowForList = {
 
 export function toPmListItem(row: PmRowForList): PMListItem {
   const sc = JSON.parse(row.scorecardData) as ScorecardData;
+  // Derive primary-city share from the citiesText prefix. The seed data uses
+  // two formats: "NN% City …" (single-city operators) or "City NN% · …"
+  // (multi-city). Try both, default to null if neither matches.
+  const leadingPctMatch = sc.geographicCoverage.citiesText.match(/^(\d{1,3})%\s+/);
+  const trailingPctMatch = sc.geographicCoverage.citiesText.match(
+    /^[A-Za-z\s.()-]+?\s+(\d{1,3})%/
+  );
+  const primaryCityShare = leadingPctMatch
+    ? Number.parseInt(leadingPctMatch[1], 10)
+    : trailingPctMatch
+      ? Number.parseInt(trailingPctMatch[1], 10)
+      : null;
   return {
     slug: row.slug,
     name: row.name,
     quadrant: row.quadrant,
     hybrid: row.hybrid,
     rankOverall: row.rankOverall,
+    rankOverallTotal: sc.rank.overallTotal ?? null,
     rankQuadrant: row.rankQuadrant,
+    rankQuadrantTotal: sc.rank.quadrantTotal ?? null,
     domT12: sc.performance.domT12,
     totalObservedUnits: sc.coverage.totalObservedUnits,
     primaryCity: sc.market.name,
+    primaryCityShare,
     claimed: row.claimed,
+    rentVsComp: sc.pricing?.t12MedianPremium ?? null,
+    concessionRate: sc.pricing?.t12ConcessionRate ?? null,
+    accentColor: sc.pm.accentColor ?? null,
+    coverageMapPoints: sc.geographicCoverage.coverageMapPoints ?? [],
   };
 }

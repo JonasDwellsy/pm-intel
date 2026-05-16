@@ -9,7 +9,13 @@ import {
   type QuadrantSegment,
 } from "@/lib/slugify";
 import { toPmListItem } from "@/lib/slugify";
-import type { MarketSummary, PMListItem } from "@/lib/types";
+import type { MarketSummary, PMListItem, ScorecardData } from "@/lib/types";
+
+export type MarketMapData = {
+  mapCenter?: { lat: number; lon: number };
+  mapBounds?: { north: number; south: number; east: number; west: number };
+  msaBackdropPoints: Array<{ lat: number; lon: number }>;
+};
 
 export type LoadedMarket = {
   market: MarketSummary;
@@ -22,6 +28,7 @@ export type LoadedMarket = {
   state: string; // 2-letter
   stateSlug: string;
   citySlug: string;
+  mapData: MarketMapData;
 };
 
 const PM_SELECT = {
@@ -95,6 +102,19 @@ export async function loadMarketView({
   const dataAsOf =
     marketRow.pms[0]?.dataAsOf.toISOString().split("T")[0] ?? "";
 
+  // Map data is denormalized into every PM's scorecardData blob; grab from the
+  // first available PM. (Backdrop points are identical across PMs in the same
+  // market, so this is cheap and avoids a separate query.)
+  const sampleScorecard = marketRow.pms[0]
+    ? (JSON.parse(marketRow.pms[0].scorecardData) as ScorecardData)
+    : null;
+  const mapData: MarketMapData = {
+    mapCenter: sampleScorecard?.geographicCoverage.mapCenter,
+    mapBounds: sampleScorecard?.geographicCoverage.mapBounds,
+    msaBackdropPoints:
+      sampleScorecard?.geographicCoverage.msaBackdropPoints ?? [],
+  };
+
   return {
     market,
     methodologyVersion,
@@ -106,6 +126,7 @@ export async function loadMarketView({
     state: stateCode,
     stateSlug: stateUrlSegment,
     citySlug: cityUrlSegment,
+    mapData,
   };
 }
 

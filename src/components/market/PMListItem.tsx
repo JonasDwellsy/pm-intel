@@ -1,7 +1,48 @@
 import { TrackedLink } from "@/components/analytics/TrackedLink";
-import { Badge } from "@/components/ui/badge";
 import { fmtDays, fmtInt } from "@/lib/format";
+import { quadrantColor } from "@/lib/quadrant-colors";
 import type { PMListItem as PMListItemData } from "@/lib/types";
+
+function concessionLabel(rate: number | null): string {
+  if (rate === null) return "—";
+  if (rate < 5) return "Rarely";
+  if (rate < 15) return "Occasional";
+  return "Frequent";
+}
+
+function fmtSignedPct(n: number | null): {
+  text: string;
+  tone: "good" | "bad" | "flat";
+} {
+  if (n === null) return { text: "—", tone: "flat" };
+  const minus = "−"; // U+2212 minus sign — never a hyphen
+  if (n > 0)
+    return { text: `+${n.toFixed(1)}%`, tone: "good" };
+  if (n < 0)
+    return { text: `${minus}${Math.abs(n).toFixed(1)}%`, tone: "bad" };
+  return { text: "0.0%", tone: "flat" };
+}
+
+function MiniMetric({
+  label,
+  value,
+  className = "",
+  style,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div>
+      <p className="dq-eyebrow-muted mb-1.5 text-[10.5px]">{label}</p>
+      <p className={"text-[18px] font-medium leading-none " + className} style={style}>
+        {value}
+      </p>
+    </div>
+  );
+}
 
 export function PMListItem({
   pm,
@@ -13,42 +54,102 @@ export function PMListItem({
   citySlug: string;
 }) {
   const href = `/property-managers/${stateSlug}/${citySlug}/${pm.slug}`;
+  const color = quadrantColor(pm.quadrant);
+  const rent = fmtSignedPct(pm.rentVsComp);
+  const concession = concessionLabel(pm.concessionRate);
+  const cityShare = pm.primaryCityShare;
+
+  const rentToneClass =
+    rent.tone === "good"
+      ? "text-good"
+      : rent.tone === "bad"
+        ? "text-orange"
+        : "text-navy";
+
   return (
-    <li className="grid grid-cols-[40px_1fr_auto] items-center gap-4 p-4 hover:bg-muted/40">
-      <div className="text-sm font-semibold text-muted-foreground tabular-nums">
-        #{pm.rankOverall ?? "—"}
-      </div>
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <TrackedLink
-            event="pm_card_click"
-            properties={{
-              pmSlug: pm.slug,
-              rank: pm.rankOverall,
-              source: "market_list",
-            }}
-            href={href}
-            className="text-base font-medium hover:underline"
-          >
-            {pm.name}
-          </TrackedLink>
-          <Badge variant="secondary">{pm.quadrant}</Badge>
-          {pm.hybrid && <Badge variant="outline">Hybrid</Badge>}
-          {pm.claimed && <Badge variant="outline">Claimed</Badge>}
+    <li className="list-none">
+      <TrackedLink
+        event="pm_card_click"
+        properties={{
+          pmSlug: pm.slug,
+          rank: pm.rankOverall,
+          source: "market_list",
+        }}
+        href={href}
+        className="block rounded-lg border border-grid bg-white p-6 px-7 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgb(15_31_63_/_0.18),_0_2px_6px_rgb(15_31_63_/_0.06)]"
+      >
+        <div className="grid items-center gap-8 md:grid-cols-[1.35fr_1.1fr_auto]">
+          {/* Left: identity */}
+          <div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="text-[22px] font-semibold leading-tight text-navy tracking-[-0.012em]">
+                {pm.name}
+              </span>
+              <span
+                className="dq-badge inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-[0.02em]"
+                style={{ color: color.fg, backgroundColor: color.soft }}
+              >
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: color.fg }}
+                />
+                {color.label}
+              </span>
+              {pm.rankQuadrant !== null && pm.rankQuadrantTotal !== null && (
+                <span className="dq-mono inline-flex h-[22px] items-center gap-1 rounded-full border border-grid bg-white px-2.5 text-[11px] font-medium text-muted-foreground">
+                  Rank {pm.rankQuadrant} of {pm.rankQuadrantTotal}
+                </span>
+              )}
+              {pm.claimed && (
+                <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.04em] text-good">
+                  <span
+                    className="h-[7px] w-[7px] rounded-full"
+                    style={{ backgroundColor: color.fg ? "#2E8B57" : "#2E8B57" }}
+                  />
+                  Claimed profile
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-[12.5px] text-muted-foreground">
+              {cityShare !== null ? `${cityShare}% ` : ""}
+              {pm.primaryCity}
+              <span className="mx-1.5 text-muted-2">·</span>
+              <span className="dq-mono font-medium text-navy/90">
+                {fmtInt(pm.totalObservedUnits)}
+              </span>{" "}
+              units observed
+            </p>
+          </div>
+
+          {/* Middle: mini-metrics */}
+          <div className="grid grid-cols-3 gap-5">
+            <MiniMetric
+              label="DOM (T12)"
+              value={fmtDays(pm.domT12)}
+              className="dq-mono"
+              style={{ color: color.fg }}
+            />
+            <MiniMetric
+              label="Rent vs comp"
+              value={rent.text}
+              className={"dq-mono " + rentToneClass}
+            />
+            <div>
+              <p className="dq-eyebrow-muted mb-1.5 text-[10.5px]">
+                Concession
+              </p>
+              <p className="text-[15px] font-medium leading-none text-navy/80">
+                {concession}
+              </p>
+            </div>
+          </div>
+
+          {/* Right: CTA */}
+          <div className="text-right text-[14px] font-semibold text-navy">
+            View scorecard <span className="text-teal">→</span>
+          </div>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {pm.primaryCity} · {fmtInt(pm.totalObservedUnits)} units observed
-          {pm.rankQuadrant !== null && (
-            <> · #{pm.rankQuadrant} in quadrant</>
-          )}
-        </p>
-      </div>
-      <div className="text-right">
-        <div className="text-sm font-medium tabular-nums">
-          {fmtDays(pm.domT12)}
-        </div>
-        <div className="text-xs text-muted-foreground">DOM T12</div>
-      </div>
+      </TrackedLink>
     </li>
   );
 }

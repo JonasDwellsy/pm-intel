@@ -1,9 +1,53 @@
+import Link from "next/link";
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import {
   QUADRANT_SEGMENTS,
   segmentLabel,
   type QuadrantSegment,
 } from "@/lib/slugify";
+
+type Chip = {
+  label: string;
+  href: string;
+  count: number;
+  isActive: boolean;
+  segment: QuadrantSegment | "all";
+};
+
+function ChipBody({
+  chip,
+  zero,
+}: {
+  chip: Chip;
+  zero: boolean;
+}) {
+  return (
+    <span
+      className={
+        "inline-flex h-8 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors duration-[140ms] " +
+        (chip.isActive
+          ? "border border-navy bg-navy text-white"
+          : zero
+            ? "border border-grid-soft bg-white text-muted-foreground"
+            : "border border-grid bg-white text-navy hover:border-navy")
+      }
+    >
+      <span>{chip.label}</span>
+      <span
+        className={
+          "dq-mono rounded-full px-2 py-[2px] text-[11px] leading-none " +
+          (chip.isActive
+            ? "bg-white/15 text-white/85"
+            : zero
+              ? "bg-surface-soft text-muted-2"
+              : "bg-surface-soft text-muted-foreground")
+        }
+      >
+        {chip.count}
+      </span>
+    </span>
+  );
+}
 
 export function FilterChips({
   stateSlug,
@@ -24,13 +68,7 @@ export function FilterChips({
     0
   );
 
-  const chips: Array<{
-    label: string;
-    href: string;
-    count: number;
-    isActive: boolean;
-    segment: QuadrantSegment | "all";
-  }> = [
+  const chips: Chip[] = [
     {
       label: "All operators",
       href: baseHref,
@@ -43,7 +81,7 @@ export function FilterChips({
       href: `${baseHref}/${seg}`,
       count: countsBySegment[seg] ?? 0,
       isActive: active === seg,
-      segment: seg,
+      segment: seg as QuadrantSegment | "all",
     })),
   ];
 
@@ -52,35 +90,45 @@ export function FilterChips({
       aria-label="Filter by operator type"
       className="flex flex-wrap items-center gap-2"
     >
-      {chips.map((chip) => (
-        <TrackedLink
-          key={chip.label}
-          event="quadrant_filter_click"
-          properties={{ marketId, segment: chip.segment }}
-          href={chip.href}
-          aria-current={chip.isActive ? "page" : undefined}
-          className={
-            "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors " +
-            (chip.isActive
-              ? "border-foreground bg-foreground text-background"
-              : chip.count === 0
-                ? "border-border bg-muted/30 text-muted-foreground hover:bg-muted"
-                : "border-border bg-card text-foreground hover:bg-muted")
-          }
-        >
-          <span>{chip.label}</span>
-          <span
-            className={
-              "rounded-full px-1.5 py-0.5 text-xs tabular-nums " +
-              (chip.isActive
-                ? "bg-background/15 text-background"
-                : "bg-muted text-muted-foreground")
-            }
+      {chips.map((chip) => {
+        const zero = chip.count === 0 && !chip.isActive;
+        // Zero-state chips are non-interactive — render a plain span so users
+        // can't click into an empty filter.
+        if (zero) {
+          return (
+            <span
+              key={chip.label}
+              aria-disabled="true"
+              className="cursor-default"
+            >
+              <ChipBody chip={chip} zero />
+            </span>
+          );
+        }
+        // Active chip → plain Link (no event noise on the page the user is
+        // already on). Other enabled chips → tracked event on navigate.
+        if (chip.isActive) {
+          return (
+            <Link
+              key={chip.label}
+              href={chip.href}
+              aria-current="page"
+            >
+              <ChipBody chip={chip} zero={false} />
+            </Link>
+          );
+        }
+        return (
+          <TrackedLink
+            key={chip.label}
+            event="quadrant_filter_click"
+            properties={{ marketId, segment: chip.segment }}
+            href={chip.href}
           >
-            {chip.count}
-          </span>
-        </TrackedLink>
-      ))}
+            <ChipBody chip={chip} zero={false} />
+          </TrackedLink>
+        );
+      })}
     </nav>
   );
 }

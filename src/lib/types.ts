@@ -150,11 +150,19 @@ export interface PMListItem {
   quadrant: string;
   hybrid: boolean;
   rankOverall: number | null;
+  rankOverallTotal: number | null;
   rankQuadrant: number | null;
+  rankQuadrantTotal: number | null;
   domT12: number;
   totalObservedUnits: number;
   primaryCity: string;
+  primaryCityShare: number | null;
   claimed: boolean;
+  // Additive optional fields used by the market landing operator cards.
+  rentVsComp: number | null;
+  concessionRate: number | null;
+  accentColor: string | null;
+  coverageMapPoints: Array<{ lat: number; lon: number; n: number }>;
 }
 
 export type Quadrant =
