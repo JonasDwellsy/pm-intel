@@ -399,11 +399,21 @@ export default async function MethodologyPage() {
               </p>
               <p>
                 Each operator scorecard surfaces a coverage-confidence chip in
-                one of three states:{" "}
-                <span className="dq-chip">Within expected range</span>,{" "}
-                <span className="dq-chip dq-chip-orange">Below expected</span>,
-                or <span className="dq-chip dq-chip-navy">Above expected</span>
-                . The chip is positioned next to the headline DOM and rent
+                one of four states, banded by the observed-over-expected ratio:{" "}
+                <span className="dq-chip dq-chip-orange">Partial coverage</span>{" "}
+                <span className="dq-mono text-muted-foreground">(&lt;0.5×)</span>,{" "}
+                <span className="dq-chip dq-chip-orange">
+                  Likely partial coverage
+                </span>{" "}
+                <span className="dq-mono text-muted-foreground">(0.5–0.8×)</span>,{" "}
+                <span className="dq-chip">Within expected range</span>{" "}
+                <span className="dq-mono text-muted-foreground">(0.8–1.2×)</span>,
+                or{" "}
+                <span className="dq-chip dq-chip-navy">
+                  Above expected — comprehensive coverage
+                </span>{" "}
+                <span className="dq-mono text-muted-foreground">(≥1.2×)</span>.
+                The chip is positioned next to the headline DOM and rent
                 figures, not buried in a methodology footer; the integrity of
                 the scorecard depends on the reader seeing this signal at the
                 same time they see the headline metrics.
