@@ -230,6 +230,23 @@
   border-bottom: 1px solid var(--color-grid) !important;
 }
 
+/* Form field label / error utilities */
+.dq-field-label {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-navy);
+}
+.dq-field-error {
+  margin-top: 6px;
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--color-bad);
+}
+
 /* Value colorings */
 .dq-val-good {
   color: var(--color-good);

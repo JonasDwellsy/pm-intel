@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Input } from "@/components/ui/input";
-import { buttonVariants } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -16,16 +16,66 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
+  RadioCardGroup,
+  type RadioCardOption,
+} from "@/components/ui/RadioCardGroup";
+import { PillSelector, type PillOption } from "@/components/ui/PillSelector";
+import {
   leadFormSchema,
   leadFormToApiPayload,
   PROPERTY_TYPES,
-  PROPERTY_TYPE_LABELS,
   QUADRANTS,
   type LeadFormValues,
+  type PropertyType,
 } from "@/lib/lead-schema";
 import { capture } from "@/lib/analytics";
 
 type MarketOption = { id: string; fullName: string };
+
+const PROPERTY_OPTIONS: ReadonlyArray<RadioCardOption<PropertyType>> = [
+  {
+    value: "single-family",
+    title: "Single-family",
+    description: "One detached home or unit you own outright.",
+  },
+  {
+    value: "small-mf",
+    title: "Small multifamily",
+    description: "2–4 units in a single building.",
+  },
+  {
+    value: "multifamily",
+    title: "Multifamily",
+    description: "5+ unit building or larger community.",
+  },
+  {
+    value: "condo",
+    title: "Condo / townhome",
+    description: "One unit inside an HOA-governed building.",
+  },
+];
+
+const QUADRANT_PILLS: ReadonlyArray<PillOption<string>> = [
+  { value: "", label: "No preference" },
+  ...QUADRANTS.map((q) => ({ value: q, label: q })),
+];
+
+// Small required-marker symbol used inline on labels.
+function Req() {
+  return (
+    <span aria-hidden className="ml-0.5 text-orange">
+      *
+    </span>
+  );
+}
+
+function GroupEyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-5 text-[11px] font-bold uppercase tracking-[0.14em] text-teal">
+      {children}
+    </p>
+  );
+}
 
 export function LeadForm({ markets }: { markets: MarketOption[] }) {
   const router = useRouter();
@@ -33,6 +83,7 @@ export function LeadForm({ markets }: { markets: MarketOption[] }) {
 
   const form = useForm<LeadFormValues>({
     resolver: zodResolver(leadFormSchema),
+    mode: "onBlur",
     defaultValues: {
       marketId: "",
       propertyType: undefined as unknown as LeadFormValues["propertyType"],
@@ -87,206 +138,289 @@ export function LeadForm({ markets }: { markets: MarketOption[] }) {
     }
   };
 
+  const inputClass =
+    "h-11 w-full rounded-md border border-grid bg-surface-soft px-3.5 py-2 text-[15px] text-navy placeholder:text-muted-2 focus-visible:border-teal focus-visible:ring-[3px] focus-visible:ring-teal/15 outline-none";
+
   const selectClass =
-    "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none";
+    inputClass +
+    " appearance-none bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22 viewBox=%220 0 10 6%22><path fill=%22none%22 stroke=%22%235C6573%22 stroke-width=%221.4%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 d=%22M1 1l4 4 4-4%22/></svg>')] bg-no-repeat pr-9";
+
+  const isSubmitting = form.formState.isSubmitting;
 
   return (
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6"
+        className="rounded-lg border border-grid bg-white p-8 sm:p-12 sm:px-14"
         noValidate
       >
-        <FormField
-          control={form.control}
-          name="marketId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Market</FormLabel>
-              <FormControl>
-                <select
-                  {...field}
-                  value={field.value ?? ""}
-                  className={selectClass}
-                >
-                  <option value="">No preference</option>
-                  {markets.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.fullName}
-                    </option>
-                  ))}
-                </select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* === PROPERTY === */}
+        <section>
+          <GroupEyebrow>Property</GroupEyebrow>
 
-        <FormField
-          control={form.control}
-          name="propertyType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Property type *</FormLabel>
-              <FormControl>
-                <select
-                  {...field}
-                  value={field.value ?? ""}
-                  className={selectClass}
-                >
-                  <option value="" disabled>
-                    Select a property type
-                  </option>
-                  {PROPERTY_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {PROPERTY_TYPE_LABELS[t]}
-                    </option>
-                  ))}
-                </select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={form.control}
-            name="unitCount"
-            render={({ field }) => (
+            name="propertyType"
+            render={({ field, fieldState }) => (
               <FormItem>
-                <FormLabel>Unit count</FormLabel>
+                <FormLabel className="text-[14px] font-semibold text-navy">
+                  Property type
+                  <Req />
+                </FormLabel>
                 <FormControl>
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    placeholder="e.g. 24"
-                    {...field}
-                    value={field.value ?? ""}
+                  <RadioCardGroup<PropertyType>
+                    name={field.name}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    options={PROPERTY_OPTIONS}
+                    columns={2}
+                    ariaLabel="Property type"
+                    required
                   />
                 </FormControl>
-                <FormMessage />
+                {fieldState.error && (
+                  <FormMessage className="text-[12.5px] italic text-bad" />
+                )}
               </FormItem>
             )}
           />
 
+          <div className="mt-6 grid gap-5 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="unitCount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[14px] font-semibold text-navy">
+                    Number of units
+                    <Req />
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      placeholder="1"
+                      {...field}
+                      value={field.value ?? ""}
+                      className={inputClass}
+                    />
+                  </FormControl>
+                  <FormMessage className="text-[12.5px] italic text-bad" />
+                </FormItem>
+              )}
+            />
+          </div>
+        </section>
+
+        {/* === LOCATION === */}
+        <section className="mt-9 border-t border-grid pt-9">
+          <GroupEyebrow>Location</GroupEyebrow>
           <FormField
             control={form.control}
-            name="preferredQuadrant"
+            name="marketId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Preferred operator profile</FormLabel>
+                <FormLabel className="text-[14px] font-semibold text-navy">
+                  Market
+                  <Req />
+                </FormLabel>
                 <FormControl>
                   <select
                     {...field}
                     value={field.value ?? ""}
                     className={selectClass}
                   >
-                    <option value="">No preference (we'll infer)</option>
-                    {QUADRANTS.map((q) => (
-                      <option key={q} value={q}>
-                        {q}
+                    <option value="">Select a market…</option>
+                    {markets.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.fullName}
                       </option>
                     ))}
                   </select>
                 </FormControl>
-                <FormMessage />
+                <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+                  Pre-filled if you arrived from a market page.
+                </p>
+                <FormMessage className="text-[12.5px] italic text-bad" />
               </FormItem>
             )}
           />
-        </div>
+        </section>
 
-        <div className="border-t border-border pt-4">
-          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Your contact
-          </p>
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="ownerName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Your name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+        {/* === PREFERENCES === */}
+        <section className="mt-9 border-t border-grid pt-9">
+          <GroupEyebrow>Preferences</GroupEyebrow>
+          <FormField
+            control={form.control}
+            name="preferredQuadrant"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-[14px] font-semibold text-navy">
+                  Preferred operator type
+                </FormLabel>
+                <FormControl>
+                  <PillSelector
+                    value={field.value || ""}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    options={QUADRANT_PILLS}
+                    ariaLabel="Preferred operator type"
+                    emptyValue=""
+                  />
+                </FormControl>
+                <p className="mt-2.5 text-[12.5px] text-muted-foreground">
+                  Operator type determines what fits your goals — institutional
+                  scale vs. independent attention.{" "}
+                  <a
+                    href="/methodology#classification"
+                    className="text-teal hover:text-teal-700"
+                  >
+                    Learn more in methodology →
+                  </a>
+                </p>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
+              <FormItem className="mt-7">
+                <FormLabel className="text-[14px] font-semibold text-navy">
+                  What matters most?
+                </FormLabel>
+                <FormControl>
+                  <textarea
+                    {...field}
+                    value={field.value ?? ""}
+                    rows={4}
+                    placeholder="Pricing strategy, communication frequency, asset class, timing — anything we should flag to the matched operators."
+                    className="block min-h-[120px] w-full resize-y rounded-md border border-grid bg-surface-soft px-3.5 py-2.5 text-[15px] leading-[1.5] text-navy placeholder:text-muted-2 focus-visible:border-teal focus-visible:ring-[3px] focus-visible:ring-teal/15 outline-none"
+                  />
+                </FormControl>
+                <FormMessage className="text-[12.5px] italic text-bad" />
+              </FormItem>
+            )}
+          />
+        </section>
+
+        {/* === CONTACT === */}
+        <section className="mt-9 border-t border-grid pt-9">
+          <GroupEyebrow>Contact</GroupEyebrow>
+          {/* Row 1: Name + Email — equal-width columns on desktop, stack on mobile */}
+          <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
+            <div className="flex flex-col">
+              <Label htmlFor="ownerName" className="dq-field-label">
+                Name
+                <Req />
+              </Label>
+              <Input
+                id="ownerName"
+                placeholder="Jane Bordo"
+                aria-invalid={
+                  form.formState.errors.ownerName ? "true" : undefined
+                }
+                {...form.register("ownerName")}
+                className={`${inputClass} w-full`}
               />
-              <FormField
-                control={form.control}
-                name="ownerEmail"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="you@example.com"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {form.formState.errors.ownerName && (
+                <p className="dq-field-error">
+                  {form.formState.errors.ownerName.message}
+                </p>
+              )}
             </div>
-            <FormField
-              control={form.control}
-              name="ownerPhone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="tel"
-                      placeholder="Optional"
-                      {...field}
-                      value={field.value ?? ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+            <div className="flex flex-col">
+              <Label htmlFor="ownerEmail" className="dq-field-label">
+                Email
+                <Req />
+              </Label>
+              <Input
+                id="ownerEmail"
+                type="email"
+                placeholder="jane@example.com"
+                aria-invalid={
+                  form.formState.errors.ownerEmail ? "true" : undefined
+                }
+                {...form.register("ownerEmail")}
+                className={`${inputClass} w-full`}
+              />
+              {form.formState.errors.ownerEmail ? (
+                <p className="dq-field-error">
+                  {form.formState.errors.ownerEmail.message}
+                </p>
+              ) : (
+                <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+                  We send matches here.
+                </p>
               )}
-            />
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Anything else?</FormLabel>
-                  <FormControl>
-                    <textarea
-                      {...field}
-                      value={field.value ?? ""}
-                      rows={3}
-                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
-                      placeholder="Asset class, timing, what you're solving for..."
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            </div>
           </div>
-        </div>
+
+          {/* Row 2: Phone — full-width */}
+          <div className="mt-5 flex flex-col">
+            <Label htmlFor="ownerPhone" className="dq-field-label">
+              Phone
+            </Label>
+            <Input
+              id="ownerPhone"
+              type="tel"
+              placeholder="(555) 555-5555"
+              aria-invalid={
+                form.formState.errors.ownerPhone ? "true" : undefined
+              }
+              {...form.register("ownerPhone")}
+              className={`${inputClass} w-full`}
+            />
+            {form.formState.errors.ownerPhone ? (
+              <p className="dq-field-error">
+                {form.formState.errors.ownerPhone.message}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+                Optional. Operators may use this to reach you if you don&apos;t
+                respond by email.
+              </p>
+            )}
+          </div>
+        </section>
 
         {submitError && (
-          <p className="text-sm text-destructive">{submitError}</p>
+          <p className="mt-6 text-[13px] italic text-bad">{submitError}</p>
         )}
 
-        <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
-          <button
-            type="submit"
-            disabled={form.formState.isSubmitting}
-            className={buttonVariants({ size: "lg" })}
-          >
-            {form.formState.isSubmitting ? "Matching…" : "Get matched"}
-          </button>
-        </div>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={
+            "mt-9 inline-flex h-14 w-full items-center justify-center gap-2 rounded-md text-[16px] font-medium text-white transition-colors " +
+            (isSubmitting
+              ? "cursor-not-allowed bg-[#aab1be]"
+              : "bg-navy hover:bg-navy-700")
+          }
+        >
+          {isSubmitting ? (
+            <>
+              <svg
+                aria-hidden
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                className="animate-spin"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Routing matches…
+            </>
+          ) : (
+            <>Get matched →</>
+          )}
+        </button>
       </form>
     </Form>
   );

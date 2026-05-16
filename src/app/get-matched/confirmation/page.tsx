@@ -1,19 +1,44 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
-import { citySlug, stateCodeToSlug, toPmListItem } from "@/lib/slugify";
-import { fmtDays, fmtInt } from "@/lib/format";
-import {
-  PROPERTY_TYPE_LABELS,
-  type PropertyType,
-} from "@/lib/lead-schema";
-import { TrackedLink } from "@/components/analytics/TrackedLink";
+import { RecapCard } from "@/components/leads/RecapCard";
+import { MatchResults } from "@/components/leads/MatchResults";
+import { NextStepsCallout } from "@/components/leads/NextStepsCallout";
 
 export const metadata: Metadata = {
   title: "Your matched property managers",
   robots: { index: false, follow: false },
 };
+
+function SecondaryCta({
+  href,
+  title,
+  sub,
+}: {
+  href: string;
+  title: string;
+  sub: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between rounded-lg border border-grid bg-white p-5 transition-colors duration-150 hover:border-navy"
+    >
+      <span>
+        <span className="block text-[14px] font-medium leading-snug text-navy">
+          {title}
+        </span>
+        <span className="mt-0.5 block text-[12px] text-muted-foreground">
+          {sub}
+        </span>
+      </span>
+      <span className="ml-3 text-[15px] text-teal" aria-hidden>
+        →
+      </span>
+    </Link>
+  );
+}
 
 export default async function ConfirmationPage({
   searchParams,
@@ -26,6 +51,15 @@ export default async function ConfirmationPage({
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead) notFound();
 
+  // Resolve market full name from the marketId stored on the lead.
+  const market = lead.marketId
+    ? await prisma.market.findUnique({
+        where: { id: lead.marketId },
+        select: { fullName: true },
+      })
+    : null;
+
+  // Hydrate the matched PM list in the order they were ranked.
   const matchedSlugs: string[] = JSON.parse(lead.matchedPms);
   const matchRows = await prisma.pM.findMany({
     where: { slug: { in: matchedSlugs } },
@@ -41,129 +75,83 @@ export default async function ConfirmationPage({
       market: { select: { state: true, city: true } },
     },
   });
-
   const matches = matchedSlugs
     .map((slug) => matchRows.find((m) => m.slug === slug))
     .filter((row): row is NonNullable<typeof row> => Boolean(row));
 
+  const firstName = lead.ownerName.split(/\s+/)[0] ?? lead.ownerName;
+  const shortLeadId = lead.id.length > 14 ? `${lead.id.slice(0, 14)}…` : lead.id;
+
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
-      <header className="mb-8 border-b border-border pb-6">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          Your matched property managers
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Thanks {lead.ownerName.split(" ")[0]} — we sent a copy to{" "}
-          <span className="font-medium text-foreground">{lead.ownerEmail}</span>
-          .
-        </p>
-        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-3">
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-              Property type
-            </dt>
-            <dd className="font-medium">
-              {PROPERTY_TYPE_LABELS[lead.propertyType as PropertyType] ??
-                lead.propertyType}
-            </dd>
-          </div>
-          {lead.unitCount !== null && (
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                Unit count
-              </dt>
-              <dd className="font-medium tabular-nums">
-                {fmtInt(lead.unitCount)}
-              </dd>
-            </div>
-          )}
-          {lead.preferredQuadrant && (
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                Preferred profile
-              </dt>
-              <dd className="font-medium">{lead.preferredQuadrant}</dd>
-            </div>
-          )}
-        </dl>
-      </header>
-
-      {matches.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center">
-          <p className="text-sm">
-            No matches in our current dataset — we'll reach out when we expand
-            coverage in your market.
+    <main className="bg-[#FBFAF6]">
+      <div className="mx-auto max-w-[800px] px-6 pb-20 pt-20 sm:px-8 lg:pb-28">
+        {/* Success header */}
+        <header className="mb-10">
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-teal">
+            Dwellsy IQ · Match confirmation
           </p>
-        </div>
-      ) : (
-        <ol className="space-y-4">
-          {matches.map((row, i) => {
-            const pm = toPmListItem(row);
-            const state = stateCodeToSlug(row.market.state);
-            const city = citySlug(row.market.city);
-            const href = `/property-managers/${state}/${city}/${pm.slug}`;
-            return (
-              <li
-                key={pm.slug}
-                className="rounded-lg border border-border bg-card p-5"
-              >
-                <div className="mb-2 flex items-baseline justify-between gap-4">
-                  <div>
-                    <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Match #{i + 1}
-                    </span>
-                    <h2 className="text-lg font-medium">
-                      <TrackedLink
-                        event="match_card_click"
-                        properties={{
-                          pmSlug: pm.slug,
-                          rank: i + 1,
-                          leadId: lead.id,
-                        }}
-                        href={href}
-                        className="hover:underline"
-                      >
-                        {pm.name}
-                      </TrackedLink>
-                    </h2>
-                  </div>
-                  <span className="text-sm text-muted-foreground tabular-nums">
-                    #{pm.rankOverall ?? "—"} / {row.market.city}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{pm.quadrant}</Badge>
-                  {pm.hybrid && <Badge variant="outline">Hybrid</Badge>}
-                  {pm.claimed && <Badge variant="outline">Claimed</Badge>}
-                </div>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  {fmtInt(pm.totalObservedUnits)} units observed ·{" "}
-                  {fmtDays(pm.domT12)} DOM T12 · {pm.primaryCity}
-                </p>
-                <div className="mt-4">
-                  <TrackedLink
-                    event="match_card_click"
-                    properties={{
-                      pmSlug: pm.slug,
-                      rank: i + 1,
-                      leadId: lead.id,
-                      cta: "view_scorecard",
-                    }}
-                    href={href}
-                    className="text-sm font-medium text-foreground hover:underline"
-                  >
-                    View full scorecard →
-                  </TrackedLink>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      )}
+          <h1 className="mt-4 text-[40px] font-bold leading-[1.05] tracking-[-0.018em] text-navy sm:text-[44px]">
+            Thanks, {firstName}. Here are your three matches.
+          </h1>
+          <p className="mt-5 max-w-[660px] text-[16px] leading-[1.55] text-foreground/85 sm:text-[17px]">
+            We sent a copy to{" "}
+            <strong className="font-semibold text-navy">
+              {lead.ownerEmail}
+            </strong>{" "}
+            with links back to this page. Reach out directly when you&apos;re
+            ready — no automated outreach happens on your behalf.
+          </p>
+        </header>
 
-      <p className="mt-8 text-xs text-muted-foreground">
-        Lead reference: <code>{lead.id}</code>
-      </p>
+        {/* Recap */}
+        <RecapCard
+          propertyType={lead.propertyType}
+          unitCount={lead.unitCount}
+          marketName={market?.fullName ?? null}
+          preferredQuadrant={lead.preferredQuadrant ?? null}
+          editHref={`/get-matched?prefill=${lead.id}`}
+        />
+
+        {/* Match list */}
+        <section className="mt-12">
+          <div className="mb-5 flex items-baseline justify-between gap-4">
+            <h2 className="text-[26px] font-bold leading-[1.2] tracking-[-0.014em] text-navy sm:text-[30px]">
+              Your three matched operators
+            </h2>
+            <p className="dq-mono text-[11.5px] text-muted-foreground tracking-[0.04em]">
+              <span className="hidden sm:inline">Lead · {shortLeadId}</span>
+              <span className="sm:hidden">{matches.length} matches</span>
+            </p>
+          </div>
+          <MatchResults matches={matches} leadId={lead.id} />
+        </section>
+
+        {/* Editorial diligence content */}
+        <NextStepsCallout />
+
+        {/* Secondary CTAs */}
+        <section className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <SecondaryCta
+            href={
+              market?.fullName
+                ? `/property-managers`
+                : `/property-managers`
+            }
+            title="Browse other operators"
+            sub="in this market"
+          />
+          <SecondaryCta
+            href="/methodology"
+            title="Read our methodology"
+            sub="v0.3.4"
+          />
+          <SecondaryCta
+            href="/get-matched"
+            title="Submit a new request"
+            sub="different property"
+          />
+        </section>
+      </div>
     </main>
   );
 }
