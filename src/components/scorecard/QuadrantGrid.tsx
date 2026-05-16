@@ -55,21 +55,194 @@ const QUADRANT_CORNERS: Array<{
   { key: "mf-institutional", label: "MF / BTR · Institutional", x: 840, y: 540, anchor: "end" },
 ];
 
+export type QuadrantOperator = {
+  name: string;
+  sub?: string;
+  quadrant: string;
+  /** Position offset within the operator's quadrant; 0–1 along each axis. */
+  offset?: { x: number; y: number };
+  /** Override dot color (defaults: green for MF·Inst, orange for SS·Indep,
+   *  teal for SS·Inst, magenta for MF·Indep, slate for hybrid). */
+  color?: string;
+  hybrid?: boolean;
+};
+
+const DEFAULT_OP_COLOR: Record<QuadrantKey, string> = {
+  "ss-independent": "#D97834",
+  "ss-institutional": "#1B6E8C",
+  "mf-independent": "#8B3A62",
+  "mf-institutional": "#2F7A5C",
+};
+
 export function QuadrantGrid({
   quadrant,
   hybrid = false,
   variant = "full",
   operatorName,
   operatorDetail,
+  operators,
 }: {
   quadrant: string;
   hybrid?: boolean;
   variant?: "full" | "compact";
   operatorName?: string;
   operatorDetail?: string;
+  /** When provided alongside variant="compact", renders the hero-style
+   *  multi-operator quadrant (axis-labelled, ~380×360 viewBox) instead of
+   *  the single-dot mini version. */
+  operators?: QuadrantOperator[];
 }) {
   const activeKey = classify(quadrant);
 
+  // --- Hero variant: multi-operator labelled compact quadrant ---
+  if (variant === "compact" && operators && operators.length > 0) {
+    // 380×360 viewBox. Frame at (60,40) → 290 wide × 270 tall.
+    const FRAME = { x: 60, y: 40, w: 290, h: 270 };
+    const cx = FRAME.x + FRAME.w / 2; // 205
+    const cy = FRAME.y + FRAME.h / 2; // 175
+
+    // Map an operator quadrant + 0–1 offset → SVG position within that quadrant.
+    function placeOperator(op: QuadrantOperator) {
+      const key = classify(op.quadrant);
+      const offset = op.offset ?? { x: 0.5, y: 0.5 };
+      const halfW = FRAME.w / 2;
+      const halfH = FRAME.h / 2;
+      const isRight = key === "mf-independent" || key === "mf-institutional";
+      const isBottom = key === "ss-institutional" || key === "mf-institutional";
+      const x = FRAME.x + (isRight ? halfW : 0) + offset.x * halfW;
+      const y = FRAME.y + (isBottom ? halfH : 0) + offset.y * halfH;
+      return {
+        x,
+        y,
+        color: op.color ?? DEFAULT_OP_COLOR[key],
+        labelAnchor: isRight ? "end" : "start",
+      } as const;
+    }
+
+    return (
+      <svg
+        viewBox="0 0 380 360"
+        className="block h-auto w-full"
+        role="img"
+        aria-label="Operator-type quadrant"
+      >
+        {/* Frame background */}
+        <rect
+          x={FRAME.x}
+          y={FRAME.y}
+          width={FRAME.w}
+          height={FRAME.h}
+          fill="#FBFAF6"
+          stroke="#E6E2D6"
+          strokeWidth={1}
+        />
+        {/* Subtle tint of the operator-of-record quadrant (bottom-right MF·Inst) */}
+        <rect
+          x={cx}
+          y={cy}
+          width={FRAME.w / 2}
+          height={FRAME.h / 2}
+          fill="rgba(47,122,92,0.06)"
+        />
+        {/* Dot-pattern texture: a sparse grid of soft beige dots */}
+        <g opacity="0.6" fill="#D9D4C3">
+          {Array.from({ length: 6 }, (_, row) =>
+            Array.from({ length: 6 }, (_, col) => {
+              const x = FRAME.x + 24 + col * 48;
+              const y = FRAME.y + 24 + row * 44;
+              return <circle key={`${row}-${col}`} cx={x} cy={y} r={0.7} />;
+            })
+          )}
+        </g>
+        {/* Crosshair */}
+        <line x1={cx} y1={FRAME.y} x2={cx} y2={FRAME.y + FRAME.h} stroke="#C7C1AE" strokeWidth={1} />
+        <line x1={FRAME.x} y1={cy} x2={FRAME.x + FRAME.w} y2={cy} stroke="#C7C1AE" strokeWidth={1} />
+
+        {/* Axis labels — Inter, uppercase, tracking 0.2em */}
+        <text x={cx} y={FRAME.y - 12} textAnchor="middle" fill="#6E7990"
+          fontSize="9" fontWeight="600" letterSpacing="2"
+          style={{ textTransform: "uppercase" }}>
+          Independent  ·  Institutional
+        </text>
+        <text x={FRAME.x - 10} y={cy + 3} textAnchor="end" fill="#6E7990"
+          fontSize="9" fontWeight="600" letterSpacing="2"
+          style={{ textTransform: "uppercase" }}>
+          Scattered
+        </text>
+        <text x={FRAME.x + FRAME.w + 10} y={cy + 3} textAnchor="start" fill="#6E7990"
+          fontSize="9" fontWeight="600" letterSpacing="2"
+          style={{ textTransform: "uppercase" }}>
+          MF / BTR
+        </text>
+
+        {/* Operator dots + labels */}
+        {operators.map((op) => {
+          const place = placeOperator(op);
+          // Label position: label sits adjacent to the dot, anchored toward the
+          // closer axis edge (start on left-half quadrants, end on right-half).
+          const labelDx = place.labelAnchor === "end" ? -14 : 14;
+          return (
+            <g key={op.name}>
+              {/* Halo */}
+              <circle
+                cx={place.x}
+                cy={place.y}
+                r={14}
+                fill={place.color}
+                opacity={0.22}
+              />
+              {/* Solid dot */}
+              <circle
+                cx={place.x}
+                cy={place.y}
+                r={6.5}
+                fill={place.color}
+                stroke="#FFFFFF"
+                strokeWidth={1.5}
+              />
+              {/* Name label */}
+              <text
+                x={place.x + labelDx}
+                y={place.y - 2}
+                textAnchor={place.labelAnchor}
+                fill="#0F1F3F"
+                fontSize="11"
+                fontWeight={700}
+              >
+                {op.name}
+                {op.hybrid && (
+                  <tspan
+                    dx="6"
+                    fill="#1B6E8C"
+                    fontSize="8.5"
+                    fontWeight={700}
+                    letterSpacing="0.5"
+                    style={{ textTransform: "uppercase" }}
+                  >
+                    HYBRID
+                  </tspan>
+                )}
+              </text>
+              {op.sub && (
+                <text
+                  x={place.x + labelDx}
+                  y={place.y + 12}
+                  textAnchor={place.labelAnchor}
+                  fill="#6E7990"
+                  fontSize="9.5"
+                  fontWeight={500}
+                >
+                  {op.sub}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    );
+  }
+
+  // --- Default compact: single mini dot, used inline elsewhere ---
   if (variant === "compact") {
     // 240×220 mini quadrant for inline use (no peer scatter, just position).
     const opPosMini: Record<QuadrantKey, { x: number; y: number }> = {
