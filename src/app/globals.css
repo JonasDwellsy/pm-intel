@@ -50,6 +50,18 @@
   --color-surface-soft: #f2f5f8;
   --color-muted-2: #8a92a2;
 
+  /* Warm cream palette — scoped to the property-manager Claim portal. The
+     conversion surface uses a calmer, warmer tone than the public scorecard
+     pages; keep it confined to /claim/* unless we extend the portal. */
+  --color-cream: #fbfaf7;
+  --color-cream-quiet: #f6f3ec;
+  --color-cream-muted: #f4f1ea;
+  --color-warm-grid: #e7e2d5;
+  --color-warm-grid-strong: #d4cdba;
+  --color-warm-input: #cfc8b6;
+  --color-success: #2c7a52;
+  --color-success-soft: #dde9df;
+
   /* Typography */
   --font-sans: var(--font-inter), Arial, Helvetica, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
@@ -74,6 +86,11 @@
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(15 31 63 / 0.05);
   --shadow-tile-hover: 0 4px 18px rgb(15 31 63 / 0.06);
+  /* Form-card shadow — used on the Claim portal form and success cards. */
+  --shadow-form:
+    0 1px 2px rgb(15 31 63 / 0.04),
+    0 8px 24px -8px rgb(15 31 63 / 0.10),
+    0 0 0 1px rgb(15 31 63 / 0.05);
 }
 
 :root {
@@ -566,4 +583,45 @@
 .dq-mono {
   font-family: var(--font-mono);
   font-feature-settings: "tnum";
+}
+
+/* Lede — 17px intro paragraph that follows a dq-h1. Used on the Claim
+   Landing title block and reusable on future single-purpose landings. */
+.dq-lede {
+  margin: 0;
+  max-width: 560px;
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--color-muted-foreground);
+  text-wrap: pretty;
+}
+
+/* Numbered-tile inner helpers — used inside dq-tile when the tile carries a
+   numeric eyebrow (01 / 02 / 03) instead of the default teal hairline. The
+   claim page disables dq-tile's top hairline via dq-tile-numbered. */
+.dq-tile-numbered::before {
+  display: none;
+}
+.dq-tile-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-teal);
+}
+.dq-tile-title {
+  margin: 14px 0 8px;
+  font-size: 16.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.014em;
+  color: var(--color-navy);
+}
+.dq-tile-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-muted-foreground);
 }
