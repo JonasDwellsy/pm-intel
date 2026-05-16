@@ -32,6 +32,9 @@ type InputMarket = {
     string,
     { completeness: number; amenities: number; descLen: number }
   >;
+  msaBackdropPoints?: Array<{ lat: number; lon: number }>;
+  mapCenter?: { lat: number; lon: number };
+  mapBounds?: { north: number; south: number; east: number; west: number };
 };
 
 type InputPM = {
@@ -40,6 +43,7 @@ type InputPM = {
   marketId: string;
   primaryCity: string;
   claimed: boolean;
+  accentColor?: string;
   quadrant: string;
   hybrid: boolean;
   rank: {
@@ -109,6 +113,13 @@ type InputPM = {
   geographicCoverage: {
     citiesText: string;
     topCities?: Array<{ name: string; pct: number }>;
+    coverageMapPoints?: Array<{
+      lat: number;
+      lon: number;
+      n: number;
+      city?: string;
+      type?: string;
+    }>;
   };
   classificationRationale: string;
 };
@@ -134,6 +145,7 @@ function buildScorecard(pm: InputPM, market: InputMarket): ScorecardData {
       name: pm.name,
       quadrant: pm.quadrant,
       hybrid: pm.hybrid,
+      accentColor: pm.accentColor,
     },
     market: {
       id: market.id,
@@ -217,7 +229,10 @@ function buildScorecard(pm: InputPM, market: InputMarket): ScorecardData {
     },
     geographicCoverage: {
       citiesText: pm.geographicCoverage.citiesText,
-      coverageMapPoints: [],
+      coverageMapPoints: pm.geographicCoverage.coverageMapPoints ?? [],
+      mapCenter: market.mapCenter,
+      mapBounds: market.mapBounds,
+      msaBackdropPoints: market.msaBackdropPoints,
     },
     classificationRationale: pm.classificationRationale,
   };

@@ -9,6 +9,7 @@ export interface ScorecardData {
     name: string;
     quadrant: string;
     hybrid: boolean;
+    accentColor?: string;
   };
   market: {
     id: string;
@@ -113,7 +114,16 @@ export interface ScorecardData {
   };
   geographicCoverage: {
     citiesText: string;
-    coverageMapPoints: Array<{ lat: number; lon: number; n: number }>;
+    coverageMapPoints: Array<{
+      lat: number;
+      lon: number;
+      n: number;
+      city?: string;
+      type?: string;
+    }>;
+    mapCenter?: { lat: number; lon: number };
+    mapBounds?: { north: number; south: number; east: number; west: number };
+    msaBackdropPoints?: Array<{ lat: number; lon: number }>;
   };
   classificationRationale: string;
 }
