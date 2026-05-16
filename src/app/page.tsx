@@ -1,86 +1,77 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import { stateCodeToSlug, citySlug } from "@/lib/slugify";
-import { TrackedLink } from "@/components/analytics/TrackedLink";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
+import { Hero } from "@/components/homepage/Hero";
+import { MethodologyPillars } from "@/components/homepage/MethodologyPillars";
+import {
+  CoveredMarkets,
+  type LiveMarket,
+} from "@/components/homepage/CoveredMarkets";
+import { SampleScorecards } from "@/components/homepage/SampleScorecards";
+import { OperatorCTA } from "@/components/homepage/OperatorCTA";
+import { InstitutionCTA } from "@/components/homepage/InstitutionCTA";
+import { MethodologyFooter } from "@/components/homepage/MethodologyFooter";
 
-export default async function Home() {
-  const [pms, markets] = await Promise.all([
-    prisma.pM.findMany({
-      select: {
-        slug: true,
-        name: true,
-        quadrant: true,
-        rankOverall: true,
-        rankOverallTotal: true,
-        market: { select: { city: true, state: true, fullName: true } },
+export const metadata: Metadata = {
+  title: "Dwellsy IQ — Property Manager Intelligence",
+  description:
+    "Outside-in scorecards on every property manager in the country. Methodology-driven analysis of lease velocity, pricing posture, tenancy, and operator type. Built for institutional diligence.",
+  openGraph: {
+    title: "Dwellsy IQ — Property Manager Intelligence",
+    description:
+      "Outside-in scorecards on property managers. Methodology-driven analysis of lease velocity, pricing posture, tenancy, and operator type. Built for institutional diligence.",
+    type: "website",
+  },
+};
+
+export default async function HomePage() {
+  // Live markets — derived from the Market table; the homepage only renders
+  // those whose underlying data is published.
+  const marketRows = await prisma.market.findMany({
+    orderBy: { city: "asc" },
+    include: {
+      pms: {
+        select: { dataAsOf: true },
+        orderBy: { dataAsOf: "desc" },
+        take: 1,
       },
-      orderBy: { rankOverall: "asc" },
-    }),
-    prisma.market.count(),
-  ]);
+    },
+  });
+
+  const liveMarkets: LiveMarket[] = marketRows.map((m) => ({
+    id: m.id,
+    city: m.city,
+    state: m.state,
+    fullName: m.fullName,
+    operatorCountTotal: m.operatorCountTotal,
+    operatorCountEligible: m.operatorCountEligible,
+    medianDomT12: m.medianDomT12,
+    dataAsOf:
+      m.pms[0]?.dataAsOf.toISOString().split("T")[0] ?? "2026-03-05",
+  }));
+
+  // Pick an example PM slug for the operator-claim callout (first live PM).
+  const samplePm = await prisma.pM.findFirst({
+    where: { rankOverall: 1 },
+    select: { slug: true },
+  });
+  const claimSlug = samplePm?.slug ?? "brookside-properties-chattanooga-tn";
+
+  const dataAsOf = liveMarkets[0]?.dataAsOf ?? "2026-03-05";
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-16">
-      <section className="mb-12">
-        <h1 className="text-4xl font-semibold tracking-tight">
-          Property Manager Intelligence
-        </h1>
-        <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-          Independent scorecards on how property managers actually perform —
-          time on market, rent trajectory, listing quality, tenancy retention.
-          Built from real Dwellsy listing data.
-        </p>
-      </section>
-
-      <section className="mb-10">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-            Browse markets
-          </h2>
-          <Link
-            href="/property-managers"
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            All markets ({markets}) →
-          </Link>
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-muted-foreground">
-          Highlighted operators
-        </h2>
-        <ul className="divide-y divide-border rounded-lg border border-border bg-card">
-          {pms.map((pm) => {
-            const state = stateCodeToSlug(pm.market.state);
-            const city = citySlug(pm.market.city);
-            return (
-              <li key={pm.slug} className="flex items-center justify-between p-4">
-                <div>
-                  <TrackedLink
-                    event="pm_card_click"
-                    properties={{
-                      pmSlug: pm.slug,
-                      rank: pm.rankOverall,
-                      source: "home",
-                    }}
-                    href={`/property-managers/${state}/${city}/${pm.slug}`}
-                    className="text-base font-medium hover:underline"
-                  >
-                    {pm.name}
-                  </TrackedLink>
-                  <p className="text-sm text-muted-foreground">
-                    {pm.market.fullName} · {pm.quadrant}
-                  </p>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  Rank #{pm.rankOverall} of {pm.rankOverallTotal}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+    <main className="bg-[#FBFAF6]">
+      <TrackEvent
+        event="market_page_view"
+        properties={{ source: "homepage", page: "home" }}
+      />
+      <Hero />
+      <MethodologyPillars />
+      <CoveredMarkets markets={liveMarkets} />
+      <SampleScorecards />
+      <OperatorCTA samplePmSlug={claimSlug} />
+      <InstitutionCTA />
+      <MethodologyFooter version="0.3.4" dataAsOf={dataAsOf} />
     </main>
   );
 }
