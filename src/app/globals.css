@@ -230,6 +230,98 @@
   border-bottom: 1px solid var(--color-grid) !important;
 }
 
+/* Methodology body prose: paragraph + list rhythm at editorial reading
+   measure. Scoped via .methodology-prose. */
+.methodology-prose p {
+  margin: 0 0 18px;
+  font-size: 16px;
+  line-height: 1.68;
+  color: var(--color-foreground);
+}
+.methodology-prose p:last-child {
+  margin-bottom: 0;
+}
+.methodology-prose ul,
+.methodology-prose ol {
+  margin: 0 0 18px;
+  padding-left: 1.4em;
+}
+.methodology-prose ul {
+  list-style: disc;
+}
+.methodology-prose ol {
+  list-style: decimal;
+}
+.methodology-prose li {
+  margin-bottom: 10px;
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--color-foreground);
+}
+.methodology-prose strong {
+  color: var(--color-navy);
+  font-weight: 600;
+}
+.methodology-prose em {
+  font-style: italic;
+}
+.methodology-prose a {
+  color: var(--color-teal);
+}
+.methodology-prose a:hover {
+  color: var(--color-teal-700);
+  text-decoration: underline;
+}
+
+/* Inline chip tag — used in methodology body prose for numeric thresholds
+   and named states. Three variants: teal (default), orange, navy. */
+.dq-chip {
+  display: inline-block;
+  vertical-align: 1px;
+  white-space: nowrap;
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  border-radius: 3px;
+  background: var(--color-teal-soft);
+  color: var(--color-teal-700);
+  border: 1px solid color-mix(in srgb, var(--color-teal) 18%, transparent);
+}
+.dq-chip-orange {
+  background: var(--color-orange-soft);
+  color: var(--color-orange-700);
+  border-color: color-mix(in srgb, var(--color-orange) 22%, transparent);
+}
+.dq-chip-navy {
+  background: var(--color-navy-soft);
+  color: var(--color-navy);
+  border-color: color-mix(in srgb, var(--color-navy) 18%, transparent);
+}
+
+/* Navy-soft callout — softer companion to .dq-callout-important.
+   Reserved for "honest limitation" notes; never replaces the orange callout. */
+.dq-callout-soft {
+  margin-top: 28px;
+  padding: 20px 24px;
+  border-radius: 6px;
+  border: 1px solid var(--color-grid);
+  border-left: 3px solid var(--color-navy);
+  background: var(--color-surface-soft);
+}
+.dq-callout-soft .dq-callout-tag {
+  color: var(--color-navy);
+  margin-bottom: 6px;
+}
+.dq-callout-soft p {
+  margin: 0;
+  color: var(--color-navy);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
 /* Form field label / error utilities */
 .dq-field-label {
   display: inline-flex;

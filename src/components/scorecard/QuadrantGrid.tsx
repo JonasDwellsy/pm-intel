@@ -74,6 +74,55 @@ const DEFAULT_OP_COLOR: Record<QuadrantKey, string> = {
   "mf-institutional": "#2F7A5C",
 };
 
+// Conceptual variant: static 2×2 text-cell grid used in the methodology page.
+// No operator markers, no scatter — just the four quadrant definitions laid
+// out as a figure.
+const CONCEPTUAL_CELLS: Array<{
+  key: QuadrantKey;
+  eyebrow: string;
+  title: string;
+  description: string;
+  row: 0 | 1;
+  col: 0 | 1;
+}> = [
+  {
+    key: "mf-institutional",
+    eyebrow: "Q1 · Institutional MF/BTR",
+    title: "Institutional multifamily",
+    description:
+      "Single-asset whole-property leasing at scale; ≥50-unit buildings or large BTR communities.",
+    row: 0,
+    col: 0,
+  },
+  {
+    key: "ss-institutional",
+    eyebrow: "Q2 · Institutional scattered",
+    title: "Institutional scattered site",
+    description:
+      "Geographically distributed SFR / small-MF books large enough to operate at institutional scale (~1,000+ units).",
+    row: 0,
+    col: 1,
+  },
+  {
+    key: "mf-independent",
+    eyebrow: "Q3 · Independent MF/BTR",
+    title: "Independent multifamily",
+    description:
+      "Owner-operator multifamily; smaller buildings, lighter org overhead, often family- or partnership-owned.",
+    row: 1,
+    col: 0,
+  },
+  {
+    key: "ss-independent",
+    eyebrow: "Q4 · Independent scattered",
+    title: "Independent scattered site",
+    description:
+      "Owner-operator scattered books; typical SFR property manager working a single MSA.",
+    row: 1,
+    col: 1,
+  },
+];
+
 export function QuadrantGrid({
   quadrant,
   hybrid = false,
@@ -84,7 +133,7 @@ export function QuadrantGrid({
 }: {
   quadrant: string;
   hybrid?: boolean;
-  variant?: "full" | "compact";
+  variant?: "full" | "compact" | "conceptual";
   operatorName?: string;
   operatorDetail?: string;
   /** When provided alongside variant="compact", renders the hero-style
@@ -92,6 +141,79 @@ export function QuadrantGrid({
    *  the single-dot mini version. */
   operators?: QuadrantOperator[];
 }) {
+  // --- Conceptual variant: 2×2 text-cell grid for the methodology page ---
+  if (variant === "conceptual") {
+    // Layout: 28px-wide operating-axis lane on the left (flex sibling, full
+    // height) + a self-contained 2×2 data grid on the right that auto-sizes
+    // its rows to cell content. Keeping the lane outside the data grid means
+    // the rotated text can't inflate the cell rows.
+    const cellClasses = (col: 0 | 1, row: 0 | 1) =>
+      [
+        "bg-white p-5",
+        col === 0 ? "border-r border-grid" : "",
+        row === 0 ? "border-b border-grid" : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+    return (
+      <figure
+        aria-label="Four operator quadrants — conceptual"
+        className="not-prose my-2 overflow-hidden rounded-md border border-grid"
+      >
+        <div className="flex">
+          {/* Operating-axis lane (flex sibling, full container height) */}
+          <div className="flex w-7 shrink-0 items-center justify-center border-r border-grid bg-surface-soft">
+            <span
+              className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground whitespace-nowrap"
+              style={{
+                writingMode: "vertical-rl",
+                transform: "rotate(180deg)",
+              }}
+            >
+              Operating axis
+            </span>
+          </div>
+
+          {/* Data column: top axis labels + 2×2 cells + bottom axis label */}
+          <div className="flex flex-1 flex-col">
+            {/* Top axis labels — 28px tall */}
+            <div className="grid h-7 grid-cols-2 border-b border-grid bg-surface-soft">
+              <div className="flex items-center border-r border-grid px-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                MF / BTR
+              </div>
+              <div className="flex items-center px-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Scattered site
+              </div>
+            </div>
+
+            {/* 2×2 data cells — auto-sized to content */}
+            <div className="grid flex-1 grid-cols-2">
+              {CONCEPTUAL_CELLS.map((c) => (
+                <div key={c.key} className={cellClasses(c.col, c.row)}>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal">
+                    {c.eyebrow}
+                  </p>
+                  <p className="mt-2 text-[15px] font-bold text-navy">
+                    {c.title}
+                  </p>
+                  <p className="mt-2 text-[13px] leading-[1.5] text-muted-foreground">
+                    {c.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Bottom axis label — 28px tall, centered */}
+            <div className="flex h-7 items-center justify-center border-t border-grid bg-surface-soft text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Asset class
+            </div>
+          </div>
+        </div>
+      </figure>
+    );
+  }
+
   const activeKey = classify(quadrant);
 
   // --- Hero variant: multi-operator labelled compact quadrant ---
