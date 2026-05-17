@@ -57,9 +57,11 @@ export type QuadrantSegment = (typeof QUADRANT_SEGMENTS)[number];
 const SEGMENT_TO_QUADRANT: Record<QuadrantSegment, string | null> = {
   "multifamily-institutional": "MF/BTR / Institutional",
   "multifamily-independent": "MF/BTR / Independent",
-  "scattered-institutional": "Scattered Site / Institutional",
-  "scattered-independent": "Scattered Site / Independent",
-  hybrid: null, // special: filter by hybrid flag instead
+  "scattered-institutional": "Scattered / Institutional",
+  "scattered-independent": "Scattered / Independent",
+  // Hybrid is its own quadrant value in v0.6.1 (not a boolean flag). The
+  // route filter still uses pm.hybrid OR pm.quadrant === "Hybrid".
+  hybrid: "Hybrid",
 };
 
 const SEGMENT_LABELS: Record<QuadrantSegment, string> = {
@@ -131,8 +133,11 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     primaryCity: sc.market.name,
     primaryCityShare,
     claimed: row.claimed,
-    rentVsComp: sc.pricing?.t12MedianPremium ?? null,
-    concessionRate: sc.pricing?.t12ConcessionRate ?? null,
+    // v0.6.1 drops the pricing premium / concession-rate fields entirely;
+    // surface the rent-performance delta + cohort comparison instead so the
+    // market landing operator cards still have a per-operator pricing signal.
+    rentVsComp: sc.rentPerformance?.delta ?? null,
+    concessionRate: null,
     accentColor: sc.pm.accentColor ?? null,
     coverageMapPoints: sc.geographicCoverage.coverageMapPoints ?? [],
   };

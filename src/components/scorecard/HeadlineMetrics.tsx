@@ -90,10 +90,17 @@ export function HeadlineMetrics({ scorecard }: { scorecard: ScorecardData }) {
         unit={` / ${rank.quadrantTotal}`}
         compare={
           <>
-            within <strong className="font-semibold text-navy">{scorecard.pm.quadrant}</strong>
+            within{" "}
+            <strong className="font-semibold text-navy">
+              {scorecard.pm.quadrant}
+            </strong>
           </>
         }
-        sample={`Peer median DOM ${fmtDays(rank.quadrantMedianDomT12)}`}
+        sample={
+          rank.quadrantMedianDomT12 !== null
+            ? `Peer median DOM ${fmtDays(rank.quadrantMedianDomT12)}`
+            : "Single-PM quadrant"
+        }
       />
       <Tile
         eyebrow="Median DOM (T12)"

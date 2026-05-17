@@ -9,20 +9,30 @@ export function WhyThisQuadrantSection({
 }: {
   scorecard: ScorecardData;
 }) {
+  const c = scorecard.coverage;
+
+  // v0.6.1 drops the institutional/small-mf/sfr breakdown and the selection
+  // bias intensity ratio. We surface the units summary the v0.6.1 data does
+  // carry: total managed units, national T12 footprint (for the multi-market
+  // institutional classification), and concentrated-community share.
   const detailParts: string[] = [
-    `${fmtInt(scorecard.coverage.totalObservedUnits)} units`,
-    `${fmtInt(
-      scorecard.coverage.institutionalBuildings + scorecard.coverage.smallMfBuildings
-    )} buildings`,
-    `${scorecard.selectionBias.ratio.toFixed(2)}× intensity`,
+    `${fmtInt(c.totalObservedUnits)} units in ${scorecard.market.name}`,
   ];
+  if (c.nationalObservedUnitsT12 !== null) {
+    detailParts.push(`${fmtInt(c.nationalObservedUnitsT12)} units nationally`);
+  }
+  if (c.concentratedShare !== null) {
+    detailParts.push(
+      `${Math.round(c.concentratedShare * 100)}% in concentrated communities`
+    );
+  }
 
   return (
     <section id="why-this-quadrant" className="dq-section">
       <SectionHead
-        num="11"
+        num="10"
         title="Why this quadrant"
-        lede="Operator classification reflects observed unit composition and operating axis on asset class, not self-reported business model."
+        lede="Operator classification reflects observed community-level concentration and cross-market scale, not self-reported business model."
       />
 
       <div className="dq-chart-card">

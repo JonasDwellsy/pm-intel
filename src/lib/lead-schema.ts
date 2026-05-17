@@ -19,8 +19,8 @@ export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
 export const QUADRANTS = [
   "MF/BTR / Institutional",
   "MF/BTR / Independent",
-  "Scattered Site / Institutional",
-  "Scattered Site / Independent",
+  "Scattered / Institutional",
+  "Scattered / Independent",
 ] as const;
 
 // --- Form schema: what the LeadForm holds. Optional fields are plain strings

@@ -3,21 +3,29 @@ import { PerformanceRankChart } from "./PerformanceRankChart";
 import { fmtDays, fmtInt } from "@/lib/format";
 import type { ScorecardData } from "@/lib/types";
 
-function fasterClass(pmValue: number | null, marketValue: number | null): string {
+function fasterClass(
+  pmValue: number | null,
+  marketValue: number | null
+): string {
   if (pmValue === null || marketValue === null) return "";
   return pmValue <= marketValue ? "dq-val-good" : "dq-val-bad";
 }
 
-export function PerformanceSection({ scorecard }: { scorecard: ScorecardData }) {
+export function PerformanceSection({
+  scorecard,
+}: {
+  scorecard: ScorecardData;
+}) {
   const p = scorecard.performance;
   const { rank } = scorecard;
+  const domPercentile = rank.percentiles.dom;
 
   return (
     <section id="performance" className="dq-section">
       <SectionHead
         num="04"
-        title="Operating performance"
-        lede={`Ranking of ${scorecard.pm.name} against the ${rank.overallTotal} eligible cohort peers in the ${scorecard.market.fullName.split(",")[0]} MSA, by T12 median days on market.`}
+        title="Operating performance — days on market"
+        lede={`Ranking of ${scorecard.pm.name} against the ${rank.overallTotal} eligible cohort peers in the ${scorecard.market.fullName.split(",")[0]} MSA, by T12 median days on market. Composite weight 30%.`}
       />
 
       <PerformanceRankChart scorecard={scorecard} />
@@ -52,31 +60,35 @@ export function PerformanceSection({ scorecard }: { scorecard: ScorecardData }) 
             <td>
               Apartments
               {!p.aptEligible && (
-                <span className="ml-2 text-muted-foreground">(insufficient n)</span>
+                <span className="ml-2 text-muted-foreground">
+                  (insufficient n)
+                </span>
               )}
             </td>
             <td className="num">
-              <span className={fasterClass(p.aptDomT12, p.marketAptDomT12)}>
+              <span className={fasterClass(p.aptDomT12, p.marketDomT12)}>
                 {fmtDays(p.aptDomT12)}
               </span>
             </td>
-            <td className="num">{fmtDays(p.peerQuadrantAptDomT12)}</td>
-            <td className="num">{fmtDays(p.marketAptDomT12)}</td>
+            <td className="num text-muted-foreground">—</td>
+            <td className="num text-muted-foreground">—</td>
           </tr>
           <tr>
             <td>
               Houses
               {!p.houseEligible && (
-                <span className="ml-2 text-muted-foreground">(insufficient n)</span>
+                <span className="ml-2 text-muted-foreground">
+                  (insufficient n)
+                </span>
               )}
             </td>
             <td className="num">
-              <span className={fasterClass(p.houseDomT12, p.marketHouseDomT12)}>
+              <span className={fasterClass(p.houseDomT12, p.marketDomT12)}>
                 {fmtDays(p.houseDomT12)}
               </span>
             </td>
-            <td className="num">{fmtDays(p.peerQuadrantHouseDomT12)}</td>
-            <td className="num">{fmtDays(p.marketHouseDomT12)}</td>
+            <td className="num text-muted-foreground">—</td>
+            <td className="num text-muted-foreground">—</td>
           </tr>
 
           <tr className="row-group">
@@ -103,12 +115,8 @@ export function PerformanceSection({ scorecard }: { scorecard: ScorecardData }) 
                 {rank.overall} / {rank.overallTotal}
               </strong>
             </td>
-            <td className="num">
-              <span className="text-muted-foreground">—</span>
-            </td>
-            <td className="num">
-              <span className="text-muted-foreground">—</span>
-            </td>
+            <td className="num text-muted-foreground">—</td>
+            <td className="num text-muted-foreground">—</td>
           </tr>
           <tr>
             <td>Within-quadrant rank</td>
@@ -117,22 +125,24 @@ export function PerformanceSection({ scorecard }: { scorecard: ScorecardData }) 
                 {rank.quadrant ?? "—"} / {rank.quadrantTotal}
               </strong>
             </td>
+            <td className="num text-muted-foreground">—</td>
+            <td className="num text-muted-foreground">—</td>
+          </tr>
+          <tr>
+            <td>DOM MSA cohort percentile</td>
             <td className="num">
-              <span className="text-muted-foreground">—</span>
+              <strong>
+                {domPercentile !== null ? domPercentile.toFixed(1) : "—"}
+              </strong>
             </td>
-            <td className="num">
-              <span className="text-muted-foreground">—</span>
-            </td>
+            <td className="num text-muted-foreground">—</td>
+            <td className="num text-muted-foreground">—</td>
           </tr>
           <tr>
             <td>T12 sample size</td>
             <td className="num">{fmtInt(p.domT12N)} listings</td>
-            <td className="num">
-              <span className="text-muted-foreground">—</span>
-            </td>
-            <td className="num">
-              <span className="text-muted-foreground">—</span>
-            </td>
+            <td className="num text-muted-foreground">—</td>
+            <td className="num text-muted-foreground">—</td>
           </tr>
         </tbody>
       </table>

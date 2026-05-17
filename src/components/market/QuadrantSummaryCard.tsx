@@ -16,8 +16,8 @@ type QuadrantStats = {
 const DB_QUADRANT_KEYS: Record<QuadrantColorKey, string> = {
   "mfbtr-inst": "MF/BTR / Institutional",
   "mfbtr-ind": "MF/BTR / Independent",
-  "scattered-inst": "Scattered Site / Institutional",
-  "scattered-ind": "Scattered Site / Independent",
+  "scattered-inst": "Scattered / Institutional",
+  "scattered-ind": "Scattered / Independent",
   hybrid: "Hybrid",
 };
 

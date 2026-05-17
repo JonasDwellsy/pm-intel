@@ -40,12 +40,12 @@ export const QUADRANT_COLORS: Record<QuadrantColorKey, QuadrantColor> = {
   "scattered-inst": {
     fg: "#1B6E8C",
     soft: "#E4F0F4",
-    label: "Scattered Site · Institutional",
+    label: "Scattered · Institutional",
   },
   "scattered-ind": {
     fg: "#D97834",
     soft: "#FBEBDC",
-    label: "Scattered Site · Independent",
+    label: "Scattered · Independent",
   },
   hybrid: {
     fg: "#5A6B7B",

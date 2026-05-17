@@ -19,10 +19,10 @@ const FUTURE_MARKETS: Array<{ name: string; description: string }> = [
   {
     name: "Knoxville, TN MSA",
     description:
-      "Data ingestion complete. Eligibility threshold tuning in progress; targeting Q2 launch.",
+      "Data ingestion complete. Eligibility threshold tuning in progress; targeting Q3 launch.",
   },
   {
-    name: "Nashville–Davidson MSA",
+    name: "Atlanta, GA MSA",
     description:
       "Coverage scoping underway. Larger cohort means a slower, more conservative eligibility review.",
   },

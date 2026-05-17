@@ -3,16 +3,15 @@ import { TrackedLink } from "@/components/analytics/TrackedLink";
 import type { ScorecardData } from "@/lib/types";
 
 const SECTIONS_IN_FULL_VIEW: Array<{ num: string; title: string; sub: string }> = [
-  { num: "02", title: "Coverage universe", sub: "What we observe and how complete it is" },
+  { num: "02", title: "Coverage universe", sub: "What we observe and the sample backing every figure" },
   { num: "03", title: "Geographic coverage", sub: "Where the portfolio sits in the MSA" },
   { num: "04", title: "Operating performance", sub: "DOM by asset class, vs peer quadrant and market" },
-  { num: "05", title: "Time context — DOM", sub: "Five-year leasing-velocity trajectory" },
-  { num: "06", title: "Rent trajectory", sub: "Mix-adjusted premium / discount by year" },
-  { num: "07", title: "Pricing posture", sub: "Concession use & rent distribution" },
-  { num: "08", title: "Listing quality", sub: "Completeness, amenities, description depth" },
-  { num: "09", title: "Coverage confidence", sub: "Observed vs expected listing intensity" },
-  { num: "10", title: "Tenancy retention", sub: "Months held vs cohort medians" },
-  { num: "11", title: "Why this quadrant", sub: "Full classification rationale" },
+  { num: "05", title: "Tenancy", sub: "Episode-clustered gaps vs cohort p25–p75" },
+  { num: "06", title: "Rent trajectory", sub: "Six-quarter mix-adjusted median rent" },
+  { num: "07", title: "Rent performance", sub: "YoY rent change vs MSA cohort median" },
+  { num: "08", title: "Marketing quality", sub: "Completeness, amenities, description depth" },
+  { num: "09", title: "Community visibility", sub: "MF/BTR cherry-picking signal (when applicable)" },
+  { num: "10", title: "Why this quadrant", sub: "Full classification rationale" },
 ];
 
 export function PaywallCard({ scorecard }: { scorecard: ScorecardData }) {
@@ -38,7 +37,7 @@ export function PaywallCard({ scorecard }: { scorecard: ScorecardData }) {
             </h2>
             <p className="mt-3 max-w-[560px] text-[15px] text-muted-foreground">
               Everything below the headline metrics is paywalled. The full
-              report includes ten analytical sections plus a watermarked PDF
+              report includes nine analytical sections plus a watermarked PDF
               export, methodology references, and shareable links.
             </p>
 

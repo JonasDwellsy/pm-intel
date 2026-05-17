@@ -49,9 +49,9 @@ const QUADRANT_CORNERS: Array<{
   y: number;
   anchor: "start" | "end";
 }> = [
-  { key: "ss-independent", label: "Scattered Site · Independent", x: 40, y: 40, anchor: "start" },
+  { key: "ss-independent", label: "Scattered · Independent", x: 40, y: 40, anchor: "start" },
   { key: "mf-independent", label: "MF / BTR · Independent", x: 840, y: 40, anchor: "end" },
-  { key: "ss-institutional", label: "Scattered Site · Institutional", x: 40, y: 540, anchor: "start" },
+  { key: "ss-institutional", label: "Scattered · Institutional", x: 40, y: 540, anchor: "start" },
   { key: "mf-institutional", label: "MF / BTR · Institutional", x: 840, y: 540, anchor: "end" },
 ];
 

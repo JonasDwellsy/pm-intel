@@ -56,12 +56,19 @@ export async function loadMarketView({
   const stateCode = slugToStateCode(stateUrlSegment);
   if (!stateCode) return null;
 
-  const marketRow = await prisma.market.findFirst({
+  // Multi-market routing: there are multiple markets in some states (e.g. TN
+  // has both Chattanooga and Nashville). We filter by state first, then pick
+  // the row whose city slug matches the URL segment. findFirst-by-state alone
+  // would silently route the wrong city — Chattanooga vs Nashville — for any
+  // multi-market state.
+  const candidates = await prisma.market.findMany({
     where: { state: stateCode },
     include: { pms: { select: PM_SELECT, orderBy: { rankOverall: "asc" } } },
   });
+  const marketRow = candidates.find(
+    (m) => citySlug(m.city) === cityUrlSegment
+  );
   if (!marketRow) return null;
-  if (citySlug(marketRow.city) !== cityUrlSegment) return null;
 
   const market: MarketSummary = {
     id: marketRow.id,

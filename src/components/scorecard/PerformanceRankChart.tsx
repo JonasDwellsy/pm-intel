@@ -115,19 +115,21 @@ export function PerformanceRankChart({
                 typeof v === "number" ? `${v.toFixed(1)} d` : String(v ?? "")
               }
             />
-            <ReferenceLine
-              x={performance.peerQuadrantDomT12}
-              stroke={dqChartTheme.colors.teal}
-              strokeDasharray="4 4"
-              strokeWidth={1}
-              label={{
-                value: `Peer quadrant median ${performance.peerQuadrantDomT12.toFixed(1)}d`,
-                position: "top",
-                fill: dqChartTheme.colors.teal,
-                fontSize: 10,
-                fontWeight: 600,
-              }}
-            />
+            {performance.peerQuadrantDomT12 !== null && (
+              <ReferenceLine
+                x={performance.peerQuadrantDomT12}
+                stroke={dqChartTheme.colors.teal}
+                strokeDasharray="4 4"
+                strokeWidth={1}
+                label={{
+                  value: `Peer quadrant median ${performance.peerQuadrantDomT12.toFixed(1)}d`,
+                  position: "top",
+                  fill: dqChartTheme.colors.teal,
+                  fontSize: 10,
+                  fontWeight: 600,
+                }}
+              />
+            )}
             <Bar dataKey="value" radius={[0, 4, 4, 0]}>
               {data.map((d) => (
                 <Cell key={d.name} fill={colorMap[d.kind]} />
