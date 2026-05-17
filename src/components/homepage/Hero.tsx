@@ -7,33 +7,30 @@ import { QuadrantGrid, type QuadrantOperator } from "@/components/scorecard/Quad
 // is the methodology in one image.
 const HERO_OPERATORS: QuadrantOperator[] = [
   {
-    // Brookside is MF/BTR · Institutional in the real data (bottom-right under
-    // our axis convention).
-    name: "Brookside",
-    sub: "Rank #1 · 868 units",
+    // UDR — institutional MF/BTR baseline pulled from Nashville under v0.6.1.
+    name: "UDR",
+    sub: "Nashville · Rank #33 · 1,069 units",
     quadrant: "MF/BTR / Institutional",
     offset: { x: 0.62, y: 0.32 },
     color: "#2F7A5C",
   },
   {
-    // Generation is Scattered · Independent in the real data, but is staged
-    // here as the "hybrid SFR + MF" anchor in the marketing visual — pinned
-    // close to the central crosshair on the SS-Indep quadrant and given a
-    // teal accent + HYBRID badge to communicate the cross-asset story.
-    name: "Generation",
-    sub: "Rank #4 · cross-asset consistency",
-    quadrant: "Scattered Site / Independent",
-    offset: { x: 0.84, y: 0.78 },
-    color: "#1B6E8C",
-    hybrid: true,
+    // Brookside — MF/BTR Independent in Chattanooga under v0.6.1 (271
+    // national units, below the 500 institutional threshold).
+    name: "Brookside",
+    sub: "Chattanooga · 6.0d DOM · CV 2.54×",
+    quadrant: "MF/BTR / Independent",
+    offset: { x: 0.65, y: 0.65 },
+    color: "#8B3A62",
   },
   {
-    // Doorby is Scattered · Independent (top-left quadrant in our axis system).
-    name: "Doorby",
-    sub: "Rank #12 · 24 cities",
-    quadrant: "Scattered Site / Independent",
+    // Invitation Homes — Scattered Institutional under the v0.6.1 cross-market
+    // rule (1,667 national T12 urus across covered markets).
+    name: "Invitation Homes",
+    sub: "Jacksonville · 1,128 units (1,667 nat'l)",
+    quadrant: "Scattered / Institutional",
     offset: { x: 0.25, y: 0.32 },
-    color: "#D97834",
+    color: "#1B6E8C",
   },
 ];
 
@@ -76,7 +73,8 @@ export function Hero() {
             </TrackedLink>
           </div>
           <p className="mt-6 text-[14.5px] italic text-muted-foreground">
-            Methodology v0.3.4 · 1 market live · National coverage rolling out.
+            Methodology v0.6.1 · 3 markets live · National coverage rolling
+            out.
           </p>
         </div>
 
@@ -84,7 +82,7 @@ export function Hero() {
         <aside className="rounded-lg border border-grid bg-white p-7 shadow-[0_1px_0_rgb(15_31_63_/_0.02)]">
           <div className="mb-3 flex items-center justify-between">
             <p className="dq-eyebrow-muted">Operator-type quadrant</p>
-            <p className="text-[11px] text-muted-2">Methodology v0.3.4</p>
+            <p className="text-[11px] text-muted-2">Methodology v0.6.1</p>
           </div>
           <QuadrantGrid
             quadrant="MF/BTR / Institutional"
@@ -92,9 +90,9 @@ export function Hero() {
             operators={HERO_OPERATORS}
           />
           <p className="mt-4 max-w-[42ch] text-[13.5px] italic leading-[1.55] text-muted-foreground">
-            Three of 55 operators in Chattanooga, plotted by structural type.
-            The grid is the methodology in one image: every PM is mapped before
-            they&apos;re ranked.
+            Three operators drawn from our three covered markets, plotted by
+            structural type. The grid is the methodology in one image: every
+            PM is mapped before they&apos;re ranked.
           </p>
         </aside>
       </div>

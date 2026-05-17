@@ -17,13 +17,13 @@ export function inferQuadrant(
     return "MF/BTR / Independent";
   }
   if (propertyType === "small-mf") {
-    return "Scattered Site / Independent";
+    return "Scattered / Independent";
   }
   if (propertyType === "single-family" || propertyType === "condo") {
     if (unitCount !== undefined && unitCount >= 200) {
-      return "Scattered Site / Institutional";
+      return "Scattered / Institutional";
     }
-    return "Scattered Site / Independent";
+    return "Scattered / Independent";
   }
   return null;
 }

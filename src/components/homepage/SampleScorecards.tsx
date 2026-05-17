@@ -116,65 +116,69 @@ function ScorecardCard({ card }: { card: SampleCard }) {
   );
 }
 
+// One sample per market under v0.6.1 — selected to cover each major operator
+// type the methodology recognizes (MF/BTR Independent, MF/BTR Institutional,
+// Scattered Institutional). Numbers come straight from the seed dataset so
+// the cards stay accurate as the data refreshes.
 const SAMPLE_CARDS: SampleCard[] = [
   {
     slug: "brookside-properties-chattanooga-tn",
     href: "/property-managers/tennessee/chattanooga/brookside-properties-chattanooga-tn?unlocked=true",
     rankLabel: "Rank",
-    rankValue: "1 / 3",
-    rankContext: "in MF/BTR Institutional",
+    rankValue: "2 / 3",
+    rankContext: "in MF/BTR Independent · Chattanooga",
     name: "Brookside Properties",
+    badges: [
+      { kind: "orange", label: "Independent" },
+      { kind: "ink", label: "MF / BTR" },
+    ],
+    quote:
+      "Six-day median DOM, comprehensive community visibility at 2.54× the cohort norm — a structurally transparent multifamily operator.",
+    stats: [
+      { label: "Median DOM", value: "6.0 days", accent: "green" },
+      { label: "CV ratio", value: "2.54×", accent: "green" },
+      { label: "Units · MSA", value: "198" },
+      { label: "Composite", value: "66.0" },
+    ],
+  },
+  {
+    slug: "udr-nashville-tn",
+    href: "/property-managers/tennessee/nashville/udr-nashville-tn?unlocked=true",
+    rankLabel: "Rank",
+    rankValue: "33 / 98",
+    rankContext: "overall · Nashville MSA",
+    name: "UDR",
     badges: [
       { kind: "green", label: "Institutional" },
       { kind: "ink", label: "MF / BTR" },
     ],
     quote:
-      "Six-day median DOM, zero concessions across the trailing year — a structural lease-up pace that holds up across both communities in the portfolio.",
+      "National Class A multifamily operator — the institutional baseline. Comprehensive community visibility against a single qualifying community.",
     stats: [
-      { label: "Median DOM", value: "6 days", accent: "green" },
-      { label: "Concession use", value: "0.0× mkt" },
-      { label: "Units", value: "868" },
-      { label: "Communities", value: "2" },
+      { label: "Median DOM", value: "24.0 days" },
+      { label: "Units · MSA", value: "1,069" },
+      { label: "Quadrant rank", value: "4 / 5" },
+      { label: "Scale", value: "National" },
     ],
   },
   {
-    slug: "doorby-property-management-chattanooga-tn",
-    href: "/property-managers/tennessee/chattanooga/doorby-property-management-chattanooga-tn?unlocked=true",
+    slug: "invitation-homes-jacksonville-fl",
+    href: "/property-managers/florida/jacksonville/invitation-homes-jacksonville-fl?unlocked=true",
     rankLabel: "Rank",
-    rankValue: "12 / 20",
-    rankContext: "overall",
-    name: "Doorby Property Management",
+    rankValue: "63 / 129",
+    rankContext: "overall · Jacksonville MSA",
+    name: "Invitation Homes",
     badges: [
-      { kind: "orange", label: "Independent" },
+      { kind: "green", label: "Institutional" },
       { kind: "ink", label: "Scattered SFR" },
     ],
     quote:
-      "Scattered SFR footprint of 750 units across 569 distinct addresses in 24 cities — the widest geographic spread in the Chattanooga eligible cohort.",
+      "Largest scattered-site SFR operator in the U.S. — institutional under v0.6.1's cross-market rule (1,667 national units). Community visibility is suppressed by design for SFR.",
     stats: [
-      { label: "Units", value: "750" },
-      { label: "Addresses", value: "569" },
-      { label: "Cities", value: "24" },
-      { label: "Median DOM", value: "25.9 days", accent: "orange" },
-    ],
-  },
-  {
-    slug: "generation-property-management-chattanooga-tn",
-    href: "/property-managers/tennessee/chattanooga/generation-property-management-chattanooga-tn?unlocked=true",
-    rankLabel: "Rank",
-    rankValue: "4 / 20",
-    rankContext: "overall",
-    name: "Generation Property Management",
-    badges: [
-      { kind: "teal", label: "Hybrid SFR + MF" },
-      { kind: "ink", label: "Independent" },
-    ],
-    quote:
-      "Cross-asset operating consistency — house portfolio and apartment portfolio land within 9% of each other on every velocity metric. Rare.",
-    stats: [
-      { label: "Cross-asset Δ", value: "±9%", accent: "green" },
-      { label: "Median DOM", value: "16.1 days" },
-      { label: "Units", value: "711" },
-      { label: "Mix", value: "SFR + MF" },
+      { label: "Median DOM", value: "25.1 days" },
+      { label: "Units · MSA", value: "1,128" },
+      { label: "Quadrant rank", value: "3 / 5" },
+      { label: "Visibility", value: "N/A (SFR)" },
     ],
   },
 ];
@@ -186,7 +190,7 @@ export function SampleScorecards() {
         <HomepageSectionHead
           eyebrow="Inside a scorecard"
           title="Institutional-grade analysis on every operator."
-          context="Three real operators from the Chattanooga cohort. Every figure shown is produced by the same methodology applied to every PM — no curation, no narrative."
+          context="One real operator from each of our three covered markets. Every figure shown is produced by the same methodology applied to every PM — no curation, no narrative."
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {SAMPLE_CARDS.map((c) => (

@@ -71,7 +71,7 @@ export default async function HomePage() {
       <SampleScorecards />
       <OperatorCTA samplePmSlug={claimSlug} />
       <InstitutionCTA />
-      <MethodologyFooter version="0.3.4" dataAsOf={dataAsOf} />
+      <MethodologyFooter version="0.6.1" dataAsOf={dataAsOf} />
     </main>
   );
 }

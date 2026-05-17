@@ -203,10 +203,10 @@ export function ScorecardPDF({
     rank,
     coverage,
     performance,
-    pricing,
     marketing,
-    selectionBias,
     tenancy,
+    rentPerformance,
+    communityVisibility,
     classificationRationale,
     rentTrajectory,
     methodologyVersion,
@@ -288,17 +288,22 @@ export function ScorecardPDF({
             </View>
             <View style={styles.half}>
               <Text>
-                Institutional: {fmtInt(coverage.institutionalUnits)} units · {fmtInt(coverage.institutionalBuildings)} bldgs
+                Observed managed units · this MSA: {fmtInt(coverage.totalObservedUnits)}
               </Text>
+              {coverage.nationalObservedUnitsT12 !== null && (
+                <Text>
+                  Observed units · all Dwellsy IQ markets (T12): {fmtInt(coverage.nationalObservedUnitsT12)}
+                </Text>
+              )}
               <Text>
-                Small MF: {fmtInt(coverage.smallMfUnits)} units · {fmtInt(coverage.smallMfBuildings)} bldgs
+                Cities observed: {coverage.citiesObserved}
               </Text>
-              <Text>
-                Unit-level (large MF): {fmtInt(coverage.unitLevelCount)} · SFR: {fmtInt(coverage.sfrCount)}
-              </Text>
-              <Text>
-                Total observed: {fmtInt(coverage.totalObservedUnits)} units in {coverage.citiesObserved} cities
-              </Text>
+              {coverage.concentratedShare !== null && (
+                <Text>
+                  Share in concentrated communities: {Math.round(coverage.concentratedShare * 100)}%
+                </Text>
+              )}
+              <Text>Quadrant: {pm.quadrant}</Text>
             </View>
           </View>
         </View>
@@ -330,38 +335,31 @@ export function ScorecardPDF({
             label={`DOM T12 — houses${performance.houseEligible ? "" : " (insufficient N)"}`}
             pm={performance.houseDomT12}
             peer={null}
-            market={performance.marketHouseDomT12}
+            market={performance.marketDomT12}
             n={performance.houseUrusT12}
           />
           <PdfPerfRow
             label={`DOM T12 — apartments${performance.aptEligible ? "" : " (insufficient N)"}`}
             pm={performance.aptDomT12}
             peer={null}
-            market={performance.marketAptDomT12}
+            market={performance.marketDomT12}
             n={performance.aptUrusT12}
           />
         </View>
 
         {/* Rent trajectory */}
-        <Text style={styles.sectionTitle}>Rent trajectory (premium / discount vs comparable units)</Text>
+        <Text style={styles.sectionTitle}>Rent trajectory (mix-adjusted median by quarter)</Text>
         <View style={styles.cardBlock}>
           <View style={styles.tableHeaderRow}>
-            <Text style={styles.tableCellLabel}>Year</Text>
-            <Text style={styles.tableCellNum}>Premium</Text>
+            <Text style={styles.tableCellLabel}>Quarter</Text>
+            <Text style={styles.tableCellNum}>Median</Text>
             <Text style={styles.tableCellNum}>N</Text>
           </View>
           {rentTrajectory.map((r) => (
-            <View key={r.year} style={styles.tableRow}>
-              <Text style={styles.tableCellLabel}>{r.year}</Text>
-              <Text
-                style={[
-                  styles.tableCellNum,
-                  {
-                    color: r.premiumPct >= 0 ? colors.positive : colors.negative,
-                  },
-                ]}
-              >
-                {fmtPct(r.premiumPct, 1, true)}
+            <View key={r.quarter} style={styles.tableRow}>
+              <Text style={styles.tableCellLabel}>{r.quarter}</Text>
+              <Text style={styles.tableCellNum}>
+                ${Math.round(r.mixAdjMedian).toLocaleString("en-US")}
               </Text>
               <Text style={[styles.tableCellNum, { color: colors.muted }]}>
                 {fmtInt(r.n)}
@@ -370,63 +368,81 @@ export function ScorecardPDF({
           ))}
         </View>
 
-        {/* Pricing + listing quality + coverage confidence */}
+        {/* Rent performance + marketing quality */}
         <View style={styles.twoCol}>
           <View style={[styles.half, styles.cardBlock]}>
-            <Text style={styles.sectionTitle}>Pricing</Text>
-            <Text>
-              T12 median premium: {fmtPct(pricing.t12MedianPremium, 1, true)}
-            </Text>
-            <Text>
-              Above market ≥10%: {fmtPct(pricing.t12PctAbove10)}
-            </Text>
-            <Text>
-              Below market ≥10%: {fmtPct(pricing.t12PctBelow10)}
-            </Text>
-            <Text>
-              Concession rate (T12): {fmtPct(pricing.t12ConcessionRate)} · Market {fmtPct(pricing.marketConcessionT12)}
-            </Text>
+            <Text style={styles.sectionTitle}>Rent performance</Text>
+            {rentPerformance ? (
+              <>
+                <Text>
+                  PM YoY rent change: {fmtPct(rentPerformance.pmYoyChange * 100, 2, true)}
+                </Text>
+                <Text>
+                  MSA cohort median YoY: {fmtPct((rentPerformance.cohortMedianYoyChange ?? 0) * 100, 2, true)}
+                </Text>
+                <Text>
+                  Delta: {fmtPct(rentPerformance.delta * 100, 2, true)}
+                </Text>
+                <Text>
+                  Cohort percentile: {rentPerformance.percentileRank.toFixed(1)}
+                </Text>
+              </>
+            ) : (
+              <Text style={{ color: colors.muted }}>Not computed.</Text>
+            )}
           </View>
           <View style={[styles.half, styles.cardBlock]}>
-            <Text style={styles.sectionTitle}>Listing quality</Text>
+            <Text style={styles.sectionTitle}>Marketing quality</Text>
             <Text>
-              Completeness: {marketing.completeness.toFixed(2)} (peer {marketing.peerCompleteness.toFixed(2)})
+              Completeness: {marketing.completeness.toFixed(1)} fields (score {marketing.completenessScore.toFixed(0)})
             </Text>
             <Text>
-              Amenities mentioned: {marketing.amenitiesMentioned.toFixed(1)} (peer {marketing.peerAmenities.toFixed(1)})
+              Amenities mentioned: {marketing.amenitiesMentioned.toFixed(1)} (score {marketing.amenitiesScore.toFixed(0)})
             </Text>
             <Text>
-              Description length: {fmtInt(marketing.descLen)} chars (peer {fmtInt(marketing.peerDescLen)})
+              Description length: {fmtInt(marketing.descLen)} chars (score {marketing.descScore.toFixed(0)})
+            </Text>
+            <Text>
+              Composite: {marketing.compositeScore.toFixed(0)}
             </Text>
           </View>
         </View>
 
-        {/* Coverage confidence + tenancy */}
+        {/* Community visibility (when applicable) + tenancy */}
         <View style={styles.twoCol}>
           <View style={[styles.half, styles.cardBlock]}>
-            <Text style={styles.sectionTitle}>Coverage confidence</Text>
-            <Text>Buildings tracked: {fmtInt(selectionBias.buildings)}</Text>
-            <Text>
-              Observed / expected intensity: {selectionBias.observed.toFixed(2)} / {selectionBias.expected.toFixed(2)}
-            </Text>
-            <Text>Ratio: {selectionBias.ratio.toFixed(2)}×</Text>
-            <Text style={{ marginTop: 4, color: colors.muted }}>
-              {selectionBias.assessment}
-            </Text>
+            <Text style={styles.sectionTitle}>Community visibility</Text>
+            {communityVisibility ? (
+              <>
+                <Text>
+                  Ratio: {communityVisibility.ratio.toFixed(2)}× · {communityVisibility.stateLabel}
+                </Text>
+                <Text>
+                  Communities: {communityVisibility.perCommunity.length} · turnover assumption {Math.round(communityVisibility.expectedTurnoverRate * 100)}%
+                </Text>
+                <Text>
+                  MSA percentile: {communityVisibility.percentileRank.toFixed(1)}
+                </Text>
+              </>
+            ) : (
+              <Text style={{ color: colors.muted }}>
+                Suppressed (operator outside Section 4 scope gate).
+              </Text>
+            )}
           </View>
           <View style={[styles.half, styles.cardBlock]}>
             <Text style={styles.sectionTitle}>Tenancy retention</Text>
             <Text>
               Total units: {fmtInt(tenancy.totalUnits)} · multi-episode {fmtInt(tenancy.multiEpisodeUnits)} ({tenancy.multiEpisodePct}%)
             </Text>
-            {tenancy.aptGap !== null && (
+            {tenancy.apartment.gap !== null && (
               <Text>
-                Apartments: {tenancy.aptGap.toFixed(1)} mo (cohort p25–p75 {tenancy.aptP25?.toFixed(1)}–{tenancy.aptP75?.toFixed(1)}) · {tenancy.aptPosition ?? ""}
+                Apartments: {tenancy.apartment.gap.toFixed(1)} mo (cohort p25–p75 {tenancy.apartment.cohortP25?.toFixed(1)}–{tenancy.apartment.cohortP75?.toFixed(1)})
               </Text>
             )}
-            {tenancy.sfrGap !== null && (
+            {tenancy.house.gap !== null && (
               <Text>
-                Houses: {tenancy.sfrGap.toFixed(1)} mo (cohort p25–p75 {tenancy.sfrP25?.toFixed(1)}–{tenancy.sfrP75?.toFixed(1)}) · {tenancy.sfrPosition ?? ""}
+                Houses: {tenancy.house.gap.toFixed(1)} mo (cohort p25–p75 {tenancy.house.cohortP25?.toFixed(1)}–{tenancy.house.cohortP75?.toFixed(1)})
               </Text>
             )}
           </View>
