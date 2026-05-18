@@ -258,6 +258,30 @@ export interface CommunityVisibilityBlock {
   cohortName?: string;
 }
 
+// Detect a known v0.6.2 data-pipeline gap: the marketing subscores for some
+// cohorts (Nashville SFR Independent is the worst-affected) were not
+// computed during the v0.6.2 generation pass. The raw inputs (completeness
+// %, amenitiesMentioned, descLen) populate as expected, but the three
+// subscores AND the composite all land at 0. A genuine 0 composite is
+// mathematically impossible for an operator with any listings; uniform 0
+// across raw + subscores indicates pipeline failure. The suppressed flag
+// drives a "Insufficient marketing data" disclosure on the Operational
+// Discipline tile + card rather than rendering a fake 0/100 number.
+// Tracked for v0.7 — recompute marketing scores across affected cohorts.
+export function marketingDataSuppressed(m: {
+  compositeScore: number;
+  completenessScore: number;
+  amenitiesScore: number;
+  descScore: number;
+}): boolean {
+  return (
+    m.compositeScore === 0 &&
+    m.completenessScore === 0 &&
+    m.amenitiesScore === 0 &&
+    m.descScore === 0
+  );
+}
+
 export interface MarketSummary {
   id: string;
   city: string;

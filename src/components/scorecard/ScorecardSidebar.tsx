@@ -13,30 +13,24 @@ const FREE_SECTIONS: SectionLink[] = [
 // Inventory Transparency is the only Layer 3 card gated by scope qualification.
 // Sidebar anchor list — top-level sections only (no per-card sub-anchors).
 // Readers scroll within "Performance dimensions" to see the individual
-// metric cards. The hasCommunityVisibility flag no longer changes this
-// list because all Layer 3 cards are siblings inside the parent section.
-function unlockedSections(_hasCommunityVisibility: boolean): SectionLink[] {
-  return [
-    { id: "synthesis", label: "Synthesis", num: "01" },
-    { id: "performance", label: "Performance dimensions", num: "02" },
-    { id: "lending-signals", label: "Lending Signals", num: "03" },
-    { id: "portfolio", label: "Portfolio characteristics", num: "04" },
-    { id: "methodology-footer", label: "Methodology & limits", num: "05" },
-  ];
-}
+// metric cards. The hasCommunityVisibility flag is no longer consulted
+// because all Layer 3 cards are siblings inside the parent section.
+const UNLOCKED_SECTIONS: SectionLink[] = [
+  { id: "synthesis", label: "Synthesis", num: "01" },
+  { id: "performance", label: "Performance dimensions", num: "02" },
+  { id: "lending-signals", label: "Lending Signals", num: "03" },
+  { id: "portfolio", label: "Portfolio characteristics", num: "04" },
+  { id: "methodology-footer", label: "Methodology & limits", num: "05" },
+];
 
 export function ScorecardSidebar({
   isUnlocked,
   pmSlug,
-  hasCommunityVisibility,
 }: {
   isUnlocked: boolean;
   pmSlug: string;
-  hasCommunityVisibility: boolean;
 }) {
-  const items = isUnlocked
-    ? unlockedSections(hasCommunityVisibility)
-    : FREE_SECTIONS;
+  const items = isUnlocked ? UNLOCKED_SECTIONS : FREE_SECTIONS;
   return (
     <aside aria-label="On this page" className="hidden lg:block">
       <div className="sticky top-[88px]">
