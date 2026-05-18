@@ -10,6 +10,7 @@ import type {
 import type { StarLevel } from "@/lib/types";
 import { fmtNumber, fmtPct } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
+import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
 import type { MetricKey } from "@/lib/metric-definitions";
 
 // Layer 4 — Lending Signals card (Scorecard_Design_Spec_v1.0.md Section 3,
@@ -42,17 +43,12 @@ export function LendingSignals({
       aria-label="Lending Signals"
       className="dq-section space-y-6"
     >
-      <div>
-        <p className="dq-eyebrow inline-flex items-center gap-1.5">
-          Lending Signals
-          <InfoIcon metricKey="section-lending-signals" />
-        </p>
-        <p className="mt-3 max-w-[780px] text-[14px] leading-[1.6] text-muted-foreground">
-          Underwriting-relevant synthesis metrics designed for a 30-second
-          scan. Cohort comparison shown for each signal; quartile position
-          drives star where applicable.
-        </p>
-      </div>
+      <LayerSectionHeader
+        num="03"
+        title="Lending Signals"
+        metricKey="section-lending-signals"
+        lede="Underwriting-relevant synthesis metrics designed for a 30-second scan. Cohort comparison shown for each signal; quartile position drives star where applicable."
+      />
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         {signals.vacancy && <VacancySignalCard signal={signals.vacancy} />}

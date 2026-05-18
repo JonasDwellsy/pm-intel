@@ -4,6 +4,7 @@ import { METRIC_DIRECTIONS } from "@/lib/peer-comparison";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { fmtNumber } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
+import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
 import type { MetricKey } from "@/lib/metric-definitions";
 
 // Map Layer3Metric → MetricKey for the info-icon lookup.
@@ -107,17 +108,12 @@ export function PerformanceLayer({
       aria-label="Performance dimensions"
       className="dq-section space-y-8"
     >
-      <div>
-        <p className="dq-eyebrow inline-flex items-center gap-1.5">
-          Performance dimensions
-          <InfoIcon metricKey="section-performance-dimensions" />
-        </p>
-        <p className="mt-3 max-w-[780px] text-[14px] leading-[1.6] text-muted-foreground">
-          Each card shows a metric, the cohort it&rsquo;s compared against, and
-          the four nearest neighbors by value. Stars reflect quartile position
-          within cohort.
-        </p>
-      </div>
+      <LayerSectionHeader
+        num="02"
+        title="Performance dimensions"
+        metricKey="section-performance-dimensions"
+        lede="Each card shows a metric, the cohort it’s compared against, and the four nearest neighbors by value. Stars reflect quartile position within cohort."
+      />
 
       <div className="space-y-6">
         {cards.map((cfg) => (

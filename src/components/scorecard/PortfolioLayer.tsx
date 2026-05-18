@@ -19,6 +19,7 @@ import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { fmtInt, fmtNumber } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
+import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
 import type { MetricKey } from "@/lib/metric-definitions";
 import {
   dqChartTheme,
@@ -92,17 +93,12 @@ export function PortfolioLayer({
       aria-label="Portfolio Characteristics"
       className="dq-section space-y-12"
     >
-      <div>
-        <p className="dq-eyebrow inline-flex items-center gap-1.5">
-          Portfolio Characteristics
-          <InfoIcon metricKey="section-portfolio" />
-        </p>
-        <p className="mt-3 max-w-[780px] text-[14px] leading-[1.6] text-muted-foreground">
-          Geographic footprint, portfolio composition, rent trajectory, and
-          pricing context. Sections render only when the operator has
-          qualifying data.
-        </p>
-      </div>
+      <LayerSectionHeader
+        num="04"
+        title="Portfolio characteristics"
+        metricKey="section-portfolio"
+        lede="Geographic footprint, portfolio composition, rent trajectory, and pricing context. Subsections render only when the operator has qualifying data."
+      />
 
       {labels.coverage && (
         <CoverageMapAnnotated
