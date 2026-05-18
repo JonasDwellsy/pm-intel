@@ -3,13 +3,6 @@ import { fmtDays, fmtInt } from "@/lib/format";
 import { quadrantColor } from "@/lib/quadrant-colors";
 import type { PMListItem as PMListItemData, StarLevel } from "@/lib/types";
 
-function concessionLabel(rate: number | null): string {
-  if (rate === null) return "—";
-  if (rate < 5) return "Rarely";
-  if (rate < 15) return "Occasional";
-  return "Frequent";
-}
-
 function fmtSignedPct(n: number | null): {
   text: string;
   tone: "good" | "bad" | "flat";
@@ -56,7 +49,6 @@ export function PMListItem({
   const href = `/property-managers/${stateSlug}/${citySlug}/${pm.slug}`;
   const color = quadrantColor(pm.quadrant);
   const rent = fmtSignedPct(pm.rentVsComp);
-  const concession = concessionLabel(pm.concessionRate);
   const cityShare = pm.primaryCityShare;
 
   const rentToneClass =
@@ -122,8 +114,11 @@ export function PMListItem({
             </p>
           </div>
 
-          {/* Middle: mini-metrics */}
-          <div className="grid grid-cols-3 gap-5">
+          {/* Middle: mini-metrics. Concession column hidden until v0.7
+              sources concession rates — v0.6.2 surfaces no concession
+              data, so the column rendered "—" universally and read as a
+              data gap rather than the deferred state it actually is. */}
+          <div className="grid grid-cols-2 gap-5">
             <MiniMetric
               label="DOM (T12)"
               value={fmtDays(pm.domT12)}
@@ -135,14 +130,6 @@ export function PMListItem({
               value={rent.text}
               className={"dq-mono " + rentToneClass}
             />
-            <div>
-              <p className="dq-eyebrow-muted mb-1.5 text-[10.5px]">
-                Concession
-              </p>
-              <p className="text-[15px] font-medium leading-none text-navy/80">
-                {concession}
-              </p>
-            </div>
           </div>
 
           {/* Right: CTA */}

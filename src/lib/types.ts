@@ -258,6 +258,27 @@ export interface CommunityVisibilityBlock {
   cohortName?: string;
 }
 
+// Defensive guard against marketing data with no signal at all. Reads from
+// the SAME compositeScore field that the Operational Discipline tile and
+// card display so the detection signature matches the display logic. A
+// non-zero compositeScore means the operator has a real, displayable score
+// regardless of which source field-name convention the data pipeline used
+// (the v0.6.2 input arrives in two shapes — `compositeScore` for the
+// Chattanooga cohort, `marketingQuality` for the other 6 markets — and the
+// seed normalizes both into compositeScore upstream of this check).
+//
+// True suppression only fires when compositeScore is exactly 0, which is
+// mathematically impossible for an operator with any listing data and only
+// happens when the seed-time normalization itself fell through every
+// fallback. With v0.6.2 + the seed normalization in place, no operator in
+// the 7-market footprint trips this — the guard remains as defense in
+// depth for future market additions where the input shape could drift.
+export function marketingDataSuppressed(m: {
+  compositeScore: number;
+}): boolean {
+  return m.compositeScore === 0;
+}
+
 export interface MarketSummary {
   id: string;
   city: string;

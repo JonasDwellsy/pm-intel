@@ -47,7 +47,18 @@ type InputMarket = {
   // Two variant field names — readers must accept either.
   cohortMedianYoyRentChange?: number | null;
   cohortMedianYoyChange?: number | null;
-  mapBounds?: { north: number; south: number; east: number; west: number };
+  // The v0.6.2 input emits mapBounds in TWO different key shapes across
+  // markets (carry-forward from per-market seed runs): Chattanooga emits
+  // {north, south, east, west} (canonical); Nashville emits
+  // {minLat, maxLat, minLon, maxLon}; Jacksonville / Memphis / Knoxville /
+  // Clarksville / Phoenix omit the field entirely. The seed normalizes all
+  // three at the buildScorecard layer via normalizeMapBounds() so the
+  // canonical ScorecardData shape always renders with the Mapbox-expected
+  // {north, south, east, west} keys.
+  mapBounds?:
+    | { north: number; south: number; east: number; west: number }
+    | { minLat: number; maxLat: number; minLon: number; maxLon: number }
+    | Record<string, never>;
   mapCenter?: { lat: number; lon: number };
   msaBackdropPoints?: Array<{ lat: number; lon: number }>;
   msaIndexUrus?: number;
@@ -377,6 +388,63 @@ function normalizeGeneratedText(
   };
 }
 
+// Canonicalize the per-market mapBounds to the {north, south, east, west}
+// shape that CoverageMapClient consumes. Handles all three v0.6.2 input
+// variants (see InputMarket.mapBounds comment).
+function normalizeMapBounds(
+  raw: InputMarket["mapBounds"],
+  backdropPoints?: Array<{ lat: number; lon: number }>
+): { north: number; south: number; east: number; west: number } | undefined {
+  if (raw && typeof raw === "object") {
+    const r = raw as Record<string, unknown>;
+    if (
+      typeof r.north === "number" &&
+      typeof r.south === "number" &&
+      typeof r.east === "number" &&
+      typeof r.west === "number"
+    ) {
+      return {
+        north: r.north as number,
+        south: r.south as number,
+        east: r.east as number,
+        west: r.west as number,
+      };
+    }
+    if (
+      typeof r.maxLat === "number" &&
+      typeof r.minLat === "number" &&
+      typeof r.maxLon === "number" &&
+      typeof r.minLon === "number"
+    ) {
+      return {
+        north: r.maxLat as number,
+        south: r.minLat as number,
+        east: r.maxLon as number,
+        west: r.minLon as number,
+      };
+    }
+  }
+  // Derive from msaBackdropPoints (the ~1,500 grey reference dots covering
+  // the MSA) so 5 markets that omit explicit bounds still render real maps.
+  if (Array.isArray(backdropPoints) && backdropPoints.length > 0) {
+    let north = -Infinity;
+    let south = Infinity;
+    let east = -Infinity;
+    let west = Infinity;
+    for (const p of backdropPoints) {
+      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
+      if (p.lat > north) north = p.lat;
+      if (p.lat < south) south = p.lat;
+      if (p.lon > east) east = p.lon;
+      if (p.lon < west) west = p.lon;
+    }
+    if (Number.isFinite(north) && Number.isFinite(south)) {
+      return { north, south, east, west };
+    }
+  }
+  return undefined;
+}
+
 function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
   const rank = getObj(pm, "rank") ?? {};
   const coverage = getObj(pm, "coverage") ?? {};
@@ -535,12 +603,30 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
       completeness: asNumber(marketing.completeness) ?? 0,
       amenitiesMentioned: asNumber(marketing.amenitiesMentioned) ?? 0,
       descLen: asInt(marketing.descLen) ?? 0,
-      completenessScore: asNumber(marketing.completenessScore) ?? 0,
-      amenitiesScore: asNumber(marketing.amenitiesScore) ?? 0,
-      descScore: asNumber(marketing.descScore) ?? 0,
+      // The v0.6.2 source JSON uses two field-name conventions across
+      // markets (carry-forward from per-market seed runs): Chattanooga
+      // (37 PMs) uses `completenessScore` / `amenitiesScore` / `descScore`
+      // / `compositeScore`; the other 6 markets (535 PMs) use the
+      // `*Subscore` + `marketingQuality` form. Accept either shape so
+      // canonical ScorecardData always has populated marketing scores.
+      completenessScore:
+        asNumber(marketing.completenessScore) ??
+        asNumber(marketing.completenessSubscore) ??
+        0,
+      amenitiesScore:
+        asNumber(marketing.amenitiesScore) ??
+        asNumber(marketing.amenitiesSubscore) ??
+        0,
+      descScore:
+        asNumber(marketing.descScore) ??
+        asNumber(marketing.descSubscore) ??
+        0,
       medianPhotosT12: asInt(marketing.medianPhotosT12),
       zeroPhotoT12: asNumber(marketing.zeroPhotoT12),
-      compositeScore: asNumber(marketing.compositeScore) ?? 0,
+      compositeScore:
+        asNumber(marketing.compositeScore) ??
+        asNumber(marketing.marketingQuality) ??
+        0,
       star: asStar(marketing.star),
       cohortUsedForStar: asCohortLevel(marketing.cohortUsedForStar),
       cohortName: asString(marketing.cohortName) || undefined,
@@ -583,7 +669,7 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
         type?: string;
       }>(geo, "coverageMapPoints"),
       mapCenter: market.mapCenter,
-      mapBounds: market.mapBounds,
+      mapBounds: normalizeMapBounds(market.mapBounds, market.msaBackdropPoints),
       msaBackdropPoints: market.msaBackdropPoints,
     },
     communityVisibility,
@@ -599,6 +685,53 @@ async function main() {
       (data.designVersion ? `, design ${data.designVersion}` : "") +
       `, dataAsOf ${data.dataAsOf}`
   );
+
+  // Pre-pass: for the 4 markets that omit both mapBounds AND
+  // msaBackdropPoints (Memphis/Knoxville/Clarksville/Phoenix in v0.6.2),
+  // derive market-level bounds from the union of all PM coverageMapPoints
+  // in that market. Mutates each InputMarket in-place so buildScorecard's
+  // existing normalizeMapBounds() picks them up via the canonical shape.
+  for (const m of data.markets) {
+    const hasUsableBounds = normalizeMapBounds(m.mapBounds) !== undefined;
+    const hasBackdrop = (m.msaBackdropPoints?.length ?? 0) > 0;
+    if (hasUsableBounds || hasBackdrop) continue;
+
+    let north = -Infinity;
+    let south = Infinity;
+    let east = -Infinity;
+    let west = Infinity;
+    for (const pm of data.pms) {
+      if (asString(pm.marketId) !== m.id) continue;
+      const points = getArray<{ lat?: number; lon?: number }>(
+        getObj(pm, "geographicCoverage"),
+        "coverageMapPoints"
+      );
+      for (const p of points) {
+        if (typeof p.lat !== "number" || typeof p.lon !== "number") continue;
+        if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
+        if (p.lat > north) north = p.lat;
+        if (p.lat < south) south = p.lat;
+        if (p.lon > east) east = p.lon;
+        if (p.lon < west) west = p.lon;
+      }
+    }
+    if (Number.isFinite(north) && Number.isFinite(south)) {
+      // Pad the derived envelope ~5% so points near the edge don't sit on
+      // the map frame. Latitude band gets the bigger pad because the bounds
+      // are typically tight on operator footprints.
+      const latPad = (north - south) * 0.05 || 0.05;
+      const lonPad = (east - west) * 0.05 || 0.05;
+      m.mapBounds = {
+        north: north + latPad,
+        south: south - latPad,
+        east: east + lonPad,
+        west: west - lonPad,
+      };
+      console.log(
+        `  ↳ derived mapBounds for ${m.id} from PM coverage points`
+      );
+    }
+  }
 
   // Idempotent: clear PMs first (FK to Market), then Markets.
   await prisma.pM.deleteMany();

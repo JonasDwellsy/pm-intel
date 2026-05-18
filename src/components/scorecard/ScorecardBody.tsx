@@ -89,7 +89,6 @@ export function ScorecardBody({
           <ScorecardSidebar
             isUnlocked={isUnlocked}
             pmSlug={scorecard.pm.slug}
-            hasCommunityVisibility={scorecard.communityVisibility !== null}
           />
         </div>
       </div>

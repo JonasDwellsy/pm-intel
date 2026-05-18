@@ -5,6 +5,7 @@ import type {
   ScorecardData,
   StarLevel,
 } from "@/lib/types";
+import { marketingDataSuppressed } from "@/lib/types";
 
 // Layer 3 metric universe — five performance dimensions that get their own
 // card. Community Visibility is gated by `scorecard.communityVisibility !==
@@ -45,6 +46,11 @@ function metricValue(
     case "rentPerformance":
       return sc.rentPerformance?.delta ?? null;
     case "marketing":
+      // v0.7 follow-up: some v0.6.2 cohorts (Nashville SFR Indep is the
+      // worst-affected) have their marketing subscores stuck at 0 due to
+      // a data-pipeline computation gap. Treat as null so Layer 3 renders
+      // "Insufficient data to compute" rather than a fake 0/100 cohort.
+      if (marketingDataSuppressed(sc.marketing)) return null;
       return Number.isFinite(sc.marketing.compositeScore)
         ? sc.marketing.compositeScore
         : null;

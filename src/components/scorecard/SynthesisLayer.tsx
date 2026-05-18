@@ -1,4 +1,5 @@
 import type { ScorecardData, StarLevel } from "@/lib/types";
+import { marketingDataSuppressed } from "@/lib/types";
 import { fmtNumber, fmtPct } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
 import type { MetricKey } from "@/lib/metric-definitions";
@@ -198,6 +199,25 @@ function RentPerformanceTile({ scorecard }: { scorecard: ScorecardData }) {
 
 function OperationalDisciplineTile({ scorecard }: { scorecard: ScorecardData }) {
   const { marketing } = scorecard;
+  const suppressed = marketingDataSuppressed(marketing);
+  // v0.7 follow-up: the Nashville SFR Independent cohort (and likely a few
+  // others) lost their marketing subscores during v0.6.2 generation. The
+  // composite stays 0 across the entire cohort, and the per-metric star is
+  // gold by default for every operator. Surface the data gap honestly
+  // rather than rendering a fake 0/100 tile.
+  if (suppressed) {
+    return (
+      <MetricTile
+        title="Operational Discipline"
+        metricKey="marketing"
+        headlineValue="—"
+        headlineUnit=""
+        star={null}
+        comparison="Insufficient marketing data"
+        caveat="v0.7 fix · subscores not computed for this cohort"
+      />
+    );
+  }
   const score = marketing.compositeScore;
   const pct = scorecard.rank.percentiles.marketing;
   return (
