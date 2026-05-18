@@ -3,7 +3,7 @@ import type { MarketFootprintPill } from "@/lib/cross-market";
 
 import { TrackEvent } from "@/components/analytics/TrackEvent";
 import { IdentityHero } from "@/components/scorecard/IdentityHero";
-import { HeadlineMetrics } from "@/components/scorecard/HeadlineMetrics";
+import { SynthesisLayer } from "@/components/scorecard/SynthesisLayer";
 import { PaywallCard } from "@/components/scorecard/PaywallCard";
 import { CoverageSection } from "@/components/scorecard/CoverageSection";
 import { CoverageMap } from "@/components/scorecard/CoverageMap";
@@ -57,7 +57,7 @@ export function ScorecardBody({
             isClaimed={isClaimed}
             marketFootprint={marketFootprint}
           />
-          <HeadlineMetrics scorecard={scorecard} />
+          <SynthesisLayer scorecard={scorecard} />
 
           {!isUnlocked ? (
             <PaywallCard scorecard={scorecard} />
