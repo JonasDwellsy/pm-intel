@@ -70,6 +70,19 @@ export async function loadMarketView({
   );
   if (!marketRow) return null;
 
+  const allPms = marketRow.pms.map(toPmListItem);
+
+  // v0.6.2: the 4 newer markets (Memphis/Knoxville/Clarksville/Phoenix)
+  // emit only the 7-cell quadrant summary at seed time; their 5-cell
+  // `quadrantSummary` blob is `{}`. Rather than reading the (sometimes
+  // empty) cached blob, derive the 5-cell counts + median DOM in-memory
+  // from the PMs themselves. Single source of truth; works for both
+  // populated and empty seed cases.
+  const quadrantSummary = deriveQuadrantSummary(allPms);
+  const quadrant7CellSummary: Record<string, number> = marketRow.quadrant7CellSummary
+    ? (JSON.parse(marketRow.quadrant7CellSummary) as Record<string, number>)
+    : deriveQuadrant7CellSummary(allPms);
+
   const market: MarketSummary = {
     id: marketRow.id,
     city: marketRow.city,
@@ -78,10 +91,9 @@ export async function loadMarketView({
     operatorCountEligible: marketRow.operatorCountEligible,
     operatorCountTotal: marketRow.operatorCountTotal,
     medianDomT12: marketRow.medianDomT12,
-    quadrantSummary: JSON.parse(marketRow.quadrantSummary),
+    quadrantSummary,
+    quadrant7CellSummary,
   };
-
-  const allPms = marketRow.pms.map(toPmListItem);
 
   const countsBySegment: Partial<Record<QuadrantSegment, number>> = {};
   let hybridCount = 0;
@@ -152,4 +164,48 @@ export async function listSegmentRouteParams() {
   return base.flatMap((p) =>
     QUADRANT_SEGMENTS.map((segment) => ({ ...p, segment }))
   );
+}
+
+// --- v0.6.2 quadrant-summary derivation ---
+//
+// The 4 newer markets (Memphis/Knoxville/Clarksville/Phoenix) skipped the
+// legacy 5-cell `quadrantSummary` block at seed time. We derive both 5-cell
+// and 7-cell summaries from the parsed PM list at render time so the market
+// landing always has something to render. Single source of truth across
+// the 7-market footprint.
+
+function deriveQuadrantSummary(
+  pms: PMListItem[]
+): Record<string, { count: number; medianDomT12: number | null }> {
+  const buckets: Record<string, number[]> = {};
+  for (const pm of pms) {
+    const key = pm.quadrant; // normalized at seed: "Scattered / Independent" etc.
+    if (!buckets[key]) buckets[key] = [];
+    if (Number.isFinite(pm.domT12)) buckets[key].push(pm.domT12);
+  }
+  const out: Record<string, { count: number; medianDomT12: number | null }> = {};
+  for (const [quadrant, doms] of Object.entries(buckets)) {
+    out[quadrant] = {
+      count: doms.length,
+      medianDomT12: doms.length > 0 ? median(doms) : null,
+    };
+  }
+  return out;
+}
+
+function deriveQuadrant7CellSummary(pms: PMListItem[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const pm of pms) {
+    const key = pm.quadrant7Cell ?? pm.quadrant;
+    out[key] = (out[key] ?? 0) + 1;
+  }
+  return out;
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
 }

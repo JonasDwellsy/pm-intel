@@ -1,20 +1,31 @@
 import { PrismaClient } from "@prisma/client";
 import seedData from "../src/data/scorecard_data.json";
 import type {
+  CohortLevel,
   CommunityVisibilityBlock,
+  MultiLevelPercentile,
   ScorecardData,
+  StarLevel,
   TenancyAssetBlock,
 } from "../src/lib/types";
 
 const prisma = new PrismaClient();
 
-// ---- v0.6.1 input shape ----
+// ---- v0.6.2 input shape ----
 //
-// The merged v0.6.1 input has per-market schema drift — Chattanooga uses one
-// shape (composite + percentiles + perCommunity), Jacksonville another
-// (quadrantMedianDomT12 + communityBreakdown), Nashville a third
-// (institutionalUnits/sfrCount-style coverage + communityDetails). The seed
-// normalizes all three into the canonical ScorecardData defined in lib/types.
+// The merged v0.6.2 file (7 markets, 574 PMs) carries two known
+// shape inconsistencies inherited from v0.6.1 per-market generation
+// (documented in Scorecard_Data_v0.6.2_Summary.md Schema notes):
+//
+//   1. Market-level cohort YoY rent change uses two field names:
+//      `cohortMedianYoyRentChange` (Chatt, Jax) vs `cohortMedianYoyChange`
+//      (Nash, Memphis, Knoxville, Clarksville, Phoenix). Accept both.
+//   2. The legacy `quadrant` field uses both "Scattered / Independent" and
+//      "Scattered Site / Independent" (Jax variant), plus the occasional
+//      "Hybrid / Independent" (3 Hybrid operators). Normalize at seed time
+//      so the canonical 5-cell route segments (slugify.ts) resolve.
+//
+// The new `quadrant7Cell` field is canonical and consistent across markets.
 
 type AnyRecord = Record<string, unknown>;
 
@@ -32,7 +43,10 @@ type InputMarket = {
     string,
     { count: number; medianDomT12: number | null; medianDomLifetime?: number | null }
   >;
+  quadrant7CellSummary?: Record<string, number>;
+  // Two variant field names — readers must accept either.
   cohortMedianYoyRentChange?: number | null;
+  cohortMedianYoyChange?: number | null;
   mapBounds?: { north: number; south: number; east: number; west: number };
   mapCenter?: { lat: number; lon: number };
   msaBackdropPoints?: Array<{ lat: number; lon: number }>;
@@ -42,6 +56,7 @@ type InputMarket = {
 
 type InputFile = {
   methodologyVersion: string;
+  designVersion?: string;
   dataAsOf: string;
   markets: InputMarket[];
   pms: AnyRecord[];
@@ -82,21 +97,90 @@ function getArray<T = unknown>(obj: unknown, key: string): T[] {
   return Array.isArray(v) ? (v as T[]) : [];
 }
 
-// Map v0.6.1 communityVisibility input (variant by market) → canonical block.
-// Returns null when the section should be suppressed.
+// Normalize the legacy 5-cell `quadrant` label to the canonical form used by
+// the route segments in src/lib/slugify.ts. Drops the "Site" middle word and
+// collapses "Hybrid / Independent" → "Hybrid". The 7-cell label
+// (quadrant7Cell) is already consistent and does not need normalization.
+function normalizeLegacyQuadrant(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (lower.startsWith("scattered site")) {
+    // "Scattered Site / Independent" → "Scattered / Independent"
+    return raw.replace(/scattered site/i, "Scattered");
+  }
+  if (lower.startsWith("hybrid")) return "Hybrid";
+  return raw;
+}
+
+function asStar(v: unknown): StarLevel {
+  const s = asString(v).toLowerCase();
+  if (s === "gold") return "gold";
+  if (s === "silver") return "silver";
+  return null;
+}
+
+function asCohortLevel(v: unknown): CohortLevel | undefined {
+  const s = asString(v).toLowerCase();
+  if (s === "primary" || s === "fallback" || s === "msa") return s;
+  return undefined;
+}
+
+// Parse a single MultiLevelPercentile from the input shape, where each metric
+// in v0.6.2 carries a nested {primary, primaryCohortN, fallback, fallbackCohortN,
+// msa, msaCohortN} object. Returns undefined if no nested object is present
+// (v0.6.1-shaped input where percentiles.<m> is just a flat number).
+function parseMultiLevelPercentile(
+  v: unknown
+): MultiLevelPercentile | undefined {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return undefined;
+  const o = v as AnyRecord;
+  // Only treat as multi-level if at least one of the nested keys is present.
+  if (
+    !(
+      "primary" in o ||
+      "fallback" in o ||
+      "msa" in o ||
+      "primaryCohortN" in o ||
+      "fallbackCohortN" in o ||
+      "msaCohortN" in o
+    )
+  ) {
+    return undefined;
+  }
+  return {
+    primary: asNumber(o.primary),
+    primaryCohortN: asInt(o.primaryCohortN),
+    fallback: asNumber(o.fallback),
+    fallbackCohortN: asInt(o.fallbackCohortN),
+    msa: asNumber(o.msa),
+    msaCohortN: asInt(o.msaCohortN),
+  };
+}
+
+// Collapse a multi-level percentile object down to a single number for the
+// v0.6.1-shape flat `percentiles.<m>` field. We prefer the MSA-level value
+// because it's the most-populated and matches what v0.6.1 already exposed.
+function flatPercentileFromMultiOrNumber(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  const multi = parseMultiLevelPercentile(v);
+  if (multi) return multi.msa ?? multi.fallback ?? multi.primary;
+  return null;
+}
+
+// Map v0.6.1+/v0.6.2 communityVisibility input to canonical block. Returns
+// null when the section should be suppressed (omitted from the PM record or
+// missing the qualifying ratio).
 function normalizeCommunityVisibility(
   pm: AnyRecord
 ): CommunityVisibilityBlock | null {
   const cv = getObj(pm, "communityVisibility");
   if (!cv) return null;
 
+  const qualifies = cv.qualifies !== false;
+  if (!qualifies) return null;
+
   const ratio = asNumber(cv.ratio);
   if (ratio === null) return null;
 
-  // State + label can arrive in three shapes:
-  //  - { state: "comprehensive", stateLabel: "Comprehensive visibility" }  (Chatt)
-  //  - { state: "Comprehensive visibility" } (label-only)                    (Jax/Nash)
-  // We canonicalize state → enum, label → human-readable string.
   let stateRaw = asString(cv.state).toLowerCase().trim();
   let stateLabel = asString(cv.stateLabel);
   if (!stateLabel && stateRaw.includes(" ")) {
@@ -104,7 +188,6 @@ function normalizeCommunityVisibility(
     stateRaw = "";
   }
 
-  // Derive canonical state from ratio bands if state is missing/ambiguous.
   let state: CommunityVisibilityBlock["state"];
   if (stateRaw.includes("comprehensive")) state = "comprehensive";
   else if (stateRaw.includes("likely")) state = "likely-partial";
@@ -125,9 +208,8 @@ function normalizeCommunityVisibility(
   const chipClass: CommunityVisibilityBlock["chipClass"] =
     state === "comprehensive" ? "dq-chip" : "dq-chip-orange";
 
-  // perCommunity / communityBreakdown / communityDetails — all three keys
-  // exist across the three markets; field names also differ within each
-  // entry. Normalize to camelCase canonical shape.
+  // perCommunity / communityBreakdown / communityDetails — three keys across
+  // markets; field names also vary. Normalize to camelCase canonical shape.
   const list =
     getArray<AnyRecord>(cv, "perCommunity").length > 0
       ? getArray<AnyRecord>(cv, "perCommunity")
@@ -162,10 +244,12 @@ function normalizeCommunityVisibility(
       asNumber(cv.expectedTurnoverRate) ?? 0.2 /* v0.6.1 default */,
     perCommunity,
     percentileRank: asNumber(cv.percentileRank) ?? 0,
+    star: asStar(cv.star),
+    cohortUsedForStar: asCohortLevel(cv.cohortUsedForStar),
+    cohortName: asString(cv.cohortName) || undefined,
   };
 }
 
-// rentPerformance — shape is consistent across markets but null-coerce.
 function normalizeRentPerformance(
   pm: AnyRecord
 ): ScorecardData["rentPerformance"] {
@@ -182,12 +266,20 @@ function normalizeRentPerformance(
         ? "negative"
         : "neutral";
 
+  // Accept either name for the cohort median (per the Phase A summary doc).
+  const cohortMedian =
+    asNumber(rp.cohortMedianYoyChange) ??
+    asNumber(rp.cohortMedianYoyRentChange);
+
   return {
     pmYoyChange: pmYoy,
-    cohortMedianYoyChange: asNumber(rp.cohortMedianYoyChange),
+    cohortMedianYoyChange: cohortMedian,
     delta: asNumber(rp.delta) ?? 0,
     percentileRank: asNumber(rp.percentileRank) ?? 0,
     state,
+    star: asStar(rp.star),
+    cohortUsedForStar: asCohortLevel(rp.cohortUsedForStar),
+    cohortName: asString(rp.cohortName) || undefined,
   };
 }
 
@@ -219,6 +311,72 @@ function normalizeRentTrajectory(
     .filter((r) => r.quarter);
 }
 
+// Pass-through for v0.6.2 lendingSignals. The seed-time pipeline only
+// computes rentStability and geographicConcentration; v1.0 design renders
+// three more derived signals (vacancySignal, operatorStability, pricingTier)
+// at runtime.
+function normalizeLendingSignals(
+  pm: AnyRecord
+): ScorecardData["lendingSignals"] | undefined {
+  const ls = getObj(pm, "lendingSignals");
+  if (!ls) return undefined;
+  const out: NonNullable<ScorecardData["lendingSignals"]> = {};
+
+  const rs = getObj(ls, "rentStability");
+  if (rs) {
+    out.rentStability = {
+      volatilityPP: asNumber(rs.volatilityPP),
+      yearsOfHistory: asNumber(rs.yearsOfHistory) ?? 0,
+      cohortMedianVolatility:
+        asNumber(rs.cohortMedianVolatility) ?? undefined,
+      suppressed: Boolean(rs.suppressed),
+      reason: asString(rs.reason) || undefined,
+      star: asStar(rs.star),
+    };
+  }
+
+  const gc = getObj(ls, "geographicConcentration");
+  if (gc) {
+    const indicator = asString(gc.linearPositionIndicator);
+    out.geographicConcentration = {
+      top3CityShare: asNumber(gc.top3CityShare) ?? 0,
+      cohortMedianTop3: asNumber(gc.cohortMedianTop3) ?? 0,
+      cohortLevel: asCohortLevel(gc.cohortLevel) ?? "msa",
+      linearPositionIndicator:
+        indicator === "more_dispersed" || indicator === "near_cohort"
+          ? indicator
+          : "more_concentrated",
+    };
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+// Pass-through for v0.6.2 generatedText. Dignity validation already
+// performed at seed-pipeline time (Patch 8); we trust the input here.
+function normalizeGeneratedText(
+  pm: AnyRecord
+): ScorecardData["generatedText"] | undefined {
+  const gt = getObj(pm, "generatedText");
+  if (!gt) return undefined;
+  const exec = asString(gt.executiveSummary);
+  const bullets = getArray<string>(gt, "distinguishingCharacteristics");
+  const mapNarr = asString(gt.mapNarrativeAnnotation);
+  if (!exec && bullets.length === 0 && !mapNarr) return undefined;
+  return {
+    executiveSummary: exec,
+    distinguishingCharacteristics: bullets.filter(
+      (b): b is string => typeof b === "string" && b.length > 0
+    ),
+    mapNarrativeAnnotation: mapNarr,
+    generatedAt: asString(gt.generatedAt) || undefined,
+    generatedFromMethodologyVersion:
+      asString(gt.generatedFromMethodologyVersion) || undefined,
+    generatedFromDesignVersion:
+      asString(gt.generatedFromDesignVersion) || undefined,
+  };
+}
+
 function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
   const rank = getObj(pm, "rank") ?? {};
   const coverage = getObj(pm, "coverage") ?? {};
@@ -226,53 +384,86 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
   const marketing = getObj(pm, "marketing") ?? {};
   const tenancy = getObj(pm, "tenancy") ?? {};
   const geo = getObj(pm, "geographicCoverage") ?? {};
-  const quadrantPeer = market.quadrantSummary[asString(pm.quadrant)];
+  const legacyQuadrant = normalizeLegacyQuadrant(asString(pm.quadrant));
+  // Some v0.6.2 markets (Memphis/Knoxville/Clarksville/Phoenix) omit the
+  // legacy 5-cell quadrantSummary block; only quadrant7CellSummary is
+  // present. Default to an empty record so peer-DOM lookups degrade to null.
+  const quadrantPeer = (market.quadrantSummary ?? {})[legacyQuadrant];
 
-  // Percentiles vary: Chattanooga has rank.percentiles; Jax/Nash have a flat
-  // percentile in performance.domPercentile and tenancy.tenancyPercentile.
+  // v0.6.2 percentile shape is nested; collapse to a flat number for the
+  // v0.6.1-compat `percentiles.<m>` block, and stash the full nested shape
+  // under `percentilesMulti` for the v1.0 components that need it.
   const percentilesObj = getObj(rank, "percentiles");
-  const percentiles = {
+  const flatPct = {
     dom:
-      asNumber(get(percentilesObj, "dom")) ??
+      flatPercentileFromMultiOrNumber(get(percentilesObj, "dom")) ??
       asNumber(get(performance, "domPercentile")) ??
       null,
     tenancy:
-      asNumber(get(percentilesObj, "tenancy")) ??
+      flatPercentileFromMultiOrNumber(get(percentilesObj, "tenancy")) ??
       asNumber(get(tenancy, "tenancyPercentile")) ??
       null,
     rentPerformance:
-      asNumber(get(percentilesObj, "rentPerformance")) ??
+      flatPercentileFromMultiOrNumber(
+        get(percentilesObj, "rentPerformance")
+      ) ??
       asNumber(get(getObj(pm, "rentPerformance"), "percentileRank")) ??
       null,
     marketing:
-      asNumber(get(percentilesObj, "marketing")) ??
+      flatPercentileFromMultiOrNumber(get(percentilesObj, "marketing")) ??
       asNumber(get(marketing, "percentileRank")) ??
       null,
     communityVisibility:
-      asNumber(get(percentilesObj, "communityVisibility")) ??
+      flatPercentileFromMultiOrNumber(
+        get(percentilesObj, "communityVisibility")
+      ) ??
       asNumber(get(getObj(pm, "communityVisibility"), "percentileRank")) ??
       null,
   };
 
+  const multiPct: NonNullable<ScorecardData["rank"]["percentilesMulti"]> = {};
+  if (percentilesObj) {
+    const dom = parseMultiLevelPercentile(percentilesObj.dom);
+    if (dom) multiPct.dom = dom;
+    const ten = parseMultiLevelPercentile(percentilesObj.tenancy);
+    if (ten) multiPct.tenancy = ten;
+    const rp = parseMultiLevelPercentile(percentilesObj.rentPerformance);
+    if (rp) multiPct.rentPerformance = rp;
+    const mk = parseMultiLevelPercentile(percentilesObj.marketing);
+    if (mk) multiPct.marketing = mk;
+    const cv = parseMultiLevelPercentile(percentilesObj.communityVisibility);
+    if (cv) multiPct.communityVisibility = cv;
+    const comp = parseMultiLevelPercentile(percentilesObj.composite);
+    if (comp) multiPct.composite = comp;
+  }
+
   const weightingScheme: "with_cv" | "without_cv" =
     asString(get(rank, "weightingScheme")) === "with_cv"
       ? "with_cv"
-      : percentiles.communityVisibility !== null
-        ? "with_cv"
-        : "without_cv";
+      : asString(get(rank, "weightingScheme")) === "without_cv"
+        ? "without_cv"
+        : flatPct.communityVisibility !== null
+          ? "with_cv"
+          : "without_cv";
 
   const communityVisibility = normalizeCommunityVisibility(pm);
   const rentPerformance = normalizeRentPerformance(pm);
+  const lendingSignals = normalizeLendingSignals(pm);
+  const generatedText = normalizeGeneratedText(pm);
 
   return {
     methodologyVersion: data.methodologyVersion,
+    designVersion: data.designVersion,
     dataAsOf: data.dataAsOf,
     pm: {
       slug: asString(pm.slug),
       name: asString(pm.name),
-      quadrant: asString(pm.quadrant),
+      quadrant: legacyQuadrant,
+      quadrant7Cell: asString(pm.quadrant7Cell) || undefined,
       hybrid: Boolean(pm.hybrid),
+      institutional: Boolean(pm.institutional),
       accentColor: pm.accentColor as string | undefined,
+      primaryCity: asString(pm.primaryCity) || undefined,
     },
     market: {
       id: market.id,
@@ -290,8 +481,13 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
         quadrantPeer?.medianDomT12 ??
         null,
       composite: asNumber(rank.composite),
-      percentiles,
+      percentiles: flatPct,
+      percentilesMulti:
+        Object.keys(multiPct).length > 0 ? multiPct : undefined,
       weightingScheme,
+      compositeStar: asStar(rank.compositeStar),
+      compositeCohortUsedForStar: asCohortLevel(rank.compositeCohortUsedForStar),
+      compositeCohortName: asString(rank.compositeCohortName) || undefined,
     },
     coverage: {
       firstListing: asString(coverage.firstListing),
@@ -310,6 +506,10 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
       dataTier:
         asString(coverage.dataTier) === "Limited" ? "Limited" : "Full ranking",
       concentratedShare: asNumber(coverage.concentratedShare),
+      observedCommunities: asInt(coverage.observedCommunities) ?? undefined,
+      observedCommunityTotalUnits:
+        asInt(coverage.observedCommunityTotalUnits) ?? undefined,
+      yearsVisible: asNumber(coverage.yearsVisible) ?? undefined,
     },
     performance: {
       domT12: asNumber(performance.domT12) ?? 0,
@@ -325,6 +525,9 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
       peerQuadrantDomLifetime: quadrantPeer?.medianDomLifetime ?? null,
       marketDomT12: market.medianDomT12,
       marketDomLifetime: market.medianDomLifetime ?? market.medianDomT12,
+      domStar: asStar(performance.domStar),
+      domCohortUsedForStar: asCohortLevel(performance.domCohortUsedForStar),
+      domCohortName: asString(performance.domCohortName) || undefined,
     },
     rentTrajectory: normalizeRentTrajectory(pm),
     rentPerformance,
@@ -338,6 +541,9 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
       medianPhotosT12: asInt(marketing.medianPhotosT12),
       zeroPhotoT12: asNumber(marketing.zeroPhotoT12),
       compositeScore: asNumber(marketing.compositeScore) ?? 0,
+      star: asStar(marketing.star),
+      cohortUsedForStar: asCohortLevel(marketing.cohortUsedForStar),
+      cohortName: asString(marketing.cohortName) || undefined,
     },
     tenancy: {
       totalUnits: asInt(tenancy.totalUnits) ?? 0,
@@ -357,6 +563,14 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
         p75: null,
         cohortN: 0,
       }),
+      shortHistoryFlag:
+        typeof tenancy.shortHistoryFlag === "boolean"
+          ? tenancy.shortHistoryFlag
+          : undefined,
+      yearsVisible: asNumber(tenancy.yearsVisible) ?? undefined,
+      star: asStar(tenancy.star),
+      cohortUsedForStar: asCohortLevel(tenancy.cohortUsedForStar),
+      cohortName: asString(tenancy.cohortName) || undefined,
     },
     geographicCoverage: {
       citiesText: asString(geo.citiesText),
@@ -374,12 +588,16 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
     },
     communityVisibility,
     classificationRationale: asString(pm.classificationRationale),
+    lendingSignals,
+    generatedText,
   };
 }
 
 async function main() {
   console.log(
-    `Seeding from methodology ${data.methodologyVersion}, dataAsOf ${data.dataAsOf}`
+    `Seeding from methodology ${data.methodologyVersion}` +
+      (data.designVersion ? `, design ${data.designVersion}` : "") +
+      `, dataAsOf ${data.dataAsOf}`
   );
 
   // Idempotent: clear PMs first (FK to Market), then Markets.
@@ -398,32 +616,60 @@ async function main() {
         operatorCountEligible: m.operatorCountEligible,
         medianDomT12: m.medianDomT12,
         medianDomLifetime: m.medianDomLifetime ?? m.medianDomT12,
-        quadrantSummary: JSON.stringify(m.quadrantSummary),
+        // Memphis/Knoxville/Clarksville/Phoenix omit the legacy 5-cell summary
+        // (carry only quadrant7CellSummary). Default to {} so peer-DOM lookups
+        // degrade gracefully (return null) rather than throwing. Schema
+        // normalization to come in v0.7 per the v0.6.2 summary doc.
+        quadrantSummary: JSON.stringify(m.quadrantSummary ?? {}),
+        quadrant7CellSummary: m.quadrant7CellSummary
+          ? JSON.stringify(m.quadrant7CellSummary)
+          : null,
       },
     });
     console.log(`  ✓ market: ${m.id} (${m.fullName})`);
   }
 
+  // Track slugs we've already seeded so duplicates in the input JSON are
+  // skipped rather than crashing the seed. The v0.6.2 input has two known
+  // upstream slug collisions in Knoxville + Memphis where an operator appears
+  // under two name variants ("X Inc" / "X, Inc.") that both slugify to the
+  // same key. Upstream dedup is a v0.7 concern; for v0.6.2 we keep the first
+  // occurrence (typically the canonical / higher-urus record).
+  const seenSlugs = new Set<string>();
   let pmCount = 0;
+  let skippedDupes = 0;
+
   for (const pm of data.pms) {
+    const slug = asString(pm.slug);
+    if (seenSlugs.has(slug)) {
+      skippedDupes += 1;
+      console.warn(
+        `  ⚠ skipped duplicate slug: ${slug} (name="${asString(pm.name)}")`
+      );
+      continue;
+    }
+    seenSlugs.add(slug);
+
     const marketId = asString(pm.marketId);
     const market = data.markets.find((m) => m.id === marketId);
     if (!market) {
       throw new Error(
-        `PM ${asString(pm.slug)} references unknown market ${marketId}`
+        `PM ${slug} references unknown market ${marketId}`
       );
     }
 
     const rank = getObj(pm, "rank") ?? {};
-
     const scorecard = buildScorecard(pm, market);
+    const legacyQuadrant = scorecard.pm.quadrant;
+    const quadrant7Cell = asString(pm.quadrant7Cell) || null;
 
     await prisma.pM.create({
       data: {
-        slug: asString(pm.slug),
+        slug,
         name: asString(pm.name),
         marketId,
-        quadrant: asString(pm.quadrant),
+        quadrant: legacyQuadrant,
+        quadrant7Cell,
         hybrid: Boolean(pm.hybrid),
         rankOverall: asInt(rank.overall),
         rankOverallTotal: asInt(rank.overallTotal),
@@ -440,8 +686,9 @@ async function main() {
 
   const marketCount = await prisma.market.count();
   const dbPmCount = await prisma.pM.count();
+  const dupeSuffix = skippedDupes > 0 ? `, ${skippedDupes} duplicate slug(s) skipped` : "";
   console.log(
-    `\nSeed complete: ${marketCount} market(s), ${dbPmCount} PM(s) (processed ${pmCount}).`
+    `\nSeed complete: ${marketCount} market(s), ${dbPmCount} PM(s) (processed ${pmCount}${dupeSuffix}).`
   );
 }
 

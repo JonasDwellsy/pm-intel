@@ -4,35 +4,34 @@ import { DownloadPdfLink } from "@/components/analytics/DownloadPdfLink";
 type SectionLink = { id: string; label: string; num: string };
 
 const FREE_SECTIONS: SectionLink[] = [
-  { id: "headline", label: "Headline metrics", num: "01" },
+  { id: "synthesis", label: "Synthesis", num: "01" },
   { id: "paywall", label: "Paywall", num: "02" },
 ];
 
-// Section numbering tracks the rendered order in ScorecardBody. The
-// Community Visibility entry is conditionally included only for PMs whose
-// scope gate passed (see ScorecardBody).
+// v1.0 sidebar reflects the layered structure introduced in Phases B-D.
+// Layer 1 is the page hero (no anchor); Layers 2-5 each get a sidebar entry.
+// Inventory Transparency is the only Layer 3 card gated by scope qualification.
 function unlockedSections(hasCommunityVisibility: boolean): SectionLink[] {
   const base: SectionLink[] = [
-    { id: "headline", label: "Headline metrics", num: "01" },
-    { id: "coverage", label: "Coverage universe", num: "02" },
-    { id: "geography", label: "Geographic coverage", num: "03" },
-    { id: "performance", label: "Operating performance", num: "04" },
-    { id: "tenancy", label: "Tenancy", num: "05" },
-    { id: "rent-trajectory", label: "Rent trajectory", num: "06" },
-    { id: "rent-performance", label: "Rent performance", num: "07" },
+    { id: "synthesis", label: "Synthesis", num: "01" },
+    { id: "performance", label: "Performance dimensions", num: "02" },
+    { id: "lease-up", label: "  Lease-up Performance", num: "" },
+    { id: "tenant-retention", label: "  Tenant Retention", num: "" },
+    { id: "rent-performance", label: "  Rent Performance", num: "" },
+    { id: "operational-discipline", label: "  Operational Discipline", num: "" },
   ];
   if (hasCommunityVisibility) {
-    base.push(
-      { id: "community-visibility", label: "Community visibility", num: "08" },
-      { id: "marketing", label: "Marketing quality", num: "09" },
-      { id: "why-this-quadrant", label: "Why this quadrant", num: "10" }
-    );
-  } else {
-    base.push(
-      { id: "marketing", label: "Marketing quality", num: "08" },
-      { id: "why-this-quadrant", label: "Why this quadrant", num: "09" }
-    );
+    base.push({
+      id: "inventory-transparency",
+      label: "  Inventory Transparency",
+      num: "",
+    });
   }
+  base.push(
+    { id: "lending-signals", label: "Lending Signals", num: "03" },
+    { id: "portfolio", label: "Portfolio characteristics", num: "04" },
+    { id: "methodology-footer", label: "Methodology & limits", num: "05" }
+  );
   return base;
 }
 
@@ -102,7 +101,7 @@ export function ScorecardSidebar({
         <div className="mt-6">
           <p className="dq-eyebrow-muted mb-1.5">Methodology</p>
           <p className="dq-mono text-lg font-semibold leading-none text-navy tracking-[-0.01em]">
-            v0.6.1
+            v0.6.2 · design v1.0
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Data as of{" "}

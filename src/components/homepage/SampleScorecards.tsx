@@ -2,6 +2,7 @@ import Link from "next/link";
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { HomepageSectionHead } from "./SectionHead";
 import { buttonVariants } from "@/components/ui/button";
+import type { StarLevel } from "@/lib/types";
 
 export type SampleCard = {
   slug: string;
@@ -11,6 +12,8 @@ export type SampleCard = {
   rankContext: string;
   name: string;
   badges: Array<{ kind: "green" | "orange" | "teal" | "ink"; label: string }>;
+  /** Composite star drives the small icon next to the operator name. */
+  compositeStar?: StarLevel;
   quote: string;
   stats: Array<{
     label: string;
@@ -76,6 +79,30 @@ function StatRow({
   );
 }
 
+// Composite star inline next to the operator name — same color encoding as
+// the IdentityHero / market-list star. No-star operators render nothing
+// (the row stays clean for non-starred operators per the v1.0 dignity gate).
+function CompositeStar({ level }: { level?: StarLevel }) {
+  if (level !== "gold" && level !== "silver") return null;
+  const fill = level === "gold" ? "#E5A800" : "#9CA3AF";
+  const stroke = level === "gold" ? "#B98700" : "#6B7280";
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill={fill}
+      stroke={stroke}
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+      aria-label={level === "gold" ? "Gold composite star" : "Silver composite star"}
+      className="shrink-0"
+    >
+      <path d="M12 2.6l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.7l-5.9 3.1 1.13-6.58L2.45 9.54l6.6-.96L12 2.6z" />
+    </svg>
+  );
+}
+
 function ScorecardCard({ card }: { card: SampleCard }) {
   return (
     <TrackedLink
@@ -94,9 +121,12 @@ function ScorecardCard({ card }: { card: SampleCard }) {
         </span>{" "}
         <span className="text-muted-foreground">{card.rankContext}</span>
       </p>
-      <h3 className="dq-h2 mt-2 mb-2 text-[22px] leading-[1.2] tracking-[-0.005em]">
-        {card.name}
-      </h3>
+      <div className="mt-2 mb-2 flex items-center gap-2">
+        <CompositeStar level={card.compositeStar} />
+        <h3 className="dq-h2 text-[22px] leading-[1.2] tracking-[-0.005em]">
+          {card.name}
+        </h3>
+      </div>
       <div className="mb-5 flex flex-wrap gap-1.5">
         {card.badges.map((b) => (
           <Pill key={b.label} kind={b.kind}>
@@ -116,98 +146,33 @@ function ScorecardCard({ card }: { card: SampleCard }) {
   );
 }
 
-// One sample per market under v0.6.1 — selected to cover each major operator
-// type the methodology recognizes (MF/BTR Independent, MF/BTR Institutional,
-// Scattered Institutional). Numbers come straight from the seed dataset so
-// the cards stay accurate as the data refreshes.
-const SAMPLE_CARDS: SampleCard[] = [
-  {
-    slug: "brookside-properties-chattanooga-tn",
-    href: "/property-managers/tennessee/chattanooga/brookside-properties-chattanooga-tn?unlocked=true",
-    rankLabel: "Rank",
-    rankValue: "2 / 3",
-    rankContext: "in MF/BTR Independent · Chattanooga",
-    name: "Brookside Properties",
-    badges: [
-      { kind: "orange", label: "Independent" },
-      { kind: "ink", label: "MF / BTR" },
-    ],
-    quote:
-      "Six-day median DOM, comprehensive community visibility at 2.54× the cohort norm — a structurally transparent multifamily operator.",
-    stats: [
-      { label: "Median DOM", value: "6.0 days", accent: "green" },
-      { label: "CV ratio", value: "2.54×", accent: "green" },
-      { label: "Units · MSA", value: "198" },
-      { label: "Composite", value: "66.0" },
-    ],
-  },
-  {
-    slug: "udr-nashville-tn",
-    href: "/property-managers/tennessee/nashville/udr-nashville-tn?unlocked=true",
-    rankLabel: "Rank",
-    rankValue: "33 / 98",
-    rankContext: "overall · Nashville MSA",
-    name: "UDR",
-    badges: [
-      { kind: "green", label: "Institutional" },
-      { kind: "ink", label: "MF / BTR" },
-    ],
-    quote:
-      "National Class A multifamily operator — the institutional baseline. Comprehensive community visibility against a single qualifying community.",
-    stats: [
-      { label: "Median DOM", value: "24.0 days" },
-      { label: "Units · MSA", value: "1,069" },
-      { label: "Quadrant rank", value: "4 / 5" },
-      { label: "Scale", value: "National" },
-    ],
-  },
-  {
-    slug: "invitation-homes-jacksonville-fl",
-    href: "/property-managers/florida/jacksonville/invitation-homes-jacksonville-fl?unlocked=true",
-    rankLabel: "Rank",
-    rankValue: "63 / 129",
-    rankContext: "overall · Jacksonville MSA",
-    name: "Invitation Homes",
-    badges: [
-      { kind: "green", label: "Institutional" },
-      { kind: "ink", label: "Scattered SFR" },
-    ],
-    quote:
-      "Largest scattered-site SFR operator in the U.S. — institutional under v0.6.1's cross-market rule (1,667 national units). Community visibility is suppressed by design for SFR.",
-    stats: [
-      { label: "Median DOM", value: "25.1 days" },
-      { label: "Units · MSA", value: "1,128" },
-      { label: "Quadrant rank", value: "3 / 5" },
-      { label: "Visibility", value: "N/A (SFR)" },
-    ],
-  },
-];
-
-export function SampleScorecards() {
+export function SampleScorecards({ cards }: { cards: SampleCard[] }) {
   return (
     <section className="border-t border-grid">
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
           eyebrow="Inside a scorecard"
           title="Institutional-grade analysis on every operator."
-          context="One real operator from each of our three covered markets. Every figure shown is produced by the same methodology applied to every PM — no curation, no narrative."
+          context="One real operator from each of our seven covered markets. Every figure shown is produced by the same methodology applied to every PM — no curation, no narrative. Composite stars reflect quartile position within the selected cohort per v1.0 design."
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {SAMPLE_CARDS.map((c) => (
+          {cards.map((c) => (
             <ScorecardCard key={c.slug} card={c} />
           ))}
         </div>
-        <div className="mt-9">
-          <Link
-            href={SAMPLE_CARDS[0].href}
-            className={
-              buttonVariants() +
-              " h-11 bg-navy px-6 text-[14.5px] font-semibold text-white hover:bg-navy-700"
-            }
-          >
-            View a sample scorecard →
-          </Link>
-        </div>
+        {cards[0] && (
+          <div className="mt-9">
+            <Link
+              href={cards[0].href}
+              className={
+                buttonVariants() +
+                " h-11 bg-navy px-6 text-[14.5px] font-semibold text-white hover:bg-navy-700"
+              }
+            >
+              View a sample scorecard →
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   );

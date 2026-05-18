@@ -1,7 +1,7 @@
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { fmtDays, fmtInt } from "@/lib/format";
 import { quadrantColor } from "@/lib/quadrant-colors";
-import type { PMListItem as PMListItemData } from "@/lib/types";
+import type { PMListItem as PMListItemData, StarLevel } from "@/lib/types";
 
 function concessionLabel(rate: number | null): string {
   if (rate === null) return "—";
@@ -82,6 +82,7 @@ export function PMListItem({
           {/* Left: identity */}
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
+              <ListItemStar level={pm.compositeStar} />
               <span className="text-[22px] font-semibold leading-tight text-navy tracking-[-0.012em]">
                 {pm.name}
               </span>
@@ -151,5 +152,43 @@ export function PMListItem({
         </div>
       </TrackedLink>
     </li>
+  );
+}
+
+// Composite star icon — surfaced next to the PM name on the market list.
+// Matches the sizing + color encoding used inside scorecard layers.
+function ListItemStar({ level }: { level: StarLevel }) {
+  const isGold = level === "gold";
+  const isSilver = level === "silver";
+  if (!isGold && !isSilver) {
+    // No star → render a small placeholder dot so the row alignment stays
+    // consistent with starred rows. Muted, no aria label.
+    return (
+      <span
+        aria-hidden
+        className="inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center"
+      >
+        <span className="h-1 w-1 rounded-full bg-muted-2/60" />
+      </span>
+    );
+  }
+  const fill = isGold ? "#E5A800" : "#9CA3AF";
+  const stroke = isGold ? "#B98700" : "#6B7280";
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill={fill}
+      stroke={stroke}
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+      aria-label={
+        isGold ? "Gold composite star" : "Silver composite star"
+      }
+      className="shrink-0"
+    >
+      <path d="M12 2.6l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.7l-5.9 3.1 1.13-6.58L2.45 9.54l6.6-.96L12 2.6z" />
+    </svg>
   );
 }

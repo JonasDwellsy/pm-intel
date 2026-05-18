@@ -13,6 +13,11 @@ import {
   listSegmentRouteParams,
   loadMarketView,
 } from "@/lib/market-data";
+import { loadMarketFootprint } from "@/lib/cross-market";
+import { loadMsaPool } from "@/lib/msa-pool";
+import { buildPeerComparisons } from "@/lib/peer-comparison";
+import { buildLendingSignals } from "@/lib/lending-signals";
+import { buildCohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import { MarketView } from "@/components/market/MarketView";
 
@@ -22,7 +27,10 @@ type RouteSearch = { unlocked?: string };
 async function loadScorecard(slug: string) {
   const pm = await prisma.pM.findUnique({ where: { slug } });
   if (!pm) return null;
-  return JSON.parse(pm.scorecardData) as ScorecardData;
+  return {
+    scorecard: JSON.parse(pm.scorecardData) as ScorecardData,
+    isClaimed: pm.claimed,
+  };
 }
 
 export async function generateStaticParams(): Promise<RouteParams[]> {
@@ -75,8 +83,9 @@ export async function generateMetadata({
     };
   }
 
-  const scorecard = await loadScorecard(slug);
-  if (!scorecard) return { title: "Property manager not found" };
+  const loaded = await loadScorecard(slug);
+  if (!loaded) return { title: "Property manager not found" };
+  const { scorecard } = loaded;
   const title = `${scorecard.pm.name} — Scorecard (${scorecard.market.fullName})`;
   const description = `Independent scorecard for ${scorecard.pm.name}: ${scorecard.pm.quadrant} operator ranked #${scorecard.rank.overall} of ${scorecard.rank.overallTotal} in ${scorecard.market.name}.`;
   return {
@@ -106,7 +115,34 @@ export default async function MarketChildPage({
   }
 
   const { unlocked } = await searchParams;
-  const scorecard = await loadScorecard(slug);
-  if (!scorecard) notFound();
-  return <ScorecardBody scorecard={scorecard} isUnlocked={unlocked === "true"} />;
+  const loaded = await loadScorecard(slug);
+  if (!loaded) notFound();
+  const { scorecard, isClaimed } = loaded;
+  // Layer 1 needs cross-market footprint; Layers 3 + 4 share an MSA pool
+  // loaded once and consumed by both peer-comparison (Layer 3) and
+  // lending-signals (Layer 4). Both renders run in-memory once the pool
+  // arrives.
+  const [marketFootprint, msaPool] = await Promise.all([
+    loadMarketFootprint({ name: scorecard.pm.name, currentSlug: slug }),
+    loadMsaPool(scorecard.market.id),
+  ]);
+  const peerComparisons = buildPeerComparisons(scorecard, msaPool);
+  const lendingSignals = buildLendingSignals(
+    scorecard,
+    msaPool,
+    marketFootprint.length
+  );
+  // Phase F — Layer 5E cohort overlay. In-memory from the same MSA pool.
+  const cohortRentTrajectory = buildCohortRentTrajectory(scorecard, msaPool);
+  return (
+    <ScorecardBody
+      scorecard={scorecard}
+      isUnlocked={unlocked === "true"}
+      isClaimed={isClaimed}
+      marketFootprint={marketFootprint}
+      peerComparisons={peerComparisons}
+      lendingSignals={lendingSignals}
+      cohortRentTrajectory={cohortRentTrajectory}
+    />
+  );
 }

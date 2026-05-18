@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export function SiteHeader() {
@@ -9,10 +10,19 @@ export function SiteHeader() {
           aria-label="Dwellsy IQ — PM Intel"
           className="flex items-center gap-4 text-navy"
         >
-          <span className="text-2xl font-bold leading-none tracking-tight">
-            <span className="text-navy">DWELLSY</span>{" "}
-            <span className="text-teal">IQ</span>
-          </span>
+          {/* Real Dwellsy IQ brand logo. Native asset is 1000×313 (3.2:1
+              aspect); displayed at 32px height to match the prior wordmark
+              height. width attribute is set to the corresponding aspect-
+              correct width so Next/Image doesn't need to compute it from
+              the file. */}
+          <Image
+            src="/dwellsy-iq-logo.png"
+            alt="Dwellsy IQ"
+            width={102}
+            height={32}
+            priority
+            className="h-8 w-auto"
+          />
           <span aria-hidden className="h-5 w-px bg-grid" />
           <span className="text-sm font-semibold text-navy">PM Intel</span>
         </Link>
