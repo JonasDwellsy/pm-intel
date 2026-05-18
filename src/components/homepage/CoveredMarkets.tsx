@@ -17,14 +17,14 @@ export type LiveMarket = {
 
 const FUTURE_MARKETS: Array<{ name: string; description: string }> = [
   {
-    name: "Knoxville, TN MSA",
-    description:
-      "Data ingestion complete. Eligibility threshold tuning in progress; targeting Q3 launch.",
-  },
-  {
     name: "Atlanta, GA MSA",
     description:
       "Coverage scoping underway. Larger cohort means a slower, more conservative eligibility review.",
+  },
+  {
+    name: "Dallas-Fort Worth, TX MSA",
+    description:
+      "Data ingestion complete. Eligibility threshold tuning in progress for the next cohort of v0.7 markets.",
   },
 ];
 
@@ -145,8 +145,8 @@ export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
           eyebrow="Coverage"
-          title="Markets currently live on Dwellsy IQ."
-          context="We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. New MSAs roll out through 2026."
+          title="Seven markets currently live on Dwellsy IQ."
+          context="We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. Seven MSAs are live as of v0.6.2; additional MSAs roll out through 2026."
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {markets.map((m) => (

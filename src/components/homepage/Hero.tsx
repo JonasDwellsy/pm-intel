@@ -73,8 +73,8 @@ export function Hero() {
             </TrackedLink>
           </div>
           <p className="mt-6 text-[14.5px] italic text-muted-foreground">
-            Methodology v0.6.1 · 3 markets live · National coverage rolling
-            out.
+            Methodology v0.6.2 · Design v1.0 · 7 markets live · National
+            coverage rolling out.
           </p>
         </div>
 
@@ -82,7 +82,7 @@ export function Hero() {
         <aside className="rounded-lg border border-grid bg-white p-7 shadow-[0_1px_0_rgb(15_31_63_/_0.02)]">
           <div className="mb-3 flex items-center justify-between">
             <p className="dq-eyebrow-muted">Operator-type quadrant</p>
-            <p className="text-[11px] text-muted-2">Methodology v0.6.1</p>
+            <p className="text-[11px] text-muted-2">v0.6.2 · v1.0</p>
           </div>
           <QuadrantGrid
             quadrant="MF/BTR / Institutional"
@@ -90,9 +90,10 @@ export function Hero() {
             operators={HERO_OPERATORS}
           />
           <p className="mt-4 max-w-[42ch] text-[13.5px] italic leading-[1.55] text-muted-foreground">
-            Three operators drawn from our three covered markets, plotted by
+            Three operators drawn from our covered markets, plotted by
             structural type. The grid is the methodology in one image: every
-            PM is mapped before they&apos;re ranked.
+            PM is mapped before they&apos;re ranked. v0.6.2 refines this into
+            a 7-cell taxonomy by splitting MF/BTR by community size.
           </p>
         </aside>
       </div>

@@ -3,9 +3,11 @@ import { fmtDate } from "@/lib/format";
 
 export function MethodologyFooter({
   version,
+  designVersion,
   dataAsOf,
 }: {
   version: string;
+  designVersion?: string;
   dataAsOf: string;
 }) {
   return (
@@ -17,6 +19,11 @@ export function MethodologyFooter({
           </p>
           <p className="mt-1 text-[11.5px] font-semibold text-navy">
             v{version.replace(/^v/, "")}
+            {designVersion && (
+              <span className="ml-1.5 text-muted-2">
+                · Design {designVersion}
+              </span>
+            )}
           </p>
           <p className="mt-0.5 text-[14px] italic text-muted-foreground">
             Data as of {fmtDate(dataAsOf)}
