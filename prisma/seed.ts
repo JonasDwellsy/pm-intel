@@ -313,12 +313,31 @@ function normalizeTenancyAsset(
 function normalizeRentTrajectory(
   pm: AnyRecord
 ): ScorecardData["rentTrajectory"] {
+  // The v0.6.2 source JSON emits rentTrajectory in THREE distinct shapes
+  // across markets (carry-forward from per-market seed runs):
+  //   - Chattanooga + Jacksonville (166 PMs):
+  //       { quarter: "2025Q1", mixAdjMedian: 1544.37, n: 41 }
+  //   - Clarksville + Knoxville + Memphis + Phoenix (310 PMs):
+  //       { quarter: "2025Q1", mixAdjustedMedian: 1234.0, n: 12 }
+  //   - Nashville (98 PMs):
+  //       { year: 2021, mixAdjustedMedian: 772.0, n: 6 }
+  //
+  // Canonical output: { quarter: "YYYYQn" or "YYYY", mixAdjMedian, n }.
+  // Year-only rows convert to a 4-char "YYYY" quarter string which sorts
+  // correctly against quarterly strings via localeCompare.
   return getArray<AnyRecord>(pm, "rentTrajectory")
-    .map((r) => ({
-      quarter: asString(r.quarter),
-      mixAdjMedian: asNumber(r.mixAdjMedian) ?? 0,
-      n: asInt(r.n) ?? 0,
-    }))
+    .map((r) => {
+      const rawQuarter = asString(r.quarter);
+      const yearNum = asInt(r.year);
+      const quarter = rawQuarter || (yearNum !== null ? String(yearNum) : "");
+      const value =
+        asNumber(r.mixAdjMedian) ?? asNumber(r.mixAdjustedMedian) ?? 0;
+      return {
+        quarter,
+        mixAdjMedian: value,
+        n: asInt(r.n) ?? 0,
+      };
+    })
     .filter((r) => r.quarter);
 }
 
