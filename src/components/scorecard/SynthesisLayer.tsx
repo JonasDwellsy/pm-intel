@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { marketingDataSuppressed } from "@/lib/types";
 import { fmtNumber, fmtPct } from "@/lib/format";
@@ -183,6 +184,14 @@ function RentPerformanceTile({ scorecard }: { scorecard: ScorecardData }) {
   }
   const deltaPp = (rp.delta ?? 0) * 100;
   const sign = deltaPp > 0 ? "+" : "";
+  // Two labeled YoY lines so readers don't have to recall what "pp" means
+  // or do the arithmetic that connects the headline delta to the underlying
+  // growth rates. The "i" modal expands on the percentage-point definition.
+  const operatorLine = `Operator rent growth: ${fmtPct(rp.pmYoyChange * 100, 1, true)} YoY`;
+  const cohortLine =
+    rp.cohortMedianYoyChange !== null
+      ? `Cohort median: ${fmtPct((rp.cohortMedianYoyChange ?? 0) * 100, 1, true)} YoY`
+      : null;
   return (
     <MetricTile
       title="Rent Performance"
@@ -191,9 +200,10 @@ function RentPerformanceTile({ scorecard }: { scorecard: ScorecardData }) {
       headlineUnit="pp vs cohort"
       star={rp.star ?? null}
       comparison={
-        rp.pmYoyChange !== null && rp.cohortMedianYoyChange !== null
-          ? `Operator ${fmtPct(rp.pmYoyChange * 100, 1, true)} · Cohort ${fmtPct((rp.cohortMedianYoyChange ?? 0) * 100, 1, true)}`
-          : `Operator YoY ${fmtPct(rp.pmYoyChange * 100, 1, true)}`
+        <>
+          <span className="block">{operatorLine}</span>
+          {cohortLine && <span className="block">{cohortLine}</span>}
+        </>
       }
     />
   );
@@ -273,7 +283,7 @@ function MetricTile({
   headlineValue: string;
   headlineUnit: string;
   star: StarLevel;
-  comparison: string;
+  comparison: ReactNode;
   caveat?: string;
 }) {
   return (
@@ -294,11 +304,11 @@ function MetricTile({
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         <StarIcon level={star} size={16} />
-        <p className="text-[12.5px] font-medium leading-[1.4] text-muted-foreground">
+        <div className="text-[12.5px] font-medium leading-[1.4] text-muted-foreground">
           {comparison}
-        </p>
+        </div>
       </div>
       {caveat && (
         <p className="mt-0.5 text-[11.5px] italic leading-[1.4] text-muted-2">

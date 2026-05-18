@@ -123,9 +123,9 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   rentPerformance: {
     name: "Rent Performance",
     definition:
-      "Operator's mix-adjusted YoY rent change vs the cohort median for the same period. Surfaces relative rent growth — positive delta means above-cohort growth. Composite-feeding signal.",
+      "The difference between this operator's year-over-year (YoY) rent growth and the cohort median's YoY rent growth, expressed in percentage points (pp). Example: if the operator's rents grew 4.3% YoY and the cohort median grew −0.1% YoY, the difference is +4.4 percentage points. Positive values mean above-cohort growth. Composite-feeding signal.",
     formula:
-      "delta = pm_YoY − cohort_median_YoY\nstate: positive if delta > 0.5pp; negative if delta < −0.5pp; neutral otherwise",
+      "delta (pp) = pm_YoY − cohort_median_YoY\nstate: positive if delta > 0.5 pp; negative if delta < −0.5 pp; neutral otherwise",
     variableDefs: [
       { symbol: "pm_YoY", meaning: "operator's mix-adjusted median rent, latest quarter / same quarter prior year" },
       { symbol: "cohort_median_YoY", meaning: "MSA cohort's median YoY mix-adjusted rent change" },
