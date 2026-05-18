@@ -34,8 +34,9 @@ export function IdentityHero({
   const quadrant7Label = scorecard.pm.quadrant7Cell ?? scorecard.pm.quadrant;
   const quadrant7 = quadrant7Color(quadrant7Label);
   const compositeStar: StarLevel = scorecard.rank.compositeStar ?? null;
-  const cohortName =
-    scorecard.rank.compositeCohortName ?? `${scorecard.market.name} MSA cohort`;
+  const cohortName = normalizeCohortName(
+    scorecard.rank.compositeCohortName ?? `${scorecard.market.name} MSA cohort`
+  );
   const cohortQualifier = starQualifier(compositeStar);
 
   // Multi-market operators get a row of pills; single-market operators get
@@ -237,13 +238,26 @@ function starQualifier(level: StarLevel): {
   if (level === "silver") {
     return {
       label: "Silver star · Composite",
-      descriptor: "Second quartile in cohort (median)",
+      descriptor: "Above median in cohort",
     };
   }
   return {
     label: "No star · Composite",
     descriptor: "Present in cohort",
   };
+}
+
+// Strip the " (any scale)" parenthetical that the v0.6.2 seed emits on
+// fallback cohort labels (e.g., "Nashville Large MF/BTR (any scale)") and
+// append "cohort" if it's missing, so we display "Nashville Large MF/BTR
+// cohort" consistently. Client-side transform pending the upstream fix in
+// v0.7 (where the seed pipeline will write the canonical form directly).
+function normalizeCohortName(raw: string): string {
+  const stripped = raw.replace(/\s*\(any scale\)\s*/i, "").trim();
+  // Don't double-suffix "cohort" — the canonical MSA-level label already
+  // includes it (e.g., "Chattanooga MSA cohort").
+  if (/cohort$/i.test(stripped)) return stripped;
+  return `${stripped} cohort`;
 }
 
 // 5-point star SVG. Gold = filled gold-tone, Silver = filled silver-tone,
