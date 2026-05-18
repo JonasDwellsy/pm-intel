@@ -136,8 +136,17 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     claimed: row.claimed,
     // v0.6.1 drops the pricing premium / concession-rate fields entirely;
     // surface the rent-performance delta + cohort comparison instead so the
-    // market landing operator cards still have a per-operator pricing signal.
-    rentVsComp: sc.rentPerformance?.delta ?? null,
+    // market landing operator cards still have a per-operator pricing
+    // signal. The seed stores `rentPerformance.delta` as a decimal (e.g.
+    // -0.0347 means "3.47pp below cohort"); the rentVsComp field on
+    // PMListItem is consumed by fmtSignedPct which expects a percentage
+    // value (-3.47, not -0.0347). Multiply by 100 here so the field's
+    // semantic ("percent vs comp") matches its representation everywhere
+    // it's read.
+    rentVsComp:
+      sc.rentPerformance?.delta !== undefined && sc.rentPerformance?.delta !== null
+        ? sc.rentPerformance.delta * 100
+        : null,
     concessionRate: null,
     accentColor: sc.pm.accentColor ?? null,
     coverageMapPoints: sc.geographicCoverage.coverageMapPoints ?? [],
