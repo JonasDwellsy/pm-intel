@@ -210,7 +210,7 @@ function OperationalDisciplineTile({ scorecard }: { scorecard: ScorecardData }) 
   if (suppressed) {
     return (
       <MetricTile
-        title="Operational Discipline"
+        title="Marketing Discipline"
         metricKey="marketing"
         headlineValue="—"
         headlineUnit=""
@@ -224,7 +224,7 @@ function OperationalDisciplineTile({ scorecard }: { scorecard: ScorecardData }) 
   const pct = scorecard.rank.percentiles.marketing;
   return (
     <MetricTile
-      title="Operational Discipline"
+      title="Marketing Discipline"
       metricKey="marketing"
       headlineValue={fmtNumber(score, 0)}
       headlineUnit="/ 100"

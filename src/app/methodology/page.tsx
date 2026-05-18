@@ -691,7 +691,7 @@ export default async function MethodologyPage() {
               id="marketing"
               num="08"
               title="Marketing scores."
-              lede="Operational discipline — whether the operator presents their listings with complete data, consistent quality, and care."
+              lede="Marketing discipline — whether the operator presents their listings with complete data, consistent quality, and care."
             >
               <p>
                 Three subscores, each on a{" "}
@@ -826,12 +826,11 @@ export default async function MethodologyPage() {
               </div>
 
               <p>
-                Marketing Quality (15%) and Community Visibility (15%) are
-                secondary but meaningful signals. Marketing reflects
-                operational discipline; Community Visibility reflects
-                transparency. Both are real quality differentiators, both are
-                harder to game than they look, and both deserve weight without
-                dominating.
+                Marketing Discipline (15%) and Community Visibility (15%) are
+                secondary but meaningful signals. Marketing Discipline reflects
+                listing-side rigor; Community Visibility reflects transparency.
+                Both are real quality differentiators, both are harder to game
+                than they look, and both deserve weight without dominating.
               </p>
               <p>
                 Rent Performance (10%) is included as a pricing-skill signal

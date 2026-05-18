@@ -259,7 +259,7 @@ export interface CommunityVisibilityBlock {
 }
 
 // Defensive guard against marketing data with no signal at all. Reads from
-// the SAME compositeScore field that the Operational Discipline tile and
+// the SAME compositeScore field that the Marketing Discipline tile and
 // card display so the detection signature matches the display logic. A
 // non-zero compositeScore means the operator has a real, displayable score
 // regardless of which source field-name convention the data pipeline used

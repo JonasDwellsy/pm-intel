@@ -47,7 +47,7 @@ export function MethodologyFooter({
       note: "T12 observed urus feeding mix-adjusted YoY",
     },
     {
-      metric: "Operational Discipline",
+      metric: "Marketing Discipline",
       n: fmtInt(c.t12Listings),
       note: "T12 listings scored",
     },

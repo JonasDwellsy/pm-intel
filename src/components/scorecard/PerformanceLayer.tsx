@@ -22,7 +22,7 @@ const METRIC_KEY_BY_LAYER3: Record<Layer3Metric, MetricKey> = {
 //   Card 1 — Lease-up Performance (DOM days T12, lower better)
 //   Card 2 — Tenant Retention (median tenancy months, higher better)
 //   Card 3 — Rent Performance (YoY delta vs cohort, higher better)
-//   Card 4 — Operational Discipline (marketing composite score, higher better)
+//   Card 4 — Marketing Discipline (listing marketing composite, higher better)
 //   Card 5 — Inventory Transparency (visibility ratio, higher better; MF/BTR
 //            only, suppressed when communityVisibility is null)
 //
@@ -71,11 +71,11 @@ const SHARED_CARDS: CardConfig[] = [
   },
   {
     metric: "marketing",
-    title: "Operational Discipline",
+    title: "Marketing Discipline",
     headlineFormat: (v) => ({ value: fmtNumber(v, 0), unit: "/ 100 marketing quality" }),
     rowFormat: (v) => `${fmtNumber(v, 0)} / 100`,
     definition:
-      "Operational Discipline measures listing completeness, amenity disclosure, description depth, and photo coverage on a 0–100 composite.",
+      "Marketing Discipline measures listing completeness, amenity disclosure, description depth, and photo coverage on a 0–100 composite.",
   },
 ];
 
@@ -256,7 +256,8 @@ function CardHeader({
   comparison: PeerComparison | null;
   footnote?: string;
 }) {
-  const qualifier = starQualifier(comparison?.focalStar ?? null);
+  const hasStar = comparison?.focalStar === "gold" || comparison?.focalStar === "silver";
+  const qualifier = hasStar ? starQualifier(comparison?.focalStar ?? null) : null;
   return (
     <header className="flex flex-col gap-2 border-b border-grid-soft pb-4 md:flex-row md:items-start md:justify-between md:gap-6">
       <div className="min-w-0">
@@ -265,9 +266,13 @@ function CardHeader({
         </h3>
         {comparison && (
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-            <StarIcon level={comparison.focalStar} size={14} />
-            <span className={qualifier.toneClass}>{qualifier.label}</span>
-            <span className="text-muted-2">·</span>
+            {hasStar && qualifier && (
+              <>
+                <StarIcon level={comparison.focalStar} size={14} />
+                <span className={qualifier.toneClass}>{qualifier.label}</span>
+                <span className="text-muted-2">·</span>
+              </>
+            )}
             <span>{comparison.cohortName}</span>
             <span className="text-muted-2">·</span>
             <span className="dq-tnum">n = {comparison.cohortN}</span>

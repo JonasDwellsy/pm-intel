@@ -140,9 +140,9 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   },
 
   marketing: {
-    name: "Operational Discipline",
+    name: "Marketing Discipline",
     definition:
-      "Composite of listing completeness, amenity disclosure, description depth, and photo coverage. A proxy for operational rigor on the listing side. Higher is more favorable.",
+      "Composite of listing completeness, amenity disclosure, description depth, and photo coverage. A proxy for marketing rigor on the listing side. Higher is more favorable.",
     formula:
       "marketing = 0.35·completeness + 0.25·amenities + 0.20·description + 0.20·photos\n(each subscore 0-100, composite 0-100)",
     cohortScope:
@@ -278,7 +278,7 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   "section-performance-dimensions": {
     name: "Performance Dimensions",
     definition:
-      "Five performance dimensions (four for SFR/Hybrid) — Lease-up Performance, Tenant Retention, Rent Performance, Operational Discipline, Inventory Transparency — each with cohort-aware star, distribution chart, and inline peer comparison table.",
+      "Five performance dimensions (four for SFR/Hybrid) — Lease-up Performance, Tenant Retention, Rent Performance, Marketing Discipline, Inventory Transparency — each with cohort-aware star, distribution chart, and inline peer comparison table.",
     cohortScope:
       "Each metric independently follows the primary→fallback→MSA waterfall (N≥10 threshold). Cohorts can differ across metrics for the same operator.",
     caveats: [
