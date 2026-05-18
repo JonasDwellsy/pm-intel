@@ -18,6 +18,8 @@ import type { MarketFootprintPill } from "@/lib/cross-market";
 import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { fmtInt, fmtNumber } from "@/lib/format";
+import { InfoIcon } from "@/components/scorecard/InfoIcon";
+import type { MetricKey } from "@/lib/metric-definitions";
 import {
   dqChartTheme,
   dqGrid,
@@ -74,7 +76,10 @@ export function PortfolioLayer({
       className="dq-section space-y-12"
     >
       <div>
-        <p className="dq-eyebrow">Portfolio Characteristics</p>
+        <p className="dq-eyebrow inline-flex items-center gap-1.5">
+          Portfolio Characteristics
+          <InfoIcon metricKey="section-portfolio" />
+        </p>
         <p className="mt-3 max-w-[780px] text-[14px] leading-[1.6] text-muted-foreground">
           Geographic footprint, portfolio composition, rent trajectory, and
           pricing context. Sections render only when the operator has
@@ -154,7 +159,11 @@ function GeographicSpreadSection({
 
   return (
     <article id="geographic-spread" className="dq-section">
-      <SubsectionHeader eyebrow="5B · Geographic spread" title={heading} />
+      <SubsectionHeader
+        eyebrow="5B · Geographic spread"
+        title={heading}
+        metricKey="section-geographic-spread"
+      />
       <div className="mt-4 grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,220px)]">
         {/* Top cities bar list */}
         <div>
@@ -228,6 +237,7 @@ function CrossMarketPresenceSection({ rows }: { rows: MarketFootprintPill[] }) {
       <SubsectionHeader
         eyebrow="5C · Cross-market presence"
         title={`Visible in ${rows.length} of our covered markets`}
+        metricKey="section-cross-market-presence"
       />
       <ul className="mt-4 overflow-hidden rounded-md border border-grid bg-white">
         {rows.map((row) => (
@@ -307,6 +317,7 @@ function PortfolioCompositionSection({
     <article id="portfolio-composition" className="dq-section">
       <SubsectionHeader
         eyebrow="5D · Portfolio composition"
+        metricKey="section-portfolio-composition"
         title="Observed scale and mix"
       />
       <div className="mt-4 grid gap-4 md:grid-cols-4">
@@ -600,18 +611,23 @@ function PricingDataSection({ scorecard }: { scorecard: ScorecardData }) {
 function SubsectionHeader({
   eyebrow,
   title,
+  metricKey,
 }: {
   eyebrow: string;
   title: string;
+  metricKey?: MetricKey;
 }) {
   return (
     <header>
       <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-teal">
         {eyebrow}
       </p>
-      <h3 className="mt-1.5 text-[20px] font-semibold leading-tight tracking-[-0.012em] text-navy">
-        {title}
-      </h3>
+      <div className="mt-1.5 flex items-center gap-2">
+        <h3 className="text-[20px] font-semibold leading-tight tracking-[-0.012em] text-navy">
+          {title}
+        </h3>
+        {metricKey && <InfoIcon metricKey={metricKey} />}
+      </div>
     </header>
   );
 }

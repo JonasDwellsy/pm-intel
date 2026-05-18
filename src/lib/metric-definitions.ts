@@ -28,6 +28,7 @@ export interface MetricDefinition {
 }
 
 export type MetricKey =
+  // Per-metric definitions (wired in Layers 2-4 tile/card "i" icons).
   | "composite"
   | "quadrant7Cell"
   | "dom"
@@ -39,7 +40,16 @@ export type MetricKey =
   | "rentStability"
   | "operatorStability"
   | "geographicConcentration"
-  | "pricingTier";
+  | "pricingTier"
+  // Section-level definitions (wired on Layer eyebrows + subsection headers).
+  | "section-executive-summary"
+  | "section-distinguishing-characteristics"
+  | "section-performance-dimensions"
+  | "section-lending-signals"
+  | "section-portfolio"
+  | "section-geographic-spread"
+  | "section-cross-market-presence"
+  | "section-portfolio-composition";
 
 export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   composite: {
@@ -91,7 +101,7 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
       "Listings without a recorded lease close are excluded.",
       "DOM is sensitive to portfolio mix — operators with more entry-level inventory typically lease faster than premium-tier portfolios; the cohort comparison controls for this only to the extent the cohort shares mix.",
     ],
-    methodologyHref: "/methodology#dom",
+    methodologyHref: "/methodology#composite",
   },
 
   tenancy: {
@@ -175,7 +185,7 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
       "Combines two metrics with their own caveats. Operators with short observation history will have noisy Tenancy → noisy vacancy.",
       "Doesn't account for intentional vacancy (renovation, hold-for-sale).",
     ],
-    methodologyHref: "/methodology#vacancy-signal",
+    methodologyHref: "/methodology#lending-signals",
   },
 
   rentStability: {
@@ -190,7 +200,7 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
       "Currently computed from the 6-quarter rentTrajectory in v0.6.2 seed — this over-suppresses operators with 3-5 years of underlying listings. v0.7 fix: compute from raw listings over 12 quarters per Patch 4.",
       "Volatility doesn't separate intentional rent strategy from market-driven volatility.",
     ],
-    methodologyHref: "/methodology#rent-stability",
+    methodologyHref: "/methodology#lending-signals",
   },
 
   operatorStability: {
@@ -205,7 +215,7 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
       "Persistent-eligibility-across-last-8-windows component is not in v0.6.2 — surfacing in v0.7 will tighten the composite.",
       "Cross-market footprint depends on the markets currently covered (7 MSAs as of v0.6.2). National operators in non-covered markets aren't reflected.",
     ],
-    methodologyHref: "/methodology#operator-stability",
+    methodologyHref: "/methodology#lending-signals",
   },
 
   geographicConcentration: {
@@ -220,7 +230,7 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
       "No star assigned per Decision G.4 — concentration is descriptive, not evaluative.",
       "Some lenders prefer concentration (operator efficiency); others prefer dispersion (geographic risk diversification). The signal supports either reading.",
     ],
-    methodologyHref: "/methodology#geographic-concentration",
+    methodologyHref: "/methodology#lending-signals",
   },
 
   pricingTier: {
@@ -234,6 +244,114 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
       "Mix-adjusted, not BR-bucketed. BR-specific positioning (e.g., where a PM's 2BR sits in the MSA 2BR distribution) is a v0.7 item.",
       "Tier labels are descriptive — Premium isn't 'better' than Value; they reflect different positioning strategies.",
     ],
-    methodologyHref: "/methodology#pricing-tier",
+    methodologyHref: "/methodology#lending-signals",
+  },
+
+  // --- Section-level definitions ---
+
+  "section-executive-summary": {
+    name: "Executive Summary",
+    definition:
+      "Three-sentence prose paragraph synthesizing the operator's identity, cohort position, and one distinguishing observation. Pre-computed at seed time from deterministic templates and validated against the operator-dignity language gate.",
+    cohortScope:
+      "Sentence 2 references whichever cohort was used for composite star (primary 7-cell / fallback operator type / MSA).",
+    caveats: [
+      "Templates are deterministic — same operator inputs produce the same prose across data refreshes.",
+      "Forbidden tokens (weak, poor, strong, excellent, underperforming, manages X) are validated out at seed time.",
+    ],
+    methodologyHref: "/methodology#composite",
+  },
+
+  "section-distinguishing-characteristics": {
+    name: "Distinguishing Characteristics",
+    definition:
+      "Two to four bullet observations capturing what's structurally distinctive about the operator. Selected from a priority-ranked candidate set: cross-market presence, scale extremes, geographic patterns, tenure observations, eligibility breadth.",
+    cohortScope:
+      "Observations reference the operator's primary 7-cell cohort where relevant; fallback to MSA when the primary cohort is too small.",
+    caveats: [
+      "Suppressed when fewer than two qualifying observations exist.",
+      "Observation candidates are scored by distinctiveness, not by favorability.",
+    ],
+    methodologyHref: "/methodology#composite",
+  },
+
+  "section-performance-dimensions": {
+    name: "Performance Dimensions",
+    definition:
+      "Five performance dimensions (four for SFR/Hybrid) — Lease-up Performance, Tenant Retention, Rent Performance, Operational Discipline, Inventory Transparency — each with cohort-aware star, distribution chart, and inline peer comparison table.",
+    cohortScope:
+      "Each metric independently follows the primary→fallback→MSA waterfall (N≥10 threshold). Cohorts can differ across metrics for the same operator.",
+    caveats: [
+      "Peer rows show their star within the focal operator's selected cohort — internally consistent for the table, may differ from a peer's own primary-cohort star.",
+      "Cards render 'Insufficient data' when the focal metric is null rather than suppressing the card entirely.",
+    ],
+    methodologyHref: "/methodology#composite",
+  },
+
+  "section-lending-signals": {
+    name: "Lending Signals",
+    definition:
+      "Five underwriting-relevant synthesis signals. Two are pre-computed (Rent Stability, Geographic Concentration); three are derived at render time (Vacancy Signal, Operator Stability, Pricing Tier).",
+    cohortScope:
+      "Per-signal cohort selection follows the same primary→fallback→MSA waterfall as Layer 3 metrics.",
+    caveats: [
+      "Geographic Concentration is descriptive only (no star) per Decision G.4 — concentration is neither inherently favorable nor unfavorable.",
+      "Pricing Tier (Premium / Mid-market / Value) is a positional label, not an evaluative one.",
+      "Operator Stability surfaces yearsVisible + market count; persistent-eligibility-per-window component is deferred to v0.7.",
+    ],
+    methodologyHref: "/methodology#lending-signals",
+  },
+
+  "section-portfolio": {
+    name: "Portfolio Characteristics",
+    definition:
+      "Six subsections describing the operator's footprint: coverage map with narrative, geographic spread, cross-market presence, portfolio composition, rent trajectory descriptive overlay, and pricing data snapshot. Each subsection renders only when relevant data is present.",
+    cohortScope:
+      "Geographic and cross-market sections are operator-specific. Rent trajectory overlay uses the same cohort selection as Layer 3 Rent Performance.",
+    caveats: [
+      "Cross-Market Presence renders only for operators visible in 2+ markets.",
+      "BR-mix portfolio composition and BR-bucketed pricing data are deferred to v0.7 — current v0.6.2 surfaces house/apartment split where applicable.",
+      "Per-city unit estimates are derived from top-cities percentage × total observed urus; marked with `~` to signal derivation.",
+    ],
+    methodologyHref: "/methodology#community-visibility",
+  },
+
+  "section-geographic-spread": {
+    name: "Geographic Spread Analysis",
+    definition:
+      "Top observed submarkets bar list with per-city share and estimated unit counts, plus a concentration summary (top-3 city share, distinct cities observed). SFR-prominent — geographic spread carries more decision weight for scattered operators than for MF/BTR.",
+    cohortScope:
+      "Operator-specific; cohort context is provided in the separate Lending Signal 4 (Geographic Concentration) card.",
+    caveats: [
+      "Per-city urus counts are estimates (top-cities pct × total). Direct per-city counts are a v0.7 pipeline item.",
+      "Top-3 share is descriptive; concentration is neither inherently favorable nor unfavorable.",
+    ],
+    methodologyHref: "/methodology#community-visibility",
+  },
+
+  "section-cross-market-presence": {
+    name: "Cross-Market Presence",
+    definition:
+      "Per-MSA breakdown for operators observed in 2+ of our covered markets. Each row shows market name, observed urus T12 in that market, composite star, and cohort qualifier reflecting whichever cohort that market's seed selected.",
+    cohortScope:
+      "Each row's cohort is the focal operator's selected cohort within that specific MSA — primary 7-cell if N≥10, else fallback, else MSA.",
+    caveats: [
+      "Cross-market join is by exact operator name match. Two unrelated operators sharing a name could erroneously merge; operator-identity reconciliation is a v0.7 pipeline item.",
+      "Suppressed for single-market operators.",
+    ],
+    methodologyHref: "/methodology#classification",
+  },
+
+  "section-portfolio-composition": {
+    name: "Portfolio Composition",
+    definition:
+      "Observed scale and mix: observed units T12, active listings, observed concentrated community count, average community size, and (for SFR + Hybrid operators with both-type visibility) house vs apartment urus split.",
+    cohortScope:
+      "Operator-specific. No cohort comparison at this level — cohort context for individual metrics is surfaced in their respective Layer 3 cards.",
+    caveats: [
+      "Bedroom mix (1BR / 2BR / 3BR+) is not in the v0.6.2 seed. BR-bucketed composition is a v0.7 pipeline item.",
+      "Average community size uses the top-down PM-managed unit count from concentrated communities, not the full community size.",
+    ],
+    methodologyHref: "/methodology#community-visibility",
   },
 };

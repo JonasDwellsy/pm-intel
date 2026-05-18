@@ -56,7 +56,10 @@ export function SynthesisLayer({ scorecard }: { scorecard: ScorecardData }) {
       {/* 2A — Executive summary */}
       {executiveSummary && (
         <div>
-          <p className="dq-eyebrow">Executive summary</p>
+          <p className="dq-eyebrow inline-flex items-center gap-1.5">
+            Executive summary
+            <InfoIcon metricKey="section-executive-summary" />
+          </p>
           <p className="mt-3 max-w-[780px] text-[16.5px] leading-[1.65] text-foreground text-pretty">
             {executiveSummary}
           </p>
@@ -87,7 +90,10 @@ export function SynthesisLayer({ scorecard }: { scorecard: ScorecardData }) {
       {/* 2C — Distinguishing characteristics */}
       {bullets.length >= 2 && (
         <div>
-          <p className="dq-eyebrow">Distinguishing characteristics</p>
+          <p className="dq-eyebrow inline-flex items-center gap-1.5">
+            Distinguishing characteristics
+            <InfoIcon metricKey="section-distinguishing-characteristics" />
+          </p>
           <ul className="mt-3 max-w-[780px] space-y-2 text-[15px] leading-[1.6] text-foreground">
             {bullets.slice(0, 4).map((b, i) => (
               <li key={i} className="flex gap-2.5">

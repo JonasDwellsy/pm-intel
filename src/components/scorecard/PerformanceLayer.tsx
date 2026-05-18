@@ -108,7 +108,10 @@ export function PerformanceLayer({
       className="dq-section space-y-8"
     >
       <div>
-        <p className="dq-eyebrow">Performance dimensions</p>
+        <p className="dq-eyebrow inline-flex items-center gap-1.5">
+          Performance dimensions
+          <InfoIcon metricKey="section-performance-dimensions" />
+        </p>
         <p className="mt-3 max-w-[780px] text-[14px] leading-[1.6] text-muted-foreground">
           Each card shows a metric, the cohort it&rsquo;s compared against, and
           the four nearest neighbors by value. Stars reflect quartile position

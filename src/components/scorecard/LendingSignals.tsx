@@ -43,7 +43,10 @@ export function LendingSignals({
       className="dq-section space-y-6"
     >
       <div>
-        <p className="dq-eyebrow">Lending Signals</p>
+        <p className="dq-eyebrow inline-flex items-center gap-1.5">
+          Lending Signals
+          <InfoIcon metricKey="section-lending-signals" />
+        </p>
         <p className="mt-3 max-w-[780px] text-[14px] leading-[1.6] text-muted-foreground">
           Underwriting-relevant synthesis metrics designed for a 30-second
           scan. Cohort comparison shown for each signal; quartile position

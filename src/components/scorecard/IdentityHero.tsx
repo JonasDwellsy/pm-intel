@@ -6,6 +6,7 @@ import type {
 } from "@/lib/cross-market";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { fmtDate } from "@/lib/format";
+import { InfoIcon } from "@/components/scorecard/InfoIcon";
 
 // Layer 1 — Identity hero block (v1.0 design, per Scorecard_Design_Spec_v1.0.md
 // Section 3, Layer 1). Five elements in the 5-second-read zone:
@@ -88,14 +89,15 @@ export function IdentityHero({
             <StarIcon level={compositeStar} size={32} />
             <div className="min-w-0">
               <p
-                className="text-[19px] font-semibold leading-[1.2] tracking-[-0.012em] text-navy md:text-[22px]"
+                className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[19px] font-semibold leading-[1.2] tracking-[-0.012em] text-navy md:text-[22px]"
                 style={{
                   color: compositeStar === null ? "var(--color-muted-foreground)" : undefined,
                 }}
               >
-                {cohortQualifier.label}
-                <span className="mx-2 text-muted-2">·</span>
+                <span>{cohortQualifier.label}</span>
+                <span className="mx-1 text-muted-2">·</span>
                 <span className="text-navy">{cohortName}</span>
+                <InfoIcon metricKey="composite" className="ml-1.5" />
               </p>
               {cohortQualifier.descriptor && (
                 <p className="mt-1 text-[13px] font-medium text-muted-foreground">
