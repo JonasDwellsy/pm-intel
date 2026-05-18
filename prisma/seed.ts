@@ -603,12 +603,30 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
       completeness: asNumber(marketing.completeness) ?? 0,
       amenitiesMentioned: asNumber(marketing.amenitiesMentioned) ?? 0,
       descLen: asInt(marketing.descLen) ?? 0,
-      completenessScore: asNumber(marketing.completenessScore) ?? 0,
-      amenitiesScore: asNumber(marketing.amenitiesScore) ?? 0,
-      descScore: asNumber(marketing.descScore) ?? 0,
+      // The v0.6.2 source JSON uses two field-name conventions across
+      // markets (carry-forward from per-market seed runs): Chattanooga
+      // (37 PMs) uses `completenessScore` / `amenitiesScore` / `descScore`
+      // / `compositeScore`; the other 6 markets (535 PMs) use the
+      // `*Subscore` + `marketingQuality` form. Accept either shape so
+      // canonical ScorecardData always has populated marketing scores.
+      completenessScore:
+        asNumber(marketing.completenessScore) ??
+        asNumber(marketing.completenessSubscore) ??
+        0,
+      amenitiesScore:
+        asNumber(marketing.amenitiesScore) ??
+        asNumber(marketing.amenitiesSubscore) ??
+        0,
+      descScore:
+        asNumber(marketing.descScore) ??
+        asNumber(marketing.descSubscore) ??
+        0,
       medianPhotosT12: asInt(marketing.medianPhotosT12),
       zeroPhotoT12: asNumber(marketing.zeroPhotoT12),
-      compositeScore: asNumber(marketing.compositeScore) ?? 0,
+      compositeScore:
+        asNumber(marketing.compositeScore) ??
+        asNumber(marketing.marketingQuality) ??
+        0,
       star: asStar(marketing.star),
       cohortUsedForStar: asCohortLevel(marketing.cohortUsedForStar),
       cohortName: asString(marketing.cohortName) || undefined,

@@ -258,28 +258,25 @@ export interface CommunityVisibilityBlock {
   cohortName?: string;
 }
 
-// Detect a known v0.6.2 data-pipeline gap: the marketing subscores for some
-// cohorts (Nashville SFR Independent is the worst-affected) were not
-// computed during the v0.6.2 generation pass. The raw inputs (completeness
-// %, amenitiesMentioned, descLen) populate as expected, but the three
-// subscores AND the composite all land at 0. A genuine 0 composite is
-// mathematically impossible for an operator with any listings; uniform 0
-// across raw + subscores indicates pipeline failure. The suppressed flag
-// drives a "Insufficient marketing data" disclosure on the Operational
-// Discipline tile + card rather than rendering a fake 0/100 number.
-// Tracked for v0.7 — recompute marketing scores across affected cohorts.
+// Defensive guard against marketing data with no signal at all. Reads from
+// the SAME compositeScore field that the Operational Discipline tile and
+// card display so the detection signature matches the display logic. A
+// non-zero compositeScore means the operator has a real, displayable score
+// regardless of which source field-name convention the data pipeline used
+// (the v0.6.2 input arrives in two shapes — `compositeScore` for the
+// Chattanooga cohort, `marketingQuality` for the other 6 markets — and the
+// seed normalizes both into compositeScore upstream of this check).
+//
+// True suppression only fires when compositeScore is exactly 0, which is
+// mathematically impossible for an operator with any listing data and only
+// happens when the seed-time normalization itself fell through every
+// fallback. With v0.6.2 + the seed normalization in place, no operator in
+// the 7-market footprint trips this — the guard remains as defense in
+// depth for future market additions where the input shape could drift.
 export function marketingDataSuppressed(m: {
   compositeScore: number;
-  completenessScore: number;
-  amenitiesScore: number;
-  descScore: number;
 }): boolean {
-  return (
-    m.compositeScore === 0 &&
-    m.completenessScore === 0 &&
-    m.amenitiesScore === 0 &&
-    m.descScore === 0
-  );
+  return m.compositeScore === 0;
 }
 
 export interface MarketSummary {
