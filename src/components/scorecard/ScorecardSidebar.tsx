@@ -28,10 +28,11 @@ function unlockedSections(hasCommunityVisibility: boolean): SectionLink[] {
     });
   }
   base.push(
-    { id: "coverage", label: "Coverage universe", num: "03" },
-    { id: "geography", label: "Geographic coverage", num: "04" },
-    { id: "rent-trajectory", label: "Rent trajectory", num: "05" },
-    { id: "why-this-quadrant", label: "Why this quadrant", num: "06" }
+    { id: "lending-signals", label: "Lending Signals", num: "03" },
+    { id: "coverage", label: "Coverage universe", num: "04" },
+    { id: "geography", label: "Geographic coverage", num: "05" },
+    { id: "rent-trajectory", label: "Rent trajectory", num: "06" },
+    { id: "why-this-quadrant", label: "Why this quadrant", num: "07" }
   );
   return base;
 }

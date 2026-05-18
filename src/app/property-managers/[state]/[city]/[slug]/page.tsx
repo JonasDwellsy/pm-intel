@@ -14,7 +14,9 @@ import {
   loadMarketView,
 } from "@/lib/market-data";
 import { loadMarketFootprint } from "@/lib/cross-market";
+import { loadMsaPool } from "@/lib/msa-pool";
 import { buildPeerComparisons } from "@/lib/peer-comparison";
+import { buildLendingSignals } from "@/lib/lending-signals";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import { MarketView } from "@/components/market/MarketView";
 
@@ -115,15 +117,20 @@ export default async function MarketChildPage({
   const loaded = await loadScorecard(slug);
   if (!loaded) notFound();
   const { scorecard, isClaimed } = loaded;
-  // Layer 1 needs the cross-market footprint to render its pills. The lookup
-  // is keyed by operator name; for a single-market operator it resolves to
-  // one row (the focal operator itself) and the pill row is suppressed.
-  const [marketFootprint, peerComparisons] = await Promise.all([
+  // Layer 1 needs cross-market footprint; Layers 3 + 4 share an MSA pool
+  // loaded once and consumed by both peer-comparison (Layer 3) and
+  // lending-signals (Layer 4). Both renders run in-memory once the pool
+  // arrives.
+  const [marketFootprint, msaPool] = await Promise.all([
     loadMarketFootprint({ name: scorecard.pm.name, currentSlug: slug }),
-    // Phase D — Layer 3 per-metric peer comparisons. One DB query (all PMs
-    // in the same MSA) resolves cohorts + neighbors for the 5 cards.
-    buildPeerComparisons(scorecard),
+    loadMsaPool(scorecard.market.id),
   ]);
+  const peerComparisons = buildPeerComparisons(scorecard, msaPool);
+  const lendingSignals = buildLendingSignals(
+    scorecard,
+    msaPool,
+    marketFootprint.length
+  );
   return (
     <ScorecardBody
       scorecard={scorecard}
@@ -131,6 +138,7 @@ export default async function MarketChildPage({
       isClaimed={isClaimed}
       marketFootprint={marketFootprint}
       peerComparisons={peerComparisons}
+      lendingSignals={lendingSignals}
     />
   );
 }

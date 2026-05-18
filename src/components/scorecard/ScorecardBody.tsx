@@ -1,11 +1,13 @@
 import type { ScorecardData } from "@/lib/types";
 import type { MarketFootprintPill } from "@/lib/cross-market";
 import type { Layer3Metric, PeerComparison } from "@/lib/peer-comparison";
+import type { LendingSignals as LendingSignalsData } from "@/lib/lending-signals";
 
 import { TrackEvent } from "@/components/analytics/TrackEvent";
 import { IdentityHero } from "@/components/scorecard/IdentityHero";
 import { SynthesisLayer } from "@/components/scorecard/SynthesisLayer";
 import { PerformanceLayer } from "@/components/scorecard/PerformanceLayer";
+import { LendingSignals } from "@/components/scorecard/LendingSignals";
 import { PaywallCard } from "@/components/scorecard/PaywallCard";
 import { CoverageSection } from "@/components/scorecard/CoverageSection";
 import { CoverageMap } from "@/components/scorecard/CoverageMap";
@@ -31,12 +33,14 @@ export function ScorecardBody({
   isClaimed,
   marketFootprint,
   peerComparisons,
+  lendingSignals,
 }: {
   scorecard: ScorecardData;
   isUnlocked: boolean;
   isClaimed: boolean;
   marketFootprint: MarketFootprintPill[];
   peerComparisons: Record<Layer3Metric, PeerComparison | null>;
+  lendingSignals: LendingSignalsData;
 }) {
   return (
     <div className="mx-auto max-w-[1440px] px-6 sm:px-10">
@@ -66,6 +70,7 @@ export function ScorecardBody({
                 scorecard={scorecard}
                 peerComparisons={peerComparisons}
               />
+              <LendingSignals signals={lendingSignals} />
               <CoverageSection scorecard={scorecard} />
               <CoverageMap scorecard={scorecard} />
               <RentTrajectorySection scorecard={scorecard} />

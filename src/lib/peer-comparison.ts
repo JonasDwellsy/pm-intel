@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { citySlug, stateCodeToSlug } from "@/lib/slugify";
+import type { OperatorType, PoolPm } from "@/lib/msa-pool";
+import { operatorType, operatorTypeLabel } from "@/lib/msa-pool";
 import type {
   CohortLevel,
   ScorecardData,
@@ -29,27 +29,6 @@ export const METRIC_DIRECTIONS: Record<
   marketing: "higher_better",
   communityVisibility: "higher_better",
 };
-
-// Operator type axis for the fallback cohort. Maps the v0.6.2 7-cell label
-// down to {SFR, MF/BTR, Hybrid} so a SFR-Independent operator can fall back
-// to "all SFR operators in MSA" when primary cohort N < 10.
-export type OperatorType = "sfr" | "mfbtr" | "hybrid";
-
-function operatorType(q7: string | null | undefined): OperatorType {
-  const lower = (q7 ?? "").toLowerCase();
-  if (lower.startsWith("sfr")) return "sfr";
-  if (
-    lower.startsWith("small mf") ||
-    lower.startsWith("large mf") ||
-    lower.startsWith("mf")
-  )
-    return "mfbtr";
-  return "hybrid";
-}
-
-function operatorTypeLabel(t: OperatorType): string {
-  return t === "sfr" ? "SFR" : t === "mfbtr" ? "MF/BTR" : "Hybrid";
-}
 
 // Pull the comparable scalar value for a metric out of a parsed scorecard.
 // Returns null when the operator doesn't have a value (suppressed metric,
@@ -104,35 +83,17 @@ export interface PeerComparison {
 }
 
 // Public entry — resolves all 5 metric comparisons for the focal scorecard.
-// One DB query per page (all PMs in the same MSA with scorecardData), then
-// in-memory cohort filtering and ranking across the five metrics.
-export async function buildPeerComparisons(
-  scorecard: ScorecardData
-): Promise<Record<Layer3Metric, PeerComparison | null>> {
-  const marketPms = await prisma.pM.findMany({
-    where: { marketId: scorecard.market.id },
-    select: {
-      slug: true,
-      name: true,
-      quadrant7Cell: true,
-      market: { select: { state: true, city: true } },
-      scorecardData: true,
-    },
-  });
-
-  const all: PoolPm[] = marketPms.map((row) => ({
-    slug: row.slug,
-    name: row.name,
-    quadrant7Cell: row.quadrant7Cell,
-    href: `/property-managers/${stateCodeToSlug(row.market.state)}/${citySlug(row.market.city)}/${row.slug}?unlocked=true`,
-    scorecard: JSON.parse(row.scorecardData) as ScorecardData,
-  }));
-
-  const focal = all.find((p) => p.slug === scorecard.pm.slug);
+// Takes the MSA pool that the page loaded once (shared with Layer 4 lending
+// signals) and runs in-memory cohort filtering + ranking across the metrics.
+export function buildPeerComparisons(
+  scorecard: ScorecardData,
+  pool: PoolPm[]
+): Record<Layer3Metric, PeerComparison | null> {
+  const focal = pool.find((p) => p.slug === scorecard.pm.slug);
   if (!focal) {
-    // The focal scorecard wasn't in the market query — only possible if the
-    // PM table was mid-write. Return all-null map; the renderer treats each
-    // card as "Insufficient data".
+    // The focal scorecard wasn't in the pool — only possible if the PM table
+    // was mid-write. Return all-null map; the renderer treats each card as
+    // "Insufficient data".
     return {
       dom: null,
       tenancy: null,
@@ -150,28 +111,23 @@ export async function buildPeerComparisons(
     operatorType(p.quadrant7Cell) === focalType;
 
   return {
-    dom: buildOneMetric("dom", focal, focalType, all, primaryFilter, fallbackFilter),
-    tenancy: buildOneMetric("tenancy", focal, focalType, all, primaryFilter, fallbackFilter),
-    rentPerformance: buildOneMetric("rentPerformance", focal, focalType, all, primaryFilter, fallbackFilter),
-    marketing: buildOneMetric("marketing", focal, focalType, all, primaryFilter, fallbackFilter),
+    dom: buildOneMetric("dom", focal, focalType, pool, primaryFilter, fallbackFilter),
+    tenancy: buildOneMetric("tenancy", focal, focalType, pool, primaryFilter, fallbackFilter),
+    rentPerformance: buildOneMetric("rentPerformance", focal, focalType, pool, primaryFilter, fallbackFilter),
+    marketing: buildOneMetric("marketing", focal, focalType, pool, primaryFilter, fallbackFilter),
     communityVisibility: buildOneMetric(
       "communityVisibility",
       focal,
       focalType,
-      all,
+      pool,
       primaryFilter,
       fallbackFilter
     ),
   };
 }
 
-interface PoolPm {
-  slug: string;
-  name: string;
-  quadrant7Cell: string | null;
-  href: string;
-  scorecard: ScorecardData;
-}
+// PoolPm + operatorType helpers re-exported via msa-pool.ts; kept this module
+// focused on the peer-comparison algorithm itself.
 
 function buildOneMetric(
   metric: Layer3Metric,
