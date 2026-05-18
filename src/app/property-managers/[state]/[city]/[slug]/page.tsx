@@ -13,6 +13,7 @@ import {
   listSegmentRouteParams,
   loadMarketView,
 } from "@/lib/market-data";
+import { loadMarketFootprint } from "@/lib/cross-market";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import { MarketView } from "@/components/market/MarketView";
 
@@ -22,7 +23,10 @@ type RouteSearch = { unlocked?: string };
 async function loadScorecard(slug: string) {
   const pm = await prisma.pM.findUnique({ where: { slug } });
   if (!pm) return null;
-  return JSON.parse(pm.scorecardData) as ScorecardData;
+  return {
+    scorecard: JSON.parse(pm.scorecardData) as ScorecardData,
+    isClaimed: pm.claimed,
+  };
 }
 
 export async function generateStaticParams(): Promise<RouteParams[]> {
@@ -75,8 +79,9 @@ export async function generateMetadata({
     };
   }
 
-  const scorecard = await loadScorecard(slug);
-  if (!scorecard) return { title: "Property manager not found" };
+  const loaded = await loadScorecard(slug);
+  if (!loaded) return { title: "Property manager not found" };
+  const { scorecard } = loaded;
   const title = `${scorecard.pm.name} — Scorecard (${scorecard.market.fullName})`;
   const description = `Independent scorecard for ${scorecard.pm.name}: ${scorecard.pm.quadrant} operator ranked #${scorecard.rank.overall} of ${scorecard.rank.overallTotal} in ${scorecard.market.name}.`;
   return {
@@ -106,7 +111,22 @@ export default async function MarketChildPage({
   }
 
   const { unlocked } = await searchParams;
-  const scorecard = await loadScorecard(slug);
-  if (!scorecard) notFound();
-  return <ScorecardBody scorecard={scorecard} isUnlocked={unlocked === "true"} />;
+  const loaded = await loadScorecard(slug);
+  if (!loaded) notFound();
+  const { scorecard, isClaimed } = loaded;
+  // Layer 1 needs the cross-market footprint to render its pills. The lookup
+  // is keyed by operator name; for a single-market operator it resolves to
+  // one row (the focal operator itself) and the pill row is suppressed.
+  const marketFootprint = await loadMarketFootprint({
+    name: scorecard.pm.name,
+    currentSlug: slug,
+  });
+  return (
+    <ScorecardBody
+      scorecard={scorecard}
+      isUnlocked={unlocked === "true"}
+      isClaimed={isClaimed}
+      marketFootprint={marketFootprint}
+    />
+  );
 }

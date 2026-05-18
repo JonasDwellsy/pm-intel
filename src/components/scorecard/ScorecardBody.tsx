@@ -1,7 +1,8 @@
 import type { ScorecardData } from "@/lib/types";
+import type { MarketFootprintPill } from "@/lib/cross-market";
 
 import { TrackEvent } from "@/components/analytics/TrackEvent";
-import { ScorecardHeader } from "@/components/scorecard/ScorecardHeader";
+import { IdentityHero } from "@/components/scorecard/IdentityHero";
 import { HeadlineMetrics } from "@/components/scorecard/HeadlineMetrics";
 import { PaywallCard } from "@/components/scorecard/PaywallCard";
 import { CoverageSection } from "@/components/scorecard/CoverageSection";
@@ -30,9 +31,13 @@ import { ScorecardSidebar } from "@/components/scorecard/ScorecardSidebar";
 export function ScorecardBody({
   scorecard,
   isUnlocked,
+  isClaimed,
+  marketFootprint,
 }: {
   scorecard: ScorecardData;
   isUnlocked: boolean;
+  isClaimed: boolean;
+  marketFootprint: MarketFootprintPill[];
 }) {
   return (
     <div className="mx-auto max-w-[1440px] px-6 sm:px-10">
@@ -47,7 +52,11 @@ export function ScorecardBody({
       />
       <div className="grid gap-x-16 gap-y-10 pt-10 pb-16 lg:grid-cols-[minmax(0,1fr)_280px]">
         <article className="min-w-0 space-y-14">
-          <ScorecardHeader scorecard={scorecard} />
+          <IdentityHero
+            scorecard={scorecard}
+            isClaimed={isClaimed}
+            marketFootprint={marketFootprint}
+          />
           <HeadlineMetrics scorecard={scorecard} />
 
           {!isUnlocked ? (
