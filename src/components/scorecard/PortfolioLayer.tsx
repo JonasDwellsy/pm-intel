@@ -19,6 +19,7 @@ import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { fmtInt, fmtNumber } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
+import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
 import type { MetricKey } from "@/lib/metric-definitions";
 import {
   dqChartTheme,
@@ -68,23 +69,16 @@ export function PortfolioLayer({
 }) {
   const opType = classify(scorecard);
   const isMultiMarket = crossMarketPresence.length > 1;
-  // Subsection visibility — drives both the conditional renders below and
-  // the sequential 5A-5F label assignment. The display labels renumber so
-  // a reader sees an unbroken sequence (single-market operators show 5A-5E
-  // instead of 5A-5B-5D-5E-5F). Internal anchor IDs stay stable.
+  // Subsection visibility — the only thing the wrapper needs to know per
+  // operator. Subsections no longer render a "5A · / 5B · /..." numbered
+  // prefix; the internal "Layer 5" vocabulary isn't surfaced anywhere
+  // user-facing and the numbering read as orphaned. Each subsection now
+  // shows just its eyebrow descriptor + title.
   const hasGeographic =
     (scorecard.geographicCoverage.topCities?.length ?? 0) > 0;
   const hasRentTrajectory =
     Array.isArray(scorecard.rentTrajectory) &&
     scorecard.rentTrajectory.length > 0;
-  const labels = computeSubsectionLabels({
-    coverage: true,
-    geographic: hasGeographic,
-    crossMarket: isMultiMarket,
-    composition: true,
-    rentTrajectory: hasRentTrajectory,
-    pricing: true,
-  });
 
   return (
     <section
@@ -92,113 +86,35 @@ export function PortfolioLayer({
       aria-label="Portfolio Characteristics"
       className="dq-section space-y-12"
     >
-      <div>
-        <p className="dq-eyebrow inline-flex items-center gap-1.5">
-          Portfolio Characteristics
-          <InfoIcon metricKey="section-portfolio" />
-        </p>
-        <p className="mt-3 max-w-[780px] text-[14px] leading-[1.6] text-muted-foreground">
-          Geographic footprint, portfolio composition, rent trajectory, and
-          pricing context. Sections render only when the operator has
-          qualifying data.
-        </p>
-      </div>
+      <LayerSectionHeader
+        num="04"
+        title="Portfolio characteristics"
+        metricKey="section-portfolio"
+        lede="Geographic footprint, portfolio composition, rent trajectory, and pricing context. Subsections render only when the operator has qualifying data."
+      />
 
-      {labels.coverage && (
-        <CoverageMapAnnotated
-          scorecard={scorecard}
-          labelPrefix={labels.coverage}
-        />
+      <CoverageMapAnnotated scorecard={scorecard} />
+      {hasGeographic && (
+        <GeographicSpreadSection scorecard={scorecard} opType={opType} />
       )}
-      {labels.geographic && (
-        <GeographicSpreadSection
-          scorecard={scorecard}
-          opType={opType}
-          labelPrefix={labels.geographic}
-        />
+      {isMultiMarket && (
+        <CrossMarketPresenceSection rows={crossMarketPresence} />
       )}
-      {labels.crossMarket && (
-        <CrossMarketPresenceSection
-          rows={crossMarketPresence}
-          labelPrefix={labels.crossMarket}
-        />
-      )}
-      {labels.composition && (
-        <PortfolioCompositionSection
-          scorecard={scorecard}
-          opType={opType}
-          labelPrefix={labels.composition}
-        />
-      )}
-      {labels.rentTrajectory && (
+      <PortfolioCompositionSection scorecard={scorecard} opType={opType} />
+      {hasRentTrajectory && (
         <RentTrajectoryDescriptive
           scorecard={scorecard}
           overlay={cohortRentTrajectory}
-          labelPrefix={labels.rentTrajectory}
         />
       )}
-      {labels.pricing && (
-        <PricingDataSection
-          scorecard={scorecard}
-          labelPrefix={labels.pricing}
-        />
-      )}
+      <PricingDataSection scorecard={scorecard} />
     </section>
   );
 }
 
-// Assigns sequential 5A, 5B, 5C, ... labels to whichever subsections will
-// render for this operator. Suppressed subsections receive null and are
-// skipped at render time; the remaining sections get a tight unbroken
-// alphabet sequence (a single-market operator with all-else-rendered gets
-// 5A, 5B, 5C, 5D, 5E — not 5A, 5B, 5D, 5E, 5F).
-type SubsectionVisibility = {
-  coverage: boolean;
-  geographic: boolean;
-  crossMarket: boolean;
-  composition: boolean;
-  rentTrajectory: boolean;
-  pricing: boolean;
-};
-
-function computeSubsectionLabels(
-  vis: SubsectionVisibility
-): Record<keyof SubsectionVisibility, string | null> {
-  const out: Record<keyof SubsectionVisibility, string | null> = {
-    coverage: null,
-    geographic: null,
-    crossMarket: null,
-    composition: null,
-    rentTrajectory: null,
-    pricing: null,
-  };
-  let i = 0;
-  const order: Array<keyof SubsectionVisibility> = [
-    "coverage",
-    "geographic",
-    "crossMarket",
-    "composition",
-    "rentTrajectory",
-    "pricing",
-  ];
-  for (const key of order) {
-    if (vis[key]) {
-      out[key] = `5${String.fromCharCode(65 + i)}`;
-      i += 1;
-    }
-  }
-  return out;
-}
-
 // --- 5A — Coverage Map with Narrative Annotation ---
 
-function CoverageMapAnnotated({
-  scorecard,
-  labelPrefix,
-}: {
-  scorecard: ScorecardData;
-  labelPrefix: string;
-}) {
+function CoverageMapAnnotated({ scorecard }: { scorecard: ScorecardData }) {
   const { geographicCoverage, market } = scorecard;
   const accentColor = scorecard.pm.accentColor ?? DEFAULT_ACCENT;
   const annotation = scorecard.generatedText?.mapNarrativeAnnotation;
@@ -206,7 +122,7 @@ function CoverageMapAnnotated({
   return (
     <article id="geography" className="dq-section">
       <SubsectionHeader
-        eyebrow={`${labelPrefix} · Coverage map`}
+        eyebrow="Coverage map"
         title="Where the portfolio sits"
       />
       {annotation && (
@@ -233,11 +149,9 @@ function CoverageMapAnnotated({
 function GeographicSpreadSection({
   scorecard,
   opType,
-  labelPrefix,
 }: {
   scorecard: ScorecardData;
   opType: Operator;
-  labelPrefix: string;
 }) {
   const cities = scorecard.geographicCoverage.topCities ?? [];
   if (cities.length === 0) return null;
@@ -256,7 +170,7 @@ function GeographicSpreadSection({
   return (
     <article id="geographic-spread" className="dq-section">
       <SubsectionHeader
-        eyebrow={`${labelPrefix} · Geographic spread`}
+        eyebrow="Geographic spread"
         title={heading}
         metricKey="section-geographic-spread"
       />
@@ -327,17 +241,11 @@ function GeographicSpreadSection({
 
 // --- 5C — Cross-Market Presence ---
 
-function CrossMarketPresenceSection({
-  rows,
-  labelPrefix,
-}: {
-  rows: MarketFootprintPill[];
-  labelPrefix: string;
-}) {
+function CrossMarketPresenceSection({ rows }: { rows: MarketFootprintPill[] }) {
   return (
     <article id="cross-market" className="dq-section">
       <SubsectionHeader
-        eyebrow={`${labelPrefix} · Cross-market presence`}
+        eyebrow="Cross-market presence"
         title={`Visible in ${rows.length} of our covered markets`}
         metricKey="section-cross-market-presence"
       />
@@ -397,11 +305,9 @@ function CrossMarketPresenceSection({
 function PortfolioCompositionSection({
   scorecard,
   opType,
-  labelPrefix,
 }: {
   scorecard: ScorecardData;
   opType: Operator;
-  labelPrefix: string;
 }) {
   const c = scorecard.coverage;
   const houseUrus = scorecard.performance.houseUrusT12 ?? 0;
@@ -420,7 +326,7 @@ function PortfolioCompositionSection({
   return (
     <article id="portfolio-composition" className="dq-section">
       <SubsectionHeader
-        eyebrow={`${labelPrefix} · Portfolio composition`}
+        eyebrow="Portfolio composition"
         metricKey="section-portfolio-composition"
         title="Observed scale and mix"
       />
@@ -510,11 +416,9 @@ function PortfolioCompositionSection({
 function RentTrajectoryDescriptive({
   scorecard,
   overlay,
-  labelPrefix,
 }: {
   scorecard: ScorecardData;
   overlay: CohortRentTrajectory | null;
-  labelPrefix: string;
 }) {
   if (
     !Array.isArray(scorecard.rentTrajectory) ||
@@ -559,7 +463,7 @@ function RentTrajectoryDescriptive({
   return (
     <article id="rent-trajectory" className="dq-section">
       <SubsectionHeader
-        eyebrow={`${labelPrefix} · Rent trajectory · descriptive`}
+        eyebrow="Rent trajectory · descriptive"
         title="Mix-adjusted median rent over six quarters"
       />
       <div className="mt-4 dq-chart-card">
@@ -671,13 +575,7 @@ function RentTrajectoryDescriptive({
 
 // --- 5F — Pricing Data ---
 
-function PricingDataSection({
-  scorecard,
-  labelPrefix,
-}: {
-  scorecard: ScorecardData;
-  labelPrefix: string;
-}) {
+function PricingDataSection({ scorecard }: { scorecard: ScorecardData }) {
   // v0.6.2 doesn't seed BR-bucketed rent. Surface the most-recent observed
   // operator median + cohort context (deferred to Layer 4 Pricing Tier for
   // the tier label) and disclose the data gap.
@@ -687,7 +585,7 @@ function PricingDataSection({
   return (
     <article id="pricing-data" className="dq-section">
       <SubsectionHeader
-        eyebrow={`${labelPrefix} · Pricing data`}
+        eyebrow="Pricing data"
         title="Rent level snapshot"
       />
       <div className="mt-4 grid gap-4 md:grid-cols-3">

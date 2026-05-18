@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ScorecardData } from "@/lib/types";
 import { fmtDate, fmtInt, fmtPct } from "@/lib/format";
+import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
 
 // Layer 6A — Methodology footer (Scorecard_Design_Spec_v1.0.md Section 3,
 // Layer 6). Quiet, small-text section at the bottom of the scorecard.
@@ -65,12 +66,11 @@ export function MethodologyFooter({
       aria-label="Methodology and limits"
       className="dq-section border-t border-grid pt-10"
     >
-      <header>
-        <p className="dq-eyebrow-muted">Methodology &amp; limits</p>
-        <h2 className="mt-1.5 text-[20px] font-semibold leading-tight tracking-[-0.012em] text-navy">
-          What backs this scorecard
-        </h2>
-      </header>
+      <LayerSectionHeader
+        num="05"
+        title="Methodology & limits"
+        lede="What backs this scorecard — classification rationale, coverage universe, per-metric sample sizes, version stamp, and the v0.7 follow-up tracker."
+      />
 
       {/* Classification rationale (subsumes WhyThisQuadrantSection prose). */}
       {scorecard.classificationRationale && (

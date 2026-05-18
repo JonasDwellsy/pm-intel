@@ -2,6 +2,7 @@ import type { ScorecardData, StarLevel } from "@/lib/types";
 import { marketingDataSuppressed } from "@/lib/types";
 import { fmtNumber, fmtPct } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
+import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
 import type { MetricKey } from "@/lib/metric-definitions";
 
 // Layer 2 — Synthesis block (v1.0 design, per Scorecard_Design_Spec_v1.0.md
@@ -54,6 +55,7 @@ export function SynthesisLayer({ scorecard }: { scorecard: ScorecardData }) {
 
   return (
     <section id="synthesis" aria-label="Synthesis" className="dq-section space-y-10">
+      <LayerSectionHeader num="01" title="Synthesis" />
       {/* 2A — Executive summary */}
       {executiveSummary && (
         <div>
