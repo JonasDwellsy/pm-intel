@@ -14,6 +14,7 @@ import {
   loadMarketView,
 } from "@/lib/market-data";
 import { loadMarketFootprint } from "@/lib/cross-market";
+import { buildPeerComparisons } from "@/lib/peer-comparison";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import { MarketView } from "@/components/market/MarketView";
 
@@ -117,16 +118,19 @@ export default async function MarketChildPage({
   // Layer 1 needs the cross-market footprint to render its pills. The lookup
   // is keyed by operator name; for a single-market operator it resolves to
   // one row (the focal operator itself) and the pill row is suppressed.
-  const marketFootprint = await loadMarketFootprint({
-    name: scorecard.pm.name,
-    currentSlug: slug,
-  });
+  const [marketFootprint, peerComparisons] = await Promise.all([
+    loadMarketFootprint({ name: scorecard.pm.name, currentSlug: slug }),
+    // Phase D — Layer 3 per-metric peer comparisons. One DB query (all PMs
+    // in the same MSA) resolves cohorts + neighbors for the 5 cards.
+    buildPeerComparisons(scorecard),
+  ]);
   return (
     <ScorecardBody
       scorecard={scorecard}
       isUnlocked={unlocked === "true"}
       isClaimed={isClaimed}
       marketFootprint={marketFootprint}
+      peerComparisons={peerComparisons}
     />
   );
 }

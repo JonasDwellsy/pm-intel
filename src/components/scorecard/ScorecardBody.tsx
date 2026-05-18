@@ -1,43 +1,42 @@
 import type { ScorecardData } from "@/lib/types";
 import type { MarketFootprintPill } from "@/lib/cross-market";
+import type { Layer3Metric, PeerComparison } from "@/lib/peer-comparison";
 
 import { TrackEvent } from "@/components/analytics/TrackEvent";
 import { IdentityHero } from "@/components/scorecard/IdentityHero";
 import { SynthesisLayer } from "@/components/scorecard/SynthesisLayer";
+import { PerformanceLayer } from "@/components/scorecard/PerformanceLayer";
 import { PaywallCard } from "@/components/scorecard/PaywallCard";
 import { CoverageSection } from "@/components/scorecard/CoverageSection";
 import { CoverageMap } from "@/components/scorecard/CoverageMap";
-import { PerformanceSection } from "@/components/scorecard/PerformanceSection";
-import { TenancySection } from "@/components/scorecard/TenancySection";
 import { RentTrajectorySection } from "@/components/scorecard/RentTrajectorySection";
-import { RentPerformanceSection } from "@/components/scorecard/RentPerformanceSection";
-import { ListingQualitySection } from "@/components/scorecard/ListingQualitySection";
-import { CommunityVisibilitySection } from "@/components/scorecard/CommunityVisibilitySection";
 import { WhyThisQuadrantSection } from "@/components/scorecard/WhyThisQuadrantSection";
 import { ScorecardSidebar } from "@/components/scorecard/ScorecardSidebar";
 
-// v0.6.1 scorecard section order (per spec, sections 04-10 + Section 11 page):
-//   Headline / Classification (Coverage) / Coverage Map / Performance /
-//   Tenancy / Rent Trajectory / Rent Performance / Marketing /
-//   Community Visibility (when applicable) / Why This Quadrant
+// v1.0 scorecard layer order (per Scorecard_Design_Spec_v1.0.md Section 3):
+//   Layer 1 — Identity hero (IdentityHero)
+//   Layer 2 — Synthesis (SynthesisLayer): exec summary, headline tiles,
+//             distinguishing characteristics
+//   Layer 3 — Performance dimensions (PerformanceLayer): 4-5 cards each with
+//             cohort qualifier + distribution chart + peer comparison table
+//   Layer 5 — Portfolio characteristics (CoverageSection + CoverageMap +
+//             RentTrajectory + WhyThisQuadrant, all v0.6.1 components
+//             pending the Phase F refactor)
 //
-// Sections that no longer have v0.6.1 data and are intentionally retired:
-//   - Time Context (DOM time series): underlying 5-year per-PM trajectory is
-//     not produced under v0.6.1 (rent trajectory replaces it for the only
-//     trended metric the methodology still uses).
-//   - Pricing Posture (premium/concessions): rent level is explicitly out of
-//     the composite in v0.6.1. Rent Performance carries the rent signal that
-//     does belong in operator ranking.
+// Phase D consolidates the v0.6.1 Performance / Tenancy / RentPerformance /
+// ListingQuality / CommunityVisibility sections into PerformanceLayer.
 export function ScorecardBody({
   scorecard,
   isUnlocked,
   isClaimed,
   marketFootprint,
+  peerComparisons,
 }: {
   scorecard: ScorecardData;
   isUnlocked: boolean;
   isClaimed: boolean;
   marketFootprint: MarketFootprintPill[];
+  peerComparisons: Record<Layer3Metric, PeerComparison | null>;
 }) {
   return (
     <div className="mx-auto max-w-[1440px] px-6 sm:px-10">
@@ -63,14 +62,13 @@ export function ScorecardBody({
             <PaywallCard scorecard={scorecard} />
           ) : (
             <>
+              <PerformanceLayer
+                scorecard={scorecard}
+                peerComparisons={peerComparisons}
+              />
               <CoverageSection scorecard={scorecard} />
               <CoverageMap scorecard={scorecard} />
-              <PerformanceSection scorecard={scorecard} />
-              <TenancySection scorecard={scorecard} />
               <RentTrajectorySection scorecard={scorecard} />
-              <RentPerformanceSection scorecard={scorecard} />
-              <ListingQualitySection scorecard={scorecard} />
-              <CommunityVisibilitySection scorecard={scorecard} />
               <WhyThisQuadrantSection scorecard={scorecard} />
             </>
           )}
