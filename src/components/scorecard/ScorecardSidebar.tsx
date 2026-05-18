@@ -11,28 +11,18 @@ const FREE_SECTIONS: SectionLink[] = [
 // v1.0 sidebar reflects the layered structure introduced in Phases B-D.
 // Layer 1 is the page hero (no anchor); Layers 2-5 each get a sidebar entry.
 // Inventory Transparency is the only Layer 3 card gated by scope qualification.
-function unlockedSections(hasCommunityVisibility: boolean): SectionLink[] {
-  const base: SectionLink[] = [
+// Sidebar anchor list — top-level sections only (no per-card sub-anchors).
+// Readers scroll within "Performance dimensions" to see the individual
+// metric cards. The hasCommunityVisibility flag no longer changes this
+// list because all Layer 3 cards are siblings inside the parent section.
+function unlockedSections(_hasCommunityVisibility: boolean): SectionLink[] {
+  return [
     { id: "synthesis", label: "Synthesis", num: "01" },
     { id: "performance", label: "Performance dimensions", num: "02" },
-    { id: "lease-up", label: "  Lease-up Performance", num: "" },
-    { id: "tenant-retention", label: "  Tenant Retention", num: "" },
-    { id: "rent-performance", label: "  Rent Performance", num: "" },
-    { id: "operational-discipline", label: "  Operational Discipline", num: "" },
-  ];
-  if (hasCommunityVisibility) {
-    base.push({
-      id: "inventory-transparency",
-      label: "  Inventory Transparency",
-      num: "",
-    });
-  }
-  base.push(
     { id: "lending-signals", label: "Lending Signals", num: "03" },
     { id: "portfolio", label: "Portfolio characteristics", num: "04" },
-    { id: "methodology-footer", label: "Methodology & limits", num: "05" }
-  );
-  return base;
+    { id: "methodology-footer", label: "Methodology & limits", num: "05" },
+  ];
 }
 
 export function ScorecardSidebar({
