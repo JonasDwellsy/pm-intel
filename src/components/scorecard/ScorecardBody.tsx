@@ -81,6 +81,7 @@ export function ScorecardBody({
                   scorecard={scorecard}
                   crossMarketPresence={marketFootprint}
                   cohortRentTrajectory={cohortRentTrajectory}
+                  pricingTier={lendingSignals.pricingTier}
                 />
                 <MethodologyFooter scorecard={scorecard} />
               </>

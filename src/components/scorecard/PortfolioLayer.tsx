@@ -16,6 +16,7 @@ import {
 import { CoverageMapClient } from "@/components/scorecard/CoverageMapClient";
 import type { MarketFootprintPill } from "@/lib/cross-market";
 import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
+import type { PricingTierSignal } from "@/lib/lending-signals";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { fmtInt, fmtNumber } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
@@ -62,10 +63,12 @@ export function PortfolioLayer({
   scorecard,
   crossMarketPresence,
   cohortRentTrajectory,
+  pricingTier,
 }: {
   scorecard: ScorecardData;
   crossMarketPresence: MarketFootprintPill[];
   cohortRentTrajectory: CohortRentTrajectory | null;
+  pricingTier: PricingTierSignal | null;
 }) {
   const opType = classify(scorecard);
   const isMultiMarket = crossMarketPresence.length > 1;
@@ -107,7 +110,7 @@ export function PortfolioLayer({
           overlay={cohortRentTrajectory}
         />
       )}
-      <PricingDataSection scorecard={scorecard} />
+      <PricingDataSection scorecard={scorecard} pricingTier={pricingTier} />
     </section>
   );
 }
@@ -575,13 +578,33 @@ function RentTrajectoryDescriptive({
 
 // --- 5F — Pricing Data ---
 
-function PricingDataSection({ scorecard }: { scorecard: ScorecardData }) {
+function PricingDataSection({
+  scorecard,
+  pricingTier,
+}: {
+  scorecard: ScorecardData;
+  pricingTier: PricingTierSignal | null;
+}) {
   // v0.6.2 doesn't seed BR-bucketed rent. Surface the most-recent observed
-  // operator median + cohort context (deferred to Layer 4 Pricing Tier for
-  // the tier label) and disclose the data gap.
+  // operator median + listings backing + the MSA-wide pricing tier (same
+  // signal Layer 4 computes; we render the value here too so the 5F box is
+  // self-contained rather than cross-referencing Layer 4).
   const latest = [...scorecard.rentTrajectory]
     .filter((q) => typeof q.mixAdjMedian === "number" && q.mixAdjMedian > 0)
     .sort((a, b) => (b.quarter || "").localeCompare(a.quarter || ""))[0];
+
+  const tierLabel = pricingTier?.tier
+    ? pricingTier.tier === "premium"
+      ? "Premium"
+      : pricingTier.tier === "value"
+        ? "Value"
+        : "Mid-market"
+    : null;
+  const tierContext =
+    pricingTier?.percentile !== undefined && pricingTier?.percentile !== null
+      ? `${Math.round(pricingTier.percentile)}th pct · MSA rents`
+      : "MSA rent distribution";
+
   return (
     <article id="pricing-data" className="dq-section">
       <SubsectionHeader
@@ -601,16 +624,17 @@ function PricingDataSection({ scorecard }: { scorecard: ScorecardData }) {
         />
         <Stat
           label="Pricing tier"
-          value="see Layer 4"
-          unit="Lending Signals · Pricing Tier"
+          value={tierLabel ?? "—"}
+          unit={tierLabel ? tierContext : "Insufficient MSA rent data"}
         />
       </div>
       <p className="mt-4 max-w-[780px] text-[13px] italic text-muted-2">
         Median rent by bedroom bucket (1BR / 2BR / 3BR+) with 10th-90th
         percentile ranges is not in the v0.6.2 seed. BR-bucketed pricing data
-        is a v0.7 data-pipeline item. The MSA-wide tier label (Premium /
-        Mid-market / Value) is computed at render time and surfaced in Layer 4
-        (Lending Signals — Pricing Tier).
+        is a v0.7 data-pipeline item. The pricing tier above (Premium /
+        Mid-market / Value) is computed at render time from the operator&rsquo;s
+        latest mix-adjusted median rent positioned within the MSA rent
+        distribution.
       </p>
     </article>
   );
