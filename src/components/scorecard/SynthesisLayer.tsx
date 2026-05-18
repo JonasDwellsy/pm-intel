@@ -1,5 +1,7 @@
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { fmtNumber, fmtPct } from "@/lib/format";
+import { InfoIcon } from "@/components/scorecard/InfoIcon";
+import type { MetricKey } from "@/lib/metric-definitions";
 
 // Layer 2 — Synthesis block (v1.0 design, per Scorecard_Design_Spec_v1.0.md
 // Section 3, Layer 2). Three sub-components in sequence:
@@ -113,6 +115,7 @@ function LeaseUpTile({ scorecard }: { scorecard: ScorecardData }) {
   return (
     <MetricTile
       title="Lease-up Speed"
+      metricKey="dom"
       headlineValue={fmtNumber(performance.domT12, 1)}
       headlineUnit="days"
       star={star}
@@ -135,6 +138,7 @@ function TenantRetentionTile({ scorecard }: { scorecard: ScorecardData }) {
   return (
     <MetricTile
       title="Tenant Retention"
+      metricKey="tenancy"
       headlineValue={value !== null ? fmtNumber(value, 1) : "—"}
       headlineUnit="mo median"
       star={star}
@@ -160,6 +164,7 @@ function RentPerformanceTile({ scorecard }: { scorecard: ScorecardData }) {
     return (
       <MetricTile
         title="Rent Performance"
+        metricKey="rentPerformance"
         headlineValue="—"
         headlineUnit=""
         star={null}
@@ -172,6 +177,7 @@ function RentPerformanceTile({ scorecard }: { scorecard: ScorecardData }) {
   return (
     <MetricTile
       title="Rent Performance"
+      metricKey="rentPerformance"
       headlineValue={`${sign}${fmtNumber(deltaPp, 1)}`}
       headlineUnit="pp vs cohort"
       star={rp.star ?? null}
@@ -191,6 +197,7 @@ function OperationalDisciplineTile({ scorecard }: { scorecard: ScorecardData }) 
   return (
     <MetricTile
       title="Operational Discipline"
+      metricKey="marketing"
       headlineValue={fmtNumber(score, 0)}
       headlineUnit="/ 100"
       star={marketing.star ?? null}
@@ -213,6 +220,7 @@ function InventoryTransparencyTile({
   return (
     <MetricTile
       title="Inventory Transparency"
+      metricKey="communityVisibility"
       headlineValue={fmtNumber(cv.ratio, 2)}
       headlineUnit="ratio"
       star={cv.star ?? null}
@@ -225,6 +233,7 @@ function InventoryTransparencyTile({
 
 function MetricTile({
   title,
+  metricKey,
   headlineValue,
   headlineUnit,
   star,
@@ -232,6 +241,7 @@ function MetricTile({
   caveat,
 }: {
   title: string;
+  metricKey: MetricKey;
   headlineValue: string;
   headlineUnit: string;
   star: StarLevel;
@@ -244,7 +254,7 @@ function MetricTile({
         <h3 className="text-[11.5px] font-semibold uppercase leading-[1.2] tracking-[0.1em] text-muted-foreground">
           {title}
         </h3>
-        <InfoIcon />
+        <InfoIcon metricKey={metricKey} />
       </div>
       <div className="flex items-baseline gap-2">
         <span className="dq-tnum text-[28px] font-bold leading-none tracking-[-0.02em] text-navy">
@@ -272,21 +282,6 @@ function MetricTile({
 }
 
 // --- Inline primitives ---
-
-// Small "i" icon — non-interactive placeholder for Phase G/H methodology
-// modal infrastructure. Keeps the visual affordance in place so the
-// modal hookup is a one-line change later.
-function InfoIcon() {
-  return (
-    <span
-      aria-hidden
-      title="Methodology details (coming in v1.0 Phase G)"
-      className="inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center rounded-full border border-grid bg-white text-[9px] font-semibold text-muted-2"
-    >
-      i
-    </span>
-  );
-}
 
 function StarIcon({
   level,

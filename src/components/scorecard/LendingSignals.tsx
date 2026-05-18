@@ -9,6 +9,8 @@ import type {
 } from "@/lib/lending-signals";
 import type { StarLevel } from "@/lib/types";
 import { fmtNumber, fmtPct } from "@/lib/format";
+import { InfoIcon } from "@/components/scorecard/InfoIcon";
+import type { MetricKey } from "@/lib/metric-definitions";
 
 // Layer 4 — Lending Signals card (Scorecard_Design_Spec_v1.0.md Section 3,
 // Layer 4). 5 signal subcards in a compact 3-2 grid, sized for a 2-minute
@@ -74,11 +76,13 @@ export function LendingSignals({
 
 function SignalCard({
   title,
+  metricKey,
   star,
   children,
   contextLine,
 }: {
   title: string;
+  metricKey: MetricKey;
   star?: StarLevel | null;
   children: React.ReactNode;
   contextLine?: React.ReactNode;
@@ -89,7 +93,7 @@ function SignalCard({
         <h3 className="text-[12px] font-semibold uppercase leading-[1.2] tracking-[0.1em] text-muted-foreground">
           {title}
         </h3>
-        <InfoIcon />
+        <InfoIcon metricKey={metricKey} />
       </div>
       <div className="flex items-start gap-2">
         {star !== undefined && <StarIcon level={star ?? null} size={16} />}
@@ -108,7 +112,7 @@ function SignalCard({
 function VacancySignalCard({ signal }: { signal: VacancySignal }) {
   if (signal.vacancyPct === null) {
     return (
-      <SignalCard title="Vacancy Signal" star={null}>
+      <SignalCard title="Vacancy Signal" metricKey="vacancySignal" star={null}>
         <p className="text-[13.5px] italic text-muted-2">
           Insufficient DOM or tenancy data to compute.
         </p>
@@ -118,6 +122,7 @@ function VacancySignalCard({ signal }: { signal: VacancySignal }) {
   return (
     <SignalCard
       title="Vacancy Signal"
+      metricKey="vacancySignal"
       star={signal.star}
       contextLine={
         signal.dist.cohortMedian !== null ? (
@@ -150,6 +155,7 @@ function RentStabilitySignalCard({ signal }: { signal: RentStabilitySignal }) {
     return (
       <SignalCard
         title="Rent Stability"
+        metricKey="rentStability"
         star={null}
         contextLine={
           signal.yearsOfHistory
@@ -166,6 +172,7 @@ function RentStabilitySignalCard({ signal }: { signal: RentStabilitySignal }) {
   return (
     <SignalCard
       title="Rent Stability"
+      metricKey="rentStability"
       star={signal.star}
       contextLine={
         signal.cohortMedianVolatility !== null ? (
@@ -201,7 +208,7 @@ function OperatorStabilitySignalCard({
 }) {
   if (signal.yearsVisible === null) {
     return (
-      <SignalCard title="Operator Stability" star={null}>
+      <SignalCard title="Operator Stability" metricKey="operatorStability" star={null}>
         <p className="text-[13.5px] italic text-muted-2">
           Insufficient observation history to compute.
         </p>
@@ -211,6 +218,7 @@ function OperatorStabilitySignalCard({
   return (
     <SignalCard
       title="Operator Stability"
+      metricKey="operatorStability"
       star={signal.star}
       contextLine={
         signal.dist.cohortMedian !== null ? (
@@ -258,6 +266,7 @@ function GeographicConcentrationSignalCard({
   return (
     <SignalCard
       title="Geographic Concentration"
+      metricKey="geographicConcentration"
       // Explicitly omit star — descriptive only per Decision G.4.
       contextLine={
         <>
@@ -302,7 +311,7 @@ function GeographicConcentrationSignalCard({
 function PricingTierSignalCard({ signal }: { signal: PricingTierSignal }) {
   if (signal.tier === null || signal.operatorRent === null) {
     return (
-      <SignalCard title="Pricing Tier">
+      <SignalCard title="Pricing Tier" metricKey="pricingTier">
         <p className="text-[13.5px] italic text-muted-2">
           Insufficient rent trajectory data to position.
         </p>
@@ -324,6 +333,7 @@ function PricingTierSignalCard({ signal }: { signal: PricingTierSignal }) {
   return (
     <SignalCard
       title="Pricing Tier"
+      metricKey="pricingTier"
       // No star — tier label is descriptive, not evaluative per Decision G.4.
       contextLine={
         signal.msaP25 !== null && signal.msaP75 !== null ? (
@@ -355,18 +365,6 @@ function PricingTierSignalCard({ signal }: { signal: PricingTierSignal }) {
 }
 
 // --- Inline primitives ---
-
-function InfoIcon() {
-  return (
-    <span
-      aria-hidden
-      title="Methodology details (coming in v1.0 Phase G)"
-      className="inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center rounded-full border border-grid bg-white text-[9px] font-semibold text-muted-2"
-    >
-      i
-    </span>
-  );
-}
 
 function StarIcon({ level, size = 14 }: { level: StarLevel; size?: number }) {
   const isGold = level === "gold";

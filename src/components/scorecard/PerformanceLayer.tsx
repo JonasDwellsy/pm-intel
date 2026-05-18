@@ -3,6 +3,17 @@ import type { Layer3Metric, PeerComparison } from "@/lib/peer-comparison";
 import { METRIC_DIRECTIONS } from "@/lib/peer-comparison";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { fmtNumber } from "@/lib/format";
+import { InfoIcon } from "@/components/scorecard/InfoIcon";
+import type { MetricKey } from "@/lib/metric-definitions";
+
+// Map Layer3Metric → MetricKey for the info-icon lookup.
+const METRIC_KEY_BY_LAYER3: Record<Layer3Metric, MetricKey> = {
+  dom: "dom",
+  tenancy: "tenancy",
+  rentPerformance: "rentPerformance",
+  marketing: "marketing",
+  communityVisibility: "communityVisibility",
+};
 
 // Layer 3 — Performance dimensions with integrated peer comparison
 // (Scorecard_Design_Spec_v1.0.md Section 3, Layer 3). One card per metric:
@@ -269,12 +280,8 @@ function CardHeader({
           </p>
         )}
       </div>
-      <span
-        aria-hidden
-        title="Methodology details (coming in v1.0 Phase G)"
-        className="inline-flex h-5 w-5 shrink-0 cursor-help items-center justify-center self-start rounded-full border border-grid bg-white text-[10px] font-semibold text-muted-2"
-      >
-        i
+      <span className="self-start">
+        <InfoIcon metricKey={METRIC_KEY_BY_LAYER3[config.metric]} />
       </span>
     </header>
   );
