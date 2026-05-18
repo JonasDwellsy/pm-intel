@@ -282,6 +282,8 @@ export interface PMListItem {
   slug: string;
   name: string;
   quadrant: string;
+  /** v0.6.2 7-cell taxonomy label; nullable for forward-compat. */
+  quadrant7Cell: string | null;
   hybrid: boolean;
   rankOverall: number | null;
   rankOverallTotal: number | null;
@@ -297,6 +299,10 @@ export interface PMListItem {
   concessionRate: number | null;
   accentColor: string | null;
   coverageMapPoints: Array<{ lat: number; lon: number; n: number }>;
+  /** v0.6.2 composite star (gold/silver/null) and cohort label — surfaced
+   *  on the market landing operator cards. */
+  compositeStar: StarLevel;
+  compositeCohortName: string | null;
 }
 
 export type Quadrant =

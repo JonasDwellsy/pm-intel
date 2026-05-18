@@ -123,6 +123,7 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     slug: row.slug,
     name: row.name,
     quadrant: row.quadrant,
+    quadrant7Cell: sc.pm.quadrant7Cell ?? null,
     hybrid: row.hybrid,
     rankOverall: row.rankOverall,
     rankOverallTotal: sc.rank.overallTotal ?? null,
@@ -140,5 +141,9 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     concessionRate: null,
     accentColor: sc.pm.accentColor ?? null,
     coverageMapPoints: sc.geographicCoverage.coverageMapPoints ?? [],
+    // v0.6.2 / v1.0 — composite star + cohort name surface on the market
+    // landing operator cards alongside the legacy rank.
+    compositeStar: sc.rank.compositeStar ?? null,
+    compositeCohortName: sc.rank.compositeCohortName ?? null,
   };
 }
