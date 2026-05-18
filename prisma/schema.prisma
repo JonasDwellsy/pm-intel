@@ -20,7 +20,11 @@ model Market {
   operatorCountEligible Int
   medianDomT12          Float
   medianDomLifetime     Float
-  quadrantSummary       String // JSON blob
+  // v0.6.1 5-cell quadrant counts. JSON blob keyed by quadrant string.
+  quadrantSummary       String
+  // v0.6.2 7-cell quadrant counts. JSON blob keyed by quadrant7Cell label.
+  // Nullable for forward-compat with pre-v0.6.2 seeds.
+  quadrant7CellSummary  String?
   pms                   PM[]
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -31,7 +35,12 @@ model PM {
   name               String
   marketId           String
   market             Market   @relation(fields: [marketId], references: [id])
-  quadrant           String // "Scattered Site / Independent" etc.
+  // v0.6.1 5-cell label, normalized at seed ("Scattered / Independent" etc.).
+  // Kept for back-compat with existing route segments and market filters.
+  quadrant           String
+  // v0.6.2 7-cell canonical label ("SFR Independent", "Large MF/BTR
+  // Institutional", "Hybrid", etc.). Nullable for forward-compat.
+  quadrant7Cell      String?
   hybrid             Boolean  @default(false)
   rankOverall        Int?
   rankOverallTotal   Int?
@@ -39,7 +48,7 @@ model PM {
   rankQuadrantTotal  Int?
   claimed            Boolean  @default(false)
   scorecardData      String // JSON blob: full structured scorecard
-  methodologyVersion String // "v0.3.4"
+  methodologyVersion String // e.g. "v0.6.2"
   dataAsOf           DateTime
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
