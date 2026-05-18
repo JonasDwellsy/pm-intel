@@ -71,7 +71,7 @@ const SAMPLE_MANIFEST: Array<{
     marketId: "knoxville-tn",
     slug: "mission-rock-residential-knoxville-tn",
     quote:
-      "Multi-market Class A operator visible in 5 of our covered markets. Gold composite star in Knoxville cohort despite a single observed community — top-quartile operational discipline.",
+      "Multi-market Class A operator visible in 5 of our covered markets. Gold composite star in Knoxville cohort despite a single observed community — top-quartile marketing discipline.",
   },
   {
     marketId: "clarksville-tn-ky",
