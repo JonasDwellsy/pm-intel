@@ -2,16 +2,16 @@ import type { ScorecardData } from "@/lib/types";
 import type { MarketFootprintPill } from "@/lib/cross-market";
 import type { Layer3Metric, PeerComparison } from "@/lib/peer-comparison";
 import type { LendingSignals as LendingSignalsData } from "@/lib/lending-signals";
+import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 
 import { TrackEvent } from "@/components/analytics/TrackEvent";
 import { IdentityHero } from "@/components/scorecard/IdentityHero";
 import { SynthesisLayer } from "@/components/scorecard/SynthesisLayer";
 import { PerformanceLayer } from "@/components/scorecard/PerformanceLayer";
 import { LendingSignals } from "@/components/scorecard/LendingSignals";
+import { PortfolioLayer } from "@/components/scorecard/PortfolioLayer";
 import { PaywallCard } from "@/components/scorecard/PaywallCard";
 import { CoverageSection } from "@/components/scorecard/CoverageSection";
-import { CoverageMap } from "@/components/scorecard/CoverageMap";
-import { RentTrajectorySection } from "@/components/scorecard/RentTrajectorySection";
 import { WhyThisQuadrantSection } from "@/components/scorecard/WhyThisQuadrantSection";
 import { ScorecardSidebar } from "@/components/scorecard/ScorecardSidebar";
 
@@ -21,12 +21,12 @@ import { ScorecardSidebar } from "@/components/scorecard/ScorecardSidebar";
 //             distinguishing characteristics
 //   Layer 3 — Performance dimensions (PerformanceLayer): 4-5 cards each with
 //             cohort qualifier + distribution chart + peer comparison table
-//   Layer 5 — Portfolio characteristics (CoverageSection + CoverageMap +
-//             RentTrajectory + WhyThisQuadrant, all v0.6.1 components
-//             pending the Phase F refactor)
-//
-// Phase D consolidates the v0.6.1 Performance / Tenancy / RentPerformance /
-// ListingQuality / CommunityVisibility sections into PerformanceLayer.
+//   Layer 4 — Lending Signals (LendingSignals): 5-signal underwriting grid
+//   Layer 5 — Portfolio Characteristics (PortfolioLayer): coverage map +
+//             narrative, geographic spread, cross-market presence, portfolio
+//             composition, rent trajectory descriptive, pricing data
+//   Layer 6 — Methodology footer (TBD Phase G/H — currently CoverageSection
+//             + WhyThisQuadrantSection still render here pending the refactor)
 export function ScorecardBody({
   scorecard,
   isUnlocked,
@@ -34,6 +34,7 @@ export function ScorecardBody({
   marketFootprint,
   peerComparisons,
   lendingSignals,
+  cohortRentTrajectory,
 }: {
   scorecard: ScorecardData;
   isUnlocked: boolean;
@@ -41,6 +42,7 @@ export function ScorecardBody({
   marketFootprint: MarketFootprintPill[];
   peerComparisons: Record<Layer3Metric, PeerComparison | null>;
   lendingSignals: LendingSignalsData;
+  cohortRentTrajectory: CohortRentTrajectory | null;
 }) {
   return (
     <div className="mx-auto max-w-[1440px] px-6 sm:px-10">
@@ -71,9 +73,12 @@ export function ScorecardBody({
                 peerComparisons={peerComparisons}
               />
               <LendingSignals signals={lendingSignals} />
+              <PortfolioLayer
+                scorecard={scorecard}
+                crossMarketPresence={marketFootprint}
+                cohortRentTrajectory={cohortRentTrajectory}
+              />
               <CoverageSection scorecard={scorecard} />
-              <CoverageMap scorecard={scorecard} />
-              <RentTrajectorySection scorecard={scorecard} />
               <WhyThisQuadrantSection scorecard={scorecard} />
             </>
           )}
