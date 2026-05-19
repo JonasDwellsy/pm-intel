@@ -368,6 +368,14 @@ export interface PMListItem {
    *  constructs PMListItem manually. */
   goldCount?: number;
   silverCount?: number;
+  /** v0.6.3 Patch 5 — raw per-operator YoY rent change (decimal, e.g.
+   *  0.043 = +4.3% YoY). Distinct from rentVsComp which carries the
+   *  delta-vs-cohort (delta_yoy * 100). Used by the state-level
+   *  aggregator in src/lib/state-data.ts to compute stateRentGrowthT12
+   *  as the median across all ranked operators pooled across MSAs in
+   *  the state. Null when the operator's rentPerformance block is
+   *  unavailable. */
+  pmYoyChange?: number | null;
 }
 
 export type Quadrant =
