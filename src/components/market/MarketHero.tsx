@@ -27,7 +27,6 @@ function Stat({
   benchmark,
   benchmarkTone = "neutral",
   annotation,
-  tone = "default",
 }: {
   label: string;
   value: string;
@@ -42,8 +41,13 @@ function Stat({
    *  filtered DOM + rent-growth tiles to be honest that those values
    *  remain MSA-scoped despite the filter. */
   annotation?: string;
-  tone?: "default" | "warn";
 }) {
+  // v0.6.3 polish — sub line always renders in neutral muted. The legacy
+  // `tone` prop coupled the sub line to the same color as the value, but
+  // now that we surface the benchmark line separately with its own
+  // benchmark-tone color the sub line ended up reading the SAME orange/
+  // green as the benchmark below it — confusing visual hierarchy. Value
+  // stays navy; benchmark carries the color signal alone.
   return (
     <div>
       <p className="dq-eyebrow-muted mb-2">{label}</p>
@@ -52,14 +56,7 @@ function Stat({
       >
         {value}
       </p>
-      <p
-        className={
-          "mt-2 text-xs " +
-          (tone === "warn" ? "text-orange" : "text-muted-foreground")
-        }
-      >
-        {sub}
-      </p>
+      <p className="mt-2 text-xs text-muted-foreground">{sub}</p>
       {benchmark && (
         <p
           className={
@@ -217,8 +214,13 @@ export function MarketHero({
                   of MSA-eligible (≥30 T12) operators whose
                   t12ListingsBySubmarket[slug] > 0. Computed server-side in
                   loadMarketView. */}
+              {/* v0.6.3 polish — label shortened from "Eligible with X
+                  footprint" to "Eligible in X" so longer submarket names
+                  (e.g. Orange Park) no longer wrap the chip onto a second
+                  line. Same underlying count (server-side
+                  eligibleWithFootprint from t12ListingsBySubmarket). */}
               <Stat
-                label={`Eligible with ${filtered.displayName} footprint`}
+                label={`Eligible in ${filtered.displayName}`}
                 value={fmtInt(filtered.eligibleWithFootprint)}
                 sub="≥30 listings T12 in MSA"
               />
@@ -232,7 +234,6 @@ export function MarketHero({
                 sub="median across ranked operators"
                 benchmark={domSub}
                 benchmarkTone={domWarn ? "bad" : "good"}
-                tone={domWarn ? "warn" : "default"}
                 annotation="[MSA-wide context]"
               />
               {/* Tile 4 — Rent growth T12. Same as Tile 3 — MSA-scoped under
@@ -282,7 +283,6 @@ export function MarketHero({
                 sub="median across ranked operators"
                 benchmark={domSub}
                 benchmarkTone={domWarn ? "bad" : "good"}
-                tone={domWarn ? "warn" : "default"}
               />
               {/* Tile 4 — Rent growth T12. Replaces the legacy "Methodology
                   · vX.Y.Z" tile (methodology version moves to footer).

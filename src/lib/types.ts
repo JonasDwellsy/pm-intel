@@ -293,9 +293,16 @@ export interface MarketSummary {
       medianDomT12: number | null;
     };
   };
-  // v0.6.2 7-cell counts per market (Patch 1). Optional for back-compat.
+  // v0.6.2 7-cell summary per market — count + median DOM + median rent
+  // vs comp (rent metric added in v0.6.3 polish). Drives the redesigned
+  // QuadrantSummaryCard which renders three metrics per cell. Optional for
+  // back-compat with v0.6.2 callers that constructed a plain count map.
   quadrant7CellSummary?: {
-    [quadrant7Cell: string]: number;
+    [quadrant7Cell: string]: {
+      count: number;
+      medianDomT12: number | null;
+      medianRentVsComp: number | null;
+    };
   };
   // v0.6.3 — Patch 1: active operator count (≥3 listings T12) replaces the
   // legacy total-operator denominator as the surfaced headline figure.
@@ -351,6 +358,16 @@ export interface PMListItem {
    *  Used by the market landing PM list to swap the "40% Phoenix" subtitle
    *  to "X% Mesa" when a submarket filter is active. */
   topCityPcts?: number[];
+  /** v0.6.3 Patch 4 — counts of gold + silver stars across this operator's
+   *  Layer 3 per-metric scoring (domStar, rentPerformance.star,
+   *  marketing.star, tenancy.star, plus communityVisibility.star when the
+   *  block is present for MF/BTR operators). Composite star is excluded
+   *  because it's a roll-up of the others. The two counts drive both the
+   *  ★N ☆M chip in the row and the (-gold, -silver, rank) sort applied in
+   *  loadMarketView. Optional for back-compat with any consumer that
+   *  constructs PMListItem manually. */
+  goldCount?: number;
+  silverCount?: number;
 }
 
 export type Quadrant =
