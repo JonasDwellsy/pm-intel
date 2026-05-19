@@ -35,7 +35,21 @@ export type LoadedMarket = {
   submarket: {
     slug: string;
     displayName: string;
+    // PMs whose topCities array (Layer 5B share-of-portfolio) includes
+    // this submarket. Drives the operator-list filter and the per-row
+    // share-of-portfolio percentage swap.
     matchedOperatorCount: number;
+    // v0.6.3 — broader "any T12 listing here" count from each PM's
+    // t12ListingsBySubmarket map. Strictly ≥ matchedOperatorCount because
+    // it captures operators with footprint in the submarket even when
+    // it's not among their top-7-share entries. Surfaces on the filtered
+    // MarketHero "Eligible with <submarket> footprint" tile.
+    eligibleWithFootprint: number;
+    // v0.6.3 Patch 1 — per-submarket active operator count (≥3 listings
+    // T12). Lifted from market.activeOperatorCountBySubmarket[slug]. Null
+    // when the submarket is missing from the seed's bucket map; the tile
+    // gracefully falls back to a "—" placeholder in that case.
+    activeOperatorCount: number | null;
   } | null;
   // Pool size for the "Showing X of Y" line. Equals allPms.length when no
   // submarket filter is active; equals submarket.matchedOperatorCount when
@@ -54,6 +68,11 @@ const PM_SELECT = {
   scorecardData: true,
   methodologyVersion: true,
   dataAsOf: true,
+  // v0.6.3 — Patch 1 per-PM submarket listing map. Backs the filtered-state
+  // "Eligible with <submarket> footprint" tile in MarketHero by counting
+  // PMs where the map's entry for the submarket slug is > 0. Stored as a
+  // JSON string in SQLite; parsed once per page render.
+  t12ListingsBySubmarket: true,
 } as const;
 
 export async function loadMarketView({
@@ -98,6 +117,17 @@ export async function loadMarketView({
     ? (JSON.parse(marketRow.quadrant7CellSummary) as Record<string, number>)
     : deriveQuadrant7CellSummary(allPms);
 
+  // v0.6.3 — Patch 1 + 3 fields lifted from the seeded Market row. The
+  // submarket map arrives as a JSON string; parse defensively in case the
+  // column is null on a pre-v0.6.3 reseed.
+  const activeOperatorCountBySubmarket =
+    marketRow.activeOperatorCountBySubmarket
+      ? (JSON.parse(marketRow.activeOperatorCountBySubmarket) as Record<
+          string,
+          number
+        >)
+      : undefined;
+
   const market: MarketSummary = {
     id: marketRow.id,
     city: marketRow.city,
@@ -108,6 +138,15 @@ export async function loadMarketView({
     medianDomT12: marketRow.medianDomT12,
     quadrantSummary,
     quadrant7CellSummary,
+    // v0.6.3 — Patches 1 + 2 + 3. All optional on the type so consumers
+    // unchanged from v0.6.2 still compile.
+    activeOperatorCount: marketRow.activeOperatorCount ?? null,
+    activeOperatorCountBySubmarket,
+    marketRentGrowthT12: marketRow.marketRentGrowthT12 ?? null,
+    nationalRentGrowthT12: marketRow.nationalRentGrowthT12 ?? null,
+    marketRentGrowthDeltaVsNationalPp:
+      marketRow.marketRentGrowthDeltaVsNationalPp ?? null,
+    eligibilityWindow: marketRow.eligibilityWindow ?? "T12",
   };
 
   // Submarket filter — applied to the universe BEFORE the segment filter,
@@ -133,10 +172,36 @@ export async function loadMarketView({
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(" ");
     }
+    // v0.6.3 — broader "any T12 listing in this submarket" count from each
+    // PM's t12ListingsBySubmarket map. Walks the prisma rows directly (we
+    // already loaded the column via PM_SELECT) and counts PMs with a
+    // positive entry for the filter slug.
+    let eligibleWithFootprint = 0;
+    for (const pmRow of marketRow.pms) {
+      if (!pmRow.t12ListingsBySubmarket) continue;
+      try {
+        const map = JSON.parse(pmRow.t12ListingsBySubmarket) as Record<
+          string,
+          number
+        >;
+        if ((map[filterSlug] ?? 0) > 0) eligibleWithFootprint += 1;
+      } catch {
+        // Defensive — malformed JSON gets skipped silently rather than
+        // crashing the page. Logged at seed time, not here.
+      }
+    }
+    // v0.6.3 Patch 1 — submarket-scoped active operator count lifted from
+    // the seed's per-market bucket map. Defaults to null when the slug
+    // isn't present (the tile renders "—" rather than 0 to distinguish
+    // "data missing for this submarket" from "zero active operators").
+    const submarketActiveOperatorCount =
+      activeOperatorCountBySubmarket?.[filterSlug] ?? null;
     submarketState = {
       slug: filterSlug,
       displayName,
       matchedOperatorCount: submarketMatches.length,
+      eligibleWithFootprint,
+      activeOperatorCount: submarketActiveOperatorCount,
     };
     universe = submarketMatches;
   }

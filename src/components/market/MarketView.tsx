@@ -83,7 +83,7 @@ function MethodologyFooter({
         Operators ranked by trailing-twelve-month median Days on Market
         within-quadrant. Data sufficiency requires{" "}
         <span className="dq-mono font-medium text-navy/85">≥30</span> listings
-        in trailing 6 months. Within-quadrant ranking requires{" "}
+        in trailing 12 months. Within-quadrant ranking requires{" "}
         <span className="dq-mono font-medium text-navy/85">≥3</span> PMs in
         cohort. Methodology{" "}
         <span className="dq-mono font-medium text-navy/85">

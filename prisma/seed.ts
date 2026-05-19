@@ -47,6 +47,18 @@ type InputMarket = {
   // Two variant field names — readers must accept either.
   cohortMedianYoyRentChange?: number | null;
   cohortMedianYoyChange?: number | null;
+  // v0.6.3 — Patches 1 + 3. All seven markets in the v0.6.3 merged JSON
+  // carry these; the typing is nullable for back-compat with pre-v0.6.3
+  // seed files (the seed code path tolerates missing fields).
+  activeOperatorCount?: number | null;
+  activeOperatorCountBySubmarket?: Record<string, number> | null;
+  marketRentGrowthT12?: number | null;
+  nationalRentGrowthT12?: number | null;
+  marketRentGrowthDeltaVsNationalPp?: number | null;
+  // v0.6.3 — Patch 2 label fix; "T12" everywhere in production, but the
+  // seed input is the source of truth so we read it through rather than
+  // hard-coding.
+  eligibilityWindow?: string;
   // The v0.6.2 input emits mapBounds in TWO different key shapes across
   // markets (carry-forward from per-market seed runs): Chattanooga emits
   // {north, south, east, west} (canonical); Nashville emits
@@ -786,6 +798,22 @@ async function main() {
         quadrant7CellSummary: m.quadrant7CellSummary
           ? JSON.stringify(m.quadrant7CellSummary)
           : null,
+        // v0.6.3 — Patches 1 + 3. All v0.6.3 markets carry these; nullable
+        // pass-through keeps the seed compatible with v0.6.2 input files
+        // where the fields would be undefined.
+        activeOperatorCount: asInt(m.activeOperatorCount) ?? null,
+        activeOperatorCountBySubmarket: m.activeOperatorCountBySubmarket
+          ? JSON.stringify(m.activeOperatorCountBySubmarket)
+          : null,
+        marketRentGrowthT12: asNumber(m.marketRentGrowthT12),
+        nationalRentGrowthT12: asNumber(m.nationalRentGrowthT12),
+        marketRentGrowthDeltaVsNationalPp: asNumber(
+          m.marketRentGrowthDeltaVsNationalPp
+        ),
+        // v0.6.3 — Patch 2. Default to T12 (current methodology); pre-v0.6.3
+        // inputs that emit "T6M" would still write "T6M" but downstream UI
+        // reads only the value, so old data stays internally consistent.
+        eligibilityWindow: asString(m.eligibilityWindow) || "T12",
       },
     });
     console.log(`  ✓ market: ${m.id} (${m.fullName})`);
@@ -841,6 +869,19 @@ async function main() {
         scorecardData: JSON.stringify(scorecard),
         methodologyVersion: data.methodologyVersion,
         dataAsOf: new Date(data.dataAsOf),
+        // v0.6.3 — Patch 1 support. The per-PM submarket listing map drives
+        // the filtered-state "Eligible with <submarket> footprint" tile in
+        // MarketHero without reparsing scorecardData. Stored as JSON string
+        // (SQLite — Json type is just a strongly typed string blob).
+        t12ListingsBySubmarket:
+          pm.t12ListingsBySubmarket &&
+          typeof pm.t12ListingsBySubmarket === "object"
+            ? JSON.stringify(pm.t12ListingsBySubmarket)
+            : null,
+        // v0.6.3 — Patch 2 flag. Spec says almost always false (37 of 575 in
+        // the merged JSON; the remaining 537 are undefined which we coerce
+        // to false here). One PM is explicitly true.
+        newlyEligibleInV063: Boolean(pm.newlyEligibleInV063),
       },
     });
     pmCount += 1;
