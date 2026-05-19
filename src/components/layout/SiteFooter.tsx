@@ -19,7 +19,7 @@ export function SiteFooter() {
             <span className="text-muted-foreground">PM Intel</span>
           </p>
           <p className="text-xs text-muted-foreground dq-tnum">
-            Methodology v0.6.3
+            Methodology v0.6.4
             <span className="mx-1.5 text-muted-2">·</span>
             Design v1.0
             <span className="mx-1.5 text-muted-2">·</span>

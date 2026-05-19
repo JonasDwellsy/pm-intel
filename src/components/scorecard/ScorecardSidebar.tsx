@@ -85,7 +85,7 @@ export function ScorecardSidebar({
         <div className="mt-6">
           <p className="dq-eyebrow-muted mb-1.5">Methodology</p>
           <p className="dq-mono text-lg font-semibold leading-none text-navy tracking-[-0.01em]">
-            v0.6.3 · design v1.0
+            v0.6.4 · design v1.0
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Data as of{" "}
