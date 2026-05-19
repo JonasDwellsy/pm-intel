@@ -4,6 +4,7 @@ import "./globals.css";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { PostHogProvider } from "@/components/analytics/PostHogProvider";
+import { SearchOverlayProvider } from "@/components/search/SearchOverlay";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -40,9 +41,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <PostHogProvider>
-          <SiteHeader />
-          <div className="flex-1">{children}</div>
-          <SiteFooter />
+          <SearchOverlayProvider>
+            <SiteHeader />
+            <div className="flex-1">{children}</div>
+            <SiteFooter />
+          </SearchOverlayProvider>
         </PostHogProvider>
       </body>
     </html>
