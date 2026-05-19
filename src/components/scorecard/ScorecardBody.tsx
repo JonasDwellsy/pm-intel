@@ -11,6 +11,7 @@ import { SynthesisLayer } from "@/components/scorecard/SynthesisLayer";
 import { PerformanceLayer } from "@/components/scorecard/PerformanceLayer";
 import { LendingSignals } from "@/components/scorecard/LendingSignals";
 import { PortfolioLayer } from "@/components/scorecard/PortfolioLayer";
+import type { ShareTrajectoryView } from "@/lib/share-trajectory";
 import { MethodologyFooter } from "@/components/scorecard/MethodologyFooter";
 import { PaywallCard } from "@/components/scorecard/PaywallCard";
 import { ScorecardSidebar } from "@/components/scorecard/ScorecardSidebar";
@@ -38,6 +39,7 @@ export function ScorecardBody({
   peerComparisons,
   lendingSignals,
   cohortRentTrajectory,
+  shareTrajectory,
 }: {
   scorecard: ScorecardData;
   isUnlocked: boolean;
@@ -46,6 +48,10 @@ export function ScorecardBody({
   peerComparisons: Record<Layer3Metric, PeerComparison | null>;
   lendingSignals: LendingSignalsData;
   cohortRentTrajectory: CohortRentTrajectory | null;
+  // v0.6.3 Patch 6 — share-trajectory view passed through to Layer 5F.
+  // Null is acceptable (Layer 5 null-guards) but the route handler should
+  // always populate it via buildShareTrajectoryView.
+  shareTrajectory: ShareTrajectoryView | null;
 }) {
   return (
     <MetricInfoProvider>
@@ -82,6 +88,7 @@ export function ScorecardBody({
                   crossMarketPresence={marketFootprint}
                   cohortRentTrajectory={cohortRentTrajectory}
                   pricingTier={lendingSignals.pricingTier}
+                  shareTrajectory={shareTrajectory}
                 />
                 <MethodologyFooter scorecard={scorecard} />
               </>

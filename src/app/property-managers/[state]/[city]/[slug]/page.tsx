@@ -18,6 +18,7 @@ import { loadMsaPool } from "@/lib/msa-pool";
 import { buildPeerComparisons } from "@/lib/peer-comparison";
 import { buildLendingSignals } from "@/lib/lending-signals";
 import { buildCohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
+import { buildShareTrajectoryView } from "@/lib/share-trajectory";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import { MarketView } from "@/components/market/MarketView";
 
@@ -143,6 +144,15 @@ export default async function MarketChildPage({
   );
   // Phase F — Layer 5E cohort overlay. In-memory from the same MSA pool.
   const cohortRentTrajectory = buildCohortRentTrajectory(scorecard, msaPool);
+  // v0.6.3 Patch 6 — Layer 5F share-trajectory view. Reuses the same
+  // msaPool the peer-comparison + lending-signals + cohort overlay
+  // already loaded; the national benchmark is module-level cached so
+  // only the cold first hit pays the cross-market query.
+  const shareTrajectory = await buildShareTrajectoryView(
+    scorecard,
+    slug,
+    msaPool
+  );
   return (
     <ScorecardBody
       scorecard={scorecard}
@@ -152,6 +162,7 @@ export default async function MarketChildPage({
       peerComparisons={peerComparisons}
       lendingSignals={lendingSignals}
       cohortRentTrajectory={cohortRentTrajectory}
+      shareTrajectory={shareTrajectory}
     />
   );
 }
