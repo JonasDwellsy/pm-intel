@@ -17,7 +17,7 @@ import { MethodologyMobileJump } from "@/components/methodology/MethodologyMobil
 export const metadata: Metadata = {
   title: "Methodology",
   description:
-    "How Dwellsy IQ scores property managers (v0.6.2 + design v1.0): inclusion criteria, URU resolution, 7-cell operator classification, community visibility, tenancy with short-history caveat, rent trajectory, rent performance, marketing, composite ranking with star system, Lending Signals overview, and honest limitations.",
+    "How Dwellsy IQ scores property managers (v0.6.3 + design v1.0): inclusion criteria, URU resolution, 7-cell operator classification, community visibility, tenancy with short-history caveat, rent trajectory, rent performance, marketing, composite ranking with star system, market rent growth aggregate, Lending Signals overview, and honest limitations.",
 };
 
 async function loadVersion() {
@@ -43,9 +43,9 @@ async function loadVersion() {
         marketList,
       }
     : {
-        version: "v0.6.2",
+        version: "v0.6.3",
         designVersion,
-        dataAsOf: "2026-05-17",
+        dataAsOf: "2026-05-19",
         marketCount,
         marketList,
       };
@@ -269,6 +269,14 @@ export default async function MethodologyPage() {
                 operators (who hit the diversity threshold through breadth) and
                 single-asset multifamily operators (who hit it through depth at
                 a single community).
+              </p>
+              <p className="text-[13.5px] italic text-muted-foreground">
+                Earlier methodology versions labeled this window
+                &ldquo;T6M&rdquo; on the market headline tile, which was a
+                labeling drift; the actual eligibility filter has always been
+                T12 in production. v0.6.3 (Patch 2) corrects the surfaced
+                label so it matches the underlying computation. No operator
+                gains or loses eligibility from the relabel.
               </p>
               <p>
                 We do not maintain category exclusion lists. The thresholds
@@ -683,6 +691,58 @@ export default async function MethodologyPage() {
                 will refine the metric to compare only units that appear in
                 both periods — eliminating the mix-shift confound and likely
                 justifying a heavier weight at that point.
+              </p>
+
+              {/* v0.6.3 Patch 3 — market-level rent-growth aggregate.
+                  Sub-anchor inside §07 (Rent performance) because this is
+                  the market aggregation of the per-operator signal §07
+                  describes. Surfaced on the market landing page Market
+                  Snapshot Tile 4 alongside the national benchmark line. */}
+              <h3
+                id="market-rent-growth"
+                className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
+              >
+                Market rent growth aggregate.
+              </h3>
+              <p>
+                Each market displays a median year-over-year rent growth
+                figure computed across the ranked operators in that market.
+                The figure represents the typical ranked operator&rsquo;s
+                portfolio rent trajectory over the trailing 12 months. The
+                benchmark line (&ldquo;vs national&rdquo;) compares the
+                market value against the median across all ranked operators
+                across all coverage markets — a single national number that
+                does not vary by market.
+              </p>
+              <p>
+                <strong>Computation.</strong> Per ranked operator, the YoY
+                rent change is computed as the median listing-rent change
+                year-over-year across that operator&rsquo;s portfolio. The
+                market aggregate is the median of those per-operator values,
+                equal-weighted. Operator-equal weighting was chosen over
+                unit-weighting for v0.6.3 to keep the metric interpretable —
+                &ldquo;the typical ranked operator in this market.&rdquo;
+                Unit-weighted alternatives are under consideration for v0.7.
+              </p>
+              <FormulaBlock label="Formula · market rent growth T12">
+                <span className="text-navy">market_rent_growth_t12</span>{" "}
+                <Op>=</Op> median<sub>i ∈ ranked operators in market</sub>
+                {" "}(operator<sub>i</sub>.rent_performance.delta_yoy)
+              </FormulaBlock>
+              <FormulaBlock label="Formula · national benchmark">
+                <span className="text-navy">national_rent_growth_t12</span>{" "}
+                <Op>=</Op> median<sub>i ∈ ranked operators (all markets)</sub>
+                {" "}(operator<sub>i</sub>.rent_performance.delta_yoy)
+              </FormulaBlock>
+              <p>
+                The market-vs-national delta is pre-computed at seed time in
+                percentage points and surfaced as a tile benchmark line
+                (green if &gt;+0.2 pp, orange if &lt;−0.2 pp, neutral
+                within the band). Submarket-level rent growth is not
+                computed in v0.6.3 — listing-level geographic aggregation
+                with minimum-N controls is a v0.7 candidate. Under a
+                submarket filter the headline tile retains the MSA-wide
+                value with an explicit scope annotation.
               </p>
             </SectionAnchor>
 
@@ -1206,6 +1266,28 @@ export default async function MethodologyPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  <tr>
+                    <td className="dq-mono whitespace-nowrap">v0.6.3</td>
+                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                      May 19, 2026
+                    </td>
+                    <td>
+                      Market headline reframe. New Market Snapshot tiles for{" "}
+                      <strong>active operators</strong> (≥3 listings T12) and{" "}
+                      <strong>market rent growth T12</strong> with a national
+                      benchmark line (Patches 1 + 3). T6M eligibility label
+                      corrected to T12 on the tile and on §01 — production
+                      always used T12; the surfaced label had drifted (Patch 2,
+                      no cohort change). Submarket-aware active-operator
+                      counts and footprint-eligible counts when{" "}
+                      <span className="dq-mono">?submarket=</span> is active;
+                      DOM and rent-growth tiles retain MSA scope with explicit
+                      annotation because submarket-level computation requires
+                      listing-level geography work scheduled for v0.7. Subheader
+                      strip beneath the H1 removed (data duplicated by tiles
+                      and footer). Cohort unchanged from v0.6.2.
+                    </td>
+                  </tr>
                   <tr>
                     <td className="dq-mono whitespace-nowrap">v0.6.2</td>
                     <td className="dq-mono whitespace-nowrap text-muted-foreground">
