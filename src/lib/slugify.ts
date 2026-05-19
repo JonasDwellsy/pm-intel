@@ -2,7 +2,7 @@ import type { PMListItem, ScorecardData } from "@/lib/types";
 
 // --- State (2-letter code <-> URL slug) ---
 
-const STATE_CODE_TO_NAME: Record<string, string> = {
+export const STATE_CODE_TO_NAME: Record<string, string> = {
   AL: "alabama", AK: "alaska", AZ: "arizona", AR: "arkansas", CA: "california",
   CO: "colorado", CT: "connecticut", DE: "delaware", DC: "district-of-columbia",
   FL: "florida", GA: "georgia", HI: "hawaii", ID: "idaho", IL: "illinois",
@@ -246,5 +246,12 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     // v0.6.3 Patch 4 — derived star counts; drive both ★N ☆M chip + sort.
     goldCount,
     silverCount,
+    // v0.6.3 Patch 5 — raw operator YoY rent change. The state-level
+    // rent-growth aggregate medians across this value pooled across all
+    // ranked operators in all MSAs in the state. Null-safe: missing
+    // rentPerformance blocks (defensive — every v0.6.3 ranked operator
+    // has one) flow through as null and are filtered out before
+    // medianing.
+    pmYoyChange: sc.rentPerformance?.pmYoyChange ?? null,
   };
 }
