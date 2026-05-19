@@ -26,10 +26,18 @@ export function IdentityHero({
   scorecard,
   isClaimed,
   marketFootprint,
+  crossMarketOperator = null,
 }: {
   scorecard: ScorecardData;
   isClaimed: boolean;
   marketFootprint: MarketFootprintPill[];
+  /** v0.6.4 Patch 1 — non-null when this operator is part of a
+   *  multi-market canonical entity. Drives the "Cross-market operator"
+   *  badge in the Layer 1 chip row that deep-links to /operator/<slug>. */
+  crossMarketOperator?: {
+    canonicalSlug: string;
+    marketCount: number;
+  } | null;
 }) {
   const stateSlug = stateCodeToSlug(scorecard.market.state);
   const cityKebab = citySlug(scorecard.market.name);
@@ -97,6 +105,32 @@ export function IdentityHero({
           <div className="mt-4 flex flex-wrap items-center gap-2.5">
             {isClaimed && <VerifiedPill />}
             <Quadrant7Badge label={quadrant7.label} color={quadrant7} />
+            {/* v0.6.4 Patch 1 — cross-market operator chip. Renders only
+                when this PM rolls up into a multi-market canonical entity
+                (resolved server-side). Links to the operator profile
+                page with the aggregated stats + per-market cards. */}
+            {crossMarketOperator && (
+              <Link
+                href={`/operator/${crossMarketOperator.canonicalSlug}`}
+                className="inline-flex h-[26px] items-center gap-1.5 rounded-full border border-grid bg-white px-3 text-[11.5px] font-semibold text-navy transition-colors hover:border-navy hover:bg-surface-soft focus-visible:border-navy focus-visible:bg-surface-soft focus-visible:outline-none"
+              >
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20" />
+                </svg>
+                Cross-market operator · {crossMarketOperator.marketCount} markets
+              </Link>
+            )}
             {!isClaimed && (
               <ClaimTrigger pmSlug={scorecard.pm.slug} pmName={scorecard.pm.name} />
             )}

@@ -40,6 +40,7 @@ export function ScorecardBody({
   lendingSignals,
   cohortRentTrajectory,
   shareTrajectory,
+  crossMarketOperator = null,
 }: {
   scorecard: ScorecardData;
   isUnlocked: boolean;
@@ -52,6 +53,14 @@ export function ScorecardBody({
   // Null is acceptable (Layer 5 null-guards) but the route handler should
   // always populate it via buildShareTrajectoryView.
   shareTrajectory: ShareTrajectoryView | null;
+  // v0.6.4 Patch 1 — cross-market context for the Layer 1 badge. Null
+  // for single-market operators (no badge rendered); { canonicalSlug,
+  // marketCount } when the operator belongs to a multi-market canonical
+  // entity. Resolved server-side from the CanonicalOperator table.
+  crossMarketOperator?: {
+    canonicalSlug: string;
+    marketCount: number;
+  } | null;
 }) {
   return (
     <MetricInfoProvider>
@@ -71,6 +80,7 @@ export function ScorecardBody({
               scorecard={scorecard}
               isClaimed={isClaimed}
               marketFootprint={marketFootprint}
+              crossMarketOperator={crossMarketOperator}
             />
             <SynthesisLayer scorecard={scorecard} />
 
