@@ -62,6 +62,12 @@ export interface ShareTrajectoryView {
   /** National continuing-cohort size — informational, surfaces in the
    *  methodology disclosure copy if/when needed. */
   nationalContinuingCohortSize: number;
+  /** v0.6.3 Patch 6 polish — auto-generated narrative paragraph that
+   *  does the interpretation work for the reader (six variants keyed on
+   *  eligibility + delta-from-cohort thresholds). Pre-rendered server-
+   *  side so the section component just prints it; no string assembly
+   *  in the React tree. */
+  narrative: string;
 }
 
 const COHORT_THRESHOLD = 30;
@@ -234,6 +240,120 @@ export async function getNationalShareTrajectory(): Promise<NationalBenchmark> {
   return nationalCachePromise;
 }
 
+// v0.6.3 Patch 6 polish — narrative builder. Returns an interpretation-
+// first paragraph that does the work for the reader (instead of asking
+// them to mentally compare share trajectory vs cohort median). Six
+// variants:
+//
+//   null_baseline    — operator has no prior listings on record
+//   new_in_coverage  — operator wasn't substantially tracked in prior period
+//   significant_loss — continuing, ≥5pp below cohort median
+//   modest_loss      — continuing, within 0..5pp below cohort median
+//   modest_gain      — continuing, within 0..5pp above cohort median
+//   significant_gain — continuing, ≥5pp above cohort median
+//
+// All formatting matches the existing display: shares with 2 decimals,
+// YoY changes with 1 decimal and a Unicode minus sign for negatives.
+// marketName is the friendly MSA name (e.g. "Phoenix") sourced from
+// scorecard.market.name (which is the city per types.ts seed mapping).
+const SIGNIFICANT_DELTA_PP = 0.05;
+
+function fmtSharePct(decimal: number | null): string {
+  if (decimal === null) return "—";
+  return `${(decimal * 100).toFixed(2)}%`;
+}
+
+function fmtYoyPct(decimal: number | null): string {
+  if (decimal === null) return "—";
+  const pct = decimal * 100;
+  const sign = pct > 0 ? "+" : pct < 0 ? "−" : "";
+  return `${sign}${Math.abs(pct).toFixed(1)}%`;
+}
+
+export function buildShareTrajectoryNarrative({
+  operatorName,
+  marketName,
+  eligibility,
+  shareT12,
+  shareT24T12,
+  shareTrajectoryYoY,
+  cohortMedianShareTrajectoryYoY,
+  t12ListingsCount,
+}: {
+  operatorName: string;
+  marketName: string;
+  eligibility: TrajectoryEligibility;
+  shareT12: number | null;
+  shareT24T12: number | null;
+  shareTrajectoryYoY: number | null;
+  cohortMedianShareTrajectoryYoY: number | null;
+  t12ListingsCount: number | null;
+}): string {
+  if (eligibility === "null_baseline") {
+    return `${operatorName} is new to our coverage with no prior listings on record. Current 12-month period: ${t12ListingsCount ?? 0} listings.`;
+  }
+  if (eligibility === "new_in_coverage") {
+    return `${operatorName} did not have substantial presence in ${marketName} in the prior 12-month period. The ${t12ListingsCount ?? 0} listings observed in the current period are new to our coverage — may reflect a newly tracked operator, market entry, or recent expansion.`;
+  }
+  // continuing branch — narrative depends on delta from cohort median.
+  // Categories are RELATIVE to the cohort, so "gain" / "loss" in the
+  // narrative refers to relative position. The absolute share movement
+  // can be the opposite of the category (e.g. a Memphis operator whose
+  // YoY is −3% while the cohort median is −10% is a "modest gain" in
+  // relative position but their absolute share declined). To keep the
+  // copy honest, the verbs ("rose to" / "fell to" / "held at") track the
+  // ABSOLUTE share direction; the "outpacing peers" / "trailing peers"
+  // framing carries the RELATIVE-vs-cohort meaning.
+  const yoy = shareTrajectoryYoY ?? 0;
+  const cohort = cohortMedianShareTrajectoryYoY ?? 0;
+  const delta = yoy - cohort;
+  const s12 = fmtSharePct(shareT12);
+  const s24 = fmtSharePct(shareT24T12);
+  const cohortPct = fmtYoyPct(cohortMedianShareTrajectoryYoY);
+  const absDirection: "up" | "down" | "flat" =
+    shareT12 !== null && shareT24T12 !== null
+      ? shareT12 > shareT24T12
+        ? "up"
+        : shareT12 < shareT24T12
+          ? "down"
+          : "flat"
+      : "flat";
+  // "rose to X% from Y%" / "fell to X% from Y%" / "held at X% (was Y%)".
+  // The flat case is rare in real data (exact equality of two fractional
+  // shares is a measure-zero event) but kept for completeness.
+  const sharePhrase =
+    absDirection === "up"
+      ? `rose to ${s12} from ${s24}`
+      : absDirection === "down"
+        ? `fell to ${s12} from ${s24}`
+        : `held at ${s12} (was ${s24})`;
+
+  if (delta > SIGNIFICANT_DELTA_PP) {
+    // Significant gain in relative position. The "share consolidation"
+    // framing only reads true when the absolute share actually grew;
+    // when the cohort is shrinking faster, the operator is "holding
+    // ground" rather than consolidating.
+    const headlineNoun =
+      absDirection === "up"
+        ? "share consolidation"
+        : "relative share strength";
+    return `${operatorName}'s share of ${marketName} listing activity ${sharePhrase} over the past 12 months. This meaningfully outpaced the ${cohortPct} peer median, suggesting ${headlineNoun}. Possible drivers include organic portfolio growth, recent acquisitions, or new property management mandates.`;
+  }
+  if (delta > 0) {
+    return `${operatorName}'s share of ${marketName} listing activity ${sharePhrase} over the past 12 months, slightly outpacing the ${cohortPct} peer median. Modest gain in relative position.`;
+  }
+  if (delta >= -SIGNIFICANT_DELTA_PP) {
+    return `${operatorName}'s share of ${marketName} listing activity ${sharePhrase} over the past 12 months, slightly trailing the ${cohortPct} peer median. May reflect mild competitive pressure or improved tenant retention.`;
+  }
+  // Significant loss — relative position dropped meaningfully. Same
+  // honesty rule: framing only says "decline" when the absolute share
+  // actually fell; when the cohort outgrew an absolute-up operator, the
+  // operator "lost relative ground" without literally declining.
+  const headlineFraming =
+    absDirection === "down" ? "decline" : "drop in relative position";
+  return `${operatorName}'s share of ${marketName} listing activity ${sharePhrase} over the past 12 months. With the peer median running at ${cohortPct}, this ${headlineFraming} stands out. The operator may be losing share to new competitive entrants, or may have improved tenant retention — reducing turnover and the need for new listings.`;
+}
+
 // Scorecard-page entrypoint. Consumes the already-parsed MSA pool that
 // peer-comparison + lending-signals already load (loadMsaPool), runs the
 // market-level cohort math once, looks up the focal operator's slot,
@@ -275,7 +395,25 @@ export async function buildShareTrajectoryView(
   // National benchmark (cache hit on warm; in-flight Promise share on cold).
   const national = await getNationalShareTrajectory();
 
+  // Friendly names for the narrative — operator H1 name + city-level MSA
+  // name. scorecard.market.name is the city per the seed (e.g. "Phoenix"),
+  // not the full MSA designation. operatorName falls back to the slug to
+  // avoid a "undefined" string in the rendered narrative if .pm.name is
+  // somehow missing.
+  const operatorName = focalScorecard.pm?.name ?? focalSlug;
+  const marketName = focalScorecard.market?.name ?? "this market";
+
   if (eligibility !== "continuing") {
+    const narrative = buildShareTrajectoryNarrative({
+      operatorName,
+      marketName,
+      eligibility,
+      shareT12: null,
+      shareT24T12: null,
+      shareTrajectoryYoY: null,
+      cohortMedianShareTrajectoryYoY: stats.cohortMedian,
+      t12ListingsCount: focalT12,
+    });
     return {
       eligibility,
       t12ListingsCount: focalT12,
@@ -287,6 +425,7 @@ export async function buildShareTrajectoryView(
       continuingCohortSize: stats.cohortSize,
       nationalShareTrajectoryYoY: national.median,
       nationalContinuingCohortSize: national.size,
+      narrative,
     };
   }
 
@@ -300,6 +439,16 @@ export async function buildShareTrajectoryView(
     stats.totalT12,
     stats.totalT24
   );
+  const narrative = buildShareTrajectoryNarrative({
+    operatorName,
+    marketName,
+    eligibility: "continuing",
+    shareT12: share?.shareT12 ?? null,
+    shareT24T12: share?.shareT24T12 ?? null,
+    shareTrajectoryYoY: share?.shareTrajectoryYoY ?? null,
+    cohortMedianShareTrajectoryYoY: stats.cohortMedian,
+    t12ListingsCount: focalT12,
+  });
   return {
     eligibility: "continuing",
     t12ListingsCount: focalT12,
@@ -311,5 +460,6 @@ export async function buildShareTrajectoryView(
     continuingCohortSize: stats.cohortSize,
     nationalShareTrajectoryYoY: national.median,
     nationalContinuingCohortSize: national.size,
+    narrative,
   };
 }
