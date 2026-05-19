@@ -276,14 +276,36 @@ export function MarketView({
             </div>
           ) : (
             <ul className="flex flex-col gap-3.5">
-              {filteredPms.map((pm) => (
-                <PMListItem
-                  key={pm.slug}
-                  pm={pm}
-                  stateSlug={stateSlug}
-                  citySlug={citySlug}
-                />
-              ))}
+              {filteredPms.map((pm) => {
+                // Resolve the operator's share-of-portfolio in the active
+                // submarket from the index-aligned topCitySlugs / topCityPcts
+                // arrays populated by toPmListItem. The PMListItem stays
+                // unaware of the lookup mechanics — it just receives a
+                // pre-resolved share or null (silent fallback) when the
+                // submarket isn't found in this PM's topCities entries.
+                let pmSubmarket: {
+                  displayName: string;
+                  share: number | null;
+                } | null = null;
+                if (submarket) {
+                  const idx = (pm.topCitySlugs ?? []).indexOf(submarket.slug);
+                  const share =
+                    idx >= 0 ? pm.topCityPcts?.[idx] ?? null : null;
+                  pmSubmarket = {
+                    displayName: submarket.displayName,
+                    share: share ?? null,
+                  };
+                }
+                return (
+                  <PMListItem
+                    key={pm.slug}
+                    pm={pm}
+                    stateSlug={stateSlug}
+                    citySlug={citySlug}
+                    submarket={pmSubmarket}
+                  />
+                );
+              })}
             </ul>
           )}
         </div>

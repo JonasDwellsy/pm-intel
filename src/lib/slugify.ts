@@ -180,9 +180,13 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     // slug equality. Empty array when the scorecard has no topCities entries.
     // topCityNames preserves the raw display form (e.g. "Mt. Juliet") so the
     // filter chip can render the correct label from a slug match.
+    // topCityPcts carries share-of-portfolio so the PM list row subtitle can
+    // swap from "40% Phoenix" to "X% Mesa" when a submarket filter is active.
+    // All three arrays are index-aligned per geographicCoverage.topCities[i].
     topCitySlugs: (sc.geographicCoverage.topCities ?? []).map((c) =>
       submarketSlug(c.name)
     ),
     topCityNames: (sc.geographicCoverage.topCities ?? []).map((c) => c.name),
+    topCityPcts: (sc.geographicCoverage.topCities ?? []).map((c) => c.pct),
   };
 }
