@@ -209,16 +209,47 @@ export async function loadStateView(
   const stateMedianDomT12 = median(stateDoms);
   const stateRentGrowthT12 = median(stateRents);
 
-  // Sum counts. Multi-market operators may be double-counted per the spec's
-  // documented v0.7 dedup caveat. activeOperatorCount is nullable on the
-  // schema (pre-v0.6.3 markets); coalesce to 0 for the sum.
-  const stateActiveOperatorCount = inState.reduce(
+  // Raw sums first, then v0.6.4 Patch 1 dedup by canonicalOperatorId.
+  // activeOperatorCount is nullable on the schema (pre-v0.6.3 markets);
+  // coalesce to 0 for the sum.
+  const rawActiveSum = inState.reduce(
     (acc, m) => acc + (m.activeOperatorCount ?? 0),
     0
   );
-  const stateEligibleOperatorCount = inState.reduce(
+  const rawEligibleSum = inState.reduce(
     (acc, m) => acc + m.operatorCountEligible,
     0
+  );
+
+  // v0.6.4 Patch 1 — count "extra" instances of multi-market canonical
+  // operators within this state. e.g. Invitation Homes in TN appears in
+  // Nashville + Clarksville + Memphis = 3 records, dedupping to 1
+  // canonical operator → 2 extras subtracted from the raw sums. The
+  // dedup applies only to ranked PMs we carry in the DB (we have their
+  // canonicalOperatorId); operators in the broader ≥3-T12 universe
+  // that aren't ranked don't have canonical mapping and stay
+  // per-market in the sum.
+  const seenCanonicalInState = new Set<string>();
+  let multiMarketExtras = 0;
+  for (const { pms } of perMarket) {
+    for (const pm of pms) {
+      const cid = pm.canonicalOperatorId;
+      if (!cid) continue;
+      if (seenCanonicalInState.has(cid)) {
+        multiMarketExtras += 1;
+      } else {
+        seenCanonicalInState.add(cid);
+      }
+    }
+  }
+
+  const stateActiveOperatorCount = Math.max(
+    0,
+    rawActiveSum - multiMarketExtras
+  );
+  const stateEligibleOperatorCount = Math.max(
+    0,
+    rawEligibleSum - multiMarketExtras
   );
 
   // Per-MSA snapshots. Mirror the values MarketHero tiles render so the
