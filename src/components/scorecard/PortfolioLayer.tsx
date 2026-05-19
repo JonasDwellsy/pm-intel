@@ -596,25 +596,49 @@ function RentTrajectoryDescriptive({
   );
 }
 
-// --- 5F — Share trajectory (v0.6.3 Patch 6) ---
+// --- 5F — Share trajectory (v0.6.3 Patch 6 + polish) ---
 //
-// Operator's share of ranked-cohort listing activity, year-over-year.
-// The metric is intentionally a *context* signal, not a ranked one — see
-// the methodology disclosure paragraph below. Display logic branches on
-// trajectoryEligibility:
+// Operator's share of operator listing activity, year-over-year. The
+// section reads interpretation-first: a large YoY-change headline leads,
+// supporting share data sits below, the auto-generated narrative carries
+// the "so what" interpretation, and the methodology disclosure ends as a
+// muted footnote rather than a side-by-side equal-weight box.
 //
-//   continuing       — four-line display + cohort + national medians +
-//                      methodology disclosure
-//   new_in_coverage  — pill explaining the operator is newly tracked;
-//                      no comparison number
-//   null_baseline    — pill explaining the operator has no prior listings
-//                      on record; no comparison number
+// Display branches on trajectoryEligibility:
+//   continuing       — large YoY number + supporting share line + peer
+//                      median + narrative + muted methodology footer
+//   new_in_coverage  — status header + listing count + narrative + footer
+//   null_baseline    — status header + listing count + narrative + footer
 //
-// Color treatment for the trajectory value uses a wider neutral band
-// (±5pp vs cohort median) than the DOM/rent-growth tiles because the
-// metric is not a performance signal. Strong green/orange here would
-// mislead readers into a "more share = better" interpretation that the
-// methodology disclosure explicitly disavows.
+// Color treatment for the YoY value uses a ±5pp band around the cohort
+// median. Share trajectory is a CONTEXT metric, not a performance one;
+// strong green/orange outside that band signals meaningfully large
+// divergence from the typical continuing operator. Methodology disclosure
+// disavows the "more share = better" reading.
+
+// Methodology footer rendered at the bottom of every variant. Single
+// paragraph instead of a side-by-side box so the visual hierarchy puts
+// the data + narrative ahead of the caveats. Link drops to the
+// methodology page sub-anchor for the full treatment.
+function ShareTrajectoryMethodologyFooter() {
+  return (
+    <p className="mt-4 text-[12px] leading-[1.6] text-muted-2">
+      <span className="font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        How this is computed
+      </span>{" "}
+      · Computed across operators with substantial presence in both periods
+      (≥30 listings each). Share-based methodology controls for
+      Dwellsy&rsquo;s data coverage expansion. Shown for context — not used
+      in ranking.{" "}
+      <Link
+        href="/methodology#share-trajectory"
+        className="text-teal hover:text-teal-700"
+      >
+        Read full methodology →
+      </Link>
+    </p>
+  );
+}
 
 function ShareTrajectorySection({ view }: { view: ShareTrajectoryView }) {
   if (view.eligibility === "null_baseline") {
@@ -622,18 +646,24 @@ function ShareTrajectorySection({ view }: { view: ShareTrajectoryView }) {
       <article id="share-trajectory" className="dq-section">
         <SubsectionHeader
           eyebrow="Share trajectory"
-          title="Share of ranked-cohort listing activity"
+          title="Share of listing activity"
         />
-        <div className="mt-4 rounded-md border border-grid bg-surface-soft p-5">
-          <p className="text-[14px] leading-[1.6] text-foreground">
-            <span className="font-semibold text-navy">New operator</span> — no
-            prior listings on record.{" "}
-            <span className="dq-mono font-medium text-navy/90">
+        <div className="mt-4 space-y-3">
+          <p className="text-[20px] font-semibold leading-tight text-navy">
+            New operator — no prior baseline
+          </p>
+          <p className="text-[14px] text-muted-foreground">
+            Current 12-month period:{" "}
+            <span className="dq-mono font-medium text-navy">
               {fmtInt(view.t12ListingsCount ?? 0)}
             </span>{" "}
-            listings T12.
+            listings
+          </p>
+          <p className="max-w-[720px] text-[14px] leading-[1.65] text-foreground/85">
+            {view.narrative}
           </p>
         </div>
+        <ShareTrajectoryMethodologyFooter />
       </article>
     );
   }
@@ -643,37 +673,42 @@ function ShareTrajectorySection({ view }: { view: ShareTrajectoryView }) {
       <article id="share-trajectory" className="dq-section">
         <SubsectionHeader
           eyebrow="Share trajectory"
-          title="Share of ranked-cohort listing activity"
+          title="Share of listing activity"
         />
-        <div className="mt-4 rounded-md border border-grid bg-surface-soft p-5">
-          <p className="text-[14px] leading-[1.6] text-foreground">
-            <span className="font-semibold text-navy">
-              Newly tracked in current period
-            </span>{" "}
-            —{" "}
-            <span className="dq-mono font-medium text-navy/90">
+        <div className="mt-4 space-y-3">
+          <p className="text-[20px] font-semibold leading-tight text-navy">
+            Newly tracked operator
+          </p>
+          <p className="text-[14px] text-muted-foreground">
+            Current 12-month period:{" "}
+            <span className="dq-mono font-medium text-navy">
               {fmtInt(view.t12ListingsCount ?? 0)}
             </span>{" "}
-            listings T12. No prior baseline of substantial size for share
-            comparison.
+            listings
+          </p>
+          <p className="max-w-[720px] text-[14px] leading-[1.65] text-foreground/85">
+            {view.narrative}
           </p>
         </div>
+        <ShareTrajectoryMethodologyFooter />
       </article>
     );
   }
 
-  // continuing — render the four-line share display + cohort comparison
-  // + national reference + methodology disclosure.
+  // Continuing branch — primary headline is the YoY change in share,
+  // visually largest. Supporting share data + peer median fall below as
+  // smaller secondary lines. Narrative paragraph carries the
+  // interpretation and gets prose-line width. Methodology footer is the
+  // muted closer.
   const share12 = (view.shareT12 ?? 0) * 100;
   const share24 = (view.shareT24T12 ?? 0) * 100;
   const yoy = (view.shareTrajectoryYoY ?? 0) * 100;
   const cohortMedian = (view.cohortMedianShareTrajectoryYoY ?? 0) * 100;
-  const national = (view.nationalShareTrajectoryYoY ?? 0) * 100;
 
-  // ±5pp neutral band around the COHORT MEDIAN per spec. Conservative on
-  // purpose — share trajectory isn't a performance metric, so strong
-  // green/orange would be misleading. Only meaningfully large divergence
-  // from the typical continuing operator earns a directional color.
+  // ±5pp neutral band around the COHORT MEDIAN — only meaningfully large
+  // divergence from the typical continuing operator earns a directional
+  // color. Same threshold as the narrative builder so the prose and the
+  // color signal agree.
   const deltaVsCohort = yoy - cohortMedian;
   let tone: "good" | "bad" | "neutral";
   if (deltaVsCohort > 5) tone = "good";
@@ -686,90 +721,60 @@ function ShareTrajectorySection({ view }: { view: ShareTrajectoryView }) {
         ? "text-orange"
         : "text-navy";
 
+  const yoySign = yoy > 0 ? "+" : yoy < 0 ? "−" : "";
+  const cohortSign = cohortMedian > 0 ? "+" : cohortMedian < 0 ? "−" : "";
+
   return (
     <article id="share-trajectory" className="dq-section">
       <SubsectionHeader
         eyebrow="Share trajectory"
-        title="Share of ranked-cohort listing activity"
+        title="Share of listing activity"
       />
-      <div className="mt-4 grid gap-6 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-        <div className="space-y-2 rounded-md border border-grid bg-white p-5 text-[14px] leading-[1.55] text-foreground">
-          <p>
-            <span className="text-muted-foreground">
-              Share of ranked-cohort activity:
-            </span>{" "}
-            <span className="dq-mono font-semibold text-navy">
-              {share12.toFixed(2)}%
-            </span>
+      <div className="mt-4 space-y-4">
+        {/* Primary headline — YoY change in share. Largest type in the
+            section; same color band the narrative paragraph names. */}
+        <div>
+          <p className="dq-eyebrow-muted mb-1.5">YoY change in share</p>
+          <p
+            className={`dq-mono text-[36px] font-bold leading-none tracking-[-0.02em] ${toneClass}`}
+          >
+            {yoySign}
+            {Math.abs(yoy).toFixed(1)}%
           </p>
-          <p>
-            <span className="text-muted-foreground">
-              Prior 12-month period:
-            </span>{" "}
-            <span className="dq-mono font-medium text-navy/85">
-              {share24.toFixed(2)}%
-            </span>
-          </p>
-          <p className="pt-1.5">
-            <span className="text-muted-foreground">Share trajectory:</span>{" "}
-            <span className={`dq-mono font-semibold ${toneClass}`}>
-              {yoy > 0 ? "+" : yoy < 0 ? "−" : ""}
-              {Math.abs(yoy).toFixed(1)}%
-            </span>
-          </p>
-          <p>
-            <span className="text-muted-foreground">
-              Continuing-cohort median:
-            </span>{" "}
-            <span className="dq-mono font-medium text-muted-foreground">
-              {cohortMedian > 0 ? "+" : cohortMedian < 0 ? "−" : ""}
-              {Math.abs(cohortMedian).toFixed(1)}%
-            </span>
-            <span className="ml-2 text-[12px] text-muted-2">
-              N={view.continuingCohortSize}
-            </span>
-          </p>
-          {view.nationalShareTrajectoryYoY !== null && (
-            <p className="text-[12.5px] text-muted-foreground">
-              National median:{" "}
-              <span className="dq-mono">
-                {national > 0 ? "+" : national < 0 ? "−" : ""}
-                {Math.abs(national).toFixed(1)}%
-              </span>{" "}
-              across {view.nationalContinuingCohortSize} continuing operators
-              in 7 markets.
-            </p>
-          )}
         </div>
 
-        {/* Methodology disclosure (v0.6.3 Patch 6 spec §"Methodology
-            disclosure"). Companion paragraph rendered alongside the
-            display so the caveats sit immediately next to the numbers.
-            Same muted-text Layer 5 pattern as other in-section
-            methodology notes. */}
-        <div className="rounded-md border border-grid bg-surface-soft p-5">
-          <p className="dq-eyebrow-muted mb-2">How this is computed</p>
-          <p className="text-[13px] leading-[1.6] text-muted-foreground">
-            Share trajectory shows how this operator&rsquo;s share of
-            ranked-cohort listing activity has changed year-over-year,
-            computed across continuing operators with substantial presence
-            in both periods (≥30 listings in each). The share-based approach
-            controls for Dwellsy&rsquo;s data coverage expansion. Share
-            trajectory is influenced by tenancy length, vacancy rate,
-            portfolio composition changes, and new operator entry in
-            addition to organic growth. This metric is shown for context;
-            it is not used in ranking or composite scoring.
-          </p>
-          <p className="mt-3 text-[12px] italic text-muted-2">
-            <Link
-              href="/methodology#share-trajectory"
-              className="text-teal hover:text-teal-700"
-            >
-              Read the full methodology →
-            </Link>
-          </p>
-        </div>
+        {/* Supporting data — single line, secondary weight. The "was X%
+            in prior 12-month period" inline phrasing reads more like
+            prose than the prior labeled list. */}
+        <p className="text-[14px] text-muted-foreground">
+          Share of activity:{" "}
+          <span className="dq-mono font-semibold text-navy">
+            {share12.toFixed(2)}%
+          </span>{" "}
+          (was{" "}
+          <span className="dq-mono text-navy/85">{share24.toFixed(2)}%</span>{" "}
+          in prior 12-month period)
+        </p>
+
+        {/* Peer median — small accent line. "Peer" replaces the old
+            "continuing-cohort" jargon; N pill moved into the methodology
+            footer rather than inline. */}
+        <p className="text-[13px] text-muted-foreground">
+          Peer median:{" "}
+          <span className="dq-mono font-medium text-muted-foreground">
+            {cohortSign}
+            {Math.abs(cohortMedian).toFixed(1)}%
+          </span>
+        </p>
+
+        {/* Narrative — the interpretation layer. Prose-width column so
+            the paragraph reads at body-text rhythm, not a wide banner. */}
+        <p className="max-w-[720px] pt-1 text-[14.5px] leading-[1.65] text-foreground/85">
+          {view.narrative}
+        </p>
       </div>
+
+      <ShareTrajectoryMethodologyFooter />
     </article>
   );
 }
