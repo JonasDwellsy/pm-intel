@@ -35,7 +35,8 @@ export type EventName =
   | "lead_form_submit_error"
   | "match_card_click"
   | "claim_landing_view"
-  | "claim_form_submit_success";
+  | "claim_form_submit_success"
+  | "operator_profile_view";
 
 export type EventProps = {
   marketId?: string;
