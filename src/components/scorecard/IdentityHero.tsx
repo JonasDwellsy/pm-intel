@@ -56,6 +56,19 @@ export function IdentityHero({
           Markets
         </Link>
         <span className="text-muted-2">/</span>
+        {/* v0.6.3 Patch 5 — state crumb added between the "Markets" root
+            and the market crumb, matching the IA the new state landing
+            page promises. stateSlug derives from the 2-letter code via
+            STATE_CODE_TO_NAME ("AZ" → "arizona" etc.). */}
+        <Link
+          href={`/property-managers/${stateSlug}`}
+          className="hover:text-navy"
+        >
+          {stateSlug
+            .replace(/-/g, " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase())}
+        </Link>
+        <span className="text-muted-2">/</span>
         <Link
           href={`/property-managers/${stateSlug}/${cityKebab}`}
           className="hover:text-navy"

@@ -118,7 +118,14 @@ function Breadcrumb({
         Property managers
       </Link>
       <span className="text-muted-2">›</span>
-      <span>{stateName}</span>
+      {/* v0.6.3 Patch 5 — the state crumb was static text; now it links to
+          the new state landing page at /property-managers/[stateSlug]. */}
+      <Link
+        href={`/property-managers/${stateSlug}`}
+        className="hover:text-navy"
+      >
+        {stateName}
+      </Link>
       <span className="text-muted-2">›</span>
       <span className="font-medium text-navy">{cityLabel}</span>
     </nav>
