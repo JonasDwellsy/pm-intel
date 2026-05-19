@@ -717,6 +717,12 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
     classificationRationale: asString(pm.classificationRationale),
     lendingSignals,
     generatedText,
+    // v0.6.3 Patch 6 — carry the two listing-count fields straight through
+    // to the stored ScorecardData blob so the runtime share-trajectory
+    // computation can read them per PM without re-parsing the source JSON.
+    // asInt returns null when missing; consumers null-guard before pooling.
+    t12ListingsCount: asInt(pm.t12ListingsCount) ?? undefined,
+    t24t12ListingsCount: asInt(pm.t24t12ListingsCount) ?? undefined,
   };
 }
 

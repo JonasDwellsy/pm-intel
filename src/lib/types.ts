@@ -227,6 +227,15 @@ export interface ScorecardData {
   // Hybrid below the gate, MF/BTR under tenure). null → section omitted.
   communityVisibility: CommunityVisibilityBlock | null;
   classificationRationale: string;
+  // v0.6.3 Patch 6 — share-trajectory listing counts. t12ListingsCount is
+  // listings observed in the trailing 12 months anchored to Patch 6's
+  // reference date; t24t12ListingsCount is the prior 12-month window
+  // (i.e. T24 → T12). Both come straight from the seed JSON; runtime
+  // computation in src/lib/share-trajectory.ts pools across the ranked
+  // MSA cohort to derive each operator's share + share-trajectory YoY.
+  // Optional + nullable for back-compat with pre-Patch-6 seed runs.
+  t12ListingsCount?: number;
+  t24t12ListingsCount?: number;
 }
 
 export interface TenancyAssetBlock {
