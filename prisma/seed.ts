@@ -585,7 +585,17 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
       urusLifetime: asInt(coverage.urusLifetime) ?? 0,
       urusT12: asInt(coverage.urusT12) ?? 0,
       activeListings: asInt(coverage.activeListings) ?? 0,
-      totalObservedUnits: asInt(coverage.totalObservedUnits) ?? 0,
+      // Field-name drift across v0.6.2 markets: Chattanooga, Jacksonville,
+      // and Nashville emit both `totalObservedUnits` and `urusT12`; the four
+      // newer markets (Clarksville, Knoxville, Memphis, Phoenix) emit only
+      // `urusT12`. They're the same number for every operator that carries
+      // both, so falling back from totalObservedUnits → urusT12 keeps the
+      // semantic ("observed units in this MSA, trailing 12 months") intact
+      // and unblocks the market landing PM list rows + the Layer 5B unit
+      // estimates that depend on this field. Same fallback pattern used for
+      // nationalObservedUnitsT12 below.
+      totalObservedUnits:
+        asInt(coverage.totalObservedUnits) ?? asInt(coverage.urusT12) ?? 0,
       nationalObservedUnitsT12:
         asInt(coverage.nationalObservedUnitsT12) ??
         asInt(coverage.nationalUrusT12),

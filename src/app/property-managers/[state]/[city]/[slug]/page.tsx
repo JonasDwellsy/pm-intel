@@ -22,7 +22,12 @@ import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import { MarketView } from "@/components/market/MarketView";
 
 type RouteParams = { state: string; city: string; slug: string };
-type RouteSearch = { unlocked?: string };
+type RouteSearch = {
+  unlocked?: string;
+  // Preserved across chip clicks when a submarket filter is active. Only
+  // relevant on the segment branch — the scorecard branch ignores it.
+  submarket?: string | string[];
+};
 
 async function loadScorecard(slug: string) {
   const pm = await prisma.pM.findUnique({ where: { slug } });
@@ -105,10 +110,14 @@ export default async function MarketChildPage({
   const { state, city, slug } = await params;
 
   if (isQuadrantSegment(slug)) {
+    const { submarket } = await searchParams;
+    const submarketParam = Array.isArray(submarket) ? submarket[0] : submarket;
     const view = await loadMarketView({
       stateUrlSegment: state,
       cityUrlSegment: city,
       segment: slug as QuadrantSegment,
+      submarketSlug:
+        submarketParam && submarketParam.length > 0 ? submarketParam : null,
     });
     if (!view) notFound();
     return <MarketView view={view} activeSegment={slug as QuadrantSegment} />;

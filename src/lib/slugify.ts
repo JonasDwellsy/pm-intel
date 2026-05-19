@@ -42,6 +42,26 @@ export function citySlug(city: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+// --- Submarket (top-cities entries) <-> URL slug ---
+//
+// Used by the ?submarket= query parameter on market landing pages. Names in
+// geographicCoverage.topCities arrive in display form ("Saint Augustine",
+// "Mt. Juliet", "Bay City"); the slug normalizes them to a URL-safe lower-
+// kebab form. Drops periods first so "St. Petersburg" and "St Petersburg"
+// collapse to the same slug, then collapses any remaining non-alphanumeric
+// run into a single hyphen. The audit in scripts/audit-top-cities.ts
+// confirmed every PM in src/data/scorecard_data.json produces a unique slug
+// within its market (no within-market collisions across 192 distinct city
+// names; cross-market collisions exist only for two minor cities and are
+// harmless because filtering is always scoped to a single market's PM list).
+export function submarketSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\./g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 // --- Quadrant segment <-> DB quadrant string ---
 
 export const QUADRANT_SEGMENTS = [
@@ -154,5 +174,19 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     // landing operator cards alongside the legacy rank.
     compositeStar: sc.rank.compositeStar ?? null,
     compositeCohortName: sc.rank.compositeCohortName ?? null,
+    // Submarket index — geographicCoverage.topCities mapped through the same
+    // slugifier the scorecard's Layer 5B link uses, so the market landing
+    // ?submarket= filter (loadMarketView in market-data.ts) matches by exact
+    // slug equality. Empty array when the scorecard has no topCities entries.
+    // topCityNames preserves the raw display form (e.g. "Mt. Juliet") so the
+    // filter chip can render the correct label from a slug match.
+    // topCityPcts carries share-of-portfolio so the PM list row subtitle can
+    // swap from "40% Phoenix" to "X% Mesa" when a submarket filter is active.
+    // All three arrays are index-aligned per geographicCoverage.topCities[i].
+    topCitySlugs: (sc.geographicCoverage.topCities ?? []).map((c) =>
+      submarketSlug(c.name)
+    ),
+    topCityNames: (sc.geographicCoverage.topCities ?? []).map((c) => c.name),
+    topCityPcts: (sc.geographicCoverage.topCities ?? []).map((c) => c.pct),
   };
 }

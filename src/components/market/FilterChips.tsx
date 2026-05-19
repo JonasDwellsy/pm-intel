@@ -55,14 +55,22 @@ export function FilterChips({
   marketId,
   active,
   countsBySegment,
+  submarketSlug,
 }: {
   stateSlug: string;
   citySlug: string;
   marketId: string;
   active: QuadrantSegment | null;
   countsBySegment: Partial<Record<QuadrantSegment, number>>;
+  /** When set, every chip preserves the submarket filter via a `?submarket=`
+   *  query so clicking a chip narrows the filtered universe by segment
+   *  rather than dropping back to the MSA-wide list. */
+  submarketSlug?: string | null;
 }) {
   const baseHref = `/property-managers/${stateSlug}/${citySlug}`;
+  const submarketQuery = submarketSlug
+    ? `?submarket=${encodeURIComponent(submarketSlug)}`
+    : "";
   const totalCount = Object.values(countsBySegment).reduce(
     (acc, n) => acc + (n ?? 0),
     0
@@ -71,14 +79,14 @@ export function FilterChips({
   const chips: Chip[] = [
     {
       label: "All operators",
-      href: baseHref,
+      href: `${baseHref}${submarketQuery}`,
       count: totalCount,
       isActive: active === null,
       segment: "all",
     },
     ...QUADRANT_SEGMENTS.map((seg) => ({
       label: segmentLabel(seg),
-      href: `${baseHref}/${seg}`,
+      href: `${baseHref}/${seg}${submarketQuery}`,
       count: countsBySegment[seg] ?? 0,
       isActive: active === seg,
       segment: seg as QuadrantSegment | "all",

@@ -29,6 +29,18 @@ export type LoadedMarket = {
   stateSlug: string;
   citySlug: string;
   mapData: MarketMapData;
+  // Submarket filter state — non-null only when ?submarket= produced a match
+  // somewhere in the market's PM list. The page renders a filter chip and
+  // adjusted operator count when set; the empty state when filteredPms = 0.
+  submarket: {
+    slug: string;
+    displayName: string;
+    matchedOperatorCount: number;
+  } | null;
+  // Pool size for the "Showing X of Y" line. Equals allPms.length when no
+  // submarket filter is active; equals submarket.matchedOperatorCount when
+  // one is. Drives the count display + the "clear filter" hint.
+  rankedPoolSize: number;
 };
 
 const PM_SELECT = {
@@ -48,10 +60,13 @@ export async function loadMarketView({
   stateUrlSegment,
   cityUrlSegment,
   segment,
+  submarketSlug: submarketParam,
 }: {
   stateUrlSegment: string;
   cityUrlSegment: string;
   segment: QuadrantSegment | null;
+  /** Slug from `?submarket=`. Null/empty means no submarket filter. */
+  submarketSlug?: string | null;
 }): Promise<LoadedMarket | null> {
   const stateCode = slugToStateCode(stateUrlSegment);
   if (!stateCode) return null;
@@ -95,24 +110,71 @@ export async function loadMarketView({
     quadrant7CellSummary,
   };
 
-  const countsBySegment: Partial<Record<QuadrantSegment, number>> = {};
-  let hybridCount = 0;
-  for (const pm of allPms) {
-    if (pm.hybrid) {
-      hybridCount += 1;
-      countsBySegment.hybrid = (countsBySegment.hybrid ?? 0) + 1;
+  // Submarket filter — applied to the universe BEFORE the segment filter,
+  // so that countsBySegment, the FilterChips, the page chrome (H1, subtitle,
+  // Market Snapshot, intro paragraph), and the "ranked operators" list all
+  // reflect the filtered universe coherently. Without this ordering the
+  // operator-type tabs would show MSA-wide counts under a submarket filter,
+  // which made the filter feel like a footnote rather than a dominant page
+  // state. Display-name lookup walks the matched PMs' raw topCityNames
+  // (index-aligned with topCitySlugs in toPmListItem) to recover the
+  // human-readable label for the chip ("Hendersonville" not "hendersonville").
+  let submarketState: LoadedMarket["submarket"] = null;
+  let universe = allPms;
+  if (submarketParam) {
+    const filterSlug = submarketParam;
+    const submarketMatches = allPms.filter((p) =>
+      (p.topCitySlugs ?? []).includes(filterSlug)
+    );
+    let displayName = deriveSubmarketDisplayName(submarketMatches, filterSlug);
+    if (!displayName) {
+      displayName = filterSlug
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
     }
-    const seg = quadrantToSegment(pm.quadrant);
-    if (seg) countsBySegment[seg] = (countsBySegment[seg] ?? 0) + 1;
+    submarketState = {
+      slug: filterSlug,
+      displayName,
+      matchedOperatorCount: submarketMatches.length,
+    };
+    universe = submarketMatches;
   }
 
-  let filteredPms = allPms;
+  // Per-segment counts are derived from the submarket-aware universe so the
+  // FilterChips display the right cohort sizes ("Multifamily Institutional 6"
+  // vs the MSA-wide "Multifamily Institutional 26" when no filter is active).
+  //
+  // Hybrid PMs in v0.6.2 always carry quadrant === "Hybrid", so the segment
+  // branch below already covers them. The explicit pm.hybrid guard layered
+  // an extra increment on top, double-counting hybrids (20 vs 10 in Phoenix)
+  // and inflating the "All operators" chip total. The if-not-hybrid-segment
+  // fallback preserves the defensive intent for any legacy row where the
+  // hybrid flag is true but the quadrant isn't "Hybrid".
+  const countsBySegment: Partial<Record<QuadrantSegment, number>> = {};
+  let hybridCount = 0;
+  for (const pm of universe) {
+    const seg = quadrantToSegment(pm.quadrant);
+    if (seg) countsBySegment[seg] = (countsBySegment[seg] ?? 0) + 1;
+    if (pm.hybrid) {
+      hybridCount += 1;
+      if (seg !== "hybrid") {
+        countsBySegment.hybrid = (countsBySegment.hybrid ?? 0) + 1;
+      }
+    }
+  }
+
+  let filteredPms = universe;
   if (segment === "hybrid") {
-    filteredPms = allPms.filter((p) => p.hybrid);
+    filteredPms = universe.filter((p) => p.hybrid);
   } else if (segment !== null) {
     const targetQuadrant = segmentToQuadrant(segment);
-    filteredPms = allPms.filter((p) => p.quadrant === targetQuadrant);
+    filteredPms = universe.filter((p) => p.quadrant === targetQuadrant);
   }
+
+  // Pool size precedes the slice-to-10 so the "Showing X of Y" line reflects
+  // the full filtered cohort, not just the displayed page.
+  const rankedPoolSize = filteredPms.length;
 
   // Per spec: top 10 list on market landing.
   filteredPms = filteredPms.slice(0, 10);
@@ -146,7 +208,27 @@ export async function loadMarketView({
     stateSlug: stateUrlSegment,
     citySlug: cityUrlSegment,
     mapData,
+    submarket: submarketState,
+    rankedPoolSize,
   };
+}
+
+// Recover the human-readable display label for a submarket slug by walking
+// matched PMs' raw topCityNames arrays and returning the first name whose
+// slug matches. Returns null when no PM matches (caller falls back to a
+// title-cased slug for the empty-state path). Index alignment between
+// topCitySlugs and topCityNames is guaranteed by toPmListItem above.
+function deriveSubmarketDisplayName(
+  matchedPms: PMListItem[],
+  filterSlug: string
+): string | null {
+  for (const pm of matchedPms) {
+    const slugs = pm.topCitySlugs ?? [];
+    const names = pm.topCityNames ?? [];
+    const idx = slugs.indexOf(filterSlug);
+    if (idx >= 0 && names[idx]) return names[idx];
+  }
+  return null;
 }
 
 export async function listMarketRouteParams() {

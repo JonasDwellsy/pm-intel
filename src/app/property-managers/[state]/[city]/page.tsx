@@ -4,6 +4,9 @@ import { MarketView } from "@/components/market/MarketView";
 import { listMarketRouteParams, loadMarketView } from "@/lib/market-data";
 
 type RouteParams = { state: string; city: string };
+// Optional query params surfaced to the page. Next typed `searchParams` as
+// `Record<string, string | string[] | undefined>`; we narrow inline below.
+type RouteSearch = { submarket?: string | string[] };
 
 export async function generateStaticParams(): Promise<RouteParams[]> {
   return listMarketRouteParams();
@@ -26,6 +29,8 @@ export async function generateMetadata({
   return {
     title,
     description,
+    // Always canonicalize to the bare market URL — submarket filter state is
+    // a discovery affordance, not a separate page worth indexing.
     alternates: { canonical: `/property-managers/${state}/${city}` },
     openGraph: { title, description, type: "website" },
   };
@@ -33,14 +38,21 @@ export async function generateMetadata({
 
 export default async function MarketLandingPage({
   params,
+  searchParams,
 }: {
   params: Promise<RouteParams>;
+  searchParams: Promise<RouteSearch>;
 }) {
   const { state, city } = await params;
+  const { submarket } = await searchParams;
+  // Coerce array form (?submarket=a&submarket=b) → first entry; coerce empty
+  // string to null so the filter only activates on a real value.
+  const submarketParam = Array.isArray(submarket) ? submarket[0] : submarket;
   const view = await loadMarketView({
     stateUrlSegment: state,
     cityUrlSegment: city,
     segment: null,
+    submarketSlug: submarketParam && submarketParam.length > 0 ? submarketParam : null,
   });
   if (!view) notFound();
   return <MarketView view={view} activeSegment={null} />;

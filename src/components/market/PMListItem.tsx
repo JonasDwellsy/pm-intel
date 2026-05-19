@@ -41,15 +41,33 @@ export function PMListItem({
   pm,
   stateSlug,
   citySlug,
+  submarket,
 }: {
   pm: PMListItemData;
   stateSlug: string;
   citySlug: string;
+  /** When the parent market view has a submarket filter active, the row
+   *  subtitle swaps the operator's primary-city share for their share in
+   *  the filtered submarket — e.g. "60% Mesa" instead of "40% Phoenix" —
+   *  so the percentage stays semantically aligned with the page filter.
+   *  Resolved against topCitySlugs + topCityPcts in the parent; passed
+   *  here as already-resolved share + display name so the component stays
+   *  unaware of the data-lookup mechanics. Falls back to silent (no
+   *  percentage prefix) when the share can't be resolved — silent reads
+   *  cleaner than a misleading MSA percentage attached to a submarket
+   *  label. */
+  submarket?: {
+    displayName: string;
+    share: number | null;
+  } | null;
 }) {
   const href = `/property-managers/${stateSlug}/${citySlug}/${pm.slug}`;
   const color = quadrantColor(pm.quadrant);
   const rent = fmtSignedPct(pm.rentVsComp);
-  const cityShare = pm.primaryCityShare;
+  // Submarket filter active → render submarket share + name; otherwise
+  // render the existing primary-city share + market city.
+  const displayShare = submarket ? submarket.share : pm.primaryCityShare;
+  const displayCity = submarket ? submarket.displayName : pm.primaryCity;
 
   const rentToneClass =
     rent.tone === "good"
@@ -104,8 +122,10 @@ export function PMListItem({
               )}
             </div>
             <p className="mt-2 text-[12.5px] text-muted-foreground">
-              {cityShare !== null ? `${cityShare}% ` : ""}
-              {pm.primaryCity}
+              {displayShare !== null && displayShare !== undefined
+                ? `${displayShare}% `
+                : ""}
+              {displayCity}
               <span className="mx-1.5 text-muted-2">·</span>
               <span className="dq-mono font-medium text-navy/90">
                 {fmtInt(pm.totalObservedUnits)}

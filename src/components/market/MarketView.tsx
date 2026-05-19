@@ -114,10 +114,11 @@ export function MarketView({
     methodologyVersion,
     dataAsOf,
     filteredPms,
-    allPms,
     countsBySegment,
     stateSlug,
     citySlug,
+    submarket,
+    rankedPoolSize,
   } = view;
 
   const marketHref = `/property-managers/${stateSlug}/${citySlug}`;
@@ -143,6 +144,7 @@ export function MarketView({
             market={market}
             methodologyVersion={methodologyVersion}
             dataAsOf={dataAsOf}
+            submarket={submarket}
           />
         </div>
       </section>
@@ -184,12 +186,41 @@ export function MarketView({
               marketId={market.id}
               active={activeSegment}
               countsBySegment={countsBySegment}
+              submarketSlug={submarket?.slug ?? null}
             />
             <div className="inline-flex h-8 items-center gap-2 rounded-full border border-grid bg-white px-3.5 text-[13px] text-muted-foreground">
               Sorted by: <span className="font-medium text-navy">Within-quadrant rank</span>
               <span className="text-muted-2">↓</span>
             </div>
           </div>
+
+          {/* Submarket reinforcement strip — visible only when ?submarket=
+              produced a valid match. The hero now carries the dominant
+              filter framing (H1, subtitle, Market Snapshot, intro all swap
+              to the submarket); this strip is a thin breadcrumb-style
+              reinforcement above the ranked list with the "Clear filter"
+              affordance close to where the user is looking. The clear link
+              preserves the active segment (drops only the submarket query)
+              so e.g. clearing from "Multifamily Institutional in Mesa"
+              lands on "Multifamily Institutional in Phoenix" rather than
+              wiping the segment filter too. */}
+          {submarket && (
+            <div className="mb-4 flex flex-wrap items-center gap-2 text-[12.5px] text-muted-foreground">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-2">
+                Submarket filter
+              </span>
+              <span className="text-muted-2">·</span>
+              <span className="font-medium text-navy">
+                {submarket.displayName}
+              </span>
+              <Link
+                href={activeSegment ? `${marketHref}/${activeSegment}` : marketHref}
+                className="ml-2 inline-flex items-center gap-1 font-medium text-teal hover:text-teal-700"
+              >
+                <span aria-hidden>×</span> Clear
+              </Link>
+            </div>
+          )}
 
           <p className="mb-7 text-[12.5px] italic text-muted-foreground">
             Showing{" "}
@@ -198,10 +229,11 @@ export function MarketView({
             </span>{" "}
             of{" "}
             <span className="dq-mono not-italic font-medium text-navy/85">
-              {allPms.length}
+              {rankedPoolSize}
             </span>{" "}
             ranked operators
-            {activeSegment ? ` in ${segmentLabel(activeSegment)}` : ""}.
+            {activeSegment ? ` in ${segmentLabel(activeSegment)}` : ""}
+            {submarket ? ` with footprint in ${submarket.displayName}` : ""}.
             Operators below the data sufficiency threshold are excluded from
             this view.{" "}
             <Link
@@ -215,26 +247,65 @@ export function MarketView({
           {filteredPms.length === 0 ? (
             <div className="rounded-lg border border-dashed border-grid bg-[#FAFAF8] p-10 text-center">
               <p className="text-sm font-medium text-navy">
-                No operators in this segment yet.
+                {submarket
+                  ? `No operators observed in ${submarket.displayName}.`
+                  : "No operators in this segment yet."}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                Try another filter or{" "}
-                <Link href={marketHref} className="text-teal hover:text-teal-700">
-                  view all operators
-                </Link>
-                .
+                {submarket ? (
+                  <>
+                    The submarket filter matched zero operators in {market.city}.{" "}
+                    <Link
+                      href={marketHref}
+                      className="text-teal hover:text-teal-700"
+                    >
+                      Clear the filter
+                    </Link>{" "}
+                    to view all operators.
+                  </>
+                ) : (
+                  <>
+                    Try another filter or{" "}
+                    <Link href={marketHref} className="text-teal hover:text-teal-700">
+                      view all operators
+                    </Link>
+                    .
+                  </>
+                )}
               </p>
             </div>
           ) : (
             <ul className="flex flex-col gap-3.5">
-              {filteredPms.map((pm) => (
-                <PMListItem
-                  key={pm.slug}
-                  pm={pm}
-                  stateSlug={stateSlug}
-                  citySlug={citySlug}
-                />
-              ))}
+              {filteredPms.map((pm) => {
+                // Resolve the operator's share-of-portfolio in the active
+                // submarket from the index-aligned topCitySlugs / topCityPcts
+                // arrays populated by toPmListItem. The PMListItem stays
+                // unaware of the lookup mechanics — it just receives a
+                // pre-resolved share or null (silent fallback) when the
+                // submarket isn't found in this PM's topCities entries.
+                let pmSubmarket: {
+                  displayName: string;
+                  share: number | null;
+                } | null = null;
+                if (submarket) {
+                  const idx = (pm.topCitySlugs ?? []).indexOf(submarket.slug);
+                  const share =
+                    idx >= 0 ? pm.topCityPcts?.[idx] ?? null : null;
+                  pmSubmarket = {
+                    displayName: submarket.displayName,
+                    share: share ?? null,
+                  };
+                }
+                return (
+                  <PMListItem
+                    key={pm.slug}
+                    pm={pm}
+                    stateSlug={stateSlug}
+                    citySlug={citySlug}
+                    submarket={pmSubmarket}
+                  />
+                );
+              })}
             </ul>
           )}
         </div>
