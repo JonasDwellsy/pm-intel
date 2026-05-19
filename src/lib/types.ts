@@ -297,6 +297,21 @@ export interface MarketSummary {
   quadrant7CellSummary?: {
     [quadrant7Cell: string]: number;
   };
+  // v0.6.3 — Patch 1: active operator count (≥3 listings T12) replaces the
+  // legacy total-operator denominator as the surfaced headline figure.
+  // BySubmarket map drives the filtered-state tile.
+  activeOperatorCount?: number | null;
+  activeOperatorCountBySubmarket?: { [submarketSlug: string]: number };
+  // v0.6.3 — Patch 3: market-level rent growth aggregate (decimal, e.g.
+  // 0.0023 = +0.23%) plus national benchmark and pre-computed pp delta for
+  // the "vs national" benchmark line.
+  marketRentGrowthT12?: number | null;
+  nationalRentGrowthT12?: number | null;
+  marketRentGrowthDeltaVsNationalPp?: number | null;
+  // v0.6.3 — Patch 2: eligibility window UI label. Always "T12" in v0.6.3+
+  // production; the field is preserved so the methodology page + tile sub-
+  // labels can read from a single source of truth instead of hard-coding.
+  eligibilityWindow?: string;
 }
 
 export interface PMListItem {

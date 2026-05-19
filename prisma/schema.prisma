@@ -25,6 +25,25 @@ model Market {
   // v0.6.2 7-cell quadrant counts. JSON blob keyed by quadrant7Cell label.
   // Nullable for forward-compat with pre-v0.6.2 seeds.
   quadrant7CellSummary  String?
+  // v0.6.3 — Patch 1: active operator count (≥3 listings T12) replaces the
+  // legacy total-operator denominator as the surfaced headline figure.
+  // activeOperatorCountBySubmarket carries per-submarket counts as a JSON
+  // map (string-keyed submarket slug → int active count) for filtered-state
+  // headlines. Both nullable for back-compat with pre-v0.6.3 markets.
+  activeOperatorCount             Int?
+  activeOperatorCountBySubmarket  String?
+  // v0.6.3 — Patch 3: market-level rent growth aggregate (median YoY across
+  // ranked operators), national benchmark (identical across all markets,
+  // embedded per-market for render simplicity), and pre-computed pp delta
+  // for the "vs national" benchmark line. All decimals (e.g. 0.0023 = +0.23%).
+  marketRentGrowthT12                  Float?
+  nationalRentGrowthT12                Float?
+  marketRentGrowthDeltaVsNationalPp    Float?
+  // v0.6.3 — Patch 2: eligibility-window UI label correction (T6M → T12).
+  // Methodology was always T12 in production; this string is the label
+  // surfaced on the headline tile + methodology page §3. Defaults to T12
+  // so back-compat reseeds without an explicit value still read correctly.
+  eligibilityWindow     String?  @default("T12")
   pms                   PM[]
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -48,8 +67,17 @@ model PM {
   rankQuadrantTotal  Int?
   claimed            Boolean  @default(false)
   scorecardData      String // JSON blob: full structured scorecard
-  methodologyVersion String // e.g. "v0.6.2"
+  methodologyVersion String // e.g. "v0.6.3"
   dataAsOf           DateTime
+  // v0.6.3 — Patch 1 support: per-PM T12 listing counts keyed by submarket
+  // slug as a JSON map. Backs the submarket-filtered Eligible-with-footprint
+  // tile (count of MSA-eligible operators with t12ListingsBySubmarket[slug]
+  // > 0) without re-parsing the full scorecardData blob.
+  t12ListingsBySubmarket String?
+  // v0.6.3 — Patch 2 informational flag. Almost always false: the T6M→T12
+  // label correction was a labeling fix, not a cohort change. Tracked so
+  // future audits can attribute eligibility deltas to the correct cause.
+  newlyEligibleInV063 Boolean? @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
