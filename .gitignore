@@ -41,6 +41,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma (sqlite db files; client is generated into node_modules)
-prisma/*.db
-prisma/*.db-journal
+# prisma (Postgres on Neon; client is generated into node_modules)
+.env*.local
