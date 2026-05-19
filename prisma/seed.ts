@@ -825,24 +825,63 @@ async function main() {
     console.log(`  ✓ market: ${m.id} (${m.fullName})`);
   }
 
-  // Track slugs we've already seeded so duplicates in the input JSON are
-  // skipped rather than crashing the seed. The v0.6.2 input has two known
-  // upstream slug collisions in Knoxville + Memphis where an operator appears
-  // under two name variants ("X Inc" / "X, Inc.") that both slugify to the
-  // same key. Upstream dedup is a v0.7 concern; for v0.6.2 we keep the first
-  // occurrence (typically the canonical / higher-urus record).
+  // v0.6.3 quick-wins — deterministic slug-collision disambiguation.
+  // The upstream Python pipeline occasionally produces two PMs whose
+  // names slugify to the same key (e.g. Knoxville's "Asset Realty
+  // Management Inc" vs "Asset Realty Management, Inc." both → "asset-
+  // realty-management-inc-knoxville-tn"). Previous behavior silently
+  // skipped the second record, dropping the operator from the DB and
+  // shifting downstream cohort medians (Knoxville share trajectory
+  // was N=26 instead of the spec's N=27). New behavior:
+  //
+  //   1. Sort PMs by (marketId, slug, name) before iteration so the
+  //      "first" record at each collision is stable across reseeds —
+  //      it keeps the original slug.
+  //   2. The "second" record (and any subsequent collisions) gets a
+  //      "-2", "-3", ... suffix appended deterministically until the
+  //      slug is unique within the run.
+  //   3. Every collision produces a console warning naming both
+  //      source records.
+  //
+  // Both records persist; cohort sizes match the spec pressure-test
+  // values. Root-cause fix at the Python pipeline is on the v0.7
+  // backlog; this is the defensive app-boundary fix.
   const seenSlugs = new Set<string>();
+  const firstNameBySlug = new Map<string, string>();
   let pmCount = 0;
-  let skippedDupes = 0;
+  let disambiguatedCount = 0;
 
-  for (const pm of data.pms) {
-    const slug = asString(pm.slug);
+  // Stable sort: marketId (string) → original slug → name. Mutates a
+  // shallow-copied array so we don't surprise downstream consumers of
+  // data.pms (none today, but defensive).
+  const sortedPms = [...data.pms].sort((a, b) => {
+    const am = asString(a.marketId);
+    const bm = asString(b.marketId);
+    if (am !== bm) return am.localeCompare(bm);
+    const aSlug = asString(a.slug);
+    const bSlug = asString(b.slug);
+    if (aSlug !== bSlug) return aSlug.localeCompare(bSlug);
+    return asString(a.name).localeCompare(asString(b.name));
+  });
+
+  for (const pm of sortedPms) {
+    const originalSlug = asString(pm.slug);
+    let slug = originalSlug;
+    // Disambiguator loop — append "-2", "-3", ... until unique. The
+    // typical case is one collision per pipeline anomaly so the loop
+    // body almost always runs once.
     if (seenSlugs.has(slug)) {
-      skippedDupes += 1;
+      let suffix = 2;
+      while (seenSlugs.has(`${originalSlug}-${suffix}`)) suffix += 1;
+      slug = `${originalSlug}-${suffix}`;
+      const firstName = firstNameBySlug.get(originalSlug) ?? "(unknown)";
       console.warn(
-        `  ⚠ skipped duplicate slug: ${slug} (name="${asString(pm.name)}")`
+        `  ⚠ slug collision on '${originalSlug}'. Renamed second record to '${slug}'. ` +
+          `Source PM names: '${firstName}', '${asString(pm.name)}'.`
       );
-      continue;
+      disambiguatedCount += 1;
+    } else {
+      firstNameBySlug.set(originalSlug, asString(pm.name));
     }
     seenSlugs.add(slug);
 
@@ -895,7 +934,10 @@ async function main() {
 
   const marketCount = await prisma.market.count();
   const dbPmCount = await prisma.pM.count();
-  const dupeSuffix = skippedDupes > 0 ? `, ${skippedDupes} duplicate slug(s) skipped` : "";
+  const dupeSuffix =
+    disambiguatedCount > 0
+      ? `, ${disambiguatedCount} slug collision(s) disambiguated`
+      : "";
   console.log(
     `\nSeed complete: ${marketCount} market(s), ${dbPmCount} PM(s) (processed ${pmCount}${dupeSuffix}).`
   );

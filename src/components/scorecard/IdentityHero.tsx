@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ClaimTrigger } from "@/components/scorecard/ClaimTrigger";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { quadrant7Color } from "@/lib/quadrant7-colors";
 import type {
@@ -87,10 +88,18 @@ export function IdentityHero({
             {scorecard.pm.name}
           </h1>
 
-          {/* Badge row — claim status (if claimed) + 7-cell quadrant */}
+          {/* Badge row — claim status (if claimed) + 7-cell quadrant
+              + "Claim this operator" affordance for unclaimed operators.
+              The claim button is intentionally muted (text + chevron, no
+              filled bg) so it doesn't compete with the primary scorecard
+              content — most readers aren't operators; this is for the
+              minority who are. */}
           <div className="mt-4 flex flex-wrap items-center gap-2.5">
             {isClaimed && <VerifiedPill />}
             <Quadrant7Badge label={quadrant7.label} color={quadrant7} />
+            {!isClaimed && (
+              <ClaimTrigger pmSlug={scorecard.pm.slug} pmName={scorecard.pm.name} />
+            )}
           </div>
 
           {/* Composite cohort qualifier — biggest visual element below name.

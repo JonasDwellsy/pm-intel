@@ -24,6 +24,12 @@ export async function POST(req: Request) {
     return Response.json({ error: "PM not found" }, { status: 404 });
   }
 
+  // v0.6.3 quick-wins — persist the existing 2-field shape (no Claim
+  // schema migration in this PR) but log the full intent payload so the
+  // optional contactRole + message captured by the scorecard ClaimModal
+  // aren't lost. TODO v0.7: wire to email delivery (Resend, SendGrid,
+  // etc.) — for now logs only. A follow-up migration can add columns +
+  // backfill from the log stream if claim review needs them queryable.
   const claim = await prisma.claim.create({
     data: {
       pmSlug: data.pmSlug,
@@ -32,10 +38,17 @@ export async function POST(req: Request) {
     },
   });
 
-  console.log("[EMAIL → claim review]", {
-    to: "review@dwellsy.invalid",
-    subject: `Claim request for ${pm.name}`,
-    body: `${data.contactName} <${data.contactEmail}> is claiming ${pm.name} (${pm.slug}). Claim id ${claim.id}, status pending.`,
+  console.log("[claim_request]", {
+    operatorSlug: data.pmSlug,
+    operatorName: pm.name,
+    marketId: pm.marketId,
+    claimerName: data.contactName,
+    claimerEmail: data.contactEmail,
+    claimerRole: data.contactRole ?? null,
+    message: data.message ?? null,
+    claimId: claim.id,
+    status: claim.status,
+    timestamp: new Date().toISOString(),
   });
 
   return Response.json(

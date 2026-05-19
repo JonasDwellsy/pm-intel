@@ -4,6 +4,7 @@ import { QuadrantSummaryCard } from "./QuadrantSummaryCard";
 import { FilterChips } from "./FilterChips";
 import { PMListItem } from "./PMListItem";
 import { MarketMap } from "./MarketMap";
+import { TrackedOperatorBanner } from "./TrackedOperatorBanner";
 import { TrackEvent } from "@/components/analytics/TrackEvent";
 import { buttonVariants } from "@/components/ui/button";
 import { fmtDate } from "@/lib/format";
@@ -196,9 +197,17 @@ function MethodologyFooter({
 export function MarketView({
   view,
   activeSegment,
+  trackedHighlight = null,
 }: {
   view: LoadedMarket;
   activeSegment: QuadrantSegment | null;
+  /** v0.6.3 quick-wins — Tier 2 search highlight payload from the page
+   *  route's ?highlight= lookup. Null = no banner rendered. */
+  trackedHighlight?: {
+    name: string;
+    t12Listings: number;
+    topSubmarkets: Array<{ slug: string; count: number }>;
+  } | null;
 }) {
   const {
     market,
@@ -227,6 +236,20 @@ export function MarketView({
       <div className="border-b border-grid bg-white">
         <Breadcrumb stateSlug={stateSlug} cityLabel={market.city} />
       </div>
+
+      {/* v0.6.3 quick-wins — Tier 2 search highlight banner. Sits between
+          the breadcrumb and the hero so the user lands with an immediate
+          "we heard you — here's what we know about this operator" cue
+          before the rest of the market page. Null trackedHighlight =
+          silent (no banner row in the DOM). */}
+      {trackedHighlight && (
+        <TrackedOperatorBanner
+          operatorName={trackedHighlight.name}
+          marketCity={market.city}
+          t12Listings={trackedHighlight.t12Listings}
+          topSubmarkets={trackedHighlight.topSubmarkets}
+        />
+      )}
 
       {/* Hero band — white */}
       <section className="border-b border-grid bg-white">
