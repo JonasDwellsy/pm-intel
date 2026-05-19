@@ -1,7 +1,7 @@
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { fmtDays, fmtInt } from "@/lib/format";
 import { quadrantColor } from "@/lib/quadrant-colors";
-import type { PMListItem as PMListItemData, StarLevel } from "@/lib/types";
+import type { PMListItem as PMListItemData } from "@/lib/types";
 
 function fmtSignedPct(n: number | null): {
   text: string;
@@ -92,7 +92,17 @@ export function PMListItem({
           {/* Left: identity */}
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
-              <ListItemStar level={pm.compositeStar} />
+              {/* v0.6.3 Patch 4 — single composite-star icon replaced with a
+                  ★N ☆M summary chip showing this operator's gold + silver
+                  counts across the Layer 3 per-metric scoring. Drives the
+                  same sort that orders the list (gold desc, silver desc,
+                  composite asc), so the row's star count visually predicts
+                  its position. Operators with zero of either get no chip —
+                  the row identity stays clean. */}
+              <StarSummaryChip
+                goldCount={pm.goldCount ?? 0}
+                silverCount={pm.silverCount ?? 0}
+              />
               <span className="text-[22px] font-semibold leading-tight text-navy tracking-[-0.012em]">
                 {pm.name}
               </span>
@@ -106,11 +116,9 @@ export function PMListItem({
                 />
                 {color.label}
               </span>
-              {pm.rankQuadrant !== null && pm.rankQuadrantTotal !== null && (
-                <span className="dq-mono inline-flex h-[22px] items-center gap-1 rounded-full border border-grid bg-white px-2.5 text-[11px] font-medium text-muted-foreground">
-                  Rank {pm.rankQuadrant} of {pm.rankQuadrantTotal}
-                </span>
-              )}
+              {/* v0.6.3 Patch 4 — "Rank N of M" pill removed. The visible
+                  row order now communicates rank; the redundant pill added
+                  visual clutter and competed with the new star chip. */}
               {pm.claimed && (
                 <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.04em] text-good">
                   <span
@@ -162,37 +170,61 @@ export function PMListItem({
   );
 }
 
-// Composite star icon — surfaced next to the PM name on the market list.
-// Matches the sizing + color encoding used inside scorecard layers.
-function ListItemStar({ level }: { level: StarLevel }) {
-  const isGold = level === "gold";
-  const isSilver = level === "silver";
-  if (!isGold && !isSilver) {
-    // No star → render a small placeholder dot so the row alignment stays
-    // consistent with starred rows. Muted, no aria label.
-    return (
-      <span
-        aria-hidden
-        className="inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center"
-      >
-        <span className="h-1 w-1 rounded-full bg-muted-2/60" />
-      </span>
-    );
-  }
-  const fill = isGold ? "#E5A800" : "#9CA3AF";
-  const stroke = isGold ? "#B98700" : "#6B7280";
+// v0.6.3 Patch 4 — gold / silver star summary chip rendered to the left of
+// the PM name on the market list. Replaces the legacy single composite-
+// star icon. Each side renders only when its count > 0; an operator with
+// zero of both sides renders nothing so the row's identity strip stays
+// uncluttered. The two icons share a single chip background so the visual
+// reads as one unit; counts sit immediately to the right of each icon in
+// dq-mono numerals.
+//
+// Color encoding matches the scorecard per-metric star palette: gold fill
+// #E5A800 / stroke #B98700, silver fill #9CA3AF / stroke #6B7280. Stars
+// are rendered at 14px (slightly smaller than the legacy 18px composite
+// icon) so two icons + counts fit in roughly the same width as the
+// previous single icon — avoids layout disruption.
+function StarSummaryChip({
+  goldCount,
+  silverCount,
+}: {
+  goldCount: number;
+  silverCount: number;
+}) {
+  if (goldCount === 0 && silverCount === 0) return null;
+  return (
+    <span
+      aria-label={`${goldCount} gold star${goldCount === 1 ? "" : "s"}, ${silverCount} silver star${silverCount === 1 ? "" : "s"}`}
+      className="inline-flex items-center gap-1.5 rounded-full border border-grid bg-white px-2 py-0.5 text-[12px] font-semibold text-navy"
+    >
+      {goldCount > 0 && (
+        <span className="inline-flex items-center gap-0.5">
+          <StarGlyph tone="gold" />
+          <span className="dq-mono">{goldCount}</span>
+        </span>
+      )}
+      {silverCount > 0 && (
+        <span className="inline-flex items-center gap-0.5">
+          <StarGlyph tone="silver" />
+          <span className="dq-mono">{silverCount}</span>
+        </span>
+      )}
+    </span>
+  );
+}
+
+function StarGlyph({ tone }: { tone: "gold" | "silver" }) {
+  const fill = tone === "gold" ? "#E5A800" : "#9CA3AF";
+  const stroke = tone === "gold" ? "#B98700" : "#6B7280";
   return (
     <svg
-      width="18"
-      height="18"
+      width="14"
+      height="14"
       viewBox="0 0 24 24"
       fill={fill}
       stroke={stroke}
       strokeWidth="1.8"
       strokeLinejoin="round"
-      aria-label={
-        isGold ? "Gold composite star" : "Silver composite star"
-      }
+      aria-hidden
       className="shrink-0"
     >
       <path d="M12 2.6l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.7l-5.9 3.1 1.13-6.58L2.45 9.54l6.6-.96L12 2.6z" />
