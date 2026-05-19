@@ -253,5 +253,10 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     // has one) flow through as null and are filtered out before
     // medianing.
     pmYoyChange: sc.rentPerformance?.pmYoyChange ?? null,
+    // v0.6.4 Patch 1 — canonical operator identity. Multi-market PMs
+    // share the same canonicalOperatorId across markets; single-market
+    // PMs get an id equal to their slug. Drives the state-level count
+    // dedup in state-data.ts.
+    canonicalOperatorId: sc.canonicalOperatorId ?? null,
   };
 }

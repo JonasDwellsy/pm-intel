@@ -90,7 +90,14 @@ function fmtDomDelta(
 export function StateHero({ view }: { view: StateView }) {
   const { stateName, markets, aggregates, intro, dataAsOf } = view;
   const n = markets.length;
-  const acrossMarkets = `Across ${n} market${n === 1 ? "" : "s"} in ${stateName}`;
+  // v0.6.4 Patch 1 — sublabel surfaces the dedup'd-across-markets-in-
+  // state semantic so prospects don't see Invitation Homes counted in
+  // both Nashville + Memphis + Clarksville. For single-MSA states the
+  // dedup is a no-op but the sublabel still reads cleanly.
+  const acrossMarkets =
+    n === 1
+      ? `Across 1 market in ${stateName}`
+      : `Dedup'd across ${n} markets in ${stateName}`;
   const rentGrowth = fmtRentGrowthPct(aggregates.stateRentGrowthT12);
   const rentDelta = fmtRentGrowthDelta(
     aggregates.stateRentGrowthDeltaVsNationalPp

@@ -17,7 +17,7 @@ import { MethodologyMobileJump } from "@/components/methodology/MethodologyMobil
 export const metadata: Metadata = {
   title: "Methodology",
   description:
-    "How Dwellsy IQ scores property managers (v0.6.3 + design v1.0): inclusion criteria, URU resolution, 7-cell operator classification, community visibility, tenancy with short-history caveat, rent trajectory, rent performance, marketing, composite ranking with star system, market rent growth aggregate, Lending Signals overview, and honest limitations.",
+    "How Dwellsy IQ scores property managers (v0.6.4 + design v1.0): inclusion criteria, URU resolution, 7-cell operator classification, community visibility, tenancy with short-history caveat, rent trajectory, rent performance, marketing, composite ranking with star system, market rent growth aggregate, canonical operator identity, Lending Signals overview, and honest limitations.",
 };
 
 async function loadVersion() {
@@ -43,7 +43,7 @@ async function loadVersion() {
         marketList,
       }
     : {
-        version: "v0.6.3",
+        version: "v0.6.4",
         designVersion,
         dataAsOf: "2026-05-19",
         marketCount,
@@ -894,6 +894,69 @@ export default async function MethodologyPage() {
                 acknowledging. The metric is shown for context and is{" "}
                 <strong>not used in ranking or composite scoring</strong>.
               </p>
+
+              {/* v0.6.4 Patch 1 — canonical operator identity sub-anchor.
+                  Lives at the end of §07 alongside the other aggregate /
+                  pool / compare sub-anchors (market rent growth + state
+                  aggregates + share trajectory) since cross-market dedup
+                  is the methodology piece that ties the per-market PM
+                  surface to the new cross-market operator profile. */}
+              <h3
+                id="canonical-operator-identity"
+                className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
+              >
+                Canonical operator identity.
+              </h3>
+              <p>
+                Operators that appear in multiple markets in our coverage
+                are identified via name normalization — stripping common
+                business entity suffixes (LLC, Inc., Ltd., Co., Corp.) and
+                trailing punctuation, lowercasing, and collapsing
+                whitespace. When two or more PM records match the same
+                normalized name across distinct markets, they&rsquo;re
+                grouped into a single canonical operator entity. This
+                enables cross-market operator profiles at{" "}
+                <span className="dq-mono">/operator/[canonical-slug]</span>{" "}
+                and dedup&rsquo;d state-level operator counts.
+              </p>
+              <p>
+                <strong>Conservative normalization.</strong> The
+                normalization is intentionally conservative — operating-
+                brand modifiers like &ldquo;Property Management&rdquo; or
+                &ldquo;Realty&rdquo; are not stripped, so distinct
+                operating brands under a common parent (e.g. &ldquo;JWB
+                Rental Homes&rdquo; vs &ldquo;JWB Real Estate
+                Capital&rdquo;) remain separate canonical entities. Manual
+                parent-subsidiary mapping for true roll-up acquirers is a
+                v0.7 candidate.
+              </p>
+              <p>
+                <strong>Manual review of false positives.</strong> Before
+                the auto-detected matches are baked into the seed, the
+                canonical mapping is reviewed for false positives — generic
+                names that happen to match across markets but represent
+                different operators (e.g. &ldquo;Trinity Management
+                Company&rdquo; in two markets refers to two unrelated
+                companies, manually excluded from canonical mapping).
+                Excluded operators stay as separate per-market entries.
+              </p>
+              <FormulaBlock label="Normalization steps">
+                <span className="text-navy">name</span> <Op>=</Op> lowercase →
+                trim → strip suffix (LLC / Inc / Ltd / Co / Corp) → strip
+                trailing punctuation → collapse internal whitespace
+              </FormulaBlock>
+              <p>
+                <strong>State-level count dedup.</strong> v0.6.3 Patch 5
+                state-level operator counts summed per-MSA values, which
+                double-counted multi-market operators. v0.6.4 dedups by
+                <span className="dq-mono">canonicalOperatorId</span> — a
+                multi-market institutional operator that appeared in
+                Nashville + Memphis + Clarksville counts once in
+                Tennessee&rsquo;s state-level total. The dedup applies to
+                the ranked cohort we carry full data for; unranked
+                operators in the broader ≥3-T12 universe don&rsquo;t
+                receive canonical mapping in v0.6.4.
+              </p>
             </SectionAnchor>
 
             {/* === SECTION 08 — MARKETING === */}
@@ -1416,6 +1479,44 @@ export default async function MethodologyPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  <tr>
+                    <td className="dq-mono whitespace-nowrap">v0.6.4</td>
+                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                      May 19, 2026
+                    </td>
+                    <td>
+                      Patch 1 — <strong>canonical operator identity</strong>.
+                      Same operator running across multiple markets is now
+                      grouped under a single canonical entity via name
+                      normalization (strip <span className="dq-mono">LLC</span>
+                      , <span className="dq-mono">Inc</span>,{" "}
+                      <span className="dq-mono">Ltd</span>,{" "}
+                      <span className="dq-mono">Co</span>,{" "}
+                      <span className="dq-mono">Corp</span> suffixes;
+                      lowercase, normalize whitespace). 22 multi-market
+                      canonical entities baked at seed time covering 60 of
+                      575 PM records — Invitation Homes (4 markets), Mission
+                      Rock Residential (5), First Keys Homes (5), and others.
+                      New <span className="dq-mono">/operator/[canonicalSlug]</span>{" "}
+                      cross-market profile route with aggregate footprint,
+                      modal classification (most-frequent 7-cell with
+                      lexicographic tiebreaker), and per-market scorecard
+                      cards. Search results group multi-market operators
+                      under a new <strong>Cross-market operators</strong>{" "}
+                      section above ranked single-market results.
+                      State-level operator counts deduplicate by canonical
+                      identity (a PM appearing in three in-state MSAs counts
+                      once on the state page). Scorecard Layer 1 gains a{" "}
+                      <strong>cross-market badge</strong> linking to the
+                      canonical profile when the operator is multi-market.
+                      Normalization is conservative — substantive tokens like{" "}
+                      <em>Property Management</em>, <em>Realty</em>, and{" "}
+                      <em>Group</em> are preserved; false-positive collisions
+                      were manually reviewed and excluded. See §07 sub-anchor
+                      on canonical operator identity. Cohort unchanged from
+                      v0.6.3.
+                    </td>
+                  </tr>
                   <tr>
                     <td className="dq-mono whitespace-nowrap">v0.6.3</td>
                     <td className="dq-mono whitespace-nowrap text-muted-foreground">

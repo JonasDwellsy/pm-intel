@@ -71,6 +71,44 @@ export function SearchResultRow({
   const nameSize = size === "comfortable" ? "text-[15px]" : "text-[14px]";
   const subSize = size === "comfortable" ? "text-[12.5px]" : "text-[12px]";
 
+  // v0.6.4 Patch 1 — canonical tier subtitle reads as a multi-market
+  // footprint ("Operates in Phoenix, Memphis, Nashville · 4 markets")
+  // rather than the single "City, ST" form ranked/tracked entries use.
+  // Build it inline so the JSX tree stays one element per tier branch.
+  const subtitle =
+    result.tier === "canonical"
+      ? (() => {
+          const cities = result.markets
+            .map((m) => m.marketCity)
+            .slice(0, 4)
+            .join(", ");
+          const overflow =
+            result.markets.length > 4 ? ` +${result.markets.length - 4}` : "";
+          return (
+            <>
+              Operates in {cities}
+              {overflow}
+              <span className="mx-1.5 text-muted-2">·</span>
+              <span className="dq-mono">{result.marketCount}</span> markets
+            </>
+          );
+        })()
+      : (
+          <>
+            {result.marketCity}, {result.stateCode}
+            {result.tier === "tracked" && (
+              <>
+                <span className="mx-1.5 text-muted-2">·</span>
+                <span className="dq-mono">{result.t12Listings}</span> listings
+                <span className="mx-1.5 text-muted-2">·</span>
+                <span className="text-[11px] uppercase tracking-[0.06em] text-muted-2">
+                  Tracked, no scorecard
+                </span>
+              </>
+            )}
+          </>
+        );
+
   return (
     <li>
       <Link
@@ -86,27 +124,22 @@ export function SearchResultRow({
       >
         <div className="min-w-0 flex-1">
           <p
-            className={`truncate font-medium leading-tight text-navy ${nameSize}`}
+            className={`flex items-center gap-2 truncate font-medium leading-tight text-navy ${nameSize}`}
           >
-            {result.name}
+            <span className="truncate">{result.name}</span>
+            {result.tier === "canonical" && (
+              <span className="shrink-0 rounded-full bg-navy/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-navy">
+                Cross-market
+              </span>
+            )}
           </p>
           <p
             className={`mt-0.5 truncate text-muted-foreground ${subSize}`}
           >
-            {result.marketCity}, {result.stateCode}
-            {result.tier === "tracked" && (
-              <>
-                <span className="mx-1.5 text-muted-2">·</span>
-                <span className="dq-mono">{result.t12Listings}</span> listings
-                <span className="mx-1.5 text-muted-2">·</span>
-                <span className="text-[11px] uppercase tracking-[0.06em] text-muted-2">
-                  Tracked, no scorecard
-                </span>
-              </>
-            )}
+            {subtitle}
           </p>
         </div>
-        {result.tier === "ranked" && (
+        {(result.tier === "ranked" || result.tier === "canonical") && (
           <StarChip
             goldCount={result.goldCount}
             silverCount={result.silverCount}

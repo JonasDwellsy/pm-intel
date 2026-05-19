@@ -146,7 +146,7 @@ export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
         <HomepageSectionHead
           eyebrow="Coverage"
           title="Seven markets currently live on Dwellsy IQ."
-          context="We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. Seven MSAs are live as of v0.6.3; additional MSAs roll out through 2026."
+          context="We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. Seven MSAs are live as of v0.6.4; additional MSAs roll out through 2026."
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {markets.map((m) => (

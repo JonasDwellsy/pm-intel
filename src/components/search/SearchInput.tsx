@@ -75,7 +75,7 @@ function SearchInputInner({
     [results]
   );
   const visibleResults = strictResults.length > 0 ? strictResults : [];
-  const { ranked, tracked } = useMemo(
+  const { canonical, ranked, tracked } = useMemo(
     () => partitionByTier(visibleResults),
     [visibleResults]
   );
@@ -221,6 +221,7 @@ function SearchInputInner({
           {state === "results" && (
             <ul className="max-h-[60vh] overflow-y-auto py-1">
               <ResultGroups
+                canonical={canonical}
                 ranked={ranked}
                 tracked={tracked}
                 allResults={visibleResults}
@@ -244,7 +245,7 @@ function SearchInputInner({
               <ul className="max-h-[40vh] overflow-y-auto border-t border-grid py-1">
                 {fuzzyResults.slice(0, 3).map((r, i) => (
                   <SearchResultRow
-                    key={`${r.tier}-${r.name}-${r.marketId}`}
+                    key={`${r.tier}-${r.name}-${i}`}
                     result={r}
                     active={false}
                     onSelect={() => setOpen(false)}
@@ -280,22 +281,48 @@ function SearchInputInner({
 // the flat result list (visibleResults), not per-group, so the keyboard
 // cursor traverses naturally across the boundary.
 function ResultGroups({
+  canonical,
   ranked,
   tracked,
   allResults,
   activeIndex,
   onSelect,
 }: {
+  canonical: Extract<PMSearchResult, { tier: "canonical" }>[];
   ranked: Extract<PMSearchResult, { tier: "ranked" }>[];
   tracked: Extract<PMSearchResult, { tier: "tracked" }>[];
   allResults: PMSearchResult[];
   activeIndex: number;
   onSelect: () => void;
 }) {
+  // v0.6.4 Patch 1 — canonical group renders first because cross-market
+  // operators are the most informative search hit; ranked + tracked
+  // follow.
   return (
     <>
+      {canonical.length > 0 && (
+        <>
+          <p className="px-4 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted-2">
+            Cross-market operators
+          </p>
+          {canonical.map((r) => {
+            const idx = allResults.indexOf(r);
+            return (
+              <SearchResultRow
+                key={`${r.tier}-${r.canonicalSlug}`}
+                result={r}
+                active={idx === activeIndex}
+                onSelect={onSelect}
+              />
+            );
+          })}
+        </>
+      )}
       {ranked.length > 0 && (
         <>
+          {canonical.length > 0 && (
+            <div className="my-1 border-t border-grid-soft" aria-hidden />
+          )}
           <p className="px-4 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted-2">
             Ranked operators
           </p>
@@ -314,7 +341,7 @@ function ResultGroups({
       )}
       {tracked.length > 0 && (
         <>
-          {ranked.length > 0 && (
+          {(canonical.length > 0 || ranked.length > 0) && (
             <div className="my-1 border-t border-grid-soft" aria-hidden />
           )}
           <p className="px-4 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted-2">

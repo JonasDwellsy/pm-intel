@@ -78,8 +78,35 @@ model PM {
   // label correction was a labeling fix, not a cohort change. Tracked so
   // future audits can attribute eligibility deltas to the correct cause.
   newlyEligibleInV063 Boolean? @default(false)
+  // v0.6.4 Patch 1 — canonical operator identity. Every PM carries a
+  // canonicalOperatorId; multi-market operators share the same id across
+  // markets (e.g. invitation-homes across 4 markets). Single-market
+  // operators get an id equal to their PM slug. canonicalOperatorName
+  // is the display form (e.g. "Invitation Homes"). The canonicalOperatorId
+  // is the foreign key into the CanonicalOperator table for multi-market
+  // entities; single-market ids have no matching row.
+  canonicalOperatorId   String?
+  canonicalOperatorName String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+// v0.6.4 Patch 1 — cross-market canonical operator entity.
+// One row per canonical entity with marketCount ≥ 2; single-market PMs
+// don't have a row here (their canonicalOperatorId equals their PM slug
+// and points nowhere in this table). marketIds + pmSlugs are stored as
+// JSON arrays in SQLite (Prisma Json maps to TEXT). aggregateStats is
+// a JSON blob keyed { totalT12Listings, totalT24T12Listings,
+// totalUrusT12 } per the v0.6.4 seed.
+model CanonicalOperator {
+  id              String   @id @default(cuid())
+  canonicalSlug   String   @unique
+  canonicalName   String
+  marketIds       String   // JSON array of market ids
+  pmSlugs         String   // JSON array of PM slugs
+  marketCount     Int
+  aggregateStats  String   // JSON blob with sum stats
+  createdAt       DateTime @default(now())
 }
 
 model Lead {

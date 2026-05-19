@@ -77,12 +77,29 @@ type InputMarket = {
   msaTotalListings?: number;
 };
 
+type InputCanonicalOperator = {
+  canonicalSlug: string;
+  canonicalName: string;
+  marketIds: string[];
+  pmSlugs: string[];
+  marketCount: number;
+  aggregateStats: {
+    totalT12Listings?: number;
+    totalT24T12Listings?: number;
+    totalUrusT12?: number;
+  };
+};
+
 type InputFile = {
   methodologyVersion: string;
   designVersion?: string;
   dataAsOf: string;
   markets: InputMarket[];
   pms: AnyRecord[];
+  // v0.6.4 Patch 1 — top-level map of canonical operator entities with
+  // marketCount ≥ 2. Keyed by canonicalSlug. Single-market PMs don't
+  // have an entry here (the PM's canonicalOperatorId equals its slug).
+  canonicalOperators?: Record<string, InputCanonicalOperator>;
 };
 
 const data = seedData as unknown as InputFile;
@@ -723,6 +740,12 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
     // asInt returns null when missing; consumers null-guard before pooling.
     t12ListingsCount: asInt(pm.t12ListingsCount) ?? undefined,
     t24t12ListingsCount: asInt(pm.t24t12ListingsCount) ?? undefined,
+    // v0.6.4 Patch 1 — canonical operator identity. Carried into the
+    // stored scorecardData blob so the IdentityHero cross-market badge
+    // + the operator profile page can look up the canonical entity
+    // without an extra DB round-trip on every scorecard render.
+    canonicalOperatorId: asString(pm.canonicalOperatorId) || undefined,
+    canonicalOperatorName: asString(pm.canonicalOperatorName) || undefined,
   };
 }
 
@@ -927,10 +950,41 @@ async function main() {
         // the merged JSON; the remaining 537 are undefined which we coerce
         // to false here). One PM is explicitly true.
         newlyEligibleInV063: Boolean(pm.newlyEligibleInV063),
+        // v0.6.4 Patch 1 — canonical operator identity. Set from seed
+        // JSON; v0.6.4 inputs always populate these. Pre-v0.6.4 reseeds
+        // would write null which the downstream renderers null-guard.
+        canonicalOperatorId: asString(pm.canonicalOperatorId) || null,
+        canonicalOperatorName: asString(pm.canonicalOperatorName) || null,
       },
     });
     pmCount += 1;
   }
+
+  // v0.6.4 Patch 1 — seed the CanonicalOperator table from the seed's
+  // canonicalOperators map (multi-market entities only — single-market
+  // PMs are tracked solely via the PM table's canonicalOperatorId
+  // column). marketIds + pmSlugs + aggregateStats stored as JSON
+  // strings (SQLite has no native JSON type).
+  await prisma.canonicalOperator.deleteMany();
+  let canonicalCount = 0;
+  for (const entity of Object.values(data.canonicalOperators ?? {})) {
+    if (!entity || typeof entity !== "object") continue;
+    if (!entity.canonicalSlug) continue;
+    await prisma.canonicalOperator.create({
+      data: {
+        canonicalSlug: entity.canonicalSlug,
+        canonicalName: entity.canonicalName ?? entity.canonicalSlug,
+        marketIds: JSON.stringify(entity.marketIds ?? []),
+        pmSlugs: JSON.stringify(entity.pmSlugs ?? []),
+        marketCount: entity.marketCount ?? (entity.marketIds?.length ?? 0),
+        aggregateStats: JSON.stringify(entity.aggregateStats ?? {}),
+      },
+    });
+    canonicalCount += 1;
+  }
+  console.log(
+    `  ✓ canonical operators: ${canonicalCount} multi-market entities seeded`
+  );
 
   const marketCount = await prisma.market.count();
   const dbPmCount = await prisma.pM.count();

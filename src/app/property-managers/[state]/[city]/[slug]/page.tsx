@@ -153,6 +153,20 @@ export default async function MarketChildPage({
     slug,
     msaPool
   );
+  // v0.6.4 Patch 1 — cross-market context for the Layer 1 badge. Look
+  // up the canonical entity only when this PM's canonicalOperatorId
+  // doesn't match its own slug (single-market PMs have id === slug per
+  // the v0.6.4 seed convention, so we can short-circuit the DB hit for
+  // 515 of 575 PMs). Returns null for single-market operators →
+  // IdentityHero renders no badge.
+  const crossMarketContext =
+    scorecard.canonicalOperatorId &&
+    scorecard.canonicalOperatorId !== scorecard.pm.slug
+      ? await prisma.canonicalOperator.findUnique({
+          where: { canonicalSlug: scorecard.canonicalOperatorId },
+          select: { canonicalSlug: true, marketCount: true },
+        })
+      : null;
   return (
     <ScorecardBody
       scorecard={scorecard}
@@ -162,6 +176,7 @@ export default async function MarketChildPage({
       peerComparisons={peerComparisons}
       lendingSignals={lendingSignals}
       cohortRentTrajectory={cohortRentTrajectory}
+      crossMarketOperator={crossMarketContext}
       shareTrajectory={shareTrajectory}
     />
   );
