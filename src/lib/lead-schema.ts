@@ -75,10 +75,36 @@ export function leadFormToApiPayload(form: LeadFormValues): LeadApiInput {
 }
 
 // --- Claim schema: simple shape used both by form and API.
+// v0.6.3 quick-wins — scorecard ClaimModal extends the field set with
+// optional contactRole + message for richer intent capture. Both are
+// optional so the existing /claim/[pmSlug] page ClaimForm (2 fields,
+// name + email) continues to validate cleanly. The /api/claims handler
+// logs the full payload when the optional fields are present; only the
+// name + email get persisted to prisma.claim (no schema change in this
+// PR — a v0.7 follow-up can add columns + a migration if claim review
+// needs them queryable).
+export const CLAIM_ROLES = [
+  "owner",
+  "manager",
+  "marketing",
+  "operations",
+  "other",
+] as const;
+export type ClaimRole = (typeof CLAIM_ROLES)[number];
+export const CLAIM_ROLE_LABELS: Record<ClaimRole, string> = {
+  owner: "Owner / Principal",
+  manager: "Property Manager",
+  marketing: "Marketing",
+  operations: "Operations",
+  other: "Other",
+};
+
 export const claimSchema = z.object({
   pmSlug: z.string().min(1),
   contactName: z.string().min(2, "Please enter your name"),
   contactEmail: z.string().email("Please enter a valid email"),
+  contactRole: z.enum(CLAIM_ROLES).optional(),
+  message: z.string().max(500, "Keep it under 500 characters").optional(),
 });
 
 export type ClaimInput = z.infer<typeof claimSchema>;
