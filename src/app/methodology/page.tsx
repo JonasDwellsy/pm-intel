@@ -797,6 +797,103 @@ export default async function MethodologyPage() {
                 changes: state membership is derived from each market's{" "}
                 <span className="dq-mono">state</span> field.
               </p>
+
+              {/* v0.6.3 Patch 6 — share-of-market trajectory sub-anchor.
+                  Lives in §07 alongside the market-rent-growth and
+                  state-aggregates sub-anchors because all three share the
+                  "aggregate / pool / compare" methodology shape. Patch 6
+                  itself is about listing-volume share rather than rent
+                  level, but the methodology-evolution discussion (why
+                  share-based and not absolute) reads naturally here. */}
+              <h3
+                id="share-trajectory"
+                className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
+              >
+                Share trajectory.
+              </h3>
+              <p>
+                <strong>Share trajectory</strong> shows how this
+                operator&rsquo;s share of ranked-cohort listing activity
+                has changed year-over-year. The metric is computed across
+                continuing operators with substantial presence in both
+                periods (at least 30 listings in each), normalized to
+                share of the cohort&rsquo;s total listings so that
+                proportional pipeline expansion across all operators
+                produces a 0% trajectory. Real movement indicates relative
+                gain or loss of market position.
+              </p>
+              <p>
+                <strong>Continuing cohort.</strong> Operators with at least
+                30 listings in BOTH the trailing 12 months (T12) AND the
+                prior 12-month window (T24-T12). Operators outside the
+                cohort fall into one of two display categories:{" "}
+                <em>Newly tracked</em> (≥30 listings T12 but &lt;30 in the
+                prior window) or <em>New operator</em> (zero prior
+                listings). These operators see a context pill in place of
+                a comparison number; their data is excluded from the
+                cohort median.
+              </p>
+              <FormulaBlock label="Formula · share trajectory">
+                <span className="text-navy">total_t12</span> <Op>=</Op> Σ
+                t12ListingsCount over continuing cohort
+                <br />
+                <span className="text-navy">total_t24t12</span> <Op>=</Op>{" "}
+                Σ t24t12ListingsCount over continuing cohort
+                <br />
+                <span className="text-navy">share_t12</span> <Op>=</Op>{" "}
+                op.t12ListingsCount <Op>/</Op> total_t12
+                <br />
+                <span className="text-navy">share_t24t12</span> <Op>=</Op>{" "}
+                op.t24t12ListingsCount <Op>/</Op> total_t24t12
+                <br />
+                <span className="text-navy">shareTrajectoryYoY</span>{" "}
+                <Op>=</Op> (share_t12 − share_t24t12) <Op>/</Op> share_t24t12
+              </FormulaBlock>
+              <p>
+                <strong>Why share rather than absolute?</strong> An earlier
+                version of the metric computed absolute year-over-year
+                listing-count change. A pressure test surfaced three biases
+                that made the absolute version unusable: pipeline-coverage
+                expansion (every operator appeared to grow even if they did
+                nothing), thin-baseline noise (operators with 1 listing in
+                the prior period produced absurd growth percentages), and
+                survivor bias (operators that shrank to zero between
+                periods were systematically excluded from the median). The
+                share-based reframe addresses the first two biases directly
+                and partially addresses the third. The pressure-test
+                results, post-revision, show plausible directional signal
+                consistent with known market dynamics — Phoenix at +10.07%
+                (established operators consolidating), Memphis at −9.89%
+                (SFR aggregators entering aggressively), Clarksville at
+                −15.81% (heaviest fragmentation in the v0.6.3 footprint).
+              </p>
+              <p>
+                <strong>Why no star treatment?</strong> Share trajectory is
+                a <em>context</em> metric, not a performance one. A higher
+                share isn&rsquo;t reliably better: longer tenancies →
+                fewer relistings → lower share (good operationally, lower
+                share); improving operationally drops the share via the
+                same mechanism. M&amp;A activity, portfolio composition
+                shifts, and new entrants all move share without reflecting
+                operator health. Star treatment requires a metric where
+                &ldquo;higher = better&rdquo; is reliably true; share
+                trajectory fails that test. The scorecard shows the metric
+                with cohort + national context and methodology disclosure
+                so readers can form their own judgment.
+              </p>
+              <p>
+                <strong>Residual caveats.</strong> Coverage bias is only
+                neutralized if pipeline improvements affected all
+                continuing operators uniformly — non-uniform improvement
+                (e.g., a new ingestion source biased toward aggregators)
+                would still distort. Survivor bias persists for operators
+                that shrank to zero between periods; v0.7 backlog includes
+                a &ldquo;departed&rdquo; classification to surface them.
+                Listing-level re-listing methodology affects numerator and
+                denominator alike but is a counting artifact worth
+                acknowledging. The metric is shown for context and is{" "}
+                <strong>not used in ranking or composite scoring</strong>.
+              </p>
             </SectionAnchor>
 
             {/* === SECTION 08 — MARKETING === */}
@@ -1349,6 +1446,18 @@ export default async function MethodologyPage() {
                       <span className="dq-mono">/property-managers/[state]</span>{" "}
                       with operator-weighted state aggregates pooled across
                       in-state MSAs (see §07 sub-anchor on state aggregates).
+                      Patch 6 added{" "}
+                      <strong>share-of-market trajectory</strong> to scorecard
+                      Layer 5 — operator&rsquo;s share of ranked-cohort listing
+                      activity year-over-year, computed across continuing
+                      operators with ≥30 listings in both T12 and the prior
+                      T24-T12 window. An initial absolute-trajectory version
+                      was rejected after a pressure test surfaced pipeline-
+                      coverage, thin-baseline, and survivor biases; the
+                      revised share-based metric neutralizes the first two
+                      and partially addresses the third. Surfaced as a context
+                      signal only — no star treatment, not used in ranking.
+                      See §07 sub-anchor on share trajectory.
                       Cohort unchanged from v0.6.2.
                     </td>
                   </tr>
