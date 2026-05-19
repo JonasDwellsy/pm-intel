@@ -20,11 +20,16 @@ import Fuse from "fuse.js";
 import type { IFuseOptions } from "fuse.js";
 import indexData from "@/data/search_index.json";
 
-export type PMSearchTier = "ranked" | "tracked";
+export type PMSearchTier = "ranked" | "tracked" | "canonical";
 
 // Result row shape — discriminated on `tier` so the renderer can branch
-// without re-narrowing every field. ranked carries the scorecard slug +
-// star counts; tracked carries only the market routing + listing count.
+// without re-narrowing every field.
+//   ranked    — single-market operator with a scorecard. Click → scorecard.
+//   tracked   — universe operator below ranking threshold. Click → market
+//               landing with ?highlight=.
+//   canonical — v0.6.4 Patch 1: multi-market operator. Click → operator
+//               profile at /operator/<canonicalSlug>. Star counts are
+//               aggregated sums across the operator's market-instances.
 export type PMSearchResult =
   | {
       tier: "ranked";
@@ -57,6 +62,24 @@ export type PMSearchResult =
       topSubmarkets: Array<{ slug: string; count: number }>;
       href: string;
       score: number;
+    }
+  | {
+      tier: "canonical";
+      name: string;
+      canonicalSlug: string;
+      marketCount: number;
+      /** Per-market footprint for the "Operates in Phoenix, Memphis, …"
+       *  subtitle on the search result row. */
+      markets: Array<{ marketCity: string; stateCode: string }>;
+      /** Aggregated star counts across the operator's market-instances. */
+      goldCount: number;
+      silverCount: number;
+      /** Pre-computed sums from the seed's canonicalOperators map. */
+      totalT12Listings: number;
+      totalT24T12Listings: number;
+      totalUrusT12: number;
+      href: string;
+      score: number;
     };
 
 interface IndexFile {
@@ -84,14 +107,29 @@ interface IndexFile {
     t12Listings: number;
     topSubmarkets: Array<{ slug: string; count: number }>;
   }>;
+  // v0.6.4 Patch 1 — multi-market canonical operators. Optional for
+  // back-compat with pre-v0.6.4 index files; runs through the same
+  // Fuse corpus as the other tiers, routing to /operator/<slug>.
+  canonical?: Array<{
+    tier: "canonical";
+    name: string;
+    canonicalSlug: string;
+    marketCount: number;
+    markets: Array<{ marketCity: string; stateCode: string }>;
+    goldCount: number;
+    silverCount: number;
+    totalT12Listings: number;
+    totalT24T12Listings: number;
+    totalUrusT12: number;
+  }>;
 }
 
 const data = indexData as IndexFile;
 
-// Combined corpus — both tiers in one Fuse instance so a single query
-// produces a unified ranked list, then we partition by tier for the
-// grouped display. Each entry carries a precomputed href to keep the
-// renderer dumb.
+// Combined corpus — all three tiers in one Fuse instance so a single
+// query produces a unified ranked list, then we partition by tier for
+// the grouped display. Each entry carries a precomputed href to keep
+// the renderer dumb.
 type IndexedEntry = (PMSearchResult extends infer R
   ? Omit<R extends { score: number } ? R : never, "score">
   : never);
@@ -100,21 +138,28 @@ function buildHref(
   entry:
     | { tier: "ranked"; stateSlug: string; citySlug: string; slug: string }
     | { tier: "tracked"; stateSlug: string; citySlug: string; name: string }
+    | { tier: "canonical"; canonicalSlug: string }
 ): string {
   if (entry.tier === "ranked") {
     return `/property-managers/${entry.stateSlug}/${entry.citySlug}/${entry.slug}`;
+  }
+  if (entry.tier === "canonical") {
+    return `/operator/${entry.canonicalSlug}`;
   }
   // Tier 2 → market landing with forward-compat highlight param.
   return `/property-managers/${entry.stateSlug}/${entry.citySlug}?highlight=${encodeURIComponent(entry.name)}`;
 }
 
-// Build the indexed corpus once at module load. Both tiers slot into one
-// array; the tier field discriminates downstream. Module-level singleton
-// so subsequent imports share the same Fuse instance — important on
-// client where SearchInput + SearchModal both mount and would otherwise
-// reindex the corpus twice.
+// Build the indexed corpus once at module load. All three tiers slot
+// into one array; the tier field discriminates downstream. Module-level
+// singleton so subsequent imports share the same Fuse instance —
+// important on client where SearchInput + SearchModal both mount and
+// would otherwise reindex the corpus twice.
 const corpus: IndexedEntry[] = [];
 for (const e of data.ranked) {
+  corpus.push({ ...e, href: buildHref(e) } as IndexedEntry);
+}
+for (const e of data.canonical ?? []) {
   corpus.push({ ...e, href: buildHref(e) } as IndexedEntry);
 }
 for (const e of data.tracked) {
@@ -158,10 +203,16 @@ export function getAllSearchEntries(): IndexedEntry[] {
 }
 
 /** Aggregate counts for the not-found-state copy and analytics. */
-export function getSearchCounts(): { ranked: number; tracked: number; total: number } {
+export function getSearchCounts(): {
+  ranked: number;
+  tracked: number;
+  canonical: number;
+  total: number;
+} {
   return {
     ranked: data.ranked.length,
     tracked: data.tracked.length,
+    canonical: data.canonical?.length ?? 0,
     total: corpus.length,
   };
 }
@@ -185,19 +236,23 @@ export function searchPMs(query: string, limit = 10): PMSearchResult[] {
 /**
  * Splits a result list by tier so the renderer can group the dropdown.
  * Stable order preserved within each tier (Fuse's ranking carries
- * through).
+ * through). v0.6.4 Patch 1 adds the canonical bucket; it renders above
+ * ranked + tracked so multi-market operators are visually elevated.
  */
 export function partitionByTier(results: PMSearchResult[]): {
+  canonical: Extract<PMSearchResult, { tier: "canonical" }>[];
   ranked: Extract<PMSearchResult, { tier: "ranked" }>[];
   tracked: Extract<PMSearchResult, { tier: "tracked" }>[];
 } {
+  const canonical: Extract<PMSearchResult, { tier: "canonical" }>[] = [];
   const ranked: Extract<PMSearchResult, { tier: "ranked" }>[] = [];
   const tracked: Extract<PMSearchResult, { tier: "tracked" }>[] = [];
   for (const r of results) {
-    if (r.tier === "ranked") ranked.push(r);
+    if (r.tier === "canonical") canonical.push(r);
+    else if (r.tier === "ranked") ranked.push(r);
     else tracked.push(r);
   }
-  return { ranked, tracked };
+  return { canonical, ranked, tracked };
 }
 
 /**
