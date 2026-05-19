@@ -744,6 +744,59 @@ export default async function MethodologyPage() {
                 submarket filter the headline tile retains the MSA-wide
                 value with an explicit scope annotation.
               </p>
+
+              {/* v0.6.3 Patch 5 — state-level aggregates sub-anchor. Sits
+                  inside §07 because state-level rent growth is the same
+                  per-operator pmYoyChange aggregated across in-state MSAs
+                  rather than within an MSA. State-level median DOM has the
+                  same shape. Documented separately from the market-level
+                  aggregate above so the multi-market double-count caveat
+                  is hard to miss. */}
+              <h3
+                id="state-aggregates"
+                className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
+              >
+                State-level aggregates.
+              </h3>
+              <p>
+                State-level aggregates pool ranked operators across all MSAs
+                in a state and compute medians across the pooled set. Each
+                ranked operator contributes one value to the state median,
+                regardless of which MSA they appear in. Operators who appear
+                in multiple MSAs (e.g., institutional operators with
+                footprint across several markets) are currently counted{" "}
+                <strong>once per MSA they appear in</strong>. Cross-market
+                operator-identity dedup is on the v0.7 roadmap. State-level
+                active operator counts are similarly a raw sum across MSAs
+                and may double-count multi-market operators.
+              </p>
+              <p>
+                The state landing pages at{" "}
+                <span className="dq-mono">/property-managers/[state]</span>{" "}
+                surface four operator-weighted tiles —{" "}
+                <strong>active operators</strong> (sum across MSAs),{" "}
+                <strong>eligible for ranking</strong> (sum across MSAs),{" "}
+                <strong>median DOM T12</strong> (operator-weighted median
+                across the pooled in-state ranked operators), and{" "}
+                <strong>rent growth T12</strong> (operator-weighted median
+                of <span className="dq-mono">pmYoyChange</span> across the
+                same pool). Median DOM and rent growth carry a "vs national"
+                benchmark line where the national reference is the
+                operator-weighted median across every ranked operator in
+                every covered MSA — the same single national number that
+                Patch 3 already computes for market-level rent growth, and
+                its DOM analogue computed at runtime.
+              </p>
+              <p>
+                State pages are an additive feature on top of v0.6.3 base —
+                no methodology version bump. Single-MSA states (Florida,
+                Arizona in the v0.6.3 footprint) get the same UX as
+                multi-MSA states; the state page renders one MSA card. As
+                coverage expands and adds new MSAs in already-covered
+                states, the state page auto-updates without any data-layer
+                changes: state membership is derived from each market's{" "}
+                <span className="dq-mono">state</span> field.
+              </p>
             </SectionAnchor>
 
             {/* === SECTION 08 — MARKETING === */}
@@ -1285,7 +1338,18 @@ export default async function MethodologyPage() {
                       annotation because submarket-level computation requires
                       listing-level geography work scheduled for v0.7. Subheader
                       strip beneath the H1 removed (data duplicated by tiles
-                      and footer). Cohort unchanged from v0.6.2.
+                      and footer). Patch 4 added{" "}
+                      <strong>star-count list ordering</strong> (gold count
+                      desc, silver count desc, composite rank asc) with{" "}
+                      <span className="dq-mono">★N ☆M</span> chips on each
+                      row; the Operator landscape grid migrated to the v0.6.2
+                      7-cell taxonomy with median rent-vs-comp as a third
+                      per-cell metric. Patch 5 added{" "}
+                      <strong>state landing pages</strong> at{" "}
+                      <span className="dq-mono">/property-managers/[state]</span>{" "}
+                      with operator-weighted state aggregates pooled across
+                      in-state MSAs (see §07 sub-anchor on state aggregates).
+                      Cohort unchanged from v0.6.2.
                     </td>
                   </tr>
                   <tr>
