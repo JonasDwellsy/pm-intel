@@ -51,6 +51,10 @@ export type PMSearchResult =
       stateSlug: string;
       citySlug: string;
       t12Listings: number;
+      /** Top 3 submarkets by listing count (descending). Surfaced on the
+       *  market-landing highlight banner when a Tier 2 search result
+       *  click routes through ?highlight=<name>. */
+      topSubmarkets: Array<{ slug: string; count: number }>;
       href: string;
       score: number;
     };
@@ -78,6 +82,7 @@ interface IndexFile {
     stateSlug: string;
     citySlug: string;
     t12Listings: number;
+    topSubmarkets: Array<{ slug: string; count: number }>;
   }>;
 }
 
@@ -193,4 +198,24 @@ export function partitionByTier(results: PMSearchResult[]): {
     else tracked.push(r);
   }
   return { ranked, tracked };
+}
+
+/**
+ * Direct lookup for the market-landing ?highlight= banner. Walks the
+ * Tier 2 entries for a single market and returns the first whose name
+ * matches case-insensitively. The search link writes the operator's
+ * raw name into the query, so an exact (case-folded) match is the
+ * expected path; this isn't a fuzzy lookup. Returns null when the
+ * operator isn't found — caller renders no banner (silent fail).
+ */
+export function findTrackedInMarket(
+  marketId: string,
+  operatorName: string
+): IndexFile["tracked"][number] | null {
+  const target = operatorName.trim().toLowerCase();
+  for (const entry of data.tracked) {
+    if (entry.marketId !== marketId) continue;
+    if (entry.name.toLowerCase() === target) return entry;
+  }
+  return null;
 }

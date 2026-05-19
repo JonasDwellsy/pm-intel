@@ -62,6 +62,11 @@ interface OutputTrackedEntry {
   stateSlug: string;
   citySlug: string;
   t12Listings: number;
+  // Top 3 submarkets by listing count (descending) for the "highlight"
+  // banner on the market landing page. Slugs match the submarket-filter
+  // slug shape (lowercase, hyphenated). Display name derives by title-
+  // casing the slug at render time.
+  topSubmarkets: Array<{ slug: string; count: number }>;
 }
 
 type SearchIndex = {
@@ -174,6 +179,13 @@ for (const m of MARKETS) {
     // market — operator has a scorecard; Tier 1 entry is the canonical
     // surface for them.
     if (rankedNames.has(op.name.toLowerCase().trim())) continue;
+    // Extract top 3 submarkets by listing count for the banner context
+    // line ("Active in Mesa, Scottsdale, Chandler"). Sort descending.
+    const subEntries = Object.entries(op.t12ListingsBySubmarket ?? {})
+      .map(([slug, count]) => ({ slug, count }))
+      .filter((s) => s.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
     tracked.push({
       tier: "tracked",
       name: op.name,
@@ -183,6 +195,7 @@ for (const m of MARKETS) {
       stateSlug: m.stateSlug,
       citySlug: m.citySlug,
       t12Listings: op.t12Listings,
+      topSubmarkets: subEntries,
     });
     keptForMarket++;
   }
