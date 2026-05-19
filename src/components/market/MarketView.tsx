@@ -144,6 +144,7 @@ export function MarketView({
             market={market}
             methodologyVersion={methodologyVersion}
             dataAsOf={dataAsOf}
+            submarket={submarket}
           />
         </div>
       </section>
@@ -185,6 +186,7 @@ export function MarketView({
               marketId={market.id}
               active={activeSegment}
               countsBySegment={countsBySegment}
+              submarketSlug={submarket?.slug ?? null}
             />
             <div className="inline-flex h-8 items-center gap-2 rounded-full border border-grid bg-white px-3.5 text-[13px] text-muted-foreground">
               Sorted by: <span className="font-medium text-navy">Within-quadrant rank</span>
@@ -192,28 +194,30 @@ export function MarketView({
             </div>
           </div>
 
-          {/* Submarket filter chip — visible only when ?submarket= produced a
-              valid match. Shows the display name + a "Clear filter" link that
-              drops the query parameter and restores the unfiltered list. */}
+          {/* Submarket reinforcement strip — visible only when ?submarket=
+              produced a valid match. The hero now carries the dominant
+              filter framing (H1, subtitle, Market Snapshot, intro all swap
+              to the submarket); this strip is a thin breadcrumb-style
+              reinforcement above the ranked list with the "Clear filter"
+              affordance close to where the user is looking. The clear link
+              preserves the active segment (drops only the submarket query)
+              so e.g. clearing from "Multifamily Institutional in Mesa"
+              lands on "Multifamily Institutional in Phoenix" rather than
+              wiping the segment filter too. */}
           {submarket && (
-            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-grid bg-surface-soft px-4 py-2.5 text-[13px]">
+            <div className="mb-4 flex flex-wrap items-center gap-2 text-[12.5px] text-muted-foreground">
               <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-2">
-                Filtered by submarket
-              </span>
-              <span className="font-semibold text-navy">
-                {submarket.displayName}
+                Submarket filter
               </span>
               <span className="text-muted-2">·</span>
-              <span className="dq-tnum text-muted-foreground">
-                {submarket.matchedOperatorCount} operator
-                {submarket.matchedOperatorCount === 1 ? "" : "s"} with footprint
-                here
+              <span className="font-medium text-navy">
+                {submarket.displayName}
               </span>
               <Link
-                href={marketHref}
-                className="ml-auto inline-flex items-center gap-1 text-[13px] font-medium text-teal hover:text-teal-700"
+                href={activeSegment ? `${marketHref}/${activeSegment}` : marketHref}
+                className="ml-2 inline-flex items-center gap-1 font-medium text-teal hover:text-teal-700"
               >
-                <span aria-hidden>×</span> Clear filter
+                <span aria-hidden>×</span> Clear
               </Link>
             </div>
           )}

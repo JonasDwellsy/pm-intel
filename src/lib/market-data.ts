@@ -110,42 +110,22 @@ export async function loadMarketView({
     quadrant7CellSummary,
   };
 
-  const countsBySegment: Partial<Record<QuadrantSegment, number>> = {};
-  let hybridCount = 0;
-  for (const pm of allPms) {
-    if (pm.hybrid) {
-      hybridCount += 1;
-      countsBySegment.hybrid = (countsBySegment.hybrid ?? 0) + 1;
-    }
-    const seg = quadrantToSegment(pm.quadrant);
-    if (seg) countsBySegment[seg] = (countsBySegment[seg] ?? 0) + 1;
-  }
-
-  let filteredPms = allPms;
-  if (segment === "hybrid") {
-    filteredPms = allPms.filter((p) => p.hybrid);
-  } else if (segment !== null) {
-    const targetQuadrant = segmentToQuadrant(segment);
-    filteredPms = allPms.filter((p) => p.quadrant === targetQuadrant);
-  }
-
-  // Submarket filter — narrows the segment-filtered set to operators whose
-  // top-cities slugs include the requested submarket. Applied AFTER segment
-  // filtering so the two filters compose naturally (e.g. "all SFR
-  // Independent operators in Hendersonville"). Display-name lookup walks the
-  // matched PMs' raw topCities entries to find the first non-slugified form
-  // matching the requested slug — that's the label we show in the filter
-  // chip ("Hendersonville", not "hendersonville").
+  // Submarket filter — applied to the universe BEFORE the segment filter,
+  // so that countsBySegment, the FilterChips, the page chrome (H1, subtitle,
+  // Market Snapshot, intro paragraph), and the "ranked operators" list all
+  // reflect the filtered universe coherently. Without this ordering the
+  // operator-type tabs would show MSA-wide counts under a submarket filter,
+  // which made the filter feel like a footnote rather than a dominant page
+  // state. Display-name lookup walks the matched PMs' raw topCityNames
+  // (index-aligned with topCitySlugs in toPmListItem) to recover the
+  // human-readable label for the chip ("Hendersonville" not "hendersonville").
   let submarketState: LoadedMarket["submarket"] = null;
+  let universe = allPms;
   if (submarketParam) {
     const filterSlug = submarketParam;
-    const submarketMatches = filteredPms.filter((p) =>
+    const submarketMatches = allPms.filter((p) =>
       (p.topCitySlugs ?? []).includes(filterSlug)
     );
-    // Walk a small sample to recover the human-readable display name. The
-    // scorecardData JSON is already parsed in toPmListItem upstream, but
-    // we'd need to re-parse here; instead derive from the slug by title-
-    // casing as a defensive fallback if no PMs matched (empty-state path).
     let displayName = deriveSubmarketDisplayName(submarketMatches, filterSlug);
     if (!displayName) {
       displayName = filterSlug
@@ -158,7 +138,38 @@ export async function loadMarketView({
       displayName,
       matchedOperatorCount: submarketMatches.length,
     };
-    filteredPms = submarketMatches;
+    universe = submarketMatches;
+  }
+
+  // Per-segment counts are derived from the submarket-aware universe so the
+  // FilterChips display the right cohort sizes ("Multifamily Institutional 6"
+  // vs the MSA-wide "Multifamily Institutional 26" when no filter is active).
+  //
+  // Hybrid PMs in v0.6.2 always carry quadrant === "Hybrid", so the segment
+  // branch below already covers them. The explicit pm.hybrid guard layered
+  // an extra increment on top, double-counting hybrids (20 vs 10 in Phoenix)
+  // and inflating the "All operators" chip total. The if-not-hybrid-segment
+  // fallback preserves the defensive intent for any legacy row where the
+  // hybrid flag is true but the quadrant isn't "Hybrid".
+  const countsBySegment: Partial<Record<QuadrantSegment, number>> = {};
+  let hybridCount = 0;
+  for (const pm of universe) {
+    const seg = quadrantToSegment(pm.quadrant);
+    if (seg) countsBySegment[seg] = (countsBySegment[seg] ?? 0) + 1;
+    if (pm.hybrid) {
+      hybridCount += 1;
+      if (seg !== "hybrid") {
+        countsBySegment.hybrid = (countsBySegment.hybrid ?? 0) + 1;
+      }
+    }
+  }
+
+  let filteredPms = universe;
+  if (segment === "hybrid") {
+    filteredPms = universe.filter((p) => p.hybrid);
+  } else if (segment !== null) {
+    const targetQuadrant = segmentToQuadrant(segment);
+    filteredPms = universe.filter((p) => p.quadrant === targetQuadrant);
   }
 
   // Pool size precedes the slice-to-10 so the "Showing X of Y" line reflects
