@@ -1,13 +1,16 @@
 // Prisma schema for the Dwellsy IQ PM Intel Platform.
-// Local-first: SQLite for dev, swap `provider` to "postgresql" at deploy.
+// Postgres (Neon) — pooled connection for app queries, direct connection for
+// migrations. Both URLs auto-injected by the Vercel ↔ Neon marketplace
+// integration. Local dev pulls them via `vercel env pull .env.local`.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 model Market {
@@ -94,10 +97,10 @@ model PM {
 // v0.6.4 Patch 1 — cross-market canonical operator entity.
 // One row per canonical entity with marketCount ≥ 2; single-market PMs
 // don't have a row here (their canonicalOperatorId equals their PM slug
-// and points nowhere in this table). marketIds + pmSlugs are stored as
-// JSON arrays in SQLite (Prisma Json maps to TEXT). aggregateStats is
-// a JSON blob keyed { totalT12Listings, totalT24T12Listings,
-// totalUrusT12 } per the v0.6.4 seed.
+// and points nowhere in this table). marketIds, pmSlugs, and
+// aggregateStats are JSON-encoded strings (kept as text columns to match
+// the existing JSON-as-String pattern used for scorecardData on PM and
+// the quadrant summaries on Market — application code parses on read).
 model CanonicalOperator {
   id              String   @id @default(cuid())
   canonicalSlug   String   @unique
