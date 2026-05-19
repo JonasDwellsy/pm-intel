@@ -63,51 +63,91 @@ export function submarketSlug(name: string): string {
 }
 
 // --- Quadrant segment <-> DB quadrant string ---
+//
+// v0.6.3 polish: the FilterChips moved from 5-cell (legacy v0.6.1 4 quadrants
+// + Hybrid) to 7-cell (v0.6.2 canonical taxonomy + Hybrid). QUADRANT_SEGMENTS
+// is the canonical 7-cell list and is the source of truth for sitemap +
+// route resolution + chip rendering. Each slug maps to its canonical
+// quadrant7Cell string from src/lib/types.ts Quadrant7CellKey; the
+// loadMarketView segment filter compares against pm.quadrant7Cell.
 
 export const QUADRANT_SEGMENTS = [
-  "multifamily-institutional",
-  "multifamily-independent",
-  "scattered-institutional",
-  "scattered-independent",
+  "sfr-independent",
+  "sfr-institutional",
+  "small-mfbtr-independent",
+  "small-mfbtr-institutional",
+  "large-mfbtr-independent",
+  "large-mfbtr-institutional",
   "hybrid",
 ] as const;
 
 export type QuadrantSegment = (typeof QUADRANT_SEGMENTS)[number];
 
-const SEGMENT_TO_QUADRANT: Record<QuadrantSegment, string | null> = {
-  "multifamily-institutional": "MF/BTR / Institutional",
-  "multifamily-independent": "MF/BTR / Independent",
-  "scattered-institutional": "Scattered / Institutional",
-  "scattered-independent": "Scattered / Independent",
-  // Hybrid is its own quadrant value in v0.6.1 (not a boolean flag). The
-  // route filter still uses pm.hybrid OR pm.quadrant === "Hybrid".
+// Slug → canonical quadrant7Cell string (matches the seed's
+// pm.quadrant7Cell values and the QUADRANT7_COLORS labels).
+const SEGMENT_TO_QUADRANT7CELL: Record<QuadrantSegment, string> = {
+  "sfr-independent": "SFR Independent",
+  "sfr-institutional": "SFR Institutional",
+  "small-mfbtr-independent": "Small MF/BTR Independent",
+  "small-mfbtr-institutional": "Small MF/BTR Institutional",
+  "large-mfbtr-independent": "Large MF/BTR Independent",
+  "large-mfbtr-institutional": "Large MF/BTR Institutional",
   hybrid: "Hybrid",
 };
 
 const SEGMENT_LABELS: Record<QuadrantSegment, string> = {
-  "multifamily-institutional": "Multifamily · Institutional",
-  "multifamily-independent": "Multifamily · Independent",
-  "scattered-institutional": "Scattered · Institutional",
-  "scattered-independent": "Scattered · Independent",
-  hybrid: "Hybrid operators",
+  "sfr-independent": "SFR · Independent",
+  "sfr-institutional": "SFR · Institutional",
+  "small-mfbtr-independent": "Small MF/BTR · Independent",
+  "small-mfbtr-institutional": "Small MF/BTR · Institutional",
+  "large-mfbtr-independent": "Large MF/BTR · Independent",
+  "large-mfbtr-institutional": "Large MF/BTR · Institutional",
+  hybrid: "Hybrid",
 };
 
 export function isQuadrantSegment(s: string): s is QuadrantSegment {
   return (QUADRANT_SEGMENTS as readonly string[]).includes(s);
 }
 
-export function segmentToQuadrant(segment: QuadrantSegment): string | null {
-  return SEGMENT_TO_QUADRANT[segment];
+// Returns the canonical quadrant7Cell string (e.g. "Large MF/BTR
+// Independent") the segment URL slug refers to. Consumer in loadMarketView
+// compares this against pm.quadrant7Cell.
+export function segmentToQuadrant7Cell(segment: QuadrantSegment): string {
+  return SEGMENT_TO_QUADRANT7CELL[segment];
 }
+
+// Back-compat shim. The previous API name was `segmentToQuadrant` and
+// returned the v0.6.1 5-cell label. Existing callers — loadMarketView's
+// segment filter — now receive the 7-cell label and compare against the
+// canonical quadrant7Cell on each PMListItem. Kept as an alias to avoid a
+// rename churn cycle through the call sites.
+export const segmentToQuadrant = segmentToQuadrant7Cell;
 
 export function segmentLabel(segment: QuadrantSegment): string {
   return SEGMENT_LABELS[segment];
 }
 
-// Reverse: a PM's quadrant string -> the segment URL slug.
+// Reverse: a PM's quadrant7Cell string → the segment URL slug.
+// Hybrid PMs in v0.6.2+ carry quadrant7Cell="Hybrid"; SFR/MF/BTR PMs
+// carry the full 7-cell label. Falls back to defensively matching v0.6.1
+// 5-cell labels onto their nearest 7-cell equivalent (Large MF/BTR for any
+// "MF/BTR /" string) so any legacy DB rows still resolve.
 export function quadrantToSegment(quadrant: string): QuadrantSegment | null {
   for (const seg of QUADRANT_SEGMENTS) {
-    if (SEGMENT_TO_QUADRANT[seg] === quadrant) return seg;
+    if (SEGMENT_TO_QUADRANT7CELL[seg] === quadrant) return seg;
+  }
+  // Defensive fallback for v0.6.1 5-cell labels.
+  const lower = quadrant.toLowerCase();
+  if (lower.startsWith("hybrid")) return "hybrid";
+  if (lower.includes("mf") || lower.includes("btr")) {
+    return lower.includes("institutional")
+      ? "large-mfbtr-institutional"
+      : "large-mfbtr-independent";
+  }
+  if (lower.includes("scattered")) {
+    return lower.includes("institutional")
+      ? "sfr-institutional"
+      : "sfr-independent";
   }
   return null;
 }
@@ -139,6 +179,21 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     : trailingPctMatch
       ? Number.parseInt(trailingPctMatch[1], 10)
       : null;
+  // v0.6.3 Patch 4 — gold/silver star counts across this operator's Layer 3
+  // per-metric scoring. The five star fields walked here are the ones the
+  // scorecard pages render as per-metric stars; composite star is a roll-up
+  // and is intentionally excluded so the counts can't be inflated by it.
+  // communityVisibility is null for SFR/Hybrid operators (scope gate failed
+  // upstream), so its star is treated as absent rather than zero.
+  const metricStars: Array<"gold" | "silver" | null | undefined> = [
+    sc.performance?.domStar,
+    sc.rentPerformance?.star,
+    sc.marketing?.star,
+    sc.tenancy?.star,
+    sc.communityVisibility?.star,
+  ];
+  const goldCount = metricStars.filter((s) => s === "gold").length;
+  const silverCount = metricStars.filter((s) => s === "silver").length;
   return {
     slug: row.slug,
     name: row.name,
@@ -188,5 +243,8 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     ),
     topCityNames: (sc.geographicCoverage.topCities ?? []).map((c) => c.name),
     topCityPcts: (sc.geographicCoverage.topCities ?? []).map((c) => c.pct),
+    // v0.6.3 Patch 4 — derived star counts; drive both ★N ☆M chip + sort.
+    goldCount,
+    silverCount,
   };
 }

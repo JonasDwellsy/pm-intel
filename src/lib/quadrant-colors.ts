@@ -8,7 +8,13 @@
 // quadrant reads at a glance — MF/Inst green, MF/Indep magenta, Scattered/Inst
 // teal, Scattered/Indep orange, Hybrid slate fallback.
 
-import type { QuadrantSegment } from "@/lib/slugify";
+// v0.6.3 polish — the operator badge + coverage-map dot colors still key
+// off the v0.6.1 5-cell quadrant string (which every PM carries via
+// pm.quadrant). The MARKET-LEVEL QuadrantSummaryCard, however, moved to
+// the v0.6.2 7-cell taxonomy and renders via quadrant7-colors.ts. The
+// SEGMENT_TO_COLOR / colorKeyToSegment plumbing that used to bridge color
+// keys → URL segment slugs was removed because URL segments are now 7-cell
+// and the new QuadrantSummaryCard handles its own segment lookup.
 
 export type QuadrantColorKey =
   | "mfbtr-inst"
@@ -54,29 +60,20 @@ export const QUADRANT_COLORS: Record<QuadrantColorKey, QuadrantColor> = {
   },
 };
 
-const SEGMENT_TO_COLOR: Record<QuadrantSegment, QuadrantColorKey> = {
-  "multifamily-institutional": "mfbtr-inst",
-  "multifamily-independent": "mfbtr-ind",
-  "scattered-institutional": "scattered-inst",
-  "scattered-independent": "scattered-ind",
-  hybrid: "hybrid",
-};
-
-// Accept either a DB quadrant string ("MF/BTR / Institutional"), a URL
-// segment ("scattered-independent"), or null/undefined → hybrid fallback.
+// Accept a DB quadrant string ("MF/BTR / Institutional", "Scattered /
+// Independent", "Hybrid", or any v0.6.2 7-cell label that lowercases to a
+// match) and resolve to one of the 5 color keys. Null/undefined → hybrid.
+// 7-cell labels resolve via the same "mf"/"btr"/"scattered" substring
+// checks (Small + Large MF/BTR both map to mfbtr-*, which keeps the badge
+// palette compact at 5 colors for the row-level uses).
 export function quadrantColorKey(input: string | null | undefined): QuadrantColorKey {
   if (!input) return "hybrid";
-  // DB string form
   const lower = input.toLowerCase();
   if (lower.includes("mf") || lower.includes("btr")) {
     return lower.includes("institutional") ? "mfbtr-inst" : "mfbtr-ind";
   }
-  if (lower.includes("scattered")) {
+  if (lower.includes("scattered") || lower.startsWith("sfr")) {
     return lower.includes("institutional") ? "scattered-inst" : "scattered-ind";
-  }
-  // Segment slug form
-  if (input in SEGMENT_TO_COLOR) {
-    return SEGMENT_TO_COLOR[input as QuadrantSegment];
   }
   return "hybrid";
 }
@@ -92,17 +89,3 @@ export const QUADRANT_ORDER: QuadrantColorKey[] = [
   "scattered-inst",
   "scattered-ind",
 ];
-
-// Map quadrant color key → URL segment slug (used by the quadrant cards' "View
-// operators →" links and the map legend rows).
-const COLOR_KEY_TO_SEGMENT: Record<QuadrantColorKey, QuadrantSegment> = {
-  "mfbtr-inst": "multifamily-institutional",
-  "mfbtr-ind": "multifamily-independent",
-  "scattered-inst": "scattered-institutional",
-  "scattered-ind": "scattered-independent",
-  hybrid: "hybrid",
-};
-
-export function colorKeyToSegment(key: QuadrantColorKey): QuadrantSegment {
-  return COLOR_KEY_TO_SEGMENT[key];
-}

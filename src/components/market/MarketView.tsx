@@ -11,6 +11,90 @@ import type { LoadedMarket } from "@/lib/market-data";
 import type { QuadrantSegment } from "@/lib/slugify";
 import { segmentLabel } from "@/lib/slugify";
 
+// v0.6.3 polish Phase C — auto-generated "so what" intro paragraph for the
+// Operator landscape section. Pulls structural insight from the per-7-cell
+// summary (counts + median DOM + median rent vs comp) so the reader learns
+// something about the market in two sentences instead of being walked
+// through the methodology axes again. Falls back to a generic intro when
+// the data is too thin to support an opinion (small markets with sparse
+// cohort coverage — Clarksville is the edge case in the v0.6.3 footprint).
+const STANDOUT_MIN_OPERATORS = 5;
+
+function buildLandscapeIntro({
+  marketCity,
+  marketMedianDomT12,
+  quadrant7CellSummary,
+}: {
+  marketCity: string;
+  marketMedianDomT12: number;
+  quadrant7CellSummary: Record<
+    string,
+    {
+      count: number;
+      medianDomT12: number | null;
+      medianRentVsComp: number | null;
+    }
+  >;
+}): string {
+  const cells = Object.entries(quadrant7CellSummary).filter(
+    ([, s]) => s.count > 0
+  );
+  if (cells.length === 0) {
+    // Thin-market fallback — preserve the v0.6.2 generic intro pattern so
+    // the section still reads cleanly even without any populated cells.
+    return `Operators in ${marketCity} span the seven-cell taxonomy by portfolio composition (SFR vs Small vs Large MF/BTR) and ownership posture (Independent vs Institutional). Each tile shows the cohort size, lease velocity, and rent-vs-comp posture.`;
+  }
+  // Dominant pattern — the segment with the largest operator count.
+  const dominant = cells.reduce((best, cur) =>
+    cur[1].count > best[1].count ? cur : best
+  );
+  // Standout segment — fastest median DOM among cells with ≥5 operators.
+  // Threshold guards against a 1-operator cell winning by accident.
+  const domCandidates = cells.filter(
+    ([, s]) => s.count >= STANDOUT_MIN_OPERATORS && s.medianDomT12 !== null
+  );
+  const fastest =
+    domCandidates.length > 0
+      ? domCandidates.reduce((best, cur) =>
+          (cur[1].medianDomT12 ?? Infinity) < (best[1].medianDomT12 ?? Infinity)
+            ? cur
+            : best
+        )
+      : null;
+  // Strongest growth — highest median rent vs comp among cells with ≥5
+  // operators and a non-null rent value.
+  const rentCandidates = cells.filter(
+    ([, s]) => s.count >= STANDOUT_MIN_OPERATORS && s.medianRentVsComp !== null
+  );
+  const strongestGrowth =
+    rentCandidates.length > 0
+      ? rentCandidates.reduce((best, cur) =>
+          (cur[1].medianRentVsComp ?? -Infinity) >
+          (best[1].medianRentVsComp ?? -Infinity)
+            ? cur
+            : best
+        )
+      : null;
+
+  const pieces: string[] = [];
+  pieces.push(
+    `${marketCity}'s operator landscape skews toward ${dominant[0]} (${dominant[1].count} operators, the largest cohort).`
+  );
+  if (fastest && fastest[1].medianDomT12 !== null) {
+    pieces.push(
+      `${fastest[0]} leases fastest (${fastest[1].medianDomT12.toFixed(1)} days median DOM vs ${marketMedianDomT12.toFixed(1)} days market-wide).`
+    );
+  }
+  if (strongestGrowth && strongestGrowth[1].medianRentVsComp !== null) {
+    const pct = strongestGrowth[1].medianRentVsComp;
+    const sign = pct >= 0 ? "+" : "−";
+    pieces.push(
+      `${strongestGrowth[0]} shows the strongest rent trajectory at ${sign}${Math.abs(pct).toFixed(1)}% vs comp.`
+    );
+  }
+  return pieces.join(" ");
+}
+
 function Breadcrumb({
   stateSlug,
   cityLabel,
@@ -153,18 +237,23 @@ export function MarketView({
       <section className="border-b border-grid bg-[#FAFAF8]">
         <div className="mx-auto max-w-[1320px] px-6 py-16 sm:px-14">
           <header className="mb-7">
-            <p className="dq-eyebrow">Section 01</p>
-            <h2 className="dq-h2 mt-1.5">Operator landscape</h2>
+            {/* v0.6.3 polish — "Section 01" / "Section 02" eyebrow prefixes
+                are stripped from the market landing page. The titles
+                ("Operator landscape", "Ranked operators") stand alone here;
+                the scorecard pages keep their 6-layer numbering because
+                that's where the hierarchy carries real meaning. */}
+            <h2 className="dq-h2">Operator landscape</h2>
             <div className="dq-section-rule" />
             <p className="mt-4 max-w-[720px] text-[15px] leading-[1.55] text-muted-foreground">
-              Operators in {market.city} are organized along two axes: portfolio
-              composition (multifamily vs. scattered single-family) and
-              ownership posture (institutional vs. independent). Counts and
-              median Days on Market (T12) within each quadrant.
+              {buildLandscapeIntro({
+                marketCity: market.city,
+                marketMedianDomT12: market.medianDomT12,
+                quadrant7CellSummary: market.quadrant7CellSummary ?? {},
+              })}
             </p>
           </header>
           <QuadrantSummaryCard
-            summary={market.quadrantSummary}
+            summary={market.quadrant7CellSummary ?? {}}
             marketHref={marketHref}
           />
         </div>

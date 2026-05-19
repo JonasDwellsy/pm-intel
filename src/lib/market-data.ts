@@ -3,7 +3,7 @@ import {
   citySlug,
   QUADRANT_SEGMENTS,
   quadrantToSegment,
-  segmentToQuadrant,
+  segmentToQuadrant7Cell,
   slugToStateCode,
   stateCodeToSlug,
   type QuadrantSegment,
@@ -104,18 +104,26 @@ export async function loadMarketView({
   );
   if (!marketRow) return null;
 
-  const allPms = marketRow.pms.map(toPmListItem);
+  // v0.6.3 Patch 4 — list ordering by star count (Methodology_v0.6.3_Patches.md
+  // §Patch 4). The prisma row order (rankOverall asc) is the tiebreaker; we
+  // re-sort in memory so the visible list leads with operators carrying the
+  // most golds, then most silvers, then composite rank as the final break.
+  // toArray()-stable .sort preserves DB order for equal keys, so an operator
+  // with 0 golds + 0 silvers stays in composite-rank order at the bottom.
+  const allPms = marketRow.pms
+    .map(toPmListItem)
+    .sort(comparePmsByStarCount);
 
   // v0.6.2: the 4 newer markets (Memphis/Knoxville/Clarksville/Phoenix)
   // emit only the 7-cell quadrant summary at seed time; their 5-cell
   // `quadrantSummary` blob is `{}`. Rather than reading the (sometimes
   // empty) cached blob, derive the 5-cell counts + median DOM in-memory
   // from the PMs themselves. Single source of truth; works for both
-  // populated and empty seed cases.
+  // populated and empty seed cases. v0.6.3 polish adds the 7-cell summary
+  // with the same shape (count + median DOM + median rent-vs-comp); the
+  // 7-cell variant is what the redesigned QuadrantSummaryCard renders.
   const quadrantSummary = deriveQuadrantSummary(allPms);
-  const quadrant7CellSummary: Record<string, number> = marketRow.quadrant7CellSummary
-    ? (JSON.parse(marketRow.quadrant7CellSummary) as Record<string, number>)
-    : deriveQuadrant7CellSummary(allPms);
+  const quadrant7CellSummary = deriveQuadrant7CellSummary(allPms);
 
   // v0.6.3 — Patch 1 + 3 fields lifted from the seeded Market row. The
   // submarket map arrives as a JSON string; parse defensively in case the
@@ -206,35 +214,34 @@ export async function loadMarketView({
     universe = submarketMatches;
   }
 
-  // Per-segment counts are derived from the submarket-aware universe so the
-  // FilterChips display the right cohort sizes ("Multifamily Institutional 6"
-  // vs the MSA-wide "Multifamily Institutional 26" when no filter is active).
-  //
-  // Hybrid PMs in v0.6.2 always carry quadrant === "Hybrid", so the segment
-  // branch below already covers them. The explicit pm.hybrid guard layered
-  // an extra increment on top, double-counting hybrids (20 vs 10 in Phoenix)
-  // and inflating the "All operators" chip total. The if-not-hybrid-segment
-  // fallback preserves the defensive intent for any legacy row where the
-  // hybrid flag is true but the quadrant isn't "Hybrid".
+  // v0.6.3 polish — per-segment counts are now derived from each PM's
+  // quadrant7Cell (the v0.6.2 canonical 7-cell label), not the legacy
+  // v0.6.1 5-cell quadrant string. The FilterChips render 7 chips (+ All)
+  // and need the matching cohort sizes. Hybrid PMs carry quadrant7Cell=
+  // "Hybrid" in v0.6.2+, so the single quadrantToSegment lookup naturally
+  // routes them to the "hybrid" bucket without a separate increment.
   const countsBySegment: Partial<Record<QuadrantSegment, number>> = {};
   let hybridCount = 0;
   for (const pm of universe) {
-    const seg = quadrantToSegment(pm.quadrant);
+    const cellKey = pm.quadrant7Cell ?? pm.quadrant;
+    const seg = quadrantToSegment(cellKey);
     if (seg) countsBySegment[seg] = (countsBySegment[seg] ?? 0) + 1;
-    if (pm.hybrid) {
-      hybridCount += 1;
-      if (seg !== "hybrid") {
-        countsBySegment.hybrid = (countsBySegment.hybrid ?? 0) + 1;
-      }
-    }
+    if (pm.hybrid) hybridCount += 1;
   }
 
   let filteredPms = universe;
   if (segment === "hybrid") {
-    filteredPms = universe.filter((p) => p.hybrid);
+    filteredPms = universe.filter(
+      (p) => p.hybrid || (p.quadrant7Cell ?? p.quadrant) === "Hybrid"
+    );
   } else if (segment !== null) {
-    const targetQuadrant = segmentToQuadrant(segment);
-    filteredPms = universe.filter((p) => p.quadrant === targetQuadrant);
+    // Compare against quadrant7Cell because v0.6.3 segments are 7-cell.
+    // Defensive fallback to legacy quadrant when quadrant7Cell is null
+    // (shouldn't happen in v0.6.2+ data but keeps the path safe).
+    const target = segmentToQuadrant7Cell(segment);
+    filteredPms = universe.filter(
+      (p) => (p.quadrant7Cell ?? p.quadrant) === target
+    );
   }
 
   // Pool size precedes the slice-to-10 so the "Showing X of Y" line reflects
@@ -340,13 +347,61 @@ function deriveQuadrantSummary(
   return out;
 }
 
-function deriveQuadrant7CellSummary(pms: PMListItem[]): Record<string, number> {
-  const out: Record<string, number> = {};
+// v0.6.3 polish — 7-cell summary now mirrors the 5-cell shape (count +
+// median DOM) and adds median rent-vs-comp as a third metric. The new
+// QuadrantSummaryCard renders all three. rentVsComp is in percentage units
+// (toPmListItem multiplies the decimal delta by 100) — keep it in that
+// unit space here so the renderer can fmtSignedPct(value) directly.
+function deriveQuadrant7CellSummary(
+  pms: PMListItem[]
+): Record<
+  string,
+  { count: number; medianDomT12: number | null; medianRentVsComp: number | null }
+> {
+  const buckets: Record<
+    string,
+    { doms: number[]; rents: number[] }
+  > = {};
   for (const pm of pms) {
     const key = pm.quadrant7Cell ?? pm.quadrant;
-    out[key] = (out[key] ?? 0) + 1;
+    if (!buckets[key]) buckets[key] = { doms: [], rents: [] };
+    if (Number.isFinite(pm.domT12)) buckets[key].doms.push(pm.domT12);
+    if (pm.rentVsComp !== null && Number.isFinite(pm.rentVsComp)) {
+      buckets[key].rents.push(pm.rentVsComp);
+    }
+  }
+  const out: Record<
+    string,
+    { count: number; medianDomT12: number | null; medianRentVsComp: number | null }
+  > = {};
+  for (const [quadrant, bucket] of Object.entries(buckets)) {
+    out[quadrant] = {
+      count: bucket.doms.length,
+      medianDomT12: bucket.doms.length > 0 ? median(bucket.doms) : null,
+      medianRentVsComp:
+        bucket.rents.length > 0 ? median(bucket.rents) : null,
+    };
   }
   return out;
+}
+
+// v0.6.3 Patch 4 sort comparator: (-gold, -silver, composite rank asc).
+// Pulled out as a named helper because the same ordering applies to the
+// universe sort (allPms) and is preserved through Array.filter into the
+// segment / submarket subviews.
+function comparePmsByStarCount(a: PMListItem, b: PMListItem): number {
+  const aGold = a.goldCount ?? 0;
+  const bGold = b.goldCount ?? 0;
+  if (aGold !== bGold) return bGold - aGold;
+  const aSilver = a.silverCount ?? 0;
+  const bSilver = b.silverCount ?? 0;
+  if (aSilver !== bSilver) return bSilver - aSilver;
+  // Composite rank tiebreaker — nulls sort last so unranked PMs (none in
+  // the v0.6.3 corpus, but defensive) cluster at the bottom of the equal
+  // star-count bucket.
+  const aRank = a.rankOverall ?? Number.MAX_SAFE_INTEGER;
+  const bRank = b.rankOverall ?? Number.MAX_SAFE_INTEGER;
+  return aRank - bRank;
 }
 
 function median(values: number[]): number {
