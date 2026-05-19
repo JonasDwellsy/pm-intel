@@ -37,6 +37,24 @@ interface RawRankedPm {
   communityVisibility?: { star?: string | null };
   rank?: { compositeStar?: string | null };
   coverage?: { t12Listings?: number };
+  // v0.6.4 Patch 1 — canonical operator identity for the cross-market
+  // grouping. Single-market PMs have canonicalOperatorId equal to their
+  // slug and don't appear in canonicalOperators below.
+  canonicalOperatorId?: string;
+  canonicalOperatorName?: string;
+}
+
+interface RawCanonicalOperator {
+  canonicalSlug: string;
+  canonicalName: string;
+  marketIds: string[];
+  pmSlugs: string[];
+  marketCount: number;
+  aggregateStats: {
+    totalT12Listings?: number;
+    totalT24T12Listings?: number;
+    totalUrusT12?: number;
+  };
 }
 
 interface OutputRankedEntry {
@@ -51,6 +69,32 @@ interface OutputRankedEntry {
   goldCount: number;
   silverCount: number;
   t12Listings: number;
+}
+
+// v0.6.4 Patch 1 — search index entry for a multi-market canonical
+// operator. Replaces the per-market ranked entries for grouped PMs.
+// Click routes to /operator/<canonicalSlug>; the profile page resolves
+// the per-market scorecards from the CanonicalOperator pmSlugs array.
+interface OutputCanonicalEntry {
+  tier: "canonical";
+  name: string;
+  canonicalSlug: string;
+  marketCount: number;
+  // List of { marketCity, stateCode } for each market the operator
+  // operates in. Drives the "Operates in Phoenix, Memphis, Nashville,
+  // Jacksonville" subtitle on the search result row.
+  markets: Array<{ marketCity: string; stateCode: string }>;
+  // Aggregated star counts across the operator's market-instances.
+  // Sum is the simplest summary — surfaces multi-market consolidated
+  // strength at a glance. Alternative would be a per-market max but
+  // sum reads more honestly as "this operator has earned recognition
+  // on N axes across their footprint".
+  goldCount: number;
+  silverCount: number;
+  // From canonicalOperators.aggregateStats — pre-computed at seed time.
+  totalT12Listings: number;
+  totalT24T12Listings: number;
+  totalUrusT12: number;
 }
 
 interface OutputTrackedEntry {
@@ -72,6 +116,11 @@ interface OutputTrackedEntry {
 type SearchIndex = {
   ranked: OutputRankedEntry[];
   tracked: OutputTrackedEntry[];
+  // v0.6.4 Patch 1 — one entry per multi-market canonical entity. The
+  // per-market ranked entries that compose this canonical group are
+  // OMITTED from `ranked` so search returns one row per operator
+  // regardless of footprint. Single-market PMs stay in `ranked`.
+  canonical: OutputCanonicalEntry[];
 };
 
 const SOURCE_DIR = "/Users/jonasbordo/Documents/Claude/Projects/Product Support";
@@ -116,13 +165,32 @@ const seed = JSON.parse(
     path.resolve(__dirname, "../src/data/scorecard_data.json"),
     "utf8"
   )
-) as { pms: RawRankedPm[] };
+) as {
+  pms: RawRankedPm[];
+  canonicalOperators?: Record<string, RawCanonicalOperator>;
+};
 
 const marketIndex = new Map<string, (typeof MARKETS)[number]>();
 for (const m of MARKETS) marketIndex.set(m.id, m);
 
-const ranked: OutputRankedEntry[] = [];
+// v0.6.4 Patch 1 — canonical entities (multi-market, marketCount ≥ 2).
+// Slug-keyed map; we'll look up by canonicalOperatorId per PM to decide
+// whether a PM contributes to a canonical group or stays as a stand-
+// alone ranked entry.
+const canonicalMap = seed.canonicalOperators ?? {};
+
+// First pass: build the per-PM ranked candidates AND collect star
+// counts grouped by canonicalSlug so the canonical entries can
+// aggregate star counts across their member PMs.
+const allRankedCandidates: Array<{
+  pm: RawRankedPm;
+  m: (typeof MARKETS)[number];
+  gold: number;
+  silver: number;
+}> = [];
+const starsByCanonicalSlug = new Map<string, { gold: number; silver: number }>();
 const rankedNamesByMarket = new Map<string, Set<string>>();
+
 for (const pm of seed.pms) {
   const m = marketIndex.get(pm.marketId);
   if (!m) continue;
@@ -130,6 +198,28 @@ for (const pm of seed.pms) {
   const set = rankedNamesByMarket.get(pm.marketId) ?? new Set<string>();
   set.add(norm);
   rankedNamesByMarket.set(pm.marketId, set);
+  const gold = countStars(pm, "gold");
+  const silver = countStars(pm, "silver");
+  allRankedCandidates.push({ pm, m, gold, silver });
+  const canonSlug = pm.canonicalOperatorId ?? "";
+  if (canonSlug && canonicalMap[canonSlug]) {
+    const agg = starsByCanonicalSlug.get(canonSlug) ?? { gold: 0, silver: 0 };
+    agg.gold += gold;
+    agg.silver += silver;
+    starsByCanonicalSlug.set(canonSlug, agg);
+  }
+}
+
+// Second pass: split candidates into ranked (single-market) vs members
+// of a canonical group. Membership decided by whether the PM's
+// canonicalOperatorId resolves to a multi-market entity in canonicalMap.
+const ranked: OutputRankedEntry[] = [];
+for (const { pm, m, gold, silver } of allRankedCandidates) {
+  const canonSlug = pm.canonicalOperatorId ?? "";
+  if (canonSlug && canonicalMap[canonSlug]) {
+    // Skip — this PM rolls up into the canonical entry built below.
+    continue;
+  }
   ranked.push({
     tier: "ranked",
     name: pm.name,
@@ -139,12 +229,39 @@ for (const pm of seed.pms) {
     stateCode: m.state,
     stateSlug: m.stateSlug,
     citySlug: m.citySlug,
-    goldCount: countStars(pm, "gold"),
-    silverCount: countStars(pm, "silver"),
+    goldCount: gold,
+    silverCount: silver,
     t12Listings: pm.coverage?.t12Listings ?? 0,
   });
 }
-console.log(`Tier 1 ranked PMs: ${ranked.length}`);
+console.log(`Tier 1 ranked PMs (single-market only): ${ranked.length}`);
+
+// Third pass: build canonical entries.
+const canonical: OutputCanonicalEntry[] = [];
+for (const entity of Object.values(canonicalMap)) {
+  if (!entity.canonicalSlug || entity.marketCount < 2) continue;
+  const markets = entity.marketIds
+    .map((id) => marketIndex.get(id))
+    .filter((m): m is (typeof MARKETS)[number] => !!m)
+    .map((m) => ({ marketCity: m.city, stateCode: m.state }));
+  const stars = starsByCanonicalSlug.get(entity.canonicalSlug) ?? {
+    gold: 0,
+    silver: 0,
+  };
+  canonical.push({
+    tier: "canonical",
+    name: entity.canonicalName,
+    canonicalSlug: entity.canonicalSlug,
+    marketCount: entity.marketCount,
+    markets,
+    goldCount: stars.gold,
+    silverCount: stars.silver,
+    totalT12Listings: entity.aggregateStats.totalT12Listings ?? 0,
+    totalT24T12Listings: entity.aggregateStats.totalT24T12Listings ?? 0,
+    totalUrusT12: entity.aggregateStats.totalUrusT12 ?? 0,
+  });
+}
+console.log(`Canonical multi-market operators: ${canonical.length}`);
 
 // --- Tier 2 — universe operators per market source JSON ---
 //
@@ -206,13 +323,14 @@ for (const m of MARKETS) {
 // when there's a tie in fuzzy-match score.
 tracked.sort((a, b) => b.t12Listings - a.t12Listings);
 
-const out: SearchIndex = { ranked, tracked };
+const out: SearchIndex = { ranked, tracked, canonical };
 const outPath = path.resolve(
   __dirname,
   "../src/data/search_index.json"
 );
 fs.writeFileSync(outPath, JSON.stringify(out));
 console.log(`\nWrote ${outPath}`);
-console.log(`  Tier 1 (ranked): ${ranked.length}`);
+console.log(`  Tier 1 (ranked, single-market): ${ranked.length}`);
+console.log(`  Tier 1 (canonical, multi-market): ${canonical.length}`);
 console.log(`  Tier 2 (tracked, ≥${MIN_T12} T12 after dedup): ${tracked.length}, dropped ${totalDropped} below threshold`);
 console.log(`  size: ${(fs.statSync(outPath).size / 1024).toFixed(1)}KB`);

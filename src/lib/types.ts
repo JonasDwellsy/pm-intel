@@ -42,6 +42,23 @@ export interface MultiLevelPercentile {
   msaCohortN: number | null;
 }
 
+// v0.6.4 Patch 1 — cross-market canonical operator entity (multi-market
+// only). Lifted from src/data/scorecard_data.json's top-level
+// canonicalOperators map by the data loader. Single-market operators
+// don't have a row here.
+export interface CanonicalOperator {
+  canonicalSlug: string;
+  canonicalName: string;
+  marketIds: string[];
+  pmSlugs: string[];
+  marketCount: number;
+  aggregateStats: {
+    totalT12Listings?: number;
+    totalT24T12Listings?: number;
+    totalUrusT12?: number;
+  };
+}
+
 export interface ScorecardData {
   methodologyVersion: string;
   designVersion?: string; // v1.0 from the new merged seed
@@ -56,6 +73,12 @@ export interface ScorecardData {
     accentColor?: string;
     primaryCity?: string;
   };
+  // v0.6.4 Patch 1 — canonical operator identity. Every PM carries
+  // these; multi-market operators share the same id across markets.
+  // Single-market operators get an id equal to their PM slug. Optional
+  // for back-compat with v0.6.3 reseeds.
+  canonicalOperatorId?: string;
+  canonicalOperatorName?: string;
   market: {
     id: string;
     name: string;
@@ -385,6 +408,12 @@ export interface PMListItem {
    *  the state. Null when the operator's rentPerformance block is
    *  unavailable. */
   pmYoyChange?: number | null;
+  /** v0.6.4 Patch 1 — canonical operator id (slug). Multi-market
+   *  operators share the same value across markets. Single-market
+   *  operators get a value equal to their PM slug. Drives state-level
+   *  count dedup and the cross-market badge / operator profile route.
+   *  Optional for back-compat with pre-v0.6.4 reseeds. */
+  canonicalOperatorId?: string | null;
 }
 
 export type Quadrant =
