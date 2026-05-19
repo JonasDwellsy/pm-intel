@@ -324,6 +324,14 @@ export interface PMListItem {
    *  on the market landing operator cards. */
   compositeStar: StarLevel;
   compositeCohortName: string | null;
+  /** Slugified top-city names (geographicCoverage.topCities → submarketSlug),
+   *  used by the market landing page's `?submarket=` filter. Optional for
+   *  back-compat with any consumer that constructs PMListItem manually. */
+  topCitySlugs?: string[];
+  /** Raw display names matching topCitySlugs index-for-index. Server-side
+   *  only — used to recover the filter chip's display label from the URL
+   *  slug. Not exposed to client component props. */
+  topCityNames?: string[];
 }
 
 export type Quadrant =

@@ -114,10 +114,11 @@ export function MarketView({
     methodologyVersion,
     dataAsOf,
     filteredPms,
-    allPms,
     countsBySegment,
     stateSlug,
     citySlug,
+    submarket,
+    rankedPoolSize,
   } = view;
 
   const marketHref = `/property-managers/${stateSlug}/${citySlug}`;
@@ -191,6 +192,32 @@ export function MarketView({
             </div>
           </div>
 
+          {/* Submarket filter chip — visible only when ?submarket= produced a
+              valid match. Shows the display name + a "Clear filter" link that
+              drops the query parameter and restores the unfiltered list. */}
+          {submarket && (
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-grid bg-surface-soft px-4 py-2.5 text-[13px]">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-2">
+                Filtered by submarket
+              </span>
+              <span className="font-semibold text-navy">
+                {submarket.displayName}
+              </span>
+              <span className="text-muted-2">·</span>
+              <span className="dq-tnum text-muted-foreground">
+                {submarket.matchedOperatorCount} operator
+                {submarket.matchedOperatorCount === 1 ? "" : "s"} with footprint
+                here
+              </span>
+              <Link
+                href={marketHref}
+                className="ml-auto inline-flex items-center gap-1 text-[13px] font-medium text-teal hover:text-teal-700"
+              >
+                <span aria-hidden>×</span> Clear filter
+              </Link>
+            </div>
+          )}
+
           <p className="mb-7 text-[12.5px] italic text-muted-foreground">
             Showing{" "}
             <span className="dq-mono not-italic font-medium text-navy/85">
@@ -198,10 +225,11 @@ export function MarketView({
             </span>{" "}
             of{" "}
             <span className="dq-mono not-italic font-medium text-navy/85">
-              {allPms.length}
+              {rankedPoolSize}
             </span>{" "}
             ranked operators
-            {activeSegment ? ` in ${segmentLabel(activeSegment)}` : ""}.
+            {activeSegment ? ` in ${segmentLabel(activeSegment)}` : ""}
+            {submarket ? ` with footprint in ${submarket.displayName}` : ""}.
             Operators below the data sufficiency threshold are excluded from
             this view.{" "}
             <Link
@@ -215,14 +243,31 @@ export function MarketView({
           {filteredPms.length === 0 ? (
             <div className="rounded-lg border border-dashed border-grid bg-[#FAFAF8] p-10 text-center">
               <p className="text-sm font-medium text-navy">
-                No operators in this segment yet.
+                {submarket
+                  ? `No operators observed in ${submarket.displayName}.`
+                  : "No operators in this segment yet."}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                Try another filter or{" "}
-                <Link href={marketHref} className="text-teal hover:text-teal-700">
-                  view all operators
-                </Link>
-                .
+                {submarket ? (
+                  <>
+                    The submarket filter matched zero operators in {market.city}.{" "}
+                    <Link
+                      href={marketHref}
+                      className="text-teal hover:text-teal-700"
+                    >
+                      Clear the filter
+                    </Link>{" "}
+                    to view all operators.
+                  </>
+                ) : (
+                  <>
+                    Try another filter or{" "}
+                    <Link href={marketHref} className="text-teal hover:text-teal-700">
+                      view all operators
+                    </Link>
+                    .
+                  </>
+                )}
               </p>
             </div>
           ) : (

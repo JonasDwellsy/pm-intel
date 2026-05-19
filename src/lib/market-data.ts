@@ -29,6 +29,18 @@ export type LoadedMarket = {
   stateSlug: string;
   citySlug: string;
   mapData: MarketMapData;
+  // Submarket filter state — non-null only when ?submarket= produced a match
+  // somewhere in the market's PM list. The page renders a filter chip and
+  // adjusted operator count when set; the empty state when filteredPms = 0.
+  submarket: {
+    slug: string;
+    displayName: string;
+    matchedOperatorCount: number;
+  } | null;
+  // Pool size for the "Showing X of Y" line. Equals allPms.length when no
+  // submarket filter is active; equals submarket.matchedOperatorCount when
+  // one is. Drives the count display + the "clear filter" hint.
+  rankedPoolSize: number;
 };
 
 const PM_SELECT = {
@@ -48,10 +60,13 @@ export async function loadMarketView({
   stateUrlSegment,
   cityUrlSegment,
   segment,
+  submarketSlug: submarketParam,
 }: {
   stateUrlSegment: string;
   cityUrlSegment: string;
   segment: QuadrantSegment | null;
+  /** Slug from `?submarket=`. Null/empty means no submarket filter. */
+  submarketSlug?: string | null;
 }): Promise<LoadedMarket | null> {
   const stateCode = slugToStateCode(stateUrlSegment);
   if (!stateCode) return null;
@@ -114,6 +129,42 @@ export async function loadMarketView({
     filteredPms = allPms.filter((p) => p.quadrant === targetQuadrant);
   }
 
+  // Submarket filter — narrows the segment-filtered set to operators whose
+  // top-cities slugs include the requested submarket. Applied AFTER segment
+  // filtering so the two filters compose naturally (e.g. "all SFR
+  // Independent operators in Hendersonville"). Display-name lookup walks the
+  // matched PMs' raw topCities entries to find the first non-slugified form
+  // matching the requested slug — that's the label we show in the filter
+  // chip ("Hendersonville", not "hendersonville").
+  let submarketState: LoadedMarket["submarket"] = null;
+  if (submarketParam) {
+    const filterSlug = submarketParam;
+    const submarketMatches = filteredPms.filter((p) =>
+      (p.topCitySlugs ?? []).includes(filterSlug)
+    );
+    // Walk a small sample to recover the human-readable display name. The
+    // scorecardData JSON is already parsed in toPmListItem upstream, but
+    // we'd need to re-parse here; instead derive from the slug by title-
+    // casing as a defensive fallback if no PMs matched (empty-state path).
+    let displayName = deriveSubmarketDisplayName(submarketMatches, filterSlug);
+    if (!displayName) {
+      displayName = filterSlug
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+    }
+    submarketState = {
+      slug: filterSlug,
+      displayName,
+      matchedOperatorCount: submarketMatches.length,
+    };
+    filteredPms = submarketMatches;
+  }
+
+  // Pool size precedes the slice-to-10 so the "Showing X of Y" line reflects
+  // the full filtered cohort, not just the displayed page.
+  const rankedPoolSize = filteredPms.length;
+
   // Per spec: top 10 list on market landing.
   filteredPms = filteredPms.slice(0, 10);
 
@@ -146,7 +197,27 @@ export async function loadMarketView({
     stateSlug: stateUrlSegment,
     citySlug: cityUrlSegment,
     mapData,
+    submarket: submarketState,
+    rankedPoolSize,
   };
+}
+
+// Recover the human-readable display label for a submarket slug by walking
+// matched PMs' raw topCityNames arrays and returning the first name whose
+// slug matches. Returns null when no PM matches (caller falls back to a
+// title-cased slug for the empty-state path). Index alignment between
+// topCitySlugs and topCityNames is guaranteed by toPmListItem above.
+function deriveSubmarketDisplayName(
+  matchedPms: PMListItem[],
+  filterSlug: string
+): string | null {
+  for (const pm of matchedPms) {
+    const slugs = pm.topCitySlugs ?? [];
+    const names = pm.topCityNames ?? [];
+    const idx = slugs.indexOf(filterSlug);
+    if (idx >= 0 && names[idx]) return names[idx];
+  }
+  return null;
 }
 
 export async function listMarketRouteParams() {
