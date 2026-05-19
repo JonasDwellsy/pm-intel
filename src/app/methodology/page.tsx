@@ -384,13 +384,13 @@ export default async function MethodologyPage() {
 
               <QuadrantGrid quadrant="" variant="conceptual" />
               <p className="mt-3 text-[13px] italic text-muted-foreground">
-                Figure 1. The two axes combine into a seven-cell taxonomy in
-                v0.6.2: SFR Institutional, SFR Independent, Small MF/BTR
-                Institutional, Small MF/BTR Independent, Large MF/BTR
-                Institutional, Large MF/BTR Independent, and Hybrid. The
-                figure shows the v0.6.1 five-cell layout — the v0.6.2
-                refinement subdivides the MF/BTR row by median community size
-                without changing the scale axis or the Hybrid bucket.
+                Figure 1. The v0.6.2 seven-cell taxonomy. The type axis (rows)
+                splits operators into SFR, Small MF/BTR, and Large MF/BTR by
+                concentrated share and median community size. The scale axis
+                (columns) splits each type into Independent and Institutional
+                by cross-market urus. Hybrid carries no scale split — it is
+                its own classification. Cell colors match the quadrant badges
+                used elsewhere on the scorecard.
               </p>
 
               <p>

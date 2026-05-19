@@ -2,6 +2,8 @@
 // Peer positions are synthesized deterministically from the quadrant index so
 // the visual is stable per quadrant but readable as "cohort scatter".
 
+import { QUADRANT7_COLORS, type Quadrant7CellKey } from "@/lib/quadrant7-colors";
+
 type QuadrantKey =
   | "ss-independent"
   | "ss-institutional"
@@ -74,54 +76,105 @@ const DEFAULT_OP_COLOR: Record<QuadrantKey, string> = {
   "mf-institutional": "#2F7A5C",
 };
 
-// Conceptual variant: static 2×2 text-cell grid used in the methodology page.
-// No operator markers, no scatter — just the four quadrant definitions laid
-// out as a figure.
-const CONCEPTUAL_CELLS: Array<{
-  key: QuadrantKey;
-  eyebrow: string;
+// Conceptual variant: 7-cell taxonomy text grid used in the methodology page.
+// 3 type-axis rows (SFR / Small MF/BTR / Large MF/BTR) × 2 scale-axis cols
+// (Independent / Institutional) = 6 cells, plus Hybrid as a 7th callout row
+// since Hybrid carries no scale split (Section 03 of methodology). Sample
+// operator names per cell are sourced from the v0.6.2 seed — top 3 by
+// observed unit count in the cell (excludes Hybrid which has no scale split).
+type ConceptualCell = {
+  key: Quadrant7CellKey;
+  rowEyebrow: string;
+  scaleEyebrow: string;
   title: string;
   description: string;
-  row: 0 | 1;
-  col: 0 | 1;
+  samples: string[];
+};
+
+const CONCEPTUAL_7CELL_ROWS: Array<{
+  rowLabel: string;
+  cells: [ConceptualCell, ConceptualCell];
 }> = [
   {
-    key: "mf-institutional",
-    eyebrow: "Q1 · Institutional MF/BTR",
-    title: "Institutional multifamily",
-    description:
-      "Single-asset whole-property leasing at scale; ≥50-unit buildings or large BTR communities.",
-    row: 0,
-    col: 0,
+    rowLabel: "SFR (Scattered)",
+    cells: [
+      {
+        key: "sfr-ind",
+        rowEyebrow: "SFR",
+        scaleEyebrow: "Independent",
+        title: "SFR Independent",
+        description:
+          "Owner-operator scattered SFR books. Typical local property manager working a single MSA with concentrated share under 30%.",
+        samples: ["Ampere PM", "Doorby PM", "HomeRiver Group"],
+      },
+      {
+        key: "sfr-inst",
+        rowEyebrow: "SFR",
+        scaleEyebrow: "Institutional",
+        title: "SFR Institutional",
+        description:
+          "Geographically distributed SFR books large enough to operate at institutional scale (500+ urus across all Dwellsy IQ markets).",
+        samples: ["Progress Residential", "Tricon Residential", "Invitation Homes"],
+      },
+    ],
   },
   {
-    key: "ss-institutional",
-    eyebrow: "Q2 · Institutional scattered",
-    title: "Institutional scattered site",
-    description:
-      "Geographically distributed SFR / small-MF books large enough to operate at institutional scale (~1,000+ units).",
-    row: 0,
-    col: 1,
+    rowLabel: "Small MF/BTR",
+    cells: [
+      {
+        key: "small-mfbtr-ind",
+        rowEyebrow: "Small MF/BTR",
+        scaleEyebrow: "Independent",
+        title: "Small MF/BTR Independent",
+        description:
+          "Owner-operator concentrated portfolios with median community size 10–49 units. Often family- or partnership-owned walk-ups.",
+        samples: ["WRH Realty Services", "Duke Properties", "Schweb Partners"],
+      },
+      {
+        key: "small-mfbtr-inst",
+        rowEyebrow: "Small MF/BTR",
+        scaleEyebrow: "Institutional",
+        title: "Small MF/BTR Institutional",
+        description:
+          "Smaller MF/BTR portfolios that meet the 500-uru cross-market scale threshold. Rare cell — fewer than 5 operators in the v0.6.2 footprint.",
+        samples: ["ResProp", "Asset Living", "Optivo Group"],
+      },
+    ],
   },
   {
-    key: "mf-independent",
-    eyebrow: "Q3 · Independent MF/BTR",
-    title: "Independent multifamily",
-    description:
-      "Owner-operator multifamily; smaller buildings, lighter org overhead, often family- or partnership-owned.",
-    row: 1,
-    col: 0,
-  },
-  {
-    key: "ss-independent",
-    eyebrow: "Q4 · Independent scattered",
-    title: "Independent scattered site",
-    description:
-      "Owner-operator scattered books; typical SFR property manager working a single MSA.",
-    row: 1,
-    col: 1,
+    rowLabel: "Large MF/BTR",
+    cells: [
+      {
+        key: "large-mfbtr-ind",
+        rowEyebrow: "Large MF/BTR",
+        scaleEyebrow: "Independent",
+        title: "Large MF/BTR Independent",
+        description:
+          "Owner-operator multifamily with median community size 50+ units. Concentrated share above 70% but cross-market scale below 500 urus.",
+        samples: ["Brookside Properties", "ARIUM Living", "Link Real Estate Group"],
+      },
+      {
+        key: "large-mfbtr-inst",
+        rowEyebrow: "Large MF/BTR",
+        scaleEyebrow: "Institutional",
+        title: "Large MF/BTR Institutional",
+        description:
+          "200+ unit communities operated at national scale. Carries the largest absolute urus per operator across the 7-cell taxonomy.",
+        samples: ["Mission Rock Residential", "Bridge Property Management", "LVL Living"],
+      },
+    ],
   },
 ];
+
+const CONCEPTUAL_HYBRID: ConceptualCell = {
+  key: "hybrid",
+  rowEyebrow: "Hybrid",
+  scaleEyebrow: "No scale split",
+  title: "Hybrid operator",
+  description:
+    "Mixed portfolios with concentrated share between 30% and 70%. Hybrid is its own classification — there is no Independent / Institutional split for Hybrid operators.",
+  samples: ["Austell Village", "Generation PM", "H&H Property Management"],
+};
 
 export function QuadrantGrid({
   quadrant,
@@ -141,73 +194,98 @@ export function QuadrantGrid({
    *  the single-dot mini version. */
   operators?: QuadrantOperator[];
 }) {
-  // --- Conceptual variant: 2×2 text-cell grid for the methodology page ---
+  // --- Conceptual variant: 7-cell text grid for the methodology page §03 ---
+  // Layout (desktop ≥ md): 3-row × 2-col grid for the 6 type×scale cells,
+  // followed by a full-width Hybrid callout that visually breaks the grid
+  // (because Hybrid carries no scale split). The left rail labels the type
+  // axis (SFR / Small / Large) and the top rail labels the scale axis
+  // (Independent / Institutional). Mobile (< md): the rails collapse and
+  // every cell stacks single-column with its eyebrow tag carrying the axis
+  // label inline so the structural meaning survives the linearization.
   if (variant === "conceptual") {
-    // Layout: 28px-wide operating-axis lane on the left (flex sibling, full
-    // height) + a self-contained 2×2 data grid on the right that auto-sizes
-    // its rows to cell content. Keeping the lane outside the data grid means
-    // the rotated text can't inflate the cell rows.
-    const cellClasses = (col: 0 | 1, row: 0 | 1) =>
-      [
-        "bg-white p-5",
-        col === 0 ? "border-r border-grid" : "",
-        row === 0 ? "border-b border-grid" : "",
-      ]
-        .filter(Boolean)
-        .join(" ");
-
     return (
       <figure
-        aria-label="Four operator quadrants — conceptual"
-        className="not-prose my-2 overflow-hidden rounded-md border border-grid"
+        aria-label="Seven-cell operator taxonomy — conceptual figure"
+        className="not-prose my-2 overflow-hidden rounded-md border border-grid bg-white"
       >
-        <div className="flex">
-          {/* Operating-axis lane (flex sibling, full container height) */}
-          <div className="flex w-7 shrink-0 items-center justify-center border-r border-grid bg-surface-soft">
-            <span
-              className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground whitespace-nowrap"
-              style={{
-                writingMode: "vertical-rl",
-                transform: "rotate(180deg)",
-              }}
-            >
-              Operating axis
-            </span>
+        {/* Desktop grid (md+) — 3 rows × 2 cols with axis rails */}
+        <div className="hidden md:block">
+          <div className="grid grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)]">
+            {/* Header row: corner spacer + 2 scale-axis labels */}
+            <div className="border-b border-r border-grid bg-surface-soft" />
+            <div className="border-b border-r border-grid bg-surface-soft px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Independent
+            </div>
+            <div className="border-b border-grid bg-surface-soft px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Institutional
+            </div>
+
+            {CONCEPTUAL_7CELL_ROWS.map((row, rowIdx) => {
+              const isLastRow = rowIdx === CONCEPTUAL_7CELL_ROWS.length - 1;
+              return (
+                <div key={row.rowLabel} className="contents">
+                  {/* Row label cell */}
+                  <div
+                    className={`border-r border-grid bg-surface-soft px-3 py-5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground ${
+                      isLastRow ? "" : "border-b"
+                    }`}
+                  >
+                    {row.rowLabel}
+                  </div>
+                  {row.cells.map((cell, cellIdx) => {
+                    const color = QUADRANT7_COLORS[cell.key];
+                    const isLastCol = cellIdx === row.cells.length - 1;
+                    return (
+                      <Quadrant7Cell
+                        key={cell.key}
+                        cell={cell}
+                        color={color}
+                        className={`p-5 ${isLastCol ? "" : "border-r border-grid"} ${
+                          isLastRow ? "" : "border-b border-grid"
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
 
-          {/* Data column: top axis labels + 2×2 cells + bottom axis label */}
-          <div className="flex flex-1 flex-col">
-            {/* Top axis labels — 28px tall */}
-            <div className="grid h-7 grid-cols-2 border-b border-grid bg-surface-soft">
-              <div className="flex items-center border-r border-grid px-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                MF / BTR
-              </div>
-              <div className="flex items-center px-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Scattered site
-              </div>
-            </div>
+          {/* Hybrid callout — full width, visually distinct */}
+          <div className="border-t border-grid bg-surface-soft px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Hybrid (no scale split)
+          </div>
+          <Quadrant7Cell
+            cell={CONCEPTUAL_HYBRID}
+            color={QUADRANT7_COLORS.hybrid}
+            className="p-5"
+          />
+        </div>
 
-            {/* 2×2 data cells — auto-sized to content */}
-            <div className="grid flex-1 grid-cols-2">
-              {CONCEPTUAL_CELLS.map((c) => (
-                <div key={c.key} className={cellClasses(c.col, c.row)}>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal">
-                    {c.eyebrow}
-                  </p>
-                  <p className="mt-2 text-[15px] font-bold text-navy">
-                    {c.title}
-                  </p>
-                  <p className="mt-2 text-[13px] leading-[1.5] text-muted-foreground">
-                    {c.description}
-                  </p>
-                </div>
-              ))}
+        {/* Mobile stack (< md) — single column, every cell carries its axis
+            label inline so the taxonomy structure remains legible without
+            the row/col rails */}
+        <div className="flex flex-col md:hidden">
+          {CONCEPTUAL_7CELL_ROWS.flatMap((row) =>
+            row.cells.map((cell, idx) => ({ cell, isLast: false, idx }))
+          ).map(({ cell }, i, arr) => (
+            <div
+              key={cell.key}
+              className={`${i < arr.length - 1 ? "border-b border-grid" : ""} p-5`}
+            >
+              <Quadrant7Cell
+                cell={cell}
+                color={QUADRANT7_COLORS[cell.key]}
+                showAxisInline
+              />
             </div>
-
-            {/* Bottom axis label — 28px tall, centered */}
-            <div className="flex h-7 items-center justify-center border-t border-grid bg-surface-soft text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Asset class
-            </div>
+          ))}
+          <div className="border-t border-grid bg-surface-soft p-5">
+            <Quadrant7Cell
+              cell={CONCEPTUAL_HYBRID}
+              color={QUADRANT7_COLORS.hybrid}
+              showAxisInline
+            />
           </div>
         </div>
       </figure>
@@ -485,5 +563,65 @@ export function QuadrantGrid({
         )}
       </g>
     </svg>
+  );
+}
+
+// Inner cell renderer for the 7-cell conceptual figure. Renders a left-edge
+// color bar in the cell's quadrant color, title, descriptor prose, and a
+// "Sample operators" list. `showAxisInline` is set on the mobile-stack path
+// to surface the type × scale axis labels (which the desktop rails carry).
+function Quadrant7Cell({
+  cell,
+  color,
+  className,
+  showAxisInline,
+}: {
+  cell: {
+    rowEyebrow: string;
+    scaleEyebrow: string;
+    title: string;
+    description: string;
+    samples: string[];
+  };
+  color: { fg: string; soft: string; border: string };
+  className?: string;
+  showAxisInline?: boolean;
+}) {
+  return (
+    <div
+      className={className}
+      style={{
+        // Left accent bar tinted with the cell's quadrant color. Subtle —
+        // the figure is informational, not loud — but enough to make the
+        // 6+1 cells read as distinct color-coded zones at a glance.
+        boxShadow: `inset 4px 0 0 0 ${color.fg}`,
+      }}
+    >
+      {showAxisInline && (
+        <p
+          className="text-[10.5px] font-semibold uppercase tracking-[0.14em]"
+          style={{ color: color.fg }}
+        >
+          {cell.rowEyebrow} · {cell.scaleEyebrow}
+        </p>
+      )}
+      <p
+        className="text-[15px] font-bold text-navy"
+        style={{ marginTop: showAxisInline ? "0.5rem" : 0 }}
+      >
+        {cell.title}
+      </p>
+      <p className="mt-2 text-[13px] leading-[1.5] text-muted-foreground">
+        {cell.description}
+      </p>
+      {cell.samples.length > 0 && (
+        <p className="mt-3 text-[11.5px] text-muted-2">
+          <span className="font-semibold uppercase tracking-[0.12em]">
+            Sample operators
+          </span>{" "}
+          · {cell.samples.join(", ")}
+        </p>
+      )}
+    </div>
   );
 }
