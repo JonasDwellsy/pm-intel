@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ClaimTrigger } from "@/components/scorecard/ClaimTrigger";
+import { StarSummaryChip } from "@/components/scorecard/StarSummaryChip";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { quadrant7Color } from "@/lib/quadrant7-colors";
 import type {
@@ -17,11 +18,14 @@ import { InfoIcon } from "@/components/scorecard/InfoIcon";
 //   3. 7-cell classification badge, color-coded per quadrant7-colors.ts
 //   4. Market footprint pills — one per MSA where this operator is observed
 //      (Mission Rock surfaces 5; single-market operators render 1)
-//   5. Composite cohort qualifier with star (largest visual element per spec)
-//
-// Cohort name + star are read from rank.compositeCohortName + rank.compositeStar
-// (Patch 3, pre-computed at seed time). Falls back to deriving from rank
-// counts if either is absent.
+//   5. Star summary chip + cohort name — same chip the market view Ranked
+//      Operators list uses, scaled up via size="lg". Replaces the legacy
+//      single composite-star icon + "Top quartile in cohort" prose that
+//      drifted from the v0.6.3 Patch 4 "stars speak for themselves"
+//      philosophy. Gold + silver counts roll up the per-metric stars
+//      across DOM, rent performance, marketing, tenancy, and (when
+//      present) community visibility — matching countStars in
+//      operator-data.ts and PMListItem.goldCount/silverCount.
 export function IdentityHero({
   scorecard,
   isClaimed,
@@ -43,11 +47,15 @@ export function IdentityHero({
   const cityKebab = citySlug(scorecard.market.name);
   const quadrant7Label = scorecard.pm.quadrant7Cell ?? scorecard.pm.quadrant;
   const quadrant7 = quadrant7Color(quadrant7Label);
-  const compositeStar: StarLevel = scorecard.rank.compositeStar ?? null;
   const cohortName = normalizeCohortName(
     scorecard.rank.compositeCohortName ?? `${scorecard.market.name} MSA cohort`
   );
-  const cohortQualifier = starQualifier(compositeStar);
+  // Roll up per-metric stars across the same 5 axes the v0.6.3 Patch 4
+  // PMListItem chip uses (DOM, rent perf, marketing, tenancy, community
+  // visibility). Composite star is intentionally excluded — it's a
+  // roll-up of the others and would double-count.
+  const { goldCount, silverCount } = countOperatorStars(scorecard);
+  const hasStars = goldCount > 0 || silverCount > 0;
 
   // Multi-market operators get a row of pills; single-market operators get
   // one. We hide the row entirely if the cross-market lookup couldn't resolve
@@ -136,31 +144,31 @@ export function IdentityHero({
             )}
           </div>
 
-          {/* Composite cohort qualifier — biggest visual element below name.
-              Star + tier language ("Gold star · cohort name"). */}
+          {/* Star summary chip + cohort name — matches the market view
+              Ranked Operators list pattern (v0.6.3 Patch 4) at hero scale.
+              Chip hides at 0 gold + 0 silver so operators without
+              per-metric recognition see the cohort label stand alone; the
+              info icon on the cohort label leads to the composite
+              metric-definition modal where the methodology is explained. */}
           <div
-            className="mt-7 flex items-center gap-3"
-            aria-label={`Composite cohort qualifier: ${cohortQualifier.label} in ${cohortName}`}
+            className="mt-7 flex flex-wrap items-center gap-x-3 gap-y-2"
+            aria-label={
+              hasStars
+                ? `${goldCount} gold and ${silverCount} silver per-metric stars in ${cohortName}`
+                : `Ranked in ${cohortName}`
+            }
           >
-            <StarIcon level={compositeStar} size={32} />
-            <div className="min-w-0">
-              <p
-                className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[19px] font-semibold leading-[1.2] tracking-[-0.012em] text-navy md:text-[22px]"
-                style={{
-                  color: compositeStar === null ? "var(--color-muted-foreground)" : undefined,
-                }}
-              >
-                <span>{cohortQualifier.label}</span>
-                <span className="mx-1 text-muted-2">·</span>
-                <span className="text-navy">{cohortName}</span>
-                <InfoIcon metricKey="composite" className="ml-1.5" />
-              </p>
-              {cohortQualifier.descriptor && (
-                <p className="mt-1 text-[13px] font-medium text-muted-foreground">
-                  {cohortQualifier.descriptor}
-                </p>
-              )}
-            </div>
+            {hasStars && (
+              <StarSummaryChip
+                goldCount={goldCount}
+                silverCount={silverCount}
+                size="lg"
+              />
+            )}
+            <p className="flex items-center gap-x-1 text-[19px] font-semibold leading-[1.2] tracking-[-0.012em] text-navy md:text-[22px]">
+              <span>{cohortName}</span>
+              <InfoIcon metricKey="composite" className="ml-1.5" />
+            </p>
           </div>
 
           {/* Market footprint pills — multi-market only (one pill row when
@@ -281,30 +289,6 @@ function Quadrant7Badge({
   );
 }
 
-// Star qualifier label + descriptor sentence per the v1.0 spec (Section 5,
-// cohort qualifier templates).
-function starQualifier(level: StarLevel): {
-  label: string;
-  descriptor: string | null;
-} {
-  if (level === "gold") {
-    return {
-      label: "Gold star · Composite",
-      descriptor: "Top quartile in cohort",
-    };
-  }
-  if (level === "silver") {
-    return {
-      label: "Silver star · Composite",
-      descriptor: "Above median in cohort",
-    };
-  }
-  return {
-    label: "No star · Composite",
-    descriptor: "Present in cohort",
-  };
-}
-
 // Strip the " (any scale)" parenthetical that the v0.6.2 seed emits on
 // fallback cohort labels (e.g., "Nashville Large MF/BTR (any scale)") and
 // append "cohort" if it's missing, so we display "Nashville Large MF/BTR
@@ -318,40 +302,27 @@ function normalizeCohortName(raw: string): string {
   return `${stripped} cohort`;
 }
 
-// 5-point star SVG. Gold = filled gold-tone, Silver = filled silver-tone,
-// No star = empty outline (subtle muted ring). Sized by `size` prop in px.
-function StarIcon({
-  level,
-  size = 24,
-}: {
-  level: StarLevel;
-  size?: number;
-}) {
-  const isGold = level === "gold";
-  const isSilver = level === "silver";
-  const fill = isGold
-    ? "#E5A800"
-    : isSilver
-      ? "#9CA3AF"
-      : "transparent";
-  const stroke = isGold
-    ? "#B98700"
-    : isSilver
-      ? "#6B7280"
-      : "var(--color-muted-2)";
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill={fill}
-      stroke={stroke}
-      strokeWidth="1.6"
-      strokeLinejoin="round"
-      aria-hidden
-      className="shrink-0"
-    >
-      <path d="M12 2.6l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.7l-5.9 3.1 1.13-6.58L2.45 9.54l6.6-.96L12 2.6z" />
-    </svg>
-  );
+// Roll up gold + silver per-metric stars for the focal operator. Mirrors
+// the seed-time PMListItem.goldCount/silverCount computation and the
+// countStars helper in src/lib/operator-data.ts so all three surfaces
+// (market list, scorecard hero, operator profile cards) read the same
+// number for the same operator.
+function countOperatorStars(scorecard: ScorecardData): {
+  goldCount: number;
+  silverCount: number;
+} {
+  const perMetric: Array<StarLevel | undefined> = [
+    scorecard.performance.domStar,
+    scorecard.rentPerformance?.star,
+    scorecard.marketing.star,
+    scorecard.tenancy.star,
+    scorecard.communityVisibility?.star,
+  ];
+  let goldCount = 0;
+  let silverCount = 0;
+  for (const s of perMetric) {
+    if (s === "gold") goldCount++;
+    else if (s === "silver") silverCount++;
+  }
+  return { goldCount, silverCount };
 }
