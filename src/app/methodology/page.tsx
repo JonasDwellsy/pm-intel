@@ -957,6 +957,60 @@ export default async function MethodologyPage() {
                 operators in the broader ≥3-T12 universe don&rsquo;t
                 receive canonical mapping in v0.6.4.
               </p>
+
+              {/* v0.6.4 Patch 2 — concession activity sub-anchor.
+                  Same neighborhood as the other v0.6.4 sub-sections since
+                  the classifier output reads against the ranked-cohort
+                  context the canonical layer already established. */}
+              <h3
+                id="concession-activity"
+                className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
+              >
+                Concession activity.
+              </h3>
+              <p>
+                For every PM in coverage, the v0.6.4 Patch 2 classifier
+                scans the T12 listing descriptions for stereotyped
+                concession language — &ldquo;one month free&rdquo;,
+                &ldquo;move-in special&rdquo;, &ldquo;no deposit&rdquo;,
+                percent-off promotions, and similar patterns — and
+                computes the share of T12 listings that mention at least
+                one. The result is surfaced on scorecard Layer 5 as
+                operator concession rate, with the market median across
+                ranked operators as cohort context.
+              </p>
+              <p>
+                <strong>Regex-based, v1 catches stereotyped language.</strong>{" "}
+                Detection is pattern-matching, not semantic. The v1 dictionary
+                covers about a dozen pattern families (free month, percent
+                off, dollar off, no/reduced deposit, move-in special,
+                explicit concession, rent reduction, lease special, limited-
+                time offer, waived fee, free rent). Indirect or paraphrased
+                language (&ldquo;ask us about specials&rdquo; without naming
+                the special) will be missed. A v2 LLM-grader pass is on the
+                v0.7 backlog.
+              </p>
+              <p>
+                <strong>Context, not ranked.</strong> Concession activity
+                does not feed the composite ranking and does not award
+                stars. It&rsquo;s presented as a present-tense signal of
+                demand or supply stress at the operator level — high
+                participation can mean any of: aggressive lease-up, soft
+                submarket, large institutional discounting program. Read
+                alongside DOM, rent growth, and share trajectory rather
+                than in isolation.
+              </p>
+              <p>
+                <strong>Cohort comparison.</strong> The market median is
+                computed across ranked operators with a non-null
+                concession rate (operators absent from the classifier
+                input — typically no T12 description data — are excluded
+                from the median so they don&rsquo;t pull it toward zero).
+                Operators more than 20 percentage points above the median
+                receive an orange accent on Layer 5 (signaling elevated
+                concession activity vs the cohort); operators more than
+                20pp below get a green accent (low concession activity).
+              </p>
             </SectionAnchor>
 
             {/* === SECTION 08 — MARKETING === */}
