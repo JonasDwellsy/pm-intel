@@ -18,7 +18,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fuse.js": "^7.3.0",
-    "lucide-react": "^1.16.0",
     "mapbox-gl": "^3.23.1",
     "next": "16.2.6",
     "posthog-js": "^1.373.5",
