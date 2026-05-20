@@ -19,8 +19,16 @@ export interface ConcessionContext {
    *  ["move_in_special", "free_month_lease"]. Always an array, possibly
    *  empty. */
   patterns: string[];
-  /** Representative listing excerpt, or null when none is available. */
+  /** Single representative listing excerpt — back-compat for any reader
+   *  that hasn't migrated to the samples array yet. Null when none is
+   *  available. */
   sampleText: string | null;
+  /** Up to 3 distinct sample excerpts. Authoritative for the UI; the
+   *  Layer 5 section renders each as a separate blockquote so prospects
+   *  see varied concession types side-by-side. Falls back to a
+   *  1-element array built from sampleText when the seed predates the
+   *  array field; empty array when no samples are available at all. */
+  samples: string[];
   /** Median concession rate across the focal market's ranked operators
    *  with non-null concessionRate. Null when the cohort is empty. */
   marketMedianRate: number | null;
@@ -70,6 +78,20 @@ export function buildConcessionContext(
   const t12Listings = focalScorecard.coverage.t12Listings;
   const patterns = focalScorecard.concessionPatterns ?? [];
   const sampleText = focalScorecard.concessionSampleText ?? null;
+  // Samples array is authoritative; fall back to a 1-element array
+  // synthesized from the single sampleText field for any pre-array
+  // seed run that downstream readers might still hit.
+  const rawSamples = Array.isArray(focalScorecard.concessionSamples)
+    ? focalScorecard.concessionSamples.filter(
+        (s): s is string => typeof s === "string" && s.length > 0
+      )
+    : [];
+  const samples =
+    rawSamples.length > 0
+      ? rawSamples.slice(0, 3)
+      : sampleText
+        ? [sampleText]
+        : [];
 
   let accent: ConcessionContext["accent"] = null;
   if (rate !== null) {
@@ -90,6 +112,7 @@ export function buildConcessionContext(
     t12Listings,
     patterns,
     sampleText,
+    samples,
     marketMedianRate,
     cohortSize: cohortRates.length,
     accent,
