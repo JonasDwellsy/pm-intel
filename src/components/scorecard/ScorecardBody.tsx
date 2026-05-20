@@ -3,6 +3,7 @@ import type { MarketFootprintPill } from "@/lib/cross-market";
 import type { Layer3Metric, PeerComparison } from "@/lib/peer-comparison";
 import type { LendingSignals as LendingSignalsData } from "@/lib/lending-signals";
 import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
+import type { ConcessionContext } from "@/lib/concession-context";
 
 import { TrackEvent } from "@/components/analytics/TrackEvent";
 import { MetricInfoProvider } from "@/components/scorecard/MetricInfoProvider";
@@ -40,6 +41,7 @@ export function ScorecardBody({
   lendingSignals,
   cohortRentTrajectory,
   shareTrajectory,
+  concessionContext,
   crossMarketOperator = null,
 }: {
   scorecard: ScorecardData;
@@ -53,6 +55,11 @@ export function ScorecardBody({
   // Null is acceptable (Layer 5 null-guards) but the route handler should
   // always populate it via buildShareTrajectoryView.
   shareTrajectory: ShareTrajectoryView | null;
+  // v0.6.4 Patch 2 — concession context for the Layer 5 ConcessionActivity
+  // section. Built by buildConcessionContext(scorecard, msaPool) in the
+  // route handler. The section's render rules (null vs 0 vs >0) live in
+  // the component; this layer just threads the prop through.
+  concessionContext: ConcessionContext;
   // v0.6.4 Patch 1 — cross-market context for the Layer 1 badge. Null
   // for single-market operators (no badge rendered); { canonicalSlug,
   // marketCount } when the operator belongs to a multi-market canonical
@@ -99,6 +106,7 @@ export function ScorecardBody({
                   cohortRentTrajectory={cohortRentTrajectory}
                   pricingTier={lendingSignals.pricingTier}
                   shareTrajectory={shareTrajectory}
+                  concessionContext={concessionContext}
                 />
                 <MethodologyFooter scorecard={scorecard} />
               </>

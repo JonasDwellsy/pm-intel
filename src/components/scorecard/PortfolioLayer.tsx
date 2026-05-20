@@ -18,6 +18,10 @@ import type { MarketFootprintPill } from "@/lib/cross-market";
 import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import type { PricingTierSignal } from "@/lib/lending-signals";
 import type { ShareTrajectoryView } from "@/lib/share-trajectory";
+import {
+  uniquePatternLabels,
+  type ConcessionContext,
+} from "@/lib/concession-context";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { fmtInt, fmtNumber } from "@/lib/format";
 import { citySlug, stateCodeToSlug, submarketSlug } from "@/lib/slugify";
@@ -67,12 +71,14 @@ export function PortfolioLayer({
   cohortRentTrajectory,
   pricingTier,
   shareTrajectory,
+  concessionContext,
 }: {
   scorecard: ScorecardData;
   crossMarketPresence: MarketFootprintPill[];
   cohortRentTrajectory: CohortRentTrajectory | null;
   pricingTier: PricingTierSignal | null;
   shareTrajectory: ShareTrajectoryView | null;
+  concessionContext: ConcessionContext;
 }) {
   const opType = classify(scorecard);
   const isMultiMarket = crossMarketPresence.length > 1;
@@ -113,6 +119,16 @@ export function PortfolioLayer({
           scorecard={scorecard}
           overlay={cohortRentTrajectory}
         />
+      )}
+      {/* v0.6.4 Patch 2 — concession activity. Renders only when the
+          focal operator has a non-null concessionRate (i.e. they were
+          present in the classifier CSV input). Positioned between rent
+          trajectory and share trajectory per Patch 2 spec — concession
+          activity is a present-tense signal of demand/supply stress,
+          which reads naturally between the rolling rent picture and the
+          longer-arc share trajectory. */}
+      {concessionContext.rate !== null && (
+        <ConcessionActivitySection ctx={concessionContext} />
       )}
       {/* v0.6.3 Patch 6 — share-trajectory section, sandwiched between
           rent trajectory and pricing data per spec. Null guard handles
@@ -637,6 +653,143 @@ function ShareTrajectoryMethodologyFooter() {
         Read full methodology →
       </Link>
     </p>
+  );
+}
+
+// --- v0.6.4 Patch 2 — Concession activity section ---
+//
+// Three render branches keyed on ctx.rate + ctx.listingCount:
+//   - rate === null         → section doesn't render at all (handled in
+//                             the wrapper above; null guard there)
+//   - listingCount === 0    → "No concession language detected" branch
+//   - listingCount > 0      → full read: rate, cohort comparison,
+//                             pattern badges, sample text
+//
+// All branches share the same eyebrow + title + methodology disclosure.
+// Color accent on the rate number is driven by ctx.accent ("high" →
+// orange, "low" → green, "neutral" → navy) and signals participation
+// vs the market median, not a quality judgment — concession activity
+// is explicitly NOT a star-bearing metric.
+function ConcessionActivitySection({ ctx }: { ctx: ConcessionContext }) {
+  const hasConcessions = ctx.listingCount > 0 && ctx.rate !== null;
+  const ratePct = ctx.rate !== null ? Math.round(ctx.rate * 100) : null;
+  const medianPct =
+    ctx.marketMedianRate !== null
+      ? Math.round(ctx.marketMedianRate * 100)
+      : null;
+
+  // Accent → color token. Orange + green map to the existing chart-warn
+  // and chart-good tones the rest of Layer 3 + Layer 5 already use, so
+  // the concession color reads consistent with the other context cues.
+  const accentColor =
+    ctx.accent === "high"
+      ? "#D97834"
+      : ctx.accent === "low"
+        ? "#2F7A5C"
+        : "var(--color-navy)";
+
+  const patternLabels = uniquePatternLabels(ctx.patterns).slice(0, 3);
+
+  return (
+    <article id="concession-activity" className="dq-section">
+      {/* No metricKey — the methodology link in the disclosure footer
+          below acts as the "learn more" affordance for this section,
+          keeping concession discoverable without growing the
+          MetricKey union for a non-ranked context metric. */}
+      <SubsectionHeader
+        eyebrow="Concession activity"
+        title="How often this operator advertises concessions"
+      />
+      {hasConcessions ? (
+        <div className="mt-4 space-y-4">
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <p
+              className="text-[34px] font-semibold leading-none tracking-[-0.014em] dq-tnum"
+              style={{ color: accentColor }}
+            >
+              {ratePct}%
+            </p>
+            <p className="text-[15px] text-foreground/80">
+              of T12 listings mention concessions
+            </p>
+          </div>
+          <p className="text-[13.5px] text-muted-foreground">
+            <span className="dq-mono font-semibold text-navy">
+              {fmtInt(ctx.listingCount)}
+            </span>{" "}
+            of{" "}
+            <span className="dq-mono font-semibold text-navy">
+              {fmtInt(ctx.t12Listings)}
+            </span>{" "}
+            listings
+            {medianPct !== null && (
+              <>
+                <span className="mx-2 text-muted-2">·</span>
+                Market median:{" "}
+                <span className="dq-mono font-semibold text-navy">
+                  {medianPct}%
+                </span>
+                {ctx.cohortSize > 0 && (
+                  <span className="text-muted-2"> (n={ctx.cohortSize})</span>
+                )}
+              </>
+            )}
+          </p>
+          {patternLabels.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {patternLabels.map((label) => (
+                <span
+                  key={label}
+                  className="inline-flex items-center rounded-full border border-grid bg-white px-2.5 py-1 text-[11.5px] font-semibold text-navy"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
+          {ctx.sampleText && (
+            <div className="rounded-md border border-grid bg-white/60 px-4 py-3">
+              <p className="dq-eyebrow-muted text-[10.5px] tracking-[0.12em] mb-1.5">
+                Sample
+              </p>
+              <p className="text-[13.5px] italic leading-[1.55] text-foreground/85">
+                &ldquo;{ctx.sampleText}&rdquo;
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="mt-4 text-[14.5px] leading-[1.55] text-foreground/80">
+          No concession language detected in this operator&rsquo;s T12 listings.
+          {medianPct !== null && (
+            <>
+              {" "}
+              Market median is{" "}
+              <span className="dq-mono font-semibold text-navy">
+                {medianPct}%
+              </span>
+              {ctx.cohortSize > 0 && (
+                <span className="text-muted-2"> (n={ctx.cohortSize})</span>
+              )}
+              .
+            </>
+          )}
+        </p>
+      )}
+      <p className="mt-5 text-[11.5px] leading-[1.5] text-muted-foreground">
+        Concession detection uses regex-based pattern matching on listing
+        descriptions. v1 catches stereotyped language (&ldquo;one month
+        free&rdquo;, &ldquo;move-in special&rdquo;, etc.); indirect or nuanced
+        concession terms may be missed. This metric is shown for context; it
+        is not used in ranking.{" "}
+        <Link
+          href="/methodology#concession-activity"
+          className="font-medium text-teal hover:text-teal-700 hover:underline"
+        >
+          Read methodology →
+        </Link>
+      </p>
+    </article>
   );
 }
 
