@@ -40,6 +40,22 @@ export function SiteHeader() {
           >
             Methodology
           </Link>
+          {/* Ask Dwellsy IQ — natural-language interface. AI badge signals
+              this is a new feature (Claude tool-calling against the
+              scorecard data). Same hover/transition treatment as the
+              other nav links. */}
+          <Link
+            href="/ask"
+            className="hidden items-center gap-1.5 text-sm font-medium text-navy transition-colors hover:text-teal sm:inline-flex"
+          >
+            Ask
+            <span
+              aria-hidden
+              className="inline-flex h-4 items-center rounded-sm bg-teal px-1 text-[9px] font-bold uppercase tracking-[0.06em] text-white"
+            >
+              AI
+            </span>
+          </Link>
           {/* v0.7 search — top-nav PM autocomplete. Hidden on the
               narrowest viewports where the input doesn't fit; Cmd+K
               still works to invoke the modal from anywhere. */}
