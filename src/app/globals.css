@@ -692,3 +692,106 @@ dialog.dq-metric-info-dialog[open] {
 .dq-markdown tbody tr:last-child td {
   border-bottom: none;
 }
+
+/* ---------------------------------------------------------------
+   Print stylesheet — drives the new "Print / Save as PDF" button
+   in the scorecard sidebar (replaces the old @react-pdf download).
+   The idea is "print-the-live-page": the visible scorecard IS the
+   PDF, so every future design change flows through automatically.
+
+   Strategy:
+     - Hide chrome (nav, sidebar, footer, claim/share/print buttons,
+       info icons, search inputs) so only the article content prints.
+     - Force white backgrounds + preserve brand colors with
+       print-color-adjust: exact so quadrant pills and accent tones
+       come through.
+     - Add page-break-inside: avoid to each Layer section so they
+       don't split awkwardly across pages.
+     - Hide map tiles — Mapbox doesn't render reliably in print and
+       a half-rendered map is worse than a clean gap.
+
+   The .dq-no-print escape hatch lets any individual element opt out
+   of print without us needing a structural selector for it (used by
+   the Print button itself, the search inputs, etc.).
+   --------------------------------------------------------------- */
+@media print {
+  /* Force exact color rendering on every browser. Without this,
+     Chrome/Safari/Edge strip background colors by default. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  /* Global escape hatch — anything tagged .dq-no-print disappears in
+     print. PrintScorecardButton + any interactive control we add
+     later just needs this class. */
+  .dq-no-print {
+    display: none !important;
+  }
+
+  /* Chrome we never want in print. */
+  header.sticky,
+  footer,
+  aside[aria-label="On this page"],
+  .dq-info-icon {
+    display: none !important;
+  }
+
+  /* Claim trigger button and share scorecard button live inside the
+     scorecard hero / sidebar respectively. Tagged inline at the call
+     sites with .dq-no-print so the structural selectors above don't
+     need to enumerate every variant. */
+
+  /* Hide map containers — Mapbox GL tiles don't print cleanly and a
+     blank canvas is worse than no map. The map's narrative
+     annotation paragraph still prints because it lives outside the
+     map container. */
+  .mapboxgl-map,
+  .mapboxgl-canvas-container {
+    display: none !important;
+  }
+
+  /* Collapse the scorecard's lg grid (article + 280px sidebar) to a
+     single column once the sidebar is hidden so the article uses the
+     full width of the print page. */
+  .lg\:grid-cols-\[minmax\(0\,1fr\)_280px\] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Page-break hints. Each Layer section gets its own block so they
+     don't split mid-section if possible; long sections (Layer 5,
+     Layer 6) will still split but at content boundaries rather than
+     mid-card. */
+  section,
+  article.dq-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Slight type compaction — easier to fit a full scorecard in 1-2
+     pages without losing readability. */
+  body {
+    font-size: 11.5pt;
+    line-height: 1.45;
+  }
+  h1 {
+    font-size: 22pt;
+  }
+  h2 {
+    font-size: 16pt;
+  }
+  h3 {
+    font-size: 13pt;
+  }
+
+  /* Sticky containers (e.g. sidebar top:88px wrapper) become
+     position: static so they don't try to do layout magic in print. */
+  .sticky {
+    position: static !important;
+  }
+}
+
