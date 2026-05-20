@@ -12,17 +12,21 @@ export function SiteHeader() {
           className="flex items-center gap-4 text-navy"
         >
           {/* Real Dwellsy IQ brand logo. Native asset is 1000×313 (3.2:1
-              aspect); displayed at 32px height to match the prior wordmark
-              height. width attribute is set to the corresponding aspect-
-              correct width so Next/Image doesn't need to compute it from
-              the file. */}
+              aspect); displayed at 48px height (h-12) so the "IQ"
+              character height visually matches the 36px Get Matched
+              button. Width 153 keeps the 3.2:1 aspect ratio so the
+              <Image> layout calculation doesn't trigger a reflow.
+              Bumped from h-8 (32px) in the UI polish pass — the
+              prior size was too compressed against the surrounding
+              nav typography. Header retains its h-[76px] frame
+              (48 + 14px top/bottom padding leaves comfortable air). */}
           <Image
             src="/dwellsy-iq-logo.png"
             alt="Dwellsy IQ"
-            width={102}
-            height={32}
+            width={153}
+            height={48}
             priority
-            className="h-8 w-auto"
+            className="h-12 w-auto"
           />
           <span aria-hidden className="h-5 w-px bg-grid" />
           <span className="text-sm font-semibold text-navy">PM Intel</span>

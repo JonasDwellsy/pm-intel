@@ -43,7 +43,12 @@ export function Hero() {
           <p className="dq-eyebrow tracking-[0.16em]">
             Dwellsy IQ · Property Manager Intelligence
           </p>
-          <h1 className="dq-h1 mt-5 max-w-[14ch] text-balance text-[44px] leading-[1.04] tracking-[-0.018em] sm:text-[52px] lg:text-[60px]">
+          {/* mt-7 (28px) on H1 — the homepage H1 is large (60px on lg)
+              so the prior mt-5 (20px) read tight against the eyebrow.
+              Other pages with smaller H1s (briefs index at 36-44px,
+              market hero, operator profile) intentionally use less
+              spacing; this gap scales with H1 mass. */}
+          <h1 className="dq-h1 mt-7 max-w-[14ch] text-balance text-[44px] leading-[1.04] tracking-[-0.018em] sm:text-[52px] lg:text-[60px]">
             Outside-in intelligence on every property manager in the country.
           </h1>
           <p className="mt-6 max-w-[60ch] text-[17px] leading-[1.55] text-foreground/85 sm:text-[19px]">
