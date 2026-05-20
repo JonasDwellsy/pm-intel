@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { fmtDate, fmtDays, fmtInt } from "@/lib/format";
+import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import type { MarketSummary } from "@/lib/types";
 
 // v0.6.3 headline reframe (Methodology_v0.6.3_Patches.md) — the four-tile
@@ -298,6 +300,20 @@ export function MarketHero({
               />
             </>
           )}
+        </div>
+        {/* Subtle "Read the brief" link — discoverable next to the live
+            data tiles but visually subordinate (small + muted) so the
+            interactive market view stays the primary surface. The brief
+            URL aligns with the market's state + city slugs the page
+            already routes by. */}
+        <div className="mt-5 border-t border-grid pt-4">
+          <Link
+            href={`/property-managers/${stateCodeToSlug(market.state)}/${citySlug(market.city)}/brief`}
+            className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-teal transition-colors hover:text-teal-700"
+          >
+            Read the {market.city} brief
+            <span aria-hidden>→</span>
+          </Link>
         </div>
       </aside>
     </section>
