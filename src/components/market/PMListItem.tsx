@@ -1,6 +1,7 @@
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { fmtDays, fmtInt } from "@/lib/format";
 import { quadrantColor } from "@/lib/quadrant-colors";
+import { StarSummaryChip } from "@/components/scorecard/StarSummaryChip";
 import type { PMListItem as PMListItemData } from "@/lib/types";
 
 function fmtSignedPct(n: number | null): {
@@ -170,64 +171,7 @@ export function PMListItem({
   );
 }
 
-// v0.6.3 Patch 4 — gold / silver star summary chip rendered to the left of
-// the PM name on the market list. Replaces the legacy single composite-
-// star icon. Each side renders only when its count > 0; an operator with
-// zero of both sides renders nothing so the row's identity strip stays
-// uncluttered. The two icons share a single chip background so the visual
-// reads as one unit; counts sit immediately to the right of each icon in
-// dq-mono numerals.
-//
-// Color encoding matches the scorecard per-metric star palette: gold fill
-// #E5A800 / stroke #B98700, silver fill #9CA3AF / stroke #6B7280. Stars
-// are rendered at 14px (slightly smaller than the legacy 18px composite
-// icon) so two icons + counts fit in roughly the same width as the
-// previous single icon — avoids layout disruption.
-function StarSummaryChip({
-  goldCount,
-  silverCount,
-}: {
-  goldCount: number;
-  silverCount: number;
-}) {
-  if (goldCount === 0 && silverCount === 0) return null;
-  return (
-    <span
-      aria-label={`${goldCount} gold star${goldCount === 1 ? "" : "s"}, ${silverCount} silver star${silverCount === 1 ? "" : "s"}`}
-      className="inline-flex items-center gap-1.5 rounded-full border border-grid bg-white px-2 py-0.5 text-[12px] font-semibold text-navy"
-    >
-      {goldCount > 0 && (
-        <span className="inline-flex items-center gap-0.5">
-          <StarGlyph tone="gold" />
-          <span className="dq-mono">{goldCount}</span>
-        </span>
-      )}
-      {silverCount > 0 && (
-        <span className="inline-flex items-center gap-0.5">
-          <StarGlyph tone="silver" />
-          <span className="dq-mono">{silverCount}</span>
-        </span>
-      )}
-    </span>
-  );
-}
-
-function StarGlyph({ tone }: { tone: "gold" | "silver" }) {
-  const fill = tone === "gold" ? "#E5A800" : "#9CA3AF";
-  const stroke = tone === "gold" ? "#B98700" : "#6B7280";
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill={fill}
-      stroke={stroke}
-      strokeWidth="1.8"
-      strokeLinejoin="round"
-      aria-hidden
-      className="shrink-0"
-    >
-      <path d="M12 2.6l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.7l-5.9 3.1 1.13-6.58L2.45 9.54l6.6-.96L12 2.6z" />
-    </svg>
-  );
-}
+// StarSummaryChip + StarGlyph were extracted to
+// @/components/scorecard/StarSummaryChip when the scorecard hero (Layer
+// 1) adopted the same chip pattern at a larger scale. The list row uses
+// the default size="md"; the hero uses size="lg".
