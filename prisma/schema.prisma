@@ -137,3 +137,27 @@ model Claim {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
+
+// Auto-generated weekly market brief cache. One row per (marketSlug,
+// methodologyVersion, dataAsOf) tuple — cache invalidates implicitly
+// when either version changes because no row will exist for the new
+// tuple. headlineRead, shareMovement, operatorLandscape, notableSignals
+// are the four prose sections Claude produces. inputDigest is a SHA-256
+// of the structured MarketBriefData input the prose was generated from,
+// kept for debugging (e.g., "did the seed change but version didn't?").
+model MarketBrief {
+  id                  String   @id @default(cuid())
+  marketSlug          String
+  methodologyVersion  String
+  dataAsOf            DateTime
+  headlineRead        String
+  shareMovement       String
+  operatorLandscape   String
+  notableSignals      String
+  inputDigest         String
+  generatedAt         DateTime @default(now())
+
+  // Composite uniqueness: at most one brief per cache key.
+  @@unique([marketSlug, methodologyVersion, dataAsOf])
+  @@index([marketSlug])
+}
