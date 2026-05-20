@@ -33,7 +33,11 @@ export function ClaimTrigger({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-[26px] items-center gap-1.5 rounded-full border border-grid bg-white px-3 text-[11.5px] font-semibold text-navy transition-colors hover:border-navy hover:bg-surface-soft focus-visible:border-navy focus-visible:bg-surface-soft focus-visible:outline-none"
+        // dq-no-print: interactive affordance, doesn't belong on the
+        // printed scorecard. The PM's claim status is already
+        // surfaced via the Verified pill when claimed; the trigger
+        // is meaningful only on the live page.
+        className="dq-no-print inline-flex h-[26px] items-center gap-1.5 rounded-full border border-grid bg-white px-3 text-[11.5px] font-semibold text-navy transition-colors hover:border-navy hover:bg-surface-soft focus-visible:border-navy focus-visible:bg-surface-soft focus-visible:outline-none"
         aria-label={`Claim ${pmName}`}
       >
         <svg

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DownloadPdfLink } from "@/components/analytics/DownloadPdfLink";
+import { PrintScorecardButton } from "@/components/scorecard/PrintScorecardButton";
 
 type SectionLink = { id: string; label: string; num: string };
 
@@ -52,7 +52,7 @@ export function ScorecardSidebar({
 
         {isUnlocked && (
           <div className="mt-6 flex flex-col gap-2.5 border-b border-grid pb-6">
-            <DownloadPdfLink pmSlug={pmSlug} />
+            <PrintScorecardButton pmSlug={pmSlug} />
             <Link
               href={`/property-managers`}
               className="inline-flex h-9 w-full items-center justify-center rounded-md border border-navy bg-white px-4 text-[13px] font-semibold text-navy transition-colors hover:bg-navy-soft"

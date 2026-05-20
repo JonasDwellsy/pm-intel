@@ -273,6 +273,12 @@ export interface ScorecardData {
   concessionRate?: number | null;
   concessionPatterns?: string[];
   concessionSampleText?: string;
+  // v0.6.4 Patch 2 follow-up — array of up to 3 distinct listing
+  // excerpts (the seed pipeline picks varied samples so the Layer 5
+  // section can show different concession types side-by-side). The
+  // earlier single `concessionSampleText` field stays for back-compat
+  // with any pre-array reader; the array is authoritative for the UI.
+  concessionSamples?: string[];
 }
 
 export interface TenancyAssetBlock {

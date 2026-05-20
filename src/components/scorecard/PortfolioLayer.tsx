@@ -747,14 +747,21 @@ function ConcessionActivitySection({ ctx }: { ctx: ConcessionContext }) {
               ))}
             </div>
           )}
-          {ctx.sampleText && (
-            <div className="rounded-md border border-grid bg-white/60 px-4 py-3">
-              <p className="dq-eyebrow-muted text-[10.5px] tracking-[0.12em] mb-1.5">
-                Sample
-              </p>
-              <p className="text-[13.5px] italic leading-[1.55] text-foreground/85">
-                &ldquo;{ctx.sampleText}&rdquo;
-              </p>
+          {ctx.samples.length > 0 && (
+            <div className="space-y-2.5">
+              {ctx.samples.map((sample, i) => (
+                <div
+                  key={i}
+                  className="rounded-md border border-grid bg-white/60 px-4 py-3"
+                >
+                  <p className="dq-eyebrow-muted text-[10.5px] tracking-[0.12em] mb-1.5">
+                    {ctx.samples.length > 1 ? `Sample ${i + 1}` : "Sample"}
+                  </p>
+                  <p className="text-[13.5px] italic leading-[1.55] text-foreground/85">
+                    &ldquo;{sample}&rdquo;
+                  </p>
+                </div>
+              ))}
             </div>
           )}
         </div>
