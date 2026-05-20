@@ -161,6 +161,86 @@ const GLOSSARY: GlossaryRow[] = [
       "Five auxiliary signals (Vacancy, Rent Stability, Operator Stability, Geographic Concentration, Pricing Tier) surfaced alongside the composite. Underwriting-relevant synthesis metrics; don't feed the composite ranking.",
     ref: "§09",
   },
+  // ── v0.6.3 terms ──────────────────────────────────────────────────
+  {
+    term: "Active operator",
+    definition:
+      "An operator with ≥3 listings observed in the trailing 12 months. Replaces the legacy total-operator denominator as the surfaced headline figure on market pages (v0.6.3 Patch 1). Distinct from eligible — active is a presence threshold; eligible is the ranking threshold.",
+    ref: "§01",
+  },
+  {
+    term: "Eligible for ranking",
+    definition:
+      "An operator with ≥30 listings observed in the trailing 12 months. Operators below this threshold appear in the universe (tracked) tier but don't receive a composite rank or per-metric stars. Window labeled T12 throughout the product (v0.6.3 Patch 2 corrected an earlier T6M label drift).",
+    ref: "§01",
+  },
+  {
+    term: "Market rent growth (T12)",
+    definition:
+      "Median operator-level YoY rent change across the ranked cohort in a market, surfaced on the Market Snapshot tile (v0.6.3 Patch 3). Displayed alongside a national-benchmark line and a pre-computed pp delta vs national.",
+    ref: "§07",
+  },
+  {
+    term: "National benchmark",
+    definition:
+      "Reference value computed once across every continuing operator in every covered MSA. Used as the comparison line on market rent growth tiles and on the share-trajectory surface. Single value across markets — embedded per-market in the seed for render simplicity.",
+    ref: "§07",
+  },
+  {
+    term: "Star summary chip",
+    definition:
+      "★N ☆M chip showing an operator's gold + silver per-metric star counts. Used on market list rows and scorecard Layer 1. Counts roll up across DOM, Rent Performance, Marketing, Tenancy, and (when applicable) Community Visibility. Composite star is excluded from the rollup to avoid double-counting.",
+    ref: "§09",
+  },
+  {
+    term: "State-level aggregate",
+    definition:
+      "Cross-MSA operator counts at /property-managers/[state]. Counts deduplicate by canonicalOperatorId (v0.6.4) so a multi-market operator counts once per state. Pool of in-state MSAs powers state-level medians for DOM and rent growth.",
+    ref: "§07",
+  },
+  {
+    term: "Continuing operator",
+    definition:
+      "An operator with ≥30 listings in both T12 and the prior T24→T12 window. Used as the strict-cohort definition for share-trajectory math (v0.6.3 Patch 6). Operators below threshold in either window classify as new-in-coverage or null-baseline and don't surface a share trajectory value.",
+    ref: "§07",
+  },
+  {
+    term: "Share trajectory (YoY)",
+    definition:
+      "Year-over-year change in an operator's share of ranked-cohort listing activity. Pre-computed per market against the continuing cohort. Surfaced as context only — not used in composite ranking and not star-bearing (v0.6.3 Patch 6).",
+    ref: "§07",
+  },
+  {
+    term: "New in coverage / null baseline",
+    definition:
+      "Share-trajectory eligibility labels for operators outside the continuing cohort. Null baseline: no prior-window listings (t24 = 0 or null). New in coverage: prior listings present but below the 30-listing threshold. Both render an explicit status on the scorecard rather than a misleading trajectory number.",
+    ref: "§07",
+  },
+  // ── v0.6.4 terms ──────────────────────────────────────────────────
+  {
+    term: "Canonical operator identity",
+    definition:
+      "v0.6.4 Patch 1 — operators that appear in multiple markets resolve to a single canonical entity via name normalization (strip LLC/Inc/Ltd/Co/Corp suffixes, lowercase, collapse whitespace; substantive tokens like Property Management / Realty are preserved). Powers the /operator/[canonicalSlug] cross-market profile route and state-level count dedup.",
+    ref: "§07",
+  },
+  {
+    term: "Cross-market operator",
+    definition:
+      "An operator whose canonical entity spans ≥2 covered markets (e.g. Invitation Homes operates in 4 of the 7 covered MSAs). Surfaced via a chip in scorecard Layer 1 linking to the cross-market profile. 22 multi-market canonical entities cover 60 of 575 PM records in the current footprint.",
+    ref: "§07",
+  },
+  {
+    term: "Concession activity / concession rate",
+    definition:
+      "v0.6.4 Patch 2 — share of an operator's T12 listings that mention concession language (regex-based classifier on listing descriptions). Surfaced on scorecard Layer 5 with a market median for cohort context. Context only — not star-bearing, not in composite ranking. Operators absent from the classifier input show no section.",
+    ref: "§07",
+  },
+  {
+    term: "Concession patterns",
+    definition:
+      "v1 dictionary of ~12 stereotyped pattern families the classifier matches: free month(s), % off, $ off, no/reduced deposit, move-in special, explicit concession, rent reduction, lease special, limited offer, waived fee, free rent, plus an explicit_concession catch-all. Indirect/paraphrased language is missed by design — a v2 LLM-grader pass is a v0.7 candidate.",
+    ref: "§07",
+  },
 ];
 
 export default async function MethodologyPage() {
@@ -1722,10 +1802,10 @@ export default async function MethodologyPage() {
             Next scheduled review <b className="text-navy">July 2026</b>
           </p>
           <a
-            href="mailto:methodology@dwellsy.com"
+            href="mailto:pmintel@dwellsy.com"
             className="text-[13px] font-semibold text-teal hover:text-teal-700"
           >
-            Email questions to methodology@dwellsy.com
+            Email questions to pmintel@dwellsy.com
           </a>
         </div>
       </div>
