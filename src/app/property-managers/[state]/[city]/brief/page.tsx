@@ -173,12 +173,12 @@ export default async function MarketBriefPage({
           <StatTile
             label="Rent growth T12"
             value={
-              data.market.marketRentGrowthT12 !== null
+              data.market.marketRentGrowthT12 != null
                 ? `${data.market.marketRentGrowthT12 >= 0 ? "+" : ""}${(data.market.marketRentGrowthT12 * 100).toFixed(2)}%`
                 : "—"
             }
             sub={
-              data.market.deltaVsNationalPp !== null
+              data.market.deltaVsNationalPp != null
                 ? `${data.market.deltaVsNationalPp >= 0 ? "+" : ""}${data.market.deltaVsNationalPp.toFixed(2)}pp vs national`
                 : null
             }

@@ -67,11 +67,14 @@ function makeUserMessage(data: MarketBriefData): string {
   lines.push(`- Active operators (≥3 listings T12): ${data.market.activeOperatorCount ?? "—"}`);
   lines.push(`- Eligible cohort: ${data.market.eligibleCount} of ${data.market.totalOperatorCount} tracked`);
   lines.push(`- Median DOM T12: ${data.market.medianDomT12.toFixed(1)} days`);
-  if (data.market.marketRentGrowthT12 !== null) {
+  // Loose `!= null` (catches both null and undefined) so seed-shape
+  // drift — where a field omits a key instead of writing null — can't
+  // sneak undefined past a stricter `!== null` and trip .toFixed().
+  if (data.market.marketRentGrowthT12 != null) {
     const pct = (data.market.marketRentGrowthT12 * 100).toFixed(2);
     lines.push(`- Market rent growth T12: ${data.market.marketRentGrowthT12 >= 0 ? "+" : ""}${pct}%`);
   }
-  if (data.market.deltaVsNationalPp !== null) {
+  if (data.market.deltaVsNationalPp != null) {
     const sign = data.market.deltaVsNationalPp >= 0 ? "+" : "";
     lines.push(`- vs national benchmark: ${sign}${data.market.deltaVsNationalPp.toFixed(2)}pp`);
   }
@@ -118,9 +121,14 @@ function makeUserMessage(data: MarketBriefData): string {
   lines.push("## 7-cell quadrant breakdown");
   for (const q of data.quadrantBreakdown) {
     const sharePct = (q.share * 100).toFixed(1);
-    const dom = q.medianDomT12 !== null ? `${q.medianDomT12.toFixed(1)}d DOM` : "DOM —";
+    // `!= null` catches both null and undefined — guards against the
+    // seed-pipeline-omits-the-key case where the JSON.parse leaves
+    // these as undefined even though the TS type says `number | null`.
+    // (market-brief.ts normalizes at the boundary now too, this is
+    // defense in depth.)
+    const dom = q.medianDomT12 != null ? `${q.medianDomT12.toFixed(1)}d DOM` : "DOM —";
     const rent =
-      q.medianRentVsComp !== null
+      q.medianRentVsComp != null
         ? `${q.medianRentVsComp >= 0 ? "+" : ""}${q.medianRentVsComp.toFixed(1)}% vs comp`
         : "rent —";
     lines.push(`- ${q.cell}: ${q.count} ops (${sharePct}%), ${dom}, ${rent}`);
