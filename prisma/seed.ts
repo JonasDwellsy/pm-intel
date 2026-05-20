@@ -761,6 +761,14 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
       ? (pm.concessionPatterns as string[])
       : undefined,
     concessionSampleText: asString(pm.concessionSampleText) || undefined,
+    // v0.6.4 Patch 2 follow-up — array of up to 3 distinct samples.
+    // Baked into the stored ScorecardData blob so the Layer 5 renderer
+    // can iterate without parsing the per-PM column.
+    concessionSamples: Array.isArray(pm.concessionSamples)
+      ? (pm.concessionSamples as unknown[]).filter(
+          (s): s is string => typeof s === "string"
+        )
+      : undefined,
   };
 }
 
@@ -987,6 +995,14 @@ async function main() {
           ? JSON.stringify(pm.concessionPatterns)
           : "[]",
         concessionSampleText: asString(pm.concessionSampleText) || null,
+        // v0.6.4 Patch 2 follow-up — up to 3 distinct samples. Filter
+        // out non-string entries defensively before stringifying so a
+        // future shape drift can't slip null/undefined into the column.
+        concessionSamples: Array.isArray(pm.concessionSamples)
+          ? JSON.stringify(
+              pm.concessionSamples.filter((s) => typeof s === "string")
+            )
+          : "[]",
       },
     });
     pmCount += 1;

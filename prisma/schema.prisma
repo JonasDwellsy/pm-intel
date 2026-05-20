@@ -109,6 +109,12 @@ model PM {
   concessionRate         Float?
   concessionPatterns     String  @default("[]") // JSON array
   concessionSampleText   String?
+  // v0.6.4 Patch 2 follow-up — up to 3 distinct concession sample
+  // excerpts. Authoritative for the Layer 5 UI; concessionSampleText
+  // stays for back-compat with downstream readers that may not have
+  // migrated yet. Stored as JSON array string, same convention as
+  // concessionPatterns + the other JSON-as-String columns in the schema.
+  concessionSamples      String  @default("[]")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
