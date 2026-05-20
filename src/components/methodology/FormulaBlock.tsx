@@ -30,10 +30,3 @@ export function FormulaBlock({
 export function Op({ children }: { children: React.ReactNode }) {
   return <span className="text-teal">{children}</span>;
 }
-
-// Inline helper: italic muted comment in the formula
-export function Comment({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="italic text-muted-2">{children}</span>
-  );
-}

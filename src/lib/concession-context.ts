@@ -164,3 +164,56 @@ export function uniquePatternLabels(rawIds: string[]): string[] {
   }
   return out;
 }
+
+/** Wrap a concession sample excerpt with ellipses on either end when the
+ *  text appears to start or end mid-sentence. The classifier emits
+ *  fixed-width snippets from listing descriptions, so the cut points
+ *  often land mid-word ("er applicant…") or mid-clause ("…into the
+ *  heart of"). Wrapping makes the truncation explicit instead of
+ *  reading as a typo. Rules:
+ *
+ *    - Prefix "…" when the first non-whitespace character is not
+ *      a capital letter or a sentence-opening symbol ($, ", ', etc.)
+ *      and the text doesn't already start with an ellipsis.
+ *    - Suffix "…" when the last non-whitespace character is not a
+ *      sentence-terminator (. ! ? ") and the text doesn't already
+ *      end with an ellipsis.
+ *
+ *  Uses the U+2026 HORIZONTAL ELLIPSIS character rather than three
+ *  periods, matching the dq-mono / Inter rendering elsewhere.
+ */
+export function formatConcessionSample(raw: string): string {
+  // Normalize leading/trailing ASCII triple-dots to the U+2026 ellipsis
+  // character first. The classifier occasionally emits "..." (three
+  // periods) at a truncation boundary; we want a single typographic
+  // ellipsis there, not three full stops the prefix/suffix logic below
+  // would misread as terminal punctuation.
+  const text = raw
+    .trim()
+    .replace(/^\.{3,}/, "…")
+    .replace(/\.{3,}$/, "…");
+  if (text.length === 0) return text;
+
+  // Front: capital letter, or a sentence-opening symbol (currency,
+  // quote, hash, etc.). Anything else gets a leading ellipsis.
+  const firstChar = text[0];
+  const startsCleanly =
+    /[A-Z]/.test(firstChar) ||
+    /[$"'(*#@]/.test(firstChar) ||
+    text.startsWith("…");
+  const needsPrefix = !startsCleanly;
+
+  // Back: terminal punctuation closes the snippet cleanly. Anything
+  // else (mid-word, mid-clause, trailing comma) gets a trailing
+  // ellipsis. A trailing close-quote is treated as terminal because
+  // the classifier sometimes ends snippets right after a quoted phrase.
+  const lastChar = text[text.length - 1];
+  const endsCleanly =
+    /[.!?]/.test(lastChar) ||
+    lastChar === '"' ||
+    lastChar === "'" ||
+    text.endsWith("…");
+  const needsSuffix = !endsCleanly;
+
+  return `${needsPrefix ? "…" : ""}${text}${needsSuffix ? "…" : ""}`;
+}
