@@ -145,8 +145,8 @@ export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
           eyebrow="Coverage"
-          title="Seven markets currently live on Dwellsy IQ."
-          context="We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. Seven MSAs are live as of v0.6.4; additional MSAs roll out through 2026."
+          title="Ten markets currently live on Dwellsy IQ."
+          context="We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. Ten MSAs are live as of v0.6.4 — including the Alabama expansion (Birmingham, Huntsville, Montgomery). Additional MSAs roll out through 2026."
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {markets.map((m) => (

@@ -950,7 +950,18 @@ async function main() {
     }
   }
 
-  // Idempotent: clear PMs first (FK to Market), then Markets.
+  // Idempotent: clear PMs first (FK to Market), then Markets. Also
+  // wipe the MarketBrief LLM cache — when a re-seed runs, the
+  // underlying market data has changed (otherwise the isDataCurrent
+  // skip-check above would have exited already), so cached brief
+  // prose may reference stale numbers (e.g., the national benchmark
+  // line shifted from +0.84% to +0.31% with the Alabama expansion).
+  // The cache key on MarketBrief is (marketSlug, methodologyVersion,
+  // dataAsOf), which would have caught a methodology-version bump
+  // but not the within-version data drift this seed represents.
+  // First visit per market after deploy will regenerate prose against
+  // the fresh data.
+  await prisma.marketBrief.deleteMany();
   await prisma.pM.deleteMany();
   await prisma.market.deleteMany();
 

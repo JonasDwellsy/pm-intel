@@ -226,7 +226,7 @@ const GLOSSARY: GlossaryRow[] = [
   {
     term: "Cross-market operator",
     definition:
-      "An operator whose canonical entity spans ≥2 covered markets (e.g. Invitation Homes operates in 4 of the 7 covered MSAs). Surfaced via a chip in scorecard Layer 1 linking to the cross-market profile. 22 multi-market canonical entities cover 60 of 575 PM records in the current footprint.",
+      "An operator whose canonical entity spans ≥2 covered markets (e.g. Invitation Homes operates in 4 of the 10 covered MSAs). Surfaced via a chip in scorecard Layer 1 linking to the cross-market profile. 34 multi-market canonical entities cover ~104 of 694 PM records in the current footprint.",
     ref: "§07",
   },
   {

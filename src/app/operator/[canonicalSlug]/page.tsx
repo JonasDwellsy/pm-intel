@@ -64,7 +64,7 @@ function buildCrossMarketSummary(view: OperatorView): string {
   const stateNames = view.stateCodes.map(stateDisplay).join(", ");
   const pieces: string[] = [];
   pieces.push(
-    `${view.canonicalName} operates in ${view.marketCount} of our 7 covered markets, across ${stateNames}.`
+    `${view.canonicalName} operates in ${view.marketCount} of our 10 covered markets, across ${stateNames}.`
   );
   pieces.push(
     `Strongest presence in ${top.marketCity} (${fmtInt(top.t12Listings)} listings T12).`

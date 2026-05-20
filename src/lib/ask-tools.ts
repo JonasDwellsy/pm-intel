@@ -776,7 +776,7 @@ export const ASK_TOOLS: Anthropic.Messages.Tool[] = [
   {
     name: "listMarkets",
     description:
-      "List all 7 markets in Dwellsy IQ coverage with their high-level stats: " +
+      "List all 10 markets in Dwellsy IQ coverage with their high-level stats: " +
       "active operator count, eligible cohort size, median days-on-market, market rent growth YoY. " +
       "Use this when the user asks 'what markets do you cover' or wants a high-level market comparison.",
     input_schema: {
@@ -799,7 +799,8 @@ export const ASK_TOOLS: Anthropic.Messages.Tool[] = [
           description:
             "Market slug like 'phoenix-az', 'jacksonville-fl', 'chattanooga-tn', " +
             "'nashville-davidson-murfreesboro-franklin-tn', 'memphis-tn-ms-ar', " +
-            "'knoxville-tn', 'clarksville-tn-ky'. Call listMarkets to see all 7 slugs.",
+            "'knoxville-tn', 'clarksville-tn-ky', 'birmingham-al', 'huntsville-al', " +
+            "'montgomery-al'. Call listMarkets to see all 10 slugs.",
         },
       },
       required: ["marketSlug"],
