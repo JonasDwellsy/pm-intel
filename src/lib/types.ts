@@ -259,6 +259,20 @@ export interface ScorecardData {
   // Optional + nullable for back-compat with pre-Patch-6 seed runs.
   t12ListingsCount?: number;
   t24t12ListingsCount?: number;
+  // v0.6.4 Patch 2 — concession classifier output carried through from
+  // the seed pipeline. concessionRate is null when the operator wasn't
+  // found in the classifier CSV input (no T12 description data); 0 when
+  // found but no concession-language matches; otherwise the decimal
+  // fraction of T12 listings mentioning concessions. concessionPatterns
+  // is an array of pattern identifiers ordered by frequency (e.g.
+  // ["move_in_special", "free_month_lease"]). concessionSampleText is
+  // one representative listing excerpt for display on the Layer 5
+  // section. All four optional for back-compat with pre-Patch-2
+  // reseeds; downstream null-guards handle absence.
+  concessionListingCount?: number;
+  concessionRate?: number | null;
+  concessionPatterns?: string[];
+  concessionSampleText?: string;
 }
 
 export interface TenancyAssetBlock {
