@@ -1,3 +1,23 @@
+// Seed runs as part of vercel-build on every deploy. Re-seeding 575
+// PMs row-by-row against Neon was tripping P1017 ("Server has closed
+// the connection") on connection-pool starvation roughly once per
+// week, which aborts the deploy. Most deploys are code-only and don't
+// change data, so we now skip the seed when the DB already matches
+// the JSON (isDataCurrent() check at the top of main()).
+//
+// FORCE_SEED=true bypasses the skip and runs the full seed regardless.
+// Use it when:
+//   - the seed JSON changes shape in a way the spot-check doesn't
+//     catch (rare — concessionListingCount + concessionSamples length
+//     together fingerprint the v0.6.4 Patch 2 data cleanly)
+//   - you've deliberately mutated DB state and want to reset
+//   - you just want belt-and-braces confidence during a methodology
+//     release
+//
+// Local-dev examples:
+//   npx prisma db seed                       # skip if current
+//   FORCE_SEED=true npx prisma db seed       # always re-seed
+
 import { PrismaClient } from "@prisma/client";
 import seedData from "../src/data/scorecard_data.json";
 import type {
@@ -772,12 +792,116 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
   };
 }
 
+// Cheap fingerprint of the seed JSON against the live DB. Returns
+// true when we're confident the DB already matches the JSON and we
+// can skip the full re-seed. Returns false on:
+//   - PM count mismatch (catches half-completed prior seeds and any
+//     deletion/migration that changed the row count)
+//   - absent market table (a fresh-DB scenario)
+//   - spot-check drift on a known PM's concession fields — the v0.6.4
+//     Patch 2 + follow-up baked concessionListingCount + a 0-3 sample
+//     array per PM, and any seed-JSON revision would change at least
+//     one of those for the spot-check operator (Invitation Homes
+//     Phoenix, picked because it has high listing volume + 3 samples
+//     so the fingerprint is unlikely to collide with stale data).
+//
+// Three cheap reads (count + findFirst + findUnique) vs 600+ writes
+// in the full seed. Worth it for the deploy-time savings.
+async function isDataCurrent(): Promise<boolean> {
+  const pmCount = await prisma.pM.count();
+  if (pmCount !== data.pms.length) {
+    console.log(
+      `[seed] PM count mismatch: DB has ${pmCount}, JSON has ${data.pms.length}. Re-seeding.`
+    );
+    return false;
+  }
+
+  const firstMarket = await prisma.market.findFirst();
+  if (!firstMarket) {
+    console.log("[seed] No market records found. Re-seeding.");
+    return false;
+  }
+
+  // Spot-check PM. Picked at module-build time rather than randomized
+  // so reseed decisions stay deterministic across deploys. If the
+  // operator ever disappears from the seed we fall through to a
+  // re-seed (the lookup returns null), which is the right behavior.
+  const SPOT_SLUG = "invitation-homes-phoenix-az";
+  const expectedPm = data.pms.find(
+    (p) => asString(p.slug) === SPOT_SLUG
+  );
+  if (!expectedPm) {
+    console.log(
+      `[seed] Spot-check operator "${SPOT_SLUG}" missing from JSON — seed JSON shape changed. Re-seeding.`
+    );
+    return false;
+  }
+  const dbPm = await prisma.pM.findUnique({
+    where: { slug: SPOT_SLUG },
+    select: {
+      concessionListingCount: true,
+      concessionSamples: true,
+    },
+  });
+  if (!dbPm) {
+    console.log(
+      `[seed] Spot-check operator "${SPOT_SLUG}" missing from DB. Re-seeding.`
+    );
+    return false;
+  }
+
+  const expectedCount = asInt(expectedPm.concessionListingCount) ?? 0;
+  if (dbPm.concessionListingCount !== expectedCount) {
+    console.log(
+      `[seed] Data drift on concessionListingCount for "${SPOT_SLUG}": DB ${dbPm.concessionListingCount}, JSON ${expectedCount}. Re-seeding.`
+    );
+    return false;
+  }
+
+  // concessionSamples is stored as a JSON-encoded string column to
+  // match the existing JSON-as-String convention; parse before
+  // comparing array length to the JSON's raw array.
+  const expectedSamples = Array.isArray(expectedPm.concessionSamples)
+    ? (expectedPm.concessionSamples as unknown[]).filter(
+        (s): s is string => typeof s === "string"
+      ).length
+    : 0;
+  let dbSampleCount = 0;
+  try {
+    const parsed = JSON.parse(dbPm.concessionSamples) as unknown;
+    dbSampleCount = Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    dbSampleCount = 0;
+  }
+  if (dbSampleCount !== expectedSamples) {
+    console.log(
+      `[seed] Concession sample array length differs for "${SPOT_SLUG}": DB ${dbSampleCount}, JSON ${expectedSamples}. Re-seeding.`
+    );
+    return false;
+  }
+
+  return true;
+}
+
 async function main() {
   console.log(
     `Seeding from methodology ${data.methodologyVersion}` +
       (data.designVersion ? `, design ${data.designVersion}` : "") +
       `, dataAsOf ${data.dataAsOf}`
   );
+
+  // Skip the full row-by-row seed when the DB already matches the JSON.
+  // Avoids exhausting Neon's connection pool on code-only deploys (the
+  // bulk of them). FORCE_SEED=true bypasses for manual refreshes or
+  // when the spot-check might miss a shape change.
+  if (process.env.FORCE_SEED === "true") {
+    console.log(
+      "[seed] FORCE_SEED=true — re-seeding regardless of current state."
+    );
+  } else if (await isDataCurrent()) {
+    console.log("[seed] ✓ Data already current. Skipping seed.");
+    return;
+  }
 
   // Pre-pass: for the 4 markets that omit both mapBounds AND
   // msaBackdropPoints (Memphis/Knoxville/Clarksville/Phoenix in v0.6.2),
