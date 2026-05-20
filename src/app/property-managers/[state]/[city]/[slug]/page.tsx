@@ -19,6 +19,7 @@ import { buildPeerComparisons } from "@/lib/peer-comparison";
 import { buildLendingSignals } from "@/lib/lending-signals";
 import { buildCohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import { buildShareTrajectoryView } from "@/lib/share-trajectory";
+import { buildConcessionContext } from "@/lib/concession-context";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import { MarketView } from "@/components/market/MarketView";
 
@@ -153,6 +154,11 @@ export default async function MarketChildPage({
     slug,
     msaPool
   );
+  // v0.6.4 Patch 2 — Layer 5 concession context. Same msaPool feeds the
+  // market-median cohort comparison, so no extra DB round-trip. Section
+  // renders only when the focal operator has a non-null concessionRate
+  // (PM was present in the classifier CSV input).
+  const concessionContext = buildConcessionContext(scorecard, msaPool);
   // v0.6.4 Patch 1 — cross-market context for the Layer 1 badge. Look
   // up the canonical entity only when this PM's canonicalOperatorId
   // doesn't match its own slug (single-market PMs have id === slug per
@@ -178,6 +184,7 @@ export default async function MarketChildPage({
       cohortRentTrajectory={cohortRentTrajectory}
       crossMarketOperator={crossMarketContext}
       shareTrajectory={shareTrajectory}
+      concessionContext={concessionContext}
     />
   );
 }

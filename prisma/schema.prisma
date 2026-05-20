@@ -47,6 +47,12 @@ model Market {
   // surfaced on the headline tile + methodology page §3. Defaults to T12
   // so back-compat reseeds without an explicit value still read correctly.
   eligibilityWindow     String?  @default("T12")
+  // v0.6.4 Patch 2 — count of ranked operators in this market with at
+  // least one concession-mentioning T12 listing. Drives the cohort
+  // comparison line on the scorecard Layer 5 Concession Activity
+  // section. Default 0 keeps the field safe for back-compat with
+  // pre-Patch-2 reseeds.
+  operatorsWithConcessions Int   @default(0)
   pms                   PM[]
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -90,6 +96,19 @@ model PM {
   // entities; single-market ids have no matching row.
   canonicalOperatorId   String?
   canonicalOperatorName String?
+  // v0.6.4 Patch 2 — concession detection results from the regex
+  // classifier run against listing descriptions over the T12 window.
+  // concessionRate is null when the operator wasn't found in the CSV
+  // input (no T12 description data), 0 when found but no concession
+  // language detected, otherwise count / t12ListingsCount as a
+  // decimal. concessionPatterns is a JSON array of pattern identifiers
+  // (move_in_special, free_month_lease, etc.) ordered by frequency.
+  // concessionSampleText carries one representative listing excerpt
+  // for display. Always non-ranking — context only on Layer 5.
+  concessionListingCount Int     @default(0)
+  concessionRate         Float?
+  concessionPatterns     String  @default("[]") // JSON array
+  concessionSampleText   String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

@@ -59,6 +59,10 @@ type InputMarket = {
   // seed input is the source of truth so we read it through rather than
   // hard-coding.
   eligibilityWindow?: string;
+  // v0.6.4 Patch 2 — count of ranked operators in this market with at
+  // least one concession-mentioning T12 listing. Drives the Layer 5
+  // cohort comparison line on the scorecard concession section.
+  operatorsWithConcessions?: number | null;
   // The v0.6.2 input emits mapBounds in TWO different key shapes across
   // markets (carry-forward from per-market seed runs): Chattanooga emits
   // {north, south, east, west} (canonical); Nashville emits
@@ -746,6 +750,17 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
     // without an extra DB round-trip on every scorecard render.
     canonicalOperatorId: asString(pm.canonicalOperatorId) || undefined,
     canonicalOperatorName: asString(pm.canonicalOperatorName) || undefined,
+    // v0.6.4 Patch 2 — concession classifier output. Carried into the
+    // stored blob so the Layer 5 ConcessionActivity section renders
+    // without re-querying the per-PM concession columns (msaPool
+    // already deserializes scorecardData per PM, so the median
+    // computation walks pool[].scorecard.concession* in-memory).
+    concessionListingCount: asInt(pm.concessionListingCount) ?? undefined,
+    concessionRate: asNumber(pm.concessionRate),
+    concessionPatterns: Array.isArray(pm.concessionPatterns)
+      ? (pm.concessionPatterns as string[])
+      : undefined,
+    concessionSampleText: asString(pm.concessionSampleText) || undefined,
   };
 }
 
@@ -843,6 +858,10 @@ async function main() {
         // inputs that emit "T6M" would still write "T6M" but downstream UI
         // reads only the value, so old data stays internally consistent.
         eligibilityWindow: asString(m.eligibilityWindow) || "T12",
+        // v0.6.4 Patch 2 — concession participation count for the
+        // cohort comparison line. asInt() returns null on missing/junk
+        // input; we coerce to 0 so the DB default is consistent.
+        operatorsWithConcessions: asInt(m.operatorsWithConcessions) ?? 0,
       },
     });
     console.log(`  ✓ market: ${m.id} (${m.fullName})`);
@@ -955,6 +974,19 @@ async function main() {
         // would write null which the downstream renderers null-guard.
         canonicalOperatorId: asString(pm.canonicalOperatorId) || null,
         canonicalOperatorName: asString(pm.canonicalOperatorName) || null,
+        // v0.6.4 Patch 2 — concession classifier output. Rate is null
+        // when the operator was absent from the classifier CSV input
+        // (no T12 description data to scan); 0 when present but no
+        // patterns matched; otherwise the decimal fraction. patterns
+        // is JSON-encoded (consistent with the other JSON-as-String
+        // fields in the schema). sampleText is one representative
+        // listing excerpt for the Layer 5 blockquote.
+        concessionListingCount: asInt(pm.concessionListingCount) ?? 0,
+        concessionRate: asNumber(pm.concessionRate),
+        concessionPatterns: Array.isArray(pm.concessionPatterns)
+          ? JSON.stringify(pm.concessionPatterns)
+          : "[]",
+        concessionSampleText: asString(pm.concessionSampleText) || null,
       },
     });
     pmCount += 1;
