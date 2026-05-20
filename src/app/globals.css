@@ -621,3 +621,74 @@ dialog.dq-metric-info-dialog[open] {
   align-items: center;
   justify-content: center;
 }
+
+/* Markdown rendered by react-markdown in the Ask Dwellsy IQ chat. Scoped
+   under .dq-markdown so we don't bleed into pages with their own typography
+   tokens. Keeps the assistant bubble feeling like prose, not raw HTML. */
+.dq-markdown p {
+  margin: 0 0 0.6em 0;
+}
+.dq-markdown p:last-child {
+  margin-bottom: 0;
+}
+.dq-markdown h1,
+.dq-markdown h2,
+.dq-markdown h3 {
+  margin: 0.8em 0 0.3em 0;
+  font-weight: 600;
+  color: var(--color-navy);
+  line-height: 1.25;
+}
+.dq-markdown h1 { font-size: 17px; }
+.dq-markdown h2 { font-size: 15.5px; }
+.dq-markdown h3 { font-size: 14.5px; }
+.dq-markdown ul,
+.dq-markdown ol {
+  margin: 0 0 0.6em 0;
+  padding-left: 1.3em;
+}
+.dq-markdown li {
+  margin-bottom: 0.2em;
+}
+.dq-markdown a {
+  color: var(--color-teal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 500;
+}
+.dq-markdown a:hover {
+  color: var(--color-teal-700);
+}
+.dq-markdown strong {
+  font-weight: 600;
+  color: var(--color-navy);
+}
+.dq-markdown code {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 0.88em;
+  background: var(--color-navy-soft);
+  padding: 0.08em 0.32em;
+  border-radius: 3px;
+}
+.dq-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-size: 13px;
+}
+.dq-markdown thead th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-navy);
+  border-bottom: 1px solid var(--color-grid, #e6e8ec);
+  padding: 0.4em 0.6em;
+  white-space: nowrap;
+}
+.dq-markdown tbody td {
+  padding: 0.4em 0.6em;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-navy) 6%, transparent);
+  vertical-align: top;
+}
+.dq-markdown tbody tr:last-child td {
+  border-bottom: none;
+}
