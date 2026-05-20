@@ -3,25 +3,42 @@ import { PrintScorecardButton } from "@/components/scorecard/PrintScorecardButto
 
 type SectionLink = { id: string; label: string; num: string };
 
-const FREE_SECTIONS: SectionLink[] = [
-  { id: "synthesis", label: "Synthesis", num: "01" },
-  { id: "paywall", label: "Paywall", num: "02" },
-];
-
-// v1.0 sidebar reflects the layered structure introduced in Phases B-D.
-// Layer 1 is the page hero (no anchor); Layers 2-5 each get a sidebar entry.
-// Inventory Transparency is the only Layer 3 card gated by scope qualification.
-// Sidebar anchor list — top-level sections only (no per-card sub-anchors).
-// Readers scroll within "Performance dimensions" to see the individual
-// metric cards. The hasCommunityVisibility flag is no longer consulted
-// because all Layer 3 cards are siblings inside the parent section.
-const UNLOCKED_SECTIONS: SectionLink[] = [
+// Single source of truth for the scorecard's TOC. Both unlocked and
+// paywalled readers see the same 5 sections. The old FREE_SECTIONS
+// list surfaced "Paywall" as a content entry which read as a section
+// label rather than the UX state it actually is. Now: paywalled
+// readers see locks on the 4 gated sections, the unlock CTA is what
+// happens when they click one, and "Paywall" stops masquerading as
+// content.
+const SECTIONS: SectionLink[] = [
   { id: "synthesis", label: "Synthesis", num: "01" },
   { id: "performance", label: "Performance dimensions", num: "02" },
   { id: "lending-signals", label: "Lending Signals", num: "03" },
   { id: "portfolio", label: "Portfolio characteristics", num: "04" },
   { id: "methodology-footer", label: "Methodology & limits", num: "05" },
 ];
+
+// Lock glyph for the paywalled rows. Inline SVG — matches the project
+// pattern; lucide-react was removed in PR #26 for being unused.
+function LockGlyph() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className="shrink-0"
+    >
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  );
+}
 
 export function ScorecardSidebar({
   isUnlocked,
@@ -36,24 +53,42 @@ export function ScorecardSidebar({
    *  by the scorecard route handler. */
   compareHref: string | null;
 }) {
-  const items = isUnlocked ? UNLOCKED_SECTIONS : FREE_SECTIONS;
   return (
     <aside aria-label="On this page" className="hidden lg:block">
       <div className="sticky top-[88px]">
         <p className="dq-eyebrow-muted mb-3.5">On this page</p>
         <nav className="flex flex-col border-l border-grid">
-          {items.map((s) => (
-            <Link
-              key={s.id}
-              href={`#${s.id}`}
-              className="-ml-px flex items-baseline gap-3 border-l-2 border-transparent py-2 pl-4 text-[13px] font-medium text-muted-foreground transition-colors hover:text-navy hover:border-grid-soft"
-            >
-              <span className="dq-mono min-w-[14px] text-[10px] text-muted-2 tracking-[0.04em]">
-                {s.num}
-              </span>
-              <span>{s.label}</span>
-            </Link>
-          ))}
+          {SECTIONS.map((s) => {
+            // Only Synthesis (the first section) is visible at the
+            // paywalled access level; the other four sit behind the
+            // unlock CTA. Locked rows still render in the TOC so the
+            // visitor sees the full scope of what unlocking gets them
+            // — they're just visually muted and route to the paywall
+            // block instead of an anchor they can't reach.
+            const locked = !isUnlocked && s.id !== "synthesis";
+            const href = locked ? "#paywall" : `#${s.id}`;
+            const baseClass =
+              "-ml-px flex items-baseline gap-3 border-l-2 border-transparent py-2 pl-4 text-[13px] font-medium transition-colors";
+            const stateClass = locked
+              ? "text-muted-2 hover:text-muted-foreground"
+              : "text-muted-foreground hover:text-navy hover:border-grid-soft";
+            return (
+              <Link
+                key={s.id}
+                href={href}
+                aria-disabled={locked || undefined}
+                className={`${baseClass} ${stateClass}`}
+              >
+                <span className="dq-mono min-w-[14px] text-[10px] text-muted-2 tracking-[0.04em]">
+                  {s.num}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  {s.label}
+                  {locked && <LockGlyph />}
+                </span>
+              </Link>
+            );
+          })}
         </nav>
 
         {isUnlocked && (
