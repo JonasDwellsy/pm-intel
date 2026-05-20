@@ -42,6 +42,7 @@ export function ScorecardBody({
   cohortRentTrajectory,
   shareTrajectory,
   concessionContext,
+  compareHref,
   crossMarketOperator = null,
 }: {
   scorecard: ScorecardData;
@@ -51,6 +52,10 @@ export function ScorecardBody({
   peerComparisons: Record<Layer3Metric, PeerComparison | null>;
   lendingSignals: LendingSignalsData;
   cohortRentTrajectory: CohortRentTrajectory | null;
+  /** Resolved compare URL passed through to the sidebar's "Compare with
+   *  similar PMs" button. Null when the market has no other ranked
+   *  operators (sidebar then hides the button). */
+  compareHref: string | null;
   // v0.6.3 Patch 6 — share-trajectory view passed through to Layer 5F.
   // Null is acceptable (Layer 5 null-guards) but the route handler should
   // always populate it via buildShareTrajectoryView.
@@ -115,6 +120,7 @@ export function ScorecardBody({
           <ScorecardSidebar
             isUnlocked={isUnlocked}
             pmSlug={scorecard.pm.slug}
+            compareHref={compareHref}
           />
         </div>
       </div>

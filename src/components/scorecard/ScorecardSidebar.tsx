@@ -26,9 +26,15 @@ const UNLOCKED_SECTIONS: SectionLink[] = [
 export function ScorecardSidebar({
   isUnlocked,
   pmSlug,
+  compareHref,
 }: {
   isUnlocked: boolean;
   pmSlug: string;
+  /** Resolved compare URL when the operator has at least one ranked
+   *  peer; null on the rare edge case (single-ranked-operator market)
+   *  where peer comparison wouldn't be meaningful. Computed server-side
+   *  by the scorecard route handler. */
+  compareHref: string | null;
 }) {
   const items = isUnlocked ? UNLOCKED_SECTIONS : FREE_SECTIONS;
   return (
@@ -53,12 +59,14 @@ export function ScorecardSidebar({
         {isUnlocked && (
           <div className="mt-6 flex flex-col gap-2.5 border-b border-grid pb-6">
             <PrintScorecardButton pmSlug={pmSlug} />
-            <Link
-              href={`/property-managers`}
-              className="inline-flex h-9 w-full items-center justify-center rounded-md border border-navy bg-white px-4 text-[13px] font-semibold text-navy transition-colors hover:bg-navy-soft"
-            >
-              Compare with similar PMs
-            </Link>
+            {compareHref && (
+              <Link
+                href={compareHref}
+                className="inline-flex h-9 w-full items-center justify-center rounded-md border border-navy bg-white px-4 text-[13px] font-semibold text-navy transition-colors hover:bg-navy-soft"
+              >
+                Compare with similar PMs
+              </Link>
+            )}
             <button
               type="button"
               className="inline-flex items-center justify-center gap-2 self-start px-1 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-navy"

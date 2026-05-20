@@ -20,6 +20,7 @@ import { buildLendingSignals } from "@/lib/lending-signals";
 import { buildCohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import { buildShareTrajectoryView } from "@/lib/share-trajectory";
 import { buildConcessionContext } from "@/lib/concession-context";
+import { hasComparablePeers } from "@/lib/peer-comparison-view";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import { MarketView } from "@/components/market/MarketView";
 
@@ -159,6 +160,14 @@ export default async function MarketChildPage({
   // renders only when the focal operator has a non-null concessionRate
   // (PM was present in the classifier CSV input).
   const concessionContext = buildConcessionContext(scorecard, msaPool);
+  // Compare-with-similar-PMs button target. hasComparablePeers returns
+  // false on the rare edge case where this PM is the only ranked
+  // operator in their market — sidebar hides the button entirely in
+  // that case rather than routing to a comparison page that would show
+  // an empty grid.
+  const compareHref = hasComparablePeers(msaPool, slug)
+    ? `/property-managers/${state}/${city}/${slug}/compare`
+    : null;
   // v0.6.4 Patch 1 — cross-market context for the Layer 1 badge. Look
   // up the canonical entity only when this PM's canonicalOperatorId
   // doesn't match its own slug (single-market PMs have id === slug per
@@ -185,6 +194,7 @@ export default async function MarketChildPage({
       crossMarketOperator={crossMarketContext}
       shareTrajectory={shareTrajectory}
       concessionContext={concessionContext}
+      compareHref={compareHref}
     />
   );
 }
