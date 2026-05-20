@@ -4,7 +4,21 @@ const FOOTER_LINKS: Array<{ href: string; label: string; external?: boolean }> =
   { href: "/methodology", label: "Methodology" },
   { href: "/methodology#glossary", label: "Glossary" },
   { href: "/property-managers", label: "Markets" },
-  { href: "mailto:errata@dwellsy.com", label: "Request errata", external: true },
+  {
+    // Repointed from errata@dwellsy.com (dead) → pmintel@dwellsy.com.
+    // Subject prefilled for inbox triage.
+    href: "mailto:pmintel@dwellsy.com?subject=Data%20correction%20request",
+    label: "Request errata",
+    external: true,
+  },
+  // External — Terms of use lives on the marketing site, not in-app.
+  // Rendered with target=_blank + rel=noopener so the IQ surface stays
+  // in the foreground tab.
+  {
+    href: "https://dwellsy.com/pages/terms-of-use",
+    label: "Terms",
+    external: true,
+  },
 ];
 
 export function SiteFooter() {
@@ -29,12 +43,20 @@ export function SiteFooter() {
           </p>
         </div>
         <nav className="mt-5 flex flex-wrap gap-6 text-xs text-muted-foreground">
-          {FOOTER_LINKS.map((l) =>
-            l.external ? (
+          {FOOTER_LINKS.map((l) => {
+            // mailto: links don't need target=_blank (the OS handles
+            // them), but cross-origin web URLs do. Distinguish on the
+            // protocol so both flavors of "external" route correctly.
+            const isWebExternal =
+              l.external && !l.href.startsWith("mailto:");
+            return l.external ? (
               <a
                 key={l.label}
                 href={l.href}
                 className="hover:text-navy"
+                {...(isWebExternal
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
               >
                 {l.label}
               </a>
@@ -42,8 +64,8 @@ export function SiteFooter() {
               <Link key={l.label} href={l.href} className="hover:text-navy">
                 {l.label}
               </Link>
-            )
-          )}
+            );
+          })}
           <span className="text-muted-2">© {year} Dwellsy, Inc.</span>
         </nav>
       </div>
