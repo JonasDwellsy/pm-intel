@@ -73,7 +73,7 @@ export function Hero() {
             </TrackedLink>
           </div>
           <p className="mt-6 text-[14.5px] italic text-muted-foreground">
-            Methodology v0.6.4 · Design v1.0 · 7 markets live · National
+            Methodology v0.6.4 · Design v1.0 · 10 markets live · National
             coverage rolling out.
           </p>
         </div>

@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Ask Dwellsy IQ",
   description:
-    "Natural-language interface for operator scorecards, market intelligence, and methodology questions across Dwellsy IQ's 7 covered markets.",
+    "Natural-language interface for operator scorecards, market intelligence, and methodology questions across Dwellsy IQ's 10 covered markets.",
 };
 
 export default async function AskPage() {

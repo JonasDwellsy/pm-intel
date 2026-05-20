@@ -172,8 +172,8 @@ export default async function MarketChildPage({
   // up the canonical entity only when this PM's canonicalOperatorId
   // doesn't match its own slug (single-market PMs have id === slug per
   // the v0.6.4 seed convention, so we can short-circuit the DB hit for
-  // 515 of 575 PMs). Returns null for single-market operators →
-  // IdentityHero renders no badge.
+  // ~590 of 694 PMs in the current 10-market footprint). Returns null
+  // for single-market operators → IdentityHero renders no badge.
   const crossMarketContext =
     scorecard.canonicalOperatorId &&
     scorecard.canonicalOperatorId !== scorecard.pm.slug

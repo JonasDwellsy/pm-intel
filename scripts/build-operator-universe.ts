@@ -139,6 +139,15 @@ const MARKETS: Array<{
   { slug: "knoxville", id: "knoxville-tn", city: "Knoxville", state: "TN", stateSlug: "tennessee", citySlug: "knoxville" },
   { slug: "clarksville", id: "clarksville-tn-ky", city: "Clarksville", state: "TN", stateSlug: "tennessee", citySlug: "clarksville" },
   { slug: "phoenix", id: "phoenix-az", city: "Phoenix", state: "AZ", stateSlug: "arizona", citySlug: "phoenix" },
+  // Alabama expansion (v0.6.4 10-market refresh). The tracked-tier
+  // (Tier 2) per-market source JSONs may not yet exist in Product
+  // Support for these three; if missing, the script logs a skip and
+  // their tracked entries simply won't appear in the index. Ranked +
+  // canonical tiers still surface because they read from the merged
+  // seed which already has these markets.
+  { slug: "birmingham", id: "birmingham-al", city: "Birmingham", state: "AL", stateSlug: "alabama", citySlug: "birmingham" },
+  { slug: "huntsville", id: "huntsville-al", city: "Huntsville", state: "AL", stateSlug: "alabama", citySlug: "huntsville" },
+  { slug: "montgomery", id: "montgomery-al", city: "Montgomery", state: "AL", stateSlug: "alabama", citySlug: "montgomery" },
 ];
 const MIN_T12 = 3;
 
