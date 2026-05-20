@@ -170,7 +170,7 @@ export function MethodologyTOC({
               Download as PDF
             </a>
             <a
-              href="mailto:methodology@dwellsy.com"
+              href="mailto:pmintel@dwellsy.com"
               className="inline-flex items-center gap-1.5 px-1 py-1 text-[13px] font-semibold text-teal transition-colors hover:text-teal-700"
             >
               Email the methodology team →

@@ -205,8 +205,12 @@ export function IdentityHero({
           )}
         </div>
 
-        {/* Right rail — methodology badge + claim CTA. Kept compact so the
-            left-column hero stays the primary visual weight. */}
+        {/* Right rail — methodology badge only. Kept compact so the
+            left-column hero stays the primary visual weight. The
+            "Claim this profile →" link that used to live here was a
+            duplicate of the ClaimTrigger pill rendered in the badge
+            row above (left column). One CTA per surface; the pill is
+            the canonical entry point. */}
         <div className="flex shrink-0 flex-col items-start gap-2.5 md:items-end">
           <span className="dq-methodology-badge dq-tnum">
             Methodology v{scorecard.methodologyVersion.replace(/^v/, "")}
@@ -219,14 +223,6 @@ export function IdentityHero({
             <span className="text-muted-2">·</span>
             Data as of {fmtDate(scorecard.dataAsOf)}
           </span>
-          {!isClaimed && (
-            <Link
-              href={`/claim/${scorecard.pm.slug}`}
-              className="text-[13px] font-medium text-teal hover:text-teal-700"
-            >
-              Claim this profile →
-            </Link>
-          )}
         </div>
       </div>
     </header>
