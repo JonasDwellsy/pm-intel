@@ -35,6 +35,12 @@ export function SiteHeader() {
             Markets
           </Link>
           <Link
+            href="/briefs"
+            className="hidden text-sm font-medium text-navy transition-colors hover:text-teal sm:inline-block"
+          >
+            Briefs
+          </Link>
+          <Link
             href="/methodology"
             className="hidden text-sm font-medium text-navy transition-colors hover:text-teal sm:inline-block"
           >
