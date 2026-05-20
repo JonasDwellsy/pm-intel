@@ -19,6 +19,7 @@ import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import type { PricingTierSignal } from "@/lib/lending-signals";
 import type { ShareTrajectoryView } from "@/lib/share-trajectory";
 import {
+  formatConcessionSample,
   uniquePatternLabels,
   type ConcessionContext,
 } from "@/lib/concession-context";
@@ -758,7 +759,7 @@ function ConcessionActivitySection({ ctx }: { ctx: ConcessionContext }) {
                     {ctx.samples.length > 1 ? `Sample ${i + 1}` : "Sample"}
                   </p>
                   <p className="text-[13.5px] italic leading-[1.55] text-foreground/85">
-                    &ldquo;{sample}&rdquo;
+                    &ldquo;{formatConcessionSample(sample)}&rdquo;
                   </p>
                 </div>
               ))}
