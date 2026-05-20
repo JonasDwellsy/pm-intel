@@ -229,8 +229,14 @@ export async function buildMarketBriefData(
     .map(([cell, stats]) => ({
       cell,
       count: stats.count,
-      medianDomT12: stats.medianDomT12,
-      medianRentVsComp: stats.medianRentVsComp,
+      // The seed JSON omits these keys for cells without computed
+      // medians (sparse 7-cell distributions — every market has at
+      // least one). JSON.parse + the `as` cast above lets undefined
+      // through under a `number | null` type, which then defeats the
+      // `!== null` guards downstream. Normalize at the boundary so the
+      // type and runtime values agree.
+      medianDomT12: stats.medianDomT12 ?? null,
+      medianRentVsComp: stats.medianRentVsComp ?? null,
       share: totalForShare > 0 ? stats.count / totalForShare : 0,
     }))
     .sort((a, b) => b.count - a.count);
