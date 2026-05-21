@@ -4,12 +4,12 @@
 // the buy-box rows; we render them as a card grid with action
 // buttons that hit the API:
 //
-//   - Edit       → router.push(`/buy-boxes/[id]/edit`)
+//   - Apply      → Link to /buy-boxes/[id]/results (ranked table).
+//                  Primary action — this is the value-prop view.
+//   - Edit       → /buy-boxes/[id]/edit
 //   - Duplicate  → POST /api/buy-boxes (copy with name "[orig] (copy)")
 //                  then redirect into the new id's editor
 //   - Delete     → confirm modal → DELETE /api/buy-boxes/[id]
-//   - Apply      → POST /api/buy-boxes/[id]/apply, opens results JSON
-//                  in a new tab. (Real results UI lands in PR 3.)
 //
 // Empty state lives here too — pointing the user at /buy-boxes/new.
 
@@ -70,22 +70,6 @@ export function BuyBoxList({ buyBoxes }: Props) {
     }
   }
 
-  async function handleApply(id: string) {
-    setBusyId(id);
-    setError(null);
-    try {
-      const res = await fetch(`/api/buy-boxes/${id}/apply`, { method: "POST" });
-      if (!res.ok) throw new Error(`Apply failed: ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Apply failed.");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   if (buyBoxes.length === 0) {
     return <EmptyState />;
   }
@@ -136,19 +120,17 @@ export function BuyBoxList({ buyBoxes }: Props) {
 
             <div className="mt-auto pt-5 flex flex-wrap items-center gap-2">
               <Link
-                href={`/buy-boxes/${bb.id}/edit`}
+                href={`/buy-boxes/${bb.id}/results`}
                 className="h-8 inline-flex items-center rounded-md bg-teal px-3 text-[12.5px] font-semibold text-white hover:bg-teal-700"
+              >
+                Apply →
+              </Link>
+              <Link
+                href={`/buy-boxes/${bb.id}/edit`}
+                className="h-8 inline-flex items-center rounded-md border border-grid bg-white px-3 text-[12.5px] font-medium text-navy hover:border-teal hover:text-teal-700"
               >
                 Edit
               </Link>
-              <button
-                type="button"
-                onClick={() => handleApply(bb.id)}
-                disabled={busyId === bb.id}
-                className="h-8 rounded-md border border-grid bg-white px-3 text-[12.5px] font-medium text-navy hover:border-teal hover:text-teal-700 disabled:opacity-50"
-              >
-                Apply
-              </button>
               <button
                 type="button"
                 onClick={() => handleDuplicate(bb)}
