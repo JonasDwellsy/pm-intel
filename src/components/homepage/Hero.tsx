@@ -1,6 +1,7 @@
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { buttonVariants } from "@/components/ui/button";
 import { QuadrantGrid, type QuadrantOperator } from "@/components/scorecard/QuadrantGrid";
+import { PRIMARY_CTA } from "@/lib/nav";
 
 // Three real operators positioned for the marketing punch line: classification
 // is the methodology in one image.
@@ -56,24 +57,32 @@ export function Hero() {
             institutional diligence — not promotional comparison.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
+            {/* Primary CTA — acquirer positioning. Sends visitors
+                straight into the template picker so they can clone a
+                named acquisition thesis with one click. No auth gate
+                until save. */}
             <TrackedLink
               event="pm_card_click"
-              properties={{ source: "homepage_hero", cta: "browse_markets" }}
-              href="/property-managers"
+              properties={{ source: "homepage_hero", cta: "build_buy_box" }}
+              href={PRIMARY_CTA.href}
               className={
                 buttonVariants() +
                 " h-11 bg-navy px-6 text-[14.5px] font-semibold text-white hover:bg-navy-700"
               }
             >
-              Browse markets →
+              {PRIMARY_CTA.label}
             </TrackedLink>
+            {/* Secondary CTA — Browse markets keeps the per-MSA
+                explorer one click away for visitors who want to start
+                with geography rather than thesis. Demoted from
+                primary fill to outline in the v0.12 nav reposition. */}
             <TrackedLink
-              event="lead_form_view"
-              properties={{ source: "homepage_hero", cta: "get_matched" }}
-              href="/get-matched"
+              event="pm_card_click"
+              properties={{ source: "homepage_hero", cta: "browse_markets" }}
+              href="/property-managers"
               className="inline-flex h-11 items-center justify-center rounded-md border border-navy bg-white px-6 text-[14.5px] font-semibold text-navy transition-colors hover:bg-navy-soft"
             >
-              Get matched with a PM →
+              Browse markets →
             </TrackedLink>
           </div>
           <p className="mt-6 text-[14.5px] italic text-muted-foreground">
