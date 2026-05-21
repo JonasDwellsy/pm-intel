@@ -42,7 +42,14 @@ export type FilterValue =
   | boolean
   | string[]
   | number[]
-  | [number, number];
+  | [number, number]
+  // Editor in-flight shapes. The buy-box editor lets a number input
+  // be cleared (Issue 2), and a `between` pair can be partially
+  // filled in. `null` and `[null, null]` mark "user hasn't entered
+  // anything yet" — the scoring path skips these via
+  // isCriterionComplete() so they don't drop the live match count.
+  | null
+  | [number | null, number | null];
 
 export interface FilterCriterion {
   field: string;
@@ -135,7 +142,7 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   marketIds: {
     id: "marketIds",
     label: "Markets",
-    description: "Which of the covered MSAs the operator appears in.",
+    description: "The MSAs where the operator has listings. Multi-select.",
     category: "geographic",
     type: "enum",
     validOperators: ["eq", "ne", "in", "notIn"],
@@ -145,8 +152,8 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   marketCount: {
     id: "marketCount",
-    label: "Market count",
-    description: "How many distinct covered markets this operator appears in (canonical roll-up).",
+    label: "Number of markets",
+    description: "How many distinct markets the operator appears in (1 = single-market).",
     category: "geographic",
     type: "number",
     validOperators: ["eq", "ne", "gte", "lte", "between"],
@@ -154,8 +161,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   topCityConcentration: {
     id: "topCityConcentration",
-    label: "Top city concentration",
-    description: "Share of the operator's inventory in their single biggest city (0-100).",
+    label: "Density in primary city",
+    description:
+      "What share of the operator's units sits in their largest city. Higher = more focused; lower = scattered across multiple cities.",
     category: "geographic",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -166,8 +174,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   // ── Scale ─────────────────────────────────────────────────────
   estimatedPortfolioPoint: {
     id: "estimatedPortfolioPoint",
-    label: "Estimated portfolio size (point)",
-    description: "v0.7 portfolio size point estimate in total managed units.",
+    label: "Estimated portfolio (median)",
+    description:
+      "Estimated total managed units (median estimate). Derived from URUs T12 via the size-banded conversion model.",
     category: "scale",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -175,8 +184,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   estimatedPortfolioLow: {
     id: "estimatedPortfolioLow",
-    label: "Estimated portfolio size (P25, conservative)",
-    description: "Bottom of the v0.7 portfolio confidence band.",
+    label: "Portfolio estimate (low end)",
+    description:
+      "Conservative estimate of total managed units (25th percentile of the model's confidence band).",
     category: "scale",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -184,8 +194,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   estimatedPortfolioHigh: {
     id: "estimatedPortfolioHigh",
-    label: "Estimated portfolio size (P75, optimistic)",
-    description: "Top of the v0.7 portfolio confidence band.",
+    label: "Portfolio estimate (high end)",
+    description:
+      "Optimistic estimate of total managed units (75th percentile of the model's confidence band).",
     category: "scale",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -193,8 +204,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   urusT12: {
     id: "urusT12",
-    label: "URUs (T12)",
-    description: "Raw distinct units observed in the trailing 12 months — pre-estimator signal.",
+    label: "Unique units listed (last 12 months)",
+    description:
+      "Distinct units that the operator listed at least once during the trailing 12 months. Dwellsy's identity layer collapses re-listings of the same unit.",
     category: "scale",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -203,7 +215,8 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   portfolioEstimateConfidence: {
     id: "portfolioEstimateConfidence",
     label: "Portfolio estimate confidence",
-    description: "Calibration confidence tier on the estimator output.",
+    description:
+      "How confident we are in the portfolio estimate (High / Medium / Low / Insufficient). Reflects the calibration sample size for the operator's segment.",
     category: "scale",
     type: "enum",
     validOperators: ["eq", "ne", "in", "notIn"],
@@ -214,8 +227,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   // ── Asset ─────────────────────────────────────────────────────
   quadrant7Cell: {
     id: "quadrant7Cell",
-    label: "7-cell classification",
-    description: "Dwellsy 7-cell operator taxonomy.",
+    label: "Operator type",
+    description:
+      "The operator's asset-class + scale category in Dwellsy's 7-cell taxonomy (SFR Independent, SFR Institutional, Small/Large MF/BTR Independent/Institutional, Hybrid).",
     category: "asset",
     type: "enum",
     validOperators: ["eq", "ne", "in", "notIn"],
@@ -232,8 +246,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   institutional: {
     id: "institutional",
-    label: "Institutional flag",
-    description: "Whether the operator classifies as institutional (scale axis).",
+    label: "Institutional operator?",
+    description:
+      "Whether the operator classifies as institutional (managed by a fund or REIT, vs an independent operator).",
     category: "asset",
     type: "boolean",
     validOperators: ["eq", "ne"],
@@ -241,8 +256,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   hybrid: {
     id: "hybrid",
-    label: "Hybrid flag",
-    description: "Whether the operator mixes asset classes (Hybrid 7-cell cell).",
+    label: "Mixed-asset operator?",
+    description:
+      "Whether the operator manages a mix of asset classes (SFR + MF, etc.) rather than a pure-play single asset class.",
     category: "asset",
     type: "boolean",
     validOperators: ["eq", "ne"],
@@ -252,8 +268,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   // ── Trajectory / Quality ──────────────────────────────────────
   listingTrajectoryYoY: {
     id: "listingTrajectoryYoY",
-    label: "Listing trajectory YoY",
-    description: "Year-over-year change in listing count — positive means growing share.",
+    label: "Footprint growth (year-over-year)",
+    description:
+      "Year-over-year growth in the operator's listing volume. Positive = growing footprint; negative = shrinking.",
     category: "trajectory",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -261,8 +278,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   concessionRate: {
     id: "concessionRate",
-    label: "Concession rate",
-    description: "Share of T12 listings that mention concessions (0-1 decimal).",
+    label: "Concession frequency",
+    description:
+      "Share of the operator's listings that include a concession (free month, waived fee, etc.) in the trailing 12 months.",
     category: "trajectory",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -270,8 +288,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   concessionTrajectory: {
     id: "concessionTrajectory",
-    label: "Concession trajectory",
-    description: "Period-over-period change in concession rate. Returns null until the data layer carries a delta window.",
+    label: "Concession trend",
+    description:
+      "Whether the operator's concession rate is improving (declining), stable, or worsening (rising) vs prior year.",
     category: "trajectory",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -279,8 +298,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   daysOnMarketT12: {
     id: "daysOnMarketT12",
-    label: "Days on market (T12)",
-    description: "Median days to lease, trailing 12 months.",
+    label: "Lease-up speed (median DOM)",
+    description:
+      "Median number of days the operator's units sit on market before leasing. Lower typically indicates stronger demand or better pricing.",
     category: "trajectory",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -288,8 +308,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   rentPerformanceYoY: {
     id: "rentPerformanceYoY",
-    label: "Rent performance YoY",
-    description: "Operator-level YoY rent change vs cohort.",
+    label: "Rent growth (year-over-year)",
+    description:
+      "Operator's rent growth year-over-year relative to market median (positive = beating market; negative = lagging).",
     category: "trajectory",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -299,8 +320,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   // ── Operator characteristics ──────────────────────────────────
   monthsOnPlatform: {
     id: "monthsOnPlatform",
-    label: "Months on platform",
-    description: "How long Dwellsy has been tracking this operator — tenure / stability proxy.",
+    label: "Platform tenure",
+    description:
+      "How many months Dwellsy has been tracking this operator. Longer tenure typically means more data confidence.",
     category: "operator",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -308,8 +330,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   claimed: {
     id: "claimed",
-    label: "Profile claimed",
-    description: "Whether the operator has claimed and verified their Dwellsy IQ profile.",
+    label: "Verified profile",
+    description:
+      "Whether the operator has verified their own profile via the Dwellsy claim flow.",
     category: "operator",
     type: "boolean",
     validOperators: ["eq", "ne"],
@@ -317,8 +340,9 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   canonicalOperatorId: {
     id: "canonicalOperatorId",
-    label: "Canonical operator",
-    description: "Multi-market canonical entity id. Use with notIn to exclude all PMs under a given canonical operator.",
+    label: "Parent brand",
+    description:
+      "The unified parent brand for multi-market operators. E.g., 'Pure Property Management of Tennessee' and 'Pure Property Management of Arizona' share one canonical operator.",
     category: "operator",
     type: "string",
     validOperators: ["eq", "ne", "in", "notIn"],
@@ -327,7 +351,8 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   name: {
     id: "name",
     label: "Operator name",
-    description: "Display name. Useful for `contains` substring matching in excluded criteria.",
+    description:
+      "Display name. Useful for `contains` substring matching in excluded criteria.",
     category: "operator",
     type: "string",
     validOperators: ["eq", "ne", "contains"],

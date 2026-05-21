@@ -23,6 +23,13 @@
 //   4. Return the breakdown — per-criterion pass/fail + a tally —
 //      so the UI can render the "why did this operator score 87?"
 //      tooltip without re-running the evaluator.
+//
+// Incomplete-criterion handling: criteria whose value isn't fully
+// specified yet (the editor's blank "+ Add criterion" rows) are
+// silently skipped — they don't veto, don't add to the breakdown,
+// and don't influence the score. The editor enforces completeness
+// at save time so the persisted buy box never carries blank rows;
+// this guard is a defense-in-depth for the live-preview path.
 
 import {
   type FilterCriterion,
@@ -30,6 +37,7 @@ import {
   type WeightedCriterion,
 } from "./fields";
 import { evaluateCriterion } from "./evaluator";
+import { isCriterionComplete } from "./validation";
 
 export interface BuyBoxDefinition {
   id: string;
@@ -85,7 +93,10 @@ export function evaluateBuyBox(
   // Walk in order so the first match becomes excludedBy. We still
   // evaluate every excluded criterion (even after a match) so the
   // breakdown is informative — but the PM is vetoed on the first hit.
+  // Incomplete criteria (e.g. a fresh row the user hasn't filled in
+  // yet) are silently skipped — they shouldn't tank the match count.
   for (const c of buyBox.excludedCriteria) {
+    if (!isCriterionComplete(c)) continue;
     const matched = evaluateCriterion(pm, c);
     breakdown.excluded.push({
       field: c.field,
@@ -102,6 +113,7 @@ export function evaluateBuyBox(
 
   // ── 2. required ──────────────────────────────────────────────────
   for (const c of buyBox.requiredCriteria) {
+    if (!isCriterionComplete(c)) continue;
     const passed = evaluateCriterion(pm, c);
     breakdown.required.push({
       field: c.field,
@@ -120,6 +132,7 @@ export function evaluateBuyBox(
   let totalWeight = 0;
   let weightedHits = 0;
   for (const c of buyBox.preferredCriteria) {
+    if (!isCriterionComplete(c)) continue;
     const passed = evaluateCriterion(pm, c);
     const weight = c.weight ?? 0;
     const contribution = passed ? weight * 100 : 0;
