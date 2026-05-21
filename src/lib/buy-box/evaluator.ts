@@ -34,6 +34,11 @@ export function evaluateCriterion(
 ): boolean {
   const pmValue = getPMValueForField(pm, criterion.field);
   if (pmValue === null || pmValue === undefined) return false;
+  // Editor in-flight: a fresh "+ Add criterion" row carries null
+  // until the user picks a value. Scoring already skips these via
+  // isCriterionComplete; this guard protects callers that hit the
+  // evaluator directly.
+  if (criterion.value === null || criterion.value === undefined) return false;
 
   switch (criterion.operator) {
     case "eq":

@@ -5,15 +5,23 @@
 // and passes it here. We switch on kind and render the right
 // control — keeps CriterionRow free of input-shape branching.
 //
-// Storage contract: value is whatever shape the evaluator expects.
-//   - text / number / percent → primitive string|number|boolean
-//   - between → [number, number]
+// Storage contract:
+//   - text / number / percent → primitive string|number|boolean,
+//     or null while the user is mid-edit (cleared input).
+//   - between → [number, number] when complete; [n|null, n|null]
+//     while either side is mid-edit. Scoring skips incomplete.
 //   - enumChips (single) → primitive
 //   - enumChips (multi)  → string[]
 //   - boolean → boolean
 //
 // Percent inputs scale on the boundary: user enters "5" for 5%,
 // stored value is 0.05. Display does the reverse.
+//
+// Issue 2 (v0.8.3): number/percent/between inputs now accept an
+// empty string as a valid intermediate state — they pass `null`
+// to onChange rather than coercing to 0. Saves are blocked
+// upstream by isCriterionComplete(). Focus on a 0 selects-all so
+// typing replaces immediately.
 
 import * as React from "react";
 import type {
@@ -96,18 +104,16 @@ function NumberValue({
   onChange: (v: FilterValue) => void;
   suffix?: string;
 }) {
-  const num = typeof value === "number" ? value : "";
+  const display = typeof value === "number" ? String(value) : "";
   return (
     <div className="flex items-center gap-2">
       <input
         type="number"
-        value={num}
-        onChange={(e) => {
-          const n = e.target.value === "" ? 0 : Number(e.target.value);
-          onChange(Number.isFinite(n) ? n : 0);
-        }}
+        value={display}
+        onChange={(e) => onChange(parseNumberInput(e.target.value))}
+        onFocus={selectAllIfZero}
         className={inputClass}
-        placeholder="0"
+        placeholder="Enter a number"
       />
       {suffix && (
         <span className="text-[12px] text-muted-foreground dq-mono whitespace-nowrap">
@@ -128,7 +134,9 @@ function PercentValue({
   // Storage is 0..1; display is 0..100. Round display to 2 decimals
   // so backstage 0.0500000001 doesn't show up as 5.00000001.
   const displayed =
-    typeof value === "number" ? Math.round(value * 10000) / 100 : "";
+    typeof value === "number"
+      ? String(Math.round(value * 10000) / 100)
+      : "";
   return (
     <div className="flex items-center gap-2">
       <input
@@ -136,11 +144,14 @@ function PercentValue({
         step="0.1"
         value={displayed}
         onChange={(e) => {
-          const n = e.target.value === "" ? 0 : Number(e.target.value);
-          onChange(Number.isFinite(n) ? n / 100 : 0);
+          const parsed = parseNumberInput(e.target.value);
+          // null passes through unchanged (means "empty"); finite
+          // numbers get scaled back into the 0..1 storage domain.
+          onChange(parsed === null ? (null as unknown as FilterValue) : ((parsed as number) / 100));
         }}
+        onFocus={selectAllIfZero}
         className={inputClass}
-        placeholder="0"
+        placeholder="Enter a number"
       />
       <span className="text-[12px] text-muted-foreground dq-mono">%</span>
     </div>
@@ -158,30 +169,48 @@ function BetweenValue({
   isPercent: boolean;
   suffix?: string;
 }) {
-  const pair = Array.isArray(value) && value.length === 2 ? (value as [number, number]) : [0, 0];
-  const scale = (n: number) => (isPercent ? Math.round(n * 10000) / 100 : n);
-  const unscale = (n: number) => (isPercent ? n / 100 : n);
+  // The pair may have null on either side while the user is mid-edit.
+  // Default to [null, null] when the value isn't an array yet.
+  const pair: [number | null, number | null] =
+    Array.isArray(value) && value.length === 2
+      ? [
+          typeof value[0] === "number" ? (value[0] as number) : null,
+          typeof value[1] === "number" ? (value[1] as number) : null,
+        ]
+      : [null, null];
+
+  // Scale to display units (0..1 storage → 0..100 display for
+  // percent fields, identity otherwise).
+  const scale = (n: number | null) =>
+    n === null ? "" : isPercent ? String(Math.round(n * 10000) / 100) : String(n);
+  const unscale = (raw: string): number | null => {
+    const parsed = parseNumberInput(raw);
+    if (parsed === null) return null;
+    return isPercent ? (parsed as number) / 100 : (parsed as number);
+  };
   const labelSuffix = isPercent ? "%" : suffix;
   return (
     <div className="flex items-center gap-2">
       <input
         type="number"
         value={scale(pair[0])}
-        onChange={(e) => {
-          const n = e.target.value === "" ? 0 : Number(e.target.value);
-          onChange([unscale(n), pair[1]] as FilterValue);
-        }}
+        onChange={(e) =>
+          onChange([unscale(e.target.value), pair[1]] as unknown as FilterValue)
+        }
+        onFocus={selectAllIfZero}
         className={inputClass + " w-[88px]"}
+        placeholder="min"
       />
       <span className="text-[12px] text-muted-foreground">and</span>
       <input
         type="number"
         value={scale(pair[1])}
-        onChange={(e) => {
-          const n = e.target.value === "" ? 0 : Number(e.target.value);
-          onChange([pair[0], unscale(n)] as FilterValue);
-        }}
+        onChange={(e) =>
+          onChange([pair[0], unscale(e.target.value)] as unknown as FilterValue)
+        }
+        onFocus={selectAllIfZero}
         className={inputClass + " w-[88px]"}
+        placeholder="max"
       />
       {labelSuffix && (
         <span className="text-[12px] text-muted-foreground dq-mono whitespace-nowrap">
@@ -207,6 +236,18 @@ function BooleanValue({
         { label: "No", val: false },
       ].map((opt, i) => {
         const active = v === opt.val;
+        // Issue 3 (v0.8.3): the previous implementation concatenated
+        // "rounded-l-lg" + "bg-navy text-white" with no separating
+        // space, producing the invalid class "rounded-l-lgbg-navy"
+        // and rendering selected Yes as white-on-white. Build the
+        // class list with explicit join so the bug can't reappear.
+        const classes = [
+          "px-3 py-1 text-[13px] font-medium transition-colors",
+          i === 0 ? "rounded-l-lg" : "rounded-r-lg border-l border-grid",
+          active
+            ? "bg-navy text-white"
+            : "bg-white text-navy hover:bg-surface-soft",
+        ].join(" ");
         return (
           <button
             key={opt.label}
@@ -214,11 +255,7 @@ function BooleanValue({
             role="radio"
             aria-checked={active}
             onClick={() => onChange(opt.val)}
-            className={
-              "px-3 py-1 text-[13px] font-medium transition-colors " +
-              (i === 0 ? "rounded-l-lg" : "rounded-r-lg border-l border-grid ") +
-              (active ? "bg-navy text-white" : "bg-white text-navy hover:bg-surface-soft")
-            }
+            className={classes}
           >
             {opt.label}
           </button>
@@ -298,6 +335,25 @@ function EnumChipsValue({
       )}
     </div>
   );
+}
+
+// ─── helpers ──────────────────────────────────────────────────────
+
+/** Parse a raw text-input value into a number, or null when empty.
+ *  Treats whitespace-only input as empty. Returns null for non-numeric
+ *  text so the caller can fall back to its incomplete-state path. */
+function parseNumberInput(raw: string): number | null {
+  if (raw.trim() === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Issue 2 (v0.8.3): when a number input shows "0", focusing should
+ *  select-all so the user's first keystroke replaces it instead of
+ *  appending. The blank case is naturally fine (caret in an empty
+ *  field is already the right behaviour). */
+function selectAllIfZero(e: React.FocusEvent<HTMLInputElement>) {
+  if (e.target.value === "0") e.target.select();
 }
 
 const inputClass =

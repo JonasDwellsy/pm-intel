@@ -24,6 +24,7 @@ import {
   type MarketOption,
 } from "@/lib/buy-box/editor-options";
 import { ValueInput } from "./ValueInput";
+import { FieldInfo } from "./FieldInfo";
 
 export type Layer = "required" | "preferred" | "excluded";
 
@@ -83,12 +84,13 @@ export function CriterionRow({
 
   return (
     <div className="grid grid-cols-[minmax(180px,1fr)_minmax(130px,160px)_minmax(220px,2fr)_auto_auto] items-start gap-3 rounded-md border border-grid bg-white px-3 py-2.5">
-      {/* Field picker */}
-      <select
-        value={criterion.field}
-        onChange={(e) => handleFieldChange(e.target.value)}
-        className="h-8 rounded-md border border-grid bg-white px-2 text-[13.5px] text-navy outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
-      >
+      {/* Field picker + info icon */}
+      <div className="flex items-center gap-1.5">
+        <select
+          value={criterion.field}
+          onChange={(e) => handleFieldChange(e.target.value)}
+          className="h-8 min-w-0 flex-1 rounded-md border border-grid bg-white px-2 text-[13.5px] text-navy outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
+        >
         {(["geographic", "scale", "asset", "trajectory", "operator"] as const).map((cat) => (
           <optgroup key={cat} label={CATEGORY_LABELS[cat]}>
             {groups[cat].map((entry) => (
@@ -98,7 +100,9 @@ export function CriterionRow({
             ))}
           </optgroup>
         ))}
-      </select>
+        </select>
+        <FieldInfo fieldId={criterion.field} />
+      </div>
 
       {/* Operator picker */}
       <select
@@ -170,18 +174,21 @@ export function CriterionRow({
 }
 
 function defaultValueFor(op: FilterOperator): FilterCriterion["value"] {
+  // Issue 5 (v0.8.3): defaults are "no value picked yet" so a freshly
+  // added row doesn't immediately evaluate as "must equal 0" or
+  // "must equal an empty string". isCriterionComplete treats these
+  // as incomplete and the scoring engine skips them.
   switch (op) {
     case "between":
-      return [0, 0];
+      return [null, null];
     case "in":
     case "notIn":
       return [];
-    case "eq":
-    case "ne":
-      return "";
     case "gte":
     case "lte":
-      return 0;
+      return null;
+    case "eq":
+    case "ne":
     case "contains":
       return "";
     default:

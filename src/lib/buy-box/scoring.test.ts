@@ -196,3 +196,63 @@ test("breakdown still records all required entries even after excluded veto", ()
   assert.equal(result.breakdown.excluded[0].passed, true);
   assert.equal(result.breakdown.required.length, 0); // short-circuited
 });
+
+test("incomplete required criterion is skipped — does NOT veto the PM", () => {
+  // Issue 5: adding a fresh "+ Add criterion" row in the editor must
+  // not drop the match count to 0 while the user is still configuring
+  // the value. The blank row carries an empty string value and should
+  // be ignored end-to-end.
+  const pm = makePm();
+  const bb = makeBuyBox({
+    requiredCriteria: [
+      { field: "quadrant7Cell", operator: "eq", value: "SFR Independent" }, // complete + passes
+      { field: "estimatedPortfolioPoint", operator: "gte", value: "" as unknown as number }, // incomplete
+    ],
+  });
+  const result = evaluateBuyBox(pm, bb);
+  assert.equal(result.passed, true);
+  assert.equal(result.fitScore, 100);
+  assert.equal(result.breakdown.required.length, 1); // incomplete one skipped
+});
+
+test("incomplete excluded criterion is skipped — does NOT veto", () => {
+  const pm = makePm({}, { name: "Pure Property Management" });
+  const bb = makeBuyBox({
+    requiredCriteria: [{ field: "quadrant7Cell", operator: "eq", value: "SFR Independent" }],
+    excludedCriteria: [
+      { field: "name", operator: "contains", value: "" }, // incomplete — empty string
+    ],
+  });
+  const result = evaluateBuyBox(pm, bb);
+  assert.equal(result.passed, true);
+  assert.equal(result.breakdown.excluded.length, 0);
+});
+
+test("incomplete preferred criterion is skipped — doesn't affect score", () => {
+  // One complete (passes) + one incomplete. Without the skip the
+  // denominator would include the incomplete weight, dropping the
+  // score. With the skip, the score is 100 (the lone complete
+  // criterion passed and accounts for 100% of the total weight).
+  const pm = makePm();
+  const bb = makeBuyBox({
+    preferredCriteria: [
+      { field: "listingTrajectoryYoY", operator: "gte", value: 0, weight: 0.5 },
+      {
+        field: "concessionRate",
+        operator: "between",
+        value: [0, 0.05] as [number, number],
+        weight: 0.5,
+      },
+      {
+        // incomplete — between requires two finite numbers
+        field: "urusT12",
+        operator: "between",
+        value: [] as unknown as [number, number],
+        weight: 0.5,
+      },
+    ],
+  });
+  const result = evaluateBuyBox(pm, bb);
+  assert.equal(result.passed, true);
+  assert.equal(result.breakdown.preferred.length, 2);
+});

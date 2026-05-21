@@ -26,6 +26,7 @@ import type {
   WeightedCriterion,
 } from "@/lib/buy-box/fields";
 import { FIELD_REGISTRY } from "@/lib/buy-box/fields";
+import { isCriterionComplete } from "@/lib/buy-box/validation";
 import type { MarketOption } from "@/lib/buy-box/editor-options";
 import { CriterionRow, type Layer } from "./CriterionRow";
 
@@ -69,9 +70,14 @@ export function BuyBoxEditor({ initial, marketOptions }: Props) {
   );
 
   const [saving, setSaving] = React.useState(false);
+  /** Brief "Saved ✓" flash on the save button after a successful save
+   *  (Issue 1 — v0.8.3). Lives separately from `saving` so the button
+   *  copy can revert to "Save changes" after 1.5s without depending on
+   *  the next render cycle. */
+  const [justSaved, setJustSaved] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
-  const [toast, setToast] = React.useState<string | null>(null);
+  const [toast, setToast] = React.useState<{ kind: "success" | "error"; msg: string } | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [showPreviewPanel, setShowPreviewPanel] = React.useState(false);
 
@@ -110,12 +116,23 @@ export function BuyBoxEditor({ initial, marketOptions }: Props) {
   }, [required, preferred, excluded]);
 
   // ── Validation ────────────────────────────────────────────────
+  // Issue 2/5 (v0.8.3): block save when any criterion row is
+  // incomplete (e.g. the user added a row but hasn't entered a
+  // value yet). The same isCriterionComplete() the evaluator uses
+  // to silently skip rows in the live preview powers the gate.
   const totalCriteria = required.length + preferred.length + excluded.length;
+  const allCriteria: FilterCriterion[] = React.useMemo(
+    () => [...required, ...preferred, ...excluded],
+    [required, preferred, excluded]
+  );
+  const incompleteCount = allCriteria.filter((c) => !isCriterionComplete(c)).length;
   const validation: string | null =
     name.trim().length < 3
       ? "Name must be at least 3 characters."
       : totalCriteria === 0
       ? "Add at least one criterion."
+      : incompleteCount > 0
+      ? `Finish entering ${incompleteCount} criterion${incompleteCount === 1 ? "" : "s"} before saving.`
       : null;
 
   // ── Save handler ──────────────────────────────────────────────
@@ -141,7 +158,8 @@ export function BuyBoxEditor({ initial, marketOptions }: Props) {
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error(`Update failed: ${res.status}`);
-        flashToast("Saved.");
+        flashSavedState();
+        showToast("success", "Buy box saved.");
         router.refresh();
       } else {
         const res = await fetch(`/api/buy-boxes`, {
@@ -151,14 +169,27 @@ export function BuyBoxEditor({ initial, marketOptions }: Props) {
         });
         if (!res.ok) throw new Error(`Create failed: ${res.status}`);
         const data = (await res.json()) as { buyBox: { id: string } };
+        // Flash the saved state + toast briefly before the route push
+        // so the user sees the feedback even though we're about to
+        // navigate away from /new.
+        flashSavedState();
+        showToast("success", "Buy box created.");
         router.push(`/buy-boxes/${data.buyBox.id}/edit`);
         router.refresh();
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed.");
+      const msg = e instanceof Error ? e.message : "Save failed.";
+      setError(msg);
+      showToast("error", msg);
     } finally {
       setSaving(false);
     }
+  }
+
+  /** Briefly show "Saved ✓" on the Save button. Revert after 1.5s. */
+  function flashSavedState() {
+    setJustSaved(true);
+    window.setTimeout(() => setJustSaved(false), 1500);
   }
 
   // ── Delete handler ────────────────────────────────────────────
@@ -177,9 +208,9 @@ export function BuyBoxEditor({ initial, marketOptions }: Props) {
     }
   }
 
-  function flashToast(msg: string) {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 2500);
+  function showToast(kind: "success" | "error", msg: string) {
+    setToast({ kind, msg });
+    window.setTimeout(() => setToast(null), 3000);
   }
 
   // ── Add-criterion factories ───────────────────────────────────
@@ -396,9 +427,24 @@ export function BuyBoxEditor({ initial, marketOptions }: Props) {
               type="button"
               onClick={handleSave}
               disabled={saving || deleting || validation !== null}
-              className="h-9 rounded-md bg-teal px-4 text-[13.5px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={
+                "h-9 inline-flex items-center gap-1.5 rounded-md px-4 text-[13.5px] font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed " +
+                (justSaved ? "bg-good" : "bg-teal hover:bg-teal-700")
+              }
             >
-              {saving ? "Saving…" : isEdit ? "Save changes" : "Create buy box"}
+              {saving ? (
+                <>
+                  <Spinner />
+                  <span>Saving…</span>
+                </>
+              ) : justSaved ? (
+                <>
+                  <CheckIcon />
+                  <span>Saved</span>
+                </>
+              ) : (
+                <span>{isEdit ? "Save changes" : "Create buy box"}</span>
+              )}
             </button>
           </div>
         </div>
@@ -447,13 +493,64 @@ export function BuyBoxEditor({ initial, marketOptions }: Props) {
         </div>
       )}
 
-      {/* Toast */}
+      {/* Toast — success (navy) vs error (red) variants */}
       {toast && (
-        <div className="fixed bottom-[80px] left-1/2 z-30 -translate-x-1/2 rounded-md bg-navy px-4 py-2 text-[13px] font-medium text-white shadow-lg">
-          {toast}
+        <div
+          role="status"
+          aria-live="polite"
+          className={
+            "fixed bottom-[80px] left-1/2 z-30 -translate-x-1/2 rounded-md px-4 py-2 text-[13px] font-medium text-white shadow-lg " +
+            (toast.kind === "success" ? "bg-good" : "bg-bad")
+          }
+        >
+          <span className="inline-flex items-center gap-1.5">
+            {toast.kind === "success" ? <CheckIcon /> : null}
+            {toast.msg}
+          </span>
         </div>
       )}
     </div>
+  );
+}
+
+// ─── tiny icons ─────────────────────────────────────────────────
+
+function Spinner() {
+  return (
+    <svg
+      aria-hidden
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="animate-spin"
+    >
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.3" strokeWidth="3" />
+      <path
+        d="M21 12a9 9 0 0 0-9-9"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      aria-hidden
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
   );
 }
 
