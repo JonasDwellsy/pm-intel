@@ -70,9 +70,12 @@ export function BuyBoxList({ buyBoxes }: Props) {
     }
   }
 
-  if (buyBoxes.length === 0) {
-    return <EmptyState />;
-  }
+  // The v0.12 nav-positioning pass moved the empty-state branch up
+  // to /buy-boxes/page.tsx so it can render the TemplateGrid inline.
+  // Callers always pass a non-empty list now, but we keep a defensive
+  // early-return so a future caller bug surfaces as a clean nothing-
+  // rendered rather than a crash on the empty .map.
+  if (buyBoxes.length === 0) return null;
 
   return (
     <>
@@ -210,24 +213,6 @@ function CountChip({
       <span className="dq-mono tabular-nums text-navy">{value}</span>
       <span className={color}>{label}</span>
     </span>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="mt-10 rounded-lg border border-dashed border-grid bg-white p-10 text-center">
-      <h2 className="text-[18px] font-semibold text-navy">No buy boxes yet</h2>
-      <p className="mt-2 mx-auto max-w-[40ch] text-[13.5px] text-foreground/70">
-        A buy box is a saved set of criteria for identifying property managers
-        that match your acquisition or partnership thesis.
-      </p>
-      <Link
-        href="/buy-boxes/new"
-        className="mt-5 inline-flex h-9 items-center rounded-md bg-teal px-4 text-[13.5px] font-semibold text-white hover:bg-teal-700"
-      >
-        Create your first buy box
-      </Link>
-    </div>
   );
 }
 

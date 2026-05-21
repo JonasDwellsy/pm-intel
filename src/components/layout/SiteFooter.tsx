@@ -1,25 +1,5 @@
 import Link from "next/link";
-
-const FOOTER_LINKS: Array<{ href: string; label: string; external?: boolean }> = [
-  { href: "/methodology", label: "Methodology" },
-  { href: "/methodology#glossary", label: "Glossary" },
-  { href: "/property-managers", label: "Markets" },
-  {
-    // Repointed from errata@dwellsy.com (dead) → pmintel@dwellsy.com.
-    // Subject prefilled for inbox triage.
-    href: "mailto:pmintel@dwellsy.com?subject=Data%20correction%20request",
-    label: "Request errata",
-    external: true,
-  },
-  // External — Terms of use lives on the marketing site, not in-app.
-  // Rendered with target=_blank + rel=noopener so the IQ surface stays
-  // in the foreground tab.
-  {
-    href: "https://dwellsy.com/pages/terms-of-use",
-    label: "Terms",
-    external: true,
-  },
-];
+import { FOOTER_LINKS } from "@/lib/nav";
 
 export function SiteFooter() {
   const year = new Date().getFullYear();
