@@ -526,13 +526,24 @@ function normalizeMapBounds(
 // number of operator-market pairs the median was computed across;
 // confidence labels follow the calibration sheet's sample-size bins.
 //
-// Algorithm implemented verbatim from the v0.7 patch spec, including
-// the annualization branch. NOTE: the spec's annualization formula
-// `12 / Math.max(months, 12)` always evaluates to 1.0 for months < 12
-// (the Math.max bottoms the denominator at 12), so the urusT12 value
-// flows through unchanged at all month counts. Flagging here for
-// product to confirm intended behavior before the v0.7 estimator
-// release; ship verbatim per spec instruction for now.
+// Algorithm: cohort lookup keyed on Dwellsy 7-cell × URU activity
+// band, multiply annualized URUs by the cohort's median multiplier
+// for the point estimate (P25 / P75 for the confidence band).
+//
+// Annualization adjusts for partial-year platform history: PMs with
+// fewer than 12 months of observed listings get their T12 URUs
+// upweighted by 12/months so the point estimate projects a full
+// year of activity. PMs at ≥ 12 months pass through at 1.0× — they
+// already represent a full year. Safe-by-construction: the function
+// returns insufficient_history when months < 3, so the smallest
+// possible denominator is 3 (max upweight 4×).
+//
+// Note (history): the v0.7 initial-release spec specified
+// `12 / Math.max(months, 12)` which always evaluated to 1.0
+// (Math.max bottoms the denominator at 12). Corrected to
+// `12 / months` in this fix so newer PMs — primarily the Alabama
+// v0.6.4 expansion cohort — actually get the annualization
+// upweight the model intends.
 export type PortfolioEstimateStatus =
   | "estimated"
   | "insufficient_data"
@@ -562,8 +573,11 @@ function estimatePortfolioSize(
   if (urusT12 === 0) return { status: "no_listings" };
   if (months < 3) return { status: "insufficient_history" };
 
-  // See note above on the annualization formula — verbatim per spec.
-  const annualization = months < 12 ? 12 / Math.max(months, 12) : 1.0;
+  // Annualize partial-year observations so the point estimate projects
+  // a full year of URU activity. Safe denominator: the insufficient_history
+  // guard above filters out months < 3, so the smallest denominator we
+  // reach here is 3 (max 4× upweight).
+  const annualization = months < 12 ? 12 / months : 1.0;
   const annualizedUrus = urusT12 * annualization;
 
   let median = 0;
