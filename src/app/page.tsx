@@ -121,7 +121,9 @@ async function loadSampleCards(): Promise<SampleCard[]> {
 
     const stateSlug = stateCodeToSlug(pm.market.state);
     const cityKebab = citySlug(pm.market.city);
-    const href = `/property-managers/${stateSlug}/${cityKebab}/${pm.slug}?unlocked=true`;
+    // PR #47 — paywall retired; ?unlocked=true is a no-op so we
+    // drop it from public-facing URLs for cleanliness.
+    const href = `/property-managers/${stateSlug}/${cityKebab}/${pm.slug}`;
 
     // PR #46 — Rank stat dropped from the sample card stat grid.
     // Replaced with Est. Portfolio (v0.7 estimator output) which

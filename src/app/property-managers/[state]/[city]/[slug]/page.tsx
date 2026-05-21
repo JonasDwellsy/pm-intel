@@ -26,6 +26,9 @@ import { MarketView } from "@/components/market/MarketView";
 
 type RouteParams = { state: string; city: string; slug: string };
 type RouteSearch = {
+  // PR #47 retired the scorecard paywall. The `unlocked` param is
+  // still accepted (so stale inbound links don't 404) but it has
+  // no behavioral effect — every visitor sees the full scorecard.
   unlocked?: string;
   // Preserved across chip clicks when a submarket filter is active. Only
   // relevant on the segment branch — the scorecard branch ignores it.
@@ -126,7 +129,10 @@ export default async function MarketChildPage({
     return <MarketView view={view} activeSegment={slug as QuadrantSegment} />;
   }
 
-  const { unlocked } = await searchParams;
+  // `unlocked` is still accepted (see RouteSearch comment) but no
+  // longer drives any rendering decision; consume + discard so the
+  // searchParams Promise still resolves cleanly.
+  await searchParams;
   const loaded = await loadScorecard(slug);
   if (!loaded) notFound();
   const { scorecard, isClaimed } = loaded;
@@ -185,7 +191,6 @@ export default async function MarketChildPage({
   return (
     <ScorecardBody
       scorecard={scorecard}
-      isUnlocked={unlocked === "true"}
       isClaimed={isClaimed}
       marketFootprint={marketFootprint}
       peerComparisons={peerComparisons}

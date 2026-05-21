@@ -32,7 +32,8 @@ export async function loadMsaPool(marketId: string): Promise<PoolPm[]> {
     slug: row.slug,
     name: row.name,
     quadrant7Cell: row.quadrant7Cell,
-    href: `/property-managers/${stateCodeToSlug(row.market.state)}/${citySlug(row.market.city)}/${row.slug}?unlocked=true`,
+    // PR #47 — paywall retired; ?unlocked=true no longer required.
+    href: `/property-managers/${stateCodeToSlug(row.market.state)}/${citySlug(row.market.city)}/${row.slug}`,
     scorecard: JSON.parse(row.scorecardData) as ScorecardData,
   }));
 }

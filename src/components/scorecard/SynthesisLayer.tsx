@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { marketingDataSuppressed } from "@/lib/types";
-import { fmtNumber, fmtPct } from "@/lib/format";
+import { fmtInt, fmtNumber, fmtPct } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
 import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
 import type { MetricKey } from "@/lib/metric-definitions";
@@ -42,11 +42,20 @@ function classifyOperator(scorecard: ScorecardData): OperatorType {
 
 export function SynthesisLayer({ scorecard }: { scorecard: ScorecardData }) {
   const opType = classifyOperator(scorecard);
-  // 5th tile renders only for MF/BTR operators whose Community Visibility
-  // scope gate passed (the seed sets the block to null otherwise).
+  // PR #47 — Est. Portfolio elevated to a headline tile. It always
+  // shows (v0.7 estimator handles the "no_listings" / "insufficient_
+  // data" cases internally via a "—" display), so the tile count
+  // jumps by 1 across both operator-type branches:
+  //
+  //   SFR / Hybrid (no Inventory Transparency):
+  //     was 4 → now 5  (Portfolio, Lease-up, Retention, Rent, Marketing)
+  //   MF/BTR with Community Visibility:
+  //     was 5 → now 6  (… + Inventory Transparency); rendered as
+  //                     2 rows of 3 on lg so the tiles keep enough
+  //                     width for the 28px headline values.
   const showInventoryTransparency =
     opType === "mfbtr" && scorecard.communityVisibility !== null;
-  const tileCount = showInventoryTransparency ? 5 : 4;
+  const tileCount = (showInventoryTransparency ? 5 : 4) + 1;
 
   const executiveSummary = scorecard.generatedText?.executiveSummary?.trim();
   const bullets =
@@ -76,11 +85,15 @@ export function SynthesisLayer({ scorecard }: { scorecard: ScorecardData }) {
         <div
           className={
             "mt-4 grid gap-3 " +
-            (tileCount === 5
-              ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
-              : "grid-cols-2 lg:grid-cols-4")
+            (tileCount === 6
+              ? // 2 rows of 3 keeps each tile wide enough for the
+                // 28px headline value when MF/BTR adds the
+                // Inventory Transparency tile alongside Portfolio.
+                "grid-cols-2 md:grid-cols-3 lg:grid-cols-3"
+              : "grid-cols-2 md:grid-cols-3 lg:grid-cols-5")
           }
         >
+          <EstPortfolioTile scorecard={scorecard} />
           <LeaseUpTile scorecard={scorecard} />
           <TenantRetentionTile scorecard={scorecard} />
           <RentPerformanceTile scorecard={scorecard} />
@@ -113,6 +126,60 @@ export function SynthesisLayer({ scorecard }: { scorecard: ScorecardData }) {
 }
 
 // --- Tile components ---
+
+/** PR #47 — Est. Portfolio headline tile. v0.7 estimator output
+ *  surfaced as the scale signal acquirers reach for first. Layout
+ *  mirrors the home-page sample-card treatment: point estimate as
+ *  the headline value with a "(low–high)" subtitle and the
+ *  confidence tier in the caveat slot when estimated. Non-
+ *  "estimated" statuses (insufficient_data / insufficient_history /
+ *  no_listings) display the message in the comparison slot. */
+function EstPortfolioTile({ scorecard }: { scorecard: ScorecardData }) {
+  const est = scorecard.portfolioEstimate;
+  if (!est) {
+    return (
+      <MetricTile
+        title="Est. Portfolio"
+        metricKey="portfolioEstimate"
+        headlineValue="—"
+        headlineUnit=""
+        star={null}
+        comparison="No estimate available"
+      />
+    );
+  }
+  if (est.status === "estimated" && typeof est.point === "number") {
+    const range =
+      typeof est.low === "number" && typeof est.high === "number"
+        ? `${fmtInt(est.low)}–${fmtInt(est.high)} units`
+        : null;
+    return (
+      <MetricTile
+        title="Est. Portfolio"
+        metricKey="portfolioEstimate"
+        headlineValue={fmtInt(est.point)}
+        headlineUnit="units"
+        star={null}
+        comparison={range ?? "Point estimate"}
+        caveat={
+          est.confidence
+            ? `${est.confidence} confidence${est.cohort ? ` · ${est.cohort}` : ""}`
+            : undefined
+        }
+      />
+    );
+  }
+  return (
+    <MetricTile
+      title="Est. Portfolio"
+      metricKey="portfolioEstimate"
+      headlineValue="—"
+      headlineUnit=""
+      star={null}
+      comparison={est.message ?? "Insufficient data"}
+    />
+  );
+}
 
 function LeaseUpTile({ scorecard }: { scorecard: ScorecardData }) {
   const { performance } = scorecard;

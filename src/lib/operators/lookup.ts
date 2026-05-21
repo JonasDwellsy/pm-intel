@@ -33,9 +33,9 @@ export interface OperatorMember {
   marketFullName: string;
   cityName: string;
   stateCode: string;
-  /** Pre-built link to the per-market scorecard, with ?unlocked=true
-   *  so the drill-through doesn't drop the user back into the gated
-   *  preview state. */
+  /** Pre-built link to the per-market scorecard. PR #47 retired
+   *  the paywall, so the URL is bare — no ?unlocked=true suffix
+   *  required. */
   scorecardHref: string;
   /** Display fields for the per-market breakdown table — pulled
    *  directly from each member's scorecard for fidelity (the
@@ -141,7 +141,7 @@ export async function loadOperatorScorecard(
       marketFullName: row.market.fullName,
       cityName,
       stateCode,
-      scorecardHref: `/property-managers/${stateCodeToSlug(stateCode)}/${citySlug(cityName)}/${row.slug}?unlocked=true`,
+      scorecardHref: `/property-managers/${stateCodeToSlug(stateCode)}/${citySlug(cityName)}/${row.slug}`,
       quadrant7Cell: scorecard.pm?.quadrant7Cell ?? null,
       urusT12: scorecard.coverage?.urusT12 ?? null,
       portfolioPoint: scorecard.portfolioEstimate?.point ?? null,

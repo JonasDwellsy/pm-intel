@@ -233,7 +233,7 @@ function projectOperatorRow(
   // single-market operators in the operator view don't (drill goes
   // straight to the one underlying per-market scorecard).
   const operatorScorecardHref = r.isRollup
-    ? `/operators/${encodeURIComponent(r.canonicalOperatorId)}?unlocked=true&fromBuyBox=${encodeURIComponent(buyBoxId)}`
+    ? `/operators/${encodeURIComponent(r.canonicalOperatorId)}?fromBuyBox=${encodeURIComponent(buyBoxId)}`
     : null;
 
   return {
@@ -304,7 +304,7 @@ function scorecardHref(
   buyBoxId: string
 ): string {
   return stateCode && cityName
-    ? `/property-managers/${stateCodeToSlug(stateCode)}/${citySlug(cityName)}/${pmSlug}?unlocked=true&fromBuyBox=${encodeURIComponent(buyBoxId)}`
+    ? `/property-managers/${stateCodeToSlug(stateCode)}/${citySlug(cityName)}/${pmSlug}?fromBuyBox=${encodeURIComponent(buyBoxId)}`
     : `/property-managers?fromBuyBox=${encodeURIComponent(buyBoxId)}`;
 }
 

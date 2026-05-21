@@ -321,7 +321,14 @@ export function QuadrantGrid({
 
     return (
       <svg
-        viewBox="0 0 380 360"
+        // PR #47 polish — viewBox widened from 380×360 to add 10px
+        // overhang on each side, AND overflow="visible" so any axis
+        // label that does extend past the viewBox boundary still
+        // renders (the previous "...TTERED" truncation was the SVG
+        // clipping the left axis label at the viewBox edge in
+        // narrower viewports).
+        viewBox="-10 0 400 360"
+        overflow="visible"
         className="block h-auto w-full"
         role="img"
         aria-label="Operator-type quadrant"
@@ -364,10 +371,14 @@ export function QuadrantGrid({
           style={{ textTransform: "uppercase" }}>
           Independent  ·  Institutional
         </text>
+        {/* PR #47 polish — "Scattered" → "SFR" aligns the chart's
+            taxonomy label with the 7-cell vocabulary used everywhere
+            else (SFR Independent, SFR Institutional). Shorter label
+            also avoids the prior left-edge truncation issue. */}
         <text x={FRAME.x - 10} y={cy + 3} textAnchor="end" fill="#6E7990"
           fontSize="9" fontWeight="600" letterSpacing="2"
           style={{ textTransform: "uppercase" }}>
-          Scattered
+          SFR
         </text>
         <text x={FRAME.x + FRAME.w + 10} y={cy + 3} textAnchor="start" fill="#6E7990"
           fontSize="9" fontWeight="600" letterSpacing="2"

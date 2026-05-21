@@ -64,7 +64,9 @@ export async function loadMarketFootprint({
         city: row.market.city,
         stateCode: row.market.state,
         fullName: row.market.fullName,
-        href: `/property-managers/${stateCodeToSlug(row.market.state)}/${citySlug(row.market.city)}/${row.slug}?unlocked=true`,
+        // PR #47 — ?unlocked=true is now a no-op; dropped from the
+        // cross-market badge link.
+        href: `/property-managers/${stateCodeToSlug(row.market.state)}/${citySlug(row.market.city)}/${row.slug}`,
         isCurrent: row.slug === currentSlug,
         urusT12: sc.coverage.urusT12 ?? 0,
         compositeStar: (sc.rank.compositeStar ?? null) as StarLevel,
