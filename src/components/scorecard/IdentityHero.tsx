@@ -37,7 +37,7 @@ export function IdentityHero({
   marketFootprint: MarketFootprintPill[];
   /** v0.6.4 Patch 1 — non-null when this operator is part of a
    *  multi-market canonical entity. Drives the "Cross-market operator"
-   *  badge in the Layer 1 chip row that deep-links to /operator/<slug>. */
+   *  badge in the Layer 1 chip row that deep-links to /operators/<slug>. */
   crossMarketOperator?: {
     canonicalSlug: string;
     marketCount: number;
@@ -119,7 +119,7 @@ export function IdentityHero({
                 page with the aggregated stats + per-market cards. */}
             {crossMarketOperator && (
               <Link
-                href={`/operator/${crossMarketOperator.canonicalSlug}`}
+                href={`/operators/${crossMarketOperator.canonicalSlug}`}
                 className="inline-flex h-[26px] items-center gap-1.5 rounded-full border border-grid bg-white px-3 text-[11.5px] font-semibold text-navy transition-colors hover:border-navy hover:bg-surface-soft focus-visible:border-navy focus-visible:bg-surface-soft focus-visible:outline-none"
               >
                 <svg

@@ -28,7 +28,7 @@ export type PMSearchTier = "ranked" | "tracked" | "canonical";
 //   tracked   — universe operator below ranking threshold. Click → market
 //               landing with ?highlight=.
 //   canonical — v0.6.4 Patch 1: multi-market operator. Click → operator
-//               profile at /operator/<canonicalSlug>. Star counts are
+//               scorecard at /operators/<canonicalSlug>. Star counts are
 //               aggregated sums across the operator's market-instances.
 export type PMSearchResult =
   | {
@@ -109,7 +109,7 @@ interface IndexFile {
   }>;
   // v0.6.4 Patch 1 — multi-market canonical operators. Optional for
   // back-compat with pre-v0.6.4 index files; runs through the same
-  // Fuse corpus as the other tiers, routing to /operator/<slug>.
+  // Fuse corpus as the other tiers, routing to /operators/<slug>.
   canonical?: Array<{
     tier: "canonical";
     name: string;
@@ -144,7 +144,7 @@ function buildHref(
     return `/property-managers/${entry.stateSlug}/${entry.citySlug}/${entry.slug}`;
   }
   if (entry.tier === "canonical") {
-    return `/operator/${entry.canonicalSlug}`;
+    return `/operators/${entry.canonicalSlug}`;
   }
   // Tier 2 → market landing with forward-compat highlight param.
   return `/property-managers/${entry.stateSlug}/${entry.citySlug}?highlight=${encodeURIComponent(entry.name)}`;

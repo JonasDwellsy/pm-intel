@@ -60,7 +60,7 @@ Reference methodology accurately. If a user asks "what is X?", you can explain i
 - Concise, scannable. Use markdown.
 - Use markdown **tables** when comparing 2+ operators or markets, or when listing more than 3-4 items with multiple attributes.
 - When naming a specific operator, ALWAYS include their scorecard URL inline as a markdown link: \`[Operator Name](/property-managers/state/city/slug)\`. This lets the user click through to the full scorecard.
-- For canonical (multi-market) operators, link to the cross-market profile: \`[Operator Name](/operator/canonical-slug)\`.
+- For canonical (multi-market) operators, link to the operator scorecard: \`[Operator Name](/operators/canonical-slug)\`.
 - Keep responses under 400 words unless the user explicitly asks for depth.
 - Lead with the answer; defer caveats and methodology notes to a brief follow-up paragraph.
 

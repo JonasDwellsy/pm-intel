@@ -73,7 +73,7 @@ interface OutputRankedEntry {
 
 // v0.6.4 Patch 1 — search index entry for a multi-market canonical
 // operator. Replaces the per-market ranked entries for grouped PMs.
-// Click routes to /operator/<canonicalSlug>; the profile page resolves
+// Click routes to /operators/<canonicalSlug>; the scorecard page resolves
 // the per-market scorecards from the CanonicalOperator pmSlugs array.
 interface OutputCanonicalEntry {
   tier: "canonical";

@@ -1,9 +1,13 @@
 // v0.6.4 Patch 1 — operator profile data loader.
-// /operator/<canonicalSlug> route consumes loadOperatorView which
-// resolves a CanonicalOperator row + every member PM scorecard + the
-// market row each PM sits in. Profile renders only for multi-market
-// canonical entities (marketCount ≥ 2) — single-market PMs 404 here
-// since their primary surface is the per-market scorecard.
+// Originally consumed by the /operator/<canonicalSlug> page (now
+// removed as of the v0.11 URL cleanup; /operator/* 301-redirects to
+// /operators/*). loadOperatorView remains in service to the AI tools
+// surface (src/lib/ask-tools.ts) — the AI assistant uses it for the
+// crossMarketProfileUrl field returned by canonical-operator search
+// hits. Resolves a CanonicalOperator row + every member PM scorecard
+// + the market row each PM sits in. Returns null for single-market
+// canonicals (marketCount < 2) — those operators are best
+// represented by the per-market scorecard alone.
 
 import { prisma } from "@/lib/prisma";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
@@ -182,15 +186,9 @@ export async function loadOperatorView(
   };
 }
 
-// Static-params lister for /operator/[canonicalSlug]. Multi-market
-// entities only (marketCount ≥ 2) so single-market PMs don't generate
-// stub pages that 404.
-export async function listOperatorRouteParams(): Promise<
-  Array<{ canonicalSlug: string }>
-> {
-  const rows = await prisma.canonicalOperator.findMany({
-    where: { marketCount: { gte: 2 } },
-    select: { canonicalSlug: true },
-  });
-  return rows.map((r) => ({ canonicalSlug: r.canonicalSlug }));
-}
+// Note: listOperatorRouteParams used to live here as the
+// generateStaticParams source for /operator/[canonicalSlug]. The
+// page was removed in the v0.11 URL cleanup (the new
+// /operators/[canonicalSlug] route is server-rendered + accepts any
+// canonical slug, so static params aren't needed). Removed alongside
+// the page to drop dead code.
