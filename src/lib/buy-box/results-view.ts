@@ -55,6 +55,12 @@ export interface ResultRowVM {
    *  for per-market rows. */
   id: string;
   name: string;
+  /** v0.11 — populated for rolled-up multi-market operator rows so
+   *  the View → picker can offer "View operator scorecard" as the
+   *  primary action. Null for per-market and single-market rows
+   *  where the operator scorecard would be redundant with the
+   *  per-market scorecard. */
+  operatorScorecardHref: string | null;
   /** True for multi-market rolled-up rows (drives the "Multi-market"
    *  pill + the View → market picker). */
   isMultiMarket: boolean;
@@ -182,6 +188,9 @@ function projectMarketRow(
     excludedBreakdown: projectBreakdown(r.breakdown.excluded, false),
     preferredPassedCount: r.breakdown.preferred.filter((e) => e.passed).length,
     preferredTotalCount: r.breakdown.preferred.length,
+    // Per-market rows don't expose an operator-scorecard link — the
+    // per-market scorecard at `href` is the natural drill target.
+    operatorScorecardHref: null,
     drillTargets: [
       {
         pmSlug: r.pmSlug,
@@ -220,10 +229,18 @@ function projectOperatorRow(
     ? drillTargets.map((d) => d.marketShort).join(", ")
     : drillTargets[0]?.marketName ?? "";
 
+  // Multi-market rollups get the operator-scorecard primary action;
+  // single-market operators in the operator view don't (drill goes
+  // straight to the one underlying per-market scorecard).
+  const operatorScorecardHref = r.isRollup
+    ? `/operators/${encodeURIComponent(r.canonicalOperatorId)}?unlocked=true&fromBuyBox=${encodeURIComponent(buyBoxId)}`
+    : null;
+
   return {
     rank,
     id: r.canonicalOperatorId,
     name: r.canonicalOperatorName,
+    operatorScorecardHref,
     isMultiMarket: r.isRollup,
     marketCount: r.memberMarketIds.length,
     marketLabel,
