@@ -108,6 +108,12 @@ export function PortfolioLayer({
       />
 
       <CoverageMapAnnotated scorecard={scorecard} />
+      {/* v0.7 — portfolio size estimator sits right under the coverage
+          map so the first thing a reader sees in the portfolio layer
+          is the size estimate before the geographic breakdown. The
+          section component handles its own visibility (returns null
+          on no_listings / insufficient_history). */}
+      <PortfolioSizeEstimateSection scorecard={scorecard} />
       {hasGeographic && (
         <GeographicSpreadSection scorecard={scorecard} opType={opType} />
       )}
@@ -671,6 +677,118 @@ function ShareTrajectoryMethodologyFooter() {
 // orange, "low" → green, "neutral" → navy) and signals participation
 // vs the market median, not a quality judgment — concession activity
 // is explicitly NOT a star-bearing metric.
+// --- v0.7 — Portfolio Size Estimate ---
+//
+// Reads the pre-computed scorecard.portfolioEstimate (size-banded
+// model, baked at seed time). Three render branches keyed on the
+// estimate's `status`:
+//   "estimated"            → big-number point + low/high band + cohort
+//                            attribution + methodology link
+//   "insufficient_data"    → Large MF/BTR cohort; "verified self-report
+//                            required" message + Claim CTA
+//   "no_listings" / "insufficient_history" → return null (hide the
+//                            section entirely; we have nothing useful
+//                            to surface for those edge cases)
+//
+// Visual style mirrors the v0.6.4 Patch 2 ConcessionActivitySection —
+// big-number primary, methodology-disclosure footer, consistent
+// LayerSectionHeader eyebrow + title pattern.
+function PortfolioSizeEstimateSection({
+  scorecard,
+}: {
+  scorecard: ScorecardData;
+}) {
+  const est = scorecard.portfolioEstimate;
+  if (!est || est.status === "no_listings" || est.status === "insufficient_history") {
+    return null;
+  }
+
+  const claimHref = `/claim/${scorecard.pm.slug}`;
+
+  return (
+    <article id="portfolio-size" className="dq-section">
+      <SubsectionHeader
+        eyebrow="Portfolio size"
+        title={
+          est.status === "estimated"
+            ? "Estimated Portfolio Size"
+            : "Portfolio Size"
+        }
+      />
+      {est.status === "estimated" ? (
+        <div className="mt-4 space-y-3">
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <p
+              className="text-[40px] font-semibold leading-none tracking-[-0.014em] text-navy dq-tnum"
+            >
+              {fmtInt(est.point ?? 0)}
+            </p>
+            <p className="text-[15px] text-foreground/80">units (point estimate)</p>
+          </div>
+          <p className="text-[13.5px] text-muted-foreground">
+            Range:{" "}
+            <span className="dq-mono font-semibold text-navy">
+              {fmtInt(est.low ?? 0)}–{fmtInt(est.high ?? 0)}
+            </span>{" "}
+            units{" "}
+            <span className="text-muted-2">(P25–P75 confidence band)</span>
+          </p>
+          <p className="text-[12.5px] text-muted-foreground">
+            Based on{" "}
+            <span className="dq-mono font-semibold text-navy">
+              n={est.cohortN ?? 0}
+            </span>{" "}
+            comparable operators in the{" "}
+            <em className="not-italic font-medium text-navy">
+              {est.cohort ?? "cohort"}
+            </em>{" "}
+            cohort.{" "}
+            {est.confidence && (
+              <>
+                <span className="text-muted-2">·</span>{" "}
+                <span className="font-semibold text-navy">
+                  {est.confidence}
+                </span>{" "}
+                confidence.
+              </>
+            )}
+          </p>
+        </div>
+      ) : (
+        // insufficient_data branch — Large MF/BTR cohort. We don't have
+        // a defensible estimate to show; surface the explicit message
+        // and prompt the claim flow as a self-report path.
+        <div className="mt-4 rounded-md border border-grid bg-surface-soft/40 px-4 py-3">
+          <p className="text-[14.5px] leading-[1.55] text-foreground/85">
+            {est.message ??
+              "Insufficient calibration data for Large MF/BTR operators. Verified self-report required."}
+          </p>
+          <Link
+            href={claimHref}
+            className="mt-2 inline-flex items-center gap-1 text-[13px] font-semibold text-teal transition-colors hover:text-teal-700"
+          >
+            Claim this profile to verify
+            <span aria-hidden>→</span>
+          </Link>
+        </div>
+      )}
+      <p className="mt-5 text-[11.5px] leading-[1.5] text-muted-foreground">
+        Pre-computed at seed time from the size-banded model. Multipliers
+        come from the v0.7 calibration sample (n=70 operator-market pairs),
+        grouped by Dwellsy 7-cell taxonomy × URU activity bands. Context
+        only — not used in composite ranking. Operators can claim their
+        profile to override the estimate with a verified self-report.{" "}
+        <Link
+          href="/methodology/portfolio-estimator"
+          className="font-medium text-teal hover:text-teal-700 hover:underline"
+        >
+          How is this calculated? →
+        </Link>
+      </p>
+    </article>
+  );
+}
+
 function ConcessionActivitySection({ ctx }: { ctx: ConcessionContext }) {
   const hasConcessions = ctx.listingCount > 0 && ctx.rate !== null;
   const ratePct = ctx.rate !== null ? Math.round(ctx.rate * 100) : null;

@@ -21,11 +21,11 @@ import type { ScorecardData, StarLevel } from "@/lib/types";
 export const metadata: Metadata = {
   title: "Dwellsy IQ — Property Manager Intelligence",
   description:
-    "Outside-in scorecards on every property manager in the country. Methodology v0.6.4 + design v1.0 — 10 markets live across 694 eligible operators. Lease velocity, tenancy, rent performance, marketing, community visibility, and lending signals. Built for institutional diligence.",
+    "Outside-in scorecards on every property manager in the country. Methodology v0.7 + design v1.0 — 10 markets live across 694 eligible operators. Lease velocity, tenancy, rent performance, marketing, community visibility, and lending signals. Built for institutional diligence.",
   openGraph: {
     title: "Dwellsy IQ — Property Manager Intelligence",
     description:
-      "Outside-in scorecards on property managers. v0.6.4 + v1.0 across 10 covered markets. Built for institutional diligence.",
+      "Outside-in scorecards on property managers. v0.7 + v1.0 across 10 covered markets. Built for institutional diligence.",
     type: "website",
   },
 };

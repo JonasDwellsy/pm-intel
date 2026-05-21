@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { fmtDate } from "@/lib/format";
 import { QuadrantGrid } from "@/components/scorecard/QuadrantGrid";
@@ -43,7 +44,7 @@ async function loadVersion() {
         marketList,
       }
     : {
-        version: "v0.6.4",
+        version: "v0.7",
         designVersion,
         dataAsOf: "2026-05-19",
         marketCount,
@@ -1613,6 +1614,40 @@ export default async function MethodologyPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  <tr>
+                    <td className="dq-mono whitespace-nowrap">v0.7</td>
+                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                      May 21, 2026
+                    </td>
+                    <td>
+                      <strong>Portfolio Size Estimator</strong>. New
+                      size-banded model that estimates total managed
+                      units per operator from observed URU activity,
+                      keyed on Dwellsy 7-cell × URU bands. Calibrated
+                      against a 70 operator-market sample with
+                      per-cohort medians + P25/P75 confidence bands.
+                      Surfaces on scorecard Layer 5 with cohort
+                      attribution and a&nbsp;
+                      <Link
+                        href="/methodology/portfolio-estimator"
+                        className="text-teal hover:underline"
+                      >
+                        full methodology page
+                      </Link>
+                      . Estimates also baked into the canonical-
+                      operator aggregateStats blob so cross-market
+                      profiles can sum the bands across member PMs.
+                      Large MF/BTR cohorts receive an explicit
+                      &ldquo;insufficient calibration data&rdquo;
+                      treatment (n is too small to estimate reliably);
+                      those scorecards prompt for a verified
+                      self-report via the claim flow rather than
+                      pretending to a number. Methodology version
+                      bumped v0.6.4 → v0.7 — no cohort or ranking
+                      changes; estimator is context only and does not
+                      feed the composite.
+                    </td>
+                  </tr>
                   <tr>
                     <td className="dq-mono whitespace-nowrap">v0.6.4</td>
                     <td className="dq-mono whitespace-nowrap text-muted-foreground">

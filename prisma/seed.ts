@@ -517,6 +517,114 @@ function normalizeMapBounds(
   return undefined;
 }
 
+// v0.7 — portfolio size estimator.
+//
+// Size-banded model from the calibration analysis at
+// Product Support/Dwellsy_IQ_Portfolio_Estimator_Calibration.xlsx
+// (sheet: "Size-Banded Model"). Multipliers are URU-to-total-units
+// ratios median'd within each (7-cell × URU band) cohort. n is the
+// number of operator-market pairs the median was computed across;
+// confidence labels follow the calibration sheet's sample-size bins.
+//
+// Algorithm implemented verbatim from the v0.7 patch spec, including
+// the annualization branch. NOTE: the spec's annualization formula
+// `12 / Math.max(months, 12)` always evaluates to 1.0 for months < 12
+// (the Math.max bottoms the denominator at 12), so the urusT12 value
+// flows through unchanged at all month counts. Flagging here for
+// product to confirm intended behavior before the v0.7 estimator
+// release; ship verbatim per spec instruction for now.
+export type PortfolioEstimateStatus =
+  | "estimated"
+  | "insufficient_data"
+  | "insufficient_history"
+  | "no_listings";
+
+export interface PortfolioEstimate {
+  status: PortfolioEstimateStatus;
+  point?: number;
+  low?: number;
+  high?: number;
+  cohort?: string;
+  cohortN?: number;
+  confidence?: "Low" | "Medium" | "High";
+  multiplierMedian?: number;
+  message?: string;
+  methodologyVersion?: string;
+}
+
+function estimatePortfolioSize(
+  coverage: AnyRecord,
+  quadrant7Cell: string | null
+): PortfolioEstimate {
+  const urusT12 = asInt(coverage.urusT12) ?? 0;
+  const months = asInt(coverage.monthsOnPlatform) ?? 0;
+
+  if (urusT12 === 0) return { status: "no_listings" };
+  if (months < 3) return { status: "insufficient_history" };
+
+  // See note above on the annualization formula — verbatim per spec.
+  const annualization = months < 12 ? 12 / Math.max(months, 12) : 1.0;
+  const annualizedUrus = urusT12 * annualization;
+
+  let median = 0;
+  let p25 = 0;
+  let p75 = 0;
+  let n = 0;
+  let confidence: "Low" | "Medium" | "High" = "Low";
+  let cohort = "";
+
+  const cell = quadrant7Cell;
+
+  if (cell === "SFR Independent") {
+    if (annualizedUrus < 100) {
+      [median, p25, p75, n, confidence] = [9.29, 5.69, 11.38, 12, "Low"];
+      cohort = "SFR Independent, URUs <100";
+    } else if (annualizedUrus < 300) {
+      [median, p25, p75, n, confidence] = [3.88, 2.49, 4.74, 29, "Medium"];
+      cohort = "SFR Independent, URUs 100-299";
+    } else {
+      [median, p25, p75, n, confidence] = [1.88, 1.68, 2.40, 6, "Low"];
+      cohort = "SFR Independent, URUs 300+";
+    }
+  } else if (cell === "SFR Institutional") {
+    [median, p25, p75, n, confidence] = [3.46, 2.40, 4.18, 4, "Low"];
+    cohort = "SFR Institutional (all)";
+  } else if (cell === "Hybrid") {
+    [median, p25, p75, n, confidence] = [3.21, 1.35, 5.10, 4, "Low"];
+    cohort = "Hybrid (all)";
+  } else if (cell === "Small MF/BTR Independent") {
+    [median, p25, p75, n, confidence] = [1.13, 1.01, 2.50, 3, "Low"];
+    cohort = "Small MF/BTR Independent (all)";
+  } else if (
+    cell === "Large MF/BTR Independent" ||
+    cell === "Large MF/BTR Institutional" ||
+    cell === "Institutional MF" ||
+    cell === "BTR Institutional"
+  ) {
+    return {
+      status: "insufficient_data",
+      message:
+        "Verified self-report required for Large MF/BTR operators",
+      methodologyVersion: "v0.7-portfolio-est-v0.1",
+    };
+  } else {
+    [median, p25, p75, n, confidence] = [4.23, 2.53, 8.11, 59, "Medium"];
+    cohort = "Overall fallback";
+  }
+
+  return {
+    status: "estimated",
+    point: Math.round(annualizedUrus * median),
+    low: Math.round(annualizedUrus * p25),
+    high: Math.round(annualizedUrus * p75),
+    cohort,
+    cohortN: n,
+    confidence,
+    multiplierMedian: median,
+    methodologyVersion: "v0.7-portfolio-est-v0.1",
+  };
+}
+
 function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
   const rank = getObj(pm, "rank") ?? {};
   const coverage = getObj(pm, "coverage") ?? {};
@@ -789,6 +897,13 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
           (s): s is string => typeof s === "string"
         )
       : undefined,
+    // v0.7 — portfolio size estimator. Pre-computed at seed time
+    // against the size-banded model so the scorecard renderer + Ask
+    // tools + brief generator all read a stable value without ever
+    // hitting the algorithm. Status field discriminates between
+    // estimated / insufficient_data / insufficient_history /
+    // no_listings; the Layer 5 widget branches on it.
+    portfolioEstimate: estimatePortfolioSize(coverage, asString(pm.quadrant7Cell) || null),
   };
 }
 
@@ -1033,6 +1148,15 @@ async function main() {
   // backlog; this is the defensive app-boundary fix.
   const seenSlugs = new Set<string>();
   const firstNameBySlug = new Map<string, string>();
+  // v0.7 — per-pm portfolio-estimate cache. Populated during the PM
+  // seeding loop (the scorecard build does the estimate work) so the
+  // canonical-operator aggregation pass below can sum point/low/high
+  // across each canonical entity's member PMs without re-running the
+  // estimator. Keyed by the final disambiguated slug.
+  const portfolioEstimateBySlug = new Map<
+    string,
+    NonNullable<ScorecardData["portfolioEstimate"]>
+  >();
   let pmCount = 0;
   let disambiguatedCount = 0;
 
@@ -1082,6 +1206,12 @@ async function main() {
     const scorecard = buildScorecard(pm, market);
     const legacyQuadrant = scorecard.pm.quadrant;
     const quadrant7Cell = asString(pm.quadrant7Cell) || null;
+    // v0.7 — cache the just-computed portfolio estimate so the
+    // canonical-operator aggregation downstream doesn't have to
+    // re-run estimatePortfolioSize for every member PM.
+    if (scorecard.portfolioEstimate) {
+      portfolioEstimateBySlug.set(slug, scorecard.portfolioEstimate);
+    }
 
     await prisma.pM.create({
       data: {
@@ -1153,6 +1283,44 @@ async function main() {
   for (const entity of Object.values(data.canonicalOperators ?? {})) {
     if (!entity || typeof entity !== "object") continue;
     if (!entity.canonicalSlug) continue;
+    // v0.7 — roll up per-member portfolio estimates into a canonical
+    // aggregate. Sum point/low/high across the entity's member PM
+    // slugs; set anyInsufficient when at least one member came back
+    // insufficient_data (Large MF/BTR cohort) so the cross-market
+    // profile can footnote that the rollup is incomplete. Members
+    // with no_listings / insufficient_history contribute 0 and
+    // don't flip the flag — they just don't add to the sum.
+    let portfolioPoint = 0;
+    let portfolioLow = 0;
+    let portfolioHigh = 0;
+    let anyInsufficient = false;
+    let estimatedMemberCount = 0;
+    for (const memberSlug of entity.pmSlugs ?? []) {
+      const est = portfolioEstimateBySlug.get(memberSlug);
+      if (!est) continue;
+      if (est.status === "insufficient_data") {
+        anyInsufficient = true;
+        continue;
+      }
+      if (est.status !== "estimated") continue;
+      portfolioPoint += est.point ?? 0;
+      portfolioLow += est.low ?? 0;
+      portfolioHigh += est.high ?? 0;
+      estimatedMemberCount += 1;
+    }
+    const sourceAggregate =
+      (entity.aggregateStats as Record<string, unknown>) ?? {};
+    const aggregateWithEstimate = {
+      ...sourceAggregate,
+      portfolioEstimate: {
+        point: portfolioPoint,
+        low: portfolioLow,
+        high: portfolioHigh,
+        anyInsufficient,
+        estimatedMemberCount,
+        totalMemberCount: entity.pmSlugs?.length ?? 0,
+      },
+    };
     await prisma.canonicalOperator.create({
       data: {
         canonicalSlug: entity.canonicalSlug,
@@ -1160,7 +1328,7 @@ async function main() {
         marketIds: JSON.stringify(entity.marketIds ?? []),
         pmSlugs: JSON.stringify(entity.pmSlugs ?? []),
         marketCount: entity.marketCount ?? (entity.marketIds?.length ?? 0),
-        aggregateStats: JSON.stringify(entity.aggregateStats ?? {}),
+        aggregateStats: JSON.stringify(aggregateWithEstimate),
       },
     });
     canonicalCount += 1;

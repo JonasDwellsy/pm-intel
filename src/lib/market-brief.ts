@@ -20,6 +20,13 @@ export interface MarketBriefData {
   newEntrants: NewEntrant[];
   quadrantBreakdown: QuadrantBreakdownEntry[];
   crossMarketOperators: CrossMarketOperatorEntry[];
+  // v0.7 — top operators by estimated portfolio size. Pulled from the
+  // pre-computed scorecard.portfolioEstimate; ranked operators only
+  // (estimates exist for tracked entries too but the brief surface
+  // mirrors the share-movement framing — only operators in the
+  // ranking cohort make the cut). Capped at 5 for brevity; brief
+  // prose can reference these by name.
+  portfolioSizeLeaders: PortfolioSizeLeader[];
 }
 
 export interface MarketHeader {
@@ -65,6 +72,18 @@ export interface NewEntrant {
   scorecardUrl: string;
   quadrant7Cell: string | null;
   t12Listings: number;
+}
+
+export interface PortfolioSizeLeader {
+  name: string;
+  pmSlug: string;
+  scorecardUrl: string;
+  quadrant7Cell: string | null;
+  pointEstimate: number;
+  lowEstimate: number;
+  highEstimate: number;
+  cohort: string;
+  confidence: "Low" | "Medium" | "High";
 }
 
 export interface QuadrantBreakdownEntry {
@@ -209,6 +228,36 @@ export async function buildMarketBriefData(
       t12Listings: p.t12 as number,
     }));
 
+  // ── portfolio size leaders (v0.7) ──
+  //
+  // Top operators by estimated portfolio size. Drawn from ranked PMs
+  // with scorecard.portfolioEstimate.status === "estimated"
+  // (insufficient_data / insufficient_history / no_listings entries
+  // skipped). Sorted desc on the point estimate, capped at TOP_N.
+
+  const portfolioSizeLeaders: PortfolioSizeLeader[] = parsed
+    .filter(({ row }) => row.rankOverall !== null)
+    .map(({ row, sc }) => {
+      const est = sc.portfolioEstimate;
+      if (!est || est.status !== "estimated" || typeof est.point !== "number") {
+        return null;
+      }
+      return {
+        name: sc.pm.name,
+        pmSlug: row.slug,
+        scorecardUrl: `/property-managers/${stateCodeToSlug(market.state)}/${citySlug(market.city)}/${row.slug}`,
+        quadrant7Cell: row.quadrant7Cell ?? null,
+        pointEstimate: est.point,
+        lowEstimate: est.low ?? 0,
+        highEstimate: est.high ?? 0,
+        cohort: est.cohort ?? "—",
+        confidence: est.confidence ?? "Low",
+      };
+    })
+    .filter((x): x is PortfolioSizeLeader => x !== null)
+    .sort((a, b) => b.pointEstimate - a.pointEstimate)
+    .slice(0, TOP_N);
+
   // ── quadrant breakdown ──
 
   const summary = market.quadrant7CellSummary
@@ -327,6 +376,7 @@ export async function buildMarketBriefData(
     newEntrants,
     quadrantBreakdown,
     crossMarketOperators,
+    portfolioSizeLeaders,
   };
 }
 
