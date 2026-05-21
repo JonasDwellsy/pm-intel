@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Dwellsy IQ</title>
+  <!--
+    Adaptive favicon — the IQ mark swaps color to track the user's OS /
+    browser color-scheme preference so the brand yellow (#FCD131,
+    sampled from the logo asset) stops washing out against light tab
+    backgrounds.
+
+    Default (light mode): black IQ on the tab background.
+    Dark mode: brand yellow IQ on the tab's dark chrome.
+
+    Geometry, not text: Chrome's favicon renderer runs in a sandboxed
+    context where system fonts may not resolve, so an earlier
+    <text>IQ</text> approach rendered as empty and Chrome fell back to
+    apple-touch-icon for the tab affordance. Geometric rect + circle +
+    rotated tail render identically in every browser regardless of
+    font availability.
+
+    Two classes so the donut Q's stroke and the solid I + tail can be
+    recolored together via prefers-color-scheme without colliding with
+    SVG's element-level fill/stroke precedence (inline fill="none"
+    can't be overridden by a class-level fill).
+  -->
+  <style>
+    .iq-fill { fill: #000000; }
+    .iq-ring { fill: none; stroke: #000000; stroke-width: 9; }
+    @media (prefers-color-scheme: dark) {
+      .iq-fill { fill: #FCD131; }
+      .iq-ring { stroke: #FCD131; }
+    }
+  </style>
+  <!-- I — vertical bar -->
+  <rect class="iq-fill" x="14" y="14" width="10" height="36"/>
+  <!-- Q — open ring drawn with stroke-only circle -->
+  <circle class="iq-ring" cx="45" cy="32" r="13"/>
+  <!-- Q tail — small rotated rectangle extending past the lower-right of the ring -->
+  <rect
+    class="iq-fill"
+    x="48" y="40" width="14" height="6"
+    transform="rotate(45 55 43)"
+  />
+</svg>
