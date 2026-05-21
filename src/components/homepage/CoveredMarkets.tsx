@@ -24,7 +24,7 @@ const FUTURE_MARKETS: Array<{ name: string; description: string }> = [
   {
     name: "Dallas-Fort Worth, TX MSA",
     description:
-      "Data ingestion complete. Eligibility threshold tuning in progress for the next cohort of v0.7 markets.",
+      "Data ingestion complete. Eligibility threshold tuning in progress for the next cohort of v0.8 markets.",
   },
 ];
 
@@ -146,7 +146,7 @@ export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
         <HomepageSectionHead
           eyebrow="Coverage"
           title="Ten markets currently live on Dwellsy IQ."
-          context="We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. Ten MSAs are live as of v0.7 — including the Alabama expansion (Birmingham, Huntsville, Montgomery). Additional MSAs roll out through 2026."
+          context="We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. Ten MSAs are live as of v0.8 — including the Alabama expansion (Birmingham, Huntsville, Montgomery). Additional MSAs roll out through 2026."
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {markets.map((m) => (

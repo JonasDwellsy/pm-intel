@@ -44,7 +44,7 @@ async function loadVersion() {
         marketList,
       }
     : {
-        version: "v0.7",
+        version: "v0.8",
         designVersion,
         dataAsOf: "2026-05-19",
         marketCount,
@@ -1614,6 +1614,35 @@ export default async function MethodologyPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  <tr>
+                    <td className="dq-mono whitespace-nowrap">v0.8</td>
+                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                      May 21, 2026
+                    </td>
+                    <td>
+                      <strong>Buy Box foundation (PR 1 of ~5).</strong> Data
+                      layer + filter evaluator + fit-scoring engine + CRUD
+                      API for acquirer-defined target lists. Saved buy
+                      boxes hold three layers of criteria — required
+                      (deal-breakers), preferred (weighted preferences
+                      that drive a 0-100 fit score), excluded (negative
+                      filters) — applied across the full operator
+                      universe to produce a ranked target list with
+                      per-criterion breakdown. Field catalog covers
+                      Geographic, Scale (incl. v0.7 portfolio estimates),
+                      Asset, Trajectory, and Operator dimensions. Two
+                      starter templates seeded — Evernest-style SFR
+                      density build-out + Genstone-style integrated
+                      services — drawn verbatim from the buy-box spec's
+                      worked examples. No editor UI yet (ships in PR 2);
+                      minimal admin view at{" "}
+                      <span className="dq-mono">/buy-boxes</span> for
+                      verification. Methodology cohorts + ranking
+                      unchanged — Buy Box is a screening surface on top
+                      of the existing scorecard universe, not a metric
+                      revision.
+                    </td>
+                  </tr>
                   <tr>
                     <td className="dq-mono whitespace-nowrap">v0.7</td>
                     <td className="dq-mono whitespace-nowrap text-muted-foreground">
