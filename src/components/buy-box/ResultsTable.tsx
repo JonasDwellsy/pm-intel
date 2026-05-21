@@ -554,11 +554,25 @@ function ViewButton({ row }: { row: ResultRowVM }) {
       {open && (
         <span
           role="menu"
-          className="absolute right-0 top-8 z-30 w-[220px] rounded-lg border border-grid bg-white p-2 text-left shadow-xl"
+          className="absolute right-0 top-8 z-30 w-[260px] rounded-lg border border-grid bg-white p-2 text-left shadow-xl"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* v0.11 — operator scorecard as primary action for
+              multi-market rollups; per-market links secondary. */}
+          {row.operatorScorecardHref && (
+            <>
+              <Link
+                href={row.operatorScorecardHref}
+                role="menuitem"
+                className="block rounded-md bg-teal px-3 py-2 text-[12.5px] font-semibold text-white hover:bg-teal-700"
+              >
+                View operator scorecard →
+              </Link>
+              <span className="my-2 block h-px bg-grid" />
+            </>
+          )}
           <span className="block px-2 pb-1 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            View scorecard for:
+            Or jump to a market:
           </span>
           <span className="block max-h-[240px] overflow-y-auto">
             {row.drillTargets.map((t) => (

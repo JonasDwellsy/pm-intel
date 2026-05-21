@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ScorecardData } from "@/lib/types";
 import type { MarketFootprintPill } from "@/lib/cross-market";
 import type { Layer3Metric, PeerComparison } from "@/lib/peer-comparison";
@@ -88,6 +89,17 @@ export function ScorecardBody({
         />
         <div className="grid gap-x-16 gap-y-10 pt-10 pb-16 lg:grid-cols-[minmax(0,1fr)_280px]">
           <article className="min-w-0 space-y-14">
+            {/* v0.11 — contextual link up to the operator-level scorecard
+                for multi-market canonical operators. Skipped for single-
+                market operators where the rollup would just mirror this
+                page. */}
+            {crossMarketOperator && crossMarketOperator.marketCount >= 2 && (
+              <OperatorScorecardBackLink
+                canonicalSlug={crossMarketOperator.canonicalSlug}
+                marketCount={crossMarketOperator.marketCount}
+                operatorName={scorecard.canonicalOperatorName ?? scorecard.pm.name}
+              />
+            )}
             <IdentityHero
               scorecard={scorecard}
               isClaimed={isClaimed}
@@ -125,5 +137,34 @@ export function ScorecardBody({
         </div>
       </div>
     </MetricInfoProvider>
+  );
+}
+
+/** v0.11 — Up-arrow link to the aggregate operator scorecard from
+ *  a per-market scorecard, rendered above IdentityHero when the
+ *  canonical operator spans 2+ markets. Single-market operators
+ *  skip it (their per-market scorecard already represents the full
+ *  operator). */
+function OperatorScorecardBackLink({
+  canonicalSlug,
+  marketCount,
+  operatorName,
+}: {
+  canonicalSlug: string;
+  marketCount: number;
+  operatorName: string;
+}) {
+  return (
+    <Link
+      href={`/operators/${encodeURIComponent(canonicalSlug)}?unlocked=true`}
+      className="inline-flex items-center gap-1.5 self-start rounded-full border border-grid bg-white px-3 py-1 text-[12.5px] font-medium text-teal hover:border-teal hover:text-teal-700"
+    >
+      <span aria-hidden>←</span>
+      View operator-level scorecard for{" "}
+      <span className="font-semibold">{operatorName}</span>
+      <span className="text-[11px] text-muted-foreground">
+        ({marketCount} markets)
+      </span>
+    </Link>
   );
 }
