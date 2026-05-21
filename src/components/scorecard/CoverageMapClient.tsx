@@ -104,7 +104,6 @@ export function CoverageMapClient({
     if (unavailable) {
       if (!token) {
         // One-time warning per render path.
-        // eslint-disable-next-line no-console
         console.warn(
           "[CoverageMap] NEXT_PUBLIC_MAPBOX_TOKEN missing — falling back to SVG"
         );
@@ -205,7 +204,6 @@ export function CoverageMapClient({
         resizeObserver = new ResizeObserver(() => m.resize());
         resizeObserver.observe(el);
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.warn("[CoverageMap] Mapbox init failed — falling back to SVG", err);
         if (!cancelled) setUnavailable(true);
       }

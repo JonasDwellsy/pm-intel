@@ -71,7 +71,7 @@ export default async function ClaimPage({
           response, correct details, and reply to leads we route to you.
         </p>
         <p className="text-muted-foreground">
-          We'll email the address you provide to confirm domain control. Full
+          We&rsquo;ll email the address you provide to confirm domain control. Full
           claim flow (response editing, branding, lead inbox) ships with
           Journey 3.
         </p>
@@ -81,11 +81,11 @@ export default async function ClaimPage({
         <div className="rounded-lg border border-border bg-card p-6">
           <h2 className="text-lg font-medium">This profile is already claimed</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            If you believe that's a mistake, email{" "}
+            If you believe that&rsquo;s a mistake, email{" "}
             <a className="underline" href="mailto:claims@dwellsy.com">
               claims@dwellsy.com
             </a>{" "}
-            and we'll investigate.
+            and we&rsquo;ll investigate.
           </p>
         </div>
       ) : (

@@ -6,7 +6,6 @@ import {
   getSearchCounts,
   partitionByTier,
   searchPMs,
-  type PMSearchResult,
 } from "@/lib/pm-search";
 import { SearchResultRow } from "./SearchResultRow";
 
@@ -43,13 +42,18 @@ export function SearchModal({
   }, [query]);
 
   // Auto-focus input on open + reset query when the modal closes so the
-  // next open is a fresh canvas.
+  // next open is a fresh canvas. The state resets in the close branch
+  // are intentional side-effects of an external input (the parent's
+  // open prop flipping to false) — useEffect is the right tool; the
+  // set-state-in-effect rule's "derive during render" alternative
+  // doesn't fit when the trigger is an external prop change.
   useEffect(() => {
     if (open) {
       // Defer one microtask so the input is mounted before focus().
       const id = setTimeout(() => inputRef.current?.focus(), 0);
       return () => clearTimeout(id);
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuery("");
     setDebouncedQuery("");
     setActiveIndex(0);
@@ -91,7 +95,11 @@ export function SearchModal({
     [strictResults]
   );
 
+  // Reset cursor to the first result whenever the query changes so
+  // arrow-key navigation starts from a sensible position. Same
+  // intentional-side-effect rationale as the open-handler above.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveIndex(0);
   }, [debouncedQuery]);
 

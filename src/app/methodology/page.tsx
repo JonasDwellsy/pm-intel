@@ -860,7 +860,7 @@ export default async function MethodologyPage() {
                 across the pooled in-state ranked operators), and{" "}
                 <strong>rent growth T12</strong> (operator-weighted median
                 of <span className="dq-mono">pmYoyChange</span> across the
-                same pool). Median DOM and rent growth carry a "vs national"
+                same pool). Median DOM and rent growth carry a &ldquo;vs national&rdquo;
                 benchmark line where the national reference is the
                 operator-weighted median across every ranked operator in
                 every covered MSA — the same single national number that
@@ -874,7 +874,7 @@ export default async function MethodologyPage() {
                 multi-MSA states; the state page renders one MSA card. As
                 coverage expands and adds new MSAs in already-covered
                 states, the state page auto-updates without any data-layer
-                changes: state membership is derived from each market's{" "}
+                changes: state membership is derived from each market&rsquo;s{" "}
                 <span className="dq-mono">state</span> field.
               </p>
 

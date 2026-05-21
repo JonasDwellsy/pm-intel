@@ -48,7 +48,7 @@ export function MarketMap({ view }: { view: LoadedMarket }) {
       <p className="mt-3.5 max-w-[920px] text-[13px] italic leading-[1.6] text-muted-foreground">
         Each dot represents one observed listing address across all eligible
         operators in {market.fullName} over the trailing 12 months. Color
-        indicates the operator's quadrant classification.{" "}
+        indicates the operator&rsquo;s quadrant classification.{" "}
         <span className="dq-mono not-italic font-medium text-navy/85">
           {fmtInt(totalPoints)}
         </span>{" "}

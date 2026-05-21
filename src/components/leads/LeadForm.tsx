@@ -23,7 +23,6 @@ import { PillSelector, type PillOption } from "@/components/ui/PillSelector";
 import {
   leadFormSchema,
   leadFormToApiPayload,
-  PROPERTY_TYPES,
   QUADRANTS,
   type LeadFormValues,
   type PropertyType,
