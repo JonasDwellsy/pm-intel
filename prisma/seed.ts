@@ -1351,6 +1351,105 @@ async function main() {
     `  ✓ canonical operators: ${canonicalCount} multi-market entities seeded`
   );
 
+  // v0.8 — Buy Box example templates. Two starter buy boxes drawn
+  // verbatim from the buy-box spec's worked examples (Evernest-style
+  // SFR density build-out + Genstone-style integrated services).
+  // Stored as JSON on the BuyBox columns; criteria shapes match
+  // FilterCriterion / WeightedCriterion from src/lib/buy-box/fields.ts.
+  // Idempotent: delete-then-create so re-seeds always produce the
+  // same canonical templates and don't accumulate duplicates.
+  await prisma.buyBox.deleteMany({
+    where: { name: { in: [
+      "Evernest-Style SFR Density Build-Out",
+      "Genstone-Style Integrated Services",
+    ] } },
+  });
+  await prisma.buyBox.create({
+    data: {
+      name: "Evernest-Style SFR Density Build-Out",
+      description:
+        "Hypothesis based on public Evernest commentary. Build density in existing Sun Belt markets via acquiring mid-size pure-SFR PMs.",
+      ownerId: "shared",
+      isShared: true,
+      requiredCriteria: JSON.stringify([
+        { field: "quadrant7Cell", operator: "in", value: ["SFR Independent", "SFR Institutional"] },
+        { field: "estimatedPortfolioPoint", operator: "between", value: [500, 3000] },
+        { field: "marketIds", operator: "in", value: [
+          "memphis-tn-ms-ar",
+          "jacksonville-fl",
+          "nashville-davidson-murfreesboro-franklin-tn",
+          "birmingham-al",
+          "phoenix-az",
+          "chattanooga-tn",
+          "huntsville-al",
+        ] },
+        { field: "portfolioEstimateConfidence", operator: "in", value: ["Medium", "High"] },
+      ]),
+      preferredCriteria: JSON.stringify([
+        { field: "listingTrajectoryYoY", operator: "gte", value: 0, weight: 0.30 },
+        { field: "concessionRate", operator: "lte", value: 0.10, weight: 0.20 },
+        { field: "monthsOnPlatform", operator: "gte", value: 12, weight: 0.20 },
+        { field: "marketCount", operator: "eq", value: 1, weight: 0.15 },
+        { field: "topCityConcentration", operator: "gte", value: 60, weight: 0.15 },
+      ]),
+      excludedCriteria: JSON.stringify([
+        // Placeholder — the spec's "operators already in Evernest's
+        // portfolio" exclusion needs the acquirer's actual portfolio
+        // list. The institutional + >5000 doors veto fires on
+        // mega-REITs that survive the required filters.
+        { field: "institutional", operator: "eq", value: true },
+        { field: "estimatedPortfolioPoint", operator: "gte", value: 5000 },
+      ]),
+    },
+  });
+  await prisma.buyBox.create({
+    data: {
+      name: "Genstone-Style Integrated Services",
+      description:
+        "Hypothesis based on Genstone's multi-vertical platform. Acquire PMs where Genstone construction / insurance / services can plug in for cost savings and value capture.",
+      ownerId: "shared",
+      isShared: true,
+      requiredCriteria: JSON.stringify([
+        { field: "quadrant7Cell", operator: "in", value: [
+          "SFR Independent",
+          "SFR Institutional",
+          "Hybrid",
+          "Small MF/BTR Independent",
+        ] },
+        { field: "estimatedPortfolioPoint", operator: "between", value: [300, 5000] },
+        // Markets list is "TBD with Bryan" in the spec — preload the
+        // current 10-market footprint so the buy box returns something
+        // useful out of the box; acquirer narrows in the editor.
+        { field: "marketIds", operator: "in", value: [
+          "chattanooga-tn",
+          "jacksonville-fl",
+          "nashville-davidson-murfreesboro-franklin-tn",
+          "memphis-tn-ms-ar",
+          "knoxville-tn",
+          "clarksville-tn-ky",
+          "phoenix-az",
+          "birmingham-al",
+          "huntsville-al",
+          "montgomery-al",
+        ] },
+      ]),
+      preferredCriteria: JSON.stringify([
+        { field: "listingTrajectoryYoY", operator: "gte", value: 0, weight: 0.30 },
+        // Hybrid + Small MF/BTR Independent are where Genstone construction adds the most value.
+        { field: "quadrant7Cell", operator: "in", value: ["Hybrid", "Small MF/BTR Independent"], weight: 0.25 },
+        { field: "marketCount", operator: "gte", value: 2, weight: 0.25 },
+        { field: "monthsOnPlatform", operator: "gte", value: 18, weight: 0.20 },
+      ]),
+      excludedCriteria: JSON.stringify([
+        // Same caveat as Evernest — portfolio-overlap exclusions need
+        // the acquirer's actual list. Vertically-integrated REITs proxy
+        // via institutional + 7-cell Large MF/BTR Institutional.
+        { field: "quadrant7Cell", operator: "eq", value: "Large MF/BTR Institutional" },
+      ]),
+    },
+  });
+  console.log("  ✓ buy boxes: 2 starter templates seeded");
+
   const marketCount = await prisma.market.count();
   const dbPmCount = await prisma.pM.count();
   const dupeSuffix =

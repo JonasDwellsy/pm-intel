@@ -186,3 +186,36 @@ model MarketBrief {
   @@unique([marketSlug, methodologyVersion, dataAsOf])
   @@index([marketSlug])
 }
+
+// v0.8 — Buy Box. Acquirer-defined structured search criteria that get
+// applied across the operator universe to produce a ranked target
+// list. Three layers of criteria:
+//   requiredCriteria  — deal-breakers. PM excluded entirely on any miss.
+//   preferredCriteria — weighted preferences. Drive the 0-100 fit score.
+//   excludedCriteria  — negative filters. PM excluded if any matches.
+//
+// Criteria are stored as JSON-encoded String columns (consistent with
+// the existing JSON-as-String pattern used across this schema —
+// scorecardData, marketIds, pmSlugs, aggregateStats, etc.).
+// Application code parses on read; schema is provider-portable.
+//
+// ownerId is a placeholder until per-user auth lands; isShared=true
+// for MVP means every buy box is visible at org level. The combo is
+// in place so the future auth layer can introduce per-user privacy
+// without a schema migration.
+model BuyBox {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  ownerId           String
+  isShared          Boolean  @default(true)
+  // JSON-encoded arrays. See src/lib/buy-box/fields.ts for the
+  // FilterCriterion + WeightedCriterion shapes.
+  requiredCriteria  String   @default("[]")
+  preferredCriteria String   @default("[]")
+  excludedCriteria  String   @default("[]")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([ownerId])
+}
