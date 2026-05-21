@@ -41,6 +41,9 @@ export type MetricKey =
   | "operatorStability"
   | "geographicConcentration"
   | "pricingTier"
+  // PR #47 — Est. Portfolio elevated to a headline tile, needs an
+  // InfoIcon modal definition.
+  | "portfolioEstimate"
   // Section-level definitions (wired on Layer eyebrows + subsection headers).
   | "section-executive-summary"
   | "section-distinguishing-characteristics"
@@ -231,6 +234,29 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
       "Some lenders prefer concentration (operator efficiency); others prefer dispersion (geographic risk diversification). The signal supports either reading.",
     ],
     methodologyHref: "/methodology#lending-signals",
+  },
+
+  // PR #47 — Est. Portfolio elevated from Layer 5 sub-section to a
+  // Layer 2 headline tile. The estimator itself is documented in
+  // detail at /methodology/portfolio-estimator; this entry powers
+  // the InfoIcon modal on the headline tile only.
+  portfolioEstimate: {
+    name: "Estimated portfolio",
+    definition:
+      "Total managed units derived from observed listing volume, calibrated against verified operator data via the v0.7 size-banded estimator. Point estimate paired with a low–high confidence band (P25 / P75) and a tier label (High / Medium / Low) that reflects the calibration sample size for the operator's segment.",
+    formula:
+      "point = urusT12 × multiplier_median(cohort)\nlow  = urusT12 × multiplier_P25(cohort)\nhigh = urusT12 × multiplier_P75(cohort)",
+    variableDefs: [
+      { symbol: "urusT12", meaning: "distinct units the operator listed at least once in the trailing 12 months" },
+      { symbol: "cohort", meaning: "size-banded calibration cohort matching the operator's URU range" },
+    ],
+    cohortScope:
+      "Size-banded cohort (SFR Independent / Institutional / Hybrid / Small / Large MF/BTR × URU band) determines the multiplier distribution.",
+    caveats: [
+      "Large MF/BTR cohorts with insufficient calibration data return status=insufficient_data; the headline tile renders the message instead of a number.",
+      "Estimates are outside-in: a portfolio of units the operator listed publicly, not their privately-held inventory.",
+    ],
+    methodologyHref: "/methodology/portfolio-estimator",
   },
 
   pricingTier: {

@@ -7,6 +7,7 @@ import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import type { ConcessionContext } from "@/lib/concession-context";
 
 import { TrackEvent } from "@/components/analytics/TrackEvent";
+import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { MetricInfoProvider } from "@/components/scorecard/MetricInfoProvider";
 import { IdentityHero } from "@/components/scorecard/IdentityHero";
 import { SynthesisLayer } from "@/components/scorecard/SynthesisLayer";
@@ -15,27 +16,25 @@ import { LendingSignals } from "@/components/scorecard/LendingSignals";
 import { PortfolioLayer } from "@/components/scorecard/PortfolioLayer";
 import type { ShareTrajectoryView } from "@/lib/share-trajectory";
 import { MethodologyFooter } from "@/components/scorecard/MethodologyFooter";
-import { PaywallCard } from "@/components/scorecard/PaywallCard";
 import { ScorecardSidebar } from "@/components/scorecard/ScorecardSidebar";
 
 // v1.0 scorecard layer order (per Scorecard_Design_Spec_v1.0.md Section 3):
 //   Layer 1 — Identity hero (IdentityHero)
-//   Layer 2 — Synthesis (SynthesisLayer): exec summary, headline tiles,
-//             distinguishing characteristics
-//   Layer 3 — Performance dimensions (PerformanceLayer): 4-5 cards each with
-//             cohort qualifier + distribution chart + peer comparison table
-//   Layer 4 — Lending Signals (LendingSignals): 5-signal underwriting grid
-//   Layer 5 — Portfolio Characteristics (PortfolioLayer): coverage map +
-//             narrative, geographic spread, cross-market presence, portfolio
-//             composition, rent trajectory descriptive, pricing data
-//   Layer 6 — Methodology footer (MethodologyFooter): classification
-//             rationale, coverage universe table, sample sizes per metric,
-//             version stamp, disclaimer, citation suggestion. Plus the
-//             interactive "i" icon modal infrastructure (MetricInfoProvider)
-//             that wraps the whole tree.
+//   Layer 2 — Synthesis (SynthesisLayer)
+//   Layer 3 — Performance dimensions (PerformanceLayer)
+//   Layer 4 — Lending Signals (LendingSignals)
+//   Layer 5 — Portfolio Characteristics (PortfolioLayer)
+//   Layer 6 — Methodology footer (MethodologyFooter)
+//
+// PR #47 retires the paywall. All sections render unconditionally
+// for every visitor; the `?unlocked=true` query param is still
+// accepted but ignored (kept as a no-op so stale inbound links
+// don't 404 or land in an unexpected state). The "Build a buy box
+// to find more like this" CTA that lived on the paywall card is
+// preserved as a contextual block between Methodology and the end
+// of the article.
 export function ScorecardBody({
   scorecard,
-  isUnlocked,
   isClaimed,
   marketFootprint,
   peerComparisons,
@@ -47,7 +46,6 @@ export function ScorecardBody({
   crossMarketOperator = null,
 }: {
   scorecard: ScorecardData;
-  isUnlocked: boolean;
   isClaimed: boolean;
   marketFootprint: MarketFootprintPill[];
   peerComparisons: Record<Layer3Metric, PeerComparison | null>;
@@ -57,19 +55,8 @@ export function ScorecardBody({
    *  similar PMs" button. Null when the market has no other ranked
    *  operators (sidebar then hides the button). */
   compareHref: string | null;
-  // v0.6.3 Patch 6 — share-trajectory view passed through to Layer 5F.
-  // Null is acceptable (Layer 5 null-guards) but the route handler should
-  // always populate it via buildShareTrajectoryView.
   shareTrajectory: ShareTrajectoryView | null;
-  // v0.6.4 Patch 2 — concession context for the Layer 5 ConcessionActivity
-  // section. Built by buildConcessionContext(scorecard, msaPool) in the
-  // route handler. The section's render rules (null vs 0 vs >0) live in
-  // the component; this layer just threads the prop through.
   concessionContext: ConcessionContext;
-  // v0.6.4 Patch 1 — cross-market context for the Layer 1 badge. Null
-  // for single-market operators (no badge rendered); { canonicalSlug,
-  // marketCount } when the operator belongs to a multi-market canonical
-  // entity. Resolved server-side from the CanonicalOperator table.
   crossMarketOperator?: {
     canonicalSlug: string;
     marketCount: number;
@@ -79,7 +66,7 @@ export function ScorecardBody({
     <MetricInfoProvider>
       <div className="mx-auto max-w-[1440px] px-6 sm:px-10">
         <TrackEvent
-          event={isUnlocked ? "scorecard_full_view" : "scorecard_preview_view"}
+          event="scorecard_full_view"
           properties={{
             pmSlug: scorecard.pm.slug,
             marketId: scorecard.market.id,
@@ -90,9 +77,7 @@ export function ScorecardBody({
         <div className="grid gap-x-16 gap-y-10 pt-10 pb-16 lg:grid-cols-[minmax(0,1fr)_280px]">
           <article className="min-w-0 space-y-14">
             {/* v0.11 — contextual link up to the operator-level scorecard
-                for multi-market canonical operators. Skipped for single-
-                market operators where the rollup would just mirror this
-                page. */}
+                for multi-market canonical operators. */}
             {crossMarketOperator && crossMarketOperator.marketCount >= 2 && (
               <OperatorScorecardBackLink
                 canonicalSlug={crossMarketOperator.canonicalSlug}
@@ -107,30 +92,23 @@ export function ScorecardBody({
               crossMarketOperator={crossMarketOperator}
             />
             <SynthesisLayer scorecard={scorecard} />
-
-            {!isUnlocked ? (
-              <PaywallCard scorecard={scorecard} />
-            ) : (
-              <>
-                <PerformanceLayer
-                  scorecard={scorecard}
-                  peerComparisons={peerComparisons}
-                />
-                <LendingSignals signals={lendingSignals} />
-                <PortfolioLayer
-                  scorecard={scorecard}
-                  crossMarketPresence={marketFootprint}
-                  cohortRentTrajectory={cohortRentTrajectory}
-                  pricingTier={lendingSignals.pricingTier}
-                  shareTrajectory={shareTrajectory}
-                  concessionContext={concessionContext}
-                />
-                <MethodologyFooter scorecard={scorecard} />
-              </>
-            )}
+            <PerformanceLayer
+              scorecard={scorecard}
+              peerComparisons={peerComparisons}
+            />
+            <LendingSignals signals={lendingSignals} />
+            <PortfolioLayer
+              scorecard={scorecard}
+              crossMarketPresence={marketFootprint}
+              cohortRentTrajectory={cohortRentTrajectory}
+              pricingTier={lendingSignals.pricingTier}
+              shareTrajectory={shareTrajectory}
+              concessionContext={concessionContext}
+            />
+            <MethodologyFooter scorecard={scorecard} />
+            <SimilarOperatorsCta pmSlug={scorecard.pm.slug} />
           </article>
           <ScorecardSidebar
-            isUnlocked={isUnlocked}
             pmSlug={scorecard.pm.slug}
             compareHref={compareHref}
           />
@@ -142,9 +120,7 @@ export function ScorecardBody({
 
 /** v0.11 — Up-arrow link to the aggregate operator scorecard from
  *  a per-market scorecard, rendered above IdentityHero when the
- *  canonical operator spans 2+ markets. Single-market operators
- *  skip it (their per-market scorecard already represents the full
- *  operator). */
+ *  canonical operator spans 2+ markets. */
 function OperatorScorecardBackLink({
   canonicalSlug,
   marketCount,
@@ -156,7 +132,7 @@ function OperatorScorecardBackLink({
 }) {
   return (
     <Link
-      href={`/operators/${encodeURIComponent(canonicalSlug)}?unlocked=true`}
+      href={`/operators/${encodeURIComponent(canonicalSlug)}`}
       className="inline-flex items-center gap-1.5 self-start rounded-full border border-grid bg-white px-3 py-1 text-[12.5px] font-medium text-teal hover:border-teal hover:text-teal-700"
     >
       <span aria-hidden>←</span>
@@ -166,5 +142,36 @@ function OperatorScorecardBackLink({
         ({marketCount} markets)
       </span>
     </Link>
+  );
+}
+
+/** PR #47 — the "Build a buy box to find more like this" CTA that
+ *  used to live on the now-deleted PaywallCard. Surfaces as a
+ *  contextual block at the end of the scorecard. Same TrackedLink
+ *  event so the existing analytics keep flowing. */
+function SimilarOperatorsCta({ pmSlug }: { pmSlug: string }) {
+  return (
+    <aside className="rounded-lg border border-grid bg-surface-soft px-6 py-7">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="dq-eyebrow text-teal">Next step</p>
+          <h2 className="mt-1.5 text-[20px] font-semibold leading-snug text-navy">
+            Find more operators that match this profile.
+          </h2>
+          <p className="mt-1.5 max-w-[60ch] text-[13.5px] text-foreground/75">
+            Start from a named acquisition thesis or build a custom set of
+            criteria. Preview matches and ranked fit scores before saving.
+          </p>
+        </div>
+        <TrackedLink
+          event="scorecard_cta_click"
+          properties={{ pmSlug, action: "build_buy_box" }}
+          href="/buy-boxes/new"
+          className="inline-flex h-11 shrink-0 items-center justify-center rounded-md bg-navy px-6 text-[14px] font-semibold text-white transition-colors hover:bg-navy-700"
+        >
+          Build a buy box →
+        </TrackedLink>
+      </div>
+    </aside>
   );
 }

@@ -25,10 +25,17 @@ export type EventName =
   | "market_page_view"
   | "quadrant_filter_click"
   | "pm_card_click"
+  // PR #47 retired the scorecard paywall. The preview-view +
+  // paywall events stay in the registry as a historical record
+  // (and to keep older client builds that might still be cached
+  // posting recognisable events), but no current code path emits
+  // them. The new "scorecard_cta_click" event powers the buy-box
+  // CTA that replaced the paywall card.
   | "scorecard_preview_view"
   | "paywall_view"
   | "paywall_cta_click"
   | "scorecard_full_view"
+  | "scorecard_cta_click"
   | "pdf_export_click"
   | "lead_form_view"
   | "lead_form_submit_success"
