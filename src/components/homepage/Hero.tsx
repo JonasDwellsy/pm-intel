@@ -2,32 +2,38 @@ import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { buttonVariants } from "@/components/ui/button";
 import { QuadrantGrid, type QuadrantOperator } from "@/components/scorecard/QuadrantGrid";
 import { PRIMARY_CTA } from "@/lib/nav";
+import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
 
 // Three real operators positioned for the marketing punch line: classification
 // is the methodology in one image.
+// PR #46 — sub-labels shortened to avoid horizontal overlap with the
+// adjacent operator's label inside the compact hero quadrant. The
+// previous longer strings ("Rank #33 · 1,069 units", "1,128 units
+// (1,667 nat'l)") collided with each other near the chart's vertical
+// axis. New strings keep the market + a single signal each.
 const HERO_OPERATORS: QuadrantOperator[] = [
   {
-    // UDR — institutional MF/BTR baseline pulled from Nashville under v0.6.1.
+    // UDR — institutional MF/BTR baseline pulled from Nashville.
     name: "UDR",
-    sub: "Nashville · Rank #33 · 1,069 units",
+    sub: "Nashville · ~2,400 units",
     quadrant: "MF/BTR / Institutional",
     offset: { x: 0.62, y: 0.32 },
     color: "#2F7A5C",
   },
   {
-    // Brookside — MF/BTR Independent in Chattanooga under v0.6.1 (271
-    // national units, below the 500 institutional threshold).
+    // Brookside — MF/BTR Independent in Chattanooga (271 national
+    // units, below the 500 institutional threshold).
     name: "Brookside",
-    sub: "Chattanooga · 6.0d DOM · CV 2.54×",
+    sub: "Chattanooga · 6d DOM",
     quadrant: "MF/BTR / Independent",
     offset: { x: 0.65, y: 0.65 },
     color: "#8B3A62",
   },
   {
-    // Invitation Homes — Scattered Institutional under the v0.6.1 cross-market
-    // rule (1,667 national T12 urus across covered markets).
+    // Invitation Homes — Scattered Institutional under the cross-
+    // market scale rule.
     name: "Invitation Homes",
-    sub: "Jacksonville · 1,128 units (1,667 nat'l)",
+    sub: "Jacksonville · 1,128 units",
     quadrant: "Scattered / Institutional",
     offset: { x: 0.25, y: 0.32 },
     color: "#1B6E8C",
@@ -52,9 +58,9 @@ export function Hero() {
             Outside-in intelligence on every property manager in the country.
           </h1>
           <p className="mt-6 max-w-[60ch] text-[17px] leading-[1.55] text-foreground/85 sm:text-[19px]">
-            Methodology-driven scorecards on lease velocity, pricing posture,
-            tenancy position, and operator-type classification. Built for
-            institutional diligence — not promotional comparison.
+            Methodology-driven scorecards on portfolio scale, operator type,
+            operating signals, and market footprint. Built for institutional
+            acquisition diligence — not promotional comparison.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             {/* Primary CTA — acquirer positioning. Sends visitors
@@ -86,8 +92,8 @@ export function Hero() {
             </TrackedLink>
           </div>
           <p className="mt-6 text-[14.5px] italic text-muted-foreground">
-            Methodology v0.8 · Design v1.0 · 10 markets live · National
-            coverage rolling out.
+            Methodology {METHODOLOGY_VERSION} · Design {DESIGN_VERSION} · 10
+            markets live · National coverage rolling out.
           </p>
         </div>
 
@@ -95,7 +101,9 @@ export function Hero() {
         <aside className="rounded-lg border border-grid bg-white p-7 shadow-[0_1px_0_rgb(15_31_63_/_0.02)]">
           <div className="mb-3 flex items-center justify-between">
             <p className="dq-eyebrow-muted">Operator-type quadrant</p>
-            <p className="text-[11px] text-muted-2">v0.8 · v1.0</p>
+            <p className="text-[11px] text-muted-2">
+              {METHODOLOGY_VERSION} · {DESIGN_VERSION}
+            </p>
           </div>
           <QuadrantGrid
             quadrant="MF/BTR / Institutional"
@@ -105,8 +113,9 @@ export function Hero() {
           <p className="mt-4 max-w-[42ch] text-[13.5px] italic leading-[1.55] text-muted-foreground">
             Three operators drawn from our covered markets, plotted by
             structural type. The grid is the methodology in one image: every
-            PM is mapped before they&apos;re ranked. v0.6.2 refines this into
-            a 7-cell taxonomy by splitting MF/BTR by community size.
+            PM is mapped before they&apos;re ranked. {METHODOLOGY_VERSION}{" "}
+            further subdivides MF/BTR by community size into a 7-cell
+            taxonomy.
           </p>
         </aside>
       </div>

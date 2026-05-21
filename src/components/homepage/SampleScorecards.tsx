@@ -7,13 +7,16 @@ import type { StarLevel } from "@/lib/types";
 export type SampleCard = {
   slug: string;
   href: string;
-  rankLabel: string;
-  rankValue: string;
-  rankContext: string;
+  /** Market / location subtitle that sits under the operator name —
+   *  replaces the old "RANK" header copy from PR #46. */
+  marketLabel: string;
   name: string;
   badges: Array<{ kind: "green" | "orange" | "teal" | "ink"; label: string }>;
   /** Composite star drives the small icon next to the operator name. */
   compositeStar?: StarLevel;
+  /** True when the canonical entity is marked as claimed in the
+   *  upstream data — surfaces a small "Claimed" pill on the card. */
+  claimed?: boolean;
   quote: string;
   stats: Array<{
     label: string;
@@ -114,18 +117,20 @@ function ScorecardCard({ card }: { card: SampleCard }) {
       href={card.href}
       className="group flex min-h-[360px] flex-col rounded-md border border-grid bg-white p-7 transition-all duration-[180ms] hover:-translate-y-0.5 hover:border-navy hover:shadow-[0_8px_24px_rgb(15_31_63_/_0.06)]"
     >
+      {/* PR #46 — Rank field dropped from the sample card header.
+          Current methodology surfaces composite + portfolio scale as
+          the primary signals, not within-cohort rank. */}
       <p className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        {card.rankLabel}{" "}
-        <span className="ml-1 text-[18px] font-bold normal-case tracking-normal text-navy">
-          {card.rankValue}
-        </span>{" "}
-        <span className="text-muted-foreground">{card.rankContext}</span>
+        {card.marketLabel}
       </p>
       <div className="mt-2 mb-2 flex items-center gap-2">
         <CompositeStar level={card.compositeStar} />
         <h3 className="dq-h2 text-[22px] leading-[1.2] tracking-[-0.005em]">
           {card.name}
         </h3>
+        {card.claimed && (
+          <span className="dq-pill dq-pill-green text-[10.5px]">Claimed</span>
+        )}
       </div>
       <div className="mb-5 flex flex-wrap gap-1.5">
         {card.badges.map((b) => (
@@ -153,7 +158,7 @@ export function SampleScorecards({ cards }: { cards: SampleCard[] }) {
         <HomepageSectionHead
           eyebrow="Inside a scorecard"
           title="Institutional-grade analysis on every operator."
-          context="One real operator from each of our seven covered markets. Every figure shown is produced by the same methodology applied to every PM — no curation, no narrative. Composite stars reflect quartile position within the selected cohort per v1.0 design."
+          context="Three real operators from our coverage, spanning the operator-type taxonomy. Every figure shown is produced by the same methodology applied to every PM — no curation, no narrative. Portfolio estimates and composite stars are pulled directly from the live scorecard layer."
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {cards.map((c) => (

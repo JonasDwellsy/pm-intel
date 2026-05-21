@@ -126,7 +126,14 @@ export function LeadForm({ markets }: { markets: MarketOption[] }) {
         propertyType: payload.propertyType,
         leadId,
       });
-      router.push(`/get-matched/confirmation?leadId=${leadId}`);
+      // PR #46 — /get-matched/confirmation deleted as part of the
+      // /get-matched deprecation. The next.config.ts redirect picks
+      // the stale path up and lands on /buy-boxes/new, but routing
+      // there directly skips the unnecessary 301 hop. The LeadForm
+      // itself is no longer rendered by any page; left intact per
+      // spec ("keep functional lead-capture logic intact if useful
+      // for sales conversations").
+      router.push(`/buy-boxes/new?leadId=${leadId}`);
     } catch {
       capture("lead_form_submit_error", {
         marketId: payload.marketId,

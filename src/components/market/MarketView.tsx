@@ -142,20 +142,20 @@ function MarketCtaStrip({ marketName }: { marketName: string }) {
             className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em]"
             style={{ color: "#7FB6CC" }}
           >
-            Lead matching
+            Acquisition workflow
           </p>
           <h3 className="max-w-[680px] text-[28px] font-semibold leading-[1.2] tracking-[-0.012em]">
-            Don&apos;t see a fit? Get matched with a property manager in {marketName}.
+            Looking for acquisition targets in {marketName}? Build a buy box.
           </h3>
         </div>
         <Link
-          href="/get-matched"
+          href="/buy-boxes/new"
           className={
             buttonVariants({ variant: "outline" }) +
             " h-11 border-[1.5px] border-white bg-transparent px-7 text-[15px] font-semibold text-white hover:bg-white hover:text-navy"
           }
         >
-          Get matched →
+          Build a buy box →
         </Link>
       </div>
     </section>

@@ -24,6 +24,23 @@ const nextConfig: NextConfig = {
         destination: "/operators/:slug*",
         permanent: true,
       },
+      // PR #46 — /get-matched (renter / owner-to-PM matching) is
+      // structurally replaced by the buy-box workflow. The :path*
+      // matcher catches both /get-matched and /get-matched/confirmation,
+      // and forwards the query string so stale links from emails
+      // (which carry ?leadId=…) still land somewhere usable. We send
+      // every variant at the template picker — the home of the new
+      // acquirer entry point.
+      {
+        source: "/get-matched/:path*",
+        destination: "/buy-boxes/new",
+        permanent: true,
+      },
+      {
+        source: "/get-matched",
+        destination: "/buy-boxes/new",
+        permanent: true,
+      },
     ];
   },
 };

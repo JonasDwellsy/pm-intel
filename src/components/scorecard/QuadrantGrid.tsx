@@ -375,11 +375,16 @@ export function QuadrantGrid({
           MF / BTR
         </text>
 
-        {/* Operator dots + labels */}
+        {/* Operator dots + labels. PR #46 fixes the prior label
+            collision: the operator NAME stays anchored to one side
+            of the dot (which keeps the name visually associated
+            with it), but the SUB-LABEL ("Nashville · ~2,400 units")
+            sits BELOW the dot with textAnchor=middle. Centering the
+            sub under its own dot prevents the previous left/right
+            anchor from extending two sub-labels horizontally toward
+            each other across the chart. */}
         {operators.map((op) => {
           const place = placeOperator(op);
-          // Label position: label sits adjacent to the dot, anchored toward the
-          // closer axis edge (start on left-half quadrants, end on right-half).
           const labelDx = place.labelAnchor === "end" ? -14 : 14;
           return (
             <g key={op.name}>
@@ -400,7 +405,7 @@ export function QuadrantGrid({
                 stroke="#FFFFFF"
                 strokeWidth={1.5}
               />
-              {/* Name label */}
+              {/* Name label — anchored next to the dot */}
               <text
                 x={place.x + labelDx}
                 y={place.y - 2}
@@ -423,13 +428,14 @@ export function QuadrantGrid({
                   </tspan>
                 )}
               </text>
+              {/* Sub-label — centered under the dot */}
               {op.sub && (
                 <text
-                  x={place.x + labelDx}
-                  y={place.y + 12}
-                  textAnchor={place.labelAnchor}
+                  x={place.x}
+                  y={place.y + 22}
+                  textAnchor="middle"
                   fill="#6E7990"
-                  fontSize="9.5"
+                  fontSize="9"
                   fontWeight={500}
                 >
                   {op.sub}
@@ -438,6 +444,24 @@ export function QuadrantGrid({
             </g>
           );
         })}
+
+        {/* v0.8 7-cell footnote — sits below the chart frame
+            (frame ends at y=310; viewBox runs to y=360). PR #46
+            spec calls for this when we keep the 4-quadrant
+            visualization but reference the 7-cell taxonomy that
+            extends it. */}
+        <text
+          x={FRAME.x + FRAME.w / 2}
+          y={FRAME.y + FRAME.h + 28}
+          textAnchor="middle"
+          fill="#6E7990"
+          fontSize="8.5"
+          fontWeight={500}
+          fontStyle="italic"
+        >
+          v0.8 methodology further subdivides MF/BTR by community size
+          into a 7-cell taxonomy.
+        </text>
       </svg>
     );
   }
