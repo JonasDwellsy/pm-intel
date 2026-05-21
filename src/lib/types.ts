@@ -279,6 +279,30 @@ export interface ScorecardData {
   // earlier single `concessionSampleText` field stays for back-compat
   // with any pre-array reader; the array is authoritative for the UI.
   concessionSamples?: string[];
+  // v0.7 — portfolio size estimator. Pre-computed at seed time and
+  // baked into the stored scorecard blob so the Layer 5 widget, Ask
+  // tools, and brief generator all read identical numbers without
+  // touching the algorithm. status discriminates:
+  //   "estimated"             — point/low/high/cohort/cohortN/confidence populated
+  //   "insufficient_data"     — Large MF/BTR cohort; message populated
+  //   "insufficient_history"  — <3 months on platform; widget hides
+  //   "no_listings"           — urusT12 = 0; widget hides
+  portfolioEstimate?: {
+    status:
+      | "estimated"
+      | "insufficient_data"
+      | "insufficient_history"
+      | "no_listings";
+    point?: number;
+    low?: number;
+    high?: number;
+    cohort?: string;
+    cohortN?: number;
+    confidence?: "Low" | "Medium" | "High";
+    multiplierMedian?: number;
+    message?: string;
+    methodologyVersion?: string;
+  };
 }
 
 export interface TenancyAssetBlock {

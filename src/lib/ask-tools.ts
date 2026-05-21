@@ -331,6 +331,25 @@ export type GetOperatorScorecardResult = {
   distinguishingCharacteristics: string[];
   canonicalOperatorId: string | null;
   crossMarketProfileUrl: string | null;
+  // v0.7 — portfolio size estimate carried through so the model can
+  // answer "what's the estimated portfolio size of X" without needing
+  // a separate tool round-trip. Status discriminates the four cases
+  // (estimated / insufficient_data / insufficient_history / no_listings);
+  // point/low/high/cohort are populated only when status === "estimated".
+  portfolioEstimate: {
+    status:
+      | "estimated"
+      | "insufficient_data"
+      | "insufficient_history"
+      | "no_listings";
+    point: number | null;
+    low: number | null;
+    high: number | null;
+    cohort: string | null;
+    cohortN: number | null;
+    confidence: "Low" | "Medium" | "High" | null;
+    message: string | null;
+  } | null;
 };
 
 export async function getOperatorScorecard(
@@ -415,6 +434,18 @@ export async function getOperatorScorecard(
     canonicalOperatorId: sc.canonicalOperatorId ?? null,
     crossMarketProfileUrl: isMultiMarket
       ? `/operator/${sc.canonicalOperatorId}`
+      : null,
+    portfolioEstimate: sc.portfolioEstimate
+      ? {
+          status: sc.portfolioEstimate.status,
+          point: sc.portfolioEstimate.point ?? null,
+          low: sc.portfolioEstimate.low ?? null,
+          high: sc.portfolioEstimate.high ?? null,
+          cohort: sc.portfolioEstimate.cohort ?? null,
+          cohortN: sc.portfolioEstimate.cohortN ?? null,
+          confidence: sc.portfolioEstimate.confidence ?? null,
+          message: sc.portfolioEstimate.message ?? null,
+        }
       : null,
   };
 }

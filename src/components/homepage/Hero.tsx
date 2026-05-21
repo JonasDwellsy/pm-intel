@@ -77,7 +77,7 @@ export function Hero() {
             </TrackedLink>
           </div>
           <p className="mt-6 text-[14.5px] italic text-muted-foreground">
-            Methodology v0.6.4 · Design v1.0 · 10 markets live · National
+            Methodology v0.7 · Design v1.0 · 10 markets live · National
             coverage rolling out.
           </p>
         </div>
@@ -86,7 +86,7 @@ export function Hero() {
         <aside className="rounded-lg border border-grid bg-white p-7 shadow-[0_1px_0_rgb(15_31_63_/_0.02)]">
           <div className="mb-3 flex items-center justify-between">
             <p className="dq-eyebrow-muted">Operator-type quadrant</p>
-            <p className="text-[11px] text-muted-2">v0.6.4 · v1.0</p>
+            <p className="text-[11px] text-muted-2">v0.7 · v1.0</p>
           </div>
           <QuadrantGrid
             quadrant="MF/BTR / Institutional"
