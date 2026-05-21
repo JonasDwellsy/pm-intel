@@ -1,25 +1,30 @@
-// Results-view adapter. Bridges the runtime apply() result to the
-// data the ranked-results table renders. Two responsibilities:
+// Results-view adapter. Bridges runtime apply() output to the
+// data the ranked-results table renders.
 //
-//   1. Project each RankedTarget into a flat view-model with all
-//      the cell values the table needs (so the React layer doesn't
-//      reach into pm.scorecard.* in JSX).
-//   2. Build human-readable breakdown entries for the fit-score
-//      popover — pairs the per-criterion entry from the scoring
-//      engine with the field-registry label.
+// v0.9 widens this module to handle both views the table toggles
+// between:
+//   - Market view  (RankedTarget → projectMarketRow) — the v0.8
+//                  behavior, one row per PM-market pair.
+//   - Operator view (RolledUpTarget → projectOperatorRow) — one
+//                  row per canonical operator with members listed
+//                  for the multi-market badge + drill-through.
 //
-// Pure module: no React, no I/O. The page component imports
-// projectResultsForView() at request time, hands the view models
-// to the client table.
+// Both projections produce the same ResultRowVM shape so the table
+// component switches purely on which list it renders. The shape
+// carries the full PMRecord (or AggregatedPMRecord) so the table's
+// adaptive columns can call FIELD_REGISTRY[fieldId].getValueFromPM
+// to populate per-criterion columns without an extra projection
+// pass per column.
 
 import { stateCodeToSlug, citySlug } from "@/lib/slugify";
 import {
   FIELD_REGISTRY,
   type FilterOperator,
   type FilterValue,
+  type PMRecord,
 } from "./fields";
 import { OPERATOR_LABELS } from "./editor-options";
-import type { RankedTarget } from "./apply";
+import type { RankedTarget, RolledUpTarget } from "./apply";
 
 export interface BreakdownEntryVM {
   field: string;
@@ -27,161 +32,263 @@ export interface BreakdownEntryVM {
   operator: FilterOperator;
   operatorLabel: string;
   passed: boolean;
-  /** Preferred only — weight + contribution. null for required/excluded. */
   weight: number | null;
   contribution: number | null;
-  /** Weight as a 0-100 percentage of the total preferred weight,
-   *  pre-computed here so the popover can render directly. */
   weightPct: number | null;
+}
+
+export interface DrillTarget {
+  pmSlug: string;
+  marketId: string;
+  /** Short label for the market picker buttons — derived from the
+   *  city portion of the market full name (e.g. "Birmingham-Hoover"
+   *  out of "Birmingham-Hoover, AL MSA"). */
+  marketShort: string;
+  /** Full market label for hover / a11y. */
+  marketName: string;
+  href: string;
 }
 
 export interface ResultRowVM {
   rank: number;
-  pmSlug: string;
+  /** Stable React key — canonical id for rollups, "{slug}-{market}"
+   *  for per-market rows. */
+  id: string;
   name: string;
-  /** True when the canonical roll-up shows this operator in 2+ markets.
-   *  Drives the "Multi-market" pill next to the name. */
+  /** True for multi-market rolled-up rows (drives the "Multi-market"
+   *  pill + the View → market picker). */
   isMultiMarket: boolean;
   marketCount: number;
-  marketName: string;
-  marketId: string;
-  /** "AZ" — 2-letter for badge / drill-through URL build. */
-  stateCode: string | null;
-  cityName: string | null;
+  /** Human-readable market column content — comma-joined city
+   *  names for rollups, single market for per-market rows. */
+  marketLabel: string;
   quadrant7Cell: string | null;
-  /** Estimated portfolio point (units). null when no estimate. */
+  /** True only when the rolled-up modal hides at least one disagree-
+   *  ing member; UI surfaces a "mixed" badge next to the cell. */
+  quadrant7CellIsMixed: boolean;
   estimatedPortfolioPoint: number | null;
   estimatedPortfolioLow: number | null;
   estimatedPortfolioHigh: number | null;
   estimatedPortfolioConfidence: string | null;
   urusT12: number | null;
-  /** YoY decimal — 0.05 = +5%. null when prior window missing. */
   listingTrajectoryYoY: number | null;
-  /** Decimal — 0.08 = 8%. */
   concessionRate: number | null;
   fitScore: number;
-  /** Pre-built drill-through URL (with ?unlocked + ?fromBuyBox). */
-  scorecardHref: string;
-  /** Per-criterion breakdown rows, labeled, with weight%/contribution. */
+  /** PMRecord the adaptive-column cells read from. */
+  pm: PMRecord;
   preferredBreakdown: BreakdownEntryVM[];
   requiredBreakdown: BreakdownEntryVM[];
   excludedBreakdown: BreakdownEntryVM[];
   preferredPassedCount: number;
   preferredTotalCount: number;
+  /** Drill-through targets. Single entry for per-market or single-
+   *  market operator; multiple for rolled-up multi-market (the
+   *  View → button opens a picker). */
+  drillTargets: DrillTarget[];
 }
 
 export interface ResultsViewSummary {
   totalCandidates: number;
+  totalOperators: number;
   matchedCount: number;
+  matchedOperatorCount: number;
   scoreMin: number | null;
   scoreMax: number | null;
+  scoreMinOperator: number | null;
+  scoreMaxOperator: number | null;
   generatedAt: string;
 }
 
-export function projectResultsForView(
-  results: RankedTarget[],
-  buyBoxId: string,
-  totalCandidates: number,
-  generatedAt: string
-): { rows: ResultRowVM[]; summary: ResultsViewSummary } {
-  const rows: ResultRowVM[] = results.map((r, idx) => {
-    const sc = r.pm.scorecard;
-    const stateCode = sc.market?.state ?? null;
-    const cityName = sc.market?.name ?? null;
-    const scorecardHref =
-      stateCode && cityName
-        ? `/property-managers/${stateCodeToSlug(stateCode)}/${citySlug(cityName)}/${r.pmSlug}?unlocked=true&fromBuyBox=${encodeURIComponent(buyBoxId)}`
-        : `/property-managers?fromBuyBox=${encodeURIComponent(buyBoxId)}`;
+// ─── projection ───────────────────────────────────────────────────
 
-    // Pre-compute weight percentages so the popover doesn't have to
-    // re-walk the breakdown to find the denominator.
-    const totalWeight = r.breakdown.preferred.reduce(
-      (sum, e) => sum + (e.weight ?? 0),
-      0
-    );
-    const preferredBreakdown: BreakdownEntryVM[] = r.breakdown.preferred.map(
-      (e) => ({
-        field: e.field,
-        label: FIELD_REGISTRY[e.field]?.label ?? e.field,
-        operator: e.operator,
-        operatorLabel: OPERATOR_LABELS[e.operator],
-        passed: e.passed,
-        weight: e.weight ?? null,
-        contribution: e.contribution ?? null,
-        weightPct:
-          totalWeight > 0 && typeof e.weight === "number"
-            ? Math.round((e.weight / totalWeight) * 1000) / 10
-            : null,
-      })
-    );
+interface ProjectArgs {
+  marketResults: RankedTarget[];
+  operatorResults: RolledUpTarget[];
+  buyBoxId: string;
+  totalCandidates: number;
+  totalOperators: number;
+  matchedCount: number;
+  matchedOperatorCount: number;
+  generatedAt: string;
+}
 
-    const requiredBreakdown: BreakdownEntryVM[] = r.breakdown.required.map(
-      (e) => ({
-        field: e.field,
-        label: FIELD_REGISTRY[e.field]?.label ?? e.field,
-        operator: e.operator,
-        operatorLabel: OPERATOR_LABELS[e.operator],
-        passed: e.passed,
-        weight: null,
-        contribution: null,
-        weightPct: null,
-      })
-    );
-    const excludedBreakdown: BreakdownEntryVM[] = r.breakdown.excluded.map(
-      (e) => ({
-        field: e.field,
-        label: FIELD_REGISTRY[e.field]?.label ?? e.field,
-        operator: e.operator,
-        operatorLabel: OPERATOR_LABELS[e.operator],
-        passed: e.passed,
-        weight: null,
-        contribution: null,
-        weightPct: null,
-      })
-    );
+export function projectResultsForView(args: ProjectArgs): {
+  marketRows: ResultRowVM[];
+  operatorRows: ResultRowVM[];
+  summary: ResultsViewSummary;
+} {
+  const marketRows = args.marketResults.map((r, idx) =>
+    projectMarketRow(r, idx + 1, args.buyBoxId)
+  );
+  const operatorRows = args.operatorResults.map((r, idx) =>
+    projectOperatorRow(r, idx + 1, args.buyBoxId)
+  );
 
+  const marketScores = marketRows.map((r) => r.fitScore);
+  const operatorScores = operatorRows.map((r) => r.fitScore);
+
+  return {
+    marketRows,
+    operatorRows,
+    summary: {
+      totalCandidates: args.totalCandidates,
+      totalOperators: args.totalOperators,
+      matchedCount: args.matchedCount,
+      matchedOperatorCount: args.matchedOperatorCount,
+      scoreMin: marketScores.length > 0 ? Math.min(...marketScores) : null,
+      scoreMax: marketScores.length > 0 ? Math.max(...marketScores) : null,
+      scoreMinOperator:
+        operatorScores.length > 0 ? Math.min(...operatorScores) : null,
+      scoreMaxOperator:
+        operatorScores.length > 0 ? Math.max(...operatorScores) : null,
+      generatedAt: args.generatedAt,
+    },
+  };
+}
+
+function projectMarketRow(
+  r: RankedTarget,
+  rank: number,
+  buyBoxId: string
+): ResultRowVM {
+  const sc = r.pm.scorecard;
+  const stateCode = sc.market?.state ?? null;
+  const cityName = sc.market?.name ?? null;
+  const href = scorecardHref(r.pmSlug, stateCode, cityName, buyBoxId);
+
+  return {
+    rank,
+    id: `${r.pmSlug}-${r.marketId}`,
+    name: r.name,
+    isMultiMarket: r.pm.marketCount > 1, // canonical roll-up count
+    marketCount: r.pm.marketCount,
+    marketLabel: r.marketName,
+    quadrant7Cell: sc.pm?.quadrant7Cell ?? null,
+    quadrant7CellIsMixed: false,
+    estimatedPortfolioPoint: sc.portfolioEstimate?.point ?? null,
+    estimatedPortfolioLow: sc.portfolioEstimate?.low ?? null,
+    estimatedPortfolioHigh: sc.portfolioEstimate?.high ?? null,
+    estimatedPortfolioConfidence: sc.portfolioEstimate?.confidence ?? null,
+    urusT12: sc.coverage?.urusT12 ?? null,
+    listingTrajectoryYoY: computeYoY(
+      sc.t12ListingsCount,
+      sc.t24t12ListingsCount
+    ),
+    concessionRate: sc.concessionRate ?? null,
+    fitScore: r.fitScore,
+    pm: r.pm,
+    preferredBreakdown: projectBreakdown(r.breakdown.preferred, true),
+    requiredBreakdown: projectBreakdown(r.breakdown.required, false),
+    excludedBreakdown: projectBreakdown(r.breakdown.excluded, false),
+    preferredPassedCount: r.breakdown.preferred.filter((e) => e.passed).length,
+    preferredTotalCount: r.breakdown.preferred.length,
+    drillTargets: [
+      {
+        pmSlug: r.pmSlug,
+        marketId: r.marketId,
+        marketShort: cityShort(r.marketName),
+        marketName: r.marketName,
+        href,
+      },
+    ],
+  };
+}
+
+function projectOperatorRow(
+  r: RolledUpTarget,
+  rank: number,
+  buyBoxId: string
+): ResultRowVM {
+  const sc = r.pm.scorecard;
+
+  // Build drill targets — one per member market, using each member's
+  // scorecard for the state + city the URL needs.
+  const drillTargets: DrillTarget[] = r.pm.members.map((m) => {
+    const stateCode = m.scorecard.market?.state ?? null;
+    const cityName = m.scorecard.market?.name ?? null;
+    const fullName = m.scorecard.market?.fullName ?? m.marketId;
     return {
-      rank: idx + 1,
-      pmSlug: r.pmSlug,
-      name: r.name,
-      isMultiMarket: r.pm.marketCount > 1,
-      marketCount: r.pm.marketCount,
-      marketName: r.marketName,
-      marketId: r.marketId,
-      stateCode,
-      cityName,
-      quadrant7Cell: sc.pm?.quadrant7Cell ?? null,
-      estimatedPortfolioPoint: sc.portfolioEstimate?.point ?? null,
-      estimatedPortfolioLow: sc.portfolioEstimate?.low ?? null,
-      estimatedPortfolioHigh: sc.portfolioEstimate?.high ?? null,
-      estimatedPortfolioConfidence: sc.portfolioEstimate?.confidence ?? null,
-      urusT12: sc.coverage?.urusT12 ?? null,
-      listingTrajectoryYoY: computeYoY(
-        sc.t12ListingsCount,
-        sc.t24t12ListingsCount
-      ),
-      concessionRate: sc.concessionRate ?? null,
-      fitScore: r.fitScore,
-      scorecardHref,
-      preferredBreakdown,
-      requiredBreakdown,
-      excludedBreakdown,
-      preferredPassedCount: preferredBreakdown.filter((e) => e.passed).length,
-      preferredTotalCount: preferredBreakdown.length,
+      pmSlug: m.slug,
+      marketId: m.marketId,
+      marketShort: cityShort(fullName),
+      marketName: fullName,
+      href: scorecardHref(m.slug, stateCode, cityName, buyBoxId),
     };
   });
 
-  const scores = rows.map((r) => r.fitScore);
+  const marketLabel = r.isRollup
+    ? drillTargets.map((d) => d.marketShort).join(", ")
+    : drillTargets[0]?.marketName ?? "";
+
   return {
-    rows,
-    summary: {
-      totalCandidates,
-      matchedCount: rows.length,
-      scoreMin: scores.length > 0 ? Math.min(...scores) : null,
-      scoreMax: scores.length > 0 ? Math.max(...scores) : null,
-      generatedAt,
-    },
+    rank,
+    id: r.canonicalOperatorId,
+    name: r.canonicalOperatorName,
+    isMultiMarket: r.isRollup,
+    marketCount: r.memberMarketIds.length,
+    marketLabel,
+    quadrant7Cell: sc.pm?.quadrant7Cell ?? null,
+    quadrant7CellIsMixed: r.quadrant7CellIsMixed,
+    estimatedPortfolioPoint: sc.portfolioEstimate?.point ?? null,
+    estimatedPortfolioLow: sc.portfolioEstimate?.low ?? null,
+    estimatedPortfolioHigh: sc.portfolioEstimate?.high ?? null,
+    estimatedPortfolioConfidence: sc.portfolioEstimate?.confidence ?? null,
+    urusT12: sc.coverage?.urusT12 ?? null,
+    listingTrajectoryYoY: computeYoY(
+      sc.t12ListingsCount,
+      sc.t24t12ListingsCount
+    ),
+    concessionRate: sc.concessionRate ?? null,
+    fitScore: r.fitScore,
+    pm: r.pm,
+    preferredBreakdown: projectBreakdown(r.breakdown.preferred, true),
+    requiredBreakdown: projectBreakdown(r.breakdown.required, false),
+    excludedBreakdown: projectBreakdown(r.breakdown.excluded, false),
+    preferredPassedCount: r.breakdown.preferred.filter((e) => e.passed).length,
+    preferredTotalCount: r.breakdown.preferred.length,
+    drillTargets,
   };
+}
+
+function projectBreakdown(
+  entries: ReadonlyArray<{
+    field: string;
+    operator: FilterOperator;
+    passed: boolean;
+    weight?: number;
+    contribution?: number;
+  }>,
+  withWeights: boolean
+): BreakdownEntryVM[] {
+  const totalWeight = withWeights
+    ? entries.reduce((s, e) => s + (e.weight ?? 0), 0)
+    : 0;
+  return entries.map((e) => ({
+    field: e.field,
+    label: FIELD_REGISTRY[e.field]?.label ?? e.field,
+    operator: e.operator,
+    operatorLabel: OPERATOR_LABELS[e.operator],
+    passed: e.passed,
+    weight: e.weight ?? null,
+    contribution: e.contribution ?? null,
+    weightPct:
+      withWeights && totalWeight > 0 && typeof e.weight === "number"
+        ? Math.round((e.weight / totalWeight) * 1000) / 10
+        : null,
+  }));
+}
+
+// ─── helpers ──────────────────────────────────────────────────────
+
+function scorecardHref(
+  pmSlug: string,
+  stateCode: string | null,
+  cityName: string | null,
+  buyBoxId: string
+): string {
+  return stateCode && cityName
+    ? `/property-managers/${stateCodeToSlug(stateCode)}/${citySlug(cityName)}/${pmSlug}?unlocked=true&fromBuyBox=${encodeURIComponent(buyBoxId)}`
+    : `/property-managers?fromBuyBox=${encodeURIComponent(buyBoxId)}`;
 }
 
 function computeYoY(
@@ -193,8 +300,17 @@ function computeYoY(
   return (t12 - t24t12) / t24t12;
 }
 
+/** Derive a short market label from the market's full name. Takes
+ *  the city portion before the first comma ("Birmingham-Hoover, AL
+ *  MSA" → "Birmingham-Hoover"). Falls back to the raw input if no
+ *  comma is found. */
+function cityShort(fullName: string): string {
+  const idx = fullName.indexOf(",");
+  return idx > 0 ? fullName.slice(0, idx) : fullName;
+}
+
 /** Render a stored FilterValue back to a human-readable string for
- *  the breakdown popover (e.g. between [800, 5000] → "800–5000"). */
+ *  the breakdown popover. */
 export function renderCriterionValue(
   value: FilterValue,
   fieldId: string
@@ -205,6 +321,7 @@ export function renderCriterionValue(
     }
     return (value as Array<string | number>).join(", ");
   }
+  if (value === null) return "—";
   const entry = FIELD_REGISTRY[fieldId];
   if (entry?.type === "boolean") return value ? "yes" : "no";
   return String(value);

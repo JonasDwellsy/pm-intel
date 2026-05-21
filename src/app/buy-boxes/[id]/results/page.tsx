@@ -8,10 +8,11 @@ import { ResultsTable } from "@/components/buy-box/ResultsTable";
 import { ReRunButton } from "@/components/buy-box/ReRunButton";
 import { MethodologyDisclosure } from "@/components/buy-box/MethodologyDisclosure";
 
-// /buy-boxes/[id]/results — server component. Loads the buy box,
-// runs apply() against every PM, projects to view models, hands the
-// rows to ResultsTable. Header carries match summary + actions
-// (Edit, Re-Run, methodology disclosure).
+// /buy-boxes/[id]/results — v0.9 default view is operator-level
+// rollup (one row per canonical operator with members aggregated).
+// The page generates BOTH projections server-side and hands them
+// to the client table, which switches via a localStorage-persisted
+// "Operator view" / "Market view" toggle.
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +30,6 @@ export default async function BuyBoxResultsPage({ params }: PageProps) {
   const buyBox = await getBuyBox(id);
   if (!buyBox) notFound();
 
-  // apply() is fast (single DB pass + in-memory eval), so we run it
-  // server-side per request. No caching layer yet — point-in-time
-  // snapshots are Phase 2.
   const applied = await applyBuyBox({
     id: buyBox.id,
     name: buyBox.name,
@@ -41,17 +39,28 @@ export default async function BuyBoxResultsPage({ params }: PageProps) {
     excludedCriteria: buyBox.excludedCriteria,
   });
 
-  const { rows, summary } = projectResultsForView(
-    applied.results,
-    buyBox.id,
-    applied.totalCandidates,
-    applied.generatedAt
-  );
+  const { marketRows, operatorRows, summary } = projectResultsForView({
+    marketResults: applied.results,
+    operatorResults: applied.operatorResults,
+    buyBoxId: buyBox.id,
+    totalCandidates: applied.totalCandidates,
+    totalOperators: applied.totalOperators,
+    matchedCount: applied.matchedCount,
+    matchedOperatorCount: applied.matchedOperatorCount,
+    generatedAt: applied.generatedAt,
+  });
+
+  // Headline counts/score range default to the operator-view numbers
+  // since that's the view we show first; the table switches to
+  // market numbers when the user toggles.
+  const headlineMatched = summary.matchedOperatorCount;
+  const headlineTotal = summary.totalOperators;
+  const scoreMin = summary.scoreMinOperator;
+  const scoreMax = summary.scoreMaxOperator;
 
   return (
     <div className="bg-background">
       <div className="mx-auto max-w-[1280px] px-6 py-10">
-        {/* Breadcrumb */}
         <Link
           href="/buy-boxes"
           className="text-[12.5px] font-medium text-teal hover:text-teal-700 hover:underline"
@@ -59,7 +68,6 @@ export default async function BuyBoxResultsPage({ params }: PageProps) {
           ← All buy boxes
         </Link>
 
-        {/* Header */}
         <header className="mt-4 flex flex-wrap items-start justify-between gap-6">
           <div className="min-w-0 flex-1">
             <p className="dq-eyebrow tracking-[0.14em] text-[11px]">
@@ -70,21 +78,28 @@ export default async function BuyBoxResultsPage({ params }: PageProps) {
             </h1>
             <p className="mt-3 text-[14.5px] text-foreground/80">
               <span className="dq-mono text-navy tabular-nums">
-                {summary.matchedCount}
+                {headlineMatched}
               </span>{" "}
               of{" "}
               <span className="dq-mono text-navy tabular-nums">
-                {summary.totalCandidates}
+                {headlineTotal}
               </span>{" "}
               operators match this buy box
-              {summary.scoreMin !== null && summary.scoreMax !== null && (
+              {scoreMin !== null && scoreMax !== null && (
                 <>
                   {" · fit score range "}
                   <span className="dq-mono text-navy tabular-nums">
-                    {summary.scoreMin}–{summary.scoreMax}
+                    {scoreMin}–{scoreMax}
                   </span>
                 </>
               )}
+            </p>
+            <p className="mt-1 text-[12.5px] text-muted-foreground">
+              <span className="dq-mono tabular-nums">
+                {summary.matchedCount}
+              </span>{" "}
+              market-level rows when broken out by PM-market pair (toggle
+              below).
             </p>
             {buyBox.description && (
               <p className="mt-2 max-w-[80ch] text-[13.5px] text-foreground/70">
@@ -106,11 +121,16 @@ export default async function BuyBoxResultsPage({ params }: PageProps) {
           </div>
         </header>
 
-        {/* Results */}
-        {summary.matchedCount === 0 ? (
+        {headlineMatched === 0 && summary.matchedCount === 0 ? (
           <EmptyMatches buyBoxId={buyBox.id} />
         ) : (
-          <ResultsTable rows={rows} />
+          <ResultsTable
+            operatorRows={operatorRows}
+            marketRows={marketRows}
+            required={buyBox.requiredCriteria}
+            preferred={buyBox.preferredCriteria}
+            excluded={buyBox.excludedCriteria}
+          />
         )}
 
         <p className="mt-8 text-[11.5px] text-muted-foreground dq-mono">
