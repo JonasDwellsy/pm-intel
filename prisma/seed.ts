@@ -128,6 +128,151 @@ type InputFile = {
 
 const data = seedData as unknown as InputFile;
 
+// ─── Canonical-operator manual overrides ────────────────────────────
+//
+// The Python pipeline in Product Support/ produces the canonical map
+// inside scorecard_data.json algorithmically (string-normalizes PM
+// names and groups identical-name PMs across markets). Most multi-
+// market brands flow through cleanly that way — see "first-keys-homes"
+// and "mynd-property-management" in the merged JSON.
+//
+// A handful of brands need to be pinned by hand: the same legal
+// entity registers under cosmetically different names in different
+// markets ("Pure Property Management Of Tennessee" vs "Pure Property
+// Management Of Arizona"), or the algorithmic detection initially
+// missed the grouping in a prior data refresh. This array is the
+// in-repo source of truth for those overrides — listed here so the
+// canonical mapping is checked into git rather than only living in
+// the Python pipeline's output.
+//
+// Each entry pins a single PM-slug → canonical-slug + canonical-name.
+// applyCanonicalOverrides() walks the array on seed and:
+//   1. Overwrites the matching pm's canonicalOperatorId/Name on the
+//      in-memory PM record (downstream readers — the PM-table create
+//      call AND the scorecardData blob builder — both pick this up).
+//   2. Ensures the canonical entity exists in data.canonicalOperators
+//      with the right marketIds + pmSlugs. If the algorithmic pass
+//      already produced the entity (as it currently does for Ark),
+//      we extend rather than overwrite — preserving the aggregate
+//      stats the pipeline pre-computed.
+//
+// Add new overrides by extending the array; no other change required.
+
+interface CanonicalOverride {
+  pmSlug: string;
+  canonicalSlug: string;
+  canonicalName: string;
+}
+
+const MANUAL_CANONICAL_OVERRIDES: ReadonlyArray<CanonicalOverride> = [
+  // Ark Homes For Rent — unified across Birmingham (AL), Huntsville
+  // (AL), Jacksonville (FL), and Knoxville (TN). Surfaced via the
+  // buy-box top-10 preview which showed the brand split across all
+  // four markets when the production DB was last seeded before the
+  // 10-market data refresh. Pinning here so any future regenerate
+  // of the data JSON that drops the algorithmic match still ends up
+  // with the correct cross-market roll-up after the seed runs.
+  { pmSlug: "ark-homes-for-rent-birmingham-al", canonicalSlug: "ark-homes-for-rent", canonicalName: "Ark Homes For Rent" },
+  { pmSlug: "ark-homes-for-rent-huntsville-al", canonicalSlug: "ark-homes-for-rent", canonicalName: "Ark Homes For Rent" },
+  { pmSlug: "ark-homes-for-rent-jacksonville-fl", canonicalSlug: "ark-homes-for-rent", canonicalName: "Ark Homes For Rent" },
+  { pmSlug: "ark-homes-for-rent-knoxville-tn", canonicalSlug: "ark-homes-for-rent", canonicalName: "Ark Homes For Rent" },
+];
+
+function applyCanonicalOverrides(input: InputFile): void {
+  if (MANUAL_CANONICAL_OVERRIDES.length === 0) return;
+
+  // Index PMs by slug for O(1) lookups instead of an N×M scan when
+  // many overrides land at once.
+  const pmBySlug = new Map<string, AnyRecord>();
+  for (const pm of input.pms) {
+    const slug = typeof pm.slug === "string" ? pm.slug : "";
+    if (slug) pmBySlug.set(slug, pm);
+  }
+
+  // 1. Stamp the canonical fields on each member PM. We update the
+  //    top-level fields directly — the existing seed loop builds the
+  //    scorecardData blob from these same fields downstream, so the
+  //    override propagates everywhere without us touching the blob.
+  const overridesByCanonical = new Map<string, CanonicalOverride[]>();
+  let overridden = 0;
+  for (const o of MANUAL_CANONICAL_OVERRIDES) {
+    const pm = pmBySlug.get(o.pmSlug);
+    if (!pm) {
+      console.warn(
+        `[seed] Manual canonical override references unknown pm slug "${o.pmSlug}" — skipping.`
+      );
+      continue;
+    }
+    pm.canonicalOperatorId = o.canonicalSlug;
+    pm.canonicalOperatorName = o.canonicalName;
+    const grouped = overridesByCanonical.get(o.canonicalSlug) ?? [];
+    grouped.push(o);
+    overridesByCanonical.set(o.canonicalSlug, grouped);
+    overridden += 1;
+  }
+
+  // 2. Ensure each override-targeted canonical exists in the top-level
+  //    canonicalOperators map with the right marketIds + pmSlugs.
+  //    Algorithmic detection populated entries for currently-detected
+  //    matches; we extend (don't overwrite) so any aggregateStats the
+  //    pipeline pre-computed survive.
+  if (!input.canonicalOperators) input.canonicalOperators = {};
+  let createdEntities = 0;
+  let extendedEntities = 0;
+  for (const [canonicalSlug, group] of overridesByCanonical.entries()) {
+    const memberSlugs = group.map((o) => o.pmSlug);
+    const memberMarkets = memberSlugs
+      .map((s) => {
+        const pm = pmBySlug.get(s);
+        return typeof pm?.marketId === "string" ? pm.marketId : "";
+      })
+      .filter((m): m is string => m.length > 0);
+
+    const existing = input.canonicalOperators[canonicalSlug];
+    if (!existing) {
+      input.canonicalOperators[canonicalSlug] = {
+        canonicalSlug,
+        canonicalName: group[0].canonicalName,
+        marketIds: Array.from(new Set(memberMarkets)).sort(),
+        pmSlugs: Array.from(new Set(memberSlugs)).sort(),
+        marketCount: new Set(memberMarkets).size,
+        aggregateStats: {},
+      };
+      createdEntities += 1;
+      continue;
+    }
+
+    // Merge member slugs + markets in case the override widens the
+    // entity beyond what the pipeline detected.
+    const mergedSlugs = Array.from(
+      new Set([...(existing.pmSlugs ?? []), ...memberSlugs])
+    ).sort();
+    const mergedMarkets = Array.from(
+      new Set([...(existing.marketIds ?? []), ...memberMarkets])
+    ).sort();
+    const widened =
+      mergedSlugs.length !== (existing.pmSlugs ?? []).length ||
+      mergedMarkets.length !== (existing.marketIds ?? []).length;
+    if (widened) {
+      existing.pmSlugs = mergedSlugs;
+      existing.marketIds = mergedMarkets;
+      existing.marketCount = mergedMarkets.length;
+      existing.canonicalName = group[0].canonicalName; // keep override label
+      extendedEntities += 1;
+    }
+  }
+
+  console.log(
+    `[seed] Applied ${overridden} manual canonical override${overridden === 1 ? "" : "s"} ` +
+      `(${createdEntities} new entit${createdEntities === 1 ? "y" : "ies"}, ` +
+      `${extendedEntities} extended).`
+  );
+}
+
+// Apply once, at module load, so isDataCurrent() spot-checks and the
+// main seed loop both observe the override-applied shape.
+applyCanonicalOverrides(data);
+
 // ---- normalization helpers ----
 
 function asNumber(v: unknown): number | null {
