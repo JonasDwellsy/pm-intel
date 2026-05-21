@@ -96,7 +96,7 @@ export async function searchOperators(
           goldStars: h.goldCount ?? null,
           silverStars: h.silverCount ?? null,
           scorecardUrl: null,
-          crossMarketProfileUrl: `/operator/${h.canonicalSlug}`,
+          crossMarketProfileUrl: `/operators/${h.canonicalSlug}`,
         };
       }
       if (h.tier === "ranked") {
@@ -433,7 +433,7 @@ export async function getOperatorScorecard(
       sc.generatedText?.distinguishingCharacteristics ?? [],
     canonicalOperatorId: sc.canonicalOperatorId ?? null,
     crossMarketProfileUrl: isMultiMarket
-      ? `/operator/${sc.canonicalOperatorId}`
+      ? `/operators/${sc.canonicalOperatorId}`
       : null,
     portfolioEstimate: sc.portfolioEstimate
       ? {
@@ -496,7 +496,7 @@ export async function getCanonicalOperator(
     // proxy for footprint scale that gives the LLM a single number.
     totalObservedUnits: view.aggregateStats.totalUrusT12,
     modalClassification: view.modalClassification,
-    crossMarketProfileUrl: `/operator/${view.canonicalSlug}`,
+    crossMarketProfileUrl: `/operators/${view.canonicalSlug}`,
     markets: view.marketCards.map((c) => ({
       marketName: c.marketFullName,
       marketSlug: c.marketId,

@@ -221,7 +221,7 @@ const GLOSSARY: GlossaryRow[] = [
   {
     term: "Canonical operator identity",
     definition:
-      "v0.6.4 Patch 1 — operators that appear in multiple markets resolve to a single canonical entity via name normalization (strip LLC/Inc/Ltd/Co/Corp suffixes, lowercase, collapse whitespace; substantive tokens like Property Management / Realty are preserved). Powers the /operator/[canonicalSlug] cross-market profile route and state-level count dedup.",
+      "v0.6.4 Patch 1 — operators that appear in multiple markets resolve to a single canonical entity via name normalization (strip LLC/Inc/Ltd/Co/Corp suffixes, lowercase, collapse whitespace; substantive tokens like Property Management / Realty are preserved). Powers the /operators/[canonicalSlug] operator scorecard route and state-level count dedup.",
     ref: "§07",
   },
   {
@@ -997,7 +997,7 @@ export default async function MethodologyPage() {
                 normalized name across distinct markets, they&rsquo;re
                 grouped into a single canonical operator entity. This
                 enables cross-market operator profiles at{" "}
-                <span className="dq-mono">/operator/[canonical-slug]</span>{" "}
+                <span className="dq-mono">/operators/[canonical-slug]</span>{" "}
                 and dedup&rsquo;d state-level operator counts.
               </p>
               <p>
@@ -1633,7 +1633,7 @@ export default async function MethodologyPage() {
                       Asset, Trajectory, and Operator dimensions. Two
                       starter templates seeded — Evernest-style SFR
                       density build-out + Genstone-style integrated
-                      services — drawn verbatim from the buy-box spec's
+                      services — drawn verbatim from the buy-box spec&rsquo;s
                       worked examples. No editor UI yet (ships in PR 2);
                       minimal admin view at{" "}
                       <span className="dq-mono">/buy-boxes</span> for
@@ -1695,7 +1695,7 @@ export default async function MethodologyPage() {
                       canonical entities baked at seed time covering 60 of
                       575 PM records — Invitation Homes (4 markets), Mission
                       Rock Residential (5), First Keys Homes (5), and others.
-                      New <span className="dq-mono">/operator/[canonicalSlug]</span>{" "}
+                      New <span className="dq-mono">/operators/[canonicalSlug]</span>{" "}
                       cross-market profile route with aggregate footprint,
                       modal classification (most-frequent 7-cell with
                       lexicographic tiebreaker), and per-market scorecard

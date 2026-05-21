@@ -337,7 +337,7 @@ export async function buildMarketBriefData(
         canonicalSlug: co.canonicalSlug,
         canonicalName: co.canonicalName,
         marketCount: co.marketCount,
-        crossMarketProfileUrl: `/operator/${co.canonicalSlug}`,
+        crossMarketProfileUrl: `/operators/${co.canonicalSlug}`,
         otherMarketNames: otherNames,
       };
     })
