@@ -74,15 +74,25 @@ function SearchInputInner({
     () => results.filter((r) => r.score > STRICT_MATCH_SCORE),
     [results]
   );
-  const visibleResults = strictResults.length > 0 ? strictResults : [];
+  // Memo'd so the empty-array fallback isn't a fresh reference on
+  // every render — the downstream useMemo / useCallback dependency
+  // arrays read this as stable when results haven't actually changed.
+  const visibleResults = useMemo(
+    () => (strictResults.length > 0 ? strictResults : []),
+    [strictResults]
+  );
   const { canonical, ranked, tracked } = useMemo(
     () => partitionByTier(visibleResults),
     [visibleResults]
   );
 
   // Reset active index whenever the result set changes so the cursor
-  // doesn't dangle past the new length.
+  // doesn't dangle past the new length. The set-state-in-effect rule
+  // would prefer this be derived during render via a "stored previous
+  // value" pattern, but the reset is a side-effect of an external
+  // input (debouncedQuery) changing — useEffect is the right tool.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveIndex(0);
   }, [debouncedQuery]);
 

@@ -103,7 +103,6 @@ export function MarketMapClient({
   useEffect(() => {
     if (unavailable || !mapBounds) {
       if (!token) {
-        // eslint-disable-next-line no-console
         console.warn(
           "[MarketMap] NEXT_PUBLIC_MAPBOX_TOKEN missing — falling back to placeholder"
         );
@@ -210,7 +209,6 @@ export function MarketMapClient({
         ro = new ResizeObserver(() => m.resize());
         ro.observe(el);
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.warn("[MarketMap] Mapbox init failed — falling back", err);
         if (!cancelled) setUnavailable(true);
       }

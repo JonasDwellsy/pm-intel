@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 // Client form for the research-preview gate. Plain useState — no
 // react-hook-form because there's a single field and no schema validation
@@ -16,7 +15,8 @@ import { useRouter } from "next/navigation";
 //   - 401 → render the inline error and let the visitor retry
 //   - Other → generic error (network failure, server misconfiguration)
 export function PasswordForm({ from }: { from: string }) {
-  const router = useRouter();
+  // No useRouter — success path uses window.location.assign so the
+  // just-set dq_auth cookie is read by middleware on the next request.
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);

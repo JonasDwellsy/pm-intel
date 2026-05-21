@@ -59,7 +59,7 @@ export function ClaimForm({ pmSlug }: { pmSlug: string }) {
       <div className="rounded-lg border border-border bg-card p-6">
         <h2 className="text-lg font-medium">Claim received</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          We'll reach out at the email you provided to verify the claim.
+          We&rsquo;ll reach out at the email you provided to verify the claim.
           Reference: <code>{submitState.claimId}</code>
         </p>
       </div>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { HomepageSectionHead } from "./SectionHead";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
-import { fmtDate, fmtDays, fmtInt } from "@/lib/format";
+import { fmtDate, fmtInt } from "@/lib/format";
 
 export type LiveMarket = {
   id: string;

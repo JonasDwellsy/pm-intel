@@ -52,14 +52,6 @@ function pct(value: number | null | undefined, digits = 2): string | null {
   return signed;
 }
 
-/** Pull a scorecard JSON blob off a PM row by slug. Returns null if the
- *  PM isn't found. Used by the operator-facing tools. */
-async function loadScorecard(pmSlug: string): Promise<ScorecardData | null> {
-  const pm = await prisma.pM.findUnique({ where: { slug: pmSlug } });
-  if (!pm) return null;
-  return JSON.parse(pm.scorecardData) as ScorecardData;
-}
-
 // ─── tool 1: searchOperators ────────────────────────────────────────
 
 export type SearchOperatorsResult = {

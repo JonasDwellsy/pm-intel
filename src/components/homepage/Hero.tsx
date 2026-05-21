@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { buttonVariants } from "@/components/ui/button";
 import { QuadrantGrid, type QuadrantOperator } from "@/components/scorecard/QuadrantGrid";
