@@ -65,11 +65,13 @@ function LiveMarketCard({ market }: { market: LiveMarket }) {
       className="group flex min-h-[260px] flex-col rounded-md border border-grid bg-white p-8 transition-all duration-[180ms] hover:-translate-y-0.5 hover:border-navy hover:shadow-[0_8px_24px_rgb(15_31_63_/_0.06)]"
     >
       <div className="mb-5 flex flex-wrap gap-2.5">
+        {/* PR #46 — Pilot MSA badge dropped. All 10 markets are
+            production-grade as of v0.8; the "pilot" framing
+            implies tentativeness that no longer applies. */}
         <span className="dq-pill dq-pill-green inline-flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-good" />
           Live
         </span>
-        <span className="dq-pill dq-pill-navy-soft">Pilot MSA</span>
       </div>
       <h3 className="dq-h2 mb-5 text-[22px] leading-[1.2] tracking-[-0.005em]">
         {market.fullName.replace("TN-GA", "TN–GA")}
@@ -93,16 +95,16 @@ function LiveMarketCard({ market }: { market: LiveMarket }) {
           sub="across eligible cohort"
         />
         <StatBlock
-          label="Quadrants covered"
+          label="7-Cell coverage"
           value={
             <>
-              <span className="dq-tnum">4</span>
+              <span className="dq-tnum">7</span>
               <span className="ml-1 text-[14px] font-medium text-muted-foreground">
-                of 4
+                of 7
               </span>
             </>
           }
-          sub="MF/BTR + Scattered"
+          sub="SFR + Small/Large MF/BTR · Independent/Institutional · Hybrid"
         />
         <StatBlock
           label="Data through"

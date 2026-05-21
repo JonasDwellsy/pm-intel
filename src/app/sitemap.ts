@@ -19,7 +19,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { url: `${SITE_URL}/methodology`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${SITE_URL}/property-managers`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-    { url: `${SITE_URL}/get-matched`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${SITE_URL}/buy-boxes`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    // /get-matched dropped in PR #46 — superseded by /buy-boxes/new
+    // and 301-redirected via next.config.ts.
   ];
 
   for (const m of markets) {

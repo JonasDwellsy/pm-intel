@@ -1,6 +1,17 @@
 import Link from "next/link";
 import { HomepageSectionHead } from "./SectionHead";
 
+// PR #46 — pillars rewritten for the acquirer audience. Old pillars
+// (Classification / Lease Velocity / Pricing Posture / Tenancy
+// Position) framed the methodology in operational-analyst language.
+// The acquirer reads through a different lens:
+//   01 SCALE              — how big is the operator?
+//   02 TYPE               — what kind of business?
+//   03 OPERATING SIGNALS  — stressed or growing?
+//   04 FOOTPRINT          — concentrated or spread?
+// Methodology anchors point at the same /methodology sections so
+// "Read methodology →" stays meaningful.
+
 type Pillar = {
   num: string;
   eyebrow: string;
@@ -12,35 +23,35 @@ type Pillar = {
 const PILLARS: Pillar[] = [
   {
     num: "01",
-    eyebrow: "Classification",
-    title: "Operator-type quadrant",
+    eyebrow: "Scale",
+    title: "How big is this operator really?",
     description:
-      "Every PM mapped to one of four quadrants: MF / BTR × Institutional / Independent. Built from observed unit composition and operating signals, not corporate self-description.",
-    anchor: "/methodology#classification",
+      "Portfolio size estimates derived from listing volume, calibrated against verified operator data. Size-banded confidence model reduces uncertainty for the operators most relevant to acquisition diligence.",
+    anchor: "/methodology/portfolio-estimator",
   },
   {
     num: "02",
-    eyebrow: "Lease velocity",
-    title: "Days on market, ranked within-quadrant",
+    eyebrow: "Type",
+    title: "What kind of business is this?",
     description:
-      "Trailing 12-month DOM ranked inside each operator's own structural cohort and against the MSA median. Selection-bias adjusted for listing churn.",
-    anchor: "/methodology#dom",
+      "Every PM mapped to one of seven cells based on observed unit composition and operating signals — not corporate self-description. SFR Independent, SFR Institutional, Hybrid, Small/Large MF/BTR Independent/Institutional.",
+    anchor: "/methodology#classification",
   },
   {
     num: "03",
-    eyebrow: "Pricing posture",
-    title: "Rent & concession behaviour",
+    eyebrow: "Operating signals",
+    title: "Are they stressed or growing?",
     description:
-      "Per-listing rent comparison to identical comps, mix-adjusted across years. Concession use measured as a multiple of the prevailing market rate, not a binary flag.",
-    anchor: "/methodology#pricing",
+      "Days on market, concession use, and listing trajectory — leading indicators that signal whether an operator is positioned for growth, holding steady, or under stress. All metrics cohort-relative and reproducible from the underlying Dwellsy listing record.",
+    anchor: "/methodology#dom",
   },
   {
     num: "04",
-    eyebrow: "Tenancy position",
-    title: "Episode-clustered tenure",
+    eyebrow: "Footprint",
+    title: "Where do they operate, and how concentrated?",
     description:
-      "Unit-level tenancy episodes benchmarked against MSA cohort percentiles. Comparative, not absolute — every operator is scored against peers who face the same market.",
-    anchor: "/methodology#tenancy",
+      "Multi-market presence detection, top-city concentration, and canonical operator identity across markets. Critical for assessing geographic risk and platform fit.",
+    anchor: "/methodology#footprint",
   },
 ];
 
@@ -50,8 +61,8 @@ export function MethodologyPillars() {
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
           eyebrow="What we measure"
-          title="Outside-in signals every diligence buyer needs."
-          context="Four methodology pillars, applied identically across every market we cover. Every score is observed, cohort-relative, and reproducible from the underlying Dwellsy listing record — no operator self-reporting."
+          title="Four lenses on every operator, mapped to the acquirer's questions."
+          context="Scale, type, operating signals, and footprint — applied identically across every market we cover. Each metric is observed, cohort-relative, and reproducible from the underlying Dwellsy listing record. No operator self-reporting."
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {PILLARS.map((p) => (

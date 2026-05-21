@@ -52,11 +52,11 @@ export function PaywallCard({ scorecard }: { scorecard: ScorecardData }) {
               </TrackedLink>
               <TrackedLink
                 event="paywall_cta_click"
-                properties={{ pmSlug: scorecard.pm.slug, action: "get_matched" }}
-                href="/get-matched"
+                properties={{ pmSlug: scorecard.pm.slug, action: "build_buy_box" }}
+                href="/buy-boxes/new"
                 className="inline-flex h-11 items-center justify-center rounded-md border border-navy bg-white px-6 text-[14px] font-semibold text-navy transition-colors hover:bg-navy-soft"
               >
-                Get matched to a PM in your market
+                Build a buy box to find more like this
               </TrackedLink>
             </div>
 

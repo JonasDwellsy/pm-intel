@@ -64,3 +64,27 @@ test("next.config redirect — slug parameter pattern uses :slug* (catch-all) so
     "destination must reference the same :slug* capture"
   );
 });
+
+// PR #46 — /get-matched (renter/owner-to-PM matching) deprecation.
+// The form + confirmation pages are deleted; the redirect catches
+// inbound traffic and lands users on the buy-box template picker
+// (the acquirer workflow that replaces it).
+test("next.config redirect — /get-matched permanently redirects to /buy-boxes/new", async () => {
+  const rules = await nextConfig.redirects!();
+  const root = rules.find((r) => r.source === "/get-matched");
+  assert.ok(root, "Expected a /get-matched root redirect rule");
+  assert.equal(root.destination, "/buy-boxes/new");
+  assert.equal(root.permanent, true);
+});
+
+test("next.config redirect — /get-matched/:path* catches /confirmation and any other nested paths", async () => {
+  // The :path* matcher carries the deleted /get-matched/confirmation
+  // page (and any future stale links) into the buy-box flow without a
+  // 404. Stale email links carry ?leadId=… on the confirmation URL;
+  // Next's redirect engine preserves the query unchanged.
+  const rules = await nextConfig.redirects!();
+  const nested = rules.find((r) => r.source === "/get-matched/:path*");
+  assert.ok(nested, "Expected a /get-matched/:path* nested redirect rule");
+  assert.equal(nested.destination, "/buy-boxes/new");
+  assert.equal(nested.permanent, true);
+});
