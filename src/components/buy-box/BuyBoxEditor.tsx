@@ -39,9 +39,26 @@ export interface EditorBuyBox {
   excludedCriteria: FilterCriterion[];
 }
 
+/** Optional starter shape for the create flow — when the user picks
+ *  a template from the v0.10 picker, the page hands these values in
+ *  to seed the editor state. Save still treats this as a new buy
+ *  box (initial = null), so the deep clone the templates module
+ *  returns becomes the editable draft without polluting the
+ *  underlying template definitions. */
+export interface StarterDraft {
+  name: string;
+  description?: string | null;
+  requiredCriteria: FilterCriterion[];
+  preferredCriteria: WeightedCriterion[];
+  excludedCriteria: FilterCriterion[];
+}
+
 interface Props {
   /** null for /buy-boxes/new, populated for /buy-boxes/[id]/edit. */
   initial: EditorBuyBox | null;
+  /** Optional seed for create-mode (template clone). Ignored when
+   *  initial is set. */
+  starterDraft?: StarterDraft;
   marketOptions: MarketOption[];
 }
 
@@ -53,20 +70,28 @@ interface PreviewState {
   topTen: Array<{ slug: string; name: string; market: string; fitScore: number }>;
 }
 
-export function BuyBoxEditor({ initial, marketOptions }: Props) {
+export function BuyBoxEditor({ initial, starterDraft, marketOptions }: Props) {
   const router = useRouter();
   const isEdit = initial !== null;
 
-  const [name, setName] = React.useState(initial?.name ?? "");
-  const [description, setDescription] = React.useState(initial?.description ?? "");
+  // Seed state from `initial` (edit mode), falling back to
+  // `starterDraft` (template-clone mode), falling back to empty.
+  // `initial` always wins so editing an existing buy box ignores
+  // any drift from the new-flow path.
+  const [name, setName] = React.useState(
+    initial?.name ?? starterDraft?.name ?? ""
+  );
+  const [description, setDescription] = React.useState(
+    initial?.description ?? starterDraft?.description ?? ""
+  );
   const [required, setRequired] = React.useState<FilterCriterion[]>(
-    initial?.requiredCriteria ?? []
+    initial?.requiredCriteria ?? starterDraft?.requiredCriteria ?? []
   );
   const [preferred, setPreferred] = React.useState<WeightedCriterion[]>(
-    initial?.preferredCriteria ?? []
+    initial?.preferredCriteria ?? starterDraft?.preferredCriteria ?? []
   );
   const [excluded, setExcluded] = React.useState<FilterCriterion[]>(
-    initial?.excludedCriteria ?? []
+    initial?.excludedCriteria ?? starterDraft?.excludedCriteria ?? []
   );
 
   const [saving, setSaving] = React.useState(false);
