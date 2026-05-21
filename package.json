@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && prisma db seed && next build",
+    "vercel-build": "eslint . --max-warnings 0 && prisma generate && prisma migrate deploy && prisma db seed && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
