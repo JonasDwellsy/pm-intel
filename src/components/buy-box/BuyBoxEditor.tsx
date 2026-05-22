@@ -29,6 +29,11 @@ import type {
 import { FIELD_REGISTRY } from "@/lib/buy-box/fields";
 import { isCriterionComplete } from "@/lib/buy-box/validation";
 import type { MarketOption } from "@/lib/buy-box/editor-options";
+import {
+  clearPendingDraft,
+  consumePendingDraft,
+  savePendingDraft,
+} from "@/lib/buy-box/pending-draft";
 import { CriterionRow, type Layer } from "./CriterionRow";
 
 export interface EditorBuyBox {
@@ -60,6 +65,14 @@ interface Props {
   /** Optional seed for create-mode (template clone). Ignored when
    *  initial is set. */
   starterDraft?: StarterDraft;
+  /** Source template slug (or "blank"). When set, the editor will
+   *  look in sessionStorage for a pending draft saved during a
+   *  prior anon → sign-in round-trip and hydrate from it instead
+   *  of the template defaults. Required to make Bug 2 (edits lost
+   *  during auth round-trip) round-trip cleanly — without a slug
+   *  we can't tell whether a stashed draft belongs to the current
+   *  editor session or a stale one. */
+  templateSlug?: string;
   marketOptions: MarketOption[];
 }
 
@@ -71,7 +84,12 @@ interface PreviewState {
   topTen: Array<{ slug: string; name: string; market: string; fitScore: number }>;
 }
 
-export function BuyBoxEditor({ initial, starterDraft, marketOptions }: Props) {
+export function BuyBoxEditor({
+  initial,
+  starterDraft,
+  templateSlug,
+  marketOptions,
+}: Props) {
   const router = useRouter();
   const isEdit = initial !== null;
   // Auth state. Editing existing buy boxes is already protected by
@@ -83,24 +101,62 @@ export function BuyBoxEditor({ initial, starterDraft, marketOptions }: Props) {
   // flashing the wrong button copy during initial hydration.
   const { isSignedIn, isLoaded: authLoaded } = useAuth();
 
-  // Seed state from `initial` (edit mode), falling back to
-  // `starterDraft` (template-clone mode), falling back to empty.
-  // `initial` always wins so editing an existing buy box ignores
-  // any drift from the new-flow path.
+  // Consume any pending draft from sessionStorage exactly once
+  // during render. If the user got bounced through /sign-in
+  // mid-edit, the pending-draft module stashed their tweaked
+  // state under the key dwellsy:pendingBuyBoxDraft; on the
+  // round-trip back to /buy-boxes/new?template=<slug> we apply
+  // that draft here instead of the template defaults, so a
+  // "URUs T12 ≥ 150" tweak survives. consumePendingDraft CLEARS
+  // the key on read, so a refresh doesn't perpetually re-hydrate.
+  //
+  // useMemo runs synchronously during render — the React-blessed
+  // pattern for syncing with an external store at mount time,
+  // and the only one that passes the React 19 react-hooks/refs
+  // and react-hooks/set-state-in-effect lint rules together. The
+  // dep array is stable for the component lifetime (a different
+  // ?template= remounts via the parent page) so consume happens
+  // exactly once per editor session.
+  const pendingDraft = React.useMemo(() => {
+    if (isEdit || !templateSlug || typeof window === "undefined") {
+      return null;
+    }
+    return consumePendingDraft(window.sessionStorage, {
+      expectedTemplateSlug: templateSlug,
+    });
+  }, [isEdit, templateSlug]);
+
+  // Seed state with `initial` (edit mode) winning, then any
+  // pending draft (anon round-trip restoration), then
+  // `starterDraft` (template-clone defaults), then empty. The
+  // pending draft only applies in create mode — edit mode
+  // short-circuits inside the useMemo above.
   const [name, setName] = React.useState(
-    initial?.name ?? starterDraft?.name ?? ""
+    initial?.name ?? pendingDraft?.name ?? starterDraft?.name ?? ""
   );
   const [description, setDescription] = React.useState(
-    initial?.description ?? starterDraft?.description ?? ""
+    initial?.description ??
+      pendingDraft?.description ??
+      starterDraft?.description ??
+      ""
   );
   const [required, setRequired] = React.useState<FilterCriterion[]>(
-    initial?.requiredCriteria ?? starterDraft?.requiredCriteria ?? []
+    initial?.requiredCriteria ??
+      pendingDraft?.requiredCriteria ??
+      starterDraft?.requiredCriteria ??
+      []
   );
   const [preferred, setPreferred] = React.useState<WeightedCriterion[]>(
-    initial?.preferredCriteria ?? starterDraft?.preferredCriteria ?? []
+    initial?.preferredCriteria ??
+      pendingDraft?.preferredCriteria ??
+      starterDraft?.preferredCriteria ??
+      []
   );
   const [excluded, setExcluded] = React.useState<FilterCriterion[]>(
-    initial?.excludedCriteria ?? starterDraft?.excludedCriteria ?? []
+    initial?.excludedCriteria ??
+      pendingDraft?.excludedCriteria ??
+      starterDraft?.excludedCriteria ??
+      []
   );
 
   const [saving, setSaving] = React.useState(false);
@@ -177,13 +233,22 @@ export function BuyBoxEditor({ initial, starterDraft, marketOptions }: Props) {
     }
     // Anonymous-user → sign-in roundtrip. The template-clone path on
     // /buy-boxes/new stays public, but Save requires a real account.
-    // We round-trip through Clerk's /sign-in with redirect_url back
-    // to the current path + search so the user lands on the same
-    // template-loaded draft after auth and can hit Save again. Any
-    // in-editor edits to criteria don't survive the roundtrip — the
-    // URL only preserves the ?template=… slug — which is the v0.13
-    // scope limit.
+    // We snapshot the live editor state to sessionStorage so the
+    // user's in-flight edits survive the redirect (the URL alone
+    // would only preserve ?template=<slug> and would reset any
+    // tweaked criteria back to the template defaults). On arrival
+    // back here the hydrate effect at mount restores the draft.
     if (authLoaded && !isSignedIn) {
+      if (templateSlug && typeof window !== "undefined") {
+        savePendingDraft(window.sessionStorage, {
+          templateSlug,
+          name,
+          description: description.trim() ? description : null,
+          requiredCriteria: required,
+          preferredCriteria: preferred,
+          excludedCriteria: excluded,
+        });
+      }
       const redirectTarget =
         window.location.pathname + window.location.search;
       router.push(`/sign-in?redirect_url=${encodeURIComponent(redirectTarget)}`);
@@ -222,6 +287,14 @@ export function BuyBoxEditor({ initial, starterDraft, marketOptions }: Props) {
         // navigate away from /new.
         flashSavedState();
         showToast("success", "Buy box created.");
+        // Belt-and-suspenders: drop the sessionStorage draft on
+        // successful create. The hydrate effect already clears the
+        // key on consume, but this covers the path where the user
+        // signed in, edited further, and saved without ever
+        // round-tripping through the redirect.
+        if (typeof window !== "undefined") {
+          clearPendingDraft(window.sessionStorage);
+        }
         router.push(`/buy-boxes/${data.buyBox.id}/edit`);
         router.refresh();
       }
@@ -441,6 +514,21 @@ export function BuyBoxEditor({ initial, starterDraft, marketOptions }: Props) {
 
       {/* Sticky bottom strip */}
       <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-grid bg-white/95 backdrop-blur">
+        {/* Anon-save explainer. Appears above the action row only on
+            /buy-boxes/new for signed-out users so they know the
+            "Sign in to save" button will bounce them through Clerk —
+            and that the edits they've already made will round-trip
+            cleanly back to this page via sessionStorage. Edit mode
+            is reached via a protected route so this never fires
+            there. */}
+        {!isEdit && isSignedIn !== true && (
+          <div className="border-b border-grid bg-surface-soft">
+            <p className="mx-auto max-w-[1080px] px-6 py-2 text-[12px] text-foreground/70">
+              You&rsquo;ll need an account to save buy boxes. Your edits
+              will be preserved when you sign in.
+            </p>
+          </div>
+        )}
         <div className="mx-auto flex max-w-[1080px] items-center justify-between px-6 py-3">
           <div className="flex items-center gap-5">
             <MatchStat preview={preview} loading={previewLoading} />
@@ -490,11 +578,17 @@ export function BuyBoxEditor({ initial, starterDraft, marketOptions }: Props) {
                   <CheckIcon />
                   <span>Saved</span>
                 </>
-              ) : authLoaded && !isSignedIn && !isEdit ? (
+              ) : !isEdit && isSignedIn !== true ? (
                 // Telegraph that anon save bounces through sign-in.
+                // The check uses `isSignedIn !== true` rather than
+                // `authLoaded && !isSignedIn` so we show the
+                // signed-out copy even during Clerk's initial load
+                // window — first-render flash to "Sign in to save"
+                // and then settle on the real state is preferable
+                // to silently letting an anon user click a button
+                // labelled "Create buy box" and getting bounced.
                 // Edit mode is reached via a protected route so the
-                // user is guaranteed signed in there — the swap only
-                // applies to /buy-boxes/new (template-clone path).
+                // user is guaranteed signed in there.
                 <span>Sign in to save</span>
               ) : (
                 <span>{isEdit ? "Save changes" : "Create buy box"}</span>

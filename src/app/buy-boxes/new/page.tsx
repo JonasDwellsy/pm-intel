@@ -44,7 +44,13 @@ export default async function NewBuyBoxPage({ searchParams }: PageProps) {
   // Blank → existing v0.8.1 behavior.
   if (templateSlug === "blank") {
     const marketOptions = await listMarketOptions();
-    return <BuyBoxEditor initial={null} marketOptions={marketOptions} />;
+    return (
+      <BuyBoxEditor
+        initial={null}
+        templateSlug="blank"
+        marketOptions={marketOptions}
+      />
+    );
   }
 
   // Known slug → clone into starterDraft. Unknown slug falls
@@ -70,6 +76,7 @@ export default async function NewBuyBoxPage({ searchParams }: PageProps) {
     <BuyBoxEditor
       initial={null}
       starterDraft={starter}
+      templateSlug={templateSlug}
       marketOptions={marketOptions}
     />
   );
