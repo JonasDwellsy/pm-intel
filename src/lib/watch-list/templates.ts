@@ -5,7 +5,7 @@
 // template definitions.
 //
 // Five templates ship today (scale-density-rollup,
-// integrated-services-platform, mid-market-acquirer,
+// integrated-services-platform, mid-market-independent,
 // distressed-operator, institutional-platform). Add more by
 // extending the JSON — no code change required, the loader
 // re-validates every entry against the FIELD_REGISTRY at import

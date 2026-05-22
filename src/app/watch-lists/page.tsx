@@ -45,7 +45,7 @@ export default async function WatchListesPage() {
             </h1>
             <p className="mt-3 max-w-[60ch] text-[14.5px] text-foreground/80">
               {isEmpty
-                ? "A watch list is a saved set of criteria for identifying property managers that match your acquisition or partnership thesis. Clone one of the starter templates below — they're fully editable, and you can preview matches before saving."
+                ? "A watch list is a saved set of criteria for tracking property managers that match a thesis. Clone one of the starter templates below — they're fully editable, and you can preview matches before saving."
                 : "Saved sets of criteria that filter the operator universe down to the property managers that match your thesis. Each watch list pairs hard filters (required, excluded) with weighted preferences to produce a ranked fit score."}
             </p>
           </div>
@@ -63,9 +63,8 @@ export default async function WatchListesPage() {
           <section className="mt-10">
             <p className="dq-eyebrow text-teal">Start from a template</p>
             <p className="mt-2 max-w-[60ch] text-[13.5px] text-foreground/75">
-              Five named acquisition theses to choose from. Each clones into
-              the editor with pre-populated criteria you can tweak before
-              saving.
+              Five named templates to choose from. Each clones into the editor
+              with pre-populated criteria you can tweak before saving.
             </p>
             <div className="mt-6">
               <TemplateGrid />

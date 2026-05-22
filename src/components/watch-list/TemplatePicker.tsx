@@ -29,9 +29,9 @@ export function TemplatePicker() {
             Start a new watch list
           </h1>
           <p className="mt-3 text-[14.5px] text-foreground/80">
-            Clone a named acquisition strategy or build a custom set of
-            criteria from scratch. Cloned templates are fully editable — pick
-            the closest match and tweak from there.
+            Clone a named template or build a custom set of criteria from
+            scratch. Cloned templates are fully editable — pick the closest
+            match and tweak from there.
           </p>
         </header>
 
