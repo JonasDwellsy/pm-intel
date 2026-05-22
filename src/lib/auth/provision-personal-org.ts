@@ -26,7 +26,17 @@
 //     organization.created webhook handler reading the same
 //     privateMetadata marker. Single source.
 
-import "server-only";
+// NOTE: this file does NOT `import "server-only"` because it's
+// imported by both:
+//   1. The Clerk webhook handler (Next.js server runtime — server-
+//      only would be redundant but harmless), AND
+//   2. The migration script scripts/migrate-to-orgs.ts (run via tsx
+//      outside Next.js — server-only would throw at load time).
+//
+// The function is still effectively server-only via its
+// `@clerk/nextjs/server` import — Next.js's bundler refuses to
+// include that in a client bundle, so accidental client-side usage
+// fails at build time with a clear error.
 import { clerkClient } from "@clerk/nextjs/server";
 
 export interface ProvisionResult {
