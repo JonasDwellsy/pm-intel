@@ -53,38 +53,34 @@ export const metadata: Metadata = {
 // several cohorts including every Hybrid one. The substitute is a
 // Small MF/BTR Independent so the cell-mix stays diverse: 2 SFR
 // Independents + 1 Small MF/BTR Independent.
+//
+// PR #53 follow-up — synthesis quotes removed. The metric grid +
+// portfolio band + cohort label carry the full story in the
+// homepage card format; the extra prose was repetitive and
+// dropped readability rather than adding it. The full per-operator
+// narrative still lives on the scorecard page.
 const SAMPLE_MANIFEST: Array<{
   marketId: string;
   slug: string;
-  quote: string;
   extraBadge?: { kind: "green" | "orange" | "teal" | "ink"; label: string };
 }> = [
   {
     // Montgomery SFR Independent — 3 gold + 1 silver, 61 URUs.
-    // Gold composite, 88 cohort score. Lease-up + retention +
-    // rent-performance all gold; marketing silver.
+    // Gold composite, 88 cohort score.
     marketId: "montgomery-al",
     slug: "hwb-properties-montgomery-al",
-    quote:
-      "Three gold stars across the Montgomery SFR Independent cohort — top-quartile lease-up, retention, and double-digit rent outperformance over a 61-URU footprint.",
   },
   {
     // Huntsville SFR Independent — 3 gold + 0 silver, 146 URUs.
-    // Gold composite, 79.4 cohort score. Lease-up + retention +
-    // marketing all gold; rent-performance neutral (matched cohort).
+    // Gold composite, 79.4 cohort score.
     marketId: "huntsville-al",
     slug: "newton-property-management-huntsville-al",
-    quote:
-      "Three gold stars in the Huntsville SFR Independent cohort — top-quartile lease-up, retention, and marketing discipline across 146 URUs and five observed cities.",
   },
   {
     // Birmingham Small MF/BTR Independent — 3 gold + 1 silver,
-    // 40 URUs. Gold composite, 68.4 MSA cohort score. Retention +
-    // rent-performance + marketing all gold; lease-up silver.
+    // 40 URUs. Gold composite, 68.4 MSA cohort score.
     marketId: "birmingham-al",
     slug: "chateau-orleans-realty-company-birmingham-al",
-    quote:
-      "Three gold stars in the Birmingham MSA cohort — top-quartile retention, rent outperformance against a contracting cohort, and 100th-percentile marketing on a 40-URU footprint.",
   },
 ];
 
@@ -265,14 +261,13 @@ function buildMarketingCell(
   };
 }
 
-/** Turn a PM row + a hand-written quote into a SampleCard ready for
- *  the new homepage card UI. PR #53 — the per-metric star roll-up
- *  comes from the shared countOperatorStars helper so the card's
- *  chip matches whatever the scorecard hero shows for the same
- *  operator. */
+/** Turn a PM row into a SampleCard ready for the homepage card UI.
+ *  The per-metric star roll-up, portfolio band, and four
+ *  cohort-relative cells all come from the live scorecard layer so
+ *  the card stays in lock-step with whatever the scorecard hero
+ *  shows for the same operator. */
 function buildSampleCard(
   pm: PmForSampleCard,
-  quote: string,
   extraBadge?: SampleCard["badges"][number]
 ): SampleCard {
   const sc = JSON.parse(pm.scorecardData) as ScorecardData;
@@ -298,14 +293,16 @@ function buildSampleCard(
   return {
     slug: pm.slug,
     href,
-    marketLabel: `${pm.market.city} MSA`,
+    // "Montgomery, AL MSA" — state code disambiguates same-named
+    // cities (e.g. multiple Birminghams or Phoenixes) and matches
+    // the convention the rest of the surfaces use.
+    marketLabel: `${pm.market.city}, ${pm.market.state} MSA`,
     name: pm.name,
     goldCount,
     silverCount,
     cohortName,
     badges,
     claimed: pm.claimed,
-    quote,
     portfolio: buildPortfolioBand(sc.portfolioEstimate, q7Label),
     leaseUp: buildLeaseUpCell(sc.performance),
     tenantRetention: buildRetentionCell(sc.tenancy),
@@ -343,7 +340,7 @@ async function loadSampleCards(): Promise<SampleCard[]> {
   for (const entry of SAMPLE_MANIFEST) {
     const pm = pms.find((p) => p.slug === entry.slug);
     if (!pm) continue;
-    cards.push(buildSampleCard(pm, entry.quote, entry.extraBadge));
+    cards.push(buildSampleCard(pm, entry.extraBadge));
   }
   return cards;
 }
@@ -354,8 +351,6 @@ async function loadSampleCards(): Promise<SampleCard[]> {
  *  scorecard layer via buildSampleCard, so the card stays in sync
  *  as the methodology / estimator drifts. */
 const HERO_CARD_SLUG = "doorby-property-management-chattanooga-tn";
-const HERO_CARD_QUOTE =
-  "Three gold stars in the Chattanooga SFR Independent cohort — top-quartile retention and lease-up speed against double-digit rent outperformance across 229 URUs in trailing twelve months.";
 
 async function loadHeroCard(): Promise<SampleCard | null> {
   const pm = await prisma.pM.findUnique({
@@ -372,7 +367,7 @@ async function loadHeroCard(): Promise<SampleCard | null> {
     },
   });
   if (!pm) return null;
-  return buildSampleCard(pm, HERO_CARD_QUOTE);
+  return buildSampleCard(pm);
 }
 
 export default async function HomePage() {

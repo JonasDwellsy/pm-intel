@@ -72,9 +72,6 @@ export interface SampleCard {
   /** True when the canonical entity is marked as claimed in the
    *  upstream data — surfaces a small "Claimed" pill on the card. */
   claimed?: boolean;
-  /** Hand-written synthesis line. Multi-star language; no
-   *  "gold-composite" framing. */
-  quote: string;
   portfolio: PortfolioBand;
   /** Four cohort-relative metrics. Order matches the live scorecard
    *  page's Synthesis Layer headline tiles. */
@@ -219,10 +216,17 @@ export function ScorecardCard({
       <p className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {card.marketLabel}
       </p>
-      <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-        <h3 className="dq-h2 text-[22px] leading-[1.2] tracking-[-0.005em]">
-          {card.name}
-        </h3>
+      {/* Name block reserves 2 H3 line-heights so cards stay
+          structurally identical regardless of name length:
+          "Hwb Properties" (1 line) and "Chateau Orleans Realty
+          Company" (2 lines) end up the same height, and the chip
+          row + cohort row + everything below lines up across the
+          three cards. lh is the element's own line-height — at
+          22px × 1.2 that's 26.4px per line, so 2lh = 52.8px. */}
+      <h3 className="dq-h2 mt-2 min-h-[2lh] text-[22px] leading-[1.2] tracking-[-0.005em]">
+        {card.name}
+      </h3>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
         <CardStarChip
           goldCount={card.goldCount}
           silverCount={card.silverCount}
@@ -230,10 +234,8 @@ export function ScorecardCard({
         {card.claimed && (
           <span className="dq-pill dq-pill-green text-[10.5px]">Claimed</span>
         )}
+        <p className="text-[12px] text-muted-foreground">{card.cohortName}</p>
       </div>
-      <p className="mt-1 text-[12px] text-muted-foreground">
-        {card.cohortName}
-      </p>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {card.badges.map((b) => (
           <Pill key={b.label} kind={b.kind}>
@@ -241,9 +243,6 @@ export function ScorecardCard({
           </Pill>
         ))}
       </div>
-      <p className="mt-4 text-[14.5px] leading-[1.55] text-foreground/80">
-        &ldquo;{card.quote}&rdquo;
-      </p>
 
       {/* Portfolio band — full-width header treatment, not a grid cell.
           Mirrors the EstPortfolioTile from the scorecard SynthesisLayer
