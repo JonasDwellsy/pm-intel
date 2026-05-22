@@ -1,5 +1,5 @@
 {
-  "_comment": "v0.12 markets coverage map. 12 live MSAs (status='live' — clicking the dot routes into the existing market scorecard) and 19 top-20 US MSAs marked 'available' (clicking opens a mailto: pre-filled with the operator's name). Phoenix is in the top 20 AND live, so it appears once with status='live' (live takes precedence per spec). Anchorage + Urban Honolulu were added in the v0.12 follow-up to validate the geoAlbersUsa AK / HI inset composition; their marketPageHref values follow the existing /property-managers/{state-slug}/{city-slug} pattern but the backing scorecards do not exist in the seed yet (the URLs will 404 until that data ships). lat/lng are primary-city coordinates; the markets-map-projection module turns them into SVG coordinates at render time. shortName drives the hover tooltip; name carries the full MSA label for the mailto subject line.",
+  "_comment": "v0.12 markets coverage map. 10 live MSAs (status='live' — clicking the dot routes into the existing market scorecard) and a long tail of 'available' MSAs (clicking opens a mailto: pre-filled with the operator's name). The available set spans every top-20 US MSA + the largest city in every state not already covered by the live + top-20 set, plus Anchorage + Urban Honolulu, so the map shows a dot in every state including the AK / HI insets. Phoenix is in the top 20 AND live, so it appears once with status='live' (live takes precedence per spec). lat/lng are primary-city coordinates; the markets-map-projection module turns them into SVG coordinates at render time. shortName drives the hover tooltip (with state suffix on ambiguous names like Portland and Charleston); name carries the full MSA label for the mailto subject line.",
   "markets": [
     {
       "slug": "birmingham-al",
@@ -86,16 +86,238 @@
       "name": "Anchorage, AK MSA",
       "shortName": "Anchorage",
       "centroid": { "lat": 61.218, "lng": -149.9 },
-      "status": "live",
-      "marketPageHref": "/property-managers/alaska/anchorage"
+      "status": "available"
     },
     {
       "slug": "urban-honolulu-hi",
       "name": "Urban Honolulu, HI MSA",
       "shortName": "Honolulu",
       "centroid": { "lat": 21.315, "lng": -157.858 },
-      "status": "live",
-      "marketPageHref": "/property-managers/hawaii/urban-honolulu"
+      "status": "available"
+    },
+    {
+      "slug": "little-rock-ar",
+      "name": "Little Rock-North Little Rock-Conway, AR MSA",
+      "shortName": "Little Rock",
+      "centroid": { "lat": 34.7465, "lng": -92.2896 },
+      "status": "available"
+    },
+    {
+      "slug": "bridgeport-ct",
+      "name": "Bridgeport-Stamford-Norwalk, CT MSA",
+      "shortName": "Bridgeport",
+      "centroid": { "lat": 41.1865, "lng": -73.1952 },
+      "status": "available"
+    },
+    {
+      "slug": "wilmington-de",
+      "name": "Wilmington, DE",
+      "shortName": "Wilmington",
+      "centroid": { "lat": 39.7391, "lng": -75.5398 },
+      "status": "available"
+    },
+    {
+      "slug": "boise-id",
+      "name": "Boise City, ID MSA",
+      "shortName": "Boise",
+      "centroid": { "lat": 43.615, "lng": -116.2023 },
+      "status": "available"
+    },
+    {
+      "slug": "indianapolis-in",
+      "name": "Indianapolis-Carmel-Anderson, IN MSA",
+      "shortName": "Indianapolis",
+      "centroid": { "lat": 39.7684, "lng": -86.1581 },
+      "status": "available"
+    },
+    {
+      "slug": "des-moines-ia",
+      "name": "Des Moines-West Des Moines, IA MSA",
+      "shortName": "Des Moines",
+      "centroid": { "lat": 41.5868, "lng": -93.625 },
+      "status": "available"
+    },
+    {
+      "slug": "wichita-ks",
+      "name": "Wichita, KS MSA",
+      "shortName": "Wichita",
+      "centroid": { "lat": 37.6872, "lng": -97.3301 },
+      "status": "available"
+    },
+    {
+      "slug": "louisville-ky",
+      "name": "Louisville/Jefferson County, KY-IN MSA",
+      "shortName": "Louisville",
+      "centroid": { "lat": 38.2527, "lng": -85.7585 },
+      "status": "available"
+    },
+    {
+      "slug": "new-orleans-la",
+      "name": "New Orleans-Metairie, LA MSA",
+      "shortName": "New Orleans",
+      "centroid": { "lat": 29.9511, "lng": -90.0715 },
+      "status": "available"
+    },
+    {
+      "slug": "portland-me",
+      "name": "Portland-South Portland, ME MSA",
+      "shortName": "Portland, ME",
+      "centroid": { "lat": 43.6591, "lng": -70.2568 },
+      "status": "available"
+    },
+    {
+      "slug": "jackson-ms",
+      "name": "Jackson, MS MSA",
+      "shortName": "Jackson",
+      "centroid": { "lat": 32.2988, "lng": -90.1848 },
+      "status": "available"
+    },
+    {
+      "slug": "kansas-city-mo",
+      "name": "Kansas City, MO-KS MSA",
+      "shortName": "Kansas City",
+      "centroid": { "lat": 39.0997, "lng": -94.5786 },
+      "status": "available"
+    },
+    {
+      "slug": "billings-mt",
+      "name": "Billings, MT MSA",
+      "shortName": "Billings",
+      "centroid": { "lat": 45.7833, "lng": -108.5007 },
+      "status": "available"
+    },
+    {
+      "slug": "omaha-ne",
+      "name": "Omaha-Council Bluffs, NE-IA MSA",
+      "shortName": "Omaha",
+      "centroid": { "lat": 41.2565, "lng": -95.9345 },
+      "status": "available"
+    },
+    {
+      "slug": "las-vegas-nv",
+      "name": "Las Vegas-Henderson-Paradise, NV MSA",
+      "shortName": "Las Vegas",
+      "centroid": { "lat": 36.1699, "lng": -115.1398 },
+      "status": "available"
+    },
+    {
+      "slug": "manchester-nh",
+      "name": "Manchester-Nashua, NH MSA",
+      "shortName": "Manchester",
+      "centroid": { "lat": 42.9956, "lng": -71.4548 },
+      "status": "available"
+    },
+    {
+      "slug": "newark-nj",
+      "name": "Newark, NJ Metropolitan Division",
+      "shortName": "Newark",
+      "centroid": { "lat": 40.7357, "lng": -74.1724 },
+      "status": "available"
+    },
+    {
+      "slug": "albuquerque-nm",
+      "name": "Albuquerque, NM MSA",
+      "shortName": "Albuquerque",
+      "centroid": { "lat": 35.0844, "lng": -106.6504 },
+      "status": "available"
+    },
+    {
+      "slug": "charlotte-nc",
+      "name": "Charlotte-Concord-Gastonia, NC-SC MSA",
+      "shortName": "Charlotte",
+      "centroid": { "lat": 35.2271, "lng": -80.8431 },
+      "status": "available"
+    },
+    {
+      "slug": "fargo-nd",
+      "name": "Fargo, ND-MN MSA",
+      "shortName": "Fargo",
+      "centroid": { "lat": 46.8772, "lng": -96.7898 },
+      "status": "available"
+    },
+    {
+      "slug": "columbus-oh",
+      "name": "Columbus, OH MSA",
+      "shortName": "Columbus",
+      "centroid": { "lat": 39.9612, "lng": -82.9988 },
+      "status": "available"
+    },
+    {
+      "slug": "oklahoma-city-ok",
+      "name": "Oklahoma City, OK MSA",
+      "shortName": "Oklahoma City",
+      "centroid": { "lat": 35.4676, "lng": -97.5164 },
+      "status": "available"
+    },
+    {
+      "slug": "portland-or",
+      "name": "Portland-Vancouver-Hillsboro, OR-WA MSA",
+      "shortName": "Portland, OR",
+      "centroid": { "lat": 45.5152, "lng": -122.6784 },
+      "status": "available"
+    },
+    {
+      "slug": "providence-ri",
+      "name": "Providence-Warwick, RI-MA MSA",
+      "shortName": "Providence",
+      "centroid": { "lat": 41.824, "lng": -71.4128 },
+      "status": "available"
+    },
+    {
+      "slug": "charleston-sc",
+      "name": "Charleston-North Charleston, SC MSA",
+      "shortName": "Charleston, SC",
+      "centroid": { "lat": 32.7765, "lng": -79.9311 },
+      "status": "available"
+    },
+    {
+      "slug": "sioux-falls-sd",
+      "name": "Sioux Falls, SD MSA",
+      "shortName": "Sioux Falls",
+      "centroid": { "lat": 43.5446, "lng": -96.7311 },
+      "status": "available"
+    },
+    {
+      "slug": "salt-lake-city-ut",
+      "name": "Salt Lake City, UT MSA",
+      "shortName": "Salt Lake City",
+      "centroid": { "lat": 40.7608, "lng": -111.891 },
+      "status": "available"
+    },
+    {
+      "slug": "burlington-vt",
+      "name": "Burlington-South Burlington, VT MSA",
+      "shortName": "Burlington",
+      "centroid": { "lat": 44.4759, "lng": -73.2121 },
+      "status": "available"
+    },
+    {
+      "slug": "virginia-beach-va",
+      "name": "Virginia Beach-Norfolk-Newport News, VA-NC MSA",
+      "shortName": "Virginia Beach",
+      "centroid": { "lat": 36.8529, "lng": -75.978 },
+      "status": "available"
+    },
+    {
+      "slug": "charleston-wv",
+      "name": "Charleston, WV MSA",
+      "shortName": "Charleston, WV",
+      "centroid": { "lat": 38.3498, "lng": -81.6326 },
+      "status": "available"
+    },
+    {
+      "slug": "milwaukee-wi",
+      "name": "Milwaukee-Waukesha-West Allis, WI MSA",
+      "shortName": "Milwaukee",
+      "centroid": { "lat": 43.0389, "lng": -87.9065 },
+      "status": "available"
+    },
+    {
+      "slug": "cheyenne-wy",
+      "name": "Cheyenne, WY MSA",
+      "shortName": "Cheyenne",
+      "centroid": { "lat": 41.14, "lng": -104.8202 },
+      "status": "available"
     },
     {
       "slug": "new-york-ny",
