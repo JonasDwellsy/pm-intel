@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   // Permanent (301) redirect from the legacy /operator (singular)
@@ -78,4 +79,23 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// v0.17 — Sentry wrapper. withSentryConfig hooks the Next.js build
+// to upload source maps (via SENTRY_AUTH_TOKEN) and registers the
+// runtime-detection logic so sentry.client / .server / .edge configs
+// load on the right runtime. Source-map upload is silently skipped
+// when SENTRY_AUTH_TOKEN is absent — local dev builds don't need it.
+//
+// `silent: true` mutes the "Source Maps Uploaded" log spam on every
+// `next build`; the upload still happens, the log just doesn't appear.
+//
+// `widenClientFileUpload` extends source-map matching to the catch-all
+// /_next/* asset paths so React errors deep in client bundles still
+// resolve to readable stack frames.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+  widenClientFileUpload: true,
+  disableLogger: !process.env.NEXT_PUBLIC_SENTRY_DSN,
+});

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { MarketView } from "@/components/market/MarketView";
 import { listMarketRouteParams, loadMarketView } from "@/lib/market-data";
 import { findTrackedInMarket } from "@/lib/pm-search";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
 
 type RouteParams = { state: string; city: string };
 // Optional query params surfaced to the page. Next typed `searchParams` as
@@ -70,10 +71,19 @@ export default async function MarketLandingPage({
       ? findTrackedInMarket(view.market.id, highlightParam)
       : null;
   return (
-    <MarketView
-      view={view}
-      activeSegment={null}
-      trackedHighlight={trackedHighlight}
-    />
+    <>
+      {/* v0.17 — markets_page_viewed. Only the market_slug is captured;
+          per the privacy guardrail we never attach rents, scorecard
+          underlying numbers, or any operator-level metadata. */}
+      <TrackEvent
+        event="markets_page_viewed"
+        properties={{ market_slug: view.market.id }}
+      />
+      <MarketView
+        view={view}
+        activeSegment={null}
+        trackedHighlight={trackedHighlight}
+      />
+    </>
   );
 }

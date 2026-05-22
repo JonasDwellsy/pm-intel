@@ -10,6 +10,7 @@ import {
 } from "@/lib/pm-search";
 import { SearchResultRow } from "./SearchResultRow";
 import { useSearchOverlay } from "./SearchOverlay";
+import { capture } from "@/lib/analytics";
 
 // Top-nav search input. Live filter as the user types; up to 10 results
 // surfaced in a popover dropdown below the input; ESC + click-outside +
@@ -135,6 +136,16 @@ function SearchInputInner({
       if (e.key === "Enter") {
         const selected = visibleResults[activeIndex];
         if (selected) {
+          // v0.17 — search_performed. Fired when the user commits a
+          // search by selecting a result (Enter OR click). Privacy
+          // guardrail: query_length_chars only — the raw text never
+          // leaves the browser as part of a captured event.
+          capture("search_performed", {
+            query_length_chars: debouncedQuery.length,
+            result_tier: selected.tier,
+            had_strict_results: strictResults.length > 0,
+            entry_point: "nav_input_enter",
+          });
           // Let the <Link> handle navigation; close after a tick so the
           // route change unmounts cleanly.
           window.location.href = selected.href;
@@ -143,6 +154,22 @@ function SearchInputInner({
       }
     },
     [activeIndex, open, visibleResults]
+  );
+
+  // v0.17 — single helper for the "user committed a search by
+  // clicking a result row" path. Mirrors the capture in the Enter
+  // branch above so click + keyboard paths are symmetric.
+  const handleResultClick = useCallback(
+    (result: PMSearchResult) => {
+      capture("search_performed", {
+        query_length_chars: debouncedQuery.length,
+        result_tier: result.tier,
+        had_strict_results: strictResults.length > 0,
+        entry_point: "nav_input_click",
+      });
+      setOpen(false);
+    },
+    [debouncedQuery.length, strictResults.length]
   );
 
   const counts = useMemo(() => getSearchCounts(), []);
@@ -236,7 +263,7 @@ function SearchInputInner({
                 tracked={tracked}
                 allResults={visibleResults}
                 activeIndex={activeIndex}
-                onSelect={() => setOpen(false)}
+                onSelect={handleResultClick}
               />
             </ul>
           )}
@@ -258,7 +285,7 @@ function SearchInputInner({
                     key={`${r.tier}-${r.name}-${i}`}
                     result={r}
                     active={false}
-                    onSelect={() => setOpen(false)}
+                    onSelect={() => handleResultClick(r)}
                   />
                 ))}
               </ul>
@@ -303,7 +330,9 @@ function ResultGroups({
   tracked: Extract<PMSearchResult, { tier: "tracked" }>[];
   allResults: PMSearchResult[];
   activeIndex: number;
-  onSelect: () => void;
+  // v0.17 — accepts the clicked result so the parent can attach
+  // result-tier metadata to the search_performed event.
+  onSelect: (result: PMSearchResult) => void;
 }) {
   // v0.6.4 Patch 1 — canonical group renders first because cross-market
   // operators are the most informative search hit; ranked + tracked
@@ -322,7 +351,7 @@ function ResultGroups({
                 key={`${r.tier}-${r.canonicalSlug}`}
                 result={r}
                 active={idx === activeIndex}
-                onSelect={onSelect}
+                onSelect={() => onSelect(r)}
               />
             );
           })}
@@ -343,7 +372,7 @@ function ResultGroups({
                 key={`${r.tier}-${r.slug}`}
                 result={r}
                 active={idx === activeIndex}
-                onSelect={onSelect}
+                onSelect={() => onSelect(r)}
               />
             );
           })}
@@ -364,7 +393,7 @@ function ResultGroups({
                 key={`${r.tier}-${r.name}-${r.marketId}`}
                 result={r}
                 active={idx === activeIndex}
-                onSelect={onSelect}
+                onSelect={() => onSelect(r)}
               />
             );
           })}

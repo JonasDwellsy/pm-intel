@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -61,6 +63,14 @@ export default function RootLayout({
               <SiteFooter />
             </SearchOverlayProvider>
           </PostHogProvider>
+          {/* v0.17 — Vercel Analytics (page views, core web vitals)
+              and SpeedInsights (TTFB, LCP, CLS, etc). Both are
+              zero-config: dropping the components in the tree wires
+              up Vercel's edge endpoints. No env vars needed —
+              detection is automatic when the deployment is on
+              Vercel. In local dev they no-op silently. */}
+          <Analytics />
+          <SpeedInsights />
         </body>
       </html>
     </ClerkProvider>

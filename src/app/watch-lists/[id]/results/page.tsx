@@ -12,6 +12,7 @@ import { MethodologyDisclosure } from "@/components/watch-list/MethodologyDisclo
 import { DownloadButton } from "@/components/watch-list/DownloadButton";
 import { ChangesBanner } from "@/components/watch-list/ChangesBanner";
 import { METHODOLOGY_VERSION } from "@/lib/version";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
 
 // /watch-lists/[id]/results — v0.9 default view is operator-level
 // rollup (one row per canonical operator with members aggregated).
@@ -90,6 +91,16 @@ export default async function WatchListResultsPage({ params }: PageProps) {
 
   return (
     <div className="bg-background">
+      {/* v0.17 — watch_list_viewed. operator_count uses the operator-
+          rollup count (the headline number the user reads) rather
+          than the market-row count. */}
+      <TrackEvent
+        event="watch_list_viewed"
+        properties={{
+          watch_list_id: watchList.id,
+          operator_count: headlineMatched,
+        }}
+      />
       <div className="mx-auto max-w-[1280px] px-6 py-10">
         <Link
           href="/watch-lists"

@@ -101,12 +101,19 @@ export default async function StateLandingPage({
 
   return (
     <>
+      {/* v0.8 event — legacy "market_page_view" kept for back-compat
+          with PR #45-era dashboards. */}
       <TrackEvent
         event="market_page_view"
         properties={{
           state: view.stateCode,
           page: "state_landing",
         }}
+      />
+      {/* v0.17 spec event — observability-stack taxonomy. */}
+      <TrackEvent
+        event="state_page_viewed"
+        properties={{ state: view.stateCode }}
       />
       <div className="border-b border-grid bg-white">
         <Breadcrumb stateName={view.stateName} />

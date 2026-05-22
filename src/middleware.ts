@@ -109,9 +109,20 @@ const isPublicWatchListRoute = createRouteMatcher([...PUBLIC_BUYBOX_PATTERNS]);
  *  the gate page itself + its validation endpoint — running the gate
  *  on them would either loop forever or break the form POST. They
  *  still go through clerkMiddleware so auth() context is set up for
- *  the shared layout's <Show when=…> components. */
+ *  the shared layout's <Show when=…> components.
+ *
+ *  v0.17 — /api/clerk/webhook is also bypassed because Clerk's
+ *  servers POST to it directly (no browser session cookie); signature
+ *  verification via svix is what authenticates the inbound payload.
+ *  /api/sentry-test bypasses too so the error-reporting smoke test
+ *  doesn't require a logged-in session. */
 function isPasswordGateBypass(pathname: string): boolean {
-  return pathname === "/password" || pathname.startsWith("/api/password");
+  return (
+    pathname === "/password" ||
+    pathname.startsWith("/api/password") ||
+    pathname.startsWith("/api/clerk/webhook") ||
+    pathname.startsWith("/api/sentry-test")
+  );
 }
 
 export default clerkMiddleware(async (auth, req) => {
