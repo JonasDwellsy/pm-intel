@@ -5,10 +5,12 @@ import { auth } from "@clerk/nextjs/server";
 import { applyWatchList } from "@/lib/watch-list/apply";
 import { getWatchList } from "@/lib/watch-list/store";
 import { projectResultsForView } from "@/lib/watch-list/results-view";
+import { computeAndRecordChanges } from "@/lib/watch-list/changes";
 import { ResultsTable } from "@/components/watch-list/ResultsTable";
 import { ReRunButton } from "@/components/watch-list/ReRunButton";
 import { MethodologyDisclosure } from "@/components/watch-list/MethodologyDisclosure";
 import { DownloadButton } from "@/components/watch-list/DownloadButton";
+import { ChangesBanner } from "@/components/watch-list/ChangesBanner";
 import { METHODOLOGY_VERSION } from "@/lib/version";
 
 // /watch-lists/[id]/results — v0.9 default view is operator-level
@@ -56,6 +58,27 @@ export default async function WatchListResultsPage({ params }: PageProps) {
     matchedOperatorCount: applied.matchedOperatorCount,
     generatedAt: applied.generatedAt,
   });
+
+  // v0.16 — Change-detection diff against the user's prior viewedAt
+  // for this watch list. Computes BEFORE writing the new view row
+  // so this load reflects the delta since the previous visit, not
+  // since this one. Empty matched-set → no diff, no banner. First
+  // visit → no banner (no baseline). Errors here must not break the
+  // results render; we catch and proceed with no banner.
+  const matchedPmSlugs = applied.results.map((r) => r.pmSlug);
+  let changes: Awaited<ReturnType<typeof computeAndRecordChanges>> | null = null;
+  try {
+    changes = await computeAndRecordChanges({
+      userId,
+      watchListId: watchList.id,
+      matchedPmSlugs,
+    });
+  } catch (err) {
+    // Defensive — change-detection is observational. Failure here
+    // (snapshot table missing in a dev environment, DB hiccup, etc.)
+    // must not 500 the results page.
+    console.error("[watch-list/changes] compute failed:", err);
+  }
 
   // Headline counts/score range default to the operator-view numbers
   // since that's the view we show first; the table switches to
@@ -142,6 +165,15 @@ export default async function WatchListResultsPage({ params }: PageProps) {
             />
           </div>
         </header>
+
+        {changes && !changes.firstVisit && (
+          <div className="mt-6">
+            <ChangesBanner
+              watchListId={watchList.id}
+              breakdown={changes.breakdown}
+            />
+          </div>
+        )}
 
         {headlineMatched === 0 && summary.matchedCount === 0 ? (
           <EmptyMatches watchListId={watchList.id} />

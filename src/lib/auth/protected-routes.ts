@@ -24,6 +24,9 @@ export const PROTECTED_ROUTE_PATTERNS = [
   "/watch-lists",
   "/watch-lists/:id/edit",
   "/watch-lists/:id/results",
+  // v0.16 — change-detection detail view. Same scope as /results
+  // (per-user × per-watch-list); both surfaces show the same diff.
+  "/watch-lists/:id/changes",
   "/api/watch-lists",
   "/api/watch-lists/:id",
   "/api/watch-lists/:id/apply",
