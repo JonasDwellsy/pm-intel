@@ -43,8 +43,8 @@ export default function RootLayout({
   //
   // Auth wiring follows in src/middleware.ts (route gating) and the
   // /sign-in + /sign-up routes (Clerk's prebuilt UI). Per the v0.13
-  // foundation PR, only /buy-boxes (saved-list) and the /api/buy-boxes
-  // CRUD endpoints are gated; the template picker (/buy-boxes/new)
+  // foundation PR, only /watch-lists (saved-list) and the /api/watch-lists
+  // CRUD endpoints are gated; the template picker (/watch-lists/new)
   // and template-preloaded editor stay anonymous-friendly so the
   // PR #45 discovery path is preserved.
   return (

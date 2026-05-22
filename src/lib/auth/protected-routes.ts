@@ -7,29 +7,29 @@
 // Two lists:
 //
 //   PROTECTED_ROUTE_PATTERNS — every UI + API path that operates on
-//     a user's saved buy boxes. A signed-in session is required to
+//     a user's saved watch lists. A signed-in session is required to
 //     reach any of these.
 //
 //   PUBLIC_BUYBOX_PATTERNS — explicit carve-outs from the protected
-//     list. /buy-boxes/new (template picker + template-preloaded
-//     editor) and /api/buy-boxes/preview (in-memory draft eval)
+//     list. /watch-lists/new (template picker + template-preloaded
+//     editor) and /api/watch-lists/preview (in-memory draft eval)
 //     must stay anonymous-friendly so the PR #45 discovery path
 //     keeps working. Without this list, a naive matcher against
-//     `/buy-boxes/:path*` would also gate the public template flow.
+//     `/watch-lists/:path*` would also gate the public template flow.
 //
 // Both patterns use path-to-regexp syntax (the same dialect Clerk's
 // createRouteMatcher consumes).
 
 export const PROTECTED_ROUTE_PATTERNS = [
-  "/buy-boxes",
-  "/buy-boxes/:id/edit",
-  "/buy-boxes/:id/results",
-  "/api/buy-boxes",
-  "/api/buy-boxes/:id",
-  "/api/buy-boxes/:id/apply",
+  "/watch-lists",
+  "/watch-lists/:id/edit",
+  "/watch-lists/:id/results",
+  "/api/watch-lists",
+  "/api/watch-lists/:id",
+  "/api/watch-lists/:id/apply",
 ] as const;
 
 export const PUBLIC_BUYBOX_PATTERNS = [
-  "/buy-boxes/new",
-  "/api/buy-boxes/preview",
+  "/watch-lists/new",
+  "/api/watch-lists/preview",
 ] as const;

@@ -167,7 +167,7 @@ interface CanonicalOverride {
 const MANUAL_CANONICAL_OVERRIDES: ReadonlyArray<CanonicalOverride> = [
   // Ark Homes For Rent — unified across Birmingham (AL), Huntsville
   // (AL), Jacksonville (FL), and Knoxville (TN). Surfaced via the
-  // buy-box top-10 preview which showed the brand split across all
+  // watch-list top-10 preview which showed the brand split across all
   // four markets when the production DB was last seeded before the
   // 10-market data refresh. Pinning here so any future regenerate
   // of the data JSON that drops the algorithmic match still ends up
@@ -1496,21 +1496,21 @@ async function main() {
     `  ✓ canonical operators: ${canonicalCount} multi-market entities seeded`
   );
 
-  // v0.13 (PR #50) — Per-user auth. Saved buy boxes are now owned by
+  // v0.13 (PR #50) — Per-user auth. Saved watch lists are now owned by
   // the authenticated Clerk user; the two org-shared starter rows
   // (Evernest-style SFR density + Genstone-style integrated services)
   // that previous seeds created had ownerId="shared" and would be
   // invisible to every real user under the new model. We delete them
   // on every reseed so they don't recreate themselves. Acquirers who
   // want those starting points use the editable templates in
-  // src/lib/buy-box/templates.ts — clonable from /buy-boxes/new.
-  await prisma.buyBox.deleteMany({
+  // src/lib/watch-list/templates.ts — clonable from /watch-lists/new.
+  await prisma.watchList.deleteMany({
     where: { name: { in: [
       "Evernest-Style SFR Density Build-Out",
       "Genstone-Style Integrated Services",
     ] } },
   });
-  console.log("  ✓ buy boxes: pre-auth starter rows cleared (templates live in src/lib/buy-box/templates.ts)");
+  console.log("  ✓ watch lists: pre-auth starter rows cleared (templates live in src/lib/watch-list/templates.ts)");
 
   const marketCount = await prisma.market.count();
   const dbPmCount = await prisma.pM.count();

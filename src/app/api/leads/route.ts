@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       matches.length === 1 ? "" : "s"
     } that fit your search:\n${matches
       .map((m, i) => `  ${i + 1}. ${m.name} (${m.quadrant})`)
-      .join("\n")}\nView your matches: /buy-boxes/new?leadId=${lead.id}`,
+      .join("\n")}\nView your matches: /watch-lists/new?leadId=${lead.id}`,
   });
 
   for (const pm of matches) {

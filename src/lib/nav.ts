@@ -3,7 +3,7 @@
 // link list. Three surfaces consume this so a label / href tweak
 // lands in one place and ripples consistently.
 //
-// Item order on the desktop nav matches the array order: Buy Boxes
+// Item order on the desktop nav matches the array order: Watch Lists
 // first (acquirer-positioning primary entry point), then the
 // existing Markets / Briefs / Methodology / Ask sequence.
 
@@ -23,7 +23,7 @@ export interface NavItem {
  *  button (PRIMARY_CTA below) is the only nav affordance visible
  *  on the narrowest viewports. */
 export const NAV_ITEMS: ReadonlyArray<NavItem> = [
-  { href: "/buy-boxes", label: "Buy Boxes" },
+  { href: "/watch-lists", label: "Watch Lists" },
   { href: "/property-managers", label: "Markets" },
   { href: "/briefs", label: "Briefs" },
   { href: "/methodology", label: "Methodology" },
@@ -35,8 +35,8 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
  *  named acquisition thesis without any auth gate. The actual save
  *  action on the editor still requires auth. */
 export const PRIMARY_CTA = {
-  href: "/buy-boxes/new",
-  label: "Build a buy box →",
+  href: "/watch-lists/new",
+  label: "Build a watch list →",
 } as const;
 
 /** Footer link order — slightly different shape from NAV_ITEMS to
@@ -50,7 +50,7 @@ export interface FooterLink {
 }
 
 export const FOOTER_LINKS: ReadonlyArray<FooterLink> = [
-  { href: "/buy-boxes", label: "Buy Boxes" },
+  { href: "/watch-lists", label: "Watch Lists" },
   { href: "/methodology", label: "Methodology" },
   { href: "/methodology#glossary", label: "Glossary" },
   { href: "/property-managers", label: "Markets" },

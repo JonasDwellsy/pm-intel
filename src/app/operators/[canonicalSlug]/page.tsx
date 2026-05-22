@@ -4,14 +4,14 @@ import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { fmtInt, fmtPct } from "@/lib/format";
 import { loadOperatorScorecard } from "@/lib/operators/lookup";
-import { getBuyBox } from "@/lib/buy-box/store";
+import { getWatchList } from "@/lib/watch-list/store";
 import { STATE_CODE_TO_NAME } from "@/lib/slugify";
 
 // v0.11 — Operator-level scorecard.
 //
 // /operators/<canonicalSlug> renders an aggregate view of every
 // PM under that canonical entity. Aggregation rules come from
-// src/lib/buy-box/aggregate.ts — same module the buy-box results
+// src/lib/watch-list/aggregate.ts — same module the watch-list results
 // rollup uses, so a metric definition only lives in one place.
 //
 // Resolves for BOTH single- and multi-market canonical entities
@@ -27,7 +27,7 @@ interface RouteParams {
 
 interface PageProps {
   params: Promise<RouteParams>;
-  searchParams: Promise<{ unlocked?: string; fromBuyBox?: string }>;
+  searchParams: Promise<{ unlocked?: string; fromWatchList?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -46,24 +46,24 @@ export default async function OperatorScorecardPage({
   searchParams,
 }: PageProps) {
   const { canonicalSlug } = await params;
-  const { fromBuyBox } = await searchParams;
+  const { fromWatchList } = await searchParams;
 
   const view = await loadOperatorScorecard(canonicalSlug);
   if (!view) notFound();
 
-  // Optional buy-box breadcrumb. Reads the row only when the
-  // ?fromBuyBox=… query param is present AND the requester is
-  // signed in AND owns the buy box. An anonymous visitor (or a
+  // Optional watch-list breadcrumb. Reads the row only when the
+  // ?fromWatchList=… query param is present AND the requester is
+  // signed in AND owns the watch list. An anonymous visitor (or a
   // signed-in user looking at someone else's link) just sees the
   // page without the breadcrumb — silently degrades rather than
   // 404ing the whole operator page, and prevents the breadcrumb
-  // from leaking another user's buy-box name.
-  let buyBoxBreadcrumb: { id: string; name: string } | null = null;
-  if (fromBuyBox) {
+  // from leaking another user's watch-list name.
+  let watchListBreadcrumb: { id: string; name: string } | null = null;
+  if (fromWatchList) {
     const { userId } = await auth();
     if (userId) {
-      const bb = await getBuyBox(fromBuyBox, userId);
-      if (bb) buyBoxBreadcrumb = { id: bb.id, name: bb.name };
+      const bb = await getWatchList(fromWatchList, userId);
+      if (bb) watchListBreadcrumb = { id: bb.id, name: bb.name };
     }
   }
 
@@ -109,7 +109,7 @@ export default async function OperatorScorecardPage({
     <div className="bg-background">
       <div className="mx-auto max-w-[1180px] px-6 py-10">
         {/* Breadcrumb */}
-        <BreadcrumbLink buyBox={buyBoxBreadcrumb} />
+        <BreadcrumbLink watchList={watchListBreadcrumb} />
 
         {/* Header */}
         <header className="mt-4">
@@ -420,7 +420,7 @@ export default async function OperatorScorecardPage({
         </section>
 
         <p className="mt-10 text-[11px] text-muted-foreground">
-          Aggregate stats follow the same rules as the buy-box rollup: sums for
+          Aggregate stats follow the same rules as the watch-list rollup: sums for
           counts, footprint-weighted averages for rates, modal for categorical
           fields. See methodology for details.
         </p>
@@ -454,26 +454,26 @@ function Stat({
 }
 
 function BreadcrumbLink({
-  buyBox,
+  watchList,
 }: {
-  buyBox: { id: string; name: string } | null;
+  watchList: { id: string; name: string } | null;
 }) {
-  if (buyBox) {
+  if (watchList) {
     return (
       <Link
-        href={`/buy-boxes/${buyBox.id}/results`}
+        href={`/watch-lists/${watchList.id}/results`}
         className="text-[12.5px] font-medium text-teal hover:text-teal-700 hover:underline"
       >
-        ← Back to {buyBox.name} results
+        ← Back to {watchList.name} results
       </Link>
     );
   }
   return (
     <Link
-      href="/buy-boxes"
+      href="/watch-lists"
       className="text-[12.5px] font-medium text-teal hover:text-teal-700 hover:underline"
     >
-      ← All buy boxes
+      ← All watch lists
     </Link>
   );
 }

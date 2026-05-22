@@ -145,17 +145,17 @@ function MarketCtaStrip({ marketName }: { marketName: string }) {
             Acquisition workflow
           </p>
           <h3 className="max-w-[680px] text-[28px] font-semibold leading-[1.2] tracking-[-0.012em]">
-            Looking for acquisition targets in {marketName}? Build a buy box.
+            Looking for acquisition targets in {marketName}? Build a watch list.
           </h3>
         </div>
         <Link
-          href="/buy-boxes/new"
+          href="/watch-lists/new"
           className={
             buttonVariants({ variant: "outline" }) +
             " h-11 border-[1.5px] border-white bg-transparent px-7 text-[15px] font-semibold text-white hover:bg-white hover:text-navy"
           }
         >
-          Build a buy box →
+          Build a watch list →
         </Link>
       </div>
     </section>

@@ -54,7 +54,7 @@ export function Hero({ heroCard }: HeroProps) {
                 until save. */}
             <TrackedLink
               event="pm_card_click"
-              properties={{ source: "homepage_hero", cta: "build_buy_box" }}
+              properties={{ source: "homepage_hero", cta: "build_watch_list" }}
               href={PRIMARY_CTA.href}
               className={
                 buttonVariants() +

@@ -29,14 +29,14 @@ export type EventName =
   // paywall events stay in the registry as a historical record
   // (and to keep older client builds that might still be cached
   // posting recognisable events), but no current code path emits
-  // them. The new "scorecard_cta_click" event powers the buy-box
+  // them. The new "scorecard_cta_click" event powers the watch-list
   // CTA that replaced the paywall card.
   | "scorecard_preview_view"
   | "paywall_view"
   | "paywall_cta_click"
   | "scorecard_full_view"
   | "scorecard_cta_click"
-  | "buy_box_export_click"
+  | "watch_list_export_click"
   | "pdf_export_click"
   | "lead_form_view"
   | "lead_form_submit_success"

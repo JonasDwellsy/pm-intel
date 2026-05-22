@@ -3,7 +3,7 @@
 // /operators/<canonicalSlug> consumes loadOperatorScorecard which
 // pulls every PM with that canonicalOperatorId, builds the
 // PMRecord shape, then routes through the same aggregateRecords()
-// the buy-box rollup uses (src/lib/buy-box/aggregate.ts). That
+// the watch-list rollup uses (src/lib/watch-list/aggregate.ts). That
 // keeps the aggregation rules — SUM / footprint-weighted average
 // / modal / max / any — in exactly one place: any change to the
 // math automatically affects both surfaces.
@@ -23,8 +23,8 @@ import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import {
   aggregateRecords,
   type AggregatedPMRecord,
-} from "@/lib/buy-box/aggregate";
-import type { PMRecord } from "@/lib/buy-box/fields";
+} from "@/lib/watch-list/aggregate";
+import type { PMRecord } from "@/lib/watch-list/fields";
 import type { ScorecardData } from "@/lib/types";
 
 export interface OperatorMember {
