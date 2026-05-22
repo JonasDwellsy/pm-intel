@@ -9,7 +9,7 @@ import { buildCoverageRequestMailto } from "@/lib/markets-coverage";
 export const metadata: Metadata = {
   title: "All markets — Dwellsy IQ",
   description:
-    "Live coverage in 10 US MSAs with 20+ top markets available upon request. Browse property manager scorecards by metro market.",
+    "Live coverage in 10 US MSAs with 200+ markets available upon request. Browse property manager scorecards by metro market.",
 };
 
 // v0.12 — page now leads with the coverage map. The cards grid is
@@ -32,9 +32,9 @@ export default async function MarketsIndexPage() {
           Markets covered
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Ten US MSAs are live today, with 20+ top-twenty markets available
-          upon request. National coverage is rolling out through 2026 —
-          prioritized by acquirer demand.
+          Ten US MSAs are live today, with 200+ markets available upon
+          request. National coverage is rolling out through 2026 —
+          prioritized by demand.
         </p>
       </header>
 
@@ -76,12 +76,12 @@ export default async function MarketsIndexPage() {
       <section className="mt-14 rounded-lg border border-grid bg-surface-soft px-6 py-7">
         <p className="dq-eyebrow text-teal">Roadmap</p>
         <h2 className="mt-2 text-[20px] font-semibold leading-snug text-navy">
-          Available in 20+ top US markets on request.
+          Available in 200+ markets on request.
         </h2>
         <p className="mt-2 max-w-[60ch] text-[14px] text-foreground/75">
-          Dwellsy IQ is rolling out national coverage. If your market isn&rsquo;t
-          live yet, we can prioritize based on demand from acquirers and
-          institutional users.
+          Dwellsy IQ is rolling out national coverage through 2026,
+          prioritized by demand. If your market isn&rsquo;t live yet, we can
+          stand it up on request.
         </p>
         <a
           href={buildCoverageRequestMailto()}
