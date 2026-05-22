@@ -31,13 +31,15 @@ export function Hero({ heroCard }: HeroProps) {
           <p className="dq-eyebrow tracking-[0.16em]">
             Dwellsy IQ · Property Manager Intelligence
           </p>
-          {/* PR #51 — eyebrow → H1 gap restored to mt-3.5 (14px) to
-              match the MethodologyPillars cadence directly (the
-              pillar cards use mb-3.5 between their teal eyebrow and
-              their H3). PR #47 tightened this to mt-3 thinking it
-              matched the pillars; PR #51 corrects to the actual
-              pillar-card value. Loosens by 2px. */}
-          <h1 className="dq-h1 mt-3.5 max-w-[14ch] text-balance text-[44px] leading-[1.04] tracking-[-0.018em] sm:text-[52px] lg:text-[60px]">
+          {/* PR #52 — eyebrow → H1 gap is owned by `.dq-eyebrow`'s
+              `margin-bottom: 0.875rem` rule in globals.css, not by
+              an `mt-*` utility on this H1. PR #47 / PR #51 both
+              added `mt-3` / `mt-3.5` to this element thinking they
+              were setting the gap; both were silently overridden by
+              `.dq-h1`'s `margin: 0`. Removing the no-op utility
+              now keeps the markup honest about where the spacing
+              comes from. */}
+          <h1 className="dq-h1 max-w-[14ch] text-balance text-[44px] leading-[1.04] tracking-[-0.018em] sm:text-[52px] lg:text-[60px]">
             Outside-in intelligence on every property manager in the country.
           </h1>
           <p className="mt-6 max-w-[60ch] text-[17px] leading-[1.55] text-foreground/85 sm:text-[19px]">
