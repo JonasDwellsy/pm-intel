@@ -1,0 +1,218 @@
+{
+  "_comment": "v0.12 markets coverage map. 10 live MSAs (status='live' — clicking the dot routes into the existing market scorecard) and 19 top-20 US MSAs marked 'available' (clicking opens a mailto: pre-filled with the operator's name). Phoenix is in the top 20 AND live, so it appears once with status='live' (live takes precedence per spec). lat/lng are primary-city coordinates; the markets-map-projection module turns them into SVG coordinates at render time. shortName drives the hover tooltip; name carries the full MSA label for the mailto subject line.",
+  "markets": [
+    {
+      "slug": "birmingham-al",
+      "name": "Birmingham-Hoover, AL MSA",
+      "shortName": "Birmingham",
+      "centroid": { "lat": 33.5186, "lng": -86.8104 },
+      "status": "live",
+      "marketPageHref": "/property-managers/alabama/birmingham"
+    },
+    {
+      "slug": "chattanooga-tn",
+      "name": "Chattanooga, TN-GA MSA",
+      "shortName": "Chattanooga",
+      "centroid": { "lat": 35.0456, "lng": -85.3097 },
+      "status": "live",
+      "marketPageHref": "/property-managers/tennessee/chattanooga"
+    },
+    {
+      "slug": "clarksville-tn-ky",
+      "name": "Clarksville, TN-KY MSA",
+      "shortName": "Clarksville",
+      "centroid": { "lat": 36.5298, "lng": -87.3595 },
+      "status": "live",
+      "marketPageHref": "/property-managers/tennessee/clarksville"
+    },
+    {
+      "slug": "huntsville-al",
+      "name": "Huntsville, AL MSA",
+      "shortName": "Huntsville",
+      "centroid": { "lat": 34.7304, "lng": -86.5861 },
+      "status": "live",
+      "marketPageHref": "/property-managers/alabama/huntsville"
+    },
+    {
+      "slug": "jacksonville-fl",
+      "name": "Jacksonville, FL MSA",
+      "shortName": "Jacksonville",
+      "centroid": { "lat": 30.3322, "lng": -81.6557 },
+      "status": "live",
+      "marketPageHref": "/property-managers/florida/jacksonville"
+    },
+    {
+      "slug": "knoxville-tn",
+      "name": "Knoxville, TN MSA",
+      "shortName": "Knoxville",
+      "centroid": { "lat": 35.9606, "lng": -83.9207 },
+      "status": "live",
+      "marketPageHref": "/property-managers/tennessee/knoxville"
+    },
+    {
+      "slug": "memphis-tn",
+      "name": "Memphis, TN-MS-AR MSA",
+      "shortName": "Memphis",
+      "centroid": { "lat": 35.1495, "lng": -90.0490 },
+      "status": "live",
+      "marketPageHref": "/property-managers/tennessee/memphis"
+    },
+    {
+      "slug": "montgomery-al",
+      "name": "Montgomery, AL MSA",
+      "shortName": "Montgomery",
+      "centroid": { "lat": 32.3792, "lng": -86.3077 },
+      "status": "live",
+      "marketPageHref": "/property-managers/alabama/montgomery"
+    },
+    {
+      "slug": "nashville-tn",
+      "name": "Nashville-Davidson-Murfreesboro-Franklin, TN MSA",
+      "shortName": "Nashville",
+      "centroid": { "lat": 36.1627, "lng": -86.7816 },
+      "status": "live",
+      "marketPageHref": "/property-managers/tennessee/nashville"
+    },
+    {
+      "slug": "phoenix-az",
+      "name": "Phoenix-Mesa-Chandler, AZ MSA",
+      "shortName": "Phoenix",
+      "centroid": { "lat": 33.4484, "lng": -112.074 },
+      "status": "live",
+      "marketPageHref": "/property-managers/arizona/phoenix"
+    },
+    {
+      "slug": "new-york-ny",
+      "name": "New York-Newark-Jersey City, NY-NJ-PA MSA",
+      "shortName": "New York",
+      "centroid": { "lat": 40.7128, "lng": -74.006 },
+      "status": "available"
+    },
+    {
+      "slug": "los-angeles-ca",
+      "name": "Los Angeles-Long Beach-Anaheim, CA MSA",
+      "shortName": "Los Angeles",
+      "centroid": { "lat": 34.0522, "lng": -118.2437 },
+      "status": "available"
+    },
+    {
+      "slug": "chicago-il",
+      "name": "Chicago-Naperville-Elgin, IL-IN-WI MSA",
+      "shortName": "Chicago",
+      "centroid": { "lat": 41.8781, "lng": -87.6298 },
+      "status": "available"
+    },
+    {
+      "slug": "dallas-fort-worth-tx",
+      "name": "Dallas-Fort Worth-Arlington, TX MSA",
+      "shortName": "Dallas-Fort Worth",
+      "centroid": { "lat": 32.7767, "lng": -96.797 },
+      "status": "available"
+    },
+    {
+      "slug": "houston-tx",
+      "name": "Houston-The Woodlands-Sugar Land, TX MSA",
+      "shortName": "Houston",
+      "centroid": { "lat": 29.7604, "lng": -95.3698 },
+      "status": "available"
+    },
+    {
+      "slug": "washington-dc",
+      "name": "Washington-Arlington-Alexandria, DC-VA-MD-WV MSA",
+      "shortName": "Washington DC",
+      "centroid": { "lat": 38.9072, "lng": -77.0369 },
+      "status": "available"
+    },
+    {
+      "slug": "miami-fl",
+      "name": "Miami-Fort Lauderdale-Pompano Beach, FL MSA",
+      "shortName": "Miami",
+      "centroid": { "lat": 25.7617, "lng": -80.1918 },
+      "status": "available"
+    },
+    {
+      "slug": "philadelphia-pa",
+      "name": "Philadelphia-Camden-Wilmington, PA-NJ-DE-MD MSA",
+      "shortName": "Philadelphia",
+      "centroid": { "lat": 39.9526, "lng": -75.1652 },
+      "status": "available"
+    },
+    {
+      "slug": "atlanta-ga",
+      "name": "Atlanta-Sandy Springs-Alpharetta, GA MSA",
+      "shortName": "Atlanta",
+      "centroid": { "lat": 33.749, "lng": -84.388 },
+      "status": "available"
+    },
+    {
+      "slug": "boston-ma",
+      "name": "Boston-Cambridge-Newton, MA-NH MSA",
+      "shortName": "Boston",
+      "centroid": { "lat": 42.3601, "lng": -71.0589 },
+      "status": "available"
+    },
+    {
+      "slug": "san-francisco-ca",
+      "name": "San Francisco-Oakland-Berkeley, CA MSA",
+      "shortName": "San Francisco",
+      "centroid": { "lat": 37.7749, "lng": -122.4194 },
+      "status": "available"
+    },
+    {
+      "slug": "riverside-ca",
+      "name": "Riverside-San Bernardino-Ontario, CA MSA",
+      "shortName": "Riverside",
+      "centroid": { "lat": 33.9806, "lng": -117.3755 },
+      "status": "available"
+    },
+    {
+      "slug": "detroit-mi",
+      "name": "Detroit-Warren-Dearborn, MI MSA",
+      "shortName": "Detroit",
+      "centroid": { "lat": 42.3314, "lng": -83.0458 },
+      "status": "available"
+    },
+    {
+      "slug": "seattle-wa",
+      "name": "Seattle-Tacoma-Bellevue, WA MSA",
+      "shortName": "Seattle",
+      "centroid": { "lat": 47.6062, "lng": -122.3321 },
+      "status": "available"
+    },
+    {
+      "slug": "minneapolis-mn",
+      "name": "Minneapolis-St. Paul-Bloomington, MN-WI MSA",
+      "shortName": "Minneapolis",
+      "centroid": { "lat": 44.9778, "lng": -93.265 },
+      "status": "available"
+    },
+    {
+      "slug": "tampa-fl",
+      "name": "Tampa-St. Petersburg-Clearwater, FL MSA",
+      "shortName": "Tampa",
+      "centroid": { "lat": 27.9506, "lng": -82.4572 },
+      "status": "available"
+    },
+    {
+      "slug": "san-diego-ca",
+      "name": "San Diego-Chula Vista-Carlsbad, CA MSA",
+      "shortName": "San Diego",
+      "centroid": { "lat": 32.7157, "lng": -117.1611 },
+      "status": "available"
+    },
+    {
+      "slug": "denver-co",
+      "name": "Denver-Aurora-Lakewood, CO MSA",
+      "shortName": "Denver",
+      "centroid": { "lat": 39.7392, "lng": -104.9903 },
+      "status": "available"
+    },
+    {
+      "slug": "baltimore-md",
+      "name": "Baltimore-Columbia-Towson, MD MSA",
+      "shortName": "Baltimore",
+      "centroid": { "lat": 39.2904, "lng": -76.6122 },
+      "status": "available"
+    }
+  ]
+}
