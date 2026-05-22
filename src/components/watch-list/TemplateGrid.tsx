@@ -95,7 +95,7 @@ function StartFromScratchCard() {
       </p>
       <p className="mt-3 text-[13px] leading-snug text-foreground/75">
         Build a custom watch list from a blank slate. Use this when none of the
-        templates above match your acquisition thesis closely enough to be a
+        templates above match what you&rsquo;re tracking closely enough to be a
         useful starting point.
       </p>
       <div className="mt-auto pt-5">

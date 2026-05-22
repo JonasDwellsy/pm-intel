@@ -1,11 +1,11 @@
 {
-  "_comment": "v0.10 — Pre-built watch-list templates that clone into the editor when a user starts a new watch list. Each template mirrors the shape stored on a real WatchList row (minus DB-only fields like id/ownerId/timestamps). Field ids + operators match the FIELD_REGISTRY in src/lib/watch-list/fields.ts. Note: the field registry only exposes gte/lte/between for numeric fields — 'greater than' templates use 'gte' and 'less than' templates use 'lte' (the closest equivalents; boundary inclusion differs by 1 row at the edge). Decimal-percent fields (concessionRate, listingTrajectoryYoY) store 0..1 — so '20%' = 0.20.",
+  "_comment": "v0.10 — Pre-built watch-list templates that clone into the editor when a user starts a new watch list. Each template mirrors the shape stored on a real WatchList row (minus DB-only fields like id/ownerId/timestamps). Field ids + operators match the FIELD_REGISTRY in src/lib/watch-list/fields.ts. Note: the field registry only exposes gte/lte/between for numeric fields — 'greater than' templates use 'gte' and 'less than' templates use 'lte' (the closest equivalents; boundary inclusion differs by 1 row at the edge). Decimal-percent fields (concessionRate, listingTrajectoryYoY) store 0..1 — so '20%' = 0.20. Copy convention (v0.16): templates describe the OPERATOR TYPE the criteria capture, not the user's role. No 'acquire / acquirer / acquisition thesis' framing — a watch list can serve any audience that wants to track that operator pattern (analysts, LPs, operators scouting competitors, acquirers, etc).",
   "templates": [
     {
       "slug": "scale-density-rollup",
       "name": "Scale-Density Rollup",
-      "tagline": "Evernest-style: roll up mid-size SFR independents in growth markets",
-      "description": "Targets independent SFR property managers with 100-500 doors per market, focused on growth markets with low concession use. Acquisition thesis is operational scale and density.",
+      "tagline": "Mid-size SFR independents in growth markets",
+      "description": "Captures independent SFR property managers with 100-500 doors per market, focused on growth markets with low concession use. Thesis is operational scale and density.",
       "requiredCriteria": [
         { "field": "quadrant7Cell", "operator": "eq", "value": "SFR Independent" }
       ],
@@ -19,8 +19,8 @@
     {
       "slug": "integrated-services-platform",
       "name": "Integrated Services Platform",
-      "tagline": "Genstone-style: acquire PMs where construction/insurance/services plug in for value capture",
-      "description": "Targets larger operators with concentrated footprints where adjacent service verticals (construction, insurance, in-house leasing) can be layered in. Acquisition thesis is multi-vertical value capture.",
+      "tagline": "Larger operators where adjacent service verticals can layer in",
+      "description": "Captures larger operators with concentrated footprints where adjacent service verticals (construction, insurance, in-house leasing) can be layered in. Thesis is multi-vertical value capture.",
       "requiredCriteria": [
         { "field": "quadrant7Cell", "operator": "in", "value": ["Hybrid", "SFR Institutional"] }
       ],
@@ -31,10 +31,10 @@
       "excludedCriteria": []
     },
     {
-      "slug": "mid-market-acquirer",
-      "name": "Mid-Market Acquirer",
-      "tagline": "Typical 100-300 door deal: independent operators in growth markets",
-      "description": "Targets the bread-and-butter independent SFR operator in the 100-300 unit range. Acquisition thesis is straightforward roll-up at attractive valuations.",
+      "slug": "mid-market-independent",
+      "name": "Mid-Market Independent",
+      "tagline": "100-300 door independent operators in growth markets",
+      "description": "Captures the bread-and-butter independent SFR operator in the 100-300 unit range. Thesis is straightforward roll-up at attractive valuations.",
       "requiredCriteria": [
         { "field": "quadrant7Cell", "operator": "eq", "value": "SFR Independent" },
         { "field": "urusT12", "operator": "between", "value": [100, 300] }
@@ -47,8 +47,8 @@
     {
       "slug": "distressed-operator",
       "name": "Distressed Operator",
-      "tagline": "Turnaround thesis: operators showing operational stress signals",
-      "description": "Targets operators with high concession use and declining listing trajectory — indicators of operational stress and willingness to sell. Acquisition thesis is buying below replacement cost and improving operations.",
+      "tagline": "Operators showing operational stress signals",
+      "description": "Captures operators with high concession use and declining listing trajectory — indicators of operational stress and possible willingness to sell. Thesis is identifying turnaround candidates below replacement cost.",
       "requiredCriteria": [
         { "field": "quadrant7Cell", "operator": "in", "value": ["SFR Independent", "Hybrid"] }
       ],
@@ -62,8 +62,8 @@
     {
       "slug": "institutional-platform",
       "name": "Institutional Platform",
-      "tagline": "Large fund target: 1000+ unit operators with multi-market footprints",
-      "description": "Targets institutional-scale operators across multiple markets. Acquisition thesis is platform acquisition for a fund-of-funds or institutional buyer.",
+      "tagline": "1000+ unit operators with multi-market footprints",
+      "description": "Captures institutional-scale operators across multiple markets. Thesis is tracking platform-level operators at fund-of-funds scale.",
       "requiredCriteria": [
         { "field": "quadrant7Cell", "operator": "in", "value": ["SFR Institutional", "Large MF/BTR Institutional"] },
         { "field": "estimatedPortfolioPoint", "operator": "gte", "value": 1000 }
