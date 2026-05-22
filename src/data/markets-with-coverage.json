@@ -1,5 +1,5 @@
 {
-  "_comment": "v0.12 markets coverage map. 10 live MSAs (status='live' — clicking the dot routes into the existing market scorecard) and 19 top-20 US MSAs marked 'available' (clicking opens a mailto: pre-filled with the operator's name). Phoenix is in the top 20 AND live, so it appears once with status='live' (live takes precedence per spec). lat/lng are primary-city coordinates; the markets-map-projection module turns them into SVG coordinates at render time. shortName drives the hover tooltip; name carries the full MSA label for the mailto subject line.",
+  "_comment": "v0.12 markets coverage map. 12 live MSAs (status='live' — clicking the dot routes into the existing market scorecard) and 19 top-20 US MSAs marked 'available' (clicking opens a mailto: pre-filled with the operator's name). Phoenix is in the top 20 AND live, so it appears once with status='live' (live takes precedence per spec). Anchorage + Urban Honolulu were added in the v0.12 follow-up to validate the geoAlbersUsa AK / HI inset composition; their marketPageHref values follow the existing /property-managers/{state-slug}/{city-slug} pattern but the backing scorecards do not exist in the seed yet (the URLs will 404 until that data ships). lat/lng are primary-city coordinates; the markets-map-projection module turns them into SVG coordinates at render time. shortName drives the hover tooltip; name carries the full MSA label for the mailto subject line.",
   "markets": [
     {
       "slug": "birmingham-al",
@@ -80,6 +80,22 @@
       "centroid": { "lat": 33.4484, "lng": -112.074 },
       "status": "live",
       "marketPageHref": "/property-managers/arizona/phoenix"
+    },
+    {
+      "slug": "anchorage-ak",
+      "name": "Anchorage, AK MSA",
+      "shortName": "Anchorage",
+      "centroid": { "lat": 61.218, "lng": -149.9 },
+      "status": "live",
+      "marketPageHref": "/property-managers/alaska/anchorage"
+    },
+    {
+      "slug": "urban-honolulu-hi",
+      "name": "Urban Honolulu, HI MSA",
+      "shortName": "Honolulu",
+      "centroid": { "lat": 21.315, "lng": -157.858 },
+      "status": "live",
+      "marketPageHref": "/property-managers/hawaii/urban-honolulu"
     },
     {
       "slug": "new-york-ny",

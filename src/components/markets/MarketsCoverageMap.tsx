@@ -5,28 +5,20 @@
 // Hand-rolled in pure SVG because react-simple-maps doesn't list
 // React 19 as a supported peer (the project uses React 19.2.4
 // under Next 16; install failed with ERESOLVE). The projection
-// math lives in src/lib/markets-map-projection.ts so the marker
-// dots and the state geometry share a single transform; this
-// file owns the visual treatment + interaction.
+// math lives in src/lib/markets-map-projection.ts — a thin
+// wrapper around d3-geo's geoAlbersUsa() that does the AK / HI /
+// PR inset composition for free. State borders + marker dots
+// share the same transform, so they always land in the same
+// frame; this file owns the visual treatment + interaction.
 //
 // State geometry comes from us-atlas/states-10m.json (the only
-// resolution v3 of us-atlas ships — the spec referenced a 50m
-// file that no longer exists in current releases). topojson-
-// client converts the topology into a GeoJSON FeatureCollection
-// at module load; we then walk Polygon / MultiPolygon
-// coordinates and run each vertex through project() so the
-// state borders land in the same Albers Equal Area Conic frame
-// as the marker dots.
-//
-// AK + HI + US territories are filtered out at module load.
-// Our project() function in markets-map-projection.ts is a
-// plain Albers Conic of the CONUS — it does NOT implement
-// d3-geo's geoAlbersUsa composition (the AK / HI scale + offset
-// inset). Including their raw geometry would push them off the
-// viewBox edge or smear them across the Pacific. None of the
-// 29 markers we ship today land in AK or HI, so dropping these
-// states is a clean operational choice; revisiting only matters
-// when we add an AK or HI MSA to the marker set.
+// resolution v3 of us-atlas ships). topojson-client converts the
+// topology into a GeoJSON FeatureCollection at module load; we
+// walk every Polygon / MultiPolygon ring and run each vertex
+// through project() to get SVG-ready coordinates. Off-globe
+// points (rare — only seen for sliver territories at the edge of
+// the projection's recognized domain) return null and the ring
+// is skipped.
 //
 // Hidden below the md breakpoint — the dots are too tight to
 // interact with at phone width, and the cards grid below the
@@ -75,15 +67,12 @@ const STATE_PATHS: StatePath[] = (() => {
     topology.objects.states
   ) as FeatureCollection<GeoPolygon | GeoMultiPolygon, { name?: string }>;
 
+  // geoAlbersUsa composites Alaska, Hawaii, and Puerto Rico into
+  // the lower-left inset, so we render every feature in the
+  // collection. Filtering FIPS codes is no longer necessary — and
+  // would silently drop AK / HI features we explicitly want on
+  // the map now that real markers land there.
   return collection.features
-    .filter((f) => {
-      // Drop Alaska (02), Hawaii (15), and US territories (FIPS ≥ 60).
-      // See the file-level comment for the rationale.
-      const fips = String(f.id ?? "");
-      if (fips === "02" || fips === "15") return false;
-      const num = Number(fips);
-      return Number.isFinite(num) && num < 60;
-    })
     .map((f) => ({
       id: String(f.id ?? ""),
       name: f.properties?.name ?? String(f.id ?? ""),
@@ -108,12 +97,21 @@ function geometryToPath(
 /** Convert one polygon (array of rings — first is exterior, the
  *  rest are holes) into a string of SVG subpaths. Even-odd fill
  *  rule on the wrapping <path> handles hole rendering correctly
- *  without us having to flip ring winding. */
+ *  without us having to flip ring winding.
+ *
+ *  Points that fall outside d3-geo's recognized projection
+ *  domain return null. We skip those vertices and emit the rest;
+ *  in practice this only affects fringe territory polygons that
+ *  cross the projection's clipping plane. The resulting ring
+ *  may visually clip but the rest of the state still renders. */
 function ringsToPath(polygon: number[][][]): string {
   return polygon
     .map((ring) => {
       if (ring.length < 3) return "";
-      const projected = ring.map(([lng, lat]) => project(lat, lng));
+      const projected = ring
+        .map(([lng, lat]) => project(lat, lng))
+        .filter((p): p is [number, number] => p !== null);
+      if (projected.length < 3) return "";
       const [x0, y0] = projected[0];
       const rest = projected
         .slice(1)
@@ -136,12 +134,21 @@ interface MarkerLayout {
 /** Pre-project the markers + apply small radial offsets to any
  *  pair of dots that would render closer than ~2 radii apart.
  *  Keeps Nashville / Memphis / Knoxville / Chattanooga visually
- *  separable instead of stacking on top of each other. */
+ *  separable instead of stacking on top of each other.
+ *
+ *  Skips any market whose centroid d3-geo can't project (off-globe).
+ *  In practice none of the shipped markers hit that path — every
+ *  centroid lands inside the geoAlbersUsa composition including
+ *  the AK / HI insets — but the guard keeps the function honest
+ *  if a future entry has bad coordinates. */
 function layoutMarkers(markets: MarketCoverageEntry[]): MarkerLayout[] {
-  const initial: MarkerLayout[] = markets.map((m) => {
-    const [x, y] = project(m.centroid.lat, m.centroid.lng);
-    return { market: m, x, y };
-  });
+  const initial: MarkerLayout[] = [];
+  for (const market of markets) {
+    const projected = project(market.centroid.lat, market.centroid.lng);
+    if (!projected) continue;
+    const [x, y] = projected;
+    initial.push({ market, x, y });
+  }
 
   const minSeparation = MARKER_RADIUS * 2.2; // 2.2× radius keeps dots visually distinct
   for (let i = 0; i < initial.length; i++) {
