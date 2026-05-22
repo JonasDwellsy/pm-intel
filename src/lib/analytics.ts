@@ -36,6 +36,7 @@ export type EventName =
   | "paywall_cta_click"
   | "scorecard_full_view"
   | "scorecard_cta_click"
+  | "buy_box_export_click"
   | "pdf_export_click"
   | "lead_form_view"
   | "lead_form_submit_success"

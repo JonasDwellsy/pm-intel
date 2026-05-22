@@ -7,6 +7,8 @@ import { projectResultsForView } from "@/lib/buy-box/results-view";
 import { ResultsTable } from "@/components/buy-box/ResultsTable";
 import { ReRunButton } from "@/components/buy-box/ReRunButton";
 import { MethodologyDisclosure } from "@/components/buy-box/MethodologyDisclosure";
+import { DownloadButton } from "@/components/buy-box/DownloadButton";
+import { METHODOLOGY_VERSION } from "@/lib/version";
 
 // /buy-boxes/[id]/results — v0.9 default view is operator-level
 // rollup (one row per canonical operator with members aggregated).
@@ -118,6 +120,21 @@ export default async function BuyBoxResultsPage({ params }: PageProps) {
               Edit Buy Box
             </Link>
             <ReRunButton />
+            <DownloadButton
+              buyBox={{
+                id: buyBox.id,
+                name: buyBox.name,
+                description: buyBox.description ?? null,
+                requiredCriteria: buyBox.requiredCriteria,
+                preferredCriteria: buyBox.preferredCriteria,
+                excludedCriteria: buyBox.excludedCriteria,
+              }}
+              operatorRows={operatorRows}
+              marketRows={marketRows}
+              totalCandidates={summary.totalCandidates}
+              methodologyVersion={METHODOLOGY_VERSION}
+              liveUrl={buildLiveUrl(buyBox.id)}
+            />
           </div>
         </header>
 
@@ -139,6 +156,16 @@ export default async function BuyBoxResultsPage({ params }: PageProps) {
       </div>
     </div>
   );
+}
+
+/** Build the canonical results URL for the Summary sheet's
+ *  "Live results page" link. Server side, NEXT_PUBLIC_SITE_URL
+ *  is the deployment host (e.g. https://pm-intel-chi.vercel.app);
+ *  local dev falls back to localhost so the link still resolves
+ *  when an export is generated against a dev server. */
+function buildLiveUrl(buyBoxId: string): string {
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  return `${base.replace(/\/$/, "")}/buy-boxes/${buyBoxId}/results`;
 }
 
 function EmptyMatches({ buyBoxId }: { buyBoxId: string }) {
