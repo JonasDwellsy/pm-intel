@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { listWatchListes } from "@/lib/watch-list/store";
 import { WatchListIndex } from "@/components/watch-list/WatchListIndex";
 import { TemplateGrid } from "@/components/watch-list/TemplateGrid";
+import { getActiveOrgId } from "@/lib/auth/active-org";
 
 // /watch-lists — landing for the watch-list workspace.
 //
-// v0.13 — Clerk auth foundation (PR #50). This route is protected
-// by middleware; anonymous visitors get redirected to /sign-in
-// before they ever reach the page component. Inside, we pull the
-// authenticated user id from auth() and scope the list query so
-// each user only sees their own saved watch lists. A signed-in user
-// with zero saved boxes still gets the inline template picker (the
-// PR #45 acquirer-positioning empty state) so they can clone a
-// starter without an extra navigation.
+// v0.13 (PR #50) — Clerk auth foundation. Middleware redirects
+// anonymous visitors to /sign-in before they reach this component.
+//
+// v0.18 (PR #65) — Multi-tenancy. listWatchListes is scoped by the
+// caller's active organizationId, not their userId. When the user's
+// personal org isn't provisioned yet (signup just happened, webhook
+// hasn't fired or org-creation failed) we redirect to
+// /setup-workspace which retries provisioning in the background.
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +28,15 @@ export const metadata: Metadata = {
 export default async function WatchListesPage() {
   // userId is guaranteed by middleware — auth.protect() would have
   // bounced anonymous requests before they reached this handler.
-  // The non-null assertion-equivalent (|| "" then bail) keeps TS
-  // happy without a noisy throw.
   const { userId } = await auth();
-  const rows = userId ? await listWatchListes(userId) : [];
+  if (!userId) redirect("/sign-in");
+  const organizationId = await getActiveOrgId();
+  if (!organizationId) {
+    // Personal-org provisioning not complete yet. Bounce to the
+    // setup page which polls + retries until the webhook lands.
+    redirect("/setup-workspace?from=/watch-lists");
+  }
+  const rows = await listWatchListes(organizationId);
   const isEmpty = rows.length === 0;
 
   return (

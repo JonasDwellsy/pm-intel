@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { applyWatchList } from "@/lib/watch-list/apply";
 import { getWatchList } from "@/lib/watch-list/store";
+import { getActiveOrgId } from "@/lib/auth/active-org";
 import { projectResultsForView } from "@/lib/watch-list/results-view";
 import { computeAndRecordChanges } from "@/lib/watch-list/changes";
 import { ResultsTable } from "@/components/watch-list/ResultsTable";
@@ -33,11 +34,16 @@ interface PageProps {
 
 export default async function WatchListResultsPage({ params }: PageProps) {
   const { id } = await params;
-  // Middleware enforces auth; scope getWatchList by the current user so
-  // requesting another user's watch-list id renders the standard 404.
+  // Middleware enforces auth; scope getWatchList by the caller's
+  // active org so requesting another org's watch-list id renders
+  // the standard 404 (no existence leak).
   const { userId } = await auth();
   if (!userId) notFound();
-  const watchList = await getWatchList(id, userId);
+  const organizationId = await getActiveOrgId();
+  if (!organizationId) {
+    redirect(`/setup-workspace?from=/watch-lists/${id}/results`);
+  }
+  const watchList = await getWatchList(id, organizationId);
   if (!watchList) notFound();
 
   const applied = await applyWatchList({

@@ -217,12 +217,25 @@ model WatchList {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  // v0.18 (PR #65) — Multi-tenancy via Clerk Organizations.
+  // organizationId is the FK that drives authorization in Phase 1+;
+  // ownerId stays populated for back-compat and forensics but is no
+  // longer consulted for authz checks. Nullable in Phase 1 to allow
+  // the additive schema → backfill script → enforce-NOT-NULL deploy
+  // sequence; a follow-up migration in the next PR enforces NOT NULL
+  // once the script has run against prod data.
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
   // v0.16 — per-user view ledger. Drives the change-detection
   // banner; one row written per signed-in page-view. Cascade-delete
   // so removing a watch list cleans up its view history.
   views WatchListView[]
 
   @@index([ownerId])
+  // Hot query: list all watch lists in an org, most-recently-updated
+  // first. Mirrors the existing ownerId-indexed pattern.
+  @@index([organizationId, updatedAt(sort: Desc)])
 }
 
 // v0.16 — Operator change-detection feedback loop.
@@ -299,6 +312,14 @@ model OperatorSnapshot {
 // the user's *previous* viewedAt. The current view's row gets
 // written AFTER the diff is computed so the banner reflects what
 // changed since last time, not since this load.
+//
+// v0.18 — DELIBERATELY remains per-user (not per-org). Two analysts
+// in the same Organization viewing the same WatchList should have
+// independent change-detection timelines, so each gets fresh signal
+// on their next visit. Authorization is enforced via the parent
+// WatchList's organizationId — view rows can only be read/written
+// for watch lists in the caller's active org. See
+// src/lib/watch-list/changes.ts for the authz wiring.
 model WatchListView {
   id          String   @id @default(cuid())
   userId      String
@@ -310,4 +331,75 @@ model WatchListView {
   // (userId, watchListId, viewedAt DESC) covers "find the prior
   // viewedAt for this user/watch-list pair" — the only hot query.
   @@index([userId, watchListId, viewedAt(sort: Desc)])
+}
+
+// v0.18 (PR #65) — Multi-tenancy Phase 1: Clerk Organizations.
+//
+// Mirror table for Clerk's Organization resource. We don't store
+// user identity here — that stays in Clerk — but we DO mirror orgs
+// + memberships so authorization queries don't have to round-trip
+// through Clerk's API on every request. The mirror is kept in sync
+// by webhook handlers in src/app/api/clerk/webhook/route.ts
+// (organization.created/updated/deleted, organizationMembership.*).
+//
+// `personalForUserId` flags this row as the user's auto-provisioned
+// personal workspace (one per Clerk user, created during signup).
+// The @unique constraint enforces "at most one personal org per
+// user" — webhook handlers + signup flow rely on this to be
+// idempotent. NULL when the org was manually created (a real team
+// workspace in Phase 2+).
+//
+// `clerkOrgId` is the @unique sync key; webhook upserts are keyed
+// on it so re-delivery of the same Clerk event is a no-op.
+model Organization {
+  id                String   @id @default(cuid())
+  clerkOrgId        String   @unique
+  name              String
+  slug              String?
+  // Set on personal orgs (one per Clerk user, created at signup).
+  // Null on team orgs (Phase 2+). The @unique constraint makes
+  // "find personal org for user X" a single indexed lookup AND
+  // enforces idempotency of the signup-time org provisioning.
+  personalForUserId String?  @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  memberships OrganizationMembership[]
+  watchLists  WatchList[]
+
+  // Hot lookups: "find personal org for user X" (already covered by
+  // the @unique on personalForUserId) and "find org by Clerk id"
+  // (covered by the @unique on clerkOrgId). No additional indexes
+  // needed for Phase 1.
+}
+
+// v0.18 — Mirror of Clerk's OrganizationMembership resource. Each
+// row links a Clerk userId (opaque string, no FK constraint —
+// users are owned by Clerk) to an Organization + role. Kept in
+// sync by the organizationMembership.{created,updated,deleted}
+// webhook handlers.
+//
+// Role values mirror Clerk's defaults: 'org:admin' | 'org:member'.
+// We store the full Clerk-prefixed string so future role types
+// (custom permissions in Clerk) don't require a migration.
+//
+// clerkMembershipId is the @unique sync key for idempotent upserts.
+// (userId, organizationId) is also @unique because Clerk enforces
+// "one membership per (user, org)" — duplicate webhook deliveries
+// can hit either key without creating duplicates.
+model OrganizationMembership {
+  id                 String   @id @default(cuid())
+  clerkMembershipId  String   @unique
+  organizationId     String
+  userId             String   // Clerk userId, opaque
+  role               String   // "org:admin" | "org:member"
+  createdAt          DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  // Hot query: "list all memberships for user X" (drives org
+  // switcher in Phase 2 and getActiveOrgId fallback in Phase 1).
+  @@index([userId])
+  @@index([organizationId])
 }

@@ -232,6 +232,25 @@ const SCENARIO: ScenarioOperator[] = [
 async function main(): Promise<void> {
   console.log("[seed:change-scenario] Setting up demo data for", TEST_USER_ID);
 
+  // v0.18 — resolve the test user's personal Organization. The
+  // user must have signed in at least once so the user.created
+  // webhook has provisioned their personal org. If we can't find
+  // it, error out clearly rather than create an orphaned demo
+  // watch list with organizationId=NULL.
+  const personalOrg = await prisma.organization.findUnique({
+    where: { personalForUserId: TEST_USER_ID! },
+    select: { id: true },
+  });
+  if (!personalOrg) {
+    console.error(
+      `[seed:change-scenario] No personal Organization found for TEST_USER_ID=${TEST_USER_ID}.\n` +
+        `  Sign in as this user once (so the user.created webhook provisions the org),\n` +
+        `  then re-run this script.`
+    );
+    process.exit(1);
+  }
+  console.log(`  ✓ Personal org resolved: ${personalOrg.id}`);
+
   // 1. Wipe + re-create the demo Watch list. Match by name +
   // ownerId so we don't disturb other watch lists. Cascade-delete
   // handles any prior WatchListView rows attached to the old row.
@@ -244,6 +263,7 @@ async function main(): Promise<void> {
       description:
         "Synthetic demo data for the v0.16 change-detection feature. Re-run scripts/seed-change-scenario.ts to refresh.",
       ownerId: TEST_USER_ID!,
+      organizationId: personalOrg.id,
       isShared: false,
       requiredCriteria: JSON.stringify([
         {

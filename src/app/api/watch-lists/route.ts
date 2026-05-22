@@ -1,23 +1,43 @@
-// GET  /api/watch-lists — list the authenticated user's saved watch lists.
-// POST /api/watch-lists — create a new watch list owned by the authenticated user.
+// GET  /api/watch-lists — list watch lists in the caller's active org.
+// POST /api/watch-lists — create a new watch list in the caller's active org.
 //
 // Both handlers run AFTER Clerk's middleware (see middleware.ts) has
 // already verified the caller has an active session — auth.protect()
 // on this route would redirect/404 anonymous requests before we ever
 // got here. We still call auth() to grab the userId for the
-// ownerId column; the auth() helper is request-scoped and reads
-// straight from the verified Clerk session cookie.
+// ownerId column (forensics) and getActiveOrgId() to resolve the
+// org scope for authorization.
+//
+// v0.18 (PR #65) — Multi-tenancy: organizationId is the authorization
+// key. When getActiveOrgId() returns null (user's personal-org
+// provisioning hasn't completed yet), we return 503 with a clear
+// message — the client-side editor surfaces it as "workspace still
+// setting up" UI.
 
 import { auth } from "@clerk/nextjs/server";
 import { createWatchList, listWatchListes } from "@/lib/watch-list/store";
 import { captureServerEvent } from "@/lib/analytics-server";
+import { getActiveOrgId } from "@/lib/auth/active-org";
 
 export async function GET() {
   const { userId } = await auth();
   if (!userId) {
     return Response.json({ error: "Unauthorized." }, { status: 401 });
   }
-  const rows = await listWatchListes(userId);
+  const organizationId = await getActiveOrgId();
+  if (!organizationId) {
+    // Soft fallback — user's personal org isn't provisioned yet.
+    // The /setup-workspace page handles the retry loop; API
+    // callers see a 503 with retry-after guidance.
+    return Response.json(
+      {
+        error: "Workspace not yet provisioned. Try again in a moment.",
+        workspaceSetupRequired: true,
+      },
+      { status: 503 }
+    );
+  }
+  const rows = await listWatchListes(organizationId);
   return Response.json({ watchListes: rows });
 }
 
@@ -25,6 +45,16 @@ export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) {
     return Response.json({ error: "Unauthorized." }, { status: 401 });
+  }
+  const organizationId = await getActiveOrgId();
+  if (!organizationId) {
+    return Response.json(
+      {
+        error: "Workspace not yet provisioned. Try again in a moment.",
+        workspaceSetupRequired: true,
+      },
+      { status: 503 }
+    );
   }
 
   let body: unknown;
@@ -57,6 +87,7 @@ export async function POST(req: Request) {
     name: input.name,
     description: typeof input.description === "string" ? input.description : null,
     ownerId: userId,
+    organizationId,
     isShared: false,
     requiredCriteria: input.requiredCriteria as never,
     preferredCriteria: input.preferredCriteria as never,
@@ -80,6 +111,8 @@ export async function POST(req: Request) {
     properties: {
       watch_list_id: record.id,
       initial_operator_count: initialCriteriaCount,
+      // v0.18 — tag with org for org-level funnel analytics.
+      organization_id: organizationId,
     },
   });
 

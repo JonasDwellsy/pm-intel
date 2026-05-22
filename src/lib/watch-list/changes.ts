@@ -1,5 +1,17 @@
 // v0.16 — Server-side orchestration for the change-detection
-// feedback loop. Glues:
+// feedback loop.
+//
+// v0.18 (PR #65) AUTHZ NOTE: this module is per-user by design
+// (the view ledger is a personal "what I've seen" record). It
+// trusts callers to have already verified that the user has access
+// to the parent WatchList via getWatchList(id, organizationId).
+// Do NOT add an organizationId parameter here — that would imply
+// org-scoped view state, which is explicitly NOT what we want
+// (different users in the same org should have independent
+// change-detection timelines). See the WatchListView comment in
+// prisma/schema.prisma for the rationale.
+//
+// Glues:
 //
 //   1. WatchListView ledger reads — find the user's prior viewedAt
 //      for this watch list. For /results that's "the most-recent
