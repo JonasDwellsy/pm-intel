@@ -8,7 +8,7 @@
     "vercel-build": "prisma generate && prisma migrate deploy && prisma db seed && next build",
     "start": "next start",
     "lint": "eslint",
-    "test:buy-box": "node --import tsx --test src/lib/buy-box/*.test.ts src/lib/operators/*.test.ts src/lib/auth/*.test.ts"
+    "test:buy-box": "node --import tsx --test src/lib/buy-box/*.test.ts src/lib/operators/*.test.ts src/lib/auth/*.test.ts src/lib/styles/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",

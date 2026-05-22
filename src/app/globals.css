@@ -122,7 +122,20 @@
    Dwellsy IQ utility classes used across the scorecard.
    ============================================================ */
 
-/* Eyebrows: small caps labels */
+/* Eyebrows: small caps labels.
+   PR #52 — `margin-bottom: 0.875rem` (14px) is the single source of
+   truth for eyebrow → headline spacing across the site, matching
+   the pillar-card cadence. This sits OUTSIDE @layer utilities so
+   it wins specificity-wise over the Tailwind `mt-*` utilities that
+   were being silently overridden by `.dq-h1` / `.dq-h2`'s
+   `margin: 0`. The eyebrow owns the gap, not the headline.
+
+   Side-effect to be aware of: any place that has its own `mb-N`
+   utility on a `.dq-eyebrow` element is now a no-op (the unlayered
+   rule wins). The pillar cards are unaffected because they use a
+   raw `<p class="mb-3.5">` (no `dq-eyebrow` class). If a callsite
+   needs a different gap, the right move is to use a different
+   class — not to fight the utility. */
 .dq-eyebrow {
   font-size: 11px;
   font-weight: 700;
@@ -130,6 +143,7 @@
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--color-teal);
+  margin-bottom: 0.875rem;
 }
 .dq-eyebrow-muted {
   font-size: 11px;
