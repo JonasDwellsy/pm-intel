@@ -13,5 +13,8 @@ if (DSN) {
     dsn: DSN,
     tracesSampleRate: 0.1,
     sendDefaultPii: false,
+    // v0.17.1 — see sentry.server.config.ts for rationale.
+    environment:
+      process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development",
   });
 }

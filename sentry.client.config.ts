@@ -38,5 +38,16 @@ if (DSN) {
     // reports. Users are tagged by Clerk userId only (see the
     // server-side instrumentation file for the setUser call).
     sendDefaultPii: false,
+    // v0.17.1 — Tag events with VERCEL_ENV so Sentry's environment
+    // filter surfaces them. NEXT_PUBLIC_VERCEL_ENV is inlined into
+    // the client bundle by Next.js when set on the deploy (Vercel
+    // exposes VERCEL_ENV server-side but the client mirror is named
+    // NEXT_PUBLIC_VERCEL_ENV when explicitly added). Fallback chain
+    // covers both shapes plus NODE_ENV for local dev.
+    environment:
+      process.env.NEXT_PUBLIC_VERCEL_ENV ??
+      process.env.VERCEL_ENV ??
+      process.env.NODE_ENV ??
+      "development",
   });
 }
