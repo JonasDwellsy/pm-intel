@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { WatchListEditor, type EditorWatchList } from "@/components/watch-list/WatchListEditor";
 import { listMarketOptions } from "@/lib/watch-list/editor-options";
 import { getWatchList } from "@/lib/watch-list/store";
+import { getActiveOrgId } from "@/lib/auth/active-org";
 
-// /watch-lists/[id]/edit — server component loads the existing buy
-// box and the market options, then hands both to the client editor
+// /watch-lists/[id]/edit — server component loads the existing watch
+// list and the market options, then hands both to the client editor
 // for in-place editing.
 //
-// v0.13 — middleware already requires an authed Clerk session.
-// We scope getWatchList by the current userId so requesting another
-// user's watch list renders the standard 404 page (no existence leak).
+// v0.13 (PR #50) — middleware requires an authed Clerk session.
+// v0.18 (PR #65) — organizationId-scoped. Requesting a watch list
+// from a different org renders the standard 404 (no existence leak);
+// soft fallback to /setup-workspace when the personal org isn't
+// provisioned yet.
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +31,12 @@ export default async function EditWatchListPage({ params }: PageProps) {
   const { id } = await params;
   const { userId } = await auth();
   if (!userId) notFound();
+  const organizationId = await getActiveOrgId();
+  if (!organizationId) {
+    redirect(`/setup-workspace?from=/watch-lists/${id}/edit`);
+  }
   const [record, marketOptions] = await Promise.all([
-    getWatchList(id, userId),
+    getWatchList(id, organizationId),
     listMarketOptions(),
   ]);
   if (!record) {

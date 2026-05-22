@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { fmtInt, fmtPct } from "@/lib/format";
 import { loadOperatorScorecard } from "@/lib/operators/lookup";
 import { getWatchList } from "@/lib/watch-list/store";
+import { getActiveOrgId } from "@/lib/auth/active-org";
 import { STATE_CODE_TO_NAME } from "@/lib/slugify";
 
 // v0.11 — Operator-level scorecard.
@@ -62,8 +63,18 @@ export default async function OperatorScorecardPage({
   if (fromWatchList) {
     const { userId } = await auth();
     if (userId) {
-      const bb = await getWatchList(fromWatchList, userId);
-      if (bb) watchListBreadcrumb = { id: bb.id, name: bb.name };
+      // v0.18 — org-scoped breadcrumb. If the user's personal org
+      // isn't provisioned yet OR the watch list isn't in their
+      // active org, we silently drop the breadcrumb (same
+      // degradation as the existing anonymous-visitor path) rather
+      // than redirecting away from the operator page. Operator
+      // pages are public; the breadcrumb is the only auth-gated
+      // affordance here.
+      const organizationId = await getActiveOrgId();
+      if (organizationId) {
+        const bb = await getWatchList(fromWatchList, organizationId);
+        if (bb) watchListBreadcrumb = { id: bb.id, name: bb.name };
+      }
     }
   }
 

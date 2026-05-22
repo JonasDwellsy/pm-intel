@@ -1,13 +1,15 @@
-// GET    /api/watch-lists/[id] — fetch one (owned by current user).
-// PUT    /api/watch-lists/[id] — update (owned by current user).
-// DELETE /api/watch-lists/[id] — remove (owned by current user).
+// GET    /api/watch-lists/[id] — fetch one (scoped to caller's active org).
+// PUT    /api/watch-lists/[id] — update (scoped to caller's active org).
+// DELETE /api/watch-lists/[id] — remove (scoped to caller's active org).
 //
-// Every handler scopes the row by the authenticated Clerk user id;
-// requests for watch lists that belong to a different user return 404
-// (not 403) so we don't leak the existence of other users' boxes.
+// v0.18 (PR #65) — Multi-tenancy: organizationId is the authorization
+// key. Requests for watch lists in a different org return 404 (not
+// 403) so we don't leak the existence of other orgs' rows.
+//
 // The middleware already requires a signed-in session to reach these
 // routes, so userId is effectively guaranteed — the early 401 is just
-// belt-and-suspenders in case the matcher is ever loosened.
+// belt-and-suspenders. The 503 path covers the brief window after
+// signup where the user's personal org isn't provisioned yet.
 
 import { auth } from "@clerk/nextjs/server";
 import {
@@ -15,27 +17,51 @@ import {
   getWatchList,
   updateWatchList,
 } from "@/lib/watch-list/store";
+import { getActiveOrgId } from "@/lib/auth/active-org";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(_req: Request, { params }: RouteParams) {
+/** Shared boilerplate: resolve userId + organizationId, return early
+ *  with the appropriate error response on failure. */
+async function resolveAuthContext(): Promise<
+  | { error: Response }
+  | { userId: string; organizationId: string }
+> {
   const { userId } = await auth();
   if (!userId) {
-    return Response.json({ error: "Unauthorized." }, { status: 401 });
+    return {
+      error: Response.json({ error: "Unauthorized." }, { status: 401 }),
+    };
   }
+  const organizationId = await getActiveOrgId();
+  if (!organizationId) {
+    return {
+      error: Response.json(
+        {
+          error: "Workspace not yet provisioned. Try again in a moment.",
+          workspaceSetupRequired: true,
+        },
+        { status: 503 }
+      ),
+    };
+  }
+  return { userId, organizationId };
+}
+
+export async function GET(_req: Request, { params }: RouteParams) {
+  const ctx = await resolveAuthContext();
+  if ("error" in ctx) return ctx.error;
   const { id } = await params;
-  const record = await getWatchList(id, userId);
+  const record = await getWatchList(id, ctx.organizationId);
   if (!record) return Response.json({ error: "Not found." }, { status: 404 });
   return Response.json({ watchList: record });
 }
 
 export async function PUT(req: Request, { params }: RouteParams) {
-  const { userId } = await auth();
-  if (!userId) {
-    return Response.json({ error: "Unauthorized." }, { status: 401 });
-  }
+  const ctx = await resolveAuthContext();
+  if ("error" in ctx) return ctx.error;
   const { id } = await params;
   let body: unknown;
   try {
@@ -65,19 +91,17 @@ export async function PUT(req: Request, { params }: RouteParams) {
       preferredCriteria: input.preferredCriteria as never,
       excludedCriteria: input.excludedCriteria as never,
     },
-    userId
+    ctx.organizationId
   );
   if (!updated) return Response.json({ error: "Not found." }, { status: 404 });
   return Response.json({ watchList: updated });
 }
 
 export async function DELETE(_req: Request, { params }: RouteParams) {
-  const { userId } = await auth();
-  if (!userId) {
-    return Response.json({ error: "Unauthorized." }, { status: 401 });
-  }
+  const ctx = await resolveAuthContext();
+  if ("error" in ctx) return ctx.error;
   const { id } = await params;
-  const ok = await deleteWatchList(id, userId);
+  const ok = await deleteWatchList(id, ctx.organizationId);
   if (!ok) return Response.json({ error: "Not found." }, { status: 404 });
   return Response.json({ ok: true });
 }

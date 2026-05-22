@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { applyWatchList } from "@/lib/watch-list/apply";
 import { getWatchList } from "@/lib/watch-list/store";
@@ -8,6 +8,7 @@ import { computeChangesForDetailView } from "@/lib/watch-list/changes";
 import type { OperatorChange } from "@/lib/watch-list/change-detection";
 import { prisma } from "@/lib/prisma";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
+import { getActiveOrgId } from "@/lib/auth/active-org";
 
 // v0.16 — Detail view behind the "X operators moved since your last
 // visit" banner on /watch-lists/[id]/results.
@@ -34,7 +35,11 @@ export default async function WatchListChangesPage({ params }: PageProps) {
   const { id } = await params;
   const { userId } = await auth();
   if (!userId) notFound();
-  const watchList = await getWatchList(id, userId);
+  const organizationId = await getActiveOrgId();
+  if (!organizationId) {
+    redirect(`/setup-workspace?from=/watch-lists/${id}/changes`);
+  }
+  const watchList = await getWatchList(id, organizationId);
   if (!watchList) notFound();
 
   const applied = await applyWatchList({

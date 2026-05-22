@@ -4,14 +4,23 @@
 // this module parses on read and stringifies on write so the API
 // routes and apply() consume the typed shape directly.
 //
-// v0.13 (PR #50) — per-user auth. listWatchListes / getWatchList now
-// REQUIRE an ownerId; callers (the API routes + the saved-list
-// page) pass the authenticated Clerk user id from auth(). getWatchList
-// returns null when the row exists but belongs to a different user
-// so the API layer can 404 without leaking the existence of other
-// users' watch lists. Pre-auth rows that previously carried
-// ownerId="shared" were re-stamped with LEGACY_OWNER_ID by the
-// migration; no real user will ever match it.
+// History:
+//   v0.8  (PR #45)  — model shipped as BuyBox with anonymous "shared"
+//                     owner.
+//   v0.13 (PR #50)  — per-user auth via Clerk; ownerId becomes the
+//                     authorization key.
+//   v0.15 (PR #54)  — model renamed BuyBox → WatchList.
+//   v0.18 (PR #65)  — multi-tenancy: organizationId becomes the
+//                     authorization key. ownerId is RETAINED on the
+//                     row for forensics + back-compat but is NO
+//                     LONGER consulted for authz. Every read/write
+//                     filters by organizationId exclusively.
+//
+// SECURITY-CRITICAL: callers MUST pass the organizationId resolved
+// by getActiveOrgId() (see src/lib/auth/active-org.ts). Passing a
+// userId here is a tenancy boundary violation — the type signatures
+// below catch it via the named-property pattern (no positional
+// arguments that could be mistakenly swapped).
 
 import { prisma } from "@/lib/prisma";
 import type {
@@ -22,6 +31,7 @@ import type { WatchListDefinition } from "./scoring";
 
 export interface WatchListRecord extends WatchListDefinition {
   ownerId: string;
+  organizationId: string | null;
   isShared: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -44,6 +54,7 @@ function parseRow(row: {
   name: string;
   description: string | null;
   ownerId: string;
+  organizationId: string | null;
   isShared: boolean;
   requiredCriteria: string;
   preferredCriteria: string;
@@ -56,6 +67,7 @@ function parseRow(row: {
     name: row.name,
     description: row.description,
     ownerId: row.ownerId,
+    organizationId: row.organizationId,
     isShared: row.isShared,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -75,35 +87,45 @@ function safeParseJson<T>(raw: string, fallback: T): T {
   }
 }
 
-/** List watch lists owned by `ownerId`. Used by the API route + the
- *  saved-list page; both authenticate the caller and pass the
- *  Clerk user id straight through. */
-export async function listWatchListes(ownerId: string): Promise<WatchListRecord[]> {
+/** List watch lists scoped to the given org. v0.18: organizationId
+ *  is the sole authorization key. Used by the API route + the
+ *  saved-list page; both resolve organizationId via getActiveOrgId(). */
+export async function listWatchListes(organizationId: string): Promise<WatchListRecord[]> {
   const rows = await prisma.watchList.findMany({
-    where: { ownerId },
+    where: { organizationId },
     orderBy: { updatedAt: "desc" },
   });
   return rows.map(parseRow);
 }
 
-/** Fetch a single watch list. When `ownerId` is provided, returns null
- *  if the row belongs to a different user — equivalent to a 404 from
- *  the caller's perspective, so the API layer doesn't leak the
- *  existence of other users' watch lists. */
+/** Fetch a single watch list. When `organizationId` is provided
+ *  (the normal path), returns null if the row belongs to a different
+ *  org — equivalent to a 404 from the caller's perspective so the
+ *  API layer doesn't leak the existence of other orgs' watch lists.
+ *
+ *  Calling without organizationId is reserved for internal use
+ *  (seed scripts, migration scripts) and bypasses authz. Production
+ *  request paths MUST pass organizationId. */
 export async function getWatchList(
   id: string,
-  ownerId?: string
+  organizationId?: string
 ): Promise<WatchListRecord | null> {
   const row = await prisma.watchList.findUnique({ where: { id } });
   if (!row) return null;
-  if (ownerId !== undefined && row.ownerId !== ownerId) return null;
+  if (organizationId !== undefined && row.organizationId !== organizationId) {
+    return null;
+  }
   return parseRow(row);
 }
 
 export interface WatchListInput {
   name: string;
   description?: string | null;
-  ownerId?: string;
+  // ownerId stays populated for forensics + back-compat. New rows
+  // set it to the creating user's Clerk userId; authz is via
+  // organizationId.
+  ownerId: string;
+  organizationId: string;
   isShared?: boolean;
   requiredCriteria: FilterCriterion[];
   preferredCriteria: WeightedCriterion[];
@@ -115,7 +137,8 @@ export async function createWatchList(input: WatchListInput): Promise<WatchListR
     data: {
       name: input.name,
       description: input.description ?? null,
-      ownerId: input.ownerId ?? DEFAULT_OWNER_ID,
+      ownerId: input.ownerId,
+      organizationId: input.organizationId,
       isShared: input.isShared ?? true,
       requiredCriteria: JSON.stringify(input.requiredCriteria),
       preferredCriteria: JSON.stringify(input.preferredCriteria),
@@ -125,24 +148,23 @@ export async function createWatchList(input: WatchListInput): Promise<WatchListR
   return parseRow(row);
 }
 
-/** Update a watch list. When `ownerId` is provided, refuses to update
- *  rows that belong to a different user — returns null in that case
- *  so the API layer can 404. */
+/** Update a watch list. organizationId is the authz key — refuses
+ *  to update rows in a different org. Returns null in that case so
+ *  the API layer can 404. */
 export async function updateWatchList(
   id: string,
-  input: Partial<WatchListInput>,
-  ownerId?: string
+  input: Partial<Omit<WatchListInput, "organizationId" | "ownerId">>,
+  organizationId: string
 ): Promise<WatchListRecord | null> {
   const existing = await prisma.watchList.findUnique({ where: { id } });
   if (!existing) return null;
-  if (ownerId !== undefined && existing.ownerId !== ownerId) return null;
+  if (existing.organizationId !== organizationId) return null;
 
   const row = await prisma.watchList.update({
     where: { id },
     data: {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.description !== undefined && { description: input.description }),
-      ...(input.ownerId !== undefined && { ownerId: input.ownerId }),
       ...(input.isShared !== undefined && { isShared: input.isShared }),
       ...(input.requiredCriteria !== undefined && {
         requiredCriteria: JSON.stringify(input.requiredCriteria),
@@ -158,19 +180,17 @@ export async function updateWatchList(
   return parseRow(row);
 }
 
-/** Delete a watch list. When `ownerId` is provided, refuses to delete
- *  rows that belong to a different user. Returns false if either the
- *  row doesn't exist or the owner check fails. */
+/** Delete a watch list. organizationId is the authz key — refuses
+ *  to delete rows in a different org. Returns false if either the
+ *  row doesn't exist or the org check fails. */
 export async function deleteWatchList(
   id: string,
-  ownerId?: string
+  organizationId: string
 ): Promise<boolean> {
   try {
-    if (ownerId !== undefined) {
-      const existing = await prisma.watchList.findUnique({ where: { id } });
-      if (!existing) return false;
-      if (existing.ownerId !== ownerId) return false;
-    }
+    const existing = await prisma.watchList.findUnique({ where: { id } });
+    if (!existing) return false;
+    if (existing.organizationId !== organizationId) return false;
     await prisma.watchList.delete({ where: { id } });
     return true;
   } catch {

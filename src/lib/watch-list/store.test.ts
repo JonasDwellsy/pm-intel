@@ -1,18 +1,23 @@
 // PR #50 (Clerk auth foundation, v0.13).
+// PR #65 (multi-tenancy Phase 1, v0.18).
 //
-// The store delegates owner-scoping to Prisma's `where` clause, which
-// makes the read/write paths impossible to unit-test without a real
-// database connection (or a heavyweight Prisma mock setup). This
-// test file covers only what's testable in isolation: the two
-// well-known owner-id sentinels and the contract they share with the
-// 20260521190000_clerk_owner_id_backfill migration. If anyone renames
-// LEGACY_OWNER_ID without updating the migration SQL (or vice versa),
-// existing pre-auth rows would silently stop being addressable —
-// these assertions catch that drift.
+// The store delegates authorization-scoping to Prisma's `where`
+// clause, which makes the read/write paths impossible to unit-test
+// without a real database connection (or a heavyweight Prisma mock
+// setup). This file covers only what's testable in isolation:
 //
-// Behavioural coverage of getWatchList/updateWatchList/deleteWatchList
-// owner-scoping ships via the manual smoke test in the PR plan
-// (cross-user read attempts return 404) until we wire a Prisma test
+//   - The two well-known owner-id sentinels and the contract they
+//     share with the 20260521190000_clerk_owner_id_backfill
+//     migration (LEGACY_OWNER_ID was the v0.13 authz key; in v0.18
+//     it stays on the row for forensics but no longer drives authz).
+//   - The store function signatures — v0.18 swapped the third
+//     positional argument from `ownerId` to `organizationId`. A
+//     regression that re-introduces `ownerId` as the authz key is
+//     a tenancy boundary violation.
+//
+// Behavioural coverage of cross-org isolation
+// (getWatchList/updateWatchList/deleteWatchList) ships via the
+// manual smoke test in the PR plan until we wire a Prisma test
 // database into CI.
 
 import test from "node:test";
@@ -52,5 +57,60 @@ test("clerk_owner_id_backfill migration updates 'shared' → LEGACY_OWNER_ID", (
   assert.ok(
     sql.includes(`'${DEFAULT_OWNER_ID}'`),
     `migration must target the legacy '${DEFAULT_OWNER_ID}' rows`
+  );
+});
+
+test("v0.18 store: authz signatures take organizationId, not userId", () => {
+  // Source-level regression guard. If anyone reverts the v0.18
+  // signature change and re-introduces ownerId as the second
+  // argument on getWatchList/updateWatchList/deleteWatchList, this
+  // catches it. The store's authz contract is that callers MUST
+  // pass an organizationId (resolved via getActiveOrgId()), never
+  // a raw userId.
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/store.ts"),
+    "utf8"
+  );
+  // listWatchListes takes organizationId (was ownerId pre-v0.18).
+  assert.ok(
+    src.includes("listWatchListes(organizationId: string)"),
+    "listWatchListes must take organizationId, not ownerId"
+  );
+  // getWatchList's second arg is named organizationId, not ownerId.
+  assert.ok(
+    src.match(/getWatchList\([^)]*organizationId\?: string/),
+    "getWatchList must accept organizationId, not ownerId"
+  );
+  // The WHERE clause that gates reads must use organizationId.
+  assert.ok(
+    src.includes("where: { organizationId }"),
+    "list query must filter by organizationId"
+  );
+  // The mismatch check on getWatchList compares organizationId,
+  // not ownerId.
+  assert.ok(
+    src.includes("row.organizationId !== organizationId"),
+    "getWatchList authz check must compare organizationId"
+  );
+});
+
+test("v0.18 store: createWatchList requires organizationId in input", () => {
+  // The WatchListInput interface MUST require organizationId so
+  // TypeScript catches any caller that forgets to thread it through.
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/store.ts"),
+    "utf8"
+  );
+  // Match the WatchListInput shape — organizationId must be a
+  // required (non-optional) field.
+  const ifaceMatch = src.match(
+    /export interface WatchListInput \{[\s\S]*?\n\}/
+  );
+  assert.ok(ifaceMatch, "WatchListInput interface must exist");
+  const iface = ifaceMatch![0];
+  // Required field — no `?` after the name.
+  assert.ok(
+    /organizationId:\s*string;/.test(iface),
+    "WatchListInput.organizationId must be required (no `?` modifier)"
   );
 });
