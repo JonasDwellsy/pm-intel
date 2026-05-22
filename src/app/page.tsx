@@ -83,6 +83,95 @@ function sevenCellLabel(q7: string | null | undefined, fallback: string): string
   return fallback;
 }
 
+/** Shape returned by the PM lookup used to build a SampleCard. Kept
+ *  loose (no Prisma type import) so the helper below works for both
+ *  the manifest-driven sample row and the single Doorby hero card. */
+type PmForSampleCard = {
+  slug: string;
+  name: string;
+  quadrant: string;
+  quadrant7Cell: string | null;
+  claimed: boolean;
+  scorecardData: string;
+  market: { city: string; state: string };
+};
+
+/** Turn a PM row + a hand-written quote into a SampleCard ready for
+ *  the homepage card UI. Same logic that powered loadSampleCards
+ *  before — extracted so the new Hero sample card (Doorby) can share
+ *  the badge / portfolio / metric formatting without duplicating it. */
+function buildSampleCard(
+  pm: PmForSampleCard,
+  quote: string,
+  extraBadge?: SampleCard["badges"][number]
+): SampleCard {
+  const sc = JSON.parse(pm.scorecardData) as ScorecardData;
+  const compositeStar: StarLevel = sc.rank.compositeStar ?? null;
+  const q7Label = sevenCellLabel(pm.quadrant7Cell, pm.quadrant);
+
+  // PR #46 — badges in 7-cell vocabulary. The Independent /
+  // Institutional dimension comes through as the green/orange
+  // pill; the 7-cell taxonomy cell ("SFR Independent" etc.)
+  // takes the dark ink pill.
+  const badges: SampleCard["badges"] = [];
+  const isInst = /Institutional/i.test(q7Label);
+  badges.push({
+    kind: isInst ? "green" : "orange",
+    label: isInst ? "Institutional" : "Independent",
+  });
+  badges.push({ kind: "ink", label: q7Label });
+  if (extraBadge) badges.push(extraBadge);
+
+  const stateSlug = stateCodeToSlug(pm.market.state);
+  const cityKebab = citySlug(pm.market.city);
+  // PR #47 — paywall retired; ?unlocked=true is a no-op so we
+  // drop it from public-facing URLs for cleanliness.
+  const href = `/property-managers/${stateSlug}/${cityKebab}/${pm.slug}`;
+
+  // PR #46 — Rank stat dropped from the sample card stat grid.
+  // Replaced with Est. Portfolio (v0.7 estimator output) which
+  // is the acquirer-relevant scale signal. Portfolio range
+  // surfaces underneath when the estimator carries low/high.
+  const portfolio = sc.portfolioEstimate;
+  const portfolioValue =
+    portfolio?.status === "estimated" && typeof portfolio.point === "number"
+      ? typeof portfolio.low === "number" && typeof portfolio.high === "number"
+        ? `${fmtInt(portfolio.point)} (${fmtInt(portfolio.low)}–${fmtInt(portfolio.high)})`
+        : `${fmtInt(portfolio.point)} units`
+      : "—";
+
+  const stats: SampleCard["stats"] = [
+    {
+      label: "Est. portfolio",
+      value: portfolioValue,
+    },
+    {
+      label: "URUs · T12",
+      value: fmtNumber(sc.coverage.urusT12, 0),
+    },
+    {
+      label: "Median DOM",
+      value: `${fmtNumber(sc.performance.domT12, 1)} days`,
+    },
+    {
+      label: "Composite",
+      value: sc.rank.composite !== null ? sc.rank.composite.toFixed(1) : "—",
+    },
+  ];
+
+  return {
+    slug: pm.slug,
+    href,
+    marketLabel: `${pm.market.city} MSA`,
+    name: pm.name,
+    badges,
+    compositeStar,
+    claimed: pm.claimed,
+    quote,
+    stats,
+  };
+}
+
 async function loadSampleCards(): Promise<SampleCard[]> {
   const pms = await prisma.pM.findMany({
     where: { slug: { in: SAMPLE_MANIFEST.map((m) => m.slug) } },
@@ -102,73 +191,42 @@ async function loadSampleCards(): Promise<SampleCard[]> {
   for (const entry of SAMPLE_MANIFEST) {
     const pm = pms.find((p) => p.slug === entry.slug);
     if (!pm) continue;
-    const sc = JSON.parse(pm.scorecardData) as ScorecardData;
-    const compositeStar: StarLevel = sc.rank.compositeStar ?? null;
-    const q7Label = sevenCellLabel(pm.quadrant7Cell, pm.quadrant);
-
-    // PR #46 — badges in 7-cell vocabulary. The Independent /
-    // Institutional dimension comes through as the green/orange
-    // pill; the 7-cell taxonomy cell ("SFR Independent" etc.)
-    // takes the dark ink pill.
-    const badges: SampleCard["badges"] = [];
-    const isInst = /Institutional/i.test(q7Label);
-    badges.push({
-      kind: isInst ? "green" : "orange",
-      label: isInst ? "Institutional" : "Independent",
-    });
-    badges.push({ kind: "ink", label: q7Label });
-    if (entry.extraBadge) badges.push(entry.extraBadge);
-
-    const stateSlug = stateCodeToSlug(pm.market.state);
-    const cityKebab = citySlug(pm.market.city);
-    // PR #47 — paywall retired; ?unlocked=true is a no-op so we
-    // drop it from public-facing URLs for cleanliness.
-    const href = `/property-managers/${stateSlug}/${cityKebab}/${pm.slug}`;
-
-    // PR #46 — Rank stat dropped from the sample card stat grid.
-    // Replaced with Est. Portfolio (v0.7 estimator output) which
-    // is the acquirer-relevant scale signal. Portfolio range
-    // surfaces underneath when the estimator carries low/high.
-    const portfolio = sc.portfolioEstimate;
-    const portfolioValue =
-      portfolio?.status === "estimated" && typeof portfolio.point === "number"
-        ? typeof portfolio.low === "number" && typeof portfolio.high === "number"
-          ? `${fmtInt(portfolio.point)} (${fmtInt(portfolio.low)}–${fmtInt(portfolio.high)})`
-          : `${fmtInt(portfolio.point)} units`
-        : "—";
-
-    const stats: SampleCard["stats"] = [
-      {
-        label: "Est. portfolio",
-        value: portfolioValue,
-      },
-      {
-        label: "URUs · T12",
-        value: fmtNumber(sc.coverage.urusT12, 0),
-      },
-      {
-        label: "Median DOM",
-        value: `${fmtNumber(sc.performance.domT12, 1)} days`,
-      },
-      {
-        label: "Composite",
-        value: sc.rank.composite !== null ? sc.rank.composite.toFixed(1) : "—",
-      },
-    ];
-
-    cards.push({
-      slug: pm.slug,
-      href,
-      marketLabel: `${pm.market.city} MSA`,
-      name: pm.name,
-      badges,
-      compositeStar,
-      claimed: pm.claimed,
-      quote: entry.quote,
-      stats,
-    });
+    cards.push(buildSampleCard(pm, entry.quote, entry.extraBadge));
   }
   return cards;
+}
+
+/** Hero sample card — Doorby in Chattanooga (gold-composite SFR
+ *  Independent). Replaces the v0.12 operator-type quadrant chart in
+ *  the right column of the hero. The fields all come from the live
+ *  scorecard layer via buildSampleCard, so the card stays in sync
+ *  as the methodology / estimator output drift. Returns null if the
+ *  PM isn't in the DB (defensive — the seed always populates it,
+ *  but the page should not 500 if a future reshuffle drops the row).
+ *
+ *  Quote is hand-written in the same cadence as the SAMPLE_MANIFEST
+ *  entries: lead with a numeric signal, end with categorical
+ *  positioning. */
+const HERO_CARD_SLUG = "doorby-property-management-chattanooga-tn";
+const HERO_CARD_QUOTE =
+  "Gold-composite SFR Independent across 5 Chattanooga cities — top-quartile tenant retention and above-cohort lease-up speed across 229 URUs in trailing twelve months.";
+
+async function loadHeroCard(): Promise<SampleCard | null> {
+  const pm = await prisma.pM.findUnique({
+    where: { slug: HERO_CARD_SLUG },
+    select: {
+      slug: true,
+      name: true,
+      quadrant: true,
+      quadrant7Cell: true,
+      hybrid: true,
+      claimed: true,
+      scorecardData: true,
+      market: { select: { city: true, state: true, fullName: true } },
+    },
+  });
+  if (!pm) return null;
+  return buildSampleCard(pm, HERO_CARD_QUOTE);
 }
 
 export default async function HomePage() {
@@ -203,7 +261,10 @@ export default async function HomePage() {
   const claimSlug = samplePm?.slug ?? "brookside-properties-chattanooga-tn";
 
   const dataAsOf = liveMarkets[0]?.dataAsOf ?? "2026-05-17";
-  const sampleCards = await loadSampleCards();
+  const [sampleCards, heroCard] = await Promise.all([
+    loadSampleCards(),
+    loadHeroCard(),
+  ]);
 
   return (
     <main className="bg-[#FBFAF6]">
@@ -211,7 +272,7 @@ export default async function HomePage() {
         event="market_page_view"
         properties={{ source: "homepage", page: "home" }}
       />
-      <Hero />
+      <Hero heroCard={heroCard} />
       <MethodologyPillars />
       <CoveredMarkets markets={liveMarkets} />
       <SampleScorecards cards={sampleCards} />

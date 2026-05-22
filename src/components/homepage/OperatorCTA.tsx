@@ -7,7 +7,11 @@ export function OperatorCTA({ samplePmSlug }: { samplePmSlug: string }) {
         <div className="grid gap-10 rounded-lg bg-[#F4F2EC] p-10 lg:grid-cols-[1.2fr_1fr] lg:gap-16 lg:p-14">
           <div>
             <p className="dq-eyebrow tracking-[0.16em]">For operators</p>
-            <h2 className="dq-h2 mt-4 max-w-[18ch] text-balance text-[26px] leading-[1.1] tracking-[-0.014em] sm:text-[32px] lg:text-[38px]">
+            {/* PR #51 — mt-3.5 to align with the pillar-card
+                eyebrow → headline cadence (mb-3.5 inside the pillars).
+                Was mt-4 (16px); the 2px tighten brings every blue
+                all-caps eyebrow on the homepage to the same rhythm. */}
+            <h2 className="dq-h2 mt-3.5 max-w-[18ch] text-balance text-[26px] leading-[1.1] tracking-[-0.014em] sm:text-[32px] lg:text-[38px]">
               Claim your profile.
             </h2>
             <p className="mt-5 max-w-[60ch] text-[16px] leading-[1.6] text-foreground/85 sm:text-[17px]">
