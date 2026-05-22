@@ -116,10 +116,12 @@ type PmForSampleCard = {
 
 /** Compose the full-width Portfolio band shown above the metric
  *  grid. Mirrors the scorecard SynthesisLayer's EstPortfolioTile —
- *  same point + range + confidence + cohort qualifier treatment. */
+ *  point + range + confidence tier. The cohort qualifier the
+ *  scorecard tile prints is omitted here on purpose; the 7-cell
+ *  badge directly above the band already names the cohort and the
+ *  third segment was reading as repetition. */
 function buildPortfolioBand(
-  portfolio: ScorecardData["portfolioEstimate"],
-  q7Label: string
+  portfolio: ScorecardData["portfolioEstimate"]
 ): PortfolioBand {
   if (
     portfolio?.status === "estimated" &&
@@ -132,11 +134,10 @@ function buildPortfolioBand(
     const confidence = portfolio.confidence
       ? `${portfolio.confidence} confidence`
       : "Point estimate";
-    const cohort = portfolio.cohort ?? q7Label;
     return {
       point: fmtInt(portfolio.point),
       range,
-      caveat: `${confidence} · ${cohort}`,
+      caveat: confidence,
     };
   }
   return {
@@ -287,8 +288,6 @@ function buildSampleCard(
   const href = `/property-managers/${stateSlug}/${cityKebab}/${pm.slug}`;
 
   const { goldCount, silverCount } = countOperatorStars(sc);
-  const cohortName =
-    sc.rank?.compositeCohortName ?? `${pm.market.city} ${q7Label}`;
 
   return {
     slug: pm.slug,
@@ -300,10 +299,9 @@ function buildSampleCard(
     name: pm.name,
     goldCount,
     silverCount,
-    cohortName,
     badges,
     claimed: pm.claimed,
-    portfolio: buildPortfolioBand(sc.portfolioEstimate, q7Label),
+    portfolio: buildPortfolioBand(sc.portfolioEstimate),
     leaseUp: buildLeaseUpCell(sc.performance),
     tenantRetention: buildRetentionCell(sc.tenancy),
     rentPerformance: buildRentCell(sc.rentPerformance),

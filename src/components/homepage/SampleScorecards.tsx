@@ -61,13 +61,9 @@ export interface SampleCard {
   marketLabel: string;
   name: string;
   /** N gold per-metric stars earned by this operator. Drives the
-   *  StarSummaryChip next to the name. */
+   *  StarSummaryChip below the name. */
   goldCount: number;
   silverCount: number;
-  /** "Chattanooga SFR Independent" — printed in muted small type
-   *  under the star chip. The same cohort name the scorecard hero
-   *  uses. */
-  cohortName: string;
   badges: Array<{ kind: "green" | "orange" | "teal" | "ink"; label: string }>;
   /** True when the canonical entity is marked as claimed in the
    *  upstream data — surfaces a small "Claimed" pill on the card. */
@@ -226,6 +222,10 @@ export function ScorecardCard({
       <h3 className="dq-h2 mt-2 min-h-[2lh] text-[22px] leading-[1.2] tracking-[-0.005em]">
         {card.name}
       </h3>
+      {/* Star chip sits on its own row. The cohort sub-line that used
+          to share this row was repetitive of the ink "SFR Independent"
+          pill below and the MSA eyebrow above — removed in favour of
+          letting the chip foreground itself as the multi-star summary. */}
       <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
         <CardStarChip
           goldCount={card.goldCount}
@@ -234,7 +234,6 @@ export function ScorecardCard({
         {card.claimed && (
           <span className="dq-pill dq-pill-green text-[10.5px]">Claimed</span>
         )}
-        <p className="text-[12px] text-muted-foreground">{card.cohortName}</p>
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {card.badges.map((b) => (
@@ -249,7 +248,7 @@ export function ScorecardCard({
           but at the homepage-card type scale. */}
       <div className="mt-5 rounded-md border border-grid bg-surface-soft px-4 py-3">
         <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Est. Portfolio
+          Estimated Portfolio Size
         </p>
         <p className="mt-1 flex items-baseline gap-2 leading-none">
           <span className="dq-tnum text-[24px] font-bold tracking-[-0.012em] text-navy">
@@ -271,7 +270,11 @@ export function ScorecardCard({
         <Cell title="Lease-up Speed" cell={card.leaseUp} />
         <Cell title="Tenant Retention" cell={card.tenantRetention} />
         <Cell title="Rent Performance" cell={card.rentPerformance} />
-        <Cell title="Marketing Discipline" cell={card.marketingDiscipline} />
+        {/* "Mktg Discipline" abbreviation keeps the title on a single
+            line at the lg breakpoint where the card is at its
+            narrowest (3-col grid). "Marketing Discipline" wrapped to
+            two lines, which threw the cell's vertical rhythm off. */}
+        <Cell title="Mktg Discipline" cell={card.marketingDiscipline} />
       </div>
     </TrackedLink>
   );
