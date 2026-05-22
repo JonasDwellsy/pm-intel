@@ -6,15 +6,27 @@
 // React 19 as a supported peer (the project uses React 19.2.4
 // under Next 16; install failed with ERESOLVE). The projection
 // math lives in src/lib/markets-map-projection.ts so the marker
-// dots and the US outline share a single transform; this file
-// owns the visual treatment + interaction.
+// dots and the state geometry share a single transform; this
+// file owns the visual treatment + interaction.
 //
-// Layout: 16:10-ish SVG (960×600 viewBox) with a soft tinted
-// contiguous-48 outline behind dots for the 10 live markets +
-// 19 top-20 available-on-request markets. Live dots route to
-// the existing market scorecard; available dots open a mailto:
-// to partnerships@dwellsy.com with the MSA name pre-filled in
-// the subject line.
+// State geometry comes from us-atlas/states-10m.json (the only
+// resolution v3 of us-atlas ships — the spec referenced a 50m
+// file that no longer exists in current releases). topojson-
+// client converts the topology into a GeoJSON FeatureCollection
+// at module load; we then walk Polygon / MultiPolygon
+// coordinates and run each vertex through project() so the
+// state borders land in the same Albers Equal Area Conic frame
+// as the marker dots.
+//
+// AK + HI + US territories are filtered out at module load.
+// Our project() function in markets-map-projection.ts is a
+// plain Albers Conic of the CONUS — it does NOT implement
+// d3-geo's geoAlbersUsa composition (the AK / HI scale + offset
+// inset). Including their raw geometry would push them off the
+// viewBox edge or smear them across the Pacific. None of the
+// 29 markers we ship today land in AK or HI, so dropping these
+// states is a clean operational choice; revisiting only matters
+// when we add an AK or HI MSA to the marker set.
 //
 // Hidden below the md breakpoint — the dots are too tight to
 // interact with at phone width, and the cards grid below the
@@ -22,6 +34,20 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { feature } from "topojson-client";
+import type {
+  Topology,
+  GeometryCollection,
+  Polygon as TopoPolygon,
+  MultiPolygon as TopoMultiPolygon,
+} from "topojson-specification";
+import type {
+  Feature,
+  FeatureCollection,
+  Polygon as GeoPolygon,
+  MultiPolygon as GeoMultiPolygon,
+} from "geojson";
+import statesTopology from "us-atlas/states-10m.json";
 import {
   buildCoverageRequestMailto,
   getCoverageMarkets,
@@ -31,87 +57,75 @@ import { project, MAP_VIEWBOX } from "@/lib/markets-map-projection";
 
 const MARKER_RADIUS = 6;
 
-// Hand-traced lat/lng polygon of the contiguous 48 states. ~60
-// waypoints walking clockwise from the Pacific NW. Passed through
-// project() at render time so the outline always matches the
-// marker projection — no chance of drift between the two layers.
-// The shape is intentionally schematic: enough fidelity to read
-// as "the United States" without dragging in a 50KB TopoJSON.
-const US_OUTLINE_LATLNG: ReadonlyArray<readonly [number, number]> = [
-  // Pacific NW → south down the West Coast
-  [48.4, -124.7],
-  [46.2, -124.0],
-  [42.0, -124.4],
-  [39.3, -123.8],
-  [37.0, -122.5],
-  [34.5, -120.5],
-  [32.6, -117.2],
-  // Mexico border west → east
-  [32.6, -114.7],
-  [31.4, -111.1],
-  [31.8, -108.2],
-  [31.8, -106.5],
-  [29.8, -103.0],
-  [29.4, -101.0],
-  [27.5, -99.5],
-  [25.9, -97.2],
-  // Gulf coast east
-  [27.5, -97.3],
-  [29.4, -94.7],
-  [29.5, -91.5],
-  [29.1, -90.2],
-  [30.3, -88.0],
-  [30.4, -86.5],
-  [30.0, -84.0],
-  [28.7, -82.7],
-  // Florida tip + east coast north
-  [26.5, -82.0],
-  [25.2, -80.5],
-  [25.9, -80.1],
-  [27.8, -80.3],
-  [30.7, -81.4],
-  [32.0, -80.8],
-  [33.5, -78.9],
-  [34.6, -76.5],
-  [36.9, -76.0],
-  [37.9, -75.5],
-  [39.3, -74.4],
-  [40.5, -74.0],
-  [41.0, -71.9],
-  [41.7, -70.0],
-  [42.7, -70.6],
-  [43.7, -70.0],
-  [44.5, -68.0],
-  [44.8, -67.0],
-  // Canada border east → west
-  [45.4, -67.7],
-  [45.4, -71.0],
-  [45.0, -74.2],
-  [44.0, -76.5],
-  [43.3, -78.7],
-  [42.2, -82.7],
-  [45.5, -84.6],
-  [46.7, -84.4],
-  [46.8, -88.0],
-  [47.5, -90.0],
-  [47.4, -92.0],
-  [48.0, -94.0],
-  [49.0, -94.7],
-  [49.0, -123.0],
-  [48.4, -124.7],
-];
+// ─── State geometry → SVG paths ──────────────────────────────────
 
-// Pre-compute the projected path string. Runs once at module load.
-const US_OUTLINE_PATH = (() => {
-  const points = US_OUTLINE_LATLNG.map(([lat, lng]) => project(lat, lng));
-  if (points.length === 0) return "";
-  const [x0, y0] = points[0];
-  const rest = points
-    .slice(1)
-    .map(([x, y]) => `L${x.toFixed(1)},${y.toFixed(1)}`)
-    .join(" ");
-  return `M${x0.toFixed(1)},${y0.toFixed(1)} ${rest} Z`;
+interface StatePath {
+  id: string;
+  name: string;
+  d: string;
+}
+
+const STATE_PATHS: StatePath[] = (() => {
+  const topology = statesTopology as unknown as Topology<{
+    states: GeometryCollection<TopoPolygon | TopoMultiPolygon>;
+    nation: GeometryCollection<TopoPolygon | TopoMultiPolygon>;
+  }>;
+  const collection = feature(
+    topology,
+    topology.objects.states
+  ) as FeatureCollection<GeoPolygon | GeoMultiPolygon, { name?: string }>;
+
+  return collection.features
+    .filter((f) => {
+      // Drop Alaska (02), Hawaii (15), and US territories (FIPS ≥ 60).
+      // See the file-level comment for the rationale.
+      const fips = String(f.id ?? "");
+      if (fips === "02" || fips === "15") return false;
+      const num = Number(fips);
+      return Number.isFinite(num) && num < 60;
+    })
+    .map((f) => ({
+      id: String(f.id ?? ""),
+      name: f.properties?.name ?? String(f.id ?? ""),
+      d: geometryToPath(f),
+    }))
+    .filter((s) => s.d.length > 0);
 })();
+
+function geometryToPath(
+  f: Feature<GeoPolygon | GeoMultiPolygon, { name?: string }>
+): string {
+  const g = f.geometry;
+  if (g.type === "Polygon") {
+    return ringsToPath(g.coordinates);
+  }
+  if (g.type === "MultiPolygon") {
+    return g.coordinates.map(ringsToPath).join(" ");
+  }
+  return "";
+}
+
+/** Convert one polygon (array of rings — first is exterior, the
+ *  rest are holes) into a string of SVG subpaths. Even-odd fill
+ *  rule on the wrapping <path> handles hole rendering correctly
+ *  without us having to flip ring winding. */
+function ringsToPath(polygon: number[][][]): string {
+  return polygon
+    .map((ring) => {
+      if (ring.length < 3) return "";
+      const projected = ring.map(([lng, lat]) => project(lat, lng));
+      const [x0, y0] = projected[0];
+      const rest = projected
+        .slice(1)
+        .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
+        .join(" ");
+      return `M${x0.toFixed(1)},${y0.toFixed(1)} L${rest} Z`;
+    })
+    .filter(Boolean)
+    .join(" ");
+}
+
+// ─── Marker layout ───────────────────────────────────────────────
 
 interface MarkerLayout {
   market: MarketCoverageEntry;
@@ -130,11 +144,6 @@ function layoutMarkers(markets: MarketCoverageEntry[]): MarkerLayout[] {
   });
 
   const minSeparation = MARKER_RADIUS * 2.2; // 2.2× radius keeps dots visually distinct
-  // Single relaxation pass — for each colliding pair, push them
-  // apart along the line between them by half the deficit each.
-  // A pass usually resolves all collisions for the dataset we
-  // ship; a second pass would only matter for tight 3-way
-  // clusters and the projection has none of those today.
   for (let i = 0; i < initial.length; i++) {
     for (let j = i + 1; j < initial.length; j++) {
       const a = initial[i];
@@ -155,6 +164,8 @@ function layoutMarkers(markets: MarketCoverageEntry[]): MarkerLayout[] {
   return initial;
 }
 
+// ─── Component ───────────────────────────────────────────────────
+
 export function MarketsCoverageMap() {
   const markets = React.useMemo(() => getCoverageMarkets(), []);
   const layout = React.useMemo(() => layoutMarkers(markets), [markets]);
@@ -172,37 +183,35 @@ export function MarketsCoverageMap() {
           aria-label="Map of the contiguous United States showing live Dwellsy IQ markets and additional markets available upon request."
           className="block h-auto w-full"
         >
-          {/* US outline — soft fill, subtle border. Two-tone so the
-              map reads at a glance without competing with the dots
-              for attention. */}
-          <path
-            d={US_OUTLINE_PATH}
-            fill="#F2F5F8"
-            stroke="#D5DBE3"
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
+          {/* State geometry — context only, no interactivity.
+              Subtle near-background fill + thin border for state
+              lines so the marker dots stay visually dominant. */}
+          <g aria-hidden>
+            {STATE_PATHS.map((s) => (
+              <path
+                key={s.id}
+                d={s.d}
+                fill="#F2F5F8"
+                stroke="#D5DBE3"
+                strokeWidth={0.6}
+                strokeLinejoin="round"
+                fillRule="evenodd"
+              />
+            ))}
+          </g>
 
-          {/* Markers. Render available first so live dots sit on
-              top in any rare overlap. */}
+          {/* Markers — available first so live dots sit on top
+              in any rare overlap. Rendered after the state group
+              so the markers are visually dominant. */}
           {layout
             .filter((l) => l.market.status === "available")
             .map((l) => (
-              <Marker
-                key={l.market.slug}
-                layout={l}
-                onHover={setHovered}
-              />
+              <Marker key={l.market.slug} layout={l} onHover={setHovered} />
             ))}
           {layout
             .filter((l) => l.market.status === "live")
             .map((l) => (
-              <Marker
-                key={l.market.slug}
-                layout={l}
-                onHover={setHovered}
-              />
+              <Marker key={l.market.slug} layout={l} onHover={setHovered} />
             ))}
         </svg>
 
