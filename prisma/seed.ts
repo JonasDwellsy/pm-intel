@@ -1521,6 +1521,181 @@ async function main() {
   console.log(
     `\nSeed complete: ${marketCount} market(s), ${dbPmCount} PM(s) (processed ${pmCount}${dupeSuffix}).`
   );
+
+  // v0.16 (PR #57) — Operator snapshot capture for the watch-list
+  // change-detection feedback loop. Writes one OperatorSnapshot row
+  // per PM, stamped with data.dataAsOf (NOT the deploy time) so the
+  // snapshot cadence inherits the monthly data-refresh cadence.
+  //
+  // Idempotent: the @@unique([pmSlug, snapshotDate]) constraint
+  // means re-deploys against the same JSON no-op. We use
+  // createMany({ skipDuplicates: true }) so this is safe both when
+  // isDataCurrent() WOULD have skipped the seed (manually run with
+  // FORCE_SEED=true) and when it's a genuine new month of data.
+  //
+  // Reads off the already-written PM rows so we don't have to
+  // re-derive star fields from the JSON; the scorecardData column
+  // is the canonical source.
+  await captureOperatorSnapshots(data.dataAsOf, data.methodologyVersion);
+}
+
+/**
+ * Capture per-operator snapshots into OperatorSnapshot. One row per
+ * PM, stamped with snapshotDate = dataAsOf (the data-cutoff date,
+ * not the deploy time). Safe to call on every seed run — the unique
+ * constraint silently dedupes re-runs against the same data.
+ */
+async function captureOperatorSnapshots(
+  dataAsOf: string,
+  methodologyVersion: string
+): Promise<void> {
+  const snapshotDate = new Date(dataAsOf);
+
+  // Read every PM. We need pmSlug, marketId, canonicalOperatorId,
+  // t12ListingsBySubmarket, concessionRate, and scorecardData
+  // (for the embedded star + portfolio + eligibility fields).
+  const pms = await prisma.pM.findMany({
+    select: {
+      slug: true,
+      marketId: true,
+      canonicalOperatorId: true,
+      t12ListingsBySubmarket: true,
+      concessionRate: true,
+      scorecardData: true,
+    },
+  });
+
+  // Build canonical-operator → marketIds map so each PM snapshot
+  // can carry the FULL canonical footprint as topMSAs. For
+  // single-market operators (canonicalOperatorId === pmSlug, no
+  // CanonicalOperator row), topMSAs is the operator's only market.
+  // For cross-market entities (Invitation Homes across 4 markets),
+  // every PM row in the snapshot batch carries the same 4-element
+  // array — redundant, but it makes the diff trivial per-PM.
+  const marketsByCanonical = new Map<string, Set<string>>();
+  for (const pm of pms) {
+    const canonicalId = pm.canonicalOperatorId ?? pm.slug;
+    let set = marketsByCanonical.get(canonicalId);
+    if (!set) {
+      set = new Set<string>();
+      marketsByCanonical.set(canonicalId, set);
+    }
+    set.add(pm.marketId);
+  }
+
+  const rows: Array<{
+    pmSlug: string;
+    snapshotDate: Date;
+    methodologyVersion: string;
+    starsPerMetric: string;
+    starGoldCount: number;
+    starSilverCount: number;
+    estimatedPortfolioPoint: number | null;
+    estimatedPortfolioBand: string | null;
+    topMSAs: string;
+    topSubmarkets: string;
+    concessionRate: number | null;
+    isEligibleForRanking: boolean;
+  }> = [];
+
+  for (const pm of pms) {
+    type ScorecardShape = {
+      performance?: { domStar?: string };
+      tenancy?: { star?: string };
+      rentPerformance?: { star?: string };
+      marketing?: { star?: string };
+      communityVisibility?: { star?: string };
+      portfolioEstimate?: {
+        status?: string;
+        point?: number;
+        confidence?: string;
+      };
+      coverage?: { t12Listings?: number };
+    };
+    let sc: ScorecardShape;
+    try {
+      sc = JSON.parse(pm.scorecardData) as ScorecardShape;
+    } catch {
+      // Malformed scorecard JSON — skip this row, don't fail the
+      // whole snapshot capture. Real data drift will surface in the
+      // next monthly refresh.
+      continue;
+    }
+
+    const normaliseStar = (v: string | undefined) =>
+      v === "gold" || v === "silver" ? v : null;
+    const stars = {
+      leaseUp: normaliseStar(sc.performance?.domStar),
+      tenancy: normaliseStar(sc.tenancy?.star),
+      rentPerformance: normaliseStar(sc.rentPerformance?.star),
+      marketingDiscipline: normaliseStar(sc.marketing?.star),
+      inventoryTransparency: normaliseStar(sc.communityVisibility?.star),
+    };
+    let gold = 0;
+    let silver = 0;
+    for (const s of Object.values(stars)) {
+      if (s === "gold") gold++;
+      else if (s === "silver") silver++;
+    }
+
+    // Portfolio band: confidence tier when estimated, status string
+    // otherwise (so the diff can detect estimated↔not transitions).
+    let point: number | null = null;
+    let band: string | null = null;
+    const est = sc.portfolioEstimate;
+    if (est?.status === "estimated" && typeof est.point === "number") {
+      point = Math.round(est.point);
+      band = est.confidence ?? null;
+    } else if (est) {
+      band = est.status ?? null;
+    }
+
+    // Active submarkets: parse the JSON map column off the PM row,
+    // keep slugs where listing count > 0.
+    const activeSubmarkets: string[] = [];
+    if (pm.t12ListingsBySubmarket) {
+      try {
+        const parsed = JSON.parse(pm.t12ListingsBySubmarket) as Record<
+          string,
+          unknown
+        >;
+        for (const [slug, value] of Object.entries(parsed)) {
+          if (typeof value === "number" && value > 0) activeSubmarkets.push(slug);
+        }
+      } catch {
+        // Bad JSON — treat as no active submarkets.
+      }
+    }
+    activeSubmarkets.sort();
+
+    const t12Listings = sc.coverage?.t12Listings ?? 0;
+    const canonicalMarkets = Array.from(
+      marketsByCanonical.get(pm.canonicalOperatorId ?? pm.slug) ?? []
+    ).sort();
+
+    rows.push({
+      pmSlug: pm.slug,
+      snapshotDate,
+      methodologyVersion,
+      starsPerMetric: JSON.stringify(stars),
+      starGoldCount: gold,
+      starSilverCount: silver,
+      estimatedPortfolioPoint: point,
+      estimatedPortfolioBand: band,
+      topMSAs: JSON.stringify(canonicalMarkets),
+      topSubmarkets: JSON.stringify(activeSubmarkets),
+      concessionRate: pm.concessionRate,
+      isEligibleForRanking: t12Listings >= 30,
+    });
+  }
+
+  const result = await prisma.operatorSnapshot.createMany({
+    data: rows,
+    skipDuplicates: true,
+  });
+  console.log(
+    `  ✓ operator snapshots: ${result.count} row(s) written for dataAsOf ${dataAsOf} (${rows.length - result.count} already present, skipped)`
+  );
 }
 
 main()

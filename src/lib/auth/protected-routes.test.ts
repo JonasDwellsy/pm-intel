@@ -60,6 +60,10 @@ test("anonymous users are gated off /watch-lists/:id/results", () => {
   assert.equal(isGated("/watch-lists/cuid_abc123/results"), true);
 });
 
+test("anonymous users are gated off /watch-lists/:id/changes (v0.16 change-detection detail view)", () => {
+  assert.equal(isGated("/watch-lists/cuid_abc123/changes"), true);
+});
+
 test("anonymous users CAN hit the preview API for in-memory drafts", () => {
   assert.equal(isGated("/api/watch-lists/preview"), false);
 });

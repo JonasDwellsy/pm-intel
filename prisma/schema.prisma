@@ -14,70 +14,70 @@ datasource db {
 }
 
 model Market {
-  id                    String   @id // e.g., "chattanooga-tn"
-  msaCode               String // e.g., "16860"
-  city                  String
-  state                 String // 2-letter
-  fullName              String // "Chattanooga, TN-GA MSA"
-  operatorCountTotal    Int
-  operatorCountEligible Int
-  medianDomT12          Float
-  medianDomLifetime     Float
+  id                                String   @id // e.g., "chattanooga-tn"
+  msaCode                           String // e.g., "16860"
+  city                              String
+  state                             String // 2-letter
+  fullName                          String // "Chattanooga, TN-GA MSA"
+  operatorCountTotal                Int
+  operatorCountEligible             Int
+  medianDomT12                      Float
+  medianDomLifetime                 Float
   // v0.6.1 5-cell quadrant counts. JSON blob keyed by quadrant string.
-  quadrantSummary       String
+  quadrantSummary                   String
   // v0.6.2 7-cell quadrant counts. JSON blob keyed by quadrant7Cell label.
   // Nullable for forward-compat with pre-v0.6.2 seeds.
-  quadrant7CellSummary  String?
+  quadrant7CellSummary              String?
   // v0.6.3 — Patch 1: active operator count (≥3 listings T12) replaces the
   // legacy total-operator denominator as the surfaced headline figure.
   // activeOperatorCountBySubmarket carries per-submarket counts as a JSON
   // map (string-keyed submarket slug → int active count) for filtered-state
   // headlines. Both nullable for back-compat with pre-v0.6.3 markets.
-  activeOperatorCount             Int?
-  activeOperatorCountBySubmarket  String?
+  activeOperatorCount               Int?
+  activeOperatorCountBySubmarket    String?
   // v0.6.3 — Patch 3: market-level rent growth aggregate (median YoY across
   // ranked operators), national benchmark (identical across all markets,
   // embedded per-market for render simplicity), and pre-computed pp delta
   // for the "vs national" benchmark line. All decimals (e.g. 0.0023 = +0.23%).
-  marketRentGrowthT12                  Float?
-  nationalRentGrowthT12                Float?
-  marketRentGrowthDeltaVsNationalPp    Float?
+  marketRentGrowthT12               Float?
+  nationalRentGrowthT12             Float?
+  marketRentGrowthDeltaVsNationalPp Float?
   // v0.6.3 — Patch 2: eligibility-window UI label correction (T6M → T12).
   // Methodology was always T12 in production; this string is the label
   // surfaced on the headline tile + methodology page §3. Defaults to T12
   // so back-compat reseeds without an explicit value still read correctly.
-  eligibilityWindow     String?  @default("T12")
+  eligibilityWindow                 String?  @default("T12")
   // v0.6.4 Patch 2 — count of ranked operators in this market with at
   // least one concession-mentioning T12 listing. Drives the cohort
   // comparison line on the scorecard Layer 5 Concession Activity
   // section. Default 0 keeps the field safe for back-compat with
   // pre-Patch-2 reseeds.
-  operatorsWithConcessions Int   @default(0)
-  pms                   PM[]
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  operatorsWithConcessions          Int      @default(0)
+  pms                               PM[]
+  createdAt                         DateTime @default(now())
+  updatedAt                         DateTime @updatedAt
 }
 
 model PM {
-  slug               String   @id // e.g., "doorby-property-management-chattanooga-tn"
-  name               String
-  marketId           String
-  market             Market   @relation(fields: [marketId], references: [id])
+  slug                   String   @id // e.g., "doorby-property-management-chattanooga-tn"
+  name                   String
+  marketId               String
+  market                 Market   @relation(fields: [marketId], references: [id])
   // v0.6.1 5-cell label, normalized at seed ("Scattered / Independent" etc.).
   // Kept for back-compat with existing route segments and market filters.
-  quadrant           String
+  quadrant               String
   // v0.6.2 7-cell canonical label ("SFR Independent", "Large MF/BTR
   // Institutional", "Hybrid", etc.). Nullable for forward-compat.
-  quadrant7Cell      String?
-  hybrid             Boolean  @default(false)
-  rankOverall        Int?
-  rankOverallTotal   Int?
-  rankQuadrant       Int?
-  rankQuadrantTotal  Int?
-  claimed            Boolean  @default(false)
-  scorecardData      String // JSON blob: full structured scorecard
-  methodologyVersion String // e.g. "v0.6.3"
-  dataAsOf           DateTime
+  quadrant7Cell          String?
+  hybrid                 Boolean  @default(false)
+  rankOverall            Int?
+  rankOverallTotal       Int?
+  rankQuadrant           Int?
+  rankQuadrantTotal      Int?
+  claimed                Boolean  @default(false)
+  scorecardData          String // JSON blob: full structured scorecard
+  methodologyVersion     String // e.g. "v0.6.3"
+  dataAsOf               DateTime
   // v0.6.3 — Patch 1 support: per-PM T12 listing counts keyed by submarket
   // slug as a JSON map. Backs the submarket-filtered Eligible-with-footprint
   // tile (count of MSA-eligible operators with t12ListingsBySubmarket[slug]
@@ -86,7 +86,7 @@ model PM {
   // v0.6.3 — Patch 2 informational flag. Almost always false: the T6M→T12
   // label correction was a labeling fix, not a cohort change. Tracked so
   // future audits can attribute eligibility deltas to the correct cause.
-  newlyEligibleInV063 Boolean? @default(false)
+  newlyEligibleInV063    Boolean? @default(false)
   // v0.6.4 Patch 1 — canonical operator identity. Every PM carries a
   // canonicalOperatorId; multi-market operators share the same id across
   // markets (e.g. invitation-homes across 4 markets). Single-market
@@ -94,8 +94,8 @@ model PM {
   // is the display form (e.g. "Invitation Homes"). The canonicalOperatorId
   // is the foreign key into the CanonicalOperator table for multi-market
   // entities; single-market ids have no matching row.
-  canonicalOperatorId   String?
-  canonicalOperatorName String?
+  canonicalOperatorId    String?
+  canonicalOperatorName  String?
   // v0.6.4 Patch 2 — concession detection results from the regex
   // classifier run against listing descriptions over the T12 window.
   // concessionRate is null when the operator wasn't found in the CSV
@@ -105,18 +105,18 @@ model PM {
   // (move_in_special, free_month_lease, etc.) ordered by frequency.
   // concessionSampleText carries one representative listing excerpt
   // for display. Always non-ranking — context only on Layer 5.
-  concessionListingCount Int     @default(0)
+  concessionListingCount Int      @default(0)
   concessionRate         Float?
-  concessionPatterns     String  @default("[]") // JSON array
+  concessionPatterns     String   @default("[]") // JSON array
   concessionSampleText   String?
   // v0.6.4 Patch 2 follow-up — up to 3 distinct concession sample
   // excerpts. Authoritative for the Layer 5 UI; concessionSampleText
   // stays for back-compat with downstream readers that may not have
   // migrated yet. Stored as JSON array string, same convention as
   // concessionPatterns + the other JSON-as-String columns in the schema.
-  concessionSamples      String  @default("[]")
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  concessionSamples      String   @default("[]")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }
 
 // v0.6.4 Patch 1 — cross-market canonical operator entity.
@@ -127,14 +127,14 @@ model PM {
 // the existing JSON-as-String pattern used for scorecardData on PM and
 // the quadrant summaries on Market — application code parses on read).
 model CanonicalOperator {
-  id              String   @id @default(cuid())
-  canonicalSlug   String   @unique
-  canonicalName   String
-  marketIds       String   // JSON array of market ids
-  pmSlugs         String   // JSON array of PM slugs
-  marketCount     Int
-  aggregateStats  String   // JSON blob with sum stats
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  canonicalSlug  String   @unique
+  canonicalName  String
+  marketIds      String // JSON array of market ids
+  pmSlugs        String // JSON array of PM slugs
+  marketCount    Int
+  aggregateStats String // JSON blob with sum stats
+  createdAt      DateTime @default(now())
 }
 
 model Lead {
@@ -171,16 +171,16 @@ model Claim {
 // of the structured MarketBriefData input the prose was generated from,
 // kept for debugging (e.g., "did the seed change but version didn't?").
 model MarketBrief {
-  id                  String   @id @default(cuid())
-  marketSlug          String
-  methodologyVersion  String
-  dataAsOf            DateTime
-  headlineRead        String
-  shareMovement       String
-  operatorLandscape   String
-  notableSignals      String
-  inputDigest         String
-  generatedAt         DateTime @default(now())
+  id                 String   @id @default(cuid())
+  marketSlug         String
+  methodologyVersion String
+  dataAsOf           DateTime
+  headlineRead       String
+  shareMovement      String
+  operatorLandscape  String
+  notableSignals     String
+  inputDigest        String
+  generatedAt        DateTime @default(now())
 
   // Composite uniqueness: at most one brief per cache key.
   @@unique([marketSlug, methodologyVersion, dataAsOf])
@@ -217,5 +217,97 @@ model WatchList {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  // v0.16 — per-user view ledger. Drives the change-detection
+  // banner; one row written per signed-in page-view. Cascade-delete
+  // so removing a watch list cleans up its view history.
+  views WatchListView[]
+
   @@index([ownerId])
+}
+
+// v0.16 — Operator change-detection feedback loop.
+//
+// Snapshot per (operator × dataAsOf). Written at seed time, one row
+// per PM. snapshotDate carries the methodology's dataAsOf (NOT the
+// deploy date) so the cadence matches the underlying data refresh
+// (currently monthly: April-data lands in May, May-data lands in
+// June, etc.). The @@unique([pmSlug, snapshotDate]) constraint
+// makes the capture idempotent — re-deploys against the same
+// scorecard JSON are no-ops via createMany({ skipDuplicates: true }).
+//
+// Diff comparisons read two snapshots per operator:
+//   - latest        — the current state at view time
+//   - prior         — the snapshot closest to (but not after) the
+//                     user's last WatchListView.viewedAt
+// See src/lib/watch-list/change-detection.ts for the diff logic.
+//
+// JSON columns follow the schema-wide JSON-as-String convention. App
+// code parses on read; Postgres treats them as text.
+model OperatorSnapshot {
+  id                 String   @id @default(cuid())
+  pmSlug             String
+  snapshotDate       DateTime
+  methodologyVersion String
+
+  // Per-metric star roll-up. JSON object keyed by metric name,
+  // values 'gold' | 'silver' | null. Five metrics today (leaseUp,
+  // tenancy, rentPerformance, marketingDiscipline,
+  // inventoryTransparency); inventoryTransparency is null for
+  // SFR / Hybrid operators.
+  starsPerMetric  String
+  // Denormalised star totals so the banner count query doesn't have
+  // to parse starsPerMetric for every operator in a watch list.
+  starGoldCount   Int
+  starSilverCount Int
+
+  estimatedPortfolioPoint Int?
+  // Confidence tier from the v0.7 size-banded estimator
+  // ('Low' | 'Medium' | 'High') OR a non-estimated status string
+  // ('insufficient_data' | 'insufficient_history' | 'no_listings').
+  // Banding change is the trigger condition independent of point
+  // movement, so we store the tier directly rather than re-deriving.
+  estimatedPortfolioBand  String?
+
+  // JSON array of MSA slugs the canonical operator has at least
+  // one PM in at this snapshot date. For single-market operators
+  // this is a 1-element array; for cross-market entities (e.g.
+  // Invitation Homes across 4 markets) it's the full footprint.
+  // Replicated across every PM row sharing the same
+  // canonicalOperatorId so the diff can compute set delta from
+  // any single PM snapshot.
+  topMSAs       String
+  // JSON array of submarket slugs where this PM's
+  // t12ListingsBySubmarket > 0. Active-submarket footprint.
+  topSubmarkets String
+
+  concessionRate       Float?
+  isEligibleForRanking Boolean
+  createdAt            DateTime @default(now())
+
+  // One snapshot per operator per data-cutoff date.
+  @@unique([pmSlug, snapshotDate])
+  // Latest-snapshot + closest-to-X lookups are the two hot queries.
+  // DESC on snapshotDate makes "find the most recent at-or-before X"
+  // a single index range scan.
+  @@index([pmSlug, snapshotDate(sort: Desc)])
+}
+
+// Per-user × per-WatchList × view ledger. Written every time a
+// signed-in user opens a watch list's results page. Drives the
+// "since your last visit" banner — the diff compares each operator's
+// latest snapshot against the snapshot closest to (but not after)
+// the user's *previous* viewedAt. The current view's row gets
+// written AFTER the diff is computed so the banner reflects what
+// changed since last time, not since this load.
+model WatchListView {
+  id          String   @id @default(cuid())
+  userId      String
+  watchListId String
+  viewedAt    DateTime @default(now())
+
+  watchList WatchList @relation(fields: [watchListId], references: [id], onDelete: Cascade)
+
+  // (userId, watchListId, viewedAt DESC) covers "find the prior
+  // viewedAt for this user/watch-list pair" — the only hot query.
+  @@index([userId, watchListId, viewedAt(sort: Desc)])
 }
