@@ -106,13 +106,23 @@ function CompositeStar({ level }: { level?: StarLevel }) {
   );
 }
 
-function ScorecardCard({ card }: { card: SampleCard }) {
+// Exported so the homepage Hero can render a single sample card on
+// the right side without duplicating styling. The Hero passes
+// `analyticsSource="homepage_hero"` so click events bucket separately
+// from the inline-section cards below.
+export function ScorecardCard({
+  card,
+  analyticsSource = "homepage_samples",
+}: {
+  card: SampleCard;
+  analyticsSource?: string;
+}) {
   return (
     <TrackedLink
       event="pm_card_click"
       properties={{
         pmSlug: card.slug,
-        source: "homepage_samples",
+        source: analyticsSource,
       }}
       href={card.href}
       className="group flex min-h-[360px] flex-col rounded-md border border-grid bg-white p-7 transition-all duration-[180ms] hover:-translate-y-0.5 hover:border-navy hover:shadow-[0_8px_24px_rgb(15_31_63_/_0.06)]"
