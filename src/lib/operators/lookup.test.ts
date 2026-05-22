@@ -11,8 +11,8 @@
 
 import test from "node:test";
 import { strict as assert } from "node:assert";
-import { aggregateRecords } from "@/lib/buy-box/aggregate";
-import type { PMRecord } from "@/lib/buy-box/fields";
+import { aggregateRecords } from "@/lib/watch-list/aggregate";
+import type { PMRecord } from "@/lib/watch-list/fields";
 
 function makePm(opts: {
   slug: string;

@@ -6,13 +6,13 @@
 //
 // Coverage focuses on the discovery-path invariants:
 //
-//   - /buy-boxes/new (template picker) is PUBLIC so anonymous users
-//     can clone a starter buy box without an auth gate (PR #45 path).
-//   - /buy-boxes (the saved list) is PROTECTED so anonymous users
+//   - /watch-lists/new (template picker) is PUBLIC so anonymous users
+//     can clone a starter watch list without an auth gate (PR #45 path).
+//   - /watch-lists (the saved list) is PROTECTED so anonymous users
 //     are bounced to /sign-in.
-//   - /api/buy-boxes/preview is PUBLIC so the in-memory preview
+//   - /api/watch-lists/preview is PUBLIC so the in-memory preview
 //     endpoint stays usable from the anon-friendly editor.
-//   - /api/buy-boxes (CRUD) is PROTECTED so saves require a session.
+//   - /api/watch-lists (CRUD) is PROTECTED so saves require a session.
 //
 // We compile the path patterns with path-to-regexp directly — same
 // library Clerk's createRouteMatcher uses internally — so the test
@@ -44,36 +44,36 @@ function isGated(pathname: string): boolean {
   );
 }
 
-test("anonymous users can hit /buy-boxes/new (template picker)", () => {
-  assert.equal(isGated("/buy-boxes/new"), false);
+test("anonymous users can hit /watch-lists/new (template picker)", () => {
+  assert.equal(isGated("/watch-lists/new"), false);
 });
 
-test("anonymous users are gated off /buy-boxes (saved list)", () => {
-  assert.equal(isGated("/buy-boxes"), true);
+test("anonymous users are gated off /watch-lists (saved list)", () => {
+  assert.equal(isGated("/watch-lists"), true);
 });
 
-test("anonymous users are gated off /buy-boxes/:id/edit", () => {
-  assert.equal(isGated("/buy-boxes/cuid_abc123/edit"), true);
+test("anonymous users are gated off /watch-lists/:id/edit", () => {
+  assert.equal(isGated("/watch-lists/cuid_abc123/edit"), true);
 });
 
-test("anonymous users are gated off /buy-boxes/:id/results", () => {
-  assert.equal(isGated("/buy-boxes/cuid_abc123/results"), true);
+test("anonymous users are gated off /watch-lists/:id/results", () => {
+  assert.equal(isGated("/watch-lists/cuid_abc123/results"), true);
 });
 
 test("anonymous users CAN hit the preview API for in-memory drafts", () => {
-  assert.equal(isGated("/api/buy-boxes/preview"), false);
+  assert.equal(isGated("/api/watch-lists/preview"), false);
 });
 
-test("anonymous users are gated off /api/buy-boxes (CRUD list/create)", () => {
-  assert.equal(isGated("/api/buy-boxes"), true);
+test("anonymous users are gated off /api/watch-lists (CRUD list/create)", () => {
+  assert.equal(isGated("/api/watch-lists"), true);
 });
 
-test("anonymous users are gated off /api/buy-boxes/:id (CRUD by id)", () => {
-  assert.equal(isGated("/api/buy-boxes/cuid_abc123"), true);
+test("anonymous users are gated off /api/watch-lists/:id (CRUD by id)", () => {
+  assert.equal(isGated("/api/watch-lists/cuid_abc123"), true);
 });
 
-test("anonymous users are gated off /api/buy-boxes/:id/apply", () => {
-  assert.equal(isGated("/api/buy-boxes/cuid_abc123/apply"), true);
+test("anonymous users are gated off /api/watch-lists/:id/apply", () => {
+  assert.equal(isGated("/api/watch-lists/cuid_abc123/apply"), true);
 });
 
 test("unrelated public routes (home, methodology, operators) are NOT gated", () => {

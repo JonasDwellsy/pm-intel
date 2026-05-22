@@ -14,12 +14,12 @@ import {
 //      named prospects without exposing it to the open internet.
 //
 //   2. Clerk per-user auth (inner). Routes that operate on a user's
-//      saved buy boxes — the workspace landing, the editor, the
+//      saved watch lists — the workspace landing, the editor, the
 //      results view, and the CRUD API endpoints — additionally
 //      require a signed-in Clerk user. The template picker, the
 //      template-preloaded editor, and the in-memory preview API
 //      stay public so anonymous visitors can still browse + tweak
-//      + preview a buy box without an auth gate. The gate fires
+//      + preview a watch list without an auth gate. The gate fires
 //      only when they try to SAVE (the editor handles that flow
 //      client-side by checking useAuth() and redirecting to
 //      /sign-in?redirect_url=... before issuing the POST).
@@ -42,7 +42,7 @@ import {
 //     but Clerk can't detect usage of clerkMiddleware()".
 //
 //   - Protection (auth.protect()) stays NARROW — only the saved-
-//     buy-box surfaces from PROTECTED_ROUTE_PATTERNS. /password
+//     watch-list surfaces from PROTECTED_ROUTE_PATTERNS. /password
 //     itself must NOT be protected; it's the entry point to the
 //     research-preview gate, and requiring a Clerk session there
 //     would create an infinite redirect loop with the password gate
@@ -103,7 +103,7 @@ async function passwordGate(req: NextRequest): Promise<NextResponse | null> {
 // lists live in src/lib/auth/protected-routes.ts so they're testable
 // independently of the middleware wiring.
 const isProtectedRoute = createRouteMatcher([...PROTECTED_ROUTE_PATTERNS]);
-const isPublicBuyBoxRoute = createRouteMatcher([...PUBLIC_BUYBOX_PATTERNS]);
+const isPublicWatchListRoute = createRouteMatcher([...PUBLIC_BUYBOX_PATTERNS]);
 
 /** Paths that bypass the research-preview password gate. These are
  *  the gate page itself + its validation endpoint — running the gate
@@ -120,7 +120,7 @@ export default clerkMiddleware(async (auth, req) => {
     if (gateResponse) return gateResponse;
   }
 
-  if (isProtectedRoute(req) && !isPublicBuyBoxRoute(req)) {
+  if (isProtectedRoute(req) && !isPublicWatchListRoute(req)) {
     await auth.protect();
   }
 });

@@ -12,7 +12,7 @@
 // Ideal test shape would be a real DOM render under Playwright or
 // Vitest+DOM asserting a baseline-to-baseline gap of ~14px for every
 // `<p class="dq-eyebrow">` + adjacent headline pair. We don't have
-// that infrastructure wired into `npm run test:buy-box` yet, so this
+// that infrastructure wired into `npm run test:watch-list` yet, so this
 // is a CSS-source contract test: it reads globals.css, parses out
 // the three rules that own the eyebrow → headline contract, and
 // asserts their declarations match the documented intent.

@@ -42,7 +42,7 @@ export default function SignInPage() {
             PM Intel
           </span>
         </div>
-        <SignIn fallbackRedirectUrl="/buy-boxes" signUpUrl="/sign-up" />
+        <SignIn fallbackRedirectUrl="/watch-lists" signUpUrl="/sign-up" />
       </div>
     </div>
   );

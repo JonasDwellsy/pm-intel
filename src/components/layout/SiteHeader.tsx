@@ -36,7 +36,7 @@ export function SiteHeader() {
         <nav className="flex items-center gap-5">
           {/* Nav items render in the order declared by NAV_ITEMS
               (src/lib/nav.ts) — single source of truth shared with
-              the footer. Buy Boxes leads the order to surface the
+              the footer. Watch Lists leads the order to surface the
               acquirer workflow without an extra click. Below the
               `sm` breakpoint the text links are hidden via the
               sm:inline-block prefix; the primary CTA on the right
@@ -97,7 +97,7 @@ export function SiteHeader() {
             />
           </Show>
           {/* Primary CTA — points at the template picker so anyone
-              (anonymous or signed in) can clone a starter buy box
+              (anonymous or signed in) can clone a starter watch list
               without an auth gate. Save still requires auth. */}
           <Link
             href={PRIMARY_CTA.href}

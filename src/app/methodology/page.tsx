@@ -1620,7 +1620,7 @@ export default async function MethodologyPage() {
                       May 21, 2026
                     </td>
                     <td>
-                      <strong>Buy Box foundation (PR 1 of ~5).</strong> Data
+                      <strong>Watch List foundation (PR 1 of ~5).</strong> Data
                       layer + filter evaluator + fit-scoring engine + CRUD
                       API for acquirer-defined target lists. Saved buy
                       boxes hold three layers of criteria — required
@@ -1633,12 +1633,12 @@ export default async function MethodologyPage() {
                       Asset, Trajectory, and Operator dimensions. Two
                       starter templates seeded — Evernest-style SFR
                       density build-out + Genstone-style integrated
-                      services — drawn verbatim from the buy-box spec&rsquo;s
+                      services — drawn verbatim from the watch-list spec&rsquo;s
                       worked examples. No editor UI yet (ships in PR 2);
                       minimal admin view at{" "}
-                      <span className="dq-mono">/buy-boxes</span> for
+                      <span className="dq-mono">/watch-lists</span> for
                       verification. Methodology cohorts + ranking
-                      unchanged — Buy Box is a screening surface on top
+                      unchanged — Watch List is a screening surface on top
                       of the existing scorecard universe, not a metric
                       revision.
                     </td>

@@ -29,7 +29,7 @@ import { ScorecardSidebar } from "@/components/scorecard/ScorecardSidebar";
 // PR #47 retires the paywall. All sections render unconditionally
 // for every visitor; the `?unlocked=true` query param is still
 // accepted but ignored (kept as a no-op so stale inbound links
-// don't 404 or land in an unexpected state). The "Build a buy box
+// don't 404 or land in an unexpected state). The "Build a watch list
 // to find more like this" CTA that lived on the paywall card is
 // preserved as a contextual block between Methodology and the end
 // of the article.
@@ -145,7 +145,7 @@ function OperatorScorecardBackLink({
   );
 }
 
-/** PR #47 — the "Build a buy box to find more like this" CTA that
+/** PR #47 — the "Build a watch list to find more like this" CTA that
  *  used to live on the now-deleted PaywallCard. Surfaces as a
  *  contextual block at the end of the scorecard. Same TrackedLink
  *  event so the existing analytics keep flowing. */
@@ -165,11 +165,11 @@ function SimilarOperatorsCta({ pmSlug }: { pmSlug: string }) {
         </div>
         <TrackedLink
           event="scorecard_cta_click"
-          properties={{ pmSlug, action: "build_buy_box" }}
-          href="/buy-boxes/new"
+          properties={{ pmSlug, action: "build_watch_list" }}
+          href="/watch-lists/new"
           className="inline-flex h-11 shrink-0 items-center justify-center rounded-md bg-navy px-6 text-[14px] font-semibold text-white transition-colors hover:bg-navy-700"
         >
-          Build a buy box →
+          Build a watch list →
         </TrackedLink>
       </div>
     </aside>

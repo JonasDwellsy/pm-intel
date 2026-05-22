@@ -67,24 +67,69 @@ test("next.config redirect — slug parameter pattern uses :slug* (catch-all) so
 
 // PR #46 — /get-matched (renter/owner-to-PM matching) deprecation.
 // The form + confirmation pages are deleted; the redirect catches
-// inbound traffic and lands users on the buy-box template picker
+// inbound traffic and lands users on the watch-list template picker
 // (the acquirer workflow that replaces it).
-test("next.config redirect — /get-matched permanently redirects to /buy-boxes/new", async () => {
+test("next.config redirect — /get-matched permanently redirects to /watch-lists/new", async () => {
   const rules = await nextConfig.redirects!();
   const root = rules.find((r) => r.source === "/get-matched");
   assert.ok(root, "Expected a /get-matched root redirect rule");
-  assert.equal(root.destination, "/buy-boxes/new");
+  assert.equal(root.destination, "/watch-lists/new");
   assert.equal(root.permanent, true);
 });
 
 test("next.config redirect — /get-matched/:path* catches /confirmation and any other nested paths", async () => {
   // The :path* matcher carries the deleted /get-matched/confirmation
-  // page (and any future stale links) into the buy-box flow without a
+  // page (and any future stale links) into the watch-list flow without a
   // 404. Stale email links carry ?leadId=… on the confirmation URL;
   // Next's redirect engine preserves the query unchanged.
   const rules = await nextConfig.redirects!();
   const nested = rules.find((r) => r.source === "/get-matched/:path*");
   assert.ok(nested, "Expected a /get-matched/:path* nested redirect rule");
-  assert.equal(nested.destination, "/buy-boxes/new");
+  assert.equal(nested.destination, "/watch-lists/new");
   assert.equal(nested.permanent, true);
+});
+
+// v0.15 (PR #54) — "buy box" → "watch list" site-wide rename.
+// Bookmarks, shared sample links, and external referrers pointing
+// at /buy-boxes/* must 301-redirect to the new /watch-lists/*
+// paths so they don't 404. Four rules per surface so the bare
+// list path, the deep [id]/edit + [id]/results paths, the API
+// root, and the API [id]/* sub-paths all redirect cleanly.
+// :path* preserves the trailing segment + the query string (Next
+// forwards the query unchanged on redirects).
+
+test("next.config redirect — /buy-boxes (saved list) → /watch-lists", async () => {
+  const rules = await nextConfig.redirects!();
+  const rule = rules.find((r) => r.source === "/buy-boxes");
+  assert.ok(rule, "Expected a /buy-boxes root redirect rule");
+  assert.equal(rule.destination, "/watch-lists");
+  assert.equal(rule.permanent, true);
+});
+
+test("next.config redirect — /buy-boxes/:path* catches /new, /[id]/edit, /[id]/results, and any future deep paths", async () => {
+  const rules = await nextConfig.redirects!();
+  const rule = rules.find((r) => r.source === "/buy-boxes/:path*");
+  assert.ok(rule, "Expected a /buy-boxes/:path* catch-all redirect rule");
+  assert.equal(rule.destination, "/watch-lists/:path*");
+  assert.equal(rule.permanent, true);
+  // The :path* capture must echo in destination too — without it
+  // /buy-boxes/cuid_abc/results would silently collapse to bare
+  // /watch-lists, dropping the deep target.
+  assert.match(rule.destination, /:path\*$/);
+});
+
+test("next.config redirect — /api/buy-boxes → /api/watch-lists", async () => {
+  const rules = await nextConfig.redirects!();
+  const rule = rules.find((r) => r.source === "/api/buy-boxes");
+  assert.ok(rule, "Expected an /api/buy-boxes root redirect rule");
+  assert.equal(rule.destination, "/api/watch-lists");
+  assert.equal(rule.permanent, true);
+});
+
+test("next.config redirect — /api/buy-boxes/:path* covers /[id], /preview, /[id]/apply", async () => {
+  const rules = await nextConfig.redirects!();
+  const rule = rules.find((r) => r.source === "/api/buy-boxes/:path*");
+  assert.ok(rule, "Expected an /api/buy-boxes/:path* catch-all redirect rule");
+  assert.equal(rule.destination, "/api/watch-lists/:path*");
+  assert.equal(rule.permanent, true);
 });

@@ -7,7 +7,7 @@
 // next bump is a one-line PR.
 //
 // Values map to the current shipped methodology/design pair:
-//   - METHODOLOGY_VERSION matches src/lib/buy-box/fields.ts and the
+//   - METHODOLOGY_VERSION matches src/lib/watch-list/fields.ts and the
 //     seed's data.methodologyVersion ("v0.8" at the time of PR #46;
 //     the post-bump 7-cell + portfolio estimator vintage).
 //   - DESIGN_VERSION tracks the scorecard layout / typography spec.
