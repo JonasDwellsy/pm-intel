@@ -21,13 +21,37 @@ import {
 //      stay public so anonymous visitors can still browse + tweak
 //      + preview a buy box without an auth gate. The gate fires
 //      only when they try to SAVE (the editor handles that flow
-//      client-side by checking useUser() and redirecting to
+//      client-side by checking useAuth() and redirecting to
 //      /sign-in?redirect_url=... before issuing the POST).
 //
 // Order matters: the password gate runs first, so anonymous
 // visitors who don't even have the research-preview access code
 // never see Clerk's sign-in page. Once they're past the password
 // gate, Clerk takes over for the routes that need per-user identity.
+//
+// IMPORTANT: there's a subtle distinction between MATCHING (which
+// routes the middleware runs on at all) and PROTECTING (which routes
+// require an authenticated Clerk session):
+//
+//   - The `config.matcher` below is BROAD on purpose. It needs to
+//     include EVERY route that renders the shared root layout —
+//     including /password — because SiteHeader's <Show when=…> calls
+//     auth() server-side, and auth() requires clerkMiddleware to
+//     have run on the request. If the matcher excludes /password,
+//     hitting the access gate crashes with "Clerk: auth() was called
+//     but Clerk can't detect usage of clerkMiddleware()".
+//
+//   - Protection (auth.protect()) stays NARROW — only the saved-
+//     buy-box surfaces from PROTECTED_ROUTE_PATTERNS. /password
+//     itself must NOT be protected; it's the entry point to the
+//     research-preview gate, and requiring a Clerk session there
+//     would create an infinite redirect loop with the password gate
+//     redirect below.
+//
+//   - The password gate itself is skipped explicitly for /password
+//     + /api/password inside the handler — otherwise the gate would
+//     redirect /password → /password (loop) and would 302-rewrite
+//     the validation POST before it could check the cookie.
 
 const AUTH_COOKIE = "dq_auth";
 
@@ -81,29 +105,40 @@ async function passwordGate(req: NextRequest): Promise<NextResponse | null> {
 const isProtectedRoute = createRouteMatcher([...PROTECTED_ROUTE_PATTERNS]);
 const isPublicBuyBoxRoute = createRouteMatcher([...PUBLIC_BUYBOX_PATTERNS]);
 
+/** Paths that bypass the research-preview password gate. These are
+ *  the gate page itself + its validation endpoint — running the gate
+ *  on them would either loop forever or break the form POST. They
+ *  still go through clerkMiddleware so auth() context is set up for
+ *  the shared layout's <Show when=…> components. */
+function isPasswordGateBypass(pathname: string): boolean {
+  return pathname === "/password" || pathname.startsWith("/api/password");
+}
+
 export default clerkMiddleware(async (auth, req) => {
-  const gateResponse = await passwordGate(req);
-  if (gateResponse) return gateResponse;
+  if (!isPasswordGateBypass(req.nextUrl.pathname)) {
+    const gateResponse = await passwordGate(req);
+    if (gateResponse) return gateResponse;
+  }
 
   if (isProtectedRoute(req) && !isPublicBuyBoxRoute(req)) {
     await auth.protect();
   }
 });
 
-// Match everything EXCEPT:
-//   - /password (the access-code page itself; would loop otherwise)
-//   - /api/password (the validation endpoint; must accept POSTs from
-//     unauthenticated visitors so they can submit the password)
-//   - /_next/static/* (Next.js JS/CSS chunks — must load on /password)
-//   - /_next/image/* (Next.js Image optimization — must load the logo)
-//   - /favicon.ico (browser tab icon)
-//   - Any file path ending in a static asset extension so anything
-//     served from /public works on /password.
+// Match every route EXCEPT static assets and Next.js internals.
+//
+// /password and /api/password are INCLUDED on purpose now — the
+// shared root layout calls auth() (via SiteHeader's <Show when=…>),
+// which requires clerkMiddleware to have run on the request. The
+// gate logic for those two paths is skipped inside the handler via
+// isPasswordGateBypass(), so the access page still renders and the
+// validation POST still accepts unauthenticated requests.
 //
 // robots.txt and sitemap.xml are NOT excluded — they sit behind the
-// research-preview gate too so we don't get indexed pre-launch.
+// research-preview gate so search engines don't index pre-launch
+// content.
 export const config = {
   matcher: [
-    "/((?!password|api/password|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff|woff2|ttf|otf)).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff|woff2|ttf|otf)).*)",
   ],
 };
