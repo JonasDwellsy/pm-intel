@@ -7,6 +7,7 @@ import { selectComparisonPeers } from "@/lib/peer-comparison-view";
 import { quadrant7Color } from "@/lib/quadrant7-colors";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { StarSummaryChip } from "@/components/scorecard/StarSummaryChip";
+import { countOperatorStars } from "@/lib/operators/stars";
 import { fmtInt } from "@/lib/format";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 
@@ -244,16 +245,10 @@ function classifyFocal(
   return "neutral";
 }
 
-function countStars(sc: ScorecardData, tone: "gold" | "silver"): number {
-  const stars: Array<StarLevel | undefined> = [
-    sc.performance.domStar,
-    sc.rentPerformance?.star,
-    sc.marketing.star,
-    sc.tenancy.star,
-    sc.communityVisibility?.star,
-  ];
-  return stars.filter((s) => s === tone).length;
-}
+// PR #53 — countStars moved to src/lib/operators/stars.ts so the
+// market list, the scorecard hero, the operator profile, the compare
+// table, and the homepage sample cards all read the same gold/silver
+// counts for the same operator from one place.
 
 function buildMetricRows(
   focal: ScorecardData,
@@ -401,8 +396,8 @@ function OperatorColumn({
   const quadrant7Label =
     scorecard.pm.quadrant7Cell ?? scorecard.pm.quadrant;
   const quadrant7 = quadrant7Color(quadrant7Label);
-  const goldStars = countStars(scorecard, "gold");
-  const silverStars = countStars(scorecard, "silver");
+  const { goldCount: goldStars, silverCount: silverStars } =
+    countOperatorStars(scorecard);
 
   return (
     <article
