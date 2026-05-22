@@ -13,7 +13,7 @@ Last updated: v0.17 / 2026-05-22.
 | Event | Properties captured |
 |---|---|
 | `signup_completed` | (none beyond Clerk userId) |
-| `login_completed` | (none beyond Clerk userId) |
+| `login_completed` | (none beyond Clerk userId) — suppressed for the auto-login session immediately following signup, so funnels see signup_completed → next-real-login, not signup → login back-to-back |
 | `scorecard_viewed` | operator_slug, operator_msa, operator_classification |
 | `watch_list_viewed` | watch_list_id, operator_count |
 | `watch_list_created` | watch_list_id, initial_operator_count |

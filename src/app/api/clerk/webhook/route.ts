@@ -1,14 +1,13 @@
 // v0.17 — Clerk webhook receiver.
 //
-// Purpose: convert Clerk's user.created event into a PostHog
-// signup_completed event. Webhook is the right home for this
-// (vs a client-side useEffect hack that checks user.createdAt
-// vs lastSignInAt) because Clerk only fires user.created once
-// per real signup — no risk of false positives on subsequent
-// sign-ins, no race against the OAuth redirect.
+// Purpose: bridge Clerk auth events → PostHog conversion funnel.
 //
-// We also emit login_completed on the session.created event so
-// returning-user sign-ins land in the same funnel.
+//   - user.created     → signup_completed (fires exactly once per
+//                        real signup)
+//   - session.created  → login_completed (fires on every sign-in,
+//                        with the post-signup auto-sign-in
+//                        deduplicated — see "First-sign-in dedup"
+//                        below)
 //
 // Setup checklist (one-time, after merge):
 //   1. Clerk dashboard → Configure → Webhooks → Add endpoint
@@ -26,21 +25,56 @@
 // privacy guardrail in src/lib/analytics.ts).
 //
 // The middleware password gate is excluded for this path via the
-// existing isPasswordGateBypass logic — see src/middleware.ts. We
-// also need to add /api/clerk/webhook to the bypass so Clerk's
-// IP can reach the endpoint without a session cookie.
+// existing isPasswordGateBypass logic — see src/middleware.ts.
+// Clerk's servers need to reach this endpoint without a session
+// cookie; svix signature verification is what authenticates inbound
+// payloads instead.
+//
+// === First-sign-in dedup ===
+//
+// Clerk fires BOTH user.created and session.created on a fresh
+// signup — first the user is created, then the auth flow
+// auto-creates their first session. Without dedup, a new user would
+// fire signup_completed + login_completed back-to-back, polluting
+// every "logins per user" funnel.
+//
+// We dedup by comparing the session's created_at against the user's
+// created_at (fetched from Clerk's backend API). If they're within
+// SIGNUP_DEDUP_WINDOW_MS (30s), the session.created is the
+// post-signup auto-login → skip login_completed. Returning-user
+// sign-ins are minutes/hours/days after the user record's creation,
+// so they fire normally.
+//
+// Failure mode: if the Clerk API call fails (timeout, rate limit,
+// auth issue), we fall through and fire login_completed anyway.
+// Better to over-count returning users than to silently drop the
+// signal — a missed login_completed is an invisible bug; a duplicate
+// one is debuggable in PostHog.
 
 import { Webhook } from "svix";
+import { clerkClient } from "@clerk/nextjs/server";
 import { captureServerEvent } from "@/lib/analytics-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Treat a session created within this many ms of the user's
+ *  createdAt as the post-signup auto-login (so login_completed
+ *  suppresses, signup_completed alone fires). 30s is generous —
+ *  Clerk normally delivers the auto-login session within a few
+ *  hundred ms of the user record. */
+const SIGNUP_DEDUP_WINDOW_MS = 30_000;
+
 interface ClerkWebhookEvent {
   type: string;
   data: {
+    /** user.created → the Clerk user id. */
     id?: string;
+    /** session.created → the user this session belongs to. */
     user_id?: string;
+    /** session.created → ms since epoch (Clerk's webhook payload
+     *  convention for timestamp fields). */
+    created_at?: number;
   };
 }
 
@@ -96,24 +130,55 @@ export async function POST(req: Request) {
       });
     }
   } else if (event.type === "session.created") {
-    // session.created fires on EVERY sign-in (signup-then-login OR
-    // returning user). To avoid double-counting signups, the
-    // login_completed event only fires when this is NOT immediately
-    // following a user.created — Clerk doesn't tell us that
-    // directly, but the timestamps on user.created vs session.created
-    // are typically a few ms apart for fresh signups. A simpler
-    // approximation: we emit login_completed unconditionally and
-    // rely on funnel analytics to dedupe per-user (PostHog's
-    // distinct_id groups the events). The slight redundancy is
-    // acceptable for v0.17; can refine later.
     const userId = event.data.user_id;
+    const sessionCreatedAt = event.data.created_at;
     if (userId) {
-      captureServerEvent({
+      const isPostSignupAutoLogin = await isWithinSignupWindow({
         userId,
-        event: "login_completed",
+        sessionCreatedAt,
       });
+      if (!isPostSignupAutoLogin) {
+        captureServerEvent({
+          userId,
+          event: "login_completed",
+        });
+      }
     }
   }
 
   return Response.json({ received: true });
+}
+
+/** Returns true when the session was created within
+ *  SIGNUP_DEDUP_WINDOW_MS of the user record itself — i.e. this is
+ *  Clerk's automatic sign-in immediately after signup, not a real
+ *  returning-user login.
+ *
+ *  Defensive: any failure path (missing timestamp, Clerk API
+ *  throws, user not found) returns false so login_completed STILL
+ *  fires. Over-counting returning users is a visible-and-debuggable
+ *  failure mode; silently swallowing the signal is invisible. */
+async function isWithinSignupWindow(args: {
+  userId: string;
+  sessionCreatedAt: number | undefined;
+}): Promise<boolean> {
+  if (typeof args.sessionCreatedAt !== "number") return false;
+  try {
+    const client = await clerkClient();
+    const user = await client.users.getUser(args.userId);
+    // Clerk's User.createdAt is a number (ms since epoch) in the
+    // backend SDK. Compare absolute delta against the window —
+    // abs() guards against clock skew between Clerk's user-creation
+    // service and its session-creation service (in practice the
+    // session is always created AFTER the user, but the math is
+    // symmetric so we don't need to assume direction).
+    const delta = Math.abs(args.sessionCreatedAt - user.createdAt);
+    return delta < SIGNUP_DEDUP_WINDOW_MS;
+  } catch (err) {
+    console.error(
+      "[clerk/webhook] dedup user-fetch failed, firing login_completed defensively",
+      err
+    );
+    return false;
+  }
 }
