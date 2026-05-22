@@ -114,14 +114,15 @@ const isPublicWatchListRoute = createRouteMatcher([...PUBLIC_BUYBOX_PATTERNS]);
  *  v0.17 — /api/clerk/webhook is also bypassed because Clerk's
  *  servers POST to it directly (no browser session cookie); signature
  *  verification via svix is what authenticates the inbound payload.
- *  /api/sentry-test bypasses too so the error-reporting smoke test
- *  doesn't require a logged-in session. */
+ *  /api/sentry-test + /api/posthog-test bypass too so the
+ *  observability smoke tests don't require a logged-in session. */
 function isPasswordGateBypass(pathname: string): boolean {
   return (
     pathname === "/password" ||
     pathname.startsWith("/api/password") ||
     pathname.startsWith("/api/clerk/webhook") ||
-    pathname.startsWith("/api/sentry-test")
+    pathname.startsWith("/api/sentry-test") ||
+    pathname.startsWith("/api/posthog-test")
   );
 }
 
