@@ -1,0 +1,15 @@
+-- PR #50 (Clerk auth foundation, v0.13)
+--
+-- Pre-auth buy boxes carried ownerId = "shared" so every dev/preview
+-- visitor saw them in the org-wide list. Per-user auth retires that
+-- placeholder: real users sign in with Clerk and own their own rows
+-- (ownerId = user_…). Any row still stamped "shared" would now be
+-- visible to NO real user (no Clerk userId starts with "shared"),
+-- but we'd rather not silently drop the data — re-stamp those rows
+-- with LEGACY_OWNER_ID so they stay queryable for forensics while
+-- never appearing in any user's list.
+--
+-- The seed (prisma/seed.ts) already removed its create-paths for the
+-- two Evernest-/Genstone-style starter rows, so this migration only
+-- has work to do on databases that ran a previous seed.
+UPDATE "BuyBox" SET "ownerId" = 'legacy-pre-auth' WHERE "ownerId" = 'shared';

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { applyBuyBox } from "@/lib/buy-box/apply";
 import { getBuyBox } from "@/lib/buy-box/store";
 import { projectResultsForView } from "@/lib/buy-box/results-view";
@@ -29,7 +30,11 @@ interface PageProps {
 
 export default async function BuyBoxResultsPage({ params }: PageProps) {
   const { id } = await params;
-  const buyBox = await getBuyBox(id);
+  // Middleware enforces auth; scope getBuyBox by the current user so
+  // requesting another user's buy-box id renders the standard 404.
+  const { userId } = await auth();
+  if (!userId) notFound();
+  const buyBox = await getBuyBox(id, userId);
   if (!buyBox) notFound();
 
   const applied = await applyBuyBox({

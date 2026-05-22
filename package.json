@@ -8,11 +8,12 @@
     "vercel-build": "prisma generate && prisma migrate deploy && prisma db seed && next build",
     "start": "next start",
     "lint": "eslint",
-    "test:buy-box": "node --import tsx --test src/lib/buy-box/*.test.ts src/lib/operators/*.test.ts"
+    "test:buy-box": "node --import tsx --test src/lib/buy-box/*.test.ts src/lib/operators/*.test.ts src/lib/auth/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
     "@base-ui/react": "^1.4.1",
+    "@clerk/nextjs": "^7.4.0",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^6.19.3",
     "@types/mapbox-gl": "^3.4.1",
