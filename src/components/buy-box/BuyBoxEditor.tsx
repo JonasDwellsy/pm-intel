@@ -21,6 +21,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
 import type {
   FilterCriterion,
   WeightedCriterion,
@@ -73,6 +74,14 @@ interface PreviewState {
 export function BuyBoxEditor({ initial, starterDraft, marketOptions }: Props) {
   const router = useRouter();
   const isEdit = initial !== null;
+  // Auth state. Editing existing buy boxes is already protected by
+  // middleware (server-side); the editor itself runs in /buy-boxes/new
+  // which stays anonymous-friendly per the PR #45 discovery path.
+  // When an anon user clicks Save we bounce them through /sign-in
+  // with redirect_url=<current path+query> so Clerk drops them back
+  // here with the template state intact. isLoaded guards against
+  // flashing the wrong button copy during initial hydration.
+  const { isSignedIn, isLoaded: authLoaded } = useAuth();
 
   // Seed state from `initial` (edit mode), falling back to
   // `starterDraft` (template-clone mode), falling back to empty.
@@ -164,6 +173,20 @@ export function BuyBoxEditor({ initial, starterDraft, marketOptions }: Props) {
   async function handleSave() {
     if (validation) {
       setError(validation);
+      return;
+    }
+    // Anonymous-user → sign-in roundtrip. The template-clone path on
+    // /buy-boxes/new stays public, but Save requires a real account.
+    // We round-trip through Clerk's /sign-in with redirect_url back
+    // to the current path + search so the user lands on the same
+    // template-loaded draft after auth and can hit Save again. Any
+    // in-editor edits to criteria don't survive the roundtrip — the
+    // URL only preserves the ?template=… slug — which is the v0.13
+    // scope limit.
+    if (authLoaded && !isSignedIn) {
+      const redirectTarget =
+        window.location.pathname + window.location.search;
+      router.push(`/sign-in?redirect_url=${encodeURIComponent(redirectTarget)}`);
       return;
     }
     setError(null);
@@ -467,6 +490,12 @@ export function BuyBoxEditor({ initial, starterDraft, marketOptions }: Props) {
                   <CheckIcon />
                   <span>Saved</span>
                 </>
+              ) : authLoaded && !isSignedIn && !isEdit ? (
+                // Telegraph that anon save bounces through sign-in.
+                // Edit mode is reached via a protected route so the
+                // user is guaranteed signed in there — the swap only
+                // applies to /buy-boxes/new (template-clone path).
+                <span>Sign in to save</span>
               ) : (
                 <span>{isEdit ? "Save changes" : "Create buy box"}</span>
               )}

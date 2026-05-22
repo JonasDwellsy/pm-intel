@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { fmtInt, fmtPct } from "@/lib/format";
 import { loadOperatorScorecard } from "@/lib/operators/lookup";
 import { getBuyBox } from "@/lib/buy-box/store";
@@ -51,12 +52,19 @@ export default async function OperatorScorecardPage({
   if (!view) notFound();
 
   // Optional buy-box breadcrumb. Reads the row only when the
-  // query param is present so we don't pay the DB hit on every
-  // load.
+  // ?fromBuyBox=… query param is present AND the requester is
+  // signed in AND owns the buy box. An anonymous visitor (or a
+  // signed-in user looking at someone else's link) just sees the
+  // page without the breadcrumb — silently degrades rather than
+  // 404ing the whole operator page, and prevents the breadcrumb
+  // from leaking another user's buy-box name.
   let buyBoxBreadcrumb: { id: string; name: string } | null = null;
   if (fromBuyBox) {
-    const bb = await getBuyBox(fromBuyBox);
-    if (bb) buyBoxBreadcrumb = { id: bb.id, name: bb.name };
+    const { userId } = await auth();
+    if (userId) {
+      const bb = await getBuyBox(fromBuyBox, userId);
+      if (bb) buyBoxBreadcrumb = { id: bb.id, name: bb.name };
+    }
   }
 
   const sc = view.aggregated.scorecard;

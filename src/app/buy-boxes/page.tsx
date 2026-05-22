@@ -1,24 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
 import { listBuyBoxes } from "@/lib/buy-box/store";
 import { BuyBoxList } from "@/components/buy-box/BuyBoxList";
 import { TemplateGrid } from "@/components/buy-box/TemplateGrid";
 
 // /buy-boxes — landing for the buy-box workspace.
 //
-// v0.12 acquirer-positioning update: when no saved buy boxes
-// exist (anonymous user OR signed-in user with an empty list)
-// the page renders the template picker inline as the empty
-// state. Keeps the URL stable for sharing — no client-side
-// redirect, no auth gate. The template picker / editor / preview
-// path stay anonymous-friendly; only the save action requires
-// auth.
-//
-// PR #45 doesn't introduce auth gating at this layer — the
-// existing org-wide shared owner convention means everyone sees
-// the same list today. Once per-user auth lands, the loader
-// gets scoped to the authenticated user and the "no saved buy
-// boxes yet" branch naturally covers logged-in fresh accounts.
+// v0.13 — Clerk auth foundation (PR #50). This route is protected
+// by middleware; anonymous visitors get redirected to /sign-in
+// before they ever reach the page component. Inside, we pull the
+// authenticated user id from auth() and scope the list query so
+// each user only sees their own saved buy boxes. A signed-in user
+// with zero saved boxes still gets the inline template picker (the
+// PR #45 acquirer-positioning empty state) so they can clone a
+// starter without an extra navigation.
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +24,12 @@ export const metadata: Metadata = {
 };
 
 export default async function BuyBoxesPage() {
-  const rows = await listBuyBoxes();
+  // userId is guaranteed by middleware — auth.protect() would have
+  // bounced anonymous requests before they reached this handler.
+  // The non-null assertion-equivalent (|| "" then bail) keeps TS
+  // happy without a noisy throw.
+  const { userId } = await auth();
+  const rows = userId ? await listBuyBoxes(userId) : [];
   const isEmpty = rows.length === 0;
 
   return (

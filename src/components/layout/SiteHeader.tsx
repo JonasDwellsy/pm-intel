@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Show, UserButton } from "@clerk/nextjs";
 import { SearchInput } from "@/components/search/SearchInput";
 import { NAV_ITEMS, PRIMARY_CTA } from "@/lib/nav";
 
@@ -66,6 +67,35 @@ export function SiteHeader() {
           <div className="hidden md:block">
             <SearchInput />
           </div>
+          {/* Auth control. Signed-in → Clerk's UserButton avatar
+              (opens a popover with Manage account + Sign out).
+              Signed-out → plain "Sign in" text link to the
+              Clerk-managed page. Clerk v7 collapsed the old
+              <SignedIn>/<SignedOut> components into a single <Show>
+              with a `when` prop — same SSR behaviour, different
+              ergonomics. The primary CTA below stays visible in both
+              states so the discovery path keeps working for
+              anonymous visitors. */}
+          <Show when="signed-out">
+            <Link
+              href="/sign-in"
+              className="hidden text-sm font-medium text-navy transition-colors hover:text-teal sm:inline-block"
+            >
+              Sign in
+            </Link>
+          </Show>
+          <Show when="signed-in">
+            <UserButton
+              appearance={{
+                elements: {
+                  // Bump the avatar from Clerk's default 32px to 30px
+                  // so it visually sits at the same height as the
+                  // primary CTA button (36px) without dominating it.
+                  avatarBox: "h-[30px] w-[30px]",
+                },
+              }}
+            />
+          </Show>
           {/* Primary CTA — points at the template picker so anyone
               (anonymous or signed in) can clone a starter buy box
               without an auth gate. Save still requires auth. */}

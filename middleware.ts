@@ -1,25 +1,33 @@
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  PROTECTED_ROUTE_PATTERNS,
+  PUBLIC_BUYBOX_PATTERNS,
+} from "@/lib/auth/protected-routes";
 
-// Research-preview password gate. Every request runs through this middleware
-// (subject to the matcher exclusions below). Visitors without a valid
-// `dq_auth` cookie are redirected to `/password?from=<originalPath>` where
-// they enter the shared access code; the validation endpoint sets the
-// cookie and bounces them back via the `from` param.
+// Two-layer middleware:
 //
-// Threat model: keep casual visitors out so a research preview can be
-// shared with prospects without exposing it to the open internet. Not
-// trying to defend against a sophisticated forger — anyone who knows the
-// password can mint a cookie either by submitting the form or by computing
-// SHA-256(AUTH_PASSWORD) themselves. Rotating AUTH_PASSWORD invalidates
-// every existing cookie because the expected digest changes.
+//   1. Research-preview password gate (outer). Every request is
+//      blocked behind a /password page that validates against a
+//      shared access code (process.env.AUTH_PASSWORD). This is the
+//      site-wide wall used to share the pre-launch preview with
+//      named prospects without exposing it to the open internet.
 //
-// Cookie scheme: value = SHA-256(AUTH_PASSWORD) hex. Middleware recomputes
-// the digest on every request (cheap — Web Crypto in edge runtime, ~µs) and
-// timing-safe compares against the cookie. No COOKIE_SECRET env var needed
-// because the password itself acts as the shared secret.
+//   2. Clerk per-user auth (inner). Routes that operate on a user's
+//      saved buy boxes — the workspace landing, the editor, the
+//      results view, and the CRUD API endpoints — additionally
+//      require a signed-in Clerk user. The template picker, the
+//      template-preloaded editor, and the in-memory preview API
+//      stay public so anonymous visitors can still browse + tweak
+//      + preview a buy box without an auth gate. The gate fires
+//      only when they try to SAVE (the editor handles that flow
+//      client-side by checking useUser() and redirecting to
+//      /sign-in?redirect_url=... before issuing the POST).
 //
-// Cookie name `dq_auth` is intentionally non-obvious so casual inspectors
-// don't immediately see "auth_token" or similar and try to forge it.
+// Order matters: the password gate runs first, so anonymous
+// visitors who don't even have the research-preview access code
+// never see Clerk's sign-in page. Once they're past the password
+// gate, Clerk takes over for the routes that need per-user identity.
 
 const AUTH_COOKIE = "dq_auth";
 
@@ -42,13 +50,11 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-export async function middleware(req: NextRequest) {
+async function passwordGate(req: NextRequest): Promise<NextResponse | null> {
   const password = process.env.AUTH_PASSWORD;
   if (!password) {
     // Fail closed if the env var is missing. Returning 500 surfaces the
     // misconfiguration instead of letting requests slip through unauthed.
-    // The error body is intentionally generic — no info leak about whether
-    // AUTH_PASSWORD is set, just that the gate is misconfigured.
     return new NextResponse("Access gate is misconfigured.", { status: 500 });
   }
 
@@ -56,7 +62,7 @@ export async function middleware(req: NextRequest) {
   const cookie = req.cookies.get(AUTH_COOKIE)?.value ?? "";
 
   if (cookie && safeEqual(cookie, expected)) {
-    return NextResponse.next();
+    return null;
   }
 
   // Preserve where the visitor was trying to go so we can return them
@@ -68,19 +74,34 @@ export async function middleware(req: NextRequest) {
   return NextResponse.redirect(url);
 }
 
+// Routes that require a signed-in Clerk user, with the public
+// carve-outs that the patterns above would otherwise capture. Both
+// lists live in src/lib/auth/protected-routes.ts so they're testable
+// independently of the middleware wiring.
+const isProtectedRoute = createRouteMatcher([...PROTECTED_ROUTE_PATTERNS]);
+const isPublicBuyBoxRoute = createRouteMatcher([...PUBLIC_BUYBOX_PATTERNS]);
+
+export default clerkMiddleware(async (auth, req) => {
+  const gateResponse = await passwordGate(req);
+  if (gateResponse) return gateResponse;
+
+  if (isProtectedRoute(req) && !isPublicBuyBoxRoute(req)) {
+    await auth.protect();
+  }
+});
+
 // Match everything EXCEPT:
-//   - /password (the auth page itself; would loop otherwise)
+//   - /password (the access-code page itself; would loop otherwise)
 //   - /api/password (the validation endpoint; must accept POSTs from
 //     unauthenticated visitors so they can submit the password)
 //   - /_next/static/* (Next.js JS/CSS chunks — must load on /password)
 //   - /_next/image/* (Next.js Image optimization — must load the logo)
 //   - /favicon.ico (browser tab icon)
-//   - Any file path ending in a static asset extension (logo .png, fonts,
-//     CSS, JS, etc.) so anything served from /public works on /password.
+//   - Any file path ending in a static asset extension so anything
+//     served from /public works on /password.
 //
-// robots.txt and sitemap.xml are NOT excluded here — they're behind the
-// gate too, which is appropriate for a research preview (we don't want
-// search engines indexing pre-launch content).
+// robots.txt and sitemap.xml are NOT excluded — they sit behind the
+// research-preview gate too so we don't get indexed pre-launch.
 export const config = {
   matcher: [
     "/((?!password|api/password|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff|woff2|ttf|otf)).*)",

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { BuyBoxEditor, type EditorBuyBox } from "@/components/buy-box/BuyBoxEditor";
 import { listMarketOptions } from "@/lib/buy-box/editor-options";
 import { getBuyBox } from "@/lib/buy-box/store";
@@ -7,6 +8,10 @@ import { getBuyBox } from "@/lib/buy-box/store";
 // /buy-boxes/[id]/edit — server component loads the existing buy
 // box and the market options, then hands both to the client editor
 // for in-place editing.
+//
+// v0.13 — middleware already requires an authed Clerk session.
+// We scope getBuyBox by the current userId so requesting another
+// user's buy box renders the standard 404 page (no existence leak).
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +26,10 @@ interface PageProps {
 
 export default async function EditBuyBoxPage({ params }: PageProps) {
   const { id } = await params;
+  const { userId } = await auth();
+  if (!userId) notFound();
   const [record, marketOptions] = await Promise.all([
-    getBuyBox(id),
+    getBuyBox(id, userId),
     listMarketOptions(),
   ]);
   if (!record) {

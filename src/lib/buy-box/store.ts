@@ -3,6 +3,15 @@
 // JSON-as-String convention for scorecardData, marketIds, etc.);
 // this module parses on read and stringifies on write so the API
 // routes and apply() consume the typed shape directly.
+//
+// v0.13 (PR #50) — per-user auth. listBuyBoxes / getBuyBox now
+// REQUIRE an ownerId; callers (the API routes + the saved-list
+// page) pass the authenticated Clerk user id from auth(). getBuyBox
+// returns null when the row exists but belongs to a different user
+// so the API layer can 404 without leaking the existence of other
+// users' buy boxes. Pre-auth rows that previously carried
+// ownerId="shared" were re-stamped with LEGACY_OWNER_ID by the
+// migration; no real user will ever match it.
 
 import { prisma } from "@/lib/prisma";
 import type {
@@ -18,11 +27,17 @@ export interface BuyBoxRecord extends BuyBoxDefinition {
   updatedAt: Date;
 }
 
-/** Default owner placeholder until per-user auth lands. Every API
- *  call hardcodes this string so saved buy boxes show up for everyone
- *  in the org for MVP. When auth ships, swap to the authenticated
- *  user id and respect isShared at read time. */
+/** Pre-auth placeholder. Retained only so seed scripts and tests can
+ *  create rows without a Clerk session. Real request-driven writes
+ *  use the authenticated user id instead. */
 export const DEFAULT_OWNER_ID = "shared";
+
+/** Stamp for rows that existed BEFORE per-user auth shipped. The
+ *  migration (20260521_clerk_owner_id_backfill) rewrites every
+ *  pre-existing ownerId="shared" row to this value; no real user
+ *  will ever match it, so the legacy rows stay queryable for
+ *  forensics but never appear in any user's list. */
+export const LEGACY_OWNER_ID = "legacy-pre-auth";
 
 function parseRow(row: {
   id: string;
@@ -60,14 +75,28 @@ function safeParseJson<T>(raw: string, fallback: T): T {
   }
 }
 
-export async function listBuyBoxes(): Promise<BuyBoxRecord[]> {
-  const rows = await prisma.buyBox.findMany({ orderBy: { updatedAt: "desc" } });
+/** List buy boxes owned by `ownerId`. Used by the API route + the
+ *  saved-list page; both authenticate the caller and pass the
+ *  Clerk user id straight through. */
+export async function listBuyBoxes(ownerId: string): Promise<BuyBoxRecord[]> {
+  const rows = await prisma.buyBox.findMany({
+    where: { ownerId },
+    orderBy: { updatedAt: "desc" },
+  });
   return rows.map(parseRow);
 }
 
-export async function getBuyBox(id: string): Promise<BuyBoxRecord | null> {
+/** Fetch a single buy box. When `ownerId` is provided, returns null
+ *  if the row belongs to a different user — equivalent to a 404 from
+ *  the caller's perspective, so the API layer doesn't leak the
+ *  existence of other users' buy boxes. */
+export async function getBuyBox(
+  id: string,
+  ownerId?: string
+): Promise<BuyBoxRecord | null> {
   const row = await prisma.buyBox.findUnique({ where: { id } });
   if (!row) return null;
+  if (ownerId !== undefined && row.ownerId !== ownerId) return null;
   return parseRow(row);
 }
 
@@ -96,12 +125,17 @@ export async function createBuyBox(input: BuyBoxInput): Promise<BuyBoxRecord> {
   return parseRow(row);
 }
 
+/** Update a buy box. When `ownerId` is provided, refuses to update
+ *  rows that belong to a different user — returns null in that case
+ *  so the API layer can 404. */
 export async function updateBuyBox(
   id: string,
-  input: Partial<BuyBoxInput>
+  input: Partial<BuyBoxInput>,
+  ownerId?: string
 ): Promise<BuyBoxRecord | null> {
   const existing = await prisma.buyBox.findUnique({ where: { id } });
   if (!existing) return null;
+  if (ownerId !== undefined && existing.ownerId !== ownerId) return null;
 
   const row = await prisma.buyBox.update({
     where: { id },
@@ -124,8 +158,19 @@ export async function updateBuyBox(
   return parseRow(row);
 }
 
-export async function deleteBuyBox(id: string): Promise<boolean> {
+/** Delete a buy box. When `ownerId` is provided, refuses to delete
+ *  rows that belong to a different user. Returns false if either the
+ *  row doesn't exist or the owner check fails. */
+export async function deleteBuyBox(
+  id: string,
+  ownerId?: string
+): Promise<boolean> {
   try {
+    if (ownerId !== undefined) {
+      const existing = await prisma.buyBox.findUnique({ where: { id } });
+      if (!existing) return false;
+      if (existing.ownerId !== ownerId) return false;
+    }
     await prisma.buyBox.delete({ where: { id } });
     return true;
   } catch {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -34,20 +35,34 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // ClerkProvider wraps the entire tree so <SignedIn> / <SignedOut>,
+  // <UserButton>, useUser(), useAuth(), and the server-side auth()
+  // helper all have a session context to consult. It must sit OUTSIDE
+  // the <html> element per Clerk's App Router setup so server-rendered
+  // Clerk components participate in the initial HTML payload.
+  //
+  // Auth wiring follows in src/middleware.ts (route gating) and the
+  // /sign-in + /sign-up routes (Clerk's prebuilt UI). Per the v0.13
+  // foundation PR, only /buy-boxes (saved-list) and the /api/buy-boxes
+  // CRUD endpoints are gated; the template picker (/buy-boxes/new)
+  // and template-preloaded editor stay anonymous-friendly so the
+  // PR #45 discovery path is preserved.
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
-        <PostHogProvider>
-          <SearchOverlayProvider>
-            <SiteHeader />
-            <div className="flex-1">{children}</div>
-            <SiteFooter />
-          </SearchOverlayProvider>
-        </PostHogProvider>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html
+        lang="en"
+        className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      >
+        <body className="min-h-full flex flex-col bg-background text-foreground">
+          <PostHogProvider>
+            <SearchOverlayProvider>
+              <SiteHeader />
+              <div className="flex-1">{children}</div>
+              <SiteFooter />
+            </SearchOverlayProvider>
+          </PostHogProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
