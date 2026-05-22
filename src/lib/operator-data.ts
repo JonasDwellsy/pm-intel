@@ -10,8 +10,9 @@
 // represented by the per-market scorecard alone.
 
 import { prisma } from "@/lib/prisma";
+import { countOperatorStars } from "@/lib/operators/stars";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
-import type { ScorecardData, StarLevel } from "@/lib/types";
+import type { ScorecardData } from "@/lib/types";
 
 export interface OperatorMarketCard {
   marketId: string;
@@ -60,16 +61,10 @@ export interface OperatorView {
   modalClassification: string | null;
 }
 
-function countStars(sc: ScorecardData, tone: "gold" | "silver"): number {
-  const stars: Array<StarLevel | undefined> = [
-    sc.performance?.domStar,
-    sc.rentPerformance?.star,
-    sc.marketing?.star,
-    sc.tenancy?.star,
-    sc.communityVisibility?.star,
-  ];
-  return stars.filter((s) => s === tone).length;
-}
+// PR #53 — countStars moved to src/lib/operators/stars.ts so the
+// market list, the scorecard hero, the operator profile, the compare
+// table, and the homepage sample cards all read the same gold/silver
+// counts for the same operator from one place.
 
 // Strict continuing-cohort threshold per Patch 6. Mirrors the runtime
 // rule in share-trajectory.ts so the operator profile card classifier
@@ -151,8 +146,8 @@ export async function loadOperatorView(
       scorecardHref: `/property-managers/${stateSlug}/${citySlug(city)}/${row.slug}`,
       quadrant7Cell: cellLabel,
       t12Listings: sc.coverage?.t12Listings ?? 0,
-      goldCount: countStars(sc, "gold"),
-      silverCount: countStars(sc, "silver"),
+      goldCount: countOperatorStars(sc).goldCount,
+      silverCount: countOperatorStars(sc).silverCount,
       shareTrajectoryYoY: null,
       shareTrajectoryEligibility: eligibility,
       t12ListingsCountForShare: t12,

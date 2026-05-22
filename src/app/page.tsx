@@ -10,14 +10,18 @@ import {
 import {
   SampleScorecards,
   type SampleCard,
+  type MetricCell,
+  type PortfolioBand,
 } from "@/components/homepage/SampleScorecards";
 import { OperatorCTA } from "@/components/homepage/OperatorCTA";
 import { InstitutionCTA } from "@/components/homepage/InstitutionCTA";
 import { MethodologyFooter } from "@/components/homepage/MethodologyFooter";
+import { countOperatorStars } from "@/lib/operators/stars";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
-import { fmtInt, fmtNumber } from "@/lib/format";
+import { fmtInt, fmtNumber, fmtPct } from "@/lib/format";
 import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
-import type { ScorecardData, StarLevel } from "@/lib/types";
+import { marketingDataSuppressed } from "@/lib/types";
+import type { ScorecardData } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Dwellsy IQ — Property Manager Intelligence",
@@ -31,10 +35,24 @@ export const metadata: Metadata = {
   },
 };
 
-// PR #46 — paréd back to the three operators the hero quadrant
-// also features, so the sample cards and the hero visual reference
-// the same operator set. Each operator covers a distinct cell of
-// the 7-cell taxonomy to surface the diversity of the universe.
+// PR #53 — Sample cards reselected for the multi-star scorecard
+// rebuild. Selection rules (full audit in the PR body):
+//
+//   - T12 URUs < 300
+//   - All five headline metrics fully populated (portfolio estimate
+//     present, all four cohort-relative metric values + stars
+//     derivable, marketing.compositeScore not suppressed)
+//   - At least one earned per-metric star
+//   - 3 distinct non-Chattanooga MSAs (Doorby is the Chattanooga
+//     hero card)
+//   - No Institutional / REIT operators
+//
+// Bias was meant to be 2 SFR/MF Independents + 1 Hybrid Independent.
+// In practice no Hybrid operator passes the strict-no-nulls filter
+// — the v0.7 marketing-fix suppressed marketing subscores across
+// several cohorts including every Hybrid one. The substitute is a
+// Small MF/BTR Independent so the cell-mix stays diverse: 2 SFR
+// Independents + 1 Small MF/BTR Independent.
 const SAMPLE_MANIFEST: Array<{
   marketId: string;
   slug: string;
@@ -42,24 +60,31 @@ const SAMPLE_MANIFEST: Array<{
   extraBadge?: { kind: "green" | "orange" | "teal" | "ink"; label: string };
 }> = [
   {
-    marketId: "chattanooga-tn",
-    slug: "brookside-properties-chattanooga-tn",
+    // Montgomery SFR Independent — 3 gold + 1 silver, 61 URUs.
+    // Gold composite, 88 cohort score. Lease-up + retention +
+    // rent-performance all gold; marketing silver.
+    marketId: "montgomery-al",
+    slug: "hwb-properties-montgomery-al",
     quote:
-      "Six-day median DOM and comprehensive community visibility at 2.54× the cohort norm — a structurally transparent multifamily independent operating at scale.",
+      "Three gold stars across the Montgomery SFR Independent cohort — top-quartile lease-up, retention, and double-digit rent outperformance over a 61-URU footprint.",
   },
   {
-    marketId: "jacksonville-fl",
-    slug: "invitation-homes-jacksonville-fl",
+    // Huntsville SFR Independent — 3 gold + 0 silver, 146 URUs.
+    // Gold composite, 79.4 cohort score. Lease-up + retention +
+    // marketing all gold; rent-performance neutral (matched cohort).
+    marketId: "huntsville-al",
+    slug: "newton-property-management-huntsville-al",
     quote:
-      "Largest scattered-site SFR operator in our coverage — institutional under the cross-market scale rule. Multi-market footprint qualifies for the canonical rollup.",
-    extraBadge: { kind: "teal", label: "Publicly traded REIT" },
+      "Three gold stars in the Huntsville SFR Independent cohort — top-quartile lease-up, retention, and marketing discipline across 146 URUs and five observed cities.",
   },
   {
-    marketId: "nashville-davidson-murfreesboro-franklin-tn",
-    slug: "udr-nashville-tn",
+    // Birmingham Small MF/BTR Independent — 3 gold + 1 silver,
+    // 40 URUs. Gold composite, 68.4 MSA cohort score. Retention +
+    // rent-performance + marketing all gold; lease-up silver.
+    marketId: "birmingham-al",
+    slug: "chateau-orleans-realty-company-birmingham-al",
     quote:
-      "National Class A multifamily — the institutional baseline. Eight observed communities totaling ~2,400 units; comprehensive Community Visibility at 1.43× cohort.",
-    extraBadge: { kind: "teal", label: "Publicly traded REIT" },
+      "Three gold stars in the Birmingham MSA cohort — top-quartile retention, rent outperformance against a contracting cohort, and 100th-percentile marketing on a 40-URU footprint.",
   },
 ];
 
@@ -69,9 +94,6 @@ const SAMPLE_MANIFEST: Array<{
  *  5-cell label if a row hasn't been re-seeded. */
 function sevenCellLabel(q7: string | null | undefined, fallback: string): string {
   if (typeof q7 === "string" && q7.length > 0) return q7;
-  // Map the legacy 5-cell labels into rough 7-cell equivalents so
-  // we never render "Scattered SFR" or "MF/BTR" without a Inst/Indep
-  // dimension.
   const norm = fallback.toLowerCase();
   if (norm.includes("hybrid")) return "Hybrid";
   if (norm.includes("scattered") && norm.includes("institutional"))
@@ -96,23 +118,166 @@ type PmForSampleCard = {
   market: { city: string; state: string };
 };
 
+/** Compose the full-width Portfolio band shown above the metric
+ *  grid. Mirrors the scorecard SynthesisLayer's EstPortfolioTile —
+ *  same point + range + confidence + cohort qualifier treatment. */
+function buildPortfolioBand(
+  portfolio: ScorecardData["portfolioEstimate"],
+  q7Label: string
+): PortfolioBand {
+  if (
+    portfolio?.status === "estimated" &&
+    typeof portfolio.point === "number"
+  ) {
+    const range =
+      typeof portfolio.low === "number" && typeof portfolio.high === "number"
+        ? `${fmtInt(portfolio.low)}–${fmtInt(portfolio.high)} units`
+        : null;
+    const confidence = portfolio.confidence
+      ? `${portfolio.confidence} confidence`
+      : "Point estimate";
+    const cohort = portfolio.cohort ?? q7Label;
+    return {
+      point: fmtInt(portfolio.point),
+      range,
+      caveat: `${confidence} · ${cohort}`,
+    };
+  }
+  return {
+    point: "—",
+    range: null,
+    caveat: portfolio?.message ?? "Insufficient data",
+  };
+}
+
+/** Lease-up Speed cell: median DOM (days) + delta vs cohort median.
+ *  Direction is favorable when the operator is faster (lower DOM). */
+function buildLeaseUpCell(
+  performance: ScorecardData["performance"]
+): MetricCell {
+  const star = performance.domStar ?? null;
+  const peerMedian =
+    performance.peerQuadrantDomT12 ?? performance.marketDomT12 ?? null;
+  const value = performance.domT12;
+  let context = `n = ${performance.domT12N} listings`;
+  if (peerMedian !== null && Number.isFinite(peerMedian)) {
+    const delta = value - peerMedian;
+    if (Math.abs(delta) < 0.05) {
+      context = `vs cohort median ${fmtNumber(peerMedian, 1)}d`;
+    } else {
+      // Lower DOM is better, so a negative delta is favorable (▼).
+      const arrow = delta < 0 ? "▼" : "▲";
+      context = `${arrow} ${fmtNumber(Math.abs(delta), 1)}d vs cohort ${fmtNumber(peerMedian, 1)}d`;
+    }
+  }
+  return {
+    star,
+    headline: fmtNumber(value, 1),
+    unit: "days",
+    context,
+  };
+}
+
+/** Tenant Retention cell: median tenancy months + cohort delta when
+ *  available (operators in some cohorts don't have apt / house p50
+ *  populated; we fall back to "N units observed"). */
+function buildRetentionCell(
+  tenancy: ScorecardData["tenancy"]
+): MetricCell {
+  const star = tenancy.star ?? null;
+  const value = tenancy.overallGap;
+  const cohortMedian =
+    tenancy.apartment?.cohortP50 ?? tenancy.house?.cohortP50 ?? null;
+  let context = `${fmtInt(tenancy.totalUnits)} units observed`;
+  if (value !== null && cohortMedian !== null && cohortMedian > 0) {
+    const delta = value - cohortMedian;
+    if (Math.abs(delta) < 0.05) {
+      context = `vs cohort median ${fmtNumber(cohortMedian, 1)}mo`;
+    } else {
+      // Longer tenancy is better, so a positive delta is favorable (▲).
+      const arrow = delta > 0 ? "▲" : "▼";
+      context = `${arrow} ${fmtNumber(Math.abs(delta), 1)}mo vs cohort ${fmtNumber(cohortMedian, 1)}mo`;
+    }
+  }
+  return {
+    star,
+    headline: value !== null ? fmtNumber(value, 1) : "—",
+    unit: "mo median",
+    context,
+  };
+}
+
+/** Rent Performance cell: percentage-points vs cohort + a one-liner
+ *  pairing the operator's YoY change with the cohort median's YoY
+ *  change, so the reader doesn't have to recall what "pp" means. */
+function buildRentCell(
+  rp: ScorecardData["rentPerformance"]
+): MetricCell {
+  if (!rp || rp.delta === null || rp.delta === undefined) {
+    return {
+      star: null,
+      headline: "—",
+      unit: "",
+      context: "Insufficient data",
+    };
+  }
+  const deltaPp = rp.delta * 100;
+  const sign = deltaPp > 0 ? "+" : "";
+  const pmYoy = fmtPct(rp.pmYoyChange * 100, 1, true);
+  const cohortYoy =
+    typeof rp.cohortMedianYoyChange === "number"
+      ? fmtPct(rp.cohortMedianYoyChange * 100, 1, true)
+      : null;
+  const context = cohortYoy
+    ? `Operator ${pmYoy} · Cohort ${cohortYoy}`
+    : `Operator ${pmYoy} YoY`;
+  return {
+    star: rp.star ?? null,
+    headline: `${sign}${fmtNumber(deltaPp, 1)}`,
+    unit: "pp vs cohort",
+    context,
+  };
+}
+
+/** Marketing Discipline cell: composite score / 100 + percentile in
+ *  cohort. Honors the v0.7 marketing-suppression rule — operators in
+ *  a suppressed cohort surface "Insufficient marketing data". */
+function buildMarketingCell(
+  marketing: ScorecardData["marketing"],
+  percentile: number | null
+): MetricCell {
+  if (marketingDataSuppressed(marketing)) {
+    return {
+      star: null,
+      headline: "—",
+      unit: "",
+      context: "Insufficient marketing data",
+    };
+  }
+  return {
+    star: marketing.star ?? null,
+    headline: fmtNumber(marketing.compositeScore, 0),
+    unit: "/ 100",
+    context:
+      percentile !== null
+        ? `${Math.round(percentile)}th percentile`
+        : "Marketing quality composite",
+  };
+}
+
 /** Turn a PM row + a hand-written quote into a SampleCard ready for
- *  the homepage card UI. Same logic that powered loadSampleCards
- *  before — extracted so the new Hero sample card (Doorby) can share
- *  the badge / portfolio / metric formatting without duplicating it. */
+ *  the new homepage card UI. PR #53 — the per-metric star roll-up
+ *  comes from the shared countOperatorStars helper so the card's
+ *  chip matches whatever the scorecard hero shows for the same
+ *  operator. */
 function buildSampleCard(
   pm: PmForSampleCard,
   quote: string,
   extraBadge?: SampleCard["badges"][number]
 ): SampleCard {
   const sc = JSON.parse(pm.scorecardData) as ScorecardData;
-  const compositeStar: StarLevel = sc.rank.compositeStar ?? null;
   const q7Label = sevenCellLabel(pm.quadrant7Cell, pm.quadrant);
 
-  // PR #46 — badges in 7-cell vocabulary. The Independent /
-  // Institutional dimension comes through as the green/orange
-  // pill; the 7-cell taxonomy cell ("SFR Independent" etc.)
-  // takes the dark ink pill.
   const badges: SampleCard["badges"] = [];
   const isInst = /Institutional/i.test(q7Label);
   badges.push({
@@ -124,51 +289,38 @@ function buildSampleCard(
 
   const stateSlug = stateCodeToSlug(pm.market.state);
   const cityKebab = citySlug(pm.market.city);
-  // PR #47 — paywall retired; ?unlocked=true is a no-op so we
-  // drop it from public-facing URLs for cleanliness.
   const href = `/property-managers/${stateSlug}/${cityKebab}/${pm.slug}`;
 
-  // PR #46 — Rank stat dropped from the sample card stat grid.
-  // Replaced with Est. Portfolio (v0.7 estimator output) which
-  // is the acquirer-relevant scale signal. Portfolio range
-  // surfaces underneath when the estimator carries low/high.
-  const portfolio = sc.portfolioEstimate;
-  const portfolioValue =
-    portfolio?.status === "estimated" && typeof portfolio.point === "number"
-      ? typeof portfolio.low === "number" && typeof portfolio.high === "number"
-        ? `${fmtInt(portfolio.point)} (${fmtInt(portfolio.low)}–${fmtInt(portfolio.high)})`
-        : `${fmtInt(portfolio.point)} units`
-      : "—";
-
-  const stats: SampleCard["stats"] = [
-    {
-      label: "Est. portfolio",
-      value: portfolioValue,
-    },
-    {
-      label: "URUs · T12",
-      value: fmtNumber(sc.coverage.urusT12, 0),
-    },
-    {
-      label: "Median DOM",
-      value: `${fmtNumber(sc.performance.domT12, 1)} days`,
-    },
-    {
-      label: "Composite",
-      value: sc.rank.composite !== null ? sc.rank.composite.toFixed(1) : "—",
-    },
-  ];
+  const { goldCount, silverCount } = countOperatorStars(sc);
+  const cohortName =
+    sc.rank?.compositeCohortName ?? `${pm.market.city} ${q7Label}`;
 
   return {
     slug: pm.slug,
     href,
     marketLabel: `${pm.market.city} MSA`,
     name: pm.name,
+    goldCount,
+    silverCount,
+    cohortName,
     badges,
-    compositeStar,
     claimed: pm.claimed,
     quote,
-    stats,
+    portfolio: buildPortfolioBand(sc.portfolioEstimate, q7Label),
+    leaseUp: buildLeaseUpCell(sc.performance),
+    tenantRetention: buildRetentionCell(sc.tenancy),
+    rentPerformance: buildRentCell(sc.rentPerformance),
+    marketingDiscipline: buildMarketingCell(
+      sc.marketing,
+      // Prefer the primary-cohort percentile (the nested
+      // percentilesMulti.marketing.primary) — it's the same number
+      // the scorecard SynthesisLayer's Marketing tile renders.
+      // Falls back to the top-level percentiles.marketing (MSA-level
+      // scalar) when the multi-level shape isn't populated.
+      sc.rank?.percentilesMulti?.marketing?.primary ??
+        sc.rank?.percentiles?.marketing ??
+        null
+    ),
   };
 }
 
@@ -200,16 +352,10 @@ async function loadSampleCards(): Promise<SampleCard[]> {
  *  Independent). Replaces the v0.12 operator-type quadrant chart in
  *  the right column of the hero. The fields all come from the live
  *  scorecard layer via buildSampleCard, so the card stays in sync
- *  as the methodology / estimator output drift. Returns null if the
- *  PM isn't in the DB (defensive — the seed always populates it,
- *  but the page should not 500 if a future reshuffle drops the row).
- *
- *  Quote is hand-written in the same cadence as the SAMPLE_MANIFEST
- *  entries: lead with a numeric signal, end with categorical
- *  positioning. */
+ *  as the methodology / estimator drifts. */
 const HERO_CARD_SLUG = "doorby-property-management-chattanooga-tn";
 const HERO_CARD_QUOTE =
-  "Gold-composite SFR Independent across 5 Chattanooga cities — top-quartile tenant retention and above-cohort lease-up speed across 229 URUs in trailing twelve months.";
+  "Three gold stars in the Chattanooga SFR Independent cohort — top-quartile retention and lease-up speed against double-digit rent outperformance across 229 URUs in trailing twelve months.";
 
 async function loadHeroCard(): Promise<SampleCard | null> {
   const pm = await prisma.pM.findUnique({
@@ -278,8 +424,6 @@ export default async function HomePage() {
       <SampleScorecards cards={sampleCards} />
       <OperatorCTA samplePmSlug={claimSlug} />
       <InstitutionCTA />
-      {/* PR #46 — version strings now sourced from src/lib/version.ts
-          so home page, footer, and any other stamp can't drift. */}
       <MethodologyFooter
         version={METHODOLOGY_VERSION.replace(/^v/, "")}
         designVersion={DESIGN_VERSION}

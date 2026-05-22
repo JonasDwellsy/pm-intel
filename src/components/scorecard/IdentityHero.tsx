@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { ClaimTrigger } from "@/components/scorecard/ClaimTrigger";
 import { StarSummaryChip } from "@/components/scorecard/StarSummaryChip";
+import { countOperatorStars } from "@/lib/operators/stars";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { quadrant7Color } from "@/lib/quadrant7-colors";
 import type {
   MarketFootprintPill,
 } from "@/lib/cross-market";
-import type { ScorecardData, StarLevel } from "@/lib/types";
+import type { ScorecardData } from "@/lib/types";
 import { fmtDate } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
 
@@ -298,27 +299,7 @@ function normalizeCohortName(raw: string): string {
   return `${stripped} cohort`;
 }
 
-// Roll up gold + silver per-metric stars for the focal operator. Mirrors
-// the seed-time PMListItem.goldCount/silverCount computation and the
-// countStars helper in src/lib/operator-data.ts so all three surfaces
-// (market list, scorecard hero, operator profile cards) read the same
-// number for the same operator.
-function countOperatorStars(scorecard: ScorecardData): {
-  goldCount: number;
-  silverCount: number;
-} {
-  const perMetric: Array<StarLevel | undefined> = [
-    scorecard.performance.domStar,
-    scorecard.rentPerformance?.star,
-    scorecard.marketing.star,
-    scorecard.tenancy.star,
-    scorecard.communityVisibility?.star,
-  ];
-  let goldCount = 0;
-  let silverCount = 0;
-  for (const s of perMetric) {
-    if (s === "gold") goldCount++;
-    else if (s === "silver") silverCount++;
-  }
-  return { goldCount, silverCount };
-}
+// PR #53 — countOperatorStars moved to src/lib/operators/stars.ts so
+// the market list, the scorecard hero, the operator profile, the
+// compare table, and the homepage sample cards all read the same
+// gold/silver counts for the same operator from one place.
