@@ -36,6 +36,7 @@ import {
   type WeightedCriterion,
 } from "@/lib/buy-box/fields";
 import type { ResultRowVM, DrillTarget } from "@/lib/buy-box/results-view";
+import { ALWAYS_ON_FIELD_IDS } from "@/lib/buy-box/adaptive-columns";
 import { FitScoreBadge } from "./FitScoreBadge";
 
 interface Props {
@@ -55,17 +56,9 @@ type SortDir = "asc" | "desc";
 const PAGE_SIZE = 50;
 const TOGGLE_STORAGE_KEY = "buy-box:results-view";
 
-/** Field ids covered by always-on columns; criteria referencing
- *  these are deduped to avoid a side-by-side duplicate column. */
-const ALWAYS_ON_FIELD_IDS = new Set<string>([
-  "quadrant7Cell",
-  "estimatedPortfolioPoint",
-  "estimatedPortfolioLow",
-  "estimatedPortfolioHigh",
-  "urusT12",
-  "marketIds",
-  "marketCount",
-]);
+// ALWAYS_ON_FIELD_IDS moved to src/lib/buy-box/adaptive-columns.ts
+// in PR #49 so the v0.12 Excel export can share the same dedup
+// set. The import above brings it back into local scope.
 
 interface ColumnDef {
   id: string;
