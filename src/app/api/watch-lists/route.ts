@@ -10,6 +10,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { createWatchList, listWatchListes } from "@/lib/watch-list/store";
+import { captureServerEvent } from "@/lib/analytics-server";
 
 export async function GET() {
   const { userId } = await auth();
@@ -61,5 +62,26 @@ export async function POST(req: Request) {
     preferredCriteria: input.preferredCriteria as never,
     excludedCriteria: input.excludedCriteria as never,
   });
+
+  // v0.17 — Server-side capture so we never lose the conversion if
+  // the client tab closes between POST and the redirect to /results.
+  // initial_operator_count counts CRITERIA, not matched operators —
+  // the matched count requires an applyWatchList() pass which we
+  // intentionally don't do here (creation is the conversion, not the
+  // first results render). Match-count fires from /results via the
+  // watch_list_viewed event instead.
+  const initialCriteriaCount =
+    (input.requiredCriteria as unknown[]).length +
+    (input.preferredCriteria as unknown[]).length +
+    (input.excludedCriteria as unknown[]).length;
+  captureServerEvent({
+    userId,
+    event: "watch_list_created",
+    properties: {
+      watch_list_id: record.id,
+      initial_operator_count: initialCriteriaCount,
+    },
+  });
+
   return Response.json({ watchList: record }, { status: 201 });
 }

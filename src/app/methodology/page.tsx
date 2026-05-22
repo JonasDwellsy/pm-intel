@@ -14,6 +14,7 @@ import {
   type TocItem,
 } from "@/components/methodology/MethodologyTOC";
 import { MethodologyMobileJump } from "@/components/methodology/MethodologyMobileJump";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
 
 export const metadata: Metadata = {
   title: "Methodology",
@@ -254,6 +255,9 @@ export default async function MethodologyPage() {
 
   return (
     <main className="bg-white">
+      {/* v0.17 — methodology_page_viewed. No properties; this surface
+          isn't keyed by anything (one canonical methodology page). */}
+      <TrackEvent event="methodology_page_viewed" />
       <MethodologyMobileJump items={TOC} />
       {/* === TITLE BLOCK === */}
       <section className="mx-auto max-w-[760px] px-8 pb-8 pt-20 text-center sm:pt-24">

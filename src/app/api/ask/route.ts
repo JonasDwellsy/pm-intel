@@ -1,8 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { cookies } from "next/headers";
+import { auth } from "@clerk/nextjs/server";
 import { ASK_TOOLS, executeTool } from "@/lib/ask-tools";
 import { buildSystemPrompt } from "@/lib/ask-system-prompt";
 import { prisma } from "@/lib/prisma";
+import { captureServerEvent } from "@/lib/analytics-server";
 
 // POST /api/ask — streaming Claude tool-calling endpoint.
 //
@@ -126,6 +128,22 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+
+  // v0.17 — Capture askai_query_submitted BEFORE the stream opens.
+  // We pass query_length_chars only; the raw text NEVER leaves the
+  // server and is NEVER attached to the PostHog event (privacy
+  // guardrail). userId is best-effort — AskAI is open to anonymous
+  // visitors who passed the research-preview password gate.
+  const { userId: askUserId } = await auth();
+  const lastUserMessage = messages[messages.length - 1].content;
+  captureServerEvent({
+    userId: askUserId,
+    event: "askai_query_submitted",
+    properties: {
+      query_length_chars: lastUserMessage.length,
+      turn_index: messages.length, // 1-based; first message is turn 1
+    },
+  });
 
   // Pull dataAsOf + methodologyVersion from any PM row — every row
   // carries the same version per the seed. Cheap query (one row, two

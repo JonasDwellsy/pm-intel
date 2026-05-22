@@ -1,5 +1,27 @@
 // Conversion-event helpers. Single source of truth for event names and the
-// global properties attached to every capture call (spec section 9).
+// global properties attached to every capture call.
+//
+// History:
+//   - PR #45 (v0.8) introduced the PostHog wiring with anonymous-only
+//     identity (no Clerk yet) and the original 18-event taxonomy.
+//   - PR #59 (v0.17, observability stack) keeps every existing event in
+//     the registry — dashboards/funnels built against names like
+//     `market_page_view` still receive data — and EXTENDS the taxonomy
+//     with the 10 spec-mandated events listed under "v0.17 additions"
+//     below. It also turns on session replay (with PII masking),
+//     replaces the hardcoded `userType: "anonymous"` with a Clerk-
+//     derived `auth` ∈ ("authenticated" | "anonymous") property, and
+//     wires posthog.identify() so events carry the Clerk userId as
+//     distinct_id when signed in.
+//
+// Privacy guardrails (see PRIVACY.md at repo root):
+//   - No Clerk email / name / phone is ever attached to events.
+//     Identification is by Clerk userId (an opaque "user_…" handle) only.
+//   - No raw query text from AskAI or search — length-in-characters only.
+//   - No rent values, scorecard underlying numbers, or operator metadata
+//     beyond the slug.
+//   - Session replay masks all <input>, [data-private], and password
+//     fields — see PostHog init below.
 
 import posthog from "posthog-js";
 
@@ -16,12 +38,53 @@ export function initAnalytics(): void {
   posthog.init(KEY, {
     api_host: HOST,
     capture_pageview: false, // we fire view events explicitly with extra props
+
+    // v0.17 — Session replay ON. PostHog owns replay; Sentry replay
+    // stays OFF (one source of truth, one bill). PII masking is
+    // belt-and-suspenders:
+    //   - mask_all_inputs masks every <input>/<textarea> value.
+    //   - maskTextSelector targets anything the product explicitly
+    //     marks with [data-private] (e.g. operator rent/financial
+    //     readouts inside the scorecard) so the replay shows the
+    //     element's geometry but not its text.
+    //   - record_cross_origin_iframes off — Clerk's hosted iframes
+    //     would otherwise occasionally pull their internal DOM into
+    //     the recording, and we have no business storing that.
+    disable_session_recording: false,
+    session_recording: {
+      maskAllInputs: true,
+      maskTextSelector: "[data-private]",
+      recordCrossOriginIframes: false,
+    },
+
     persistence: "localStorage+cookie",
   });
   initialized = true;
 }
 
+/** v0.17 — bind a Clerk userId to the current PostHog distinct_id.
+ *  Idempotent: PostHog stitches anonymous events to the identified
+ *  user once this fires, so we can safely call it on every render
+ *  of the ClerkIdentify component. PII guard: we deliberately pass
+ *  NO email / name / phone in the people-properties argument; the
+ *  userId is the only handle we ever surface to PostHog. */
+export function identifyAnalyticsUser(userId: string): void {
+  if (typeof window === "undefined" || !initialized) return;
+  posthog.identify(userId);
+}
+
+/** v0.17 — drop the Clerk identity when the user signs out. Sets
+ *  PostHog back to its anonymous-cookie distinct_id so the next
+ *  visitor on the same browser doesn't inherit the previous user's
+ *  identity. Idempotent. */
+export function resetAnalyticsUser(): void {
+  if (typeof window === "undefined" || !initialized) return;
+  posthog.reset();
+}
+
 export type EventName =
+  // Original v0.8 taxonomy — kept verbatim so PR #45-era dashboards
+  // continue receiving data. v0.17 extends rather than replaces.
   | "market_page_view"
   | "quadrant_filter_click"
   | "pm_card_click"
@@ -44,7 +107,21 @@ export type EventName =
   | "match_card_click"
   | "claim_landing_view"
   | "claim_form_submit_success"
-  | "operator_profile_view";
+  | "operator_profile_view"
+  // v0.17 additions — observability stack spec. Naming convention
+  // for new events is past-tense verb (`_completed`, `_viewed`,
+  // `_submitted`) so they read as facts in funnels.
+  | "signup_completed"
+  | "login_completed"
+  | "scorecard_viewed"
+  | "watch_list_viewed"
+  | "watch_list_created"
+  | "operator_added_to_watch_list"
+  | "methodology_page_viewed"
+  | "askai_query_submitted"
+  | "markets_page_viewed"
+  | "state_page_viewed"
+  | "search_performed";
 
 export type EventProps = {
   marketId?: string;
@@ -57,10 +134,31 @@ export type EventProps = {
 function enrich(props: EventProps): Record<string, unknown> {
   const referringPage =
     typeof document !== "undefined" ? document.referrer || null : null;
-  // No real auth yet (Journey 3). Treat everyone as anonymous.
+  // v0.17 — replaced the hardcoded `userType: "anonymous"`. The
+  // ClerkIdentify client component calls identifyAnalyticsUser() the
+  // moment a Clerk session is detected; PostHog's own `posthog.get_distinct_id()`
+  // reports back the identified id, so we derive the auth state from
+  // whether that id starts with "user_" (Clerk's userId convention).
+  // Fallback when posthog isn't initialized: anonymous.
+  let auth: "authenticated" | "anonymous" = "anonymous";
+  if (initialized && typeof window !== "undefined") {
+    try {
+      const distinctId = posthog.get_distinct_id?.();
+      if (typeof distinctId === "string" && distinctId.startsWith("user_")) {
+        auth = "authenticated";
+      }
+    } catch {
+      // posthog.get_distinct_id is safe to call but we belt-and-suspender
+      // the type cast above. Fall through to anonymous on any throw.
+    }
+  }
   return {
     ...props,
-    userType: "anonymous" as const,
+    // userType retained for back-compat with v0.8-era dashboards that
+    // filter on it. Mirrors the new `auth` field so we can transition
+    // dashboards over a deploy.
+    userType: auth,
+    auth,
     referringPage,
   };
 }

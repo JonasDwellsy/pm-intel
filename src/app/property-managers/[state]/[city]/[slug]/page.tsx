@@ -23,6 +23,7 @@ import { buildConcessionContext } from "@/lib/concession-context";
 import { hasComparablePeers } from "@/lib/peer-comparison-view";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import { MarketView } from "@/components/market/MarketView";
+import { TrackEvent } from "@/components/analytics/TrackEvent";
 
 type RouteParams = { state: string; city: string; slug: string };
 type RouteSearch = {
@@ -189,17 +190,33 @@ export default async function MarketChildPage({
         })
       : null;
   return (
-    <ScorecardBody
-      scorecard={scorecard}
-      isClaimed={isClaimed}
-      marketFootprint={marketFootprint}
-      peerComparisons={peerComparisons}
-      lendingSignals={lendingSignals}
-      cohortRentTrajectory={cohortRentTrajectory}
-      crossMarketOperator={crossMarketContext}
-      shareTrajectory={shareTrajectory}
-      concessionContext={concessionContext}
-      compareHref={compareHref}
-    />
+    <>
+      {/* v0.17 — scorecard_viewed. Slug + MSA + classification only.
+          Per the privacy guardrail in PRIVACY.md we never attach
+          underlying numerics (rent, DOM, star tiers, portfolio
+          estimates) — those are dimensions that belong on the
+          scorecard surface, not in funnel events. */}
+      <TrackEvent
+        event="scorecard_viewed"
+        properties={{
+          operator_slug: scorecard.pm.slug,
+          operator_msa: scorecard.market.id,
+          operator_classification:
+            scorecard.pm.quadrant7Cell ?? scorecard.pm.quadrant,
+        }}
+      />
+      <ScorecardBody
+        scorecard={scorecard}
+        isClaimed={isClaimed}
+        marketFootprint={marketFootprint}
+        peerComparisons={peerComparisons}
+        lendingSignals={lendingSignals}
+        cohortRentTrajectory={cohortRentTrajectory}
+        crossMarketOperator={crossMarketContext}
+        shareTrajectory={shareTrajectory}
+        concessionContext={concessionContext}
+        compareHref={compareHref}
+      />
+    </>
   );
 }

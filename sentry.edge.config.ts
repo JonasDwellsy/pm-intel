@@ -1,0 +1,17 @@
+// v0.17 — Sentry edge-runtime config. Runs in middleware and any
+// route handlers explicitly opted into the edge runtime. Currently
+// middleware.ts uses the default (Node) runtime, but the file is
+// required by withSentryConfig — leaving it empty would crash
+// Next.js's bundle analysis. Loaded by ./instrumentation.ts.
+
+import * as Sentry from "@sentry/nextjs";
+
+const DSN = process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN;
+
+if (DSN) {
+  Sentry.init({
+    dsn: DSN,
+    tracesSampleRate: 0.1,
+    sendDefaultPii: false,
+  });
+}
