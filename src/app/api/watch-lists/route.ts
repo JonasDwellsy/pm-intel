@@ -16,7 +16,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { createWatchList, listWatchListes } from "@/lib/watch-list/store";
-import { captureServerEvent } from "@/lib/analytics-server";
+import { captureServerEvent, flushAnalyticsServer } from "@/lib/analytics-server";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 
 export async function GET() {
@@ -115,6 +115,14 @@ export async function POST(req: Request) {
       organization_id: organizationId,
     },
   });
+
+  // v0.18 PR #74 — Vercel lambda-freeze guard. After the HTTP response
+  // returns, the JS event loop freezes and posthog-node's flushInterval
+  // timer can't tick, so queued events sit in memory until the lambda
+  // dies (events lost). PR #73 fixed this for the Clerk webhook;
+  // watch_list_created had the same latent vulnerability. The flush is
+  // capped at 2s so a flaky PostHog endpoint can't hang the response.
+  await flushAnalyticsServer();
 
   return Response.json({ watchList: record }, { status: 201 });
 }
