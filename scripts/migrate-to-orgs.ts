@@ -45,12 +45,74 @@
 //     rewritten all of these to LEGACY_OWNER_ID. Defensive: we
 //     log + skip these too.
 
+import { readFileSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
 import { provisionPersonalOrgForUser } from "../src/lib/auth/provision-personal-org";
 import { DEFAULT_OWNER_ID, LEGACY_OWNER_ID } from "../src/lib/watch-list/store";
 import * as Sentry from "@sentry/nextjs";
 
-const prisma = new PrismaClient();
+// v0.18.1 — Required `--env-file=PATH` for production runs. Loads
+// the given dotenv file BEFORE PrismaClient is instantiated, AND
+// forces-overrides any existing process.env entries (Prisma's
+// auto-load and process.loadEnvFile() both refuse to overwrite
+// existing values — surprising default behavior that quietly made
+// us run against the dev DB instead of prod).
+//
+// Usage:
+//   npm run migrate:to-orgs:dry-run -- --env-file=.env.production.local
+//
+// The `--` after `migrate:to-orgs:dry-run` is npm syntax for "pass
+// remaining args to the underlying command" — without it npm
+// swallows the flag.
+const envFileArg = process.argv.find((a) => a.startsWith("--env-file="));
+if (envFileArg) {
+  const path = envFileArg.slice("--env-file=".length);
+  try {
+    const content = readFileSync(path, "utf-8");
+    let loaded = 0;
+    for (const rawLine of content.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) continue;
+      const eqIdx = line.indexOf("=");
+      if (eqIdx === -1) continue;
+      const key = line.slice(0, eqIdx).trim();
+      let value = line.slice(eqIdx + 1).trim();
+      // Strip surrounding quotes (Vercel wraps URLs containing
+      // special chars in double quotes).
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      // Force-overwrite: this is the whole point of --env-file.
+      process.env[key] = value;
+      loaded += 1;
+    }
+    console.log(`[migrate-to-orgs] Loaded ${loaded} env var(s) from ${path}`);
+  } catch (err) {
+    console.error(
+      `[migrate-to-orgs] Could not load --env-file=${path}:`,
+      err instanceof Error ? err.message : err
+    );
+    process.exit(1);
+  }
+}
+
+// Pass DATABASE_URL explicitly to PrismaClient. Belt-and-suspenders
+// against @prisma/client having cached the env at import time —
+// even if Prisma's auto-loader read the dev DATABASE_URL into
+// process.env before our --env-file override ran, the explicit
+// `datasourceUrl` option overrides Prisma's own resolution.
+if (!process.env.DATABASE_URL) {
+  console.error(
+    "[migrate-to-orgs] DATABASE_URL not set. Either pass --env-file=PATH or export DATABASE_URL in your shell."
+  );
+  process.exit(1);
+}
+const prisma = new PrismaClient({
+  datasourceUrl: process.env.DATABASE_URL,
+});
 
 const DRY_RUN = process.argv.includes("--dry-run");
 
