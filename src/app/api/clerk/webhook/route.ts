@@ -535,28 +535,76 @@ async function handleMembershipDeleted(event: ClerkWebhookEvent): Promise<void> 
   const clerkMembershipId = event.data.id;
   if (!clerkMembershipId) return;
 
-  // v0.18 PR #71 — Read the row BEFORE deleting so we have org +
-  // user context for the analytics event. If the row doesn't exist
-  // (Clerk re-delivery after we already processed delete), the
-  // event simply doesn't fire — idempotent.
-  const existing = await prisma.organizationMembership.findUnique({
-    where: { clerkMembershipId },
-    select: { organizationId: true, userId: true },
-  });
+  // v0.18 PR #72 hotfix — Read user + org from the webhook PAYLOAD,
+  // NOT from a pre-read of our DB.
+  //
+  // Original (PR #71) implementation pre-read the OrganizationMembership
+  // row to source the event properties, then fired the analytics
+  // event ONLY if `existing` was non-null. This silently skipped the
+  // event whenever the membership row wasn't in our DB at the time
+  // of the delete webhook — which happens when the upstream
+  // organizationMembership.created webhook errored or hit one of its
+  // early-return guards (missing required field, etc). The pre-read
+  // was a defensive belt-and-suspenders that turned into a footgun.
+  //
+  // The webhook payload itself carries everything we need:
+  //   - membership id          → event.data.id
+  //   - org id (clerk-side)    → event.data.organization.id
+  //   - user id                → event.data.public_user_data.user_id
+  //                              (with a fallback to .user_id for
+  //                              older Clerk payload shapes)
+  // We don't need our DB row to fire the analytics event. The DB
+  // delete still happens for state correctness; the analytics fire
+  // is independent.
+  const clerkOrgId = event.data.organization?.id;
+  const userIdFromPayload =
+    event.data.public_user_data?.user_id ?? event.data.user_id;
+
+  // Resolve org id: prefer our DB row id (consistent with how other
+  // events refer to orgs); fall back to the Clerk-side id when we
+  // don't mirror the org yet. Either way the analytics event fires.
+  let dbOrgId: string | null = null;
+  if (clerkOrgId) {
+    const org = await prisma.organization.findUnique({
+      where: { clerkOrgId },
+      select: { id: true },
+    });
+    dbOrgId = org?.id ?? null;
+  }
 
   await prisma.organizationMembership.deleteMany({
     where: { clerkMembershipId },
   });
 
-  if (existing) {
+  if (userIdFromPayload && (dbOrgId || clerkOrgId)) {
     captureServerEvent({
-      userId: existing.userId,
+      userId: userIdFromPayload,
       event: "org_member_removed",
       properties: {
-        org_id: existing.organizationId,
-        removed_user_id: existing.userId,
+        org_id: dbOrgId ?? clerkOrgId,
+        removed_user_id: userIdFromPayload,
       },
     });
+  } else {
+    // Payload genuinely missing required fields — surface to Sentry
+    // so this doesn't fail silently like the original bug. In
+    // practice this branch should never fire; if it does, the Sentry
+    // event tells us exactly what Clerk sent.
+    Sentry.captureMessage(
+      "org_member_removed skipped: webhook payload missing userId or orgId",
+      {
+        level: "warning",
+        tags: {
+          webhook: "clerk",
+          event_type: "organizationMembership.deleted",
+        },
+        extra: {
+          clerkMembershipId,
+          clerkOrgId: clerkOrgId ?? null,
+          userIdFromPayload: userIdFromPayload ?? null,
+        },
+      }
+    );
   }
 }
 
