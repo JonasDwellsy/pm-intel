@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { WatchListEditor, type EditorWatchList } from "@/components/watch-list/WatchListEditor";
 import { listMarketOptions } from "@/lib/watch-list/editor-options";
-import { getWatchList } from "@/lib/watch-list/store";
+import { getWatchListWithCrossOrgCheck } from "@/lib/watch-list/store";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 
 // /watch-lists/[id]/edit — server component loads the existing watch
@@ -35,13 +35,24 @@ export default async function EditWatchListPage({ params }: PageProps) {
   if (!organizationId) {
     redirect(`/setup-workspace?from=/watch-lists/${id}/edit`);
   }
-  const [record, marketOptions] = await Promise.all([
-    getWatchList(id, organizationId),
+  const [access, marketOptions] = await Promise.all([
+    getWatchListWithCrossOrgCheck({
+      watchListId: id,
+      userId,
+      activeOrganizationId: organizationId,
+    }),
     listMarketOptions(),
   ]);
-  if (!record) {
-    notFound();
+  if (access.status === "not_found") notFound();
+  if (access.status === "wrong_org") {
+    // Caller IS a member of the watch list's owning org but their
+    // active session is on a different org. Bounce them to /watch-lists
+    // with a flash so they know why they didn't land on the editor.
+    redirect(
+      `/watch-lists?wrongOrg=${encodeURIComponent(access.ownerOrgName)}`
+    );
   }
+  const record = access.record;
   const initial: EditorWatchList = {
     id: record.id,
     name: record.name,

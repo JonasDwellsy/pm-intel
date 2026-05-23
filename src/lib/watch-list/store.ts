@@ -197,3 +197,76 @@ export async function deleteWatchList(
     return false;
   }
 }
+
+/** v0.18 (PR #70, Phase 2) — Tri-state fetch for the detail-page
+ *  graceful-handling path on org switch.
+ *
+ *  Distinguishes three cases that getWatchList() collapses into a
+ *  single `null`:
+ *
+ *    1. "found"      — watch list IS in caller's active org. Render.
+ *    2. "wrong_org"  — watch list is in a DIFFERENT org that the
+ *                      caller IS A MEMBER OF. Detail pages redirect
+ *                      to /watch-lists?wrongOrg=<name> and show a
+ *                      flash. Caller has access SOMEWHERE, just not
+ *                      in their currently-active session.
+ *    3. "not_found"  — watch list doesn't exist OR exists in an org
+ *                      the caller has no membership in. notFound().
+ *                      This branch preserves the no-existence-leak
+ *                      property for random URL guessers.
+ *
+ *  The membership check (case 2 vs 3) is critical: without it, a
+ *  random URL guesser could learn that a watch list ID exists by
+ *  observing the redirect+flash. We only redirect when the caller
+ *  is provably a member of the owning org. */
+export type WatchListAccessResult =
+  | { status: "found"; record: WatchListRecord }
+  | { status: "wrong_org"; ownerOrgName: string }
+  | { status: "not_found" };
+
+export async function getWatchListWithCrossOrgCheck(args: {
+  watchListId: string;
+  userId: string;
+  activeOrganizationId: string;
+}): Promise<WatchListAccessResult> {
+  const { watchListId, userId, activeOrganizationId } = args;
+  const row = await prisma.watchList.findUnique({
+    where: { id: watchListId },
+  });
+  if (!row) {
+    return { status: "not_found" };
+  }
+
+  // Happy path — watch list is in the caller's active org.
+  if (row.organizationId === activeOrganizationId) {
+    return { status: "found", record: parseRow(row) };
+  }
+
+  // Watch list is in a different org. Determine: is the caller a
+  // member of that org? If yes, this is a "wrong org" scenario
+  // (likely user just switched orgs). If no, treat as not_found
+  // to avoid the existence leak.
+  //
+  // Defensive: if the watch list has no organizationId at all
+  // (legacy sentinel rows from pre-Phase-1 data), it cannot belong
+  // to any caller — treat as not_found.
+  if (!row.organizationId) {
+    return { status: "not_found" };
+  }
+  const membership = await prisma.organizationMembership.findFirst({
+    where: {
+      userId,
+      organizationId: row.organizationId,
+    },
+    select: {
+      organization: { select: { name: true } },
+    },
+  });
+  if (!membership) {
+    return { status: "not_found" };
+  }
+  return {
+    status: "wrong_org",
+    ownerOrgName: membership.organization.name,
+  };
+}
