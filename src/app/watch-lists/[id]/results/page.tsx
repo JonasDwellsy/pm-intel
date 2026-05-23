@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { applyWatchList } from "@/lib/watch-list/apply";
-import { getWatchList } from "@/lib/watch-list/store";
+import { getWatchListWithCrossOrgCheck } from "@/lib/watch-list/store";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 import { projectResultsForView } from "@/lib/watch-list/results-view";
 import { computeAndRecordChanges } from "@/lib/watch-list/changes";
@@ -43,8 +43,18 @@ export default async function WatchListResultsPage({ params }: PageProps) {
   if (!organizationId) {
     redirect(`/setup-workspace?from=/watch-lists/${id}/results`);
   }
-  const watchList = await getWatchList(id, organizationId);
-  if (!watchList) notFound();
+  const access = await getWatchListWithCrossOrgCheck({
+    watchListId: id,
+    userId,
+    activeOrganizationId: organizationId,
+  });
+  if (access.status === "not_found") notFound();
+  if (access.status === "wrong_org") {
+    redirect(
+      `/watch-lists?wrongOrg=${encodeURIComponent(access.ownerOrgName)}`
+    );
+  }
+  const watchList = access.record;
 
   const applied = await applyWatchList({
     id: watchList.id,

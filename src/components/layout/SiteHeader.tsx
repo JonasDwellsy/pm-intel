@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Show, UserButton } from "@clerk/nextjs";
+import { OrganizationSwitcher, Show, UserButton } from "@clerk/nextjs";
 import { SearchInput } from "@/components/search/SearchInput";
 import { NAV_ITEMS, PRIMARY_CTA } from "@/lib/nav";
 
@@ -85,6 +85,38 @@ export function SiteHeader() {
             </Link>
           </Show>
           <Show when="signed-in">
+            {/* v0.18 (PR #70, Phase 2 multi-tenancy) — Organization
+                switcher. Sits immediately left of UserButton so the
+                "auth cluster" stays visually grouped on the right.
+                Hidden below sm to keep the mobile header tight; multi-
+                org users can switch on desktop and the choice
+                persists in the Clerk session JWT.
+                  hidePersonal: false  → Personal workspace shows in
+                                         the dropdown alongside any
+                                         joined team orgs.
+                  afterSelect/Create/Leave → land on /watch-lists so
+                                             the user sees the
+                                             org-filtered list
+                                             immediately. */}
+            <div className="hidden sm:flex max-w-[200px] [&_.cl-organizationSwitcherTrigger]:!h-[34px] [&_.cl-organizationPreviewMainIdentifier]:!truncate">
+              <OrganizationSwitcher
+                hidePersonal={false}
+                afterCreateOrganizationUrl="/watch-lists"
+                afterSelectOrganizationUrl="/watch-lists"
+                afterLeaveOrganizationUrl="/watch-lists"
+                appearance={{
+                  elements: {
+                    // Match the UserButton's compact, 30px-ish visual
+                    // weight so the auth cluster reads as one unit.
+                    organizationSwitcherTrigger:
+                      "py-1 px-2 rounded-md hover:bg-surface-soft",
+                    organizationPreviewAvatarBox: "h-[26px] w-[26px]",
+                    organizationPreviewMainIdentifier:
+                      "text-[13px] font-medium text-navy",
+                  },
+                }}
+              />
+            </div>
             <UserButton
               appearance={{
                 elements: {

@@ -82,6 +82,36 @@ export function resetAnalyticsUser(): void {
   posthog.reset();
 }
 
+/** v0.18 (PR #70, Phase 2 multi-tenancy) — bind an Organization to
+ *  the current PostHog session as a "group." Unlocks group-level
+ *  analytics (watch lists per org, retention per org, funnels filtered
+ *  by org, etc.) without requiring a schema rework later. The group
+ *  key 'organization' must be set up on the PostHog side under
+ *  Project settings → Group analytics → enable a group type named
+ *  "organization" (one-time setup; the SDK call fires regardless and
+ *  PostHog ignores it if the group type isn't enabled).
+ *
+ *  PII guard mirrors identifyAnalyticsUser(): we deliberately pass
+ *  only the opaque Clerk-mirror org id and the org name (which is
+ *  user-supplied at signup, typically "{firstName}'s Workspace" — a
+ *  weak PII vector, but no stronger than what's already in the
+ *  Clerk dashboard). If you ever want to tighten this further,
+ *  switch to passing just the id and dropping the name from
+ *  properties. */
+export function identifyAnalyticsOrg(orgId: string, orgName: string): void {
+  if (typeof window === "undefined" || !initialized) return;
+  posthog.group("organization", orgId, { name: orgName });
+}
+
+/** v0.18 — drop the Organization group binding when the user signs
+ *  out OR when they sign in to a different account on the same
+ *  browser. Without this, a fresh anonymous session would inherit
+ *  the previous user's group attribution. Idempotent. */
+export function resetAnalyticsOrg(): void {
+  if (typeof window === "undefined" || !initialized) return;
+  posthog.resetGroups();
+}
+
 export type EventName =
   // Original v0.8 taxonomy — kept verbatim so PR #45-era dashboards
   // continue receiving data. v0.17 extends rather than replaces.
