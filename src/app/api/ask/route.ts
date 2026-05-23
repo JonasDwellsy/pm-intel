@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { ASK_TOOLS, executeTool } from "@/lib/ask-tools";
 import { buildSystemPrompt } from "@/lib/ask-system-prompt";
 import { prisma } from "@/lib/prisma";
-import { captureServerEvent } from "@/lib/analytics-server";
+import { captureServerEvent, flushAnalyticsServer } from "@/lib/analytics-server";
 
 // POST /api/ask — streaming Claude tool-calling endpoint.
 //
@@ -265,6 +265,18 @@ export async function POST(req: Request) {
       }
     },
   });
+
+  // v0.18 PR #74 — Vercel lambda-freeze guard. After the HTTP response
+  // headers return, the JS event loop on a serverless function can
+  // freeze (the SSE stream keeps the body open, but timer scheduling
+  // is not guaranteed across the boundary on Vercel). PR #73 fixed
+  // this for the Clerk webhook; askai_query_submitted had the same
+  // latent vulnerability. Flushing now (capped at 2s) guarantees the
+  // PostHog HTTP send completes before any post-response freeze. The
+  // 2s cap means streaming start is delayed by at most ~150ms in the
+  // common case, which is invisible next to the multi-second Claude
+  // call that follows.
+  await flushAnalyticsServer();
 
   return new Response(stream, {
     headers: {
