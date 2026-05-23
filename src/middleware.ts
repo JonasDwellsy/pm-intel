@@ -4,6 +4,7 @@ import {
   PROTECTED_ROUTE_PATTERNS,
   PUBLIC_BUYBOX_PATTERNS,
 } from "@/lib/auth/protected-routes";
+import { isSocialCrawler } from "@/lib/auth/social-crawler";
 
 // Two-layer middleware:
 //
@@ -127,7 +128,19 @@ function isPasswordGateBypass(pathname: string): boolean {
 }
 
 export default clerkMiddleware(async (auth, req) => {
-  if (!isPasswordGateBypass(req.nextUrl.pathname)) {
+  // PR #76 — Social-media unfurl crawlers (Slack/Twitter/LinkedIn/
+  // Facebook/Discord/Telegram/WhatsApp) bypass the password gate so
+  // their preview-card fetches can read the actual scorecard
+  // metadata + the dynamic OG image (PR #75). Without this, every
+  // share into Slack/iMessage/email shows the generic /password
+  // page metadata instead of the per-operator card.
+  //
+  // Search-engine crawlers (Googlebot, Bingbot, DuckDuckBot) are
+  // NOT in the bypass list — they would index pre-launch content.
+  // See src/lib/auth/social-crawler.ts for the threat model.
+  const isCrawler = isSocialCrawler(req.headers.get("user-agent"));
+
+  if (!isPasswordGateBypass(req.nextUrl.pathname) && !isCrawler) {
     const gateResponse = await passwordGate(req);
     if (gateResponse) return gateResponse;
   }
