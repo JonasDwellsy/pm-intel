@@ -1,4 +1,21 @@
 // PR #75 — Dynamic Open Graph preview image for scorecard pages.
+// PR #77 — Runtime hardening after the first deploy returned 500
+// when Slack tried to fetch the image. Three changes:
+//
+//   1. Removed `fontFamily: "system-ui, ..."` from the JSX styles.
+//      Satori (the rendering engine inside next/og's ImageResponse)
+//      can't resolve system-font stacks — when none of the names
+//      match a loaded font, the render throws. Letting Satori fall
+//      back to its built-in default (Noto Sans) keeps the route
+//      working out of the box.
+//   2. Switched `import * as Sentry from "@sentry/nextjs"` to a
+//      dynamic import inside a defensive `reportError` helper.
+//      Sentry's auto-instrumentation has historical issues with
+//      next/og route modules; the top-level static import was the
+//      most likely culprit in the original 500.
+//   3. Added `console.error` alongside Sentry so any future runtime
+//      failure shows in Vercel runtime logs even if Sentry itself
+//      can't load.
 //
 // Renders a 1200×630 PNG on first request (cached at the edge after
 // generation) so Slack / iMessage / email / LinkedIn unfurls show
@@ -16,13 +33,11 @@
 // minimal Dwellsy IQ branded card (no per-operator data); scorecard
 // routes get the full composition.
 //
-// Failure modes are Sentry-instrumented; on any error we fall
-// through to the minimal branded card rather than throwing (a
-// broken OG image is much worse than a generic one for the share
-// experience).
+// Failure modes are instrumented; on any error we fall through to
+// the minimal branded card rather than throwing (a broken OG image
+// is much worse than a generic one for the share experience).
 
 import { ImageResponse } from "next/og";
-import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { isQuadrantSegment } from "@/lib/slugify";
 import {
@@ -30,6 +45,39 @@ import {
   starableAxisCount,
 } from "@/lib/operators/stars";
 import type { ScorecardData } from "@/lib/types";
+
+/** PR #77 — Defensive error reporter. Dynamically imports Sentry
+ *  inside a try/catch so:
+ *
+ *    1. The static `import * as Sentry from "@sentry/nextjs"` at
+ *       module top (which had a history of breaking next/og routes
+ *       via Sentry's auto-instrumentation) is no longer there.
+ *    2. If Sentry itself fails to load for any reason, the OG image
+ *       route still emits the error to Vercel runtime logs so the
+ *       failure mode is debuggable.
+ *    3. Sentry errors NEVER bubble up — they're swallowed inside
+ *       this helper so they can't crash the OG render, which would
+ *       defeat the entire purpose of falling back to a branded
+ *       card. */
+async function reportError(
+  err: unknown,
+  context: { component: string; extra?: Record<string, unknown> }
+): Promise<void> {
+  // Always log to Vercel runtime first — even if Sentry blows up.
+  console.error(`[${context.component}] runtime error`, err, context.extra);
+  try {
+    const Sentry = await import("@sentry/nextjs");
+    Sentry.captureException(err, {
+      tags: { component: context.component },
+      extra: context.extra,
+    });
+  } catch (sentryErr) {
+    console.error(
+      `[${context.component}] Sentry capture also failed`,
+      sentryErr
+    );
+  }
+}
 
 // next/og runs on the Node.js runtime here because we need Prisma to
 // resolve the operator from the slug. Edge runtime would be faster
@@ -90,13 +138,17 @@ export default async function Image({
       (
         <div
           style={{
+            // PR #77 — `fontFamily` deliberately omitted. Satori
+            // can't resolve system-font stacks; specifying one was
+            // the most likely cause of the original 500. Letting
+            // Satori fall back to its built-in default (Noto Sans)
+            // keeps the route working out of the box.
             width: "100%",
             height: "100%",
             backgroundColor: COLOR_BG,
             display: "flex",
             flexDirection: "column",
             padding: "56px 64px",
-            fontFamily: "system-ui, -apple-system, Helvetica, Arial, sans-serif",
             color: COLOR_NAVY,
             position: "relative",
           }}
@@ -201,8 +253,8 @@ export default async function Image({
       { ...size }
     );
   } catch (err) {
-    Sentry.captureException(err, {
-      tags: { component: "scorecard-opengraph-image" },
+    await reportError(err, {
+      component: "scorecard-opengraph-image",
       extra: { slug },
     });
     return brandedFallback("Property manager intelligence");
@@ -221,6 +273,8 @@ function brandedFallback(subtitle: string) {
     (
       <div
         style={{
+          // PR #77 — fontFamily omitted (see note on the main
+          // composition above). Satori uses its built-in default.
           width: "100%",
           height: "100%",
           backgroundColor: COLOR_NAVY,
@@ -229,7 +283,6 @@ function brandedFallback(subtitle: string) {
           alignItems: "center",
           justifyContent: "center",
           padding: "64px",
-          fontFamily: "system-ui, -apple-system, Helvetica, Arial, sans-serif",
           color: "#ffffff",
           gap: 24,
         }}
