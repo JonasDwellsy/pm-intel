@@ -4,6 +4,7 @@ import { marketingDataSuppressed } from "@/lib/types";
 import { fmtInt, fmtNumber, fmtPct } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
 import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
+import { buildCohortFramingSentence } from "@/lib/operators/stars";
 import type { MetricKey } from "@/lib/metric-definitions";
 
 // Layer 2 — Synthesis block (v1.0 design, per Scorecard_Design_Spec_v1.0.md
@@ -63,9 +64,28 @@ export function SynthesisLayer({ scorecard }: { scorecard: ScorecardData }) {
       (b) => typeof b === "string" && b.trim().length > 0
     ) ?? [];
 
+  // PR #75 — One-sentence cohort framing. Mechanical TL;DR derived
+  // from the per-metric star counts; complements the IdentityHero
+  // star chip (visual) and the Executive summary below (narrative).
+  // Rendered as the first child of the Synthesis section, above the
+  // Executive summary, so a first-time reader sees the operator's
+  // cohort position before the prose paragraph.
+  const cohortFraming = buildCohortFramingSentence(scorecard);
+
   return (
     <section id="synthesis" aria-label="Synthesis" className="dq-section space-y-10">
       <LayerSectionHeader num="01" title="Synthesis" />
+      {/* PR #75 — Cohort framing TL;DR. Single sentence, no border
+          or background — reads as part of the page, not a callout
+          box. Sits ABOVE the Executive summary so prospect-share
+          readers see the cohort position in one glance before the
+          narrative paragraph. */}
+      <p
+        className="-mt-4 max-w-[780px] text-[15.5px] leading-[1.55] text-muted-foreground"
+        data-testid="cohort-framing"
+      >
+        {cohortFraming}
+      </p>
       {/* 2A — Executive summary */}
       {executiveSummary && (
         <div>

@@ -151,7 +151,13 @@ export type EventName =
   | "askai_query_submitted"
   | "markets_page_viewed"
   | "state_page_viewed"
-  | "search_performed";
+  | "search_performed"
+  // PR #75 — Prospect-share polish. Fires when a viewer clicks the
+  // Copy link button on a scorecard. Property: operator_slug. Used
+  // to see which operator pages get shared most so we can target
+  // outreach content (Bryan/Genstone, Matthew/Evernest, RangeWater,
+  // Roofstock discovery calls).
+  | "scorecard_link_copied";
 
 export type EventProps = {
   marketId?: string;
