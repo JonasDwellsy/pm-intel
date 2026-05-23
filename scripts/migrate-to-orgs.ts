@@ -99,19 +99,41 @@ if (envFileArg) {
   }
 }
 
-// Pass DATABASE_URL explicitly to PrismaClient. Belt-and-suspenders
-// against @prisma/client having cached the env at import time —
-// even if Prisma's auto-loader read the dev DATABASE_URL into
-// process.env before our --env-file override ran, the explicit
-// `datasourceUrl` option overrides Prisma's own resolution.
-if (!process.env.DATABASE_URL) {
+// v0.18.2 — Resolve the production database URL with a fallback
+// chain. Vercel ↔ Neon marketplace integration injects connection
+// strings under POSTGRES_PRISMA_URL (pooled) and
+// POSTGRES_URL_NON_POOLING (direct), then aliases POSTGRES_PRISMA_URL
+// → DATABASE_URL at runtime. `vercel env pull` exports the
+// *configured* value of DATABASE_URL (which may be empty if the user
+// never set it manually, since the integration handles it at deploy
+// time), not the runtime-aliased value. Falling back to the
+// Neon-injected names makes the script work in both setups:
+//   - Manual DATABASE_URL setup (legacy)
+//   - Neon-integration POSTGRES_PRISMA_URL (current)
+const resolvedDbUrl =
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_PRISMA_URL ||
+  process.env.POSTGRES_URL;
+if (!resolvedDbUrl) {
   console.error(
-    "[migrate-to-orgs] DATABASE_URL not set. Either pass --env-file=PATH or export DATABASE_URL in your shell."
+    "[migrate-to-orgs] No database URL found. Looked at DATABASE_URL, POSTGRES_PRISMA_URL, POSTGRES_URL (in that order). Either pass --env-file=PATH or export one of these in your shell."
   );
   process.exit(1);
 }
+if (process.env.DATABASE_URL !== resolvedDbUrl) {
+  // Make Prisma's auto-loader see the resolved value too, so any
+  // downstream code path that reads DATABASE_URL directly picks it up.
+  process.env.DATABASE_URL = resolvedDbUrl;
+  console.log(
+    `[migrate-to-orgs] Using ${
+      process.env.POSTGRES_PRISMA_URL === resolvedDbUrl
+        ? "POSTGRES_PRISMA_URL"
+        : "POSTGRES_URL"
+    } as the database URL (DATABASE_URL was empty or unset).`
+  );
+}
 const prisma = new PrismaClient({
-  datasourceUrl: process.env.DATABASE_URL,
+  datasourceUrl: resolvedDbUrl,
 });
 
 const DRY_RUN = process.argv.includes("--dry-run");
