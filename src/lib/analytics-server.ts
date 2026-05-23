@@ -33,13 +33,54 @@ function getClient(): PostHog | null {
   if (client) return client;
   client = new PostHog(KEY, {
     host: HOST,
-    // Default flushAt is 20 + flushInterval 10s. For a low-throughput
-    // mutation endpoint that's fine — events tail with the next
-    // request rather than blocking the response. We don't call
-    // .shutdown() on a per-request basis because the next request
-    // will reuse the same module-level singleton on a warm lambda.
+    // posthog-node's default flushAt is 20 + flushInterval is 10s.
+    // On Vercel serverless, neither default protects us: after the
+    // lambda's HTTP response returns, the JS event loop FREEZES —
+    // setInterval timers don't tick, queued events sit in memory,
+    // and when the lambda dies (no follow-up traffic to keep it
+    // warm) the batch is lost.
+    //
+    // The original comment here said we relied on "the next request
+    // reusing the same module-level singleton on a warm lambda."
+    // That assumption broke for any low-traffic event: org_member_removed
+    // fires alone, with no follow-up captures in the same warm window,
+    // so its batch never flushed.
+    //
+    // Mitigation: every server route that calls captureServerEvent
+    // MUST call `await flushAnalyticsServer()` before returning its
+    // response. The flush is cheap (~50-150ms) and guarantees the
+    // PostHog HTTP send completes inside the lambda's still-alive
+    // window. See PR #73 for the bug postmortem.
   });
   return client;
+}
+
+/** v0.18 PR #73 — Explicit flush helper that callers MUST invoke
+ *  before returning from a serverless handler that has called
+ *  captureServerEvent. Without this, queued PostHog events get lost
+ *  when the Vercel lambda freezes (the 10s flushInterval timer
+ *  doesn't tick post-response).
+ *
+ *  Returns true when the underlying transport drained within the
+ *  given timeout, false if the timeout was reached or no client is
+ *  configured. Fire-and-forget at the call site (don't gate the
+ *  response on the boolean) — the return value is for diagnostics. */
+export async function flushAnalyticsServer(timeoutMs = 2000): Promise<boolean> {
+  const ph = getClient();
+  if (!ph) return false;
+  try {
+    // posthog-node's flush() returns void per current types but
+    // internally awaits in-flight requests. Wrap in a race to cap
+    // the wait time so a flaky PostHog endpoint can't hang the
+    // lambda's response.
+    await Promise.race([
+      ph.flush(),
+      new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Union of every server-emitted event name. Subset of EventName in

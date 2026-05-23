@@ -192,6 +192,40 @@ test("handleMembershipDeleted does NOT depend on a pre-read returning a row", ()
   );
 });
 
+test("webhook POST handler calls flushAnalyticsServer before returning", () => {
+  // v0.18 PR #73 regression guard. Vercel serverless freezes the
+  // JS event loop after the lambda's HTTP response returns. PostHog-
+  // node's 10s flushInterval timer can't tick while frozen, so any
+  // queued events sit in memory until the lambda dies (events lost).
+  // The bug surfaced as org_member_removed silently dropping.
+  // The fix: every webhook POST MUST flush PostHog before
+  // returning so the in-flight HTTP send completes inside the
+  // lambda's still-alive window.
+  assert.ok(
+    WEBHOOK_SRC.includes("flushAnalyticsServer"),
+    "webhook handler must import + invoke flushAnalyticsServer"
+  );
+  // The flush must happen INSIDE the POST handler BEFORE the
+  // Response.json({ received: true }) return. We check the order
+  // by matching the awaited flush directly above the response.
+  const postMatch = WEBHOOK_SRC.match(
+    /export async function POST[\s\S]*?\n\}/
+  );
+  assert.ok(postMatch, "POST handler must exist");
+  const postBody = postMatch![0];
+  // Order check: flushAnalyticsServer call must precede the return.
+  const flushIdx = postBody.indexOf("await flushAnalyticsServer");
+  const returnIdx = postBody.indexOf(
+    `Response.json({ received: true })`
+  );
+  assert.ok(flushIdx > 0, "POST handler must await flushAnalyticsServer");
+  assert.ok(returnIdx > 0, "POST handler must return Response.json with received");
+  assert.ok(
+    flushIdx < returnIdx,
+    "flushAnalyticsServer MUST be called before the response is returned"
+  );
+});
+
 test("handleMembershipDeleted surfaces missing-payload-fields to Sentry", () => {
   // Belt-and-suspenders against the silent-skip failure mode.
   // If the webhook payload genuinely doesn't carry user/org (which
