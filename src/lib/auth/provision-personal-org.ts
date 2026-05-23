@@ -38,6 +38,7 @@
 // include that in a client bundle, so accidental client-side usage
 // fails at build time with a clear error.
 import { clerkClient } from "@clerk/nextjs/server";
+import { createClerkClient, type ClerkClient } from "@clerk/backend";
 
 export interface ProvisionResult {
   status: "created" | "already_exists" | "failed";
@@ -48,11 +49,22 @@ export interface ProvisionResult {
 /** Create a Personal Organization for the given Clerk user, OR
  *  detect that one already exists and no-op. Returns the Clerk org
  *  id either way (or a "failed" status + error message on hard
- *  failure). */
+ *  failure).
+ *
+ *  Optional `explicitClient` parameter: when called from a non-
+ *  Next.js context (e.g., the scripts/migrate-to-orgs.ts script
+ *  running via tsx), `@clerk/nextjs/server`'s clerkClient caches
+ *  CLERK_SECRET_KEY at module-import time — which can be undefined
+ *  if the env file hasn't been loaded yet. The script creates a
+ *  fresh backend client with the secret key it loaded from
+ *  --env-file and passes it in here. Webhook callers (which run
+ *  inside Next.js) omit the parameter and use the auto-configured
+ *  Next.js client. */
 export async function provisionPersonalOrgForUser(
-  userId: string
+  userId: string,
+  explicitClient?: ClerkClient
 ): Promise<ProvisionResult> {
-  const client = await clerkClient();
+  const client = explicitClient ?? (await clerkClient());
 
   // Idempotency check #1: does the user already have a Clerk
   // organization marked as their personal one? List their

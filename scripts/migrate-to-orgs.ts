@@ -47,6 +47,7 @@
 
 import { readFileSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
+import { createClerkClient } from "@clerk/backend";
 import { provisionPersonalOrgForUser } from "../src/lib/auth/provision-personal-org";
 import { DEFAULT_OWNER_ID, LEGACY_OWNER_ID } from "../src/lib/watch-list/store";
 import * as Sentry from "@sentry/nextjs";
@@ -136,6 +137,24 @@ const prisma = new PrismaClient({
   datasourceUrl: resolvedDbUrl,
 });
 
+// v0.18.3 — Build a Clerk backend client with the secret key
+// passed explicitly. Same architectural pattern as PrismaClient
+// above: `@clerk/nextjs/server`'s clerkClient() caches CLERK_SECRET_KEY
+// at module-import time, which on a script run outside Next.js can
+// happen BEFORE our --env-file parser runs. By calling
+// createClerkClient() from @clerk/backend directly with an explicit
+// secretKey, we bypass that caching and guarantee the migration
+// uses the env-file value we just loaded.
+if (!process.env.CLERK_SECRET_KEY) {
+  console.error(
+    "[migrate-to-orgs] CLERK_SECRET_KEY not set. Pass --env-file=PATH containing the key, or export CLERK_SECRET_KEY in your shell."
+  );
+  process.exit(1);
+}
+const clerk = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY,
+});
+
 const DRY_RUN = process.argv.includes("--dry-run");
 
 interface Stats {
@@ -202,7 +221,7 @@ async function main(): Promise<void> {
     }
 
     try {
-      const result = await provisionPersonalOrgForUser(ownerId);
+      const result = await provisionPersonalOrgForUser(ownerId, clerk);
       if (result.status === "failed" || !result.clerkOrgId) {
         console.error(
           `    ✗ FAILED to provision personal org for ${ownerId}: ${result.error ?? "no clerkOrgId returned"}`
