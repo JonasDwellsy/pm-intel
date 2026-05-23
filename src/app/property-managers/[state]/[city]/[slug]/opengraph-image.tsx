@@ -337,6 +337,22 @@ function DwellsyMark({ inverted = false }: { inverted?: boolean }) {
  *  scorecard composition. Visual mirrors the StarSummaryChip pattern
  *  in src/components/scorecard/StarSummaryChip.tsx — colored star
  *  glyph + numeric count + lowercase label. */
+/** PR #78 — Convert a brand hex color to a 10% alpha tint via
+ *  explicit rgba(). Replaces the previous `${color}1a` 8-digit
+ *  hex form — Satori claims CSS Colors level 4 support but has
+ *  edge cases parsing the concatenated hex-alpha notation, so
+ *  rgba() removes that risk entirely. Only handles `#RRGGBB` form
+ *  (which all our brand colors use); falls back to the input
+ *  string if the format is unexpected. */
+function hexTint(hex: string, alpha: number): string {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!match) return hex;
+  const r = parseInt(match[1].slice(0, 2), 16);
+  const g = parseInt(match[1].slice(2, 4), 16);
+  const b = parseInt(match[1].slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function StarChip({
   color,
   count,
@@ -354,11 +370,24 @@ function StarChip({
         gap: 10,
         padding: "10px 18px",
         borderRadius: 999,
-        backgroundColor: `${color}1a`, // 10% alpha tint
+        backgroundColor: hexTint(color, 0.1),
         border: `1px solid ${color}`,
       }}
     >
-      <StarGlyph color={color} />
+      {/* PR #78 — Unicode ★ (U+2605) replaces the inline SVG path.
+          Noto Sans (next/og's default font) includes this glyph,
+          and Satori renders text reliably; the SVG path parser
+          had a known trip on condensed decimal coordinates which
+          may have been the cause of the original 500. */}
+      <span
+        style={{
+          fontSize: 28,
+          color,
+          lineHeight: 1,
+        }}
+      >
+        ★
+      </span>
       <span
         style={{
           fontSize: 28,
@@ -374,28 +403,11 @@ function StarChip({
           fontSize: 18,
           fontWeight: 600,
           color: COLOR_MUTED,
-          textTransform: "uppercase",
           letterSpacing: "0.06em",
         }}
       >
-        {label}
+        {label.toUpperCase()}
       </span>
     </div>
-  );
-}
-
-function StarGlyph({ color }: { color: string }) {
-  return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 24 24"
-      fill={color}
-      stroke={color}
-      strokeWidth="1.5"
-      strokeLinejoin="round"
-    >
-      <path d="M12 2.6l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.7l-5.9 3.1 1.13-6.58L2.45 9.54l6.6-.96L12 2.6z" />
-    </svg>
   );
 }
