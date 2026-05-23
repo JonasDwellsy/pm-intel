@@ -45,7 +45,7 @@
 import { Webhook } from "svix";
 import { clerkClient } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
-import { captureServerEvent } from "@/lib/analytics-server";
+import { captureServerEvent, flushAnalyticsServer } from "@/lib/analytics-server";
 import { prisma } from "@/lib/prisma";
 import { provisionPersonalOrgForUser } from "@/lib/auth/provision-personal-org";
 import { extractEmailDomain } from "@/lib/auth/email-domain";
@@ -143,6 +143,16 @@ export async function POST(req: Request) {
     });
     console.error(`[clerk/webhook] handler for ${event.type} threw:`, err);
   }
+
+  // v0.18 PR #73 — CRITICAL: flush PostHog before returning the
+  // response. Vercel serverless freezes the event loop after we
+  // return, so any captureServerEvent calls still sitting in
+  // posthog-node's batch are lost. The original implementation
+  // relied on the 10s flushInterval — which never ticks when the
+  // lambda is frozen. Symptom: low-traffic single-event webhooks
+  // like organizationMembership.deleted silently dropped their
+  // events. See PR #73 postmortem for the full diagnosis.
+  await flushAnalyticsServer();
 
   return Response.json({ received: true });
 }
@@ -577,14 +587,58 @@ async function handleMembershipDeleted(event: ClerkWebhookEvent): Promise<void> 
   });
 
   if (userIdFromPayload && (dbOrgId || clerkOrgId)) {
-    captureServerEvent({
-      userId: userIdFromPayload,
-      event: "org_member_removed",
-      properties: {
+    // v0.18 PR #73 — Diagnostic instrumentation. Bracketing the
+    // captureServerEvent call lets us prove (in Sentry) that the
+    // handler reaches this code path and that the underlying call
+    // returned without throwing. If the PostHog event still doesn't
+    // appear in the dashboard but BOTH breadcrumbs DO appear in
+    // Sentry, the loss is happening in posthog-node's transport
+    // (e.g., the flushAnalyticsServer() call above hit its timeout).
+    Sentry.addBreadcrumb({
+      category: "webhook",
+      message: "handleMembershipDeleted: about to fire org_member_removed",
+      level: "info",
+      data: {
         org_id: dbOrgId ?? clerkOrgId,
-        removed_user_id: userIdFromPayload,
+        user_id: userIdFromPayload,
       },
     });
+    try {
+      captureServerEvent({
+        userId: userIdFromPayload,
+        event: "org_member_removed",
+        properties: {
+          org_id: dbOrgId ?? clerkOrgId,
+          removed_user_id: userIdFromPayload,
+        },
+      });
+      Sentry.addBreadcrumb({
+        category: "webhook",
+        message: "handleMembershipDeleted: org_member_removed queued",
+        level: "info",
+        data: {
+          org_id: dbOrgId ?? clerkOrgId,
+          user_id: userIdFromPayload,
+        },
+      });
+    } catch (err) {
+      // captureServerEvent is documented fire-and-forget, but the
+      // original PR #72 diagnostic ask called for try/catch here so
+      // any latent synchronous throw surfaces. If this branch ever
+      // fires, the bug is in posthog-node or captureServerEvent
+      // itself, not the call site.
+      Sentry.captureException(err, {
+        tags: {
+          webhook: "clerk",
+          event_type: "organizationMembership.deleted",
+          failure: "capture_threw",
+        },
+        extra: {
+          org_id: dbOrgId ?? clerkOrgId,
+          user_id: userIdFromPayload,
+        },
+      });
+    }
   } else {
     // Payload genuinely missing required fields — surface to Sentry
     // so this doesn't fail silently like the original bug. In
