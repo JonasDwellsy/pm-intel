@@ -100,9 +100,17 @@ export async function generateMetadata({
   const { scorecard } = loaded;
   const title = `${scorecard.pm.name} — Scorecard (${scorecard.market.fullName})`;
   const description = `Independent scorecard for ${scorecard.pm.name}: ${scorecard.pm.quadrant} operator ranked #${scorecard.rank.overall} of ${scorecard.rank.overallTotal} in ${scorecard.market.name}.`;
+  // PR #75 — Add canonical URL so search engines + OG unfurls agree
+  // on the stable scorecard URL (no querystring variations). The
+  // opengraph-image.tsx file in this directory is auto-attached by
+  // Next.js's file-convention OG routing — listing it in the
+  // openGraph.images array would double-emit it. type: "article"
+  // matches the existing convention; alternates.canonical is the
+  // new addition.
   return {
     title,
     description,
+    alternates: { canonical: `/property-managers/${state}/${city}/${slug}` },
     openGraph: { title, description, type: "article" },
   };
 }

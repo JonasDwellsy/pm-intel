@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ClaimTrigger } from "@/components/scorecard/ClaimTrigger";
+import { CopyLinkButton } from "@/components/scorecard/CopyLinkButton";
 import { StarSummaryChip } from "@/components/scorecard/StarSummaryChip";
 import { countOperatorStars } from "@/lib/operators/stars";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
@@ -206,13 +207,18 @@ export function IdentityHero({
           )}
         </div>
 
-        {/* Right rail — methodology badge only. Kept compact so the
-            left-column hero stays the primary visual weight. The
-            "Claim this profile →" link that used to live here was a
-            duplicate of the ClaimTrigger pill rendered in the badge
-            row above (left column). One CTA per surface; the pill is
-            the canonical entry point. */}
+        {/* Right rail — methodology badge + Copy link share button.
+            Kept compact so the left-column hero stays the primary
+            visual weight. The "Claim this profile →" link that used
+            to live here was a duplicate of the ClaimTrigger pill
+            rendered in the badge row above (left column). One CTA
+            per surface; the pill is the canonical entry point.
+            PR #75 — Copy link button sits above the methodology
+            badge so it's the first thing a prospect-sharing user
+            reaches for. Client island; the rest of the hero stays
+            server-rendered. */}
         <div className="flex shrink-0 flex-col items-start gap-2.5 md:items-end">
+          <CopyLinkButton operatorSlug={scorecard.pm.slug} />
           <span className="dq-methodology-badge dq-tnum">
             Methodology v{scorecard.methodologyVersion.replace(/^v/, "")}
             {scorecard.designVersion && (
