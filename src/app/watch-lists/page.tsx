@@ -6,6 +6,7 @@ import { listWatchListes } from "@/lib/watch-list/store";
 import { WatchListIndex } from "@/components/watch-list/WatchListIndex";
 import { TemplateGrid } from "@/components/watch-list/TemplateGrid";
 import { WrongOrgFlash } from "@/components/watch-list/WrongOrgFlash";
+import { WelcomeFlash } from "@/components/watch-list/WelcomeFlash";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { prisma } from "@/lib/prisma";
 
@@ -50,15 +51,43 @@ export default async function WatchListesPage() {
   const isPersonalOrg = orgRow?.personalForUserId === userId;
   const teamOrgName = !isPersonalOrg ? orgRow?.name ?? null : null;
 
+  // v0.18 (PR #71, Phase 3) — Welcome toast for newly-joined org
+  // members. Written by the organizationInvitation.accepted webhook
+  // (see src/app/api/clerk/webhook/route.ts). One-shot semantics:
+  // present means "deliver welcome next time this user is active
+  // here"; we delete inline and redirect with ?welcomeToOrg=<name>
+  // so the WelcomeFlash client component picks it up.
+  //
+  // Only fires when the active org matches the pending welcome's
+  // org (so a user with pending welcomes in multiple orgs sees them
+  // one-at-a-time as they switch in). The redirect strips any
+  // pre-existing query params except the new welcomeToOrg one —
+  // intentional, since landing on /watch-lists with both
+  // ?wrongOrg= and ?welcomeToOrg= would render two toasts and
+  // the welcome takes priority.
+  const pendingWelcome = await prisma.pendingWelcome.findUnique({
+    where: {
+      userId_organizationId: { userId, organizationId },
+    },
+    select: { id: true },
+  });
+  if (pendingWelcome && orgRow) {
+    await prisma.pendingWelcome.delete({ where: { id: pendingWelcome.id } });
+    redirect(
+      `/watch-lists?welcomeToOrg=${encodeURIComponent(orgRow.name)}`
+    );
+  }
+
   const rows = await listWatchListes(organizationId);
   const isEmpty = rows.length === 0;
 
   return (
     <div className="bg-background">
-      {/* v0.18 — toast that fires when the URL carries ?wrongOrg=<name>.
-          Lives at top of the tree so it overlays regardless of scroll
-          position. */}
+      {/* v0.18 — Toasts. Both render conditionally based on URL
+          query params; whichever fired its redirect on this load
+          wins. */}
       <WrongOrgFlash />
+      <WelcomeFlash />
 
       <div className="mx-auto max-w-[1180px] px-6 py-12">
         <div className="flex items-end justify-between gap-6">

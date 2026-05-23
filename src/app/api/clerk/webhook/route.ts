@@ -48,6 +48,7 @@ import * as Sentry from "@sentry/nextjs";
 import { captureServerEvent } from "@/lib/analytics-server";
 import { prisma } from "@/lib/prisma";
 import { provisionPersonalOrgForUser } from "@/lib/auth/provision-personal-org";
+import { extractEmailDomain } from "@/lib/auth/email-domain";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,6 +83,12 @@ interface ClerkWebhookEvent {
     public_user_data?: {
       user_id?: string;
     };
+    /** organizationInvitation.* events carry the invitee's email
+     *  address. We extract DOMAIN ONLY for analytics — full email
+     *  never reaches PostHog. See extractEmailDomain. */
+    email_address?: string;
+    /** organizationInvitation.* — id of the org the invitation is for. */
+    organization_id?: string;
     /** Marker we set on signup-provisioned personal orgs. */
     private_metadata?: {
       isPersonal?: boolean;
@@ -193,6 +200,36 @@ async function dispatch(event: ClerkWebhookEvent, svixId: string): Promise<void>
         event,
         svixId,
         () => handleMembershipDeleted(event)
+      );
+      return;
+    // v0.18 (PR #71, Phase 3) — Invitation lifecycle. These three
+    // events fire when an admin sends/revokes an invitation and
+    // when an invitee accepts. Membership creation is a separate
+    // event (organizationMembership.created) that follows the
+    // accepted invitation; the accepted-invitation handler also
+    // writes the PendingWelcome row that drives the welcome toast.
+    case "organizationInvitation.created":
+      await withSentryBoundary(
+        "organizationInvitation.created",
+        event,
+        svixId,
+        () => handleInvitationCreated(event)
+      );
+      return;
+    case "organizationInvitation.accepted":
+      await withSentryBoundary(
+        "organizationInvitation.accepted",
+        event,
+        svixId,
+        () => handleInvitationAccepted(event)
+      );
+      return;
+    case "organizationInvitation.revoked":
+      await withSentryBoundary(
+        "organizationInvitation.revoked",
+        event,
+        svixId,
+        () => handleInvitationRevoked(event)
       );
       return;
     default:
@@ -405,6 +442,17 @@ async function handleMembershipCreated(event: ClerkWebhookEvent): Promise<void> 
       select: { id: true },
     });
   }
+  // v0.18 PR #71 (Phase 3) — Check whether this membership row
+  // already existed BEFORE the upsert so the analytics path below
+  // can distinguish "genuinely-new membership" from "Clerk re-
+  // delivered the same event". The upsert is still idempotent on
+  // the DB side via clerkMembershipId; we just don't want to double-
+  // fire org_member_joined.
+  const existed = await prisma.organizationMembership.findUnique({
+    where: { clerkMembershipId },
+    select: { id: true },
+  });
+
   await prisma.organizationMembership.upsert({
     where: { clerkMembershipId },
     create: {
@@ -417,22 +465,257 @@ async function handleMembershipCreated(event: ClerkWebhookEvent): Promise<void> 
       role,
     },
   });
+
+  // v0.18 PR #71 — Membership analytics. Fire org_member_joined only
+  // on first delivery (not on re-delivery) AND only when this is
+  // NOT the user's auto-provisioned personal org (which already
+  // fires signup_completed from user.created — double-counting an
+  // org_member_joined for the personal org would inflate the
+  // invitation-funnel numbers). Personal orgs have
+  // personalForUserId === userId.
+  if (!existed) {
+    const orgRow = await prisma.organization.findUnique({
+      where: { id: org.id },
+      select: { personalForUserId: true },
+    });
+    const isPersonalOrg = orgRow?.personalForUserId === userId;
+    if (!isPersonalOrg) {
+      captureServerEvent({
+        userId,
+        event: "org_member_joined",
+        properties: {
+          org_id: org.id,
+          // Membership.created on its own can't distinguish
+          // "joined via invitation" from "added by an admin via API"
+          // (which is rare in v1). The cleaner invitation signal
+          // is the parallel organizationInvitation.accepted event,
+          // which fires alongside this one when join_method=invitation.
+          // We mark this event source-agnostic; PostHog funnel can
+          // join on user_id to disambiguate.
+          join_method: "membership_created",
+        },
+      });
+    }
+  }
 }
 
 async function handleMembershipUpdated(event: ClerkWebhookEvent): Promise<void> {
   const clerkMembershipId = event.data.id;
-  const role = event.data.role;
-  if (!clerkMembershipId || !role) return;
+  const newRole = event.data.role;
+  if (!clerkMembershipId || !newRole) return;
+
+  // v0.18 PR #71 — Read existing role BEFORE the update so we can
+  // detect actual role changes and fire org_role_changed only when
+  // the role really shifted (skip no-op updates from Clerk).
+  const existing = await prisma.organizationMembership.findUnique({
+    where: { clerkMembershipId },
+    select: { id: true, role: true, organizationId: true, userId: true },
+  });
+
   await prisma.organizationMembership.updateMany({
     where: { clerkMembershipId },
-    data: { role },
+    data: { role: newRole },
   });
+
+  if (existing && existing.role !== newRole) {
+    captureServerEvent({
+      userId: existing.userId,
+      event: "org_role_changed",
+      properties: {
+        org_id: existing.organizationId,
+        user_id: existing.userId,
+        old_role: existing.role,
+        new_role: newRole,
+      },
+    });
+  }
 }
 
 async function handleMembershipDeleted(event: ClerkWebhookEvent): Promise<void> {
   const clerkMembershipId = event.data.id;
   if (!clerkMembershipId) return;
+
+  // v0.18 PR #71 — Read the row BEFORE deleting so we have org +
+  // user context for the analytics event. If the row doesn't exist
+  // (Clerk re-delivery after we already processed delete), the
+  // event simply doesn't fire — idempotent.
+  const existing = await prisma.organizationMembership.findUnique({
+    where: { clerkMembershipId },
+    select: { organizationId: true, userId: true },
+  });
+
   await prisma.organizationMembership.deleteMany({
     where: { clerkMembershipId },
+  });
+
+  if (existing) {
+    captureServerEvent({
+      userId: existing.userId,
+      event: "org_member_removed",
+      properties: {
+        org_id: existing.organizationId,
+        removed_user_id: existing.userId,
+      },
+    });
+  }
+}
+
+// ─── v0.18 PR #71 (Phase 3) — Invitation lifecycle handlers ───
+
+/** organizationInvitation.created — admin sent an invite. Fires
+ *  org_member_invited with the invitee's email DOMAIN ONLY (never
+ *  the full email — see PRIVACY.md). */
+async function handleInvitationCreated(event: ClerkWebhookEvent): Promise<void> {
+  const clerkOrgId = event.data.organization_id;
+  const email = event.data.email_address;
+  // The admin who sent the invite isn't always in the payload;
+  // we attribute the event to the org rather than a specific user.
+  // distinctId falls back to a synthetic per-org bucket so PostHog
+  // doesn't strip the event for "no distinctId".
+  if (!clerkOrgId || !email) {
+    console.warn(
+      "[clerk/webhook] organizationInvitation.created missing required field; skipping"
+    );
+    return;
+  }
+  const orgRow = await prisma.organization.findUnique({
+    where: { clerkOrgId },
+    select: { id: true },
+  });
+  if (!orgRow) {
+    // Org not in our DB yet (race). The invitation event still
+    // fires for analytics, but we tag with clerkOrgId so it can
+    // be reconciled later.
+    captureServerEvent({
+      userId: null,
+      anonymousId: `org-${clerkOrgId}`,
+      event: "org_member_invited",
+      properties: {
+        org_id: clerkOrgId, // clerk-side id as fallback
+        invited_email_domain: extractEmailDomain(email),
+      },
+    });
+    return;
+  }
+  captureServerEvent({
+    userId: null,
+    anonymousId: `org-${orgRow.id}`,
+    event: "org_member_invited",
+    properties: {
+      org_id: orgRow.id,
+      invited_email_domain: extractEmailDomain(email),
+    },
+  });
+}
+
+/** organizationInvitation.accepted — invitee accepted. Fires
+ *  org_member_joined AND writes the PendingWelcome row that drives
+ *  the welcome toast on the user's next /watch-lists visit.
+ *
+ *  Note: organizationMembership.created fires alongside this event
+ *  (Clerk delivers both). The membership handler also fires
+ *  org_member_joined but tagged with join_method: "membership_created";
+ *  this handler fires with join_method: "invitation" — PostHog can
+ *  disambiguate. Both events on the same userId are intentional
+ *  (funnel attribution); deduplication happens dashboard-side via
+ *  the join_method property. */
+async function handleInvitationAccepted(event: ClerkWebhookEvent): Promise<void> {
+  const clerkOrgId = event.data.organization_id;
+  const userId = event.data.user_id;
+  const email = event.data.email_address;
+  if (!clerkOrgId || !userId) {
+    console.warn(
+      "[clerk/webhook] organizationInvitation.accepted missing required field; skipping"
+    );
+    return;
+  }
+  const orgRow = await prisma.organization.findUnique({
+    where: { clerkOrgId },
+    select: { id: true },
+  });
+  if (!orgRow) {
+    console.warn(
+      `[clerk/webhook] organizationInvitation.accepted for unknown org ${clerkOrgId}; org row not mirrored yet`
+    );
+    // Still fire the analytics event with the clerk-side id so we
+    // don't lose the funnel signal.
+    captureServerEvent({
+      userId,
+      event: "org_member_joined",
+      properties: {
+        org_id: clerkOrgId,
+        member_user_id: userId,
+        join_method: "invitation",
+        invited_email_domain: extractEmailDomain(email),
+      },
+    });
+    return;
+  }
+  captureServerEvent({
+    userId,
+    event: "org_member_joined",
+    properties: {
+      org_id: orgRow.id,
+      member_user_id: userId,
+      join_method: "invitation",
+      invited_email_domain: extractEmailDomain(email),
+    },
+  });
+  // Write PendingWelcome row. Upsert so re-delivery is a no-op.
+  // /watch-lists deletes this row on the user's next visit and
+  // shows the welcome toast.
+  try {
+    await prisma.pendingWelcome.upsert({
+      where: {
+        userId_organizationId: {
+          userId,
+          organizationId: orgRow.id,
+        },
+      },
+      create: {
+        userId,
+        organizationId: orgRow.id,
+      },
+      update: {}, // no-op — keep the original createdAt
+    });
+  } catch (err) {
+    // Welcome is a nice-to-have; don't fail the whole handler if
+    // the upsert errors. Sentry captures the failure for diagnosis.
+    Sentry.captureException(err, {
+      tags: {
+        webhook: "clerk",
+        event_type: "organizationInvitation.accepted",
+        provisioning_failure: "pending_welcome",
+      },
+      extra: { userId, organizationId: orgRow.id },
+    });
+    console.error(
+      `[clerk/webhook] PendingWelcome upsert failed for ${userId}/${orgRow.id}; welcome toast will not fire`,
+      err
+    );
+  }
+}
+
+/** organizationInvitation.revoked — admin cancelled a pending
+ *  invite. Closes the invitation-funnel loop in PostHog (so we can
+ *  attribute the gap between "invited" and "joined" to either
+ *  expired, declined, or revoked). */
+async function handleInvitationRevoked(event: ClerkWebhookEvent): Promise<void> {
+  const clerkOrgId = event.data.organization_id;
+  const email = event.data.email_address;
+  if (!clerkOrgId) return;
+  const orgRow = await prisma.organization.findUnique({
+    where: { clerkOrgId },
+    select: { id: true },
+  });
+  const orgIdForEvent = orgRow?.id ?? clerkOrgId;
+  captureServerEvent({
+    userId: null,
+    anonymousId: `org-${orgIdForEvent}`,
+    event: "org_invitation_revoked",
+    properties: {
+      org_id: orgIdForEvent,
+      invited_email_domain: extractEmailDomain(email),
+    },
   });
 }

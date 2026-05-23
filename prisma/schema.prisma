@@ -364,13 +364,55 @@ model Organization {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  memberships OrganizationMembership[]
-  watchLists  WatchList[]
+  memberships     OrganizationMembership[]
+  watchLists      WatchList[]
+  pendingWelcomes PendingWelcome[]
 
   // Hot lookups: "find personal org for user X" (already covered by
   // the @unique on personalForUserId) and "find org by Clerk id"
   // (covered by the @unique on clerkOrgId). No additional indexes
   // needed for Phase 1.
+}
+
+// v0.18 (PR #71, Phase 3) — Transient row marking a user as
+// "should see the welcome toast next time they're active in this
+// org." Written by the organizationInvitation.accepted webhook
+// handler when an invitee accepts; checked + deleted inline on
+// the next /watch-lists render when the user's active org matches.
+//
+// Design notes:
+//   - One-shot semantics: present means "deliver welcome next time";
+//     deleted on the first /watch-lists render that catches it.
+//     The @@unique([userId, organizationId]) keeps the row idempotent
+//     against duplicate webhook delivery (re-delivery is a no-op
+//     upsert).
+//   - Cascade-delete with Organization so removing an org cleans
+//     up any orphaned pending welcomes. userId is a soft Clerk
+//     reference (no FK), same convention as elsewhere in this
+//     schema.
+//   - Tiny table — typically empty between invitation acceptance
+//     and the new user's next /watch-lists visit. No retention
+//     concerns at v1 scale; if it ever grows, a cron job clearing
+//     rows older than 30 days is the obvious sweep.
+//
+// Rationale for a dedicated table over Clerk publicMetadata: see
+// PR #71's design decision section. tl;dr: avoids Clerk API rate
+// limits on the write path, gives us atomic delete-on-render, and
+// simplifies the cleanup story.
+model PendingWelcome {
+  id             String   @id @default(cuid())
+  userId         String   // Clerk userId, opaque (no FK to a User table)
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // One pending welcome per (user × org). Webhook upserts on this
+  // key, /watch-lists deletes by it.
+  @@unique([userId, organizationId])
+  // Hot query path: "is there a pending welcome for user X in org Y"
+  // covered by the unique constraint's implicit index.
+  @@index([userId])
 }
 
 // v0.18 — Mirror of Clerk's OrganizationMembership resource. Each

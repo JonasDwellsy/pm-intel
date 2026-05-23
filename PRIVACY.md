@@ -23,6 +23,11 @@ Last updated: v0.17 / 2026-05-22.
 | `markets_page_viewed` | market_slug |
 | `state_page_viewed` | state (2-letter code) |
 | `search_performed` | query_length_chars, result_tier, had_strict_results, entry_point |
+| `org_member_invited` | org_id, invited_email_domain (domain only — see below) |
+| `org_member_joined` | org_id, member_user_id, join_method, invited_email_domain (domain only) |
+| `org_member_removed` | org_id, removed_user_id |
+| `org_role_changed` | org_id, user_id, old_role, new_role |
+| `org_invitation_revoked` | org_id, invited_email_domain (domain only) |
 
 All events also carry a small set of global properties (see
 `enrich()` in `src/lib/analytics.ts`):
@@ -87,6 +92,17 @@ Enabled with PII masking:
   portfolio estimates, cohort-relative percentiles), operator
   financial details, claim-form free-text answers, watch-list
   criterion values. None of these appear in event properties.
+- **Full invitation email addresses** (v0.18 / PR #71). Org
+  invitation events (`org_member_invited`, `org_member_joined`,
+  `org_invitation_revoked`) carry only the domain portion of the
+  invitee's email (e.g. `"@dwellsy.com"`), never the local part
+  (the `"alice"` in `"alice@dwellsy.com"`). The domain enables
+  invite-source analytics ("how many internal vs. external invites
+  per month") without surfacing individual identities. Extraction
+  happens in `src/lib/auth/email-domain.ts`; if the value can't be
+  parsed (malformed input, missing `@`), the event tags
+  `invited_email_domain: "(unknown)"` rather than leaking the
+  original string.
 
 **Session-replay guardrails**:
 

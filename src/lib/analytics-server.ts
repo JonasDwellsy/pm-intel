@@ -54,7 +54,18 @@ export type ServerEventName =
   | "watch_list_created"
   | "operator_added_to_watch_list"
   | "askai_query_submitted"
-  | "search_performed";
+  | "search_performed"
+  // v0.18 (PR #71, Phase 3) — Membership lifecycle events. Fired
+  // from the Clerk webhook handler when invitations are sent, accepted,
+  // or revoked, and when memberships are added/removed/role-changed.
+  // PRIVACY: invitation events carry `invited_email_domain` ONLY
+  // (e.g. "@dwellsy.com"), NEVER the full email address. See
+  // extractEmailDomain in this module + PRIVACY.md.
+  | "org_member_invited"
+  | "org_member_joined"
+  | "org_member_removed"
+  | "org_role_changed"
+  | "org_invitation_revoked";
 
 interface CaptureArgs {
   /** Clerk userId when signed in, or null. When null, the helper
