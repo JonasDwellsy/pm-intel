@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CartesianGrid,
@@ -466,6 +467,27 @@ function RentTrajectoryDescriptive({
   scorecard: ScorecardData;
   overlay: CohortRentTrajectory | null;
 }) {
+  // PR #82 — Chart-render mount gate.
+  //
+  // PR #78 added `minWidth={0}` + `minHeight={0}` props to the
+  // ResponsiveContainer below on the theory that Recharts' own
+  // documented workaround for the "width(-1) and height(-1) of
+  // chart should be greater than 0" SSR warning would silence it.
+  // It doesn't — Recharts v3.8 fires the warning before the min
+  // props are applied during the first render pass.
+  //
+  // The bulletproof fix is to gate the chart render on a post-
+  // mount client-side flag so ResponsiveContainer never tries to
+  // measure on the server pass (when there's no DOM to measure
+  // against) or the first client pass (before ResizeObserver has
+  // fired). The mount delay is one render cycle (~16ms) — visually
+  // invisible because the surrounding chart-card chrome renders
+  // immediately and the chart itself slots in on the next paint.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   if (
     !Array.isArray(scorecard.rentTrajectory) ||
     scorecard.rentTrajectory.length === 0
@@ -557,20 +579,20 @@ function RentTrajectoryDescriptive({
           </div>
         </div>
         <div className="h-72 w-full">
-          {/* PR #78 — `minWidth={0}` + `minHeight={0}` silence the
-              Recharts "width(-1) and height(-1) of chart should be
-              greater than 0" warning that fires during SSR/pre-
-              hydration when ResponsiveContainer can't yet measure
-              its parent. Per Recharts' own docs the min props are
-              the canonical fix; render behavior is unchanged
-              because the outer div has explicit h-72 + w-full. */}
-          <ResponsiveContainer
-            width="100%"
-            height="100%"
-            minWidth={0}
-            minHeight={0}
-          >
-            <ComposedChart
+          {/* PR #82 — Mount-gated render (see comment at the top of
+              this component). The outer div retains explicit h-72
+              w-full sizing so there's no layout shift between
+              server-render and post-mount client-render — Recharts
+              just slots into the already-sized container on the
+              second paint. */}
+          {mounted && (
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minWidth={0}
+              minHeight={0}
+            >
+              <ComposedChart
               data={data}
               margin={{ left: 8, right: 24, top: 24, bottom: 16 }}
             >
@@ -616,8 +638,9 @@ function RentTrajectoryDescriptive({
                 dot={{ r: 3, fill: dqChartTheme.colors.teal }}
                 connectNulls
               />
-            </ComposedChart>
-          </ResponsiveContainer>
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
         </div>
         <p className="dq-explainer">
           Bars are the operator&rsquo;s mix-adjusted median rent per quarter;

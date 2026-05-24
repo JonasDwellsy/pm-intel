@@ -49,8 +49,13 @@ export function ScorecardSidebar({
             same data (version, design version, dataAsOf) is already
             surfaced in IdentityHero's right rail next to the operator
             name where the version pairs naturally with the operator
-            context. Duplicating it here was visual noise that
-            competed with the on-page TOC + share affordances. */}
+            context.
+            PR #82 — "Share scorecard" stub button removed; was an
+            unwired no-onClick affordance left over from an earlier
+            design. The canonical share entry point is the Copy link
+            button in IdentityHero's right rail (PR #75), which
+            already fires `scorecard_link_copied` analytics + the
+            fallback modal. One share button per surface, not two. */}
         <div className="mt-6 flex flex-col gap-2.5 pb-6">
           <PrintScorecardButton pmSlug={pmSlug} />
           {compareHref && (
@@ -61,26 +66,6 @@ export function ScorecardSidebar({
               Compare with similar PMs
             </Link>
           )}
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-2 self-start px-1 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-navy"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-              <polyline points="16 6 12 2 8 6" />
-              <line x1="12" y1="2" x2="12" y2="15" />
-            </svg>
-            Share scorecard
-          </button>
         </div>
       </div>
     </aside>
