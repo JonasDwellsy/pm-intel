@@ -226,7 +226,13 @@ export function WatchListEditor({
       : null;
 
   // ── Save handler ──────────────────────────────────────────────
-  async function handleSave() {
+  // PR #81 — Added optional `andApply` flag. When true, after a
+  // successful save the user is redirected to /watch-lists/[id]/results
+  // (the apply page) instead of staying on the editor or routing
+  // to /edit. Used by the "Save & Apply →" button to fold what
+  // was previously a three-click sequence (Save → Back to list →
+  // Apply) into a single action.
+  async function handleSave(options: { andApply?: boolean } = {}) {
     if (validation) {
       setError(validation);
       return;
@@ -273,7 +279,11 @@ export function WatchListEditor({
         if (!res.ok) throw new Error(`Update failed: ${res.status}`);
         flashSavedState();
         showToast("success", "Watch list saved.");
-        router.refresh();
+        if (options.andApply) {
+          router.push(`/watch-lists/${initial.id}/results`);
+        } else {
+          router.refresh();
+        }
       } else {
         const res = await fetch(`/api/watch-lists`, {
           method: "POST",
@@ -295,7 +305,11 @@ export function WatchListEditor({
         if (typeof window !== "undefined") {
           clearPendingDraft(window.sessionStorage);
         }
-        router.push(`/watch-lists/${data.watchList.id}/edit`);
+        router.push(
+          options.andApply
+            ? `/watch-lists/${data.watchList.id}/results`
+            : `/watch-lists/${data.watchList.id}/edit`
+        );
         router.refresh();
       }
     } catch (e) {
@@ -561,11 +575,11 @@ export function WatchListEditor({
             </Link>
             <button
               type="button"
-              onClick={handleSave}
+              onClick={() => handleSave()}
               disabled={saving || deleting || validation !== null}
               className={
-                "h-9 inline-flex items-center gap-1.5 rounded-md px-4 text-[13.5px] font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed " +
-                (justSaved ? "bg-good" : "bg-teal hover:bg-teal-700")
+                "h-9 inline-flex items-center gap-1.5 rounded-md border border-navy bg-white px-4 text-[13.5px] font-semibold text-navy transition-colors hover:bg-surface-soft disabled:opacity-50 disabled:cursor-not-allowed " +
+                (justSaved ? "border-good text-good" : "")
               }
             >
               {saving ? (
@@ -592,6 +606,32 @@ export function WatchListEditor({
                 <span>Sign in to save</span>
               ) : (
                 <span>{isEdit ? "Save changes" : "Create watch list"}</span>
+              )}
+            </button>
+            {/* PR #81 — Save & Apply primary action. Folds the
+                previous three-click sequence (Save → Back to list →
+                Apply) into one. Save changes is now the secondary
+                affordance (outlined navy) for iterators who want to
+                save without running; this is the teal primary that
+                most users will reach for once their watch list is
+                ready to use. For anonymous users the same sign-in
+                bounce applies — the "Sign in to save" label keeps
+                the existing telegraph behavior. */}
+            <button
+              type="button"
+              onClick={() => handleSave({ andApply: true })}
+              disabled={saving || deleting || validation !== null}
+              className="h-9 inline-flex items-center gap-1.5 rounded-md bg-teal px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? (
+                <>
+                  <Spinner />
+                  <span>Saving…</span>
+                </>
+              ) : !isEdit && isSignedIn !== true ? (
+                <span>Sign in to apply</span>
+              ) : (
+                <span>{isEdit ? "Save & Apply →" : "Create & Apply →"}</span>
               )}
             </button>
           </div>
