@@ -47,6 +47,12 @@ import {
   Text,
   View,
   StyleSheet,
+  Svg,
+  Rect,
+  Line,
+  Circle,
+  Polyline,
+  G,
 } from "@react-pdf/renderer";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { marketingDataSuppressed } from "@/lib/types";
@@ -55,6 +61,7 @@ import {
   countOperatorStars,
   starableAxisCount,
 } from "@/lib/operators/stars";
+import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 
 // Brand palette — mirrors src/app/globals.css CSS variables and
 // the OG image color constants. Keeping these in sync across the
@@ -460,6 +467,351 @@ function PageHeader({
   );
 }
 
+// --- Geographic coverage map ---
+//
+// PR #85 — Replaces the prior "no charts/maps" PDF version. The
+// map uses @react-pdf/renderer's native SVG primitives (no Mapbox,
+// no headless browser — those don't work in a server PDF render
+// path). Equirectangular projection is fine at MSA scale.
+
+function GeographicCoverageMap({
+  coverage,
+  city,
+  msaName,
+}: {
+  coverage: ScorecardData["geographicCoverage"];
+  city: string;
+  msaName: string;
+}) {
+  const points = coverage.coverageMapPoints ?? [];
+  const backdrop = coverage.msaBackdropPoints ?? [];
+  if (points.length === 0) {
+    // Fallback to the stylized SVG blob the live page renders when
+    // no coverage points are available — better than empty space.
+    return (
+      <Svg width={500} height={200} viewBox="0 0 880 380">
+        <Rect x={0} y={0} width={880} height={380} fill="#F2F5F8" />
+        <Circle cx={430} cy={195} r={22} fill="#D97834" fillOpacity={0.14} />
+        <Circle cx={430} cy={195} r={9} fill="#D97834" stroke="#fff" strokeWidth={2.5} />
+      </Svg>
+    );
+  }
+
+  const MAP_W = 500;
+  const MAP_H = 220;
+
+  // Bounds: prefer explicit mapBounds, otherwise compute from
+  // points + backdrop. Add 8% padding so points don't kiss the
+  // SVG edge.
+  let bounds = coverage.mapBounds;
+  if (!bounds) {
+    const allPoints = [...points, ...backdrop];
+    const lats = allPoints.map((p) => p.lat);
+    const lons = allPoints.map((p) => p.lon);
+    bounds = {
+      north: Math.max(...lats),
+      south: Math.min(...lats),
+      east: Math.max(...lons),
+      west: Math.min(...lons),
+    };
+  }
+  const latRange = Math.max(bounds.north - bounds.south, 0.01);
+  const lonRange = Math.max(bounds.east - bounds.west, 0.01);
+  const pad = 0.08;
+  const padBounds = {
+    north: bounds.north + latRange * pad,
+    south: bounds.south - latRange * pad,
+    east: bounds.east + lonRange * pad,
+    west: bounds.west - lonRange * pad,
+  };
+
+  function project(lat: number, lon: number): { x: number; y: number } {
+    const x =
+      ((lon - padBounds.west) / (padBounds.east - padBounds.west)) * MAP_W;
+    const y =
+      (1 - (lat - padBounds.south) / (padBounds.north - padBounds.south)) *
+      MAP_H;
+    return { x, y };
+  }
+
+  // For the size of each coverage circle, scale log(n) so dense
+  // areas don't completely obscure sparse ones. Clamp [2, 6] so
+  // even single-listing dots are visible.
+  function pointRadius(n: number): number {
+    return Math.max(2, Math.min(6, 2 + Math.log10(Math.max(n, 1)) * 1.6));
+  }
+
+  const backdropPath =
+    backdrop.length >= 3
+      ? backdrop
+          .map((p) => {
+            const { x, y } = project(p.lat, p.lon);
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+          })
+          .join(" ")
+      : null;
+
+  return (
+    <Svg width={MAP_W} height={MAP_H}>
+      <Rect x={0} y={0} width={MAP_W} height={MAP_H} fill="#F2F5F8" />
+      {backdropPath && (
+        <Polyline
+          points={backdropPath}
+          fill="#ffffff"
+          stroke="#D5DBE3"
+          strokeWidth={1.2}
+        />
+      )}
+      {points.map((p, i) => {
+        const { x, y } = project(p.lat, p.lon);
+        const r = pointRadius(p.n);
+        return (
+          <G key={i}>
+            <Circle
+              cx={x}
+              cy={y}
+              r={r * 2.2}
+              fill={COLOR_TEAL}
+              fillOpacity={0.15}
+            />
+            <Circle
+              cx={x}
+              cy={y}
+              r={r}
+              fill={COLOR_TEAL}
+              stroke="#ffffff"
+              strokeWidth={1}
+            />
+          </G>
+        );
+      })}
+      {/* Reference: render an unobtrusive city/MSA label at the
+          top-right of the map. Uses a small white-on-muted text
+          to suggest "this is where" without competing with the
+          actual points. */}
+      <Rect
+        x={MAP_W - 180}
+        y={8}
+        width={172}
+        height={20}
+        fill="#ffffff"
+        fillOpacity={0.85}
+        rx={3}
+      />
+    </Svg>
+  );
+}
+
+// --- Rent trajectory chart ---
+//
+// PR #85 — Bar + line chart for the 6-quarter mix-adjusted median
+// rent series. Operator bars (navy) + optional cohort median line
+// overlay (teal). When the API route loads msaPool, the cohort
+// overlay is computed via buildCohortRentTrajectory and passed
+// through here; without it, only operator bars render.
+
+function RentTrajectoryChart({
+  trajectory,
+  cohortTrajectory,
+}: {
+  trajectory: ScorecardData["rentTrajectory"];
+  cohortTrajectory: CohortRentTrajectory | null;
+}) {
+  if (!Array.isArray(trajectory) || trajectory.length === 0) return null;
+
+  const CHART_W = 500;
+  const CHART_H = 150;
+  const PAD = { top: 8, right: 20, bottom: 18, left: 48 };
+  const innerW = CHART_W - PAD.left - PAD.right;
+  const innerH = CHART_H - PAD.top - PAD.bottom;
+
+  const cohortByQuarter = new Map<string, number | null>();
+  if (cohortTrajectory) {
+    for (const p of cohortTrajectory.points) {
+      cohortByQuarter.set(p.quarter, p.cohortMedian);
+    }
+  }
+  const data = trajectory.map((t) => ({
+    quarter: t.quarter,
+    operator: t.mixAdjMedian,
+    cohort: cohortByQuarter.get(t.quarter) ?? null,
+  }));
+
+  const allValues = data
+    .flatMap((d) => [d.operator, d.cohort])
+    .filter((v): v is number => v !== null && v > 0);
+  const minVal = Math.min(...allValues);
+  const maxVal = Math.max(...allValues);
+  const range = maxVal - minVal || 1;
+  const yMin = Math.max(0, minVal - range * 0.15);
+  const yMax = maxVal + range * 0.15;
+
+  const colWidth = innerW / data.length;
+  const barWidth = colWidth * 0.5;
+
+  function projectY(v: number): number {
+    return PAD.top + (1 - (v - yMin) / (yMax - yMin)) * innerH;
+  }
+
+  // Y-axis ticks: 3 evenly-spaced gridlines (min, mid, max).
+  const yTicks = [yMin, (yMin + yMax) / 2, yMax];
+
+  // Cohort line polyline points (skip quarters with null cohort).
+  const cohortPoints = data
+    .map((d, i) => {
+      if (d.cohort === null) return null;
+      const x = PAD.left + i * colWidth + colWidth / 2;
+      const y = projectY(d.cohort);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .filter((p): p is string => p !== null)
+    .join(" ");
+
+  return (
+    <View>
+      <Svg width={CHART_W} height={CHART_H}>
+        {/* Y-axis gridlines */}
+        {yTicks.map((tick, i) => (
+          <Line
+            key={`grid-${i}`}
+            x1={PAD.left}
+            y1={projectY(tick)}
+            x2={CHART_W - PAD.right}
+            y2={projectY(tick)}
+            stroke={COLOR_GRID}
+            strokeWidth={0.6}
+          />
+        ))}
+
+        {/* Operator bars */}
+        {data.map((d, i) => {
+          const x = PAD.left + i * colWidth + (colWidth - barWidth) / 2;
+          const y = projectY(d.operator);
+          const h = projectY(yMin) - y;
+          return (
+            <Rect
+              key={`bar-${i}`}
+              x={x}
+              y={y}
+              width={barWidth}
+              height={h}
+              fill={COLOR_NAVY}
+            />
+          );
+        })}
+
+        {/* Cohort line + dots */}
+        {cohortPoints && (
+          <Polyline
+            points={cohortPoints}
+            fill="none"
+            stroke={COLOR_TEAL}
+            strokeWidth={2}
+          />
+        )}
+        {data.map((d, i) => {
+          if (d.cohort === null) return null;
+          const x = PAD.left + i * colWidth + colWidth / 2;
+          const y = projectY(d.cohort);
+          return (
+            <Circle
+              key={`dot-${i}`}
+              cx={x}
+              cy={y}
+              r={2.5}
+              fill={COLOR_TEAL}
+              stroke="#ffffff"
+              strokeWidth={0.8}
+            />
+          );
+        })}
+      </Svg>
+
+      {/* X-axis labels + Y-axis range. Rendered as layout text
+          below/beside the SVG so the SVG element stays simple
+          (font handling differs between SVG <Text> and layout
+          <Text> in @react-pdf/renderer; layout text is more
+          reliable). */}
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          paddingLeft: PAD.left,
+          paddingRight: PAD.right,
+          marginTop: 2,
+        }}
+      >
+        {data.map((d, i) => (
+          <Text
+            key={`xlabel-${i}`}
+            style={{
+              fontSize: 7,
+              color: COLOR_MUTED_2,
+              flex: 1,
+              textAlign: "center",
+            }}
+          >
+            {d.quarter}
+          </Text>
+        ))}
+      </View>
+
+      {/* Y-axis range hint as a one-liner under the chart */}
+      <Text
+        style={{
+          fontSize: 7,
+          color: COLOR_MUTED_2,
+          marginTop: 4,
+          textAlign: "left",
+        }}
+      >
+        {`Y-axis: $${fmtInt(yMin)} – $${fmtInt(yMax)} per month`}
+      </Text>
+
+      {/* Chart legend */}
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          gap: 14,
+          marginTop: 6,
+        }}
+      >
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <View
+            style={{ width: 9, height: 9, backgroundColor: COLOR_NAVY }}
+          />
+          <Text style={{ fontSize: 8, color: COLOR_MUTED }}>Operator</Text>
+        </View>
+        {cohortTrajectory && (
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <View
+              style={{ width: 12, height: 2, backgroundColor: COLOR_TEAL }}
+            />
+            <Text style={{ fontSize: 8, color: COLOR_MUTED }}>
+              {`${cohortTrajectory.cohortName} median`}
+            </Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 // --- Per-metric content helpers (text only — chart elements skipped) ---
 
 function leaseUpDetail(scorecard: ScorecardData): {
@@ -674,8 +1026,16 @@ function lendingSignalCards(scorecard: ScorecardData): SignalCardData[] {
 
 export function OperatorProfilePDF({
   scorecard,
+  cohortTrajectory = null,
 }: {
   scorecard: ScorecardData;
+  /** PR #85 — optional cohort-median rent trajectory overlay. The
+   *  API route loads msaPool + calls buildCohortRentTrajectory and
+   *  passes the result through here so the rent chart on Page 4
+   *  can show the operator-vs-cohort overlay (same as the live
+   *  scorecard's Layer 5E section). Null is fine — chart renders
+   *  bars only without the overlay. */
+  cohortTrajectory?: CohortRentTrajectory | null;
 }) {
   const operatorType = classifyOperator(scorecard);
   const { goldCount, silverCount } = countOperatorStars(scorecard);
@@ -805,7 +1165,7 @@ export function OperatorProfilePDF({
           </>
         )}
 
-        <PageFooter scorecard={scorecard} pageLabel="Page 1 of 5" />
+        <PageFooter scorecard={scorecard} pageLabel="Page 1 of 6" />
       </Page>
 
       {/* ============== PAGE 2 — Performance Dimensions ============== */}
@@ -823,7 +1183,7 @@ export function OperatorProfilePDF({
           <PerformanceCard title="Inventory Transparency" detail={invTrans} />
         )}
 
-        <PageFooter scorecard={scorecard} pageLabel="Page 2 of 5" />
+        <PageFooter scorecard={scorecard} pageLabel="Page 2 of 6" />
       </Page>
 
       {/* ============== PAGE 3 — Lending Signals ============== */}
@@ -848,31 +1208,72 @@ export function OperatorProfilePDF({
           ))
         )}
 
-        <PageFooter scorecard={scorecard} pageLabel="Page 3 of 5" />
+        <PageFooter scorecard={scorecard} pageLabel="Page 3 of 6" />
       </Page>
 
-      {/* ============== PAGE 4 — Portfolio Context ============== */}
+      {/* ============== PAGE 4 — Geographic Coverage + Rent Trajectory ==============
+          PR #85 — split portfolio context into TWO pages of visuals.
+          Page 4 carries the geographic coverage map and the cohort-
+          overlay rent trajectory chart. Page 5 carries the remaining
+          portfolio narratives (size estimate, cross-market presence,
+          concession activity). Page 6 is methodology.
+      */}
+      <Page size="LETTER" style={styles.page}>
+        <PageHeader scorecard={scorecard} sectionTitle="Geographic Coverage & Rent" />
+
+        <Text style={styles.sectionHeader}>Geographic Footprint</Text>
+        <View style={{ marginTop: 4 }}>
+          <GeographicCoverageMap
+            coverage={scorecard.geographicCoverage}
+            city={scorecard.market.name}
+            msaName={
+              scorecard.market.fullName ??
+              `${scorecard.market.name} MSA`
+            }
+          />
+        </View>
+        <Text style={[styles.tileCompare, { marginTop: 6 }]}>
+          {geographicNarrative(scorecard)}
+        </Text>
+
+        <Text style={styles.sectionHeader}>Rent Trajectory</Text>
+        {Array.isArray(scorecard.rentTrajectory) &&
+        scorecard.rentTrajectory.length > 0 ? (
+          <>
+            <RentTrajectoryChart
+              trajectory={scorecard.rentTrajectory}
+              cohortTrajectory={cohortTrajectory}
+            />
+            <Text style={[styles.tileCompare, { marginTop: 8 }]}>
+              {rentTrajectoryNarrative(scorecard, cohortTrajectory)}
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.paragraph}>
+            Insufficient rent observation history for a quarter-by-quarter
+            trajectory chart.
+          </Text>
+        )}
+
+        <PageFooter scorecard={scorecard} pageLabel="Page 4 of 6" />
+      </Page>
+
+      {/* ============== PAGE 5 — Portfolio Context ============== */}
       <Page size="LETTER" style={styles.page}>
         <PageHeader scorecard={scorecard} sectionTitle="Portfolio Context" />
 
         <Text style={styles.sectionHeader}>Portfolio Size Estimate</Text>
-        <Text style={styles.paragraph}>
-          {portfolioNarrative(scorecard)}
-        </Text>
+        <Text style={styles.paragraph}>{portfolioNarrative(scorecard)}</Text>
 
-        <Text style={styles.sectionHeader}>Geographic Footprint</Text>
-        <Text style={styles.paragraph}>
-          {geographicNarrative(scorecard)}
-        </Text>
-
-        {scorecard.canonicalOperatorName && scorecard.canonicalOperatorName !== scorecard.pm.name && (
-          <>
-            <Text style={styles.sectionHeader}>Cross-Market Presence</Text>
-            <Text style={styles.paragraph}>
-              {`${scorecard.pm.name} rolls up into the cross-market entity ${scorecard.canonicalOperatorName}. See the operator profile at iq.dwellsy.com/operators for aggregated cross-market metrics.`}
-            </Text>
-          </>
-        )}
+        {scorecard.canonicalOperatorName &&
+          scorecard.canonicalOperatorName !== scorecard.pm.name && (
+            <>
+              <Text style={styles.sectionHeader}>Cross-Market Presence</Text>
+              <Text style={styles.paragraph}>
+                {`${scorecard.pm.name} rolls up into the cross-market entity ${scorecard.canonicalOperatorName}. See the operator profile at iq.dwellsy.com/operators for aggregated cross-market metrics.`}
+              </Text>
+            </>
+          )}
 
         {scorecard.concessionRate !== null &&
           scorecard.concessionRate !== undefined && (
@@ -884,10 +1285,10 @@ export function OperatorProfilePDF({
             </>
           )}
 
-        <PageFooter scorecard={scorecard} pageLabel="Page 4 of 5" />
+        <PageFooter scorecard={scorecard} pageLabel="Page 5 of 6" />
       </Page>
 
-      {/* ============== PAGE 5 — Methodology & Limits ============== */}
+      {/* ============== PAGE 6 — Methodology & Limits ============== */}
       <Page size="LETTER" style={styles.page}>
         <PageHeader scorecard={scorecard} sectionTitle="Methodology & Limits" />
 
@@ -926,7 +1327,7 @@ derivation — lives at iq.dwellsy.com/methodology. Per-market
 context and peer comparison tools are at iq.dwellsy.com.`}
         </Text>
 
-        <PageFooter scorecard={scorecard} pageLabel="Page 5 of 5" />
+        <PageFooter scorecard={scorecard} pageLabel="Page 6 of 6" />
       </Page>
     </Document>
   );
@@ -995,6 +1396,31 @@ function portfolioNarrative(scorecard: ScorecardData): string {
     return `Estimated portfolio: ${fmtInt(est.point)} units${range}. ${confidence}${cohort}. Estimates blend trailing 12-month listing volume with observed turnover ratios for the operator's cohort.`;
   }
   return est.message ?? "Insufficient data for a portfolio estimate.";
+}
+
+function rentTrajectoryNarrative(
+  scorecard: ScorecardData,
+  cohortTrajectory: CohortRentTrajectory | null
+): string {
+  // Match the live chart's caption pattern: operator vs cohort
+  // overlay context. Pulls the YoY headline from rentPerformance
+  // when available, and adds cohort framing when the overlay is
+  // present.
+  const rp = scorecard.rentPerformance;
+  if (!rp) {
+    return "Operator-level rent trajectory across the trailing 6 quarters. Cohort overlay unavailable.";
+  }
+  const yoyLabel = fmtPct(rp.pmYoyChange * 100, 1, true);
+  const cohortLabel = cohortTrajectory
+    ? cohortTrajectory.cohortName
+    : null;
+  const cohortYoy = rp.cohortMedianYoyChange ?? null;
+  const cohortYoyLabel =
+    cohortYoy !== null ? fmtPct(cohortYoy * 100, 1, true) : null;
+  if (cohortLabel && cohortYoyLabel) {
+    return `${scorecard.pm.name} headline YoY: ${yoyLabel}. ${cohortLabel} median YoY: ${cohortYoyLabel}. Bars are mix-adjusted median rent per quarter; the line is the cohort median for the same quarters. Rent level is descriptive — the composite-feeding signal is the YoY delta on Page 2.`;
+  }
+  return `${scorecard.pm.name} headline YoY: ${yoyLabel}. Cohort overlay unavailable for this operator's cohort.`;
 }
 
 function geographicNarrative(scorecard: ScorecardData): string {
