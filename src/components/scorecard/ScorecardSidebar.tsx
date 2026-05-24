@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { PrintScorecardButton } from "@/components/scorecard/PrintScorecardButton";
-import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
 
 type SectionLink = { id: string; label: string; num: string };
 
@@ -46,7 +45,13 @@ export function ScorecardSidebar({
           ))}
         </nav>
 
-        <div className="mt-6 flex flex-col gap-2.5 border-b border-grid pb-6">
+        {/* PR #81 — Methodology block removed from this sidebar. The
+            same data (version, design version, dataAsOf) is already
+            surfaced in IdentityHero's right rail next to the operator
+            name where the version pairs naturally with the operator
+            context. Duplicating it here was visual noise that
+            competed with the on-page TOC + share affordances. */}
+        <div className="mt-6 flex flex-col gap-2.5 pb-6">
           <PrintScorecardButton pmSlug={pmSlug} />
           {compareHref && (
             <Link
@@ -76,23 +81,6 @@ export function ScorecardSidebar({
             </svg>
             Share scorecard
           </button>
-        </div>
-
-        <div className="mt-6">
-          <p className="dq-eyebrow-muted mb-1.5">Methodology</p>
-          <p className="dq-mono text-lg font-semibold leading-none text-navy tracking-[-0.01em]">
-            {METHODOLOGY_VERSION} · design {DESIGN_VERSION}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Data as of{" "}
-            <span className="font-semibold text-navy">May 17, 2026</span>
-          </p>
-          <Link
-            href="/methodology"
-            className="mt-2.5 inline-block text-xs font-semibold text-teal hover:text-teal-700"
-          >
-            How scoring works →
-          </Link>
         </div>
       </div>
     </aside>
