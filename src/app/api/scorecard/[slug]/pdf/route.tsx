@@ -24,6 +24,79 @@ import type { LendingSignals } from "@/lib/lending-signals";
 import type { ShareTrajectoryView } from "@/lib/share-trajectory";
 import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 
+// PR #88 — Mapbox Static Images API integration. The previous SVG
+// dot-map (PRs #85-#87) gave us positioning + city labels but had
+// no actual geographic reference (no streets, no water, no state
+// boundaries) — readers saw "dots on a gray rectangle", not a map
+// of the Chattanooga area. Mapbox's Static Images API returns a
+// real map PNG that we can embed as <Image> in the PDF. Same
+// access token the live page already uses (NEXT_PUBLIC_MAPBOX_TOKEN).
+//
+// We sample down to PIN_LIMIT operator points to keep the URL
+// under Mapbox's 8KB limit AND to keep the visual readable (64
+// pin teardrops would overlap into a blob). The sampled pins
+// still convey "operator covers this geographic area" without
+// any one cluster dominating.
+const PIN_LIMIT = 35;
+const MAP_W = 500;
+const MAP_H = 240;
+
+async function fetchScorecardMap(
+  scorecard: ScorecardData
+): Promise<string | null> {
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  if (!token) {
+    console.warn(
+      "[scorecard-pdf] NEXT_PUBLIC_MAPBOX_TOKEN missing — skipping map render"
+    );
+    return null;
+  }
+  const points = scorecard.geographicCoverage?.coverageMapPoints ?? [];
+  if (points.length === 0) return null;
+
+  // Sample down to PIN_LIMIT points with even-stride sampling so
+  // the visual still represents the full footprint shape rather
+  // than just the first N listings.
+  const stride = Math.max(1, Math.ceil(points.length / PIN_LIMIT));
+  const sampled = points.filter((_, i) => i % stride === 0).slice(0, PIN_LIMIT);
+
+  // pin-s is the smallest Mapbox pin style (15×30 px). Teal fill
+  // matches our brand palette (#1b6e8c). The auto-position fits
+  // all pins in the image with reasonable padding.
+  const pinOverlay = sampled
+    .map((p) => `pin-s+1b6e8c(${p.lon.toFixed(4)},${p.lat.toFixed(4)})`)
+    .join(",");
+
+  // light-v11 is Mapbox's clean light style — subtle gray streets,
+  // light water, no heavy decoration. Matches our brand aesthetic
+  // and stays readable next to the brand-colored operator pins.
+  // padding=30 keeps the outermost pins ~30px from the image edge.
+  const url =
+    `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/` +
+    `${pinOverlay}/auto/${MAP_W}x${MAP_H}@2x` +
+    `?access_token=${token}&padding=30&attribution=false&logo=false`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error(
+        "[scorecard-pdf] Mapbox Static API non-OK response",
+        { status: response.status, slug: scorecard.pm.slug }
+      );
+      return null;
+    }
+    const buf = Buffer.from(await response.arrayBuffer());
+    return `data:image/png;base64,${buf.toString("base64")}`;
+  } catch (err) {
+    console.error(
+      "[scorecard-pdf] Mapbox Static API fetch failed",
+      err,
+      { slug: scorecard.pm.slug }
+    );
+    return null;
+  }
+}
+
 // nodejs runtime — Prisma + @react-pdf/renderer both need Node. The
 // PDF generation is CPU + memory heavier than the OG image route
 // (multi-page composition + fonts), so we don't run on edge.
@@ -86,12 +159,19 @@ export async function GET(
       );
     }
 
+    // PR #88 — Fetch the Mapbox static map for the geographic
+    // coverage section. Wrapped in its own try inside fetchScorecardMap
+    // — failure returns null and the PDF falls back to the SVG-based
+    // dot map (PRs #85-#87).
+    const mapImageDataUrl = await fetchScorecardMap(scorecard);
+
     const buffer = await renderToBuffer(
       <OperatorProfilePDF
         scorecard={scorecard}
         cohortTrajectory={cohortTrajectory}
         lendingSignals={lendingSignals}
         shareTrajectory={shareTrajectory}
+        mapImageDataUrl={mapImageDataUrl}
       />
     );
 
