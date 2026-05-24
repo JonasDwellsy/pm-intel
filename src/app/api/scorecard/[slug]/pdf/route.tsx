@@ -14,6 +14,8 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { OperatorProfilePDF } from "@/components/scorecard/OperatorProfilePDF";
+import { loadMsaPool } from "@/lib/msa-pool";
+import { buildCohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import type { ScorecardData } from "@/lib/types";
 
 // nodejs runtime — Prisma + @react-pdf/renderer both need Node. The
@@ -37,8 +39,30 @@ export async function GET(
     }
 
     const scorecard = JSON.parse(pm.scorecardData) as ScorecardData;
+
+    // PR #85 — Load MSA pool + compute cohort rent trajectory for
+    // the chart overlay on Page 4. Same pattern as the live page
+    // (src/app/property-managers/[state]/[city]/[slug]/page.tsx),
+    // just reused here so the PDF can show the operator-vs-cohort
+    // overlay. Fails open: if the pool query errors, we still
+    // render the chart with operator bars only.
+    let cohortTrajectory = null;
+    try {
+      const msaPool = await loadMsaPool(scorecard.market.id);
+      cohortTrajectory = buildCohortRentTrajectory(scorecard, msaPool);
+    } catch (poolErr) {
+      console.error(
+        "[scorecard-pdf] msaPool load / cohort trajectory failed; rendering chart without overlay",
+        poolErr,
+        { slug }
+      );
+    }
+
     const buffer = await renderToBuffer(
-      <OperatorProfilePDF scorecard={scorecard} />
+      <OperatorProfilePDF
+        scorecard={scorecard}
+        cohortTrajectory={cohortTrajectory}
+      />
     );
 
     // Trigger a download with a stable filename. The dwellsy-iq-
