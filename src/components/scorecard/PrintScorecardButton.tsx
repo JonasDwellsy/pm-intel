@@ -2,22 +2,29 @@
 
 import { capture } from "@/lib/analytics";
 
-// Replaces the old DownloadPdfLink. Two reasons for the switch:
+// PR #84 — Replaces the old window.print() flow with a branded
+// purpose-built PDF.
 //
-//   1. The react-pdf scorecard tree drifted from the v1.0 / v0.6.4
-//      design. Maintaining two render paths (live page + PDF tree) for
-//      every spec change was the wrong long-term cost.
-//   2. window.print() lets the browser drive the conversion. The system
-//      print dialog includes "Save as PDF" as a destination on every
-//      modern browser, so the prospect still gets a PDF — they just
-//      pick the destination themselves. The output reflects the live
-//      page, so every future scorecard design change flows through
-//      automatically.
+// History:
+//   - Original implementation rendered a parallel @react-pdf tree
+//     that drifted from the v1.0 / v0.6.4 design (maintaining two
+//     renderers for every spec change was the wrong long-term cost).
+//   - PR #70 switched to window.print() + a print stylesheet, which
+//     fixed the drift problem by reusing the live page DOM. But
+//     "Save as PDF" through the browser print dialog produces
+//     inconsistent output across browsers + OS combinations, and
+//     the artifact isn't ideal for a deal-room share (page chrome,
+//     headers, nav links visible at the edges).
+//   - PR #84 returns to a purpose-built PDF but as a single
+//     server-rendered route (/api/scorecard/[slug]/pdf) that we
+//     own end-to-end. Visual brand matches the OG image (PR #75)
+//     and the live scorecard (Layer 1 → 5). Output is deterministic
+//     across browsers because Chrome/Safari/Firefox aren't involved.
 //
-// The button itself is hidden in @media print via the .dq-no-print
-// class so it doesn't appear in the printed output. Analytics keeps
-// the same event name (pdf_export_click) so historical dashboards
-// stay continuous.
+// Analytics: kept the `pdf_export_click` event name verbatim so
+// historical PostHog dashboards stay continuous across the
+// implementation change.
+
 export function PrintScorecardButton({
   pmSlug,
   className,
@@ -27,21 +34,26 @@ export function PrintScorecardButton({
 }) {
   function handleClick() {
     capture("pdf_export_click", { pmSlug });
-    if (typeof window !== "undefined") {
-      window.print();
-    }
+    // The <a> element below already triggers the download via the
+    // browser; we just emit the analytics event on click.
   }
 
   return (
-    <button
-      type="button"
+    <a
+      href={`/api/scorecard/${pmSlug}/pdf`}
+      // The download attribute on a same-origin a-tag tells the
+      // browser to save the response instead of navigating to it.
+      // The server already sets Content-Disposition: attachment
+      // with a filename, so the saved file will be named
+      // `dwellsy-iq-<slug>.pdf` in both Chromium and Safari.
+      download
       onClick={handleClick}
       className={
         "dq-no-print inline-flex h-9 w-full items-center justify-center rounded-md border border-grid bg-white px-4 text-[13px] font-semibold text-navy transition-colors hover:bg-navy-soft" +
         (className ? ` ${className}` : "")
       }
     >
-      Print / Save as PDF
-    </button>
+      Download PDF
+    </a>
   );
 }
