@@ -193,6 +193,13 @@ export default async function Image({
             >
               {operatorName}
             </div>
+            {/* PR #79 — JSX with multiple expression children (e.g.
+                `{cityState} · {classification}`) is what Satori
+                actually sees as 3 separate text nodes, which trips
+                its strict-mode check requiring display:flex on
+                multi-child divs. The simplest fix is to consolidate
+                into a single template-literal child. Same fix below
+                on the "across N dimensions" line. */}
             <div
               style={{
                 fontSize: 32,
@@ -201,7 +208,7 @@ export default async function Image({
                 color: COLOR_MUTED,
               }}
             >
-              {cityState} · {classification}
+              {`${cityState} · ${classification}`}
             </div>
           </div>
 
@@ -223,7 +230,7 @@ export default async function Image({
                 color: COLOR_MUTED,
               }}
             >
-              across {axes} performance dimensions
+              {`across ${axes} performance dimensions`}
             </div>
           </div>
 
