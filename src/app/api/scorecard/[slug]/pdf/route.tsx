@@ -76,12 +76,40 @@ async function fetchScorecardMap(
     `${pinOverlay}/auto/${MAP_W}x${MAP_H}@2x` +
     `?access_token=${token}&padding=30&attribution=false&logo=false`;
 
+  // PR #89 — Set the Referer header to match the production
+  // hostname. The NEXT_PUBLIC_MAPBOX_TOKEN is URL-restricted in
+  // the Mapbox console (allowed for pm-intel-chi.vercel.app /
+  // iq.dwellsy.com only — same restriction the live page's
+  // browser-side use relies on). Mapbox validates URL
+  // restrictions via the Referer header on each request.
+  //
+  // Browser fetches send Referer automatically. Server-side
+  // fetches from the lambda don't, so the token gets rejected
+  // with 403 even though it's valid. Setting Referer to the
+  // production hostname tells Mapbox "this request is from the
+  // allowed origin" and the token passes the check.
+  //
+  // Resolution order matches src/app/layout.tsx's metadataBase:
+  // explicit override > VERCEL_PROJECT_PRODUCTION_URL > VERCEL_URL
+  // > the current deployed hostname pm-intel-chi.vercel.app as a
+  // hardcoded fallback (already allowlisted in Mapbox).
+  const refererHost =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, "") ??
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
+    process.env.VERCEL_URL ??
+    "pm-intel-chi.vercel.app";
+  const referer = `https://${refererHost}/`;
+
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        Referer: referer,
+      },
+    });
     if (!response.ok) {
       console.error(
         "[scorecard-pdf] Mapbox Static API non-OK response",
-        { status: response.status, slug: scorecard.pm.slug }
+        { status: response.status, slug: scorecard.pm.slug, referer }
       );
       return null;
     }
