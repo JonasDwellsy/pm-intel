@@ -557,7 +557,19 @@ function RentTrajectoryDescriptive({
           </div>
         </div>
         <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          {/* PR #78 — `minWidth={0}` + `minHeight={0}` silence the
+              Recharts "width(-1) and height(-1) of chart should be
+              greater than 0" warning that fires during SSR/pre-
+              hydration when ResponsiveContainer can't yet measure
+              its parent. Per Recharts' own docs the min props are
+              the canonical fix; render behavior is unchanged
+              because the outer div has explicit h-72 + w-full. */}
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={0}
+            minHeight={0}
+          >
             <ComposedChart
               data={data}
               margin={{ left: 8, right: 24, top: 24, bottom: 16 }}
