@@ -3,6 +3,7 @@ import Link from "next/link";
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
+import { MobileMenu } from "@/components/layout/MobileMenu";
 import { SearchInput } from "@/components/search/SearchInput";
 import { NAV_ITEMS, PRIMARY_CTA } from "@/lib/nav";
 
@@ -189,6 +190,16 @@ export async function SiteHeader() {
               </div>
             </>
           )}
+          {/* PR #83 — Mobile hamburger. Renders only below `lg`
+              (handled inside MobileMenu via lg:hidden on the
+              trigger button and panel). Sits immediately left of
+              the primary CTA so the navigation affordance pairs
+              with the action button on mobile. Passes isSignedIn
+              through so the drawer can render the right auth
+              state — Clerk's components inside the drawer (Org
+              switcher + UserButton) need this same context that
+              the desktop cluster gets above. */}
+          <MobileMenu isSignedIn={isSignedIn} />
           {/* Primary CTA — points at the template picker so anyone
               (anonymous or signed in) can clone a starter watch list
               without an auth gate. Save still requires auth.
