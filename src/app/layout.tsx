@@ -23,7 +23,32 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+// PR #80 — metadataBase resolution.
+//
+// Without this, Next.js can't make file-convention opengraph-image
+// routes (PR #75) emit absolute URLs in the og:image meta tag.
+// LinkedInBot + most crawlers REQUIRE absolute URLs in og:image;
+// without metadataBase, the meta tag either gets a relative path
+// or isn't emitted at all, which is why LinkedIn unfurls were
+// showing no image preview post-PR-#79.
+//
+// Resolution order:
+//   1. NEXT_PUBLIC_SITE_URL (explicit override; set locally for
+//      cross-env testing if needed)
+//   2. VERCEL_PROJECT_PRODUCTION_URL (Vercel's canonical production
+//      hostname, set on production deployments)
+//   3. VERCEL_URL (per-deployment URL — used for preview deploys)
+//   4. localhost fallback for `next dev`
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Dwellsy IQ — Property Manager Intelligence",
     template: "%s · Dwellsy IQ",
