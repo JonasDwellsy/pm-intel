@@ -538,8 +538,6 @@ function GeographicCoverageMap({
   const points = coverage.coverageMapPoints ?? [];
   const backdrop = coverage.msaBackdropPoints ?? [];
   if (points.length === 0) {
-    // Fallback to the stylized SVG blob the live page renders when
-    // no coverage points are available — better than empty space.
     return (
       <Svg width={500} height={200} viewBox="0 0 880 380">
         <Rect x={0} y={0} width={880} height={380} fill="#F2F5F8" />
@@ -586,66 +584,158 @@ function GeographicCoverageMap({
     return { x, y };
   }
 
-  // For the size of each coverage circle, scale log(n) so dense
-  // areas don't completely obscure sparse ones. Clamp [2, 6] so
-  // even single-listing dots are visible.
   function pointRadius(n: number): number {
     return Math.max(2, Math.min(6, 2 + Math.log10(Math.max(n, 1)) * 1.6));
   }
 
-  // PR #86 — Dropped the MSA backdrop polyline. The
-  // msaBackdropPoints array carries unordered point samples that
-  // Mapbox uses for viewport-bounds calculation on the live page;
-  // they are NOT in geographic-boundary order, so rendering them
-  // as a Polyline produces a chaotic fan (rendered output looked
-  // like a paper airplane crashed into the operator's footprint).
-  // Computing a convex hull would give a cleaner shape but it's
-  // still a fake boundary that doesn't reflect the real MSA
-  // outline. Easier and more honest: drop the backdrop. The MSA
-  // name in the section header + the cities narrative below the
-  // map carries the geographic context. The operator's coverage
-  // points stand on their own as the actual signal.
+  // PR #87 — Map upgrade. Two issues from Jonas's PR #86 review:
+  // (1) the previous version was just dots on a gray rectangle
+  // with no geographic reference — viewers couldn't orient
+  // themselves; (2) the empty white box in the top-right corner
+  // (placeholder I forgot to remove) looked broken.
+  //
+  // Fix: derive city centroids from coverageMapPoints[].city and
+  // overlay the top-N cities as labeled markers. The labels sit
+  // above the dot cluster and give immediate "this is Chattanooga,
+  // this is Rossville" orientation — turns the abstract dot cluster
+  // into a recognizable map of the MSA.
+  //
+  // Labels rendered as positioned layout-text overlays (not SVG
+  // <text>) because @react-pdf/renderer's SVG text rendering is
+  // unreliable across versions; the absolute-positioning approach
+  // is more predictable.
+
+  // Group points by city → centroid map.
+  const cityCentroids = new Map<
+    string,
+    { lat: number; lon: number; n: number }
+  >();
+  for (const p of points) {
+    if (!p.city) continue;
+    const cur = cityCentroids.get(p.city);
+    if (cur) {
+      const totalN = cur.n + p.n;
+      cur.lat = (cur.lat * cur.n + p.lat * p.n) / totalN;
+      cur.lon = (cur.lon * cur.n + p.lon * p.n) / totalN;
+      cur.n = totalN;
+    } else {
+      cityCentroids.set(p.city, { lat: p.lat, lon: p.lon, n: p.n });
+    }
+  }
+  // Top cities to label: prefer scorecard.geographicCoverage.topCities
+  // (already ordered by share), fall back to alphabetical from the
+  // centroids map.
+  const topCityNames = coverage.topCities && coverage.topCities.length > 0
+    ? coverage.topCities.slice(0, 5).map((c) => c.name)
+    : Array.from(cityCentroids.keys()).slice(0, 5);
+  const labels: Array<{ name: string; x: number; y: number }> = [];
+  for (const name of topCityNames) {
+    const c = cityCentroids.get(name);
+    if (!c) continue;
+    const { x, y } = project(c.lat, c.lon);
+    labels.push({ name, x, y });
+  }
 
   return (
-    <Svg width={MAP_W} height={MAP_H}>
-      <Rect x={0} y={0} width={MAP_W} height={MAP_H} fill="#F2F5F8" />
-      {points.map((p, i) => {
-        const { x, y } = project(p.lat, p.lon);
-        const r = pointRadius(p.n);
-        return (
-          <G key={i}>
-            <Circle
-              cx={x}
-              cy={y}
-              r={r * 2.2}
-              fill={COLOR_TEAL}
-              fillOpacity={0.15}
-            />
-            <Circle
-              cx={x}
-              cy={y}
-              r={r}
-              fill={COLOR_TEAL}
-              stroke="#ffffff"
-              strokeWidth={1}
-            />
-          </G>
-        );
-      })}
-      {/* Reference: render an unobtrusive city/MSA label at the
-          top-right of the map. Uses a small white-on-muted text
-          to suggest "this is where" without competing with the
-          actual points. */}
-      <Rect
-        x={MAP_W - 180}
-        y={8}
-        width={172}
-        height={20}
-        fill="#ffffff"
-        fillOpacity={0.85}
-        rx={3}
-      />
-    </Svg>
+    <View
+      style={{
+        position: "relative",
+        width: MAP_W,
+        height: MAP_H,
+      }}
+    >
+      <Svg width={MAP_W} height={MAP_H}>
+        <Rect x={0} y={0} width={MAP_W} height={MAP_H} fill="#F2F5F8" />
+        {points.map((p, i) => {
+          const { x, y } = project(p.lat, p.lon);
+          const r = pointRadius(p.n);
+          // PR #87 — Dot opacity dialed back so the city labels
+          // overlaid on top remain readable. The halo is still
+          // visible enough to convey cluster density.
+          return (
+            <G key={i}>
+              <Circle
+                cx={x}
+                cy={y}
+                r={r * 2.2}
+                fill={COLOR_TEAL}
+                fillOpacity={0.12}
+              />
+              <Circle
+                cx={x}
+                cy={y}
+                r={r}
+                fill={COLOR_TEAL}
+                fillOpacity={0.85}
+                stroke="#ffffff"
+                strokeWidth={0.8}
+              />
+            </G>
+          );
+        })}
+      </Svg>
+      {/* PR #87 — City labels positioned as overlays on top of the
+          SVG. Each label gets a small white pill background so the
+          name stays legible regardless of how dense the operator
+          dots are underneath. */}
+      {labels.map((label, i) => (
+        <View
+          key={i}
+          style={{
+            position: "absolute",
+            // Center the label on its centroid; rough approximation
+            // assuming ~6pt label width per char.
+            left: Math.max(
+              2,
+              Math.min(MAP_W - label.name.length * 5 - 8, label.x - label.name.length * 2.5 - 4)
+            ),
+            top: Math.max(2, label.y - 8),
+            backgroundColor: "#ffffff",
+            paddingHorizontal: 4,
+            paddingVertical: 1,
+            borderRadius: 2,
+            borderWidth: 0.5,
+            borderColor: COLOR_GRID,
+            borderStyle: "solid",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 7.5,
+              fontWeight: 700,
+              color: COLOR_NAVY,
+              fontFamily: "Helvetica-Bold",
+            }}
+          >
+            {label.name}
+          </Text>
+        </View>
+      ))}
+      {/* MSA name in the bottom-right corner for grounding. */}
+      <View
+        style={{
+          position: "absolute",
+          right: 6,
+          bottom: 6,
+          backgroundColor: "#ffffff",
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+          borderRadius: 2,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 7,
+            color: COLOR_MUTED,
+            letterSpacing: 0.5,
+            textTransform: "uppercase",
+            fontFamily: "Helvetica-Bold",
+          }}
+        >
+          {msaName}
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -1023,93 +1113,125 @@ function portfolioTile(scorecard: ScorecardData): {
 // Each signal gets its own narrative function below that mirrors
 // the live page's LendingSignals component layout.
 
-interface SignalCardData {
+// PR #87 — MetricCardData replaces the old SignalCardData. Same
+// underlying job (title + descriptor for a card), but now carries
+// the headline value + unit explicitly so the renderer can give
+// the metric visual prominence (PerformanceCard-style two-column
+// layout). Jonas's review on PR #86 noted Pages 3 and 5 buried
+// the metric inside a narrative sentence — this fixes that.
+interface MetricCardData {
   title: string;
-  detail: string;
-  /** When non-null, rendered as a small star icon next to the title.
-   *  Same star semantics as the rest of the doc: gold = top quartile,
-   *  silver = above median, null = present in cohort / not starred. */
+  /** Big headline value rendered in large type on the right.
+   *  Format the value (currency, percent, etc.) here — the renderer
+   *  just stringifies it. */
+  value: string;
+  /** Smaller unit/label stacked below the value (e.g., "%", "days",
+   *  "/mo", "years"). Optional — bare-number metrics omit this. */
+  valueUnit?: string;
+  /** Narrative context that explains the metric (cohort comparison,
+   *  caveat, methodology hint). Rendered as muted body text below
+   *  the title. */
+  context: string;
+  /** Star tier, when this signal carries one. Rendered next to the
+   *  big value. */
   star?: StarLevel;
 }
 
-function vacancySignalCard(v: VacancySignal): SignalCardData {
+function vacancySignalCard(v: VacancySignal): MetricCardData {
   if (v.vacancyPct === null) {
     return {
       title: "Vacancy Signal",
-      detail: "Insufficient DOM or tenancy data to compute vacancy ratio.",
+      value: "—",
+      context:
+        "Insufficient DOM or tenancy data to compute vacancy ratio for this operator.",
       star: null,
     };
   }
   return {
     title: "Vacancy Signal",
-    detail: `Estimated cycle vacancy: ${fmtNumber(v.vacancyPct, 1)}%. Derived from lease-up speed and tenant retention. Lower indicates less downtime between tenancies.`,
+    value: fmtNumber(v.vacancyPct, 1),
+    valueUnit: "%",
     star: v.star,
+    context:
+      "Estimated cycle vacancy. Derived from lease-up speed and tenant retention. Lower indicates less downtime between tenancies.",
   };
 }
 
-function rentStabilitySignalCard(rs: RentStabilitySignal): SignalCardData {
+function rentStabilitySignalCard(rs: RentStabilitySignal): MetricCardData {
   if (rs.suppressed) {
     return {
       title: "Rent Stability",
-      detail:
+      value: "—",
+      context:
         rs.reason ?? "Insufficient rent observation history for this operator.",
       star: rs.star,
     };
   }
-  const parts: string[] = [];
-  if (rs.volatilityPP !== null) {
-    parts.push(`Volatility ${fmtNumber(rs.volatilityPP, 1)}pp`);
-  }
+  const contextParts: string[] = [];
   if (rs.cohortMedianVolatility !== null) {
-    parts.push(`cohort median ${fmtNumber(rs.cohortMedianVolatility, 1)}pp`);
+    contextParts.push(
+      `Cohort median volatility ${fmtNumber(rs.cohortMedianVolatility, 1)}pp`
+    );
   }
-  parts.push(`${fmtNumber(rs.yearsOfHistory, 1)}y observation window`);
+  contextParts.push(`${fmtNumber(rs.yearsOfHistory, 1)}-year observation window`);
   return {
     title: "Rent Stability",
-    detail: parts.join("  ·  "),
+    value: rs.volatilityPP !== null ? fmtNumber(rs.volatilityPP, 1) : "—",
+    valueUnit: "pp volatility",
     star: rs.star,
+    context: contextParts.join("  ·  ") + ".",
   };
 }
 
 function operatorStabilitySignalCard(
   os: OperatorStabilitySignal
-): SignalCardData {
-  const years =
-    os.yearsVisible !== null ? `${fmtNumber(os.yearsVisible, 1)} years` : "—";
-  const markets =
+): MetricCardData {
+  if (os.yearsVisible === null) {
+    return {
+      title: "Operator Stability",
+      value: "—",
+      context: "Not yet observable in our data.",
+      star: os.star,
+    };
+  }
+  const marketsLine =
     os.marketCount > 1
       ? `${os.marketCount} markets observed`
       : "Single-market operator";
   return {
     title: "Operator Stability",
-    detail: `Visible for ${years} in our data. ${markets}. Longer observation history = lower model-error risk for credit decisions.`,
+    value: fmtNumber(os.yearsVisible, 1),
+    valueUnit: "years visible",
     star: os.star,
+    context: `${marketsLine}. Longer observation history = lower model-error risk for credit decisions.`,
   };
 }
 
 function geographicConcentrationSignalCard(
   gc: GeographicConcentrationSignal
-): SignalCardData {
+): MetricCardData {
   // PR #86 — gc.top3CityShare and cohortMedianTop3 are stored as
-  // decimals (0.76 = 76%), so multiply for display. Confirmed by
-  // reading buildGeographicConcentrationSignal at src/lib/lending-signals.ts
+  // decimals (0.76 = 76%), so multiply for display.
   const labels = {
-    more_concentrated: "More concentrated than cohort",
-    near_cohort: "Near cohort median",
-    more_dispersed: "More dispersed than cohort",
+    more_concentrated: "more concentrated than cohort",
+    near_cohort: "near cohort median",
+    more_dispersed: "more dispersed than cohort",
   } as const;
   return {
     title: "Geographic Concentration",
-    detail: `Top-3 city share ${Math.round(gc.top3CityShare * 100)}%  ·  cohort median ${Math.round(gc.cohortMedianTop3 * 100)}%  ·  ${labels[gc.positionIndicator]}.`,
+    value: `${Math.round(gc.top3CityShare * 100)}`,
+    valueUnit: "% top-3 share",
+    context: `Cohort median top-3 share ${Math.round(gc.cohortMedianTop3 * 100)}%  ·  ${labels[gc.positionIndicator]}.`,
     star: null,
   };
 }
 
-function pricingTierSignalCard(pt: PricingTierSignal): SignalCardData {
+function pricingTierSignalCard(pt: PricingTierSignal): MetricCardData {
   if (pt.tier === null || pt.operatorRent === null) {
     return {
       title: "Pricing Tier",
-      detail: "Insufficient rent data to classify pricing tier.",
+      value: "—",
+      context: "Insufficient rent data to classify pricing tier.",
       star: null,
     };
   }
@@ -1118,17 +1240,20 @@ function pricingTierSignalCard(pt: PricingTierSignal): SignalCardData {
     "mid-market": "Mid-market tier",
     value: "Value tier",
   } as const;
-  const parts: string[] = [];
-  parts.push(`${tierLabels[pt.tier]} — operator median ${`$${fmtInt(pt.operatorRent)}`}/mo`);
+  const contextParts: string[] = [`${tierLabels[pt.tier]}`];
   if (pt.percentile !== null) {
-    parts.push(`${Math.round(pt.percentile)}th percentile in MSA rent distribution`);
+    contextParts.push(
+      `${Math.round(pt.percentile)}th percentile in MSA rent distribution`
+    );
   }
   if (pt.msaP25 !== null && pt.msaP75 !== null) {
-    parts.push(`MSA P25–P75: $${fmtInt(pt.msaP25)}–$${fmtInt(pt.msaP75)}`);
+    contextParts.push(`MSA P25–P75: $${fmtInt(pt.msaP25)}–$${fmtInt(pt.msaP75)}`);
   }
   return {
     title: "Pricing Tier",
-    detail: parts.join("  ·  "),
+    value: `$${fmtInt(pt.operatorRent)}`,
+    valueUnit: "operator median / mo",
+    context: contextParts.join("  ·  ") + ".",
     star: null,
   };
 }
@@ -1136,7 +1261,7 @@ function pricingTierSignalCard(pt: PricingTierSignal): SignalCardData {
 function lendingSignalCards(
   scorecard: ScorecardData,
   resolved: LendingSignals | null
-): SignalCardData[] {
+): MetricCardData[] {
   // Prefer the full resolved signals when the API route provided
   // them (post-PR-#86). Fall back to the 2-signal stored set if
   // not, so older calls still render something. The stored types
@@ -1144,7 +1269,7 @@ function lendingSignalCards(
   // `kind` discriminator, optional cohortMedianVolatility), so we
   // adapt them explicitly here.
   if (!resolved) {
-    const signals: SignalCardData[] = [];
+    const signals: MetricCardData[] = [];
     const ls = scorecard.lendingSignals;
     if (ls?.rentStability) {
       signals.push(
@@ -1173,7 +1298,7 @@ function lendingSignalCards(
     }
     return signals;
   }
-  const signals: SignalCardData[] = [];
+  const signals: MetricCardData[] = [];
   if (resolved.vacancy) signals.push(vacancySignalCard(resolved.vacancy));
   if (resolved.rentStability)
     signals.push(rentStabilitySignalCard(resolved.rentStability));
@@ -1397,27 +1522,7 @@ export function OperatorProfilePDF({
             Lending signals not yet computed for this operator.
           </Text>
         ) : (
-          lendingCards.map((card, i) => (
-            <View key={i} style={styles.signalCard}>
-              <View
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <Text style={styles.signalTitle}>{card.title}</Text>
-                {card.star === "gold" && (
-                  <Text style={[styles.starGlyph, { color: COLOR_GOLD }]}>★</Text>
-                )}
-                {card.star === "silver" && (
-                  <Text style={[styles.starGlyph, { color: COLOR_SILVER }]}>★</Text>
-                )}
-              </View>
-              <Text style={styles.signalDetail}>{card.detail}</Text>
-            </View>
-          ))
+          lendingCards.map((card, i) => <MetricCard key={i} data={card} />)
         )}
 
         <PageFooter scorecard={scorecard} pageLabel="Page 3 of 6" />
@@ -1474,27 +1579,16 @@ export function OperatorProfilePDF({
       <Page size="LETTER" style={styles.page}>
         <PageHeader scorecard={scorecard} sectionTitle="Portfolio Context" />
 
-        <Text style={styles.sectionHeader}>Portfolio Size Estimate</Text>
-        <Text style={styles.paragraph}>{portfolioNarrative(scorecard)}</Text>
-
-        {/* PR #86 — Rent Level Snapshot. Surfaces the most recent
-            mix-adjusted median rent from the trajectory + the
-            observation count behind it. Complements the Page 4
-            rent trajectory chart (which shows the trend) with the
-            point-in-time anchor. */}
-        <Text style={styles.sectionHeader}>Rent Level Snapshot</Text>
-        <Text style={styles.paragraph}>{rentLevelSnapshot(scorecard)}</Text>
-
-        {/* PR #86 — Share of Listing Activity. Same data the live
-            page renders in the Share Trajectory section. Uses the
-            pre-generated narrative when available (carries the
-            6-variant interpretation from buildShareTrajectoryNarrative),
-            falls back to a compact T12/T24-T12 listing-count
-            comparison when shareTrajectory wasn't computed. */}
-        <Text style={styles.sectionHeader}>Share of Listing Activity</Text>
-        <Text style={styles.paragraph}>
-          {shareActivityNarrative(scorecard, shareTrajectory)}
-        </Text>
+        {/* PR #87 — Pages 3 and 5 redesign: every section is now a
+            MetricCard so the value is the visual anchor and the
+            cohort context plays a supporting role. Replaces the
+            prior "section header + narrative paragraph" layout
+            where the metric was buried inside prose. */}
+        <MetricCard data={portfolioEstimateCard(scorecard)} />
+        <MetricCard data={rentLevelSnapshotCard(scorecard)} />
+        <MetricCard
+          data={shareActivityCard(scorecard, shareTrajectory)}
+        />
 
         {scorecard.canonicalOperatorName &&
           scorecard.canonicalOperatorName !== scorecard.pm.name && (
@@ -1506,40 +1600,34 @@ export function OperatorProfilePDF({
             </>
           )}
 
-        {scorecard.concessionRate !== null &&
-          scorecard.concessionRate !== undefined && (
+        {(() => {
+          const ca = concessionActivityCard(scorecard);
+          if (!ca) return null;
+          const samples =
+            scorecard.concessionSamples ??
+            (scorecard.concessionSampleText
+              ? [scorecard.concessionSampleText]
+              : []);
+          return (
             <>
-              <Text style={styles.sectionHeader}>Concession Activity</Text>
-              <Text style={styles.paragraph}>
-                {`${Math.round((scorecard.concessionRate ?? 0) * 100)}% of observed listings (n=${scorecard.concessionListingCount ?? 0}) included a concession offer in the trailing 12 months.`}
-              </Text>
-              {/* PR #86 — Concession sample excerpts. The seed
-                  pipeline picks up to 3 representative listing
-                  excerpts so the PDF reader can see what the
-                  concession language actually looks like in the
-                  operator's own listings. Same data the live
-                  page renders in the Concession Activity card. */}
-              {(() => {
-                const samples =
-                  scorecard.concessionSamples ??
-                  (scorecard.concessionSampleText
-                    ? [scorecard.concessionSampleText]
-                    : []);
-                if (samples.length === 0) return null;
-                return (
-                  <View style={{ marginTop: 6 }}>
-                    {samples.slice(0, 3).map((s, i) => (
-                      <View key={i} style={styles.concessionSample}>
-                        <Text style={styles.concessionSampleText}>
-                          {`"${s.trim()}"`}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                );
-              })()}
+              <MetricCard data={ca} />
+              {/* Concession sample excerpts as quoted blocks beneath
+                  the headline rate. Up to 3 representative listing
+                  excerpts the seed pipeline picks. */}
+              {samples.length > 0 && (
+                <View style={{ marginTop: 6 }}>
+                  {samples.slice(0, 3).map((s, i) => (
+                    <View key={i} style={styles.concessionSample}>
+                      <Text style={styles.concessionSampleText}>
+                        {`"${s.trim()}"`}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </>
-          )}
+          );
+        })()}
 
         <PageFooter scorecard={scorecard} pageLabel="Page 5 of 6" />
       </Page>
@@ -1590,6 +1678,74 @@ context and peer comparison tools are at iq.dwellsy.com.`}
 }
 
 // --- Page 2 performance card ---
+
+// PR #87 — MetricCard. Shared metric-prominent card used on Pages
+// 3 (Lending Signals) and 5 (Portfolio Context / Rent Level
+// Snapshot / Share of Listing Activity / Concession Activity).
+// Same visual structure as PerformanceCard but driven by
+// MetricCardData (which carries an explicit `value` field rather
+// than burying the number inside a narrative sentence).
+function MetricCard({ data }: { data: MetricCardData }) {
+  return (
+    <View style={styles.signalCard}>
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        {/* Left column — title + narrative context */}
+        <View style={{ flex: 1, paddingTop: 2 }}>
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <Text style={styles.signalTitle}>{data.title}</Text>
+            {data.star === "gold" && (
+              <Text style={[styles.starGlyph, { color: COLOR_GOLD }]}>★</Text>
+            )}
+            {data.star === "silver" && (
+              <Text style={[styles.starGlyph, { color: COLOR_SILVER }]}>★</Text>
+            )}
+          </View>
+          <Text style={[styles.signalDetail, { marginTop: 6 }]}>
+            {data.context}
+          </Text>
+        </View>
+
+        {/* Right column — big value + optional unit below.
+            Fixed width keeps values aligned across rows. */}
+        <View
+          style={{
+            width: 130,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+          }}
+        >
+          <Text style={styles.tileValue}>{data.value}</Text>
+          {data.valueUnit ? (
+            <Text
+              style={[
+                styles.tileUnit,
+                { marginTop: 2, textAlign: "right" },
+              ]}
+            >
+              {data.valueUnit}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
 
 function PerformanceCard({
   title,
@@ -1726,6 +1882,130 @@ function shareActivityNarrative(
     );
   }
   return parts.join(", ") + ".";
+}
+
+// PR #87 — Page 5 section builders that return MetricCardData
+// (big-value-on-the-right format) instead of plain Text paragraphs.
+
+function portfolioEstimateCard(scorecard: ScorecardData): MetricCardData {
+  const est = scorecard.portfolioEstimate;
+  if (!est || (est.status !== "estimated") || typeof est.point !== "number") {
+    return {
+      title: "Portfolio Size Estimate",
+      value: "—",
+      context:
+        est?.message ??
+        "Insufficient data to estimate portfolio size for this operator.",
+    };
+  }
+  const contextParts: string[] = [];
+  if (typeof est.low === "number" && typeof est.high === "number") {
+    contextParts.push(
+      `Range: ${fmtInt(est.low)}–${fmtInt(est.high)} units`
+    );
+  }
+  if (est.confidence) {
+    contextParts.push(`${est.confidence} confidence`);
+  }
+  if (est.cohort) {
+    contextParts.push(est.cohort);
+  }
+  contextParts.push(
+    "Blends trailing 12-month listing volume with observed turnover ratios for the operator's cohort."
+  );
+  return {
+    title: "Portfolio Size Estimate",
+    value: fmtInt(est.point),
+    valueUnit: "units",
+    context: contextParts.join("  ·  "),
+  };
+}
+
+function rentLevelSnapshotCard(scorecard: ScorecardData): MetricCardData {
+  const traj = scorecard.rentTrajectory;
+  if (!Array.isArray(traj) || traj.length === 0) {
+    return {
+      title: "Rent Level Snapshot",
+      value: "—",
+      context:
+        "Rent level not yet computed for this operator (insufficient listing observations).",
+    };
+  }
+  const latest = traj[traj.length - 1];
+  if (!latest || typeof latest.mixAdjMedian !== "number") {
+    return {
+      title: "Rent Level Snapshot",
+      value: "—",
+      context: "Rent level not yet computed for this operator.",
+    };
+  }
+  const contextParts: string[] = [];
+  contextParts.push(`Most recent quarter: ${latest.quarter}`);
+  contextParts.push(`${fmtInt(latest.n)} observed listings`);
+  const earliest = traj[0];
+  if (earliest && typeof earliest.mixAdjMedian === "number" && earliest.mixAdjMedian > 0) {
+    const delta = latest.mixAdjMedian - earliest.mixAdjMedian;
+    const pct = (delta / earliest.mixAdjMedian) * 100;
+    contextParts.push(
+      `${delta >= 0 ? "+" : "-"}$${fmtInt(Math.abs(delta))} (${fmtPct(pct, 1, true)}) since ${earliest.quarter}`
+    );
+  }
+  return {
+    title: "Rent Level Snapshot",
+    value: `$${fmtInt(latest.mixAdjMedian)}`,
+    valueUnit: "mix-adj median / mo",
+    context: contextParts.join("  ·  ") + ".",
+  };
+}
+
+function shareActivityCard(
+  scorecard: ScorecardData,
+  shareTrajectory: ShareTrajectoryView | null
+): MetricCardData {
+  const t12 = scorecard.t12ListingsCount;
+  if (typeof t12 !== "number") {
+    return {
+      title: "Share of Listing Activity",
+      value: "—",
+      context: "Share-of-activity context not yet computed for this operator.",
+    };
+  }
+  // Use the pre-generated narrative from buildShareTrajectoryView
+  // when available — it carries the 6-variant interpretation. Otherwise
+  // assemble a simpler narrative from the raw counts.
+  const context =
+    shareTrajectory?.narrative ??
+    (() => {
+      const t24t12 = scorecard.t24t12ListingsCount;
+      if (typeof t24t12 === "number" && t24t12 > 0) {
+        const yoy = ((t12 - t24t12) / t24t12) * 100;
+        return `Prior 12-month window: ${fmtInt(t24t12)} listings. ${fmtPct(yoy, 1, true)} YoY change in listing volume.`;
+      }
+      return "Trailing 12-month listing volume baseline; no prior-window comparison available.";
+    })();
+  return {
+    title: "Share of Listing Activity",
+    value: fmtInt(t12),
+    valueUnit: "T12 listings observed",
+    context,
+  };
+}
+
+function concessionActivityCard(scorecard: ScorecardData): MetricCardData | null {
+  if (
+    scorecard.concessionRate === null ||
+    scorecard.concessionRate === undefined
+  ) {
+    return null;
+  }
+  const pct = Math.round((scorecard.concessionRate ?? 0) * 100);
+  const n = scorecard.concessionListingCount ?? 0;
+  return {
+    title: "Concession Activity",
+    value: `${pct}`,
+    valueUnit: "% of T12 listings",
+    context: `${fmtInt(n)} observed listings included a concession offer in the trailing 12 months.`,
+  };
 }
 
 function portfolioNarrative(scorecard: ScorecardData): string {
