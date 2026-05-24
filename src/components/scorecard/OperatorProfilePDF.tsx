@@ -1322,6 +1322,7 @@ export function OperatorProfilePDF({
   cohortTrajectory = null,
   lendingSignals = null,
   shareTrajectory = null,
+  mapImageDataUrl = null,
 }: {
   scorecard: ScorecardData;
   /** PR #85 — optional cohort-median rent trajectory overlay. The
@@ -1343,6 +1344,12 @@ export function OperatorProfilePDF({
    *  auto-generated narrative + the YoY context. Null means
    *  the operator isn't eligible for trajectory display. */
   shareTrajectory?: ShareTrajectoryView | null;
+  /** PR #88 — Mapbox Static API map image, pre-fetched by the API
+   *  route and passed as a data URL. When present, the Page 4
+   *  geographic-coverage section renders the Mapbox map directly
+   *  (real streets / water / state boundaries). When null, the
+   *  PDF falls back to the SVG dot map from PRs #85-#87. */
+  mapImageDataUrl?: string | null;
 }) {
   const logoDataUrl = getLogoDataUrl();
   const operatorType = classifyOperator(scorecard);
@@ -1540,14 +1547,28 @@ export function OperatorProfilePDF({
 
         <Text style={styles.sectionHeader}>Geographic Footprint</Text>
         <View style={{ marginTop: 4 }}>
-          <GeographicCoverageMap
-            coverage={scorecard.geographicCoverage}
-            city={scorecard.market.name}
-            msaName={
-              scorecard.market.fullName ??
-              `${scorecard.market.name} MSA`
-            }
-          />
+          {/* PR #88 — Real Mapbox map (PNG fetched server-side by
+              the API route). Falls back to the SVG dot map from
+              PRs #85-#87 when the Mapbox token is missing or the
+              fetch fails. The Mapbox image is 500×240 @2x — same
+              dimensions as the SVG fallback so layout doesn't
+              shift. */}
+          {mapImageDataUrl ? (
+            // eslint-disable-next-line jsx-a11y/alt-text
+            <Image
+              src={mapImageDataUrl}
+              style={{ width: 500, height: 240 }}
+            />
+          ) : (
+            <GeographicCoverageMap
+              coverage={scorecard.geographicCoverage}
+              city={scorecard.market.name}
+              msaName={
+                scorecard.market.fullName ??
+                `${scorecard.market.name} MSA`
+              }
+            />
+          )}
         </View>
         <Text style={[styles.tileCompare, { marginTop: 6 }]}>
           {geographicNarrative(scorecard)}
