@@ -38,6 +38,8 @@
 // is much worse than a generic one for the share experience).
 
 import { ImageResponse } from "next/og";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { prisma } from "@/lib/prisma";
 import { isQuadrantSegment } from "@/lib/slugify";
 import {
@@ -45,6 +47,31 @@ import {
   starableAxisCount,
 } from "@/lib/operators/stars";
 import type { ScorecardData } from "@/lib/types";
+
+/** PR #80 — Load the canonical Dwellsy IQ wordmark from public/
+ *  and embed it as a data URL in the OG composition. Module-scope
+ *  cache means cold lambdas read the file once; warm lambdas reuse
+ *  the in-memory base64.
+ *
+ *  Reading from `public/` works server-side because Vercel
+ *  includes the public dir in the function bundle's filesystem
+ *  view (relative to process.cwd()). Falls through to null on any
+ *  read error so the OG render still works (without the logo)
+ *  rather than 500ing if the asset goes missing. */
+let cachedLogoDataUrl: string | null | undefined;
+
+async function getLogoDataUrl(): Promise<string | null> {
+  if (cachedLogoDataUrl !== undefined) return cachedLogoDataUrl;
+  try {
+    const path = join(process.cwd(), "public", "dwellsy-iq-logo.png");
+    const buf = await readFile(path);
+    cachedLogoDataUrl = `data:image/png;base64,${buf.toString("base64")}`;
+  } catch (err) {
+    console.error("[scorecard-opengraph-image] failed to load logo", err);
+    cachedLogoDataUrl = null;
+  }
+  return cachedLogoDataUrl;
+}
 
 /** PR #77 — Defensive error reporter. Dynamically imports Sentry
  *  inside a try/catch so:
@@ -133,6 +160,7 @@ export default async function Image({
       scorecard.pm.quadrant7Cell ?? scorecard.pm.quadrant ?? "Operator";
     const cohortLine =
       `Ranked within ${scorecard.market.name} MSA · ${classification} cohort`;
+    const logoDataUrl = await getLogoDataUrl();
 
     return new ImageResponse(
       (
@@ -141,8 +169,13 @@ export default async function Image({
             // PR #77 — `fontFamily` deliberately omitted. Satori
             // can't resolve system-font stacks; specifying one was
             // the most likely cause of the original 500. Letting
-            // Satori fall back to its built-in default (Noto Sans)
-            // keeps the route working out of the box.
+            // Satori fall back to its built-in default keeps the
+            // route working out of the box.
+            //
+            // PR #80 — root is a fixed-height flex column. The
+            // bottom bar uses marginTop:auto to stick to the
+            // bottom rather than position:absolute, which was
+            // overlapping the star chips in the previous design.
             width: "100%",
             height: "100%",
             backgroundColor: COLOR_BG,
@@ -150,23 +183,38 @@ export default async function Image({
             flexDirection: "column",
             padding: "56px 64px",
             color: COLOR_NAVY,
-            position: "relative",
           }}
         >
-          {/* Top — branded eyebrow */}
+          {/* Top — branded eyebrow. PR #80: use the actual Dwellsy
+              IQ wordmark from public/ instead of the standalone
+              "IQ" badge + text combo, which read as redundant. */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 12,
+              gap: 14,
               fontSize: 22,
               fontWeight: 700,
               letterSpacing: "-0.01em",
               color: COLOR_NAVY,
             }}
           >
-            <DwellsyMark />
-            <span>Dwellsy IQ</span>
+            {logoDataUrl ? (
+              // 1000x313 source aspect ratio; rendering at 140x44
+              // preserves the wordmark proportions.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoDataUrl}
+                width={140}
+                height={44}
+                alt="Dwellsy IQ"
+                style={{ display: "block" }}
+              />
+            ) : (
+              // Fallback if the logo file can't be loaded — still
+              // ship the brand text so the OG image isn't broken.
+              <span style={{ fontSize: 28, fontWeight: 800 }}>Dwellsy IQ</span>
+            )}
             <span style={{ color: COLOR_MUTED, fontWeight: 500 }}>·</span>
             <span style={{ color: COLOR_TEAL, fontWeight: 600, fontSize: 18 }}>
               Property Manager Scorecard
@@ -178,7 +226,7 @@ export default async function Image({
             style={{
               display: "flex",
               flexDirection: "column",
-              marginTop: 88,
+              marginTop: 64,
               gap: 18,
             }}
           >
@@ -234,16 +282,18 @@ export default async function Image({
             </div>
           </div>
 
-          {/* Bottom — cohort context bar */}
+          {/* Bottom — cohort context bar. PR #80: switched from
+              position:absolute (which was overlapping the chips,
+              hence the horizontal line going through the gold/silver
+              pills in the rendered image) to flex with marginTop
+              auto, which pushes the bar to the bottom of the
+              fixed-height container without overlapping. */}
           <div
             style={{
-              position: "absolute",
-              left: 64,
-              right: 64,
-              bottom: 56,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
+              marginTop: "auto",
               paddingTop: 28,
               borderTop: `1px solid ${COLOR_GRID}`,
               fontSize: 22,
@@ -252,7 +302,7 @@ export default async function Image({
           >
             <span style={{ fontWeight: 600 }}>{cohortLine}</span>
             <span style={{ color: COLOR_TEAL, fontWeight: 600 }}>
-              dwellsy.com →
+              iq.dwellsy.com →
             </span>
           </div>
         </div>
@@ -282,6 +332,8 @@ function brandedFallback(subtitle: string) {
         style={{
           // PR #77 — fontFamily omitted (see note on the main
           // composition above). Satori uses its built-in default.
+          // PR #80 — DwellsyMark inline-badge removed; the wordmark
+          // text is the brand on the fallback card too.
           width: "100%",
           height: "100%",
           backgroundColor: COLOR_NAVY,
@@ -294,7 +346,6 @@ function brandedFallback(subtitle: string) {
           gap: 24,
         }}
       >
-        <DwellsyMark inverted />
         <div
           style={{
             fontSize: 72,
@@ -313,37 +364,6 @@ function brandedFallback(subtitle: string) {
   );
 }
 
-/** Inline SVG-as-JSX mark — keeps the OG image self-contained
- *  (no font / image fetch round-trips). The mark is a stylized
- *  "IQ" badge rendered in the brand teal. */
-function DwellsyMark({ inverted = false }: { inverted?: boolean }) {
-  const bg = inverted ? "#ffffff" : COLOR_TEAL;
-  const fg = inverted ? COLOR_TEAL : "#ffffff";
-  return (
-    <div
-      style={{
-        width: 44,
-        height: 44,
-        backgroundColor: bg,
-        borderRadius: 10,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 22,
-        fontWeight: 800,
-        color: fg,
-        letterSpacing: "-0.04em",
-      }}
-    >
-      IQ
-    </div>
-  );
-}
-
-/** Star chip with count badge. Used twice (gold + silver) on the
- *  scorecard composition. Visual mirrors the StarSummaryChip pattern
- *  in src/components/scorecard/StarSummaryChip.tsx — colored star
- *  glyph + numeric count + lowercase label. */
 /** PR #78 — Convert a brand hex color to a 10% alpha tint via
  *  explicit rgba(). Replaces the previous `${color}1a` 8-digit
  *  hex form — Satori claims CSS Colors level 4 support but has
@@ -360,6 +380,37 @@ function hexTint(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/** PR #80 — Inline SVG star glyph. PR #78 swapped this for the
+ *  unicode ★ character on the theory that Satori's built-in font
+ *  would have it; it doesn't (the rendered image showed a missing-
+ *  glyph box). SVG is the reliable path.
+ *
+ *  PR #75's original SVG used relative `l` commands with condensed
+ *  decimals (e.g., `6.6.96` = `6.6` then `.96`), which is a known
+ *  trip for some SVG parsers. This version uses absolute `L`
+ *  commands with explicit commas between coordinates so the path
+ *  is unambiguous. Geometry is identical to the original 5-point
+ *  star shape. */
+function StarGlyph({ color }: { color: string }) {
+  return (
+    <svg
+      width={28}
+      height={28}
+      viewBox="0 0 24 24"
+      fill={color}
+      stroke={color}
+      strokeWidth={1.5}
+      strokeLinejoin="round"
+    >
+      <path d="M12,2.6 L14.95,8.58 L21.55,9.54 L16.77,14.2 L17.9,20.78 L12,17.7 L6.1,20.78 L7.23,14.2 L2.45,9.54 L9.05,8.58 Z" />
+    </svg>
+  );
+}
+
+/** Star chip with count badge. Used twice (gold + silver) on the
+ *  scorecard composition. Visual mirrors the StarSummaryChip pattern
+ *  in src/components/scorecard/StarSummaryChip.tsx — colored star
+ *  glyph + numeric count + lowercase label. */
 function StarChip({
   color,
   count,
@@ -381,20 +432,7 @@ function StarChip({
         border: `1px solid ${color}`,
       }}
     >
-      {/* PR #78 — Unicode ★ (U+2605) replaces the inline SVG path.
-          Noto Sans (next/og's default font) includes this glyph,
-          and Satori renders text reliably; the SVG path parser
-          had a known trip on condensed decimal coordinates which
-          may have been the cause of the original 500. */}
-      <span
-        style={{
-          fontSize: 28,
-          color,
-          lineHeight: 1,
-        }}
-      >
-        ★
-      </span>
+      <StarGlyph color={color} />
       <span
         style={{
           fontSize: 28,
