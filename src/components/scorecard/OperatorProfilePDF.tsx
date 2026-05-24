@@ -41,11 +41,14 @@
 // they convey is already in the prose + metric values. Per PR #84
 // scope decision: text + metrics only.
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   Document,
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
   Svg,
   Rect,
@@ -62,6 +65,39 @@ import {
   starableAxisCount,
 } from "@/lib/operators/stars";
 import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
+import type {
+  LendingSignals,
+  VacancySignal,
+  RentStabilitySignal,
+  OperatorStabilitySignal,
+  GeographicConcentrationSignal,
+  PricingTierSignal,
+} from "@/lib/lending-signals";
+import type { ShareTrajectoryView } from "@/lib/share-trajectory";
+
+// PR #86 — Load the Dwellsy IQ wordmark from public/ at module
+// load time and embed it as a data URL. Module-scope cache so
+// warm lambdas reuse the base64 read on cold start. Same pattern
+// as the OG image route (PR #80). Synchronous readFileSync is
+// fine here because this happens once per lambda lifecycle, not
+// per request.
+let cachedLogoDataUrl: string | null = null;
+function getLogoDataUrl(): string | null {
+  if (cachedLogoDataUrl !== null) return cachedLogoDataUrl;
+  try {
+    const buf = readFileSync(
+      join(process.cwd(), "public", "dwellsy-iq-logo.png")
+    );
+    cachedLogoDataUrl = `data:image/png;base64,${buf.toString("base64")}`;
+  } catch (err) {
+    console.error(
+      "[scorecard-pdf] failed to load wordmark; falling back to text",
+      err
+    );
+    cachedLogoDataUrl = null;
+  }
+  return cachedLogoDataUrl;
+}
 
 // Brand palette — mirrors src/app/globals.css CSS variables and
 // the OG image color constants. Keeping these in sync across the
@@ -266,6 +302,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: "solid",
     borderRadius: 6,
+  },
+  // PR #86 — Concession sample card. Italic + indented + muted to
+  // visually distinguish operator-quoted text from the surrounding
+  // narrative.
+  concessionSample: {
+    marginTop: 6,
+    paddingLeft: 12,
+    borderLeftWidth: 2,
+    borderLeftStyle: "solid",
+    borderLeftColor: COLOR_TEAL,
+  },
+  concessionSampleText: {
+    fontSize: 9.5,
+    fontStyle: "italic",
+    color: COLOR_MUTED,
+    lineHeight: 1.45,
   },
   signalTitle: {
     fontSize: 11,
@@ -541,27 +593,22 @@ function GeographicCoverageMap({
     return Math.max(2, Math.min(6, 2 + Math.log10(Math.max(n, 1)) * 1.6));
   }
 
-  const backdropPath =
-    backdrop.length >= 3
-      ? backdrop
-          .map((p) => {
-            const { x, y } = project(p.lat, p.lon);
-            return `${x.toFixed(1)},${y.toFixed(1)}`;
-          })
-          .join(" ")
-      : null;
+  // PR #86 — Dropped the MSA backdrop polyline. The
+  // msaBackdropPoints array carries unordered point samples that
+  // Mapbox uses for viewport-bounds calculation on the live page;
+  // they are NOT in geographic-boundary order, so rendering them
+  // as a Polyline produces a chaotic fan (rendered output looked
+  // like a paper airplane crashed into the operator's footprint).
+  // Computing a convex hull would give a cleaner shape but it's
+  // still a fake boundary that doesn't reflect the real MSA
+  // outline. Easier and more honest: drop the backdrop. The MSA
+  // name in the section header + the cities narrative below the
+  // map carries the geographic context. The operator's coverage
+  // points stand on their own as the actual signal.
 
   return (
     <Svg width={MAP_W} height={MAP_H}>
       <Rect x={0} y={0} width={MAP_W} height={MAP_H} fill="#F2F5F8" />
-      {backdropPath && (
-        <Polyline
-          points={backdropPath}
-          fill="#ffffff"
-          stroke="#D5DBE3"
-          strokeWidth={1.2}
-        />
-      )}
       {points.map((p, i) => {
         const { x, y } = project(p.lat, p.lon);
         const r = pointRadius(p.n);
@@ -823,10 +870,15 @@ function leaseUpDetail(scorecard: ScorecardData): {
   const p = scorecard.performance;
   const peerMedian = p.peerQuadrantDomT12 ?? p.marketDomT12;
   const delta = p.domT12 - peerMedian;
+  // PR #86 — Replaced ▼ ▲ Unicode arrows with plain text +/-/text.
+  // Helvetica (the default PDF font) doesn't have those glyphs and
+  // was rendering them as fallback chars (¼ ²) in the post-PR-85
+  // PDF output. Plain "Xd faster"/"Xd slower" reads cleanly across
+  // any PDF viewer.
   const compare = Number.isFinite(peerMedian)
     ? Math.abs(delta) < 0.05
       ? `vs cohort median ${fmtNumber(peerMedian, 1)} days`
-      : `${delta < 0 ? "▼" : "▲"} ${fmtNumber(Math.abs(delta), 1)}d vs cohort ${fmtNumber(peerMedian, 1)}d`
+      : `${fmtNumber(Math.abs(delta), 1)}d ${delta < 0 ? "faster than" : "slower than"} cohort (${fmtNumber(peerMedian, 1)}d)`
     : `n = ${p.domT12N} listings (T12)`;
   return {
     value: fmtNumber(p.domT12, 1),
@@ -844,9 +896,12 @@ function tenancyDetail(scorecard: ScorecardData): {
 } {
   const t = scorecard.tenancy;
   const cohortMedian = t.apartment.cohortP50 ?? t.house.cohortP50 ?? null;
+  // PR #86 — same Helvetica-glyph fix as leaseUpDetail. Tenant
+  // retention longer than cohort = favorable (▲ in live page);
+  // shorter = unfavorable (▼). Plain text reads cleanly in PDF.
   const compare =
     t.overallGap !== null && cohortMedian !== null
-      ? `${t.overallGap > cohortMedian ? "▲" : "▼"} ${fmtNumber(Math.abs(t.overallGap - cohortMedian), 1)}mo vs cohort ${fmtNumber(cohortMedian, 1)}mo`
+      ? `${fmtNumber(Math.abs(t.overallGap - cohortMedian), 1)}mo ${t.overallGap > cohortMedian ? "longer than" : "shorter than"} cohort (${fmtNumber(cohortMedian, 1)}mo)`
       : t.overallGap !== null
         ? `${t.totalUnits} units observed`
         : "Insufficient data";
@@ -962,61 +1017,174 @@ function portfolioTile(scorecard: ScorecardData): {
 
 // --- Lending signals helpers ---
 //
-// The seed stores only two signals directly on scorecard.lendingSignals
-// (rentStability + geographicConcentration). The live LendingSignals
-// component derives three more (vacancy, operator stability, pricing
-// tier) at render time from msaPool + scorecard fields. Reproducing
-// that derivation here would require loading the MSA pool at PDF
-// render time, which is feasible but out of scope for this PR. The
-// PDF surfaces the two stored signals + a pointer to iq.dwellsy.com
-// for the full lending-signals view.
+// PR #86 — Replaces the prior "2 directly-stored signals only"
+// approach. The API route now loads msaPool + marketFootprint and
+// calls buildLendingSignals, producing the full 5-signal output.
+// Each signal gets its own narrative function below that mirrors
+// the live page's LendingSignals component layout.
 
 interface SignalCardData {
   title: string;
   detail: string;
+  /** When non-null, rendered as a small star icon next to the title.
+   *  Same star semantics as the rest of the doc: gold = top quartile,
+   *  silver = above median, null = present in cohort / not starred. */
+  star?: StarLevel;
 }
 
-function lendingSignalCards(scorecard: ScorecardData): SignalCardData[] {
+function vacancySignalCard(v: VacancySignal): SignalCardData {
+  if (v.vacancyPct === null) {
+    return {
+      title: "Vacancy Signal",
+      detail: "Insufficient DOM or tenancy data to compute vacancy ratio.",
+      star: null,
+    };
+  }
+  return {
+    title: "Vacancy Signal",
+    detail: `Estimated cycle vacancy: ${fmtNumber(v.vacancyPct, 1)}%. Derived from lease-up speed and tenant retention. Lower indicates less downtime between tenancies.`,
+    star: v.star,
+  };
+}
+
+function rentStabilitySignalCard(rs: RentStabilitySignal): SignalCardData {
+  if (rs.suppressed) {
+    return {
+      title: "Rent Stability",
+      detail:
+        rs.reason ?? "Insufficient rent observation history for this operator.",
+      star: rs.star,
+    };
+  }
+  const parts: string[] = [];
+  if (rs.volatilityPP !== null) {
+    parts.push(`Volatility ${fmtNumber(rs.volatilityPP, 1)}pp`);
+  }
+  if (rs.cohortMedianVolatility !== null) {
+    parts.push(`cohort median ${fmtNumber(rs.cohortMedianVolatility, 1)}pp`);
+  }
+  parts.push(`${fmtNumber(rs.yearsOfHistory, 1)}y observation window`);
+  return {
+    title: "Rent Stability",
+    detail: parts.join("  ·  "),
+    star: rs.star,
+  };
+}
+
+function operatorStabilitySignalCard(
+  os: OperatorStabilitySignal
+): SignalCardData {
+  const years =
+    os.yearsVisible !== null ? `${fmtNumber(os.yearsVisible, 1)} years` : "—";
+  const markets =
+    os.marketCount > 1
+      ? `${os.marketCount} markets observed`
+      : "Single-market operator";
+  return {
+    title: "Operator Stability",
+    detail: `Visible for ${years} in our data. ${markets}. Longer observation history = lower model-error risk for credit decisions.`,
+    star: os.star,
+  };
+}
+
+function geographicConcentrationSignalCard(
+  gc: GeographicConcentrationSignal
+): SignalCardData {
+  // PR #86 — gc.top3CityShare and cohortMedianTop3 are stored as
+  // decimals (0.76 = 76%), so multiply for display. Confirmed by
+  // reading buildGeographicConcentrationSignal at src/lib/lending-signals.ts
+  const labels = {
+    more_concentrated: "More concentrated than cohort",
+    near_cohort: "Near cohort median",
+    more_dispersed: "More dispersed than cohort",
+  } as const;
+  return {
+    title: "Geographic Concentration",
+    detail: `Top-3 city share ${Math.round(gc.top3CityShare * 100)}%  ·  cohort median ${Math.round(gc.cohortMedianTop3 * 100)}%  ·  ${labels[gc.positionIndicator]}.`,
+    star: null,
+  };
+}
+
+function pricingTierSignalCard(pt: PricingTierSignal): SignalCardData {
+  if (pt.tier === null || pt.operatorRent === null) {
+    return {
+      title: "Pricing Tier",
+      detail: "Insufficient rent data to classify pricing tier.",
+      star: null,
+    };
+  }
+  const tierLabels = {
+    premium: "Premium tier",
+    "mid-market": "Mid-market tier",
+    value: "Value tier",
+  } as const;
+  const parts: string[] = [];
+  parts.push(`${tierLabels[pt.tier]} — operator median ${`$${fmtInt(pt.operatorRent)}`}/mo`);
+  if (pt.percentile !== null) {
+    parts.push(`${Math.round(pt.percentile)}th percentile in MSA rent distribution`);
+  }
+  if (pt.msaP25 !== null && pt.msaP75 !== null) {
+    parts.push(`MSA P25–P75: $${fmtInt(pt.msaP25)}–$${fmtInt(pt.msaP75)}`);
+  }
+  return {
+    title: "Pricing Tier",
+    detail: parts.join("  ·  "),
+    star: null,
+  };
+}
+
+function lendingSignalCards(
+  scorecard: ScorecardData,
+  resolved: LendingSignals | null
+): SignalCardData[] {
+  // Prefer the full resolved signals when the API route provided
+  // them (post-PR-#86). Fall back to the 2-signal stored set if
+  // not, so older calls still render something. The stored types
+  // are slightly looser than the buildLendingSignals output (no
+  // `kind` discriminator, optional cohortMedianVolatility), so we
+  // adapt them explicitly here.
+  if (!resolved) {
+    const signals: SignalCardData[] = [];
+    const ls = scorecard.lendingSignals;
+    if (ls?.rentStability) {
+      signals.push(
+        rentStabilitySignalCard({
+          kind: "rentStability",
+          volatilityPP: ls.rentStability.volatilityPP,
+          cohortMedianVolatility:
+            ls.rentStability.cohortMedianVolatility ?? null,
+          yearsOfHistory: ls.rentStability.yearsOfHistory,
+          suppressed: ls.rentStability.suppressed,
+          reason: ls.rentStability.reason,
+          star: ls.rentStability.star,
+        })
+      );
+    }
+    if (ls?.geographicConcentration) {
+      signals.push(
+        geographicConcentrationSignalCard({
+          kind: "geographicConcentration",
+          top3CityShare: ls.geographicConcentration.top3CityShare,
+          cohortMedianTop3: ls.geographicConcentration.cohortMedianTop3,
+          positionIndicator: ls.geographicConcentration.linearPositionIndicator,
+          cohortLevel: ls.geographicConcentration.cohortLevel,
+        })
+      );
+    }
+    return signals;
+  }
   const signals: SignalCardData[] = [];
-  const ls = scorecard.lendingSignals;
-  if (!ls) return signals;
-
-  // Rent Stability — coefficient of variation across observation
-  // window. Lower = more stable rents. Suppressed when seed pipeline
-  // couldn't compute it (insufficient observation history).
-  if (ls.rentStability) {
-    const rs = ls.rentStability;
-    const detail = rs.suppressed
-      ? rs.reason ?? "Insufficient rent observation history for this operator"
-      : (() => {
-          const parts: string[] = [];
-          if (rs.volatilityPP !== null) {
-            parts.push(`Volatility ${fmtNumber(rs.volatilityPP, 1)}pp`);
-          }
-          if (rs.cohortMedianVolatility !== undefined) {
-            parts.push(
-              `cohort median ${fmtNumber(rs.cohortMedianVolatility, 1)}pp`
-            );
-          }
-          parts.push(`${fmtNumber(rs.yearsOfHistory, 1)}y observation window`);
-          return parts.join(" · ");
-        })();
-    signals.push({ title: "Rent Stability", detail });
-  }
-
-  // Geographic Concentration — top-3 city share vs cohort median.
-  // Linear-position indicator labels the relative posture.
-  if (ls.geographicConcentration) {
-    const gc = ls.geographicConcentration;
-    const labels = {
-      more_concentrated: "More concentrated than cohort",
-      near_cohort: "Near cohort median",
-      more_dispersed: "More dispersed than cohort",
-    } as const;
-    const detail = `Top-3 city share ${Math.round(gc.top3CityShare * 100)}%  ·  cohort median ${Math.round(gc.cohortMedianTop3 * 100)}%  ·  ${labels[gc.linearPositionIndicator]}`;
-    signals.push({ title: "Geographic Concentration", detail });
-  }
-
+  if (resolved.vacancy) signals.push(vacancySignalCard(resolved.vacancy));
+  if (resolved.rentStability)
+    signals.push(rentStabilitySignalCard(resolved.rentStability));
+  if (resolved.operatorStability)
+    signals.push(operatorStabilitySignalCard(resolved.operatorStability));
+  if (resolved.geographicConcentration)
+    signals.push(
+      geographicConcentrationSignalCard(resolved.geographicConcentration)
+    );
+  if (resolved.pricingTier)
+    signals.push(pricingTierSignalCard(resolved.pricingTier));
   return signals;
 }
 
@@ -1027,6 +1195,8 @@ function lendingSignalCards(scorecard: ScorecardData): SignalCardData[] {
 export function OperatorProfilePDF({
   scorecard,
   cohortTrajectory = null,
+  lendingSignals = null,
+  shareTrajectory = null,
 }: {
   scorecard: ScorecardData;
   /** PR #85 — optional cohort-median rent trajectory overlay. The
@@ -1036,7 +1206,20 @@ export function OperatorProfilePDF({
    *  scorecard's Layer 5E section). Null is fine — chart renders
    *  bars only without the overlay. */
   cohortTrajectory?: CohortRentTrajectory | null;
+  /** PR #86 — full 5-signal LendingSignals output computed via
+   *  buildLendingSignals at the API route. Replaces the prior
+   *  "render only the 2 directly-stored signals" approach on
+   *  Page 3 so the PDF matches the live page's full lending
+   *  signals view. Null falls back to scorecard.lendingSignals
+   *  for back-compat. */
+  lendingSignals?: LendingSignals | null;
+  /** PR #86 — share trajectory data for Page 5. Computed via
+   *  buildShareTrajectoryView at the API route. Carries the
+   *  auto-generated narrative + the YoY context. Null means
+   *  the operator isn't eligible for trajectory display. */
+  shareTrajectory?: ShareTrajectoryView | null;
 }) {
+  const logoDataUrl = getLogoDataUrl();
   const operatorType = classifyOperator(scorecard);
   const { goldCount, silverCount } = countOperatorStars(scorecard);
   const axes = starableAxisCount(scorecard);
@@ -1058,7 +1241,7 @@ export function OperatorProfilePDF({
   const invTrans = showInventoryTransparency
     ? inventoryTransparencyDetail(scorecard)
     : null;
-  const lendingCards = lendingSignalCards(scorecard);
+  const lendingCards = lendingSignalCards(scorecard, lendingSignals);
 
   return (
     <Document
@@ -1070,7 +1253,21 @@ export function OperatorProfilePDF({
       {/* ============== PAGE 1 — Identity + Synthesis ============== */}
       <Page size="LETTER" style={styles.page}>
         <View style={styles.brandRow}>
-          <Text style={styles.brandText}>Dwellsy IQ</Text>
+          {/* PR #86 — Real Dwellsy IQ wordmark image instead of the
+              plain "Dwellsy IQ" text. Loaded from public/ via fs
+              and embedded as a data URL (module-scope cached).
+              Renders at ~120x38pt — visual match for the OG image
+              header. Falls back to text if the asset can't load. */}
+          {logoDataUrl ? (
+            // The 1000x313 source aspect ratio is preserved at 120x38.
+            // eslint-disable-next-line jsx-a11y/alt-text
+            <Image
+              src={logoDataUrl}
+              style={{ width: 120, height: 38 }}
+            />
+          ) : (
+            <Text style={styles.brandText}>Dwellsy IQ</Text>
+          )}
           <Text style={styles.brandSep}>·</Text>
           <Text style={styles.brandEyebrow}>Property Manager Scorecard</Text>
         </View>
@@ -1202,7 +1399,22 @@ export function OperatorProfilePDF({
         ) : (
           lendingCards.map((card, i) => (
             <View key={i} style={styles.signalCard}>
-              <Text style={styles.signalTitle}>{card.title}</Text>
+              <View
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Text style={styles.signalTitle}>{card.title}</Text>
+                {card.star === "gold" && (
+                  <Text style={[styles.starGlyph, { color: COLOR_GOLD }]}>★</Text>
+                )}
+                {card.star === "silver" && (
+                  <Text style={[styles.starGlyph, { color: COLOR_SILVER }]}>★</Text>
+                )}
+              </View>
               <Text style={styles.signalDetail}>{card.detail}</Text>
             </View>
           ))
@@ -1265,6 +1477,25 @@ export function OperatorProfilePDF({
         <Text style={styles.sectionHeader}>Portfolio Size Estimate</Text>
         <Text style={styles.paragraph}>{portfolioNarrative(scorecard)}</Text>
 
+        {/* PR #86 — Rent Level Snapshot. Surfaces the most recent
+            mix-adjusted median rent from the trajectory + the
+            observation count behind it. Complements the Page 4
+            rent trajectory chart (which shows the trend) with the
+            point-in-time anchor. */}
+        <Text style={styles.sectionHeader}>Rent Level Snapshot</Text>
+        <Text style={styles.paragraph}>{rentLevelSnapshot(scorecard)}</Text>
+
+        {/* PR #86 — Share of Listing Activity. Same data the live
+            page renders in the Share Trajectory section. Uses the
+            pre-generated narrative when available (carries the
+            6-variant interpretation from buildShareTrajectoryNarrative),
+            falls back to a compact T12/T24-T12 listing-count
+            comparison when shareTrajectory wasn't computed. */}
+        <Text style={styles.sectionHeader}>Share of Listing Activity</Text>
+        <Text style={styles.paragraph}>
+          {shareActivityNarrative(scorecard, shareTrajectory)}
+        </Text>
+
         {scorecard.canonicalOperatorName &&
           scorecard.canonicalOperatorName !== scorecard.pm.name && (
             <>
@@ -1282,6 +1513,31 @@ export function OperatorProfilePDF({
               <Text style={styles.paragraph}>
                 {`${Math.round((scorecard.concessionRate ?? 0) * 100)}% of observed listings (n=${scorecard.concessionListingCount ?? 0}) included a concession offer in the trailing 12 months.`}
               </Text>
+              {/* PR #86 — Concession sample excerpts. The seed
+                  pipeline picks up to 3 representative listing
+                  excerpts so the PDF reader can see what the
+                  concession language actually looks like in the
+                  operator's own listings. Same data the live
+                  page renders in the Concession Activity card. */}
+              {(() => {
+                const samples =
+                  scorecard.concessionSamples ??
+                  (scorecard.concessionSampleText
+                    ? [scorecard.concessionSampleText]
+                    : []);
+                if (samples.length === 0) return null;
+                return (
+                  <View style={{ marginTop: 6 }}>
+                    {samples.slice(0, 3).map((s, i) => (
+                      <View key={i} style={styles.concessionSample}>
+                        <Text style={styles.concessionSampleText}>
+                          {`"${s.trim()}"`}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
             </>
           )}
 
@@ -1347,41 +1603,130 @@ function PerformanceCard({
     compare: string;
   };
 }) {
+  // PR #86 — Restructured layout per Jonas's feedback. Numbers
+  // need to right-align across every card so the values stack
+  // in a single column. Solution: two-column flex with the metric
+  // name + comparison narrative on the left, and the number + unit
+  // (with unit stacked BELOW the number) + star on the right. The
+  // right column has a fixed width so number alignment stays
+  // consistent across rent-pp, days, mo, /100, etc.
   return (
     <View style={styles.signalCard}>
       <View
         style={{
           display: "flex",
           flexDirection: "row",
+          alignItems: "flex-start",
           justifyContent: "space-between",
-          alignItems: "baseline",
+          gap: 12,
         }}
       >
-        <Text style={styles.signalTitle}>{title}</Text>
+        {/* Left column — metric name + comparison narrative */}
+        <View style={{ flex: 1, paddingTop: 2 }}>
+          <Text style={styles.signalTitle}>{title}</Text>
+          <Text style={[styles.signalDetail, { marginTop: 6 }]}>
+            {detail.compare}
+          </Text>
+        </View>
+
+        {/* Right column — big number + unit below + star.
+            Width fixed so values align across cards. */}
         <View
-          style={{ display: "flex", flexDirection: "row", alignItems: "baseline", gap: 4 }}
+          style={{
+            width: 110,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+          }}
         >
-          <Text style={styles.tileValue}>{detail.value}</Text>
-          {detail.unit ? <Text style={styles.tileUnit}>{detail.unit}</Text> : null}
-          {detail.star === "gold" ? (
-            <Text style={[styles.starGlyph, { color: COLOR_GOLD, marginLeft: 4 }]}>
-              ★
-            </Text>
-          ) : detail.star === "silver" ? (
-            <Text
-              style={[styles.starGlyph, { color: COLOR_SILVER, marginLeft: 4 }]}
-            >
-              ★
-            </Text>
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "baseline",
+              gap: 4,
+            }}
+          >
+            <Text style={styles.tileValue}>{detail.value}</Text>
+            {detail.star === "gold" ? (
+              <Text style={[styles.starGlyph, { color: COLOR_GOLD }]}>★</Text>
+            ) : detail.star === "silver" ? (
+              <Text style={[styles.starGlyph, { color: COLOR_SILVER }]}>★</Text>
+            ) : null}
+          </View>
+          {detail.unit ? (
+            <Text style={[styles.tileUnit, { marginTop: 2 }]}>{detail.unit}</Text>
           ) : null}
         </View>
       </View>
-      <Text style={styles.signalDetail}>{detail.compare}</Text>
     </View>
   );
 }
 
 // --- Page 4 narratives ---
+
+// PR #86 — Rent Level Snapshot narrative. Pulls the most recent
+// quarter's mix-adjusted median rent from the trajectory (which we
+// already have on the scorecard) and pairs it with the listing
+// count behind that quarter. Complements the Page 4 trajectory
+// chart with a point-in-time anchor.
+function rentLevelSnapshot(scorecard: ScorecardData): string {
+  const traj = scorecard.rentTrajectory;
+  if (!Array.isArray(traj) || traj.length === 0) {
+    return "Rent level not yet computed for this operator (insufficient listing observations).";
+  }
+  // The trajectory is ordered chronologically; the last entry is
+  // the most recent quarter.
+  const latest = traj[traj.length - 1];
+  if (!latest || typeof latest.mixAdjMedian !== "number") {
+    return "Rent level not yet computed for this operator.";
+  }
+  const parts: string[] = [];
+  parts.push(
+    `Most recent quarter (${latest.quarter}): $${fmtInt(latest.mixAdjMedian)}/mo mix-adjusted median rent`
+  );
+  parts.push(`based on ${fmtInt(latest.n)} observed listings`);
+  // Add a 6-quarter comparison if the first quarter has data.
+  const earliest = traj[0];
+  if (earliest && typeof earliest.mixAdjMedian === "number") {
+    const delta = latest.mixAdjMedian - earliest.mixAdjMedian;
+    const pct = (delta / earliest.mixAdjMedian) * 100;
+    parts.push(
+      `${delta >= 0 ? "+" : ""}$${fmtInt(Math.abs(delta))} (${fmtPct(pct, 1, true)}) since ${earliest.quarter}`
+    );
+  }
+  return parts.join(". ") + ".";
+}
+
+// PR #86 — Share of Listing Activity narrative. Uses the
+// pre-generated narrative from buildShareTrajectoryView when the
+// API route provides it (carries the 6-variant interpretation
+// keyed on eligibility + delta-from-cohort thresholds). Falls
+// back to a compact T12/T24-T12 listing-count comparison when
+// shareTrajectory wasn't computed.
+function shareActivityNarrative(
+  scorecard: ScorecardData,
+  shareTrajectory: ShareTrajectoryView | null
+): string {
+  if (shareTrajectory?.narrative) {
+    return shareTrajectory.narrative;
+  }
+  // Fallback path: derive a narrative from raw listing counts.
+  const t12 = scorecard.t12ListingsCount;
+  const t24t12 = scorecard.t24t12ListingsCount;
+  if (typeof t12 !== "number") {
+    return "Share-of-activity context not yet computed for this operator.";
+  }
+  const parts: string[] = [];
+  parts.push(`Trailing 12 months: ${fmtInt(t12)} listings observed`);
+  if (typeof t24t12 === "number" && t24t12 > 0) {
+    const yoy = ((t12 - t24t12) / t24t12) * 100;
+    parts.push(
+      `prior 12-month window: ${fmtInt(t24t12)} (${fmtPct(yoy, 1, true)} YoY)`
+    );
+  }
+  return parts.join(", ") + ".";
+}
 
 function portfolioNarrative(scorecard: ScorecardData): string {
   const est = scorecard.portfolioEstimate;
@@ -1429,10 +1774,14 @@ function geographicNarrative(scorecard: ScorecardData): string {
   if (cov.citiesText) {
     parts.push(cov.citiesText);
   }
+  // PR #86 — Bug fix: cov.topCities[].pct is stored as a percent
+  // (76 = 76%), not a decimal. Pre-PR-86 code multiplied by 100,
+  // producing "Chattanooga 7600%" in the rendered narrative.
+  // Just round the value directly.
   if (cov.topCities && cov.topCities.length > 0) {
     const topCitiesStr = cov.topCities
       .slice(0, 3)
-      .map((c) => `${c.name} ${Math.round(c.pct * 100)}%`)
+      .map((c) => `${c.name} ${Math.round(c.pct)}%`)
       .join(", ");
     parts.push(`Top cities: ${topCitiesStr}`);
   }
