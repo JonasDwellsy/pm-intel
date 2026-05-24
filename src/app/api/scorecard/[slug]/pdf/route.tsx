@@ -16,7 +16,13 @@ import { prisma } from "@/lib/prisma";
 import { OperatorProfilePDF } from "@/components/scorecard/OperatorProfilePDF";
 import { loadMsaPool } from "@/lib/msa-pool";
 import { buildCohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
+import { buildLendingSignals } from "@/lib/lending-signals";
+import { loadMarketFootprint } from "@/lib/cross-market";
+import { buildShareTrajectoryView } from "@/lib/share-trajectory";
 import type { ScorecardData } from "@/lib/types";
+import type { LendingSignals } from "@/lib/lending-signals";
+import type { ShareTrajectoryView } from "@/lib/share-trajectory";
+import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 
 // nodejs runtime — Prisma + @react-pdf/renderer both need Node. The
 // PDF generation is CPU + memory heavier than the OG image route
@@ -40,19 +46,41 @@ export async function GET(
 
     const scorecard = JSON.parse(pm.scorecardData) as ScorecardData;
 
-    // PR #85 — Load MSA pool + compute cohort rent trajectory for
-    // the chart overlay on Page 4. Same pattern as the live page
-    // (src/app/property-managers/[state]/[city]/[slug]/page.tsx),
-    // just reused here so the PDF can show the operator-vs-cohort
-    // overlay. Fails open: if the pool query errors, we still
-    // render the chart with operator bars only.
-    let cohortTrajectory = null;
+    // PR #85 — Load MSA pool for the cohort overlay on Page 4.
+    // PR #86 — Extended to also compute the full LendingSignals
+    // (Page 3) + ShareTrajectoryView (Page 5) since both depend on
+    // msaPool. Same pattern + same queries the live scorecard page
+    // already runs. All three are wrapped in try/catch so a partial
+    // failure (e.g., share trajectory cohort empty) doesn't take
+    // down the whole PDF — the failing section just renders without
+    // its enriched data.
+    let cohortTrajectory: CohortRentTrajectory | null = null;
+    let lendingSignals: LendingSignals | null = null;
+    let shareTrajectory: ShareTrajectoryView | null = null;
     try {
       const msaPool = await loadMsaPool(scorecard.market.id);
       cohortTrajectory = buildCohortRentTrajectory(scorecard, msaPool);
+      // marketFootprint is the operator's cross-market footprint
+      // (one row per MSA they appear in). buildLendingSignals
+      // uses the length to compute the operatorStability signal
+      // (multi-market presence indicator).
+      const marketFootprint = await loadMarketFootprint({
+        name: scorecard.pm.name,
+        currentSlug: slug,
+      });
+      lendingSignals = buildLendingSignals(
+        scorecard,
+        msaPool,
+        marketFootprint.length
+      );
+      shareTrajectory = await buildShareTrajectoryView(
+        scorecard,
+        slug,
+        msaPool
+      );
     } catch (poolErr) {
       console.error(
-        "[scorecard-pdf] msaPool load / cohort trajectory failed; rendering chart without overlay",
+        "[scorecard-pdf] msaPool / lending signals / share trajectory load failed; rendering PDF with reduced enrichment",
         poolErr,
         { slug }
       );
@@ -62,6 +90,8 @@ export async function GET(
       <OperatorProfilePDF
         scorecard={scorecard}
         cohortTrajectory={cohortTrajectory}
+        lendingSignals={lendingSignals}
+        shareTrajectory={shareTrajectory}
       />
     );
 
