@@ -30,6 +30,14 @@ export const PROTECTED_ROUTE_PATTERNS = [
   "/api/watch-lists",
   "/api/watch-lists/:id",
   "/api/watch-lists/:id/apply",
+  // v0.20 — Stage 1.5 admin dashboard. Requires Clerk session +
+  // user-id in ADMIN_USER_IDS env var (see src/lib/auth/is-admin.ts).
+  // Clerk gate stops anonymous users at the middleware boundary; the
+  // userId allowlist check happens inside the page component, where
+  // non-admin signed-in users see notFound() (intentional — we don't
+  // want to advertise the route's existence to non-admins).
+  "/admin",
+  "/admin/:path*",
 ] as const;
 
 export const PUBLIC_BUYBOX_PATTERNS = [

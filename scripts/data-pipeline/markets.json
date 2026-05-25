@@ -1,0 +1,139 @@
+{
+  "_comment": "Registry of v0.6.4 markets. To add a new market, append an entry below and run `python pipeline.py --market <id>`. See README.md for the full add-a-market runbook. Methodology constants (eligibility thresholds, institutional cutoff) live in pipeline.py — vary them only as a methodology version bump.",
+  "methodologyVersion": "v0.6.4",
+  "nationalLookup": "Operator_National_Urus_v0.6.2.json",
+  "markets": [
+    {
+      "id": "chattanooga-tn",
+      "outputSlug": "chattanooga",
+      "msaCode": "16860",
+      "msaFullName": "Chattanooga, TN-GA MSA",
+      "name": "Chattanooga",
+      "state": "TN",
+      "primaryCity": "Chattanooga",
+      "csvFile": "Chattanooga Updated.csv",
+      "dataAsOf": "2026-05-19"
+    },
+    {
+      "id": "jacksonville-fl",
+      "outputSlug": "jacksonville",
+      "msaCode": "27260",
+      "msaFullName": "Jacksonville, FL MSA",
+      "name": "Jacksonville",
+      "state": "FL",
+      "primaryCity": "Jacksonville",
+      "csvFile": "Jacksonville.csv",
+      "dataAsOf": "2026-05-19"
+    },
+    {
+      "id": "nashville-davidson-murfreesboro-franklin-tn",
+      "outputSlug": "nashville",
+      "msaCode": "34980",
+      "msaFullName": "Nashville-Davidson--Murfreesboro--Franklin, TN MSA",
+      "name": "Nashville",
+      "state": "TN",
+      "primaryCity": "Nashville",
+      "csvFile": "Nashville.csv",
+      "dataAsOf": "2026-05-19"
+    },
+    {
+      "id": "memphis-tn-ms-ar",
+      "outputSlug": "memphis",
+      "msaCode": "32820",
+      "msaFullName": "Memphis, TN-MS-AR MSA",
+      "name": "Memphis",
+      "state": "TN",
+      "primaryCity": "Memphis",
+      "csvFile": "All other TN MSAs.csv",
+      "dataAsOf": "2026-05-19"
+    },
+    {
+      "id": "knoxville-tn",
+      "outputSlug": "knoxville",
+      "msaCode": "28940",
+      "msaFullName": "Knoxville, TN MSA",
+      "name": "Knoxville",
+      "state": "TN",
+      "primaryCity": "Knoxville",
+      "csvFile": "All other TN MSAs.csv",
+      "dataAsOf": "2026-05-19"
+    },
+    {
+      "id": "clarksville-tn-ky",
+      "outputSlug": "clarksville",
+      "msaCode": "17300",
+      "msaFullName": "Clarksville, TN-KY MSA",
+      "name": "Clarksville",
+      "state": "TN",
+      "primaryCity": "Clarksville",
+      "csvFile": "All other TN MSAs.csv",
+      "dataAsOf": "2026-05-19"
+    },
+    {
+      "id": "phoenix-az",
+      "outputSlug": "phoenix",
+      "msaCode": "38060",
+      "msaFullName": "Phoenix-Mesa-Glendale, AZ MSA",
+      "name": "Phoenix",
+      "state": "AZ",
+      "primaryCity": "Phoenix",
+      "csvFile": "Phoenix AZ MSA.csv",
+      "dataAsOf": "2026-05-19"
+    },
+    {
+      "id": "birmingham-al",
+      "outputSlug": "birmingham",
+      "msaCode": "13820",
+      "msaFullName": "Birmingham-Hoover, AL MSA",
+      "name": "Birmingham",
+      "state": "AL",
+      "primaryCity": "Birmingham",
+      "csvFile": "Al Markets.csv",
+      "dataAsOf": "2026-05-20"
+    },
+    {
+      "id": "huntsville-al",
+      "outputSlug": "huntsville",
+      "msaCode": "26620",
+      "msaFullName": "Huntsville, AL MSA",
+      "name": "Huntsville",
+      "state": "AL",
+      "primaryCity": "Huntsville",
+      "csvFile": "Al Markets.csv",
+      "dataAsOf": "2026-05-20"
+    },
+    {
+      "id": "montgomery-al",
+      "outputSlug": "montgomery",
+      "msaCode": "33860",
+      "msaFullName": "Montgomery, AL MSA",
+      "name": "Montgomery",
+      "state": "AL",
+      "primaryCity": "Montgomery",
+      "csvFile": "Al Markets.csv",
+      "dataAsOf": "2026-05-20"
+    },
+    {
+      "id": "seattle-wa",
+      "outputSlug": "seattle",
+      "msaCode": "42660",
+      "msaFullName": "Seattle-Tacoma-Bellevue, WA MSA",
+      "name": "Seattle",
+      "state": "WA",
+      "primaryCity": "Seattle",
+      "csvFile": "Seattle and Denver.csv",
+      "dataAsOf": "2026-05-24"
+    },
+    {
+      "id": "denver-co",
+      "outputSlug": "denver",
+      "msaCode": "19740",
+      "msaFullName": "Denver-Aurora-Broomfield, CO MSA",
+      "name": "Denver",
+      "state": "CO",
+      "primaryCity": "Denver",
+      "csvFile": "Seattle and Denver.csv",
+      "dataAsOf": "2026-05-24"
+    }
+  ]
+}
