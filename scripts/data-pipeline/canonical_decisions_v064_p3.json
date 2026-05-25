@@ -1,0 +1,230 @@
+{
+  "_comment": "Curated canonical-operator decisions for the v0.6.4 Patch 3 release (15 markets — added San Antonio + Boulder + Fort Collins on top of the v0.6.4-p2 12-market baseline). Generated from `merge.py --propose-canonicals --new-markets san-antonio-tx,boulder-co,fort-collins-co` on 2026-05-25, recommendation auto-applied by Claude with the user's pattern of acceptance (Tier 1 + Tier 2 always accept, generic-name Tier 3 reject).",
+  "version": "v0.6.4-p3",
+  "generated_at": "2026-05-25",
+  "curator": "claude (autonomous per established Tier 1/2/3 pattern)",
+  "summary": {
+    "extends_existing": 13,
+    "new_canonicals": 13,
+    "rejected": 3
+  },
+
+  "extend_existing": [
+    {
+      "canonical_slug": "mission-rock-residential",
+      "add_pm_slugs": [
+        "mission-rock-residential-san-antonio-tx",
+        "mission-rock-residential-boulder-co",
+        "mission-rock-residential-fort-collins-co"
+      ]
+    },
+    {
+      "canonical_slug": "mynd-property-management",
+      "add_pm_slugs": ["mynd-property-management-san-antonio-tx"]
+    },
+    {
+      "canonical_slug": "progress-residential",
+      "add_pm_slugs": ["progress-residential-san-antonio-tx"]
+    },
+    {
+      "canonical_slug": "second-avenue",
+      "add_pm_slugs": ["second-avenue-san-antonio-tx"]
+    },
+    {
+      "canonical_slug": "tricon-residential",
+      "add_pm_slugs": [
+        "tricon-residential-san-antonio-tx",
+        "tricon-residential-fort-collins-co"
+      ]
+    },
+    {
+      "canonical_slug": "resprop",
+      "add_pm_slugs": ["resprop-san-antonio-tx"]
+    },
+    {
+      "canonical_slug": "ark-homes-for-rent",
+      "add_pm_slugs": ["ark-homes-for-rent-san-antonio-tx"]
+    },
+    {
+      "canonical_slug": "invitation-homes",
+      "add_pm_slugs": [
+        "invitation-homes-san-antonio-tx",
+        "invitation-homes-boulder-co",
+        "invitation-homes-fort-collins-co"
+      ]
+    },
+    {
+      "canonical_slug": "first-keys-homes",
+      "add_pm_slugs": ["first-keys-homes-san-antonio-tx"]
+    },
+    {
+      "canonical_slug": "marshall-reddick-real-estate",
+      "add_pm_slugs": ["marshall-reddick-real-estate-san-antonio-tx"]
+    },
+    {
+      "canonical_slug": "equity-residential",
+      "add_pm_slugs": ["equity-residential-boulder-co"]
+    },
+    {
+      "canonical_slug": "trinity-property-consultants",
+      "add_pm_slugs": ["trinity-property-consultants-fort-collins-co"]
+    },
+    {
+      "canonical_slug": "green-leaf-partners-management",
+      "add_pm_slugs": [
+        "green-leaf-partners-management-inc-boulder-co",
+        "green-leaf-partners-management-inc-fort-collins-co"
+      ]
+    }
+  ],
+
+  "new_canonicals": [
+    {
+      "canonical_slug": "centerspace",
+      "canonical_name": "Centerspace",
+      "pm_slugs": [
+        "centerspace-denver-co",
+        "centerspace-boulder-co"
+      ],
+      "notes": "Public apartment REIT (CSR ticker). Specific brand."
+    },
+    {
+      "canonical_slug": "thompson-thrift",
+      "canonical_name": "Thompson Thrift",
+      "pm_slugs": [
+        "thompson-thrift-denver-co",
+        "thompson-thrift-boulder-co"
+      ],
+      "notes": "Specific developer/operator brand."
+    },
+    {
+      "canonical_slug": "madison-apartment-group",
+      "canonical_name": "Madison Apartment Group, L.p.",
+      "pm_slugs": [
+        "madison-apartment-group-l-p-seattle-wa",
+        "madison-apartment-group-l-p-fort-collins-co"
+      ],
+      "notes": "Specific LP entity name."
+    },
+    {
+      "canonical_slug": "american-residential-group",
+      "canonical_name": "American Residential Group",
+      "pm_slugs": [
+        "american-residential-group-birmingham-al",
+        "american-residential-group-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "fox-property-management",
+      "canonical_name": "Fox Property Management",
+      "pm_slugs": [
+        "fox-property-management-denver-co",
+        "fox-property-management-boulder-co"
+      ],
+      "notes": "Denver-Boulder same-metro pairing (~30mi apart)."
+    },
+    {
+      "canonical_slug": "8z-rentals",
+      "canonical_name": "8Z Rentals",
+      "pm_slugs": [
+        "8z-rentals-denver-co",
+        "8z-rentals-boulder-co"
+      ],
+      "notes": "Denver-Boulder same-metro."
+    },
+    {
+      "canonical_slug": "aspen-management",
+      "canonical_name": "Aspen Management",
+      "pm_slugs": [
+        "aspen-management-denver-co",
+        "aspen-management-boulder-co"
+      ],
+      "notes": "Denver-Boulder same-metro."
+    },
+    {
+      "canonical_slug": "new-age-real-estate",
+      "canonical_name": "New Age Real Estate",
+      "pm_slugs": [
+        "new-age-real-estate-denver-co",
+        "new-age-real-estate-boulder-co"
+      ],
+      "notes": "Denver-Boulder same-metro."
+    },
+    {
+      "canonical_slug": "zeal-property-management",
+      "canonical_name": "Zeal Property Management",
+      "pm_slugs": [
+        "zeal-property-management-denver-co",
+        "zeal-property-management-boulder-co"
+      ],
+      "notes": "Denver-Boulder same-metro."
+    },
+    {
+      "canonical_slug": "housing-helpers-of-colorado",
+      "canonical_name": "Housing Helpers Of Colorado",
+      "pm_slugs": [
+        "housing-helpers-of-colorado-denver-co",
+        "housing-helpers-of-colorado-boulder-co"
+      ],
+      "notes": "Name explicitly says \"of Colorado\" — single Colorado operator."
+    },
+    {
+      "canonical_slug": "brc-real-estate",
+      "canonical_name": "Brc Real Estate",
+      "pm_slugs": [
+        "brc-real-estate-denver-co",
+        "brc-real-estate-boulder-co"
+      ],
+      "notes": "Denver-Boulder same-metro."
+    },
+    {
+      "canonical_slug": "araho-group",
+      "canonical_name": "Araho Group",
+      "pm_slugs": [
+        "araho-group-denver-co",
+        "araho-group-boulder-co"
+      ],
+      "notes": "Denver-Boulder same-metro."
+    },
+    {
+      "canonical_slug": "fox-property-management-executive-rentals",
+      "canonical_name": "Fox Property Management Executive Rentals",
+      "pm_slugs": [
+        "fox-property-management-executive-rentals-denver-co",
+        "fox-property-management-executive-rentals-boulder-co"
+      ],
+      "notes": "Likely a sub-brand of Fox Property Management — kept as a separate canonical for now since the operating-entity name differs; can fold under fox-property-management in a future curation pass if confirmed same legal entity."
+    }
+  ],
+
+  "rejected": [
+    {
+      "normalized_name": "commonplace pmc",
+      "reason": "Jacksonville + Boulder is an unusual geographic pairing for a property-management LLC. No obvious reason same operator would be in both. Keeping separate as the conservative default.",
+      "pm_slugs": [
+        "commonplace-pmc-jacksonville-fl",
+        "commonplace-pmc-boulder-co"
+      ]
+    },
+    {
+      "normalized_name": "lvl living",
+      "reason": "Jacksonville + San Antonio. Could plausibly be a Sunbelt SFR brand but unverified. Defaulting to separate; can revisit if confirmed.",
+      "pm_slugs": [
+        "lvl-living-jacksonville-fl",
+        "lvl-living-san-antonio-tx"
+      ]
+    },
+    {
+      "normalized_name": "advantage property management",
+      "reason": "\"Advantage\" is a generic operator name; Memphis + Fort Collins is a distant pairing with no obvious operational reason for same operator. Keeping separate.",
+      "pm_slugs": [
+        "advantage-property-management-memphis-tn",
+        "advantage-property-management-fort-collins-co"
+      ]
+    }
+  ],
+
+  "follow_ups": [
+    "Boulder ranks #1 and #3 are 'Longmont Property Group Llc' and 'Longmont Property Group' — same operator, two CSV name variants, different slugs (so the intra-market disambiguator doesn't catch it). Worth canonicalizing in a follow-up; either fold both under a new canonical entity or strip the LLC variant. Deferred from this PR."
+  ]
+}
