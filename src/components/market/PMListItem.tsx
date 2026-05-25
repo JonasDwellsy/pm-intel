@@ -77,6 +77,22 @@ export function PMListItem({
         ? "text-orange"
         : "text-navy";
 
+  // v0.6.4 Patch 3 — DOM color now reflects cohort-relative performance,
+  // not quadrant identity. Previously `style={{ color: color.fg }}` tinted
+  // the DOM number with the quadrant badge color (MF/BTR Inst → green,
+  // Scattered/Indep → orange, etc.) which the eye reads as a performance
+  // signal: green = good, orange = bad. The intent was just a visual tie
+  // to the quadrant pill above, but it produced false signals (two
+  // operators with identical DOM and identical cohort-relative standing
+  // showed opposite-direction colors because they were in different
+  // quadrants). Now: gold/silver star → green ("top-tier DOM for this
+  // cohort"), null → neutral navy. Matches the rent-vs-comp column's
+  // semantic-coloring pattern.
+  const domToneClass =
+    pm.domStar === "gold" || pm.domStar === "silver"
+      ? "text-good"
+      : "text-navy";
+
   return (
     <li className="list-none">
       <TrackedLink
@@ -151,8 +167,7 @@ export function PMListItem({
             <MiniMetric
               label="DOM (T12)"
               value={fmtDays(pm.domT12)}
-              className="dq-mono"
-              style={{ color: color.fg }}
+              className={"dq-mono " + domToneClass}
             />
             <MiniMetric
               label="Rent vs comp"
