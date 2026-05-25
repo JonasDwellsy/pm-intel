@@ -246,6 +246,11 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     // v0.6.3 Patch 4 — derived star counts; drive both ★N ☆M chip + sort.
     goldCount,
     silverCount,
+    // v0.6.4 Patch 3 — DOM star tier, surfaced so the ranked-operators row
+    // can color the DOM number by cohort-relative performance (gold/silver
+    // → green, null → neutral) instead of by quadrant. See PMListItem
+    // type docstring for the rationale.
+    domStar: sc.performance?.domStar ?? null,
     // v0.6.3 Patch 5 — raw operator YoY rent change. The state-level
     // rent-growth aggregate medians across this value pooled across all
     // ranked operators in all MSAs in the state. Null-safe: missing

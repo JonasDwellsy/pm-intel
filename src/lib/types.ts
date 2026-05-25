@@ -444,6 +444,17 @@ export interface PMListItem {
    *  constructs PMListItem manually. */
   goldCount?: number;
   silverCount?: number;
+  /** v0.6.4 Patch 3 — DOM star tier for this operator, cohort-relative.
+   *  Surfaced on the ranked-operators list so the DOM number can be
+   *  colored by *performance* (gold/silver → green, null → neutral),
+   *  matching the rent-vs-comp tone semantics. Previously the DOM number
+   *  was tinted by quadrant color, which the eye reads as a performance
+   *  signal but actually only encodes which quadrant the operator sits in
+   *  (MF/BTR Institutional green vs. SFR Independent orange). Two
+   *  operators with identical DOM and identical cohort-relative
+   *  performance ended up with opposite-direction colors. Optional for
+   *  back-compat. */
+  domStar?: StarLevel;
   /** v0.6.3 Patch 5 — raw per-operator YoY rent change (decimal, e.g.
    *  0.043 = +4.3% YoY). Distinct from rentVsComp which carries the
    *  delta-vs-cohort (delta_yoy * 100). Used by the state-level
