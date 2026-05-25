@@ -799,9 +799,10 @@ export const ASK_TOOLS: Anthropic.Messages.Tool[] = [
   {
     name: "listMarkets",
     description:
-      "List all 10 markets in Dwellsy IQ coverage with their high-level stats: " +
+      "List every market in Dwellsy IQ coverage with their high-level stats: " +
       "active operator count, eligible cohort size, median days-on-market, market rent growth YoY. " +
-      "Use this when the user asks 'what markets do you cover' or wants a high-level market comparison.",
+      "Use this when the user asks 'what markets do you cover' or wants a high-level market comparison. " +
+      "The exact number of covered markets is variable — call this tool to find out.",
     input_schema: {
       type: "object" as const,
       properties: {},
