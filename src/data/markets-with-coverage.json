@@ -453,6 +453,30 @@
       "shortName": "Baltimore",
       "centroid": { "lat": 39.2904, "lng": -76.6122 },
       "status": "available"
+    },
+    {
+      "slug": "san-antonio-tx",
+      "name": "San Antonio-New Braunfels, TX MSA",
+      "shortName": "San Antonio",
+      "centroid": { "lat": 29.4241, "lng": -98.4936 },
+      "status": "live",
+      "marketPageHref": "/property-managers/texas/san-antonio"
+    },
+    {
+      "slug": "boulder-co",
+      "name": "Boulder, CO MSA",
+      "shortName": "Boulder",
+      "centroid": { "lat": 40.0150, "lng": -105.2705 },
+      "status": "live",
+      "marketPageHref": "/property-managers/colorado/boulder"
+    },
+    {
+      "slug": "fort-collins-co",
+      "name": "Fort Collins-Loveland, CO MSA",
+      "shortName": "Fort Collins",
+      "centroid": { "lat": 40.5853, "lng": -105.0844 },
+      "status": "live",
+      "marketPageHref": "/property-managers/colorado/fort-collins"
     }
   ]
 }

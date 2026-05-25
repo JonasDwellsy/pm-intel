@@ -155,6 +155,11 @@ const MARKETS: Array<{
   // allOperatorsT12BySubmarket field, so the loop picks them up cleanly.
   { slug: "seattle", id: "seattle-wa", city: "Seattle", state: "WA", stateSlug: "washington", citySlug: "seattle" },
   { slug: "denver", id: "denver-co", city: "Denver", state: "CO", stateSlug: "colorado", citySlug: "denver" },
+  // v0.6.4 Patch 3 — San Antonio + Boulder + Fort Collins added. Same
+  // pattern: v0.6.4 per-market sources, ranked tier from merged seed.
+  { slug: "san-antonio", id: "san-antonio-tx", city: "San Antonio", state: "TX", stateSlug: "texas", citySlug: "san-antonio" },
+  { slug: "boulder", id: "boulder-co", city: "Boulder", state: "CO", stateSlug: "colorado", citySlug: "boulder" },
+  { slug: "fort-collins", id: "fort-collins-co", city: "Fort Collins", state: "CO", stateSlug: "colorado", citySlug: "fort-collins" },
 ];
 const MIN_T12 = 3;
 

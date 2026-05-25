@@ -134,6 +134,39 @@
       "primaryCity": "Denver",
       "csvFile": "Seattle and Denver.csv",
       "dataAsOf": "2026-05-24"
+    },
+    {
+      "id": "san-antonio-tx",
+      "outputSlug": "san-antonio",
+      "msaCode": "41700",
+      "msaFullName": "San Antonio-New Braunfels, TX MSA",
+      "name": "San Antonio",
+      "state": "TX",
+      "primaryCity": "San Antonio",
+      "csvFile": "San Antonio, Boulder, Ft. Collins.csv",
+      "dataAsOf": "2026-05-25"
+    },
+    {
+      "id": "boulder-co",
+      "outputSlug": "boulder",
+      "msaCode": "14500",
+      "msaFullName": "Boulder, CO MSA",
+      "name": "Boulder",
+      "state": "CO",
+      "primaryCity": "Boulder",
+      "csvFile": "San Antonio, Boulder, Ft. Collins.csv",
+      "dataAsOf": "2026-05-25"
+    },
+    {
+      "id": "fort-collins-co",
+      "outputSlug": "fort-collins",
+      "msaCode": "22660",
+      "msaFullName": "Fort Collins-Loveland, CO MSA",
+      "name": "Fort Collins",
+      "state": "CO",
+      "primaryCity": "Fort Collins",
+      "csvFile": "San Antonio, Boulder, Ft. Collins.csv",
+      "dataAsOf": "2026-05-25"
     }
   ]
 }
