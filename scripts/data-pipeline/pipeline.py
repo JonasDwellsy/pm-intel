@@ -746,14 +746,25 @@ for norm in sorted(eligible_norms):
     else:
         cities_text = f"No cities observed in T12 for {MARKET_NAME} MSA"
 
+    # v0.6.4 Patch 5 — emit only the fields downstream consumers actually
+    # read: lat, lon (NOT lng — the in-page Mapbox map reads `p.lon`;
+    # emitting `lng` historically meant 63% of coverage dots silently
+    # failed to render), n (listing count at this point; defaults to 1
+    # per uru), and city (OperatorProfilePDF.tsx groups points by city
+    # to position the PDF map's city labels). Dropped: address
+    # (debug-only, never rendered) and type (assigned to GeoJSON
+    # properties but never read by any paint / tooltip / hover).
     coverage_map_points = []
     for uru, meta in list(d["uru_meta"].items())[:200]:
         if meta["lat"] is not None and meta["lng"] is not None:
-            coverage_map_points.append({
-                "lat": meta["lat"], "lng": meta["lng"],
-                "address": meta["addr"], "city": meta["city"],
-                "type": meta["type"].title(),
-            })
+            pt = {
+                "lat": meta["lat"],
+                "lon": meta["lng"],
+                "n": 1,
+            }
+            if meta.get("city"):
+                pt["city"] = meta["city"]
+            coverage_map_points.append(pt)
 
     pm_features[norm] = {
         "urus_t12_count": total_units,
