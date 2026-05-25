@@ -93,6 +93,54 @@ def load_per_market(data_dir, output_slug):
         return json.load(f), path
 
 
+# v0.6.4 Patch 5 — coverage-point schema normalization. Different pipeline
+# generations emitted points with three different shapes:
+#   - {lat, lng, address, city, type}   ← modern pipeline (v0.6.4-native
+#     markets: Birmingham/Huntsville/Montgomery/Seattle/Denver/San Antonio/
+#     Boulder/Fort Collins). 63% of the points in the merged seed.
+#   - {lat, lon}                        ← MSA backdrop points, minimal
+#   - {lat, lon, n, city, type}         ← v0.6.3-era markets (Phoenix,
+#     Jacksonville, the five TN markets). Aggregated by location.
+#
+# This mismatch was a SILENT BUG: CoverageMapClient.tsx reads `p.lon`,
+# so any point with `lng` instead rendered as [undefined, lat] which
+# Mapbox skips. 63% of operator-coverage dots simply didn't appear.
+#
+# Normalization rule: everything becomes {lat, lon, n}. The lng→lon
+# rename happens here; address/city/type are dropped (dead fields, never
+# consumed downstream); n defaults to 1 when not aggregated. Also halves
+# the JSON size since the dead fields were ~50 bytes/point × ~99K points.
+def normalize_coverage_points(points):
+    out = []
+    for p in points or []:
+        lat = p.get("lat")
+        lon = p.get("lon", p.get("lng"))
+        if lat is None or lon is None:
+            continue  # drop malformed points
+        n = p.get("n", 1)
+        point = {"lat": lat, "lon": lon, "n": n}
+        # Keep `city` when present — OperatorProfilePDF.tsx groups points
+        # by city to compute centroids for the PDF map's city labels.
+        # Dropping it would silently kill city labels on PDF maps for the
+        # markets that previously had them.
+        city = p.get("city")
+        if city:
+            point["city"] = city
+        out.append(point)
+    return out
+
+
+def normalize_pms_inplace(pms):
+    """Strip dead fields + normalize coverage points across the merged PM
+    array. Mutates each PM dict in place."""
+    for pm in pms:
+        gc = pm.get("geographicCoverage")
+        if gc and "coverageMapPoints" in gc:
+            gc["coverageMapPoints"] = normalize_coverage_points(
+                gc["coverageMapPoints"]
+            )
+
+
 # ---------------------------------------------------------------------------
 # Merge
 # ---------------------------------------------------------------------------
@@ -173,6 +221,11 @@ def merge_markets(per_market_blobs, methodology_version="v0.6.4"):
         }
 
     merged["canonicalOperators"] = canonical_operators
+    # v0.6.4 Patch 5 — normalize coverage-point schema across all PMs.
+    # Drops the lng/lon/address/city/type inconsistency that left 63%
+    # of operator-coverage dots invisible on the in-page map. See
+    # normalize_coverage_points() docstring above for the rationale.
+    normalize_pms_inplace(merged["pms"])
     # Surface duplicate slugs as INFO (seed.ts will disambiguate them with
     # -2/-3 suffixes — both records persist in the DB).
     merged["_merge_info"] = {"duplicate_pm_slugs": duplicate_slugs} if duplicate_slugs else {}
@@ -394,14 +447,25 @@ def propose_canonicals(merged, new_market_ids, baseline_canonical_path=None):
 def snapshot_and_write(merged, target_path):
     if os.path.isfile(target_path):
         ts = time.strftime("%Y%m%dT%H%M%S")
-        backup = f"{target_path}.{ts}.bak"
+        # v0.6.4 Patch 5 — backups go in a .backups/ subdirectory rather
+        # than next to the source file, so the src/data/ folder doesn't
+        # accumulate 27MB cruft files between merges. Still gitignored.
+        backup_dir = os.path.join(os.path.dirname(target_path), ".backups")
+        os.makedirs(backup_dir, exist_ok=True)
+        backup_name = f"{os.path.basename(target_path)}.{ts}.bak"
+        backup = os.path.join(backup_dir, backup_name)
         shutil.copyfile(target_path, backup)
         print(f"[merge] snapshot: {backup} ({os.path.getsize(backup):,} bytes)")
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
     # Strip internal _merge_warnings before writing.
     out = {k: v for k, v in merged.items() if not k.startswith("_")}
+    # v0.6.4 Patch 5 — minify the merged seed (drop indentation). The
+    # file ballooned to 27MB at 15 markets; minification alone cuts
+    # 43%. The trade-off is git line-diffs become uninformative on
+    # the JSON, but at this size meaningful PR review reads merge.py's
+    # diff_summary() output, not the JSON diff line by line.
     with open(target_path, "w") as f:
-        json.dump(out, f, indent=2)
+        json.dump(out, f, separators=(",", ":"))
     print(f"[merge] wrote {target_path} ({os.path.getsize(target_path):,} bytes)")
 
 

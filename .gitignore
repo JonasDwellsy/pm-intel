@@ -46,4 +46,5 @@ next-env.d.ts
 
 # data-pipeline merge snapshots (merge.py --apply backs up scorecard_data.json before writing)
 src/data/scorecard_data.json.*.bak
+src/data/.backups/
 

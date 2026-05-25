@@ -57,6 +57,10 @@ function pointsToGeoJSON(
   points: Array<CoveragePoint | BackdropPoint>,
   includeProps = false
 ) {
+  // v0.6.4 Patch 5 — properties carry only `n` (used by the
+  // circle-radius interpolate expression for sizing). Earlier we
+  // also passed `city` and `type` through, but no downstream layer /
+  // popup / hover consumed them; they were emit-and-forget.
   return {
     type: "FeatureCollection" as const,
     features: points.map((p) => ({
@@ -66,11 +70,7 @@ function pointsToGeoJSON(
         coordinates: [p.lon, p.lat] as [number, number],
       },
       properties: includeProps
-        ? {
-            n: "n" in p ? p.n : 1,
-            city: "city" in p ? p.city : undefined,
-            type: "type" in p ? p.type : undefined,
-          }
+        ? { n: "n" in p ? p.n : 1 }
         : {},
     })),
   };

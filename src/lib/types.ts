@@ -235,12 +235,18 @@ export interface ScorecardData {
   geographicCoverage: {
     citiesText: string;
     topCities?: Array<{ name: string; pct: number }>;
+    // v0.6.4 Patch 5 — normalized to {lat, lon, n, city?} only. Earlier
+    // generations of the pipeline emitted {lat, lng, address, city,
+    // type}; merge.py now normalizes everything to this shape (drops
+    // dead address + type fields, renames lng → lon, keeps city for
+    // the PDF map's city-label centroid computation). See the
+    // normalize_coverage_points() helper in scripts/data-pipeline/merge.py
+    // for the migration logic.
     coverageMapPoints: Array<{
       lat: number;
       lon: number;
       n: number;
       city?: string;
-      type?: string;
     }>;
     mapCenter?: { lat: number; lon: number };
     mapBounds?: { north: number; south: number; east: number; west: number };
