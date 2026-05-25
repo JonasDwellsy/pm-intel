@@ -1,0 +1,43 @@
+{
+  "_comment": "Allowlist of acronyms / initialisms found in PM company names. The Dwellsy source CSV title-cases names at the source ('PMI Mile High' → 'Pmi Mile High'), losing the acronym capitalization. pm_name_normalize.py walks each PM name token-by-token and restores any token that case-insensitively matches an entry here to the canonical casing in this list. Entries are case-sensitive — 'PMI' here means the output should be 'PMI', not 'Pmi' or 'pmi'. Add new entries as they're spotted (the audit_pm_names.py script grep-scans the data for suspects). Two heuristic rules supplement this list: (1) any 2-character all-letter token gets uppercased automatically (high confidence — 'Wh', 'Pm', 'Jb' are essentially never English words), and (2) tokens listed in canonical_decisions_*.json's nameOverrides field win over both the allowlist and the heuristic.",
+  "version": "v1",
+  "acronyms": [
+    "PMI",
+    "HSR",
+    "WH",
+    "BHHS",
+    "BHGRE",
+    "ERA",
+    "JLL",
+    "CBRE",
+    "NAI",
+    "JBG",
+    "NRP",
+    "MRI",
+    "REIT",
+    "LLC",
+    "LLP",
+    "LP",
+    "USA",
+    "JV",
+    "SFR",
+    "BTR",
+    "KW",
+    "ICR",
+    "GBR",
+    "ABC",
+    "ARC",
+    "ATA",
+    "BRC",
+    "MG",
+    "TI",
+    "UDR",
+    "DLH",
+    "ARG"
+  ],
+  "_stopwords_comment": "2-letter English words that should NOT be uppercased by the auto-upper-2-char rule. The auto rule treats any 2-char all-letter token as an acronym; these are the exceptions that are real English words and would create false positives ('Mansion At Bala' → 'Mansion AT Bala' is wrong). State codes (TX, FL, WA, CO, etc.) that happen to spell English words (IN, OR, OK, ME, HI, NO) default to staying lowercase here — those collisions are rarer than the prepositions/conjunctions they conflict with. If a specific state-code-as-token case shows up wrong, use the per-PM nameOverrides mechanism.",
+  "stopwords_2char": [
+    "of", "to", "at", "in", "on", "as", "by", "my", "is", "it",
+    "an", "do", "no", "or", "so", "me", "hi", "ok"
+  ]
+}

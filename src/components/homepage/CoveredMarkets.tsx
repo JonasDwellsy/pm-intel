@@ -3,6 +3,7 @@ import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { HomepageSectionHead } from "./SectionHead";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { fmtDate, fmtInt } from "@/lib/format";
+import { countAsWord } from "@/lib/format-count";
 
 export type LiveMarket = {
   id: string;
@@ -142,13 +143,19 @@ function FutureMarketCard({
 }
 
 export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
+  // v0.6.4 Patch 4 — section title + body context derive their market
+  // count from the markets prop, so the page stays accurate as we add
+  // markets without anyone needing to edit copy. The Alabama-expansion
+  // callout was removed in the same pass — that framing made sense at
+  // 10 markets but goes stale fast as we cross 12, 15, 20.
+  const countWord = countAsWord(markets.length);
   return (
     <section className="border-t border-grid">
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
           eyebrow="Coverage"
-          title="Ten markets currently live on Dwellsy IQ."
-          context="We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. Ten MSAs are live as of v0.8 — including the Alabama expansion (Birmingham, Huntsville, Montgomery). Additional MSAs roll out through 2026."
+          title={`${countWord} markets currently live on Dwellsy IQ.`}
+          context={`We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. ${countWord} MSAs are live today; additional MSAs roll out through 2026.`}
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {markets.map((m) => (

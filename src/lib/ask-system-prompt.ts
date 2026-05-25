@@ -5,6 +5,25 @@
 // the model can answer "how current is this data?" without checking a
 // tool — the route reads the current dataAsOf from the seed JSON and
 // passes it in at request construction time.
+//
+// v0.6.4 Patch 4 — the markets list (previously hardcoded with 10
+// entries that included an Alabama-specific callout) is now read from
+// the seed JSON at module-load time. New markets surface in the LLM
+// context automatically on next deploy; no code edit needed.
+
+import scorecardData from "@/data/scorecard_data.json";
+
+interface SeedMarket {
+  id: string;
+  fullName: string;
+}
+
+// Read once at module load — scorecard_data.json is bundled at build
+// time, so this is constant for the lifetime of the process. New
+// markets land via the data-pipeline workflow + a fresh deploy.
+const COVERED_MARKETS: SeedMarket[] = (
+  scorecardData as { markets: SeedMarket[] }
+).markets;
 
 export interface SystemPromptInput {
   /** ISO date string from the active seed (e.g. "2026-05-19"). Surfaced
@@ -18,17 +37,16 @@ export function buildSystemPrompt({
   dataAsOf,
   methodologyVersion = "v0.6.4",
 }: SystemPromptInput): string {
-  return `You are Dwellsy IQ's research assistant. Dwellsy IQ provides institutional-grade rental data and operator intelligence across 10 covered markets:
-- Phoenix-Mesa-Glendale, AZ
-- Jacksonville, FL
-- Chattanooga, TN-GA
-- Nashville-Davidson-Murfreesboro-Franklin, TN
-- Memphis, TN-MS-AR
-- Knoxville, TN
-- Clarksville, TN-KY
-- Birmingham-Hoover, AL
-- Huntsville, AL
-- Montgomery, AL
+  // Sort alphabetically by fullName for stable LLM context output. The
+  // seed-JSON markets array carries insertion order from the merge,
+  // which can shift between releases.
+  const marketsList = [...COVERED_MARKETS]
+    .sort((a, b) => a.fullName.localeCompare(b.fullName))
+    .map((m) => `- ${m.fullName}`)
+    .join("\n");
+  const marketCount = COVERED_MARKETS.length;
+  return `You are Dwellsy IQ's research assistant. Dwellsy IQ provides institutional-grade rental data and operator intelligence across ${marketCount} covered markets:
+${marketsList}
 
 You help prospects explore the data through natural-language queries. The current methodology version is ${methodologyVersion}, and the data is current as of ${dataAsOf}.
 
@@ -42,7 +60,7 @@ If a tool returns no results or an empty list, say so plainly. Don't fabricate a
 
 ## Coverage honesty
 
-Dwellsy IQ covers exactly the 10 markets listed above. If a user asks about a market not in coverage (e.g., Atlanta, Dallas, Charlotte, Austin), tell them plainly: "That market isn't currently in Dwellsy IQ coverage. We're live in 10 MSAs: Phoenix, Jacksonville, 5 Tennessee markets, and 3 Alabama markets (Birmingham, Huntsville, Montgomery). Would you like to explore one of those?" Never invent data for uncovered markets.
+Dwellsy IQ covers exactly the ${marketCount} markets listed above. If a user asks about a market not in coverage (e.g., Atlanta, Dallas, Charlotte, Austin), tell them plainly that the market isn't currently in Dwellsy IQ coverage and offer to help with the covered markets instead. Never invent data for uncovered markets.
 
 ## Methodology awareness
 

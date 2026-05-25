@@ -201,6 +201,38 @@ def pm_slug(name):
     return f"{s}-{MARKET_ID}"
 
 
+# v0.6.4 Patch 4 — PM display-name normalization. The Dwellsy source CSV
+# title-cases company names ('PMI Mile High' → 'Pmi Mile High'). We
+# restore canonical acronym capitalization via an allowlist + a
+# 2-char-token auto-upper heuristic. See normalize_pm_names.py (the
+# one-off batch tool that uses the same logic on existing per-market
+# JSONs) and pm_name_acronyms.json (the source of truth for the
+# allowlist + stopwords) for full rationale.
+_PM_NAME_ACRONYMS_PATH = os.path.join(_SCRIPT_DIR, "pm_name_acronyms.json")
+with open(_PM_NAME_ACRONYMS_PATH) as _f:
+    _acronym_cfg = json.load(_f)
+_ACRONYM_MAP = {a.upper(): a for a in _acronym_cfg["acronyms"]}
+_STOPWORDS_2CHAR = set(_acronym_cfg.get("stopwords_2char", []))
+
+
+def normalize_pm_name(name):
+    if not name:
+        return name
+    out = []
+    for token in name.split(" "):
+        if not token or not token.isalpha():
+            out.append(token)
+            continue
+        upper = token.upper()
+        if upper in _ACRONYM_MAP:
+            out.append(_ACRONYM_MAP[upper])
+        elif len(token) == 2 and token.lower() not in _STOPWORDS_2CHAR:
+            out.append(upper)
+        else:
+            out.append(token)
+    return " ".join(out)
+
+
 def percentile_rank(value, sorted_values):
     if not sorted_values: return None
     n = len(sorted_values)
@@ -1303,7 +1335,15 @@ for norm in sorted(eligible_norms):
     feats = pm_features[norm]
     q7 = feats["quadrant7Cell"]
     legacy_q = legacy_quadrant(q7)
-    name = pm_display_name[norm]
+    # v0.6.4 Patch 4 — acronym normalization. Dwellsy's source CSV title-
+    # cases company names ('PMI Mile High' → 'Pmi Mile High'); we restore
+    # canonical acronym capitalization via pm_name_acronyms.json allowlist
+    # + 2-char auto-upper. Slug derivation uses the normalized name so
+    # the resulting slug matches what the rest of the codebase expects
+    # (slugify lowercases anyway, so 'PMI Mile High' and 'Pmi Mile High'
+    # produce identical slugs — but using normalized name keeps any
+    # downstream slug-from-name re-derivation consistent).
+    name = normalize_pm_name(pm_display_name[norm])
     base_slug = pm_slug(name)
     n_seen = seen_slugs_in_market.get(base_slug, 0)
     if n_seen == 0:

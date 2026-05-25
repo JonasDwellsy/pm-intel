@@ -5,11 +5,19 @@ import { stateCodeToSlug, citySlug } from "@/lib/slugify";
 import { fmtDays, fmtInt } from "@/lib/format";
 import { MarketsCoverageMap } from "@/components/markets/MarketsCoverageMap";
 import { buildCoverageRequestMailto } from "@/lib/markets-coverage";
+import { countAsWord } from "@/lib/format-count";
+import scorecardData from "@/data/scorecard_data.json";
+
+// v0.6.4 Patch 4 — derive the market count from the seed JSON at
+// build-time so the metadata description doesn't go stale. Reading
+// at module level (not inside the component) means the count is
+// inlined into the static bundle; Next.js's import-JSON-as-module
+// tree-shakes the rest of the seed away.
+const LIVE_MARKET_COUNT = (scorecardData as { markets: unknown[] }).markets.length;
 
 export const metadata: Metadata = {
   title: "All markets — Dwellsy IQ",
-  description:
-    "Live coverage in 10 US MSAs with 200+ markets available upon request. Browse property manager scorecards by metro market.",
+  description: `Live coverage in ${LIVE_MARKET_COUNT} US MSAs with 200+ markets available upon request. Browse property manager scorecards by metro market.`,
 };
 
 // v0.12 — page now leads with the coverage map. The cards grid is
@@ -32,9 +40,9 @@ export default async function MarketsIndexPage() {
           Markets covered
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Ten US MSAs are live today, with 200+ markets available upon
-          request. National coverage is rolling out through 2026 —
-          prioritized by demand.
+          {countAsWord(markets.length)} US MSAs are live today, with 200+
+          markets available upon request. National coverage is rolling out
+          through 2026 — prioritized by demand.
         </p>
       </header>
 
