@@ -43,3 +43,7 @@ next-env.d.ts
 
 # prisma (Postgres on Neon; client is generated into node_modules)
 .env*.local
+
+# data-pipeline merge snapshots (merge.py --apply backs up scorecard_data.json before writing)
+src/data/scorecard_data.json.*.bak
+

@@ -415,7 +415,8 @@
       "name": "Seattle-Tacoma-Bellevue, WA MSA",
       "shortName": "Seattle",
       "centroid": { "lat": 47.6062, "lng": -122.3321 },
-      "status": "available"
+      "status": "live",
+      "marketPageHref": "/property-managers/washington/seattle"
     },
     {
       "slug": "minneapolis-mn",
@@ -440,10 +441,11 @@
     },
     {
       "slug": "denver-co",
-      "name": "Denver-Aurora-Lakewood, CO MSA",
+      "name": "Denver-Aurora-Broomfield, CO MSA",
       "shortName": "Denver",
       "centroid": { "lat": 39.7392, "lng": -104.9903 },
-      "status": "available"
+      "status": "live",
+      "marketPageHref": "/property-managers/colorado/denver"
     },
     {
       "slug": "baltimore-md",

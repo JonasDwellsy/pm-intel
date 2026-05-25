@@ -1,0 +1,235 @@
+{
+  "_comment": "Curated canonical-operator decisions for the v0.6.4 Patch 2 release (12 markets, Seattle + Denver added). Generated from merge.py --propose-canonicals + human review by Jonas on 2026-05-25. To re-apply or amend, edit this file and run `python apply_canonicals.py --apply` followed by `python merge.py --apply`.",
+  "version": "v0.6.4-p2",
+  "generated_at": "2026-05-25",
+  "curator": "jonas",
+  "summary": {
+    "extends_existing": 7,
+    "new_canonicals": 17,
+    "rejected": 3
+  },
+
+  "extend_existing": [
+    {
+      "canonical_slug": "mission-rock-residential",
+      "add_pm_slugs": [
+        "mission-rock-residential-seattle-wa",
+        "mission-rock-residential-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "mynd-property-management",
+      "add_pm_slugs": [
+        "mynd-property-management-seattle-wa",
+        "mynd-property-management-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "bridge-property-management",
+      "add_pm_slugs": [
+        "bridge-property-management-seattle-wa",
+        "bridge-property-management-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "progress-residential",
+      "add_pm_slugs": [
+        "progress-residential-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "tricon-residential",
+      "add_pm_slugs": [
+        "tricon-residential-seattle-wa",
+        "tricon-residential-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "invitation-homes",
+      "add_pm_slugs": [
+        "invitation-homes-seattle-wa",
+        "invitation-homes-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "first-keys-homes",
+      "add_pm_slugs": [
+        "first-keys-homes-denver-co"
+      ]
+    }
+  ],
+
+  "new_canonicals": [
+    {
+      "canonical_slug": "udr",
+      "canonical_name": "UDR",
+      "pm_slugs": [
+        "udr-nashville-tn",
+        "udr-seattle-wa",
+        "udr-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "equity-residential",
+      "canonical_name": "Equity Residential",
+      "pm_slugs": [
+        "equity-residential-seattle-wa",
+        "equity-residential-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "holland-partner-group",
+      "canonical_name": "Holland Partner Group",
+      "pm_slugs": [
+        "holland-partner-group-phoenix-az",
+        "holland-partner-group-seattle-wa",
+        "holland-partner-group-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "security-properties-residential",
+      "canonical_name": "Security Properties Residential",
+      "pm_slugs": [
+        "security-properties-residential-nashville-tn",
+        "security-properties-residential-seattle-wa",
+        "security-properties-residential-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "mg-properties-group",
+      "canonical_name": "MG Properties Group",
+      "pm_slugs": [
+        "mg-properties-group-phoenix-az",
+        "mg-properties-group-seattle-wa",
+        "mg-properties-group-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "wasatch-group",
+      "canonical_name": "Wasatch Group",
+      "pm_slugs": [
+        "wasatch-group-phoenix-az",
+        "wasatch-group-seattle-wa",
+        "wasatch-group-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "trinity-property-consultants",
+      "canonical_name": "Trinity Property Consultants",
+      "pm_slugs": [
+        "trinity-property-consultants-seattle-wa",
+        "trinity-property-consultants-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "sares-regis-management",
+      "canonical_name": "Sares Regis Management",
+      "pm_slugs": [
+        "sares-regis-management-seattle-wa",
+        "sares-regis-management-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "ti-communities",
+      "canonical_name": "TI Communities, LP",
+      "pm_slugs": [
+        "ti-communities-lp-seattle-wa",
+        "ti-communities-lp-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "pacific-urban-investors",
+      "canonical_name": "Pacific Urban Investors",
+      "pm_slugs": [
+        "pacific-urban-investors-seattle-wa",
+        "pacific-urban-investors-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "arium-living",
+      "canonical_name": "ARIUM Living",
+      "pm_slugs": [
+        "arium-living-jacksonville-fl",
+        "arium-living-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "pacifica-residential",
+      "canonical_name": "Pacifica Residential",
+      "pm_slugs": [
+        "pacifica-residential-jacksonville-fl",
+        "pacifica-residential-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "maxx-properties",
+      "canonical_name": "Maxx Properties",
+      "pm_slugs": [
+        "maxx-properties-phoenix-az",
+        "maxx-properties-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "integrity-realty-management",
+      "canonical_name": "Integrity Realty & Management",
+      "pm_slugs": [
+        "integrity-realty-and-management-jacksonville-fl",
+        "integrity-realty-management-denver-co"
+      ],
+      "notes": "Per their website, the company covers Denver, Jacksonville, and Tampa (Tampa not in our market set yet). Verified by Jonas 2026-05-25."
+    },
+    {
+      "canonical_slug": "29th-street-property-management",
+      "canonical_name": "29th Street Property Management",
+      "pm_slugs": [
+        "haven-residential-phoenix-az",
+        "haven-residential-denver-co"
+      ],
+      "aliases": ["Haven Residential"],
+      "notes": "DBA case — operator is 29th Street Property Management; data carries the 'Haven Residential' marketing name from the listings CSV. The canonicalName override surfaces the operating-company name in the operator directory while listing-level cards keep the CSV label. Future: a per-PM displayName override could surface the operating-company name on listing cards too."
+    },
+    {
+      "canonical_slug": "horizon-realty-advisors",
+      "canonical_name": "Horizon Realty Advisors",
+      "pm_slugs": [
+        "horizon-realty-advisors-knoxville-tn",
+        "horizon-realty-advisors-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "green-leaf-partners-management",
+      "canonical_name": "Green Leaf Partners Management, Inc",
+      "pm_slugs": [
+        "green-leaf-partners-management-inc-seattle-wa",
+        "green-leaf-partners-management-inc-denver-co"
+      ]
+    }
+  ],
+
+  "rejected": [
+    {
+      "normalized_name": "ascend property management",
+      "reason": "Two different companies — Chattanooga and Denver instances are unrelated. Keep separate.",
+      "pm_slugs": [
+        "ascend-property-management-llc-chattanooga-tn",
+        "ascend-property-management-denver-co"
+      ]
+    },
+    {
+      "normalized_name": "impact property management",
+      "reason": "Two different companies — Seattle and Denver instances are unrelated. Keep separate.",
+      "pm_slugs": [
+        "impact-property-management-seattle-wa",
+        "impact-property-management-denver-co"
+      ]
+    },
+    {
+      "normalized_name": "the management company",
+      "reason": "Generic name; Seattle and Denver are different operators. Keep separate.",
+      "pm_slugs": [
+        "the-management-company-seattle-wa",
+        "the-management-company-denver-co"
+      ]
+    }
+  ]
+}
