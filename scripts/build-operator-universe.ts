@@ -148,6 +148,13 @@ const MARKETS: Array<{
   { slug: "birmingham", id: "birmingham-al", city: "Birmingham", state: "AL", stateSlug: "alabama", citySlug: "birmingham" },
   { slug: "huntsville", id: "huntsville-al", city: "Huntsville", state: "AL", stateSlug: "alabama", citySlug: "huntsville" },
   { slug: "montgomery", id: "montgomery-al", city: "Montgomery", state: "AL", stateSlug: "alabama", citySlug: "montgomery" },
+  // v0.6.4 Patch 2 — Seattle + Denver added (PR #90). Tier 1 (ranked
+  // operators) comes from the merged seed which already contains both
+  // markets. Tier 2 (tracked operators) comes from the per-market
+  // source JSONs read below; both have v0.6.4 files with the
+  // allOperatorsT12BySubmarket field, so the loop picks them up cleanly.
+  { slug: "seattle", id: "seattle-wa", city: "Seattle", state: "WA", stateSlug: "washington", citySlug: "seattle" },
+  { slug: "denver", id: "denver-co", city: "Denver", state: "CO", stateSlug: "colorado", citySlug: "denver" },
 ];
 const MIN_T12 = 3;
 
@@ -283,10 +290,21 @@ console.log(`Canonical multi-market operators: ${canonical.length}`);
 const tracked: OutputTrackedEntry[] = [];
 let totalDropped = 0;
 for (const m of MARKETS) {
-  const filePath = path.join(SOURCE_DIR, `Scorecard_Data_v0.6.3_${m.slug}.json`);
+  // v0.6.4 Patch 2 — read v0.6.4 source files (every market in MARKETS
+  // now has a v0.6.4 per-market JSON in Product Support; the v0.6.3
+  // pattern was a leftover from when the Alabama markets were added in
+  // v0.6.4 but the original 7 still only had v0.6.3 files). Fall back
+  // to v0.6.3 if the v0.6.4 file is missing — shouldn't happen for any
+  // current market but defensive.
+  let filePath = path.join(SOURCE_DIR, `Scorecard_Data_v0.6.4_${m.slug}.json`);
   if (!fs.existsSync(filePath)) {
-    console.warn(`  ! missing source file for ${m.slug}: ${filePath}`);
-    continue;
+    const v063Path = path.join(SOURCE_DIR, `Scorecard_Data_v0.6.3_${m.slug}.json`);
+    if (fs.existsSync(v063Path)) {
+      filePath = v063Path;
+    } else {
+      console.warn(`  ! missing source file for ${m.slug}: tried v0.6.4 + v0.6.3`);
+      continue;
+    }
   }
   const data = JSON.parse(fs.readFileSync(filePath, "utf8")) as {
     allOperatorsT12BySubmarket?: Record<string, RawUniverseOp>;
