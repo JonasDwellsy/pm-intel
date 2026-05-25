@@ -643,7 +643,13 @@ def compute_community_visibility(d, q7):
 
 log("Deriving features for eligible set...")
 pm_features = {}
-for norm in eligible_norms:
+# v0.6.4 Patch 3 — iterate the eligible set in sorted order so pm_features
+# gets a deterministic insertion order. Python's set has hash-randomized
+# iteration; downstream consumers (composite-rank assignment, the pms[]
+# array, the merged seed JSON) inherit pm_features' iteration order, so
+# without this sort, rank.overall for composite-tied PMs can shift by ±1
+# between runs of the same pipeline on the same data.
+for norm in sorted(eligible_norms):
     d = pm_rich[norm]
     total_units = len(d["urus_t12"])
     if total_units == 0:
@@ -932,7 +938,14 @@ for norm in pm_features:
 
 # Ranks
 comp_pairs = [(n, composite_values[n]) for n in pm_features if composite_values.get(n) is not None]
-comp_pairs.sort(key=lambda x: x[1], reverse=True)
+# v0.6.4 Patch 3 — secondary tie-break on `n` (the normalized name) so
+# composite-tied PMs sort into a deterministic order. Without the
+# secondary key, two PMs with identical composite scores can swap
+# positions between runs (Python's sort is stable, but pm_features
+# insertion order — its source — was previously hash-randomized; we
+# fixed that above by sorting eligible_norms, but the explicit
+# tie-break is defensive belt-and-suspenders).
+comp_pairs.sort(key=lambda x: (-x[1], x[0]))
 overall_rank = {n: i + 1 for i, (n, _) in enumerate(comp_pairs)}
 overall_total = len(comp_pairs)
 by_quad = defaultdict(list)
@@ -1267,13 +1280,39 @@ operators_with_concessions = sum(1 for f in pm_features.values() if f["concessio
 
 pms = []
 validation_failures = []
-for norm in eligible_norms:
+# v0.6.4 Patch 3 — track slugs assigned so far in this market so we can
+# disambiguate collisions. The slug derives from the PM's display name
+# (lowercased + non-alphanumerics → "-" + market suffix), which is more
+# aggressive than the name normalization that drives pm_features keys.
+# Two PMs with names like "Asset Realty Management Inc" and "Asset
+# Realty Management, Inc." have DIFFERENT pm_features entries (different
+# norms because of the comma) but slugify to the SAME slug. Previously
+# this was handled by a deterministic disambiguator in prisma/seed.ts;
+# fixing at source means downstream consumers see clean slugs without
+# needing to know about the rewrite. seed.ts's disambiguator stays in
+# place as defensive belt-and-suspenders.
+#
+# Iterating sorted(eligible_norms) (same as the feature-derivation loop
+# above) makes the disambiguation deterministic: the "first" record
+# encountered at each colliding slug keeps the bare slug; the "second"
+# gets -2, "third" gets -3, etc.
+seen_slugs_in_market = {}  # base slug → count of occurrences so far
+slug_collisions = []  # (norm, original_slug, disambiguated_slug) for logging
+for norm in sorted(eligible_norms):
     if norm not in pm_features: continue
     feats = pm_features[norm]
     q7 = feats["quadrant7Cell"]
     legacy_q = legacy_quadrant(q7)
     name = pm_display_name[norm]
-    slug = pm_slug(name)
+    base_slug = pm_slug(name)
+    n_seen = seen_slugs_in_market.get(base_slug, 0)
+    if n_seen == 0:
+        slug = base_slug
+    else:
+        # n_seen=1 → next gets "-2", n_seen=2 → "-3", etc.
+        slug = f"{base_slug}-{n_seen + 1}"
+        slug_collisions.append((norm, base_slug, slug))
+    seen_slugs_in_market[base_slug] = n_seen + 1
 
     dom_star = star_data[norm].get("dom") or {}
     rp_star = star_data[norm].get("rentPerformance") or {}
@@ -1718,6 +1757,10 @@ print(f"cohortMedianListingTrajectoryYoY: {ct_str}")
 print(f"Operators with concessions: {operators_with_concessions} / {operator_count_eligible} ({conc_rate_pct}%)")
 print(f"Operator dignity validation failures: {len(validation_failures)}")
 print(f"Institutional in ranked cohort: {len(inst_ranked)}")
+if slug_collisions:
+    print(f"Slug collisions disambiguated: {len(slug_collisions)}")
+    for norm, base_slug, new_slug in slug_collisions:
+        print(f"  {base_slug!r} → {new_slug!r}  ({pm_display_name[norm]!r})")
 if top_ops:
     print()
     print("Top 5 operators:")

@@ -120,8 +120,14 @@ export function PMListItem({
                 goldCount={pm.goldCount ?? 0}
                 silverCount={pm.silverCount ?? 0}
               />
+              {/* v0.6.4 Patch 3 — DBA display-name fallback. pm.displayName
+                  carries the canonical operating-company name when it
+                  differs from the raw CSV name (the Haven Residential
+                  → 29th Street Property Management case). pm.name stays
+                  the source-of-truth raw label, surfaced anywhere we
+                  intentionally want the listing-level marketing string. */}
               <span className="text-[22px] font-semibold leading-tight text-navy tracking-[-0.012em]">
-                {pm.name}
+                {pm.displayName ?? pm.name}
               </span>
               <span
                 className="dq-badge inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-[0.02em]"

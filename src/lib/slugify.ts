@@ -251,6 +251,17 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     // → green, null → neutral) instead of by quadrant. See PMListItem
     // type docstring for the rationale.
     domStar: sc.performance?.domStar ?? null,
+    // v0.6.4 Patch 3 — DBA display-name override. When the PM is part of
+    // a canonical entity whose canonicalName differs from the PM's raw
+    // CSV name (the Haven Residential → 29th Street Property Management
+    // case), surface the canonical name as displayName so render sites
+    // can show the operating-company name. Equal names → undefined so
+    // the field stays surgical (only DBA cases carry it; non-DBA
+    // canonicals where canonical name == PM name set nothing).
+    displayName:
+      sc.canonicalOperatorName && sc.canonicalOperatorName !== row.name
+        ? sc.canonicalOperatorName
+        : undefined,
     // v0.6.3 Patch 5 — raw operator YoY rent change. The state-level
     // rent-growth aggregate medians across this value pooled across all
     // ranked operators in all MSAs in the state. Null-safe: missing

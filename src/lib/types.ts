@@ -455,6 +455,20 @@ export interface PMListItem {
    *  performance ended up with opposite-direction colors. Optional for
    *  back-compat. */
   domStar?: StarLevel;
+  /** v0.6.4 Patch 3 — DBA (doing-business-as) display name. When the
+   *  operator belongs to a canonical entity whose canonicalName differs
+   *  from this PM's raw CSV name, displayName carries the canonical
+   *  name. The Haven Residential / 29th Street Property Management case
+   *  is the motivating example: source data carries "Haven Residential"
+   *  (listing-level marketing label); the canonical-decisions JSON
+   *  overrides the canonical name to "29th Street Property Management"
+   *  (operating-company name). Render sites should prefer
+   *  `pm.displayName ?? pm.name` so the operating-company name surfaces
+   *  on operator cards + scorecard heroes while the raw CSV name stays
+   *  internal. When canonicalOperatorName === pm.name (the common case
+   *  for non-DBA canonicals — UDR, Tricon, etc.), displayName stays
+   *  undefined to keep the field surgical. */
+  displayName?: string;
   /** v0.6.3 Patch 5 — raw per-operator YoY rent change (decimal, e.g.
    *  0.043 = +4.3% YoY). Distinct from rentVsComp which carries the
    *  delta-vs-cohort (delta_yoy * 100). Used by the state-level

@@ -204,8 +204,21 @@ export default async function AdminMarketsPage() {
           </p>
           <h1 className="text-3xl font-bold text-navy">Markets</h1>
           <p className="text-[14px] text-grey-600 mt-2 leading-relaxed max-w-[680px]">
-            Operational view of the v0.6.4 market data currently in
-            production. To add or refresh a market, see{" "}
+            Operational view of the{" "}
+            {/* Pull the methodology version from the data, not a literal,
+                so a v0.6.5 bump doesn't leave a stale label behind. When
+                multiple versions are live simultaneously (drift across
+                markets), join with " / " — the version-drift health tile
+                surfaces this as a warning separately. */}
+            {health.versionsInUse.length > 0 ? (
+              <span className="font-mono text-navy">
+                {health.versionsInUse.join(" / ")}
+              </span>
+            ) : (
+              "current"
+            )}{" "}
+            market data currently in production. To add or refresh a market,
+            see{" "}
             <code className="text-[12px] bg-surface-soft px-1.5 py-0.5 rounded border border-grid">
               scripts/data-pipeline/README.md
             </code>
