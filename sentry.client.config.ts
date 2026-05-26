@@ -49,5 +49,15 @@ if (DSN) {
       process.env.VERCEL_ENV ??
       process.env.NODE_ENV ??
       "development",
+    // v0.6.4 Patch 6 — keep the noise filter in sync with the server
+    // config. Mirror, don't share — server/edge/client run in
+    // different bundles and shared imports across them get
+    // duplicated rather than deduplicated, so a small lint-duplicate
+    // is the price of keeping the bundles independent. Periodic
+    // re-review: remove an entry when the underlying cause is
+    // fixed, so a regression surfaces in Sentry.
+    ignoreErrors: [
+      /Clerk:.*auth\(\) was called but Clerk can't detect usage of clerkMiddleware\(\)/,
+    ],
   });
 }

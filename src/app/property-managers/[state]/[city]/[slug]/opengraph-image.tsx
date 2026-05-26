@@ -117,6 +117,25 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "Dwellsy IQ scorecard preview";
 
+// v0.6.4 Patch 6 — ASCII-only sanitizer for any text the OG image
+// renders. The original implementation passed strings containing
+// `·` (U+00B7 middle dot) and other Latin-1-supplement characters
+// straight into the ImageResponse, which triggered Satori to
+// preflight Google Fonts for Noto Sans Symbols. That dynamic font
+// fetch returned 400 from gstatic.com sporadically, killing the
+// render mid-pipe. Symptom in Sentry: "failed to pipe response"
+// plus a secondary "expected display:flex" complaint as the
+// render-state went sideways. Stripping every char above U+007F
+// removes the entire dynamic-font dependency: Satori's bundled
+// Noto Sans is sufficient for plain ASCII. Replacement of `·` with
+// ` - ` happens at the template-literal level below; this helper
+// is a safety net for anything else (PM names with accented
+// characters, smart quotes from CSV data, etc.). Non-ASCII chars
+// get dropped silently — slightly lossy but never crashes.
+function asciiSafe(s: string): string {
+  return s.replace(/[^\x20-\x7E]/g, "");
+}
+
 // Brand palette — mirrors globals.css CSS variables.
 const COLOR_NAVY = "#0f1f3f";
 const COLOR_TEAL = "#1b6e8c";
@@ -149,17 +168,23 @@ export default async function Image({
     const { goldCount, silverCount } = countOperatorStars(scorecard);
     const axes = starableAxisCount(scorecard);
 
-    const operatorName = scorecard.pm.name;
+    // v0.6.4 Patch 6 — wrap every dynamic string in asciiSafe() and
+    // use ASCII separators (` - `) instead of `·` in the template
+    // literals below. Reasoning in the asciiSafe() docstring above.
+    const operatorName = asciiSafe(scorecard.pm.name);
     // scorecard.market.name is the city name (e.g., "Chattanooga");
     // .state is the 2-letter code; .fullName is "City, ST". Use the
     // pre-formatted fullName when available, fall back to name + state.
-    const cityState =
+    const cityState = asciiSafe(
       scorecard.market.fullName ??
-      `${scorecard.market.name}, ${scorecard.market.state}`;
-    const classification =
-      scorecard.pm.quadrant7Cell ?? scorecard.pm.quadrant ?? "Operator";
-    const cohortLine =
-      `Ranked within ${scorecard.market.name} MSA · ${classification} cohort`;
+        `${scorecard.market.name}, ${scorecard.market.state}`
+    );
+    const classification = asciiSafe(
+      scorecard.pm.quadrant7Cell ?? scorecard.pm.quadrant ?? "Operator"
+    );
+    const cohortLine = asciiSafe(
+      `Ranked within ${scorecard.market.name} MSA - ${classification} cohort`
+    );
     const logoDataUrl = await getLogoDataUrl();
 
     return new ImageResponse(
@@ -215,7 +240,12 @@ export default async function Image({
               // ship the brand text so the OG image isn't broken.
               <span style={{ fontSize: 28, fontWeight: 800 }}>Dwellsy IQ</span>
             )}
-            <span style={{ color: COLOR_MUTED, fontWeight: 500 }}>·</span>
+            {/* v0.6.4 Patch 6 — separator switched from `·` (U+00B7
+                middle dot) to `-` (ASCII hyphen). The middle dot
+                triggered Satori to preflight Google Fonts for
+                non-Latin glyphs, which intermittently 400'd. ASCII-
+                only keeps the render inside Satori's bundled font. */}
+            <span style={{ color: COLOR_MUTED, fontWeight: 500 }}>-</span>
             <span style={{ color: COLOR_TEAL, fontWeight: 600, fontSize: 18 }}>
               Property Manager Scorecard
             </span>
@@ -256,7 +286,9 @@ export default async function Image({
                 color: COLOR_MUTED,
               }}
             >
-              {`${cityState} · ${classification}`}
+              {/* v0.6.4 Patch 6 — `·` → ` - ` (ASCII hyphen with
+                  spaces). See note on the eyebrow row above. */}
+              {`${cityState} - ${classification}`}
             </div>
           </div>
 

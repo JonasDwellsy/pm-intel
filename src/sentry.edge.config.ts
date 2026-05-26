@@ -16,5 +16,10 @@ if (DSN) {
     // v0.17.1 — see sentry.server.config.ts for rationale.
     environment:
       process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development",
+    // v0.6.4 Patch 6 — mirror the noise filter from the server config.
+    // See that file for the rationale on why these are dropped.
+    ignoreErrors: [
+      /Clerk:.*auth\(\) was called but Clerk can't detect usage of clerkMiddleware\(\)/,
+    ],
   });
 }
