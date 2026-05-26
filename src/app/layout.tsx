@@ -6,6 +6,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { ConditionalChrome } from "@/components/layout/ConditionalChrome";
 import { PostHogProvider } from "@/components/analytics/PostHogProvider";
 import { SearchOverlayProvider } from "@/components/search/SearchOverlay";
 
@@ -83,9 +84,17 @@ export default function RootLayout({
         <body className="min-h-full flex flex-col bg-background text-foreground">
           <PostHogProvider>
             <SearchOverlayProvider>
-              <SiteHeader />
-              <div className="flex-1">{children}</div>
-              <SiteFooter />
+              {/* v0.20 — ConditionalChrome strips SiteHeader + SiteFooter
+                  on auth routes (/sign-in, /sign-up) so those pages read
+                  as a focused "doorway" rather than the full browsable
+                  app. header/footer are passed as slots so they stay
+                  server components. */}
+              <ConditionalChrome
+                header={<SiteHeader />}
+                footer={<SiteFooter />}
+              >
+                {children}
+              </ConditionalChrome>
             </SearchOverlayProvider>
           </PostHogProvider>
           {/* v0.17 — Vercel Analytics (page views, core web vitals)
