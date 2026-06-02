@@ -1,0 +1,255 @@
+{
+  "_comment": "Curated canonical-operator decisions for the v0.6.4 Patch 5 release (16 markets — added Dallas-Fort Worth on top of the v0.6.4-p4 15-market baseline). Generated from `merge.py --propose-canonicals --new-markets dallas-fort-worth-arlington-tx` on 2026-06-02, auto-curated by Claude per the established Tier 1/2/3 pattern (clean name matches accepted, generic/regional collisions rejected).",
+  "version": "v0.6.4-p5",
+  "generated_at": "2026-06-02",
+  "curator": "claude (autonomous per established Tier 1/2/3 pattern)",
+  "summary": {
+    "extends_existing": 16,
+    "new_canonicals": 17,
+    "rejected": 2
+  },
+
+  "extend_existing": [
+    {
+      "canonical_slug": "lighthouse-property-management",
+      "add_pm_slugs": ["lighthouse-property-management-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "sylvan-homes",
+      "add_pm_slugs": ["sylvan-homes-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "mynd-property-management",
+      "add_pm_slugs": ["mynd-property-management-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "bridge-property-management",
+      "add_pm_slugs": ["bridge-property-management-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "progress-residential",
+      "add_pm_slugs": ["progress-residential-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "second-avenue",
+      "add_pm_slugs": ["second-avenue-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "tricon-residential",
+      "add_pm_slugs": ["tricon-residential-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "resprop",
+      "add_pm_slugs": ["resprop-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "invitation-homes",
+      "add_pm_slugs": ["invitation-homes-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "first-keys-homes",
+      "add_pm_slugs": ["first-keys-homes-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "udr",
+      "add_pm_slugs": ["udr-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "equity-residential",
+      "add_pm_slugs": ["equity-residential-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "ti-communities",
+      "add_pm_slugs": ["ti-communities-lp-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "trinity-property-consultants",
+      "add_pm_slugs": ["trinity-property-consultants-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "madison-apartment-group",
+      "add_pm_slugs": ["madison-apartment-group-l-p-dallas-fort-worth-arlington-tx"]
+    },
+    {
+      "canonical_slug": "pacific-urban-investors",
+      "add_pm_slugs": ["pacific-urban-investors-dallas-fort-worth-arlington-tx"]
+    }
+  ],
+
+  "new_canonicals": [
+    {
+      "canonical_slug": "auben-realty-augusta-pod-a",
+      "canonical_name": "Auben Realty - Augusta (Pod A)",
+      "pm_slugs": [
+        "auben-realty-augusta-pod-a-chattanooga-tn",
+        "auben-realty---augusta-pod-a-jacksonville-fl",
+        "auben-realty-augusta-pod-a-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Specific multi-word name with distinctive 'Pod A' identifier."
+    },
+    {
+      "canonical_slug": "northpoint-asset-management",
+      "canonical_name": "Northpoint Asset Management Inc",
+      "pm_slugs": [
+        "northpoint-asset-management-inc-jacksonville-fl",
+        "northpoint-asset-management-dallas-fort-worth-arlington-tx",
+        "northpoint-asset-management-inc-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "National franchise PM. DFW source data has two name variants (one with 'Inc', one without — the variant without has a double-space typo); fold all three under one canonical."
+    },
+    {
+      "canonical_slug": "bell-partners",
+      "canonical_name": "Bell Partners",
+      "pm_slugs": [
+        "bell-partners-jacksonville-fl",
+        "bell-partners-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Major national apartment PM."
+    },
+    {
+      "canonical_slug": "lion-real-estate-group",
+      "canonical_name": "Lion Real Estate Group",
+      "pm_slugs": [
+        "lion-real-estate-group-nashville-tn",
+        "lion-real-estate-group-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Specific multi-word name."
+    },
+    {
+      "canonical_slug": "dlp-real-estate-management",
+      "canonical_name": "DLP Real Estate Management",
+      "pm_slugs": [
+        "dlp-real-estate-management-memphis-tn",
+        "dlp-real-estate-management-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "DLP Capital affiliate; specific brand."
+    },
+    {
+      "canonical_slug": "western-wealth-communities",
+      "canonical_name": "Western Wealth Communities",
+      "pm_slugs": [
+        "western-wealth-communities-phoenix-az",
+        "western-wealth-communities-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Phoenix-headquartered MF syndicator with TX presence."
+    },
+    {
+      "canonical_slug": "rise48-equity",
+      "canonical_name": "Rise48 Equity",
+      "pm_slugs": [
+        "rise48-equity-phoenix-az",
+        "rise48-equity-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Phoenix-headquartered MF syndicator, well-known Sunbelt operator."
+    },
+    {
+      "canonical_slug": "hamilton-point-investments",
+      "canonical_name": "Hamilton Point Investments",
+      "pm_slugs": [
+        "hamilton-point-investments-montgomery-al",
+        "hamilton-point-investments-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "National MF investor."
+    },
+    {
+      "canonical_slug": "ironridge-capital",
+      "canonical_name": "Ironridge Capital",
+      "pm_slugs": [
+        "ironridge-capital-seattle-wa",
+        "ironridge-capital-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Specific capital-platform brand."
+    },
+    {
+      "canonical_slug": "monarch-investment-and-management-group",
+      "canonical_name": "Monarch Investment And Management Group",
+      "pm_slugs": [
+        "monarch-investment-and-management-group-denver-co",
+        "monarch-investment-and-management-group-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Colorado-headquartered MF operator with national portfolio."
+    },
+    {
+      "canonical_slug": "barvin",
+      "canonical_name": "Barvin",
+      "pm_slugs": [
+        "barvin-san-antonio-tx",
+        "barvin-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Texas-headquartered MF operator; SA+DFW intra-TX makes sense."
+    },
+    {
+      "canonical_slug": "anterra-management-corporation",
+      "canonical_name": "Anterra Management Corporation",
+      "pm_slugs": [
+        "anterra-management-corporation-san-antonio-tx",
+        "anterra-management-corporation-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Specific corporate name."
+    },
+    {
+      "canonical_slug": "spherexx",
+      "canonical_name": "Spherexx",
+      "pm_slugs": [
+        "spherexx-san-antonio-tx",
+        "spherexx-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Texas-headquartered (Tulsa OK actually, but heavy TX coverage); distinctive brand name."
+    },
+    {
+      "canonical_slug": "sherman-residential",
+      "canonical_name": "Sherman Residential",
+      "pm_slugs": [
+        "sherman-residential-san-antonio-tx",
+        "sherman-residential-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Specific brand."
+    },
+    {
+      "canonical_slug": "ppmg-of-texas",
+      "canonical_name": "Ppmg Of Texas",
+      "pm_slugs": [
+        "ppmg-of-texas-san-antonio-tx",
+        "ppmg-of-texas-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Name explicitly says 'of Texas' — single TX operator."
+    },
+    {
+      "canonical_slug": "s-h-realty-management",
+      "canonical_name": "S & H Realty Management LLP",
+      "pm_slugs": [
+        "s-h-realty-management-llp-san-antonio-tx",
+        "s-h-realty-management-llp-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "LLP suffix is distinctive; SA+DFW intra-TX."
+    },
+    {
+      "canonical_slug": "simplyhome-by-camillo",
+      "canonical_name": "Simplyhome By Camillo",
+      "pm_slugs": [
+        "simplyhome-by-camillo-san-antonio-tx",
+        "simplyhome-by-camillo-dallas-fort-worth-arlington-tx"
+      ],
+      "notes": "Camillo Properties is a Texas builder/PM."
+    }
+  ],
+
+  "rejected": [
+    {
+      "normalized_name": "mid south best rentals",
+      "reason": "'Mid South' is a regional descriptor. The original is in Memphis (which is actually in the Mid-South). DFW is not typically considered Mid-South; the name match could be a coincidence. Keeping separate as the conservative default.",
+      "pm_slugs": [
+        "mid-south-best-rentals-memphis-tn",
+        "mid-south-best-rentals-dallas-fort-worth-arlington-tx"
+      ]
+    },
+    {
+      "normalized_name": "davis property management",
+      "reason": "'Davis' is one of the most common surnames in the US, and 'Davis Property Management' is a generic business name pattern. Seattle + DFW is also a distant pairing with no obvious operational reason for same operator. Defaulting to separate.",
+      "pm_slugs": [
+        "davis-property-management-seattle-wa",
+        "davis-property-management-dallas-fort-worth-arlington-tx"
+      ]
+    }
+  ]
+}

@@ -345,7 +345,8 @@
       "name": "Dallas-Fort Worth-Arlington, TX MSA",
       "shortName": "Dallas-Fort Worth",
       "centroid": { "lat": 32.7767, "lng": -96.797 },
-      "status": "available"
+      "status": "live",
+      "marketPageHref": "/property-managers/texas/dallas-fort-worth"
     },
     {
       "slug": "houston-tx",
