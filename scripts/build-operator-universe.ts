@@ -160,6 +160,9 @@ const MARKETS: Array<{
   { slug: "san-antonio", id: "san-antonio-tx", city: "San Antonio", state: "TX", stateSlug: "texas", citySlug: "san-antonio" },
   { slug: "boulder", id: "boulder-co", city: "Boulder", state: "CO", stateSlug: "colorado", citySlug: "boulder" },
   { slug: "fort-collins", id: "fort-collins-co", city: "Fort Collins", state: "CO", stateSlug: "colorado", citySlug: "fort-collins" },
+  // v0.6.4 Patch 5 — Dallas-Fort Worth added (PR #98). Largest market to
+  // date: 235 ranked PMs, 3,934 total tracked operators in the T12 window.
+  { slug: "dallas-fort-worth", id: "dallas-fort-worth-arlington-tx", city: "Dallas-Fort Worth", state: "TX", stateSlug: "texas", citySlug: "dallas-fort-worth" },
 ];
 const MIN_T12 = 3;
 

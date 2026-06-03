@@ -167,6 +167,17 @@
       "primaryCity": "Fort Collins",
       "csvFile": "San Antonio, Boulder, Ft. Collins.csv",
       "dataAsOf": "2026-05-25"
+    },
+    {
+      "id": "dallas-fort-worth-arlington-tx",
+      "outputSlug": "dallas-fort-worth",
+      "msaCode": "19100",
+      "msaFullName": "Dallas-Fort Worth-Arlington, TX MSA",
+      "name": "Dallas-Fort Worth",
+      "state": "TX",
+      "primaryCity": "Dallas",
+      "csvFile": "Dallas Ft Worth.csv",
+      "dataAsOf": "2026-06-02"
     }
   ]
 }
