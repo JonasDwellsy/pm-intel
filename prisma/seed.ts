@@ -1154,6 +1154,32 @@ async function isDataCurrent(): Promise<boolean> {
     return false;
   }
 
+  // v0.6.4 Patch 5 hotfix — market.city drift check. PR #98 shipped DFW
+  // with market.city="Dallas" (so the URL was /property-managers/texas/dallas,
+  // not the /dallas-fort-worth we'd told users); fixing it requires the next
+  // deploy to actually re-seed even though the PM count is unchanged. We
+  // walk every JSON market and confirm the DB row carries a matching city.
+  // Any mismatch — added market, renamed city, manual DB edit — flips us
+  // back to a full re-seed, which is the safe default.
+  for (const m of data.markets) {
+    const dbMarket = await prisma.market.findUnique({
+      where: { id: asString(m.id) },
+      select: { city: true },
+    });
+    if (!dbMarket) {
+      console.log(
+        `[seed] Market "${asString(m.id)}" missing from DB. Re-seeding.`
+      );
+      return false;
+    }
+    if (dbMarket.city !== asString(m.city)) {
+      console.log(
+        `[seed] Market "${asString(m.id)}" city drift: DB "${dbMarket.city}", JSON "${asString(m.city)}". Re-seeding.`
+      );
+      return false;
+    }
+  }
+
   return true;
 }
 

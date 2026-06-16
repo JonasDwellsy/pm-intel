@@ -175,7 +175,7 @@
       "msaFullName": "Dallas-Fort Worth-Arlington, TX MSA",
       "name": "Dallas-Fort Worth",
       "state": "TX",
-      "primaryCity": "Dallas",
+      "primaryCity": "Dallas-Fort Worth",
       "csvFile": "Dallas Ft Worth.csv",
       "dataAsOf": "2026-06-02"
     }
