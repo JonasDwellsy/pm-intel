@@ -1,38 +1,37 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { SignUp } from "@clerk/nextjs";
+import Link from "next/link";
 
-// /sign-up — Clerk-managed sign-up route.
+// v0.21 — /sign-up — contact-sales page.
 //
-// Mirrors /sign-in (same branded wrapper, same fallback redirect)
-// but renders Clerk's <SignUp /> component instead. Email-OTP
-// configuration is owned by the Clerk dashboard; the prebuilt
-// component picks it up automatically.
+// Self-serve signup closed for the first-paying-customer launch.
+// Replaces the previous Clerk <SignUp /> form with a friendly
+// "by invitation only" message + a mailto link to sales. The route
+// stays alive (rather than 404'ing) for two reasons:
+//
+//   1. /sign-in's <SignIn signUpUrl="/sign-up"> renders a
+//      "Don't have an account? Sign up" link at the bottom; that
+//      link now lands here and explains the model.
+//   2. Anyone who typed /sign-up directly or has it bookmarked
+//      from before the launch gets a useful answer rather than a
+//      dead end.
+//
+// The Clerk dashboard's instance-level "Sign-up enabled" toggle
+// should ALSO be flipped off so any direct attempts at Clerk's
+// hosted sign-up surface fail. That's an out-of-code config step
+// for the launch.
+
+const SALES_EMAIL = "sales@dwellsy.com";
 
 export const metadata: Metadata = {
-  title: "Sign up",
+  title: "Contact sales",
   robots: { index: false, follow: false },
 };
-
-// v0.20 — minimal auth layout. Mirrors /sign-in (see that file for the
-// full rationale): SiteHeader/SiteFooter stripped by ConditionalChrome,
-// single brand anchor + concise heading, Clerk's internal logo + title
-// hidden via appearance.
-const clerkAppearance = {
-  elements: {
-    logoBox: "hidden",
-    headerTitle: "hidden",
-    headerSubtitle: "hidden",
-    card: "shadow-none border border-grid",
-    formButtonPrimary:
-      "bg-navy hover:bg-navy-700 text-white text-[13px] font-semibold",
-  },
-} as const;
 
 export default function SignUpPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-soft px-6 py-12">
-      <div className="flex w-full max-w-[400px] flex-col items-center gap-7">
+      <div className="flex w-full max-w-[440px] flex-col items-center gap-7">
         <div className="flex items-center gap-3 text-navy">
           <Image
             src="/dwellsy-iq-logo.png"
@@ -47,19 +46,44 @@ export default function SignUpPage() {
             PM Intel
           </span>
         </div>
-        <div className="flex flex-col items-center gap-1 text-center">
+
+        <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-[22px] font-semibold tracking-[-0.01em] text-navy">
-            Create your account
+            By invitation only
           </h1>
-          <p className="text-[14px] text-muted-foreground">
-            Get started with PM Intel.
+          <p className="text-[14px] leading-relaxed text-muted-foreground">
+            PM Intel is currently sold through enterprise sales —
+            self-serve signup is closed. Already have an account?{" "}
+            <Link
+              href="/sign-in"
+              className="font-semibold text-navy underline-offset-2 hover:underline"
+            >
+              Sign in
+            </Link>
+            .
           </p>
         </div>
-        <SignUp
-          fallbackRedirectUrl="/watch-lists"
-          signInUrl="/sign-in"
-          appearance={clerkAppearance}
-        />
+
+        <div className="w-full rounded-[12px] border border-grid bg-white p-6 text-center">
+          <p className="text-[13px] text-muted-foreground mb-3">
+            Interested in access for your team?
+          </p>
+          <a
+            href={`mailto:${SALES_EMAIL}?subject=PM%20Intel%20enterprise%20access`}
+            className="inline-flex h-10 items-center justify-center rounded-md bg-navy px-5 text-[14px] font-semibold text-white hover:bg-navy-700"
+          >
+            Contact sales
+          </a>
+          <p className="text-[12px] text-muted-2 mt-3">
+            Or email{" "}
+            <a
+              href={`mailto:${SALES_EMAIL}`}
+              className="text-navy underline-offset-2 hover:underline"
+            >
+              {SALES_EMAIL}
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );

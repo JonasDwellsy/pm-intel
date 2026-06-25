@@ -200,19 +200,32 @@ export async function SiteHeader() {
               switcher + UserButton) need this same context that
               the desktop cluster gets above. */}
           <MobileMenu isSignedIn={isSignedIn} />
-          {/* Primary CTA — points at the template picker so anyone
-              (anonymous or signed in) can clone a starter watch list
-              without an auth gate. Save still requires auth.
+          {/* Primary CTA — branches on auth state for the v0.21
+              enterprise launch.
+              - Signed in (customer user): "Build a watch list →"
+                points at the template picker; the watch-list save
+                flow handles the rest.
+              - Signed out (prospect): "Contact sales" mailto so the
+                top-right action is a real conversion path, not a
+                promise we can't keep (self-serve signup closed —
+                /sign-up explains).
               PR #81: `whitespace-nowrap` keeps the label on one line
-              at every viewport — the previous behavior wrapped to
-              two lines at intermediate widths because the flex
-              parent was applying squeeze pressure. */}
-          <Link
-            href={PRIMARY_CTA.href}
-            className="inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-navy px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-navy-700"
-          >
-            {PRIMARY_CTA.label}
-          </Link>
+              at every viewport. */}
+          {isSignedIn ? (
+            <Link
+              href={PRIMARY_CTA.href}
+              className="inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-navy px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-navy-700"
+            >
+              {PRIMARY_CTA.label}
+            </Link>
+          ) : (
+            <a
+              href="mailto:sales@dwellsy.com?subject=PM%20Intel%20enterprise%20access"
+              className="inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-navy px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-navy-700"
+            >
+              Contact sales
+            </a>
+          )}
         </nav>
       </div>
     </header>
