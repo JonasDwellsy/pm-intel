@@ -163,6 +163,13 @@ const MARKETS: Array<{
   // v0.6.4 Patch 5 — Dallas-Fort Worth added (PR #98). Largest market to
   // date: 235 ranked PMs, 3,934 total tracked operators in the T12 window.
   { slug: "dallas-fort-worth", id: "dallas-fort-worth-arlington-tx", city: "Dallas-Fort Worth", state: "TX", stateSlug: "texas", citySlug: "dallas-fort-worth" },
+  // v0.6.4 Patch 6 — Baltimore + Cincinnati + Pittsburgh added.
+  // First MD / OH / PA presence in the platform; all three are mid-
+  // sized eastern MSAs with strong SFR operator concentration (Baltimore
+  // 77 / Cincinnati 71 / Pittsburgh 80 ranked PMs respectively).
+  { slug: "baltimore", id: "baltimore-towson-md", city: "Baltimore", state: "MD", stateSlug: "maryland", citySlug: "baltimore" },
+  { slug: "cincinnati", id: "cincinnati-middletown-oh-ky-in", city: "Cincinnati", state: "OH", stateSlug: "ohio", citySlug: "cincinnati" },
+  { slug: "pittsburgh", id: "pittsburgh-pa", city: "Pittsburgh", state: "PA", stateSlug: "pennsylvania", citySlug: "pittsburgh" },
 ];
 const MIN_T12 = 3;
 

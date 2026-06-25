@@ -1,0 +1,106 @@
+{
+  "_comment": "Curated canonical-operator decisions for the v0.6.4 Patch 6 release (19 markets — added Baltimore + Cincinnati + Pittsburgh on top of the v0.6.4-p5 16-market baseline). Generated from `merge.py --propose-canonicals --new-markets baltimore-towson-md,cincinnati-middletown-oh-ky-in,pittsburgh-pa` on 2026-06-25, auto-curated by Claude per the established Tier 1/2/3 pattern.",
+  "version": "v0.6.4-p6",
+  "generated_at": "2026-06-25",
+  "curator": "claude (autonomous per established Tier 1/2/3 pattern)",
+  "summary": {
+    "extends_existing": 9,
+    "new_canonicals": 5,
+    "rejected": 0
+  },
+
+  "extend_existing": [
+    {
+      "canonical_slug": "mission-rock-residential",
+      "add_pm_slugs": ["mission-rock-residential-baltimore-towson-md"]
+    },
+    {
+      "canonical_slug": "sylvan-homes",
+      "add_pm_slugs": [
+        "sylvan-homes-baltimore-towson-md",
+        "sylvan-homes-pittsburgh-pa"
+      ]
+    },
+    {
+      "canonical_slug": "second-avenue",
+      "add_pm_slugs": [
+        "second-avenue-cincinnati-middletown-oh-ky-in",
+        "second-avenue-pittsburgh-pa"
+      ]
+    },
+    {
+      "canonical_slug": "tricon-residential",
+      "add_pm_slugs": ["tricon-residential-baltimore-towson-md"]
+    },
+    {
+      "canonical_slug": "allegiant-carter-management",
+      "add_pm_slugs": ["allegiant-carter-management-baltimore-towson-md"]
+    },
+    {
+      "canonical_slug": "first-keys-homes",
+      "add_pm_slugs": ["first-keys-homes-cincinnati-middletown-oh-ky-in"]
+    },
+    {
+      "canonical_slug": "udr",
+      "add_pm_slugs": ["udr-baltimore-towson-md"]
+    },
+    {
+      "canonical_slug": "mccormack-baron-management",
+      "add_pm_slugs": ["mccormack-baron-management-pittsburgh-pa"]
+    },
+    {
+      "canonical_slug": "spherexx",
+      "add_pm_slugs": ["spherexx-cincinnati-middletown-oh-ky-in"]
+    }
+  ],
+
+  "new_canonicals": [
+    {
+      "canonical_slug": "maryland-management-company",
+      "canonical_name": "Maryland Management Company",
+      "pm_slugs": [
+        "maryland-management-company-jacksonville-fl",
+        "maryland-management-company-baltimore-towson-md"
+      ],
+      "notes": "Specific 3-word name. Baltimore-MD pairing is geographically native; JAX presence implies regional expansion. Distinctive enough to assume same operator."
+    },
+    {
+      "canonical_slug": "schweb-partners",
+      "canonical_name": "Schweb Partners",
+      "pm_slugs": [
+        "schweb-partners-jacksonville-fl",
+        "schweb-partners-baltimore-towson-md"
+      ],
+      "notes": "Specific brand."
+    },
+    {
+      "canonical_slug": "envolve-communities",
+      "canonical_name": "Envolve Communities",
+      "pm_slugs": [
+        "envolve-communities-memphis-tn",
+        "envolve-communities-cincinnati-middletown-oh-ky-in"
+      ],
+      "notes": "Envolve is a real national MF brand."
+    },
+    {
+      "canonical_slug": "omni-property-management",
+      "canonical_name": "Omni Property Management",
+      "pm_slugs": [
+        "omni-property-management-memphis-tn",
+        "omni-property-management-pittsburgh-pa"
+      ],
+      "notes": "More specific than the generic 'Omni' prefix alone — full company name is distinctive enough to assume same operator. Distant geography (MEM+Pittsburgh) is the slight red flag; flagging here for a future audit but accepting per the established Tier 2 default."
+    },
+    {
+      "canonical_slug": "riparian-management",
+      "canonical_name": "Riparian Management",
+      "pm_slugs": [
+        "riparian-management-baltimore-towson-md",
+        "riparian-management-pittsburgh-pa"
+      ],
+      "notes": "'Riparian' is a distinctive descriptor (relating to rivers). Same operator very likely."
+    }
+  ],
+
+  "rejected": []
+}
