@@ -164,6 +164,7 @@ function EstPortfolioTile({ scorecard }: { scorecard: ScorecardData }) {
         headlineValue="—"
         headlineUnit=""
         star={null}
+        hideStarSlot
         comparison="No estimate available"
       />
     );
@@ -180,6 +181,7 @@ function EstPortfolioTile({ scorecard }: { scorecard: ScorecardData }) {
         headlineValue={fmtInt(est.point)}
         headlineUnit="units"
         star={null}
+        hideStarSlot
         comparison={range ?? "Point estimate"}
         caveat={
           est.confidence
@@ -196,6 +198,7 @@ function EstPortfolioTile({ scorecard }: { scorecard: ScorecardData }) {
       headlineValue="—"
       headlineUnit=""
       star={null}
+      hideStarSlot
       comparison={est.message ?? "Insufficient data"}
     />
   );
@@ -364,6 +367,7 @@ function MetricTile({
   star,
   comparison,
   caveat,
+  hideStarSlot = false,
 }: {
   title: string;
   metricKey: MetricKey;
@@ -372,6 +376,11 @@ function MetricTile({
   star: StarLevel;
   comparison: ReactNode;
   caveat?: string;
+  // Est. Portfolio is a descriptor, not a graded dimension — pass true to
+  // drop the star slot entirely instead of showing the "no star earned"
+  // outline. Every other tile keeps the slot so the absence of a star
+  // still reads as a deliberate "no award" signal.
+  hideStarSlot?: boolean;
 }) {
   return (
     <article className="relative flex flex-col gap-2 rounded-[12px] border border-grid bg-white p-4 pt-3.5">
@@ -392,7 +401,7 @@ function MetricTile({
         )}
       </div>
       <div className="flex items-start gap-2">
-        <StarIcon level={star} size={16} />
+        {!hideStarSlot && <StarIcon level={star} size={16} />}
         <div className="text-[12.5px] font-medium leading-[1.4] text-muted-foreground">
           {comparison}
         </div>
