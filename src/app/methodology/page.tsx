@@ -1870,10 +1870,10 @@ export default async function MethodologyPage() {
             Next scheduled review <b className="text-navy">July 2026</b>
           </p>
           <a
-            href="mailto:pmintel@dwellsy.com"
+            href="mailto:operatoriq@dwellsy.com"
             className="text-[13px] font-semibold text-teal hover:text-teal-700"
           >
-            Email questions to pmintel@dwellsy.com
+            Email questions to operatoriq@dwellsy.com
           </a>
         </div>
       </div>

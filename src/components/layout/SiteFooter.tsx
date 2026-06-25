@@ -11,12 +11,12 @@ export function SiteFooter() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {/* PR #46 — footer uses the same logo asset as SiteHeader.
               Sized smaller (h-7 vs h-12) so the footer keeps its
-              compact one-line layout. The PM Intel sub-label sits
+              compact one-line layout. The Operator IQ sub-label sits
               next to the logo on a thin divider, matching the
-              header's "Dwellsy IQ | PM Intel" stack visually. */}
+              header's "Dwellsy IQ | Operator IQ" stack visually. */}
           <Link
             href="/"
-            aria-label="Dwellsy IQ — PM Intel"
+            aria-label="Dwellsy IQ — Operator IQ"
             className="flex items-center gap-3 text-navy"
           >
             <Image
@@ -27,7 +27,7 @@ export function SiteFooter() {
               className="h-7 w-auto"
             />
             <span aria-hidden className="h-3.5 w-px bg-grid" />
-            <span className="text-xs text-muted-foreground">PM Intel</span>
+            <span className="text-xs text-muted-foreground">Operator IQ</span>
           </Link>
           <p className="text-xs text-muted-foreground dq-tnum">
             Methodology {METHODOLOGY_VERSION}

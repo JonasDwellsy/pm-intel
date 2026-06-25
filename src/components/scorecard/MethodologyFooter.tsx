@@ -167,7 +167,7 @@ export function MethodologyFooter({
         <p className="dq-mono text-[12.5px] leading-[1.55] text-navy">
           Dwellsy IQ, 2026.{" "}
           <em>
-            PM Intel Scorecard for {scorecard.pm.name} ({scorecard.market.name}
+            Operator IQ Scorecard for {scorecard.pm.name} ({scorecard.market.name}
             ).
           </em>{" "}
           Methodology v{scorecard.methodologyVersion.replace(/^v/, "")}
