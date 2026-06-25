@@ -20,16 +20,13 @@
 // dropped a market, this surface should reflect what's actually there.
 
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { isAdminUser } from "@/lib/auth/is-admin";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  // robots noindex inherited from src/app/admin/layout.tsx
   title: "Admin · Markets",
-  robots: { index: false, follow: false },
 };
 
 const STALENESS_WARNING_DAYS = 60;
@@ -189,20 +186,17 @@ function computeHealth(rows: MarketRow[]): HealthSummary {
 }
 
 export default async function AdminMarketsPage() {
-  const { userId } = await auth();
-  if (!userId || !isAdminUser(userId)) notFound();
+  // v0.21 — auth gate moved up to src/app/admin/layout.tsx so the
+  // panel can grow new tabs without each page re-implementing the
+  // notFound() check. Layout fires before this component renders.
 
   const rows = await loadMarkets();
   const health = computeHealth(rows);
 
   return (
-    <main className="bg-white min-h-screen">
-      <div className="mx-auto max-w-[1100px] px-6 py-12">
-        <header className="mb-8">
-          <p className="text-[11px] uppercase tracking-[0.18em] font-semibold text-teal-700 mb-2">
-            Admin
-          </p>
-          <h1 className="text-3xl font-bold text-navy">Markets</h1>
+    <div className="mx-auto max-w-[1100px] px-6 pb-12">
+      <header className="mb-8 mt-6">
+        <h1 className="text-3xl font-bold text-navy">Markets</h1>
           <p className="text-[14px] text-grey-600 mt-2 leading-relaxed max-w-[680px]">
             Operational view of the{" "}
             {/* Pull the methodology version from the data, not a literal,
@@ -375,8 +369,7 @@ export default async function AdminMarketsPage() {
             <code>scripts/data-pipeline/README.md</code>.
           </p>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }
 
