@@ -450,10 +450,27 @@
     },
     {
       "slug": "baltimore-md",
-      "name": "Baltimore-Columbia-Towson, MD MSA",
+      "name": "Baltimore-Towson, MD MSA",
       "shortName": "Baltimore",
       "centroid": { "lat": 39.2904, "lng": -76.6122 },
-      "status": "available"
+      "status": "live",
+      "marketPageHref": "/property-managers/maryland/baltimore"
+    },
+    {
+      "slug": "cincinnati-oh",
+      "name": "Cincinnati-Middletown, OH-KY-IN MSA",
+      "shortName": "Cincinnati",
+      "centroid": { "lat": 39.1031, "lng": -84.5120 },
+      "status": "live",
+      "marketPageHref": "/property-managers/ohio/cincinnati"
+    },
+    {
+      "slug": "pittsburgh-pa",
+      "name": "Pittsburgh, PA MSA",
+      "shortName": "Pittsburgh",
+      "centroid": { "lat": 40.4406, "lng": -79.9959 },
+      "status": "live",
+      "marketPageHref": "/property-managers/pennsylvania/pittsburgh"
     },
     {
       "slug": "san-antonio-tx",

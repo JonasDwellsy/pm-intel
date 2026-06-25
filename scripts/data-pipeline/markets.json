@@ -178,6 +178,39 @@
       "primaryCity": "Dallas-Fort Worth",
       "csvFile": "Dallas Ft Worth.csv",
       "dataAsOf": "2026-06-02"
+    },
+    {
+      "id": "baltimore-towson-md",
+      "outputSlug": "baltimore",
+      "msaCode": "12580",
+      "msaFullName": "Baltimore-Towson, MD MSA",
+      "name": "Baltimore",
+      "state": "MD",
+      "primaryCity": "Baltimore",
+      "csvFile": "export_20260625130605.csv",
+      "dataAsOf": "2026-06-25"
+    },
+    {
+      "id": "cincinnati-middletown-oh-ky-in",
+      "outputSlug": "cincinnati",
+      "msaCode": "17140",
+      "msaFullName": "Cincinnati-Middletown, OH-KY-IN MSA",
+      "name": "Cincinnati",
+      "state": "OH",
+      "primaryCity": "Cincinnati",
+      "csvFile": "export_20260625131853.csv",
+      "dataAsOf": "2026-06-25"
+    },
+    {
+      "id": "pittsburgh-pa",
+      "outputSlug": "pittsburgh",
+      "msaCode": "38300",
+      "msaFullName": "Pittsburgh, PA MSA",
+      "name": "Pittsburgh",
+      "state": "PA",
+      "primaryCity": "Pittsburgh",
+      "csvFile": "export_20260625131429.csv",
+      "dataAsOf": "2026-06-25"
     }
   ]
 }
