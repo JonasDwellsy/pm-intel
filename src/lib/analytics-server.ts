@@ -8,12 +8,17 @@
 //
 // Privacy guardrail (mirrors src/lib/analytics.ts):
 //   - distinct_id is ONLY the Clerk userId; no email / name attached.
-//   - For anonymous server captures, we synthesise a stable
-//     pseudo-id from the existing dq_auth cookie so a single
-//     anonymous browser doesn't fragment into one-event-per-call.
-//     This is intentionally NOT a fingerprint of the user — it's
-//     the SHA-256 digest of the password-gate session cookie, which
-//     already exists for every preview visitor.
+//   - For anonymous server captures, callers pass a stable handle in
+//     `anonymousId` (e.g. `org-<id>` from the Clerk webhook handler).
+//     The helper falls back to "anonymous-server-event" if neither
+//     userId nor anonymousId is provided — fine for one-off events,
+//     bad for any series the caller wants to attribute to a session.
+//
+// v0.21 — the previous implementation used a SHA-256 digest of the
+// research-preview password-gate cookie (dq_auth) as the anonymous
+// id source. The password gate retired in PR #4 of the launch
+// sequence, so anonymous events are now keyed off whatever stable
+// handle the caller can produce — usually an org id.
 //
 // The PostHog node client lazy-initialises on first use so an
 // unconfigured deploy (NEXT_PUBLIC_POSTHOG_KEY missing) silently
