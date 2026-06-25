@@ -244,12 +244,21 @@ export async function loadMarketView({
     );
   }
 
-  // Pool size precedes the slice-to-10 so the "Showing X of Y" line reflects
+  // Pool size precedes the slice so the "Showing X of Y" line reflects
   // the full filtered cohort, not just the displayed page.
   const rankedPoolSize = filteredPms.length;
 
-  // Per spec: top 10 list on market landing.
-  filteredPms = filteredPms.slice(0, 10);
+  // Top-10 cap on the market landing (where the list is a teaser /
+  // highlight surface). On drill-down views — segment-filtered (e.g.
+  // /sfr-independent) or submarket-filtered (?submarket=foo) — the
+  // user explicitly asked for the cohort, so we render all of it.
+  // For a B2B intelligence product the exhaustive list is the point;
+  // a "Top 10 with a Show More button" pattern would just add friction
+  // to the action the user is actively trying to take.
+  const isDrilledIn = segment !== null || Boolean(submarketParam);
+  if (!isDrilledIn) {
+    filteredPms = filteredPms.slice(0, 10);
+  }
 
   const methodologyVersion = marketRow.pms[0]?.methodologyVersion ?? "unknown";
   const dataAsOf =
