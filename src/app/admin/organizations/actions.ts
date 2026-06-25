@@ -13,7 +13,27 @@
 
 import { revalidatePath } from "next/cache";
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { isClerkAPIResponseError } from "@clerk/shared/error";
 import { isAdminUser } from "@/lib/auth/is-admin";
+
+/** Extract a human-readable error message from a Clerk SDK throw.
+ *  Clerk's API returns a structured { errors: [{ code, message, long_message }] }
+ *  body; the SDK wraps it as ClerkAPIResponseError. Plain Error.message
+ *  on those is just the HTTP status text ("Bad Request"), which is
+ *  useless in the admin UI — pull the first error's longMessage if we
+ *  have it, message otherwise. Falls back to err.message for non-Clerk
+ *  errors (network, etc). */
+function describeError(err: unknown): string {
+  if (isClerkAPIResponseError(err)) {
+    const first = err.errors[0];
+    if (first) {
+      return first.longMessage ?? first.message ?? "Clerk rejected the request.";
+    }
+    return err.message;
+  }
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
 
 export interface CreateOrganizationResult {
   ok: boolean;
@@ -67,9 +87,7 @@ export async function createOrganization(
     revalidatePath("/admin/organizations");
     return { ok: true, clerkOrgId: org.id };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Unknown error creating org.";
-    return { ok: false, error: message };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -125,8 +143,14 @@ export async function inviteUserToOrganization(
     await client.organizations.createOrganizationInvitation({
       organizationId: clerkOrgId,
       emailAddress: email,
-      inviterUserId: userId,
       role,
+      // NOTE: inviterUserId intentionally omitted. With it, Clerk runs
+      // a member-permission check on the inviter — fine for in-app
+      // invites from someone who's already in the org, but a 403 trap
+      // for admin-panel invites (the admin probably isn't a member of
+      // every customer org). Omitting it treats this as an admin/SDK-
+      // initiated invitation, which is the correct semantic here. The
+      // "invited by" field in Clerk's UI ends up empty for these.
     });
     // The membership row gets created when the invitee accepts +
     // signs in (webhook fires organizationMembership.created). Until
@@ -135,8 +159,6 @@ export async function inviteUserToOrganization(
     revalidatePath(`/admin/organizations`);
     return { ok: true, email };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Unknown error sending invitation.";
-    return { ok: false, error: message };
+    return { ok: false, error: describeError(err) };
   }
 }
