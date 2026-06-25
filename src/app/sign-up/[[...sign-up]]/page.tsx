@@ -43,7 +43,7 @@ export default function SignUpPage() {
           />
           <span aria-hidden className="h-4 w-px bg-grid" />
           <span className="text-[13px] font-semibold tracking-[-0.005em]">
-            PM Intel
+            Operator IQ
           </span>
         </div>
 
@@ -52,7 +52,7 @@ export default function SignUpPage() {
             By invitation only
           </h1>
           <p className="text-[14px] leading-relaxed text-muted-foreground">
-            PM Intel is currently sold through enterprise sales —
+            Operator IQ is currently sold through enterprise sales —
             self-serve signup is closed. Already have an account?{" "}
             <Link
               href="/sign-in"
@@ -69,7 +69,7 @@ export default function SignUpPage() {
             Interested in access for your team?
           </p>
           <a
-            href={`mailto:${SALES_EMAIL}?subject=PM%20Intel%20enterprise%20access`}
+            href={`mailto:${SALES_EMAIL}?subject=Operator%20IQ%20enterprise%20access`}
             className="inline-flex h-10 items-center justify-center rounded-md bg-navy px-5 text-[14px] font-semibold text-white hover:bg-navy-700"
           >
             Contact sales

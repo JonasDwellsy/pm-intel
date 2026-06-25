@@ -55,7 +55,7 @@ export const FOOTER_LINKS: ReadonlyArray<FooterLink> = [
   { href: "/methodology#glossary", label: "Glossary" },
   { href: "/property-managers", label: "Markets" },
   {
-    href: "mailto:pmintel@dwellsy.com?subject=Data%20correction%20request",
+    href: "mailto:operatoriq@dwellsy.com?subject=Data%20correction%20request",
     label: "Request errata",
     external: true,
   },

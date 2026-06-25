@@ -62,7 +62,7 @@ export async function SiteHeader() {
       <div className="mx-auto flex h-[76px] max-w-[1440px] flex-nowrap items-center justify-between gap-4 px-6 sm:px-10">
         <Link
           href="/"
-          aria-label="Dwellsy IQ — PM Intel"
+          aria-label="Dwellsy IQ — Operator IQ"
           className="flex shrink-0 items-center gap-4 whitespace-nowrap text-navy"
         >
           {/* Real Dwellsy IQ brand logo. Native asset is 1000×313 (3.2:1
@@ -88,7 +88,7 @@ export async function SiteHeader() {
             className="h-12 w-auto"
           />
           <span aria-hidden className="h-5 w-px bg-grid" />
-          <span className="text-sm font-semibold text-navy">PM Intel</span>
+          <span className="text-sm font-semibold text-navy">Operator IQ</span>
         </Link>
         <nav className="flex shrink-0 items-center gap-5">
           {/* Nav items render in the order declared by NAV_ITEMS
@@ -220,7 +220,7 @@ export async function SiteHeader() {
             </Link>
           ) : (
             <a
-              href="mailto:sales@dwellsy.com?subject=PM%20Intel%20enterprise%20access"
+              href="mailto:sales@dwellsy.com?subject=Operator%20IQ%20enterprise%20access"
               className="inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-navy px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-navy-700"
             >
               Contact sales

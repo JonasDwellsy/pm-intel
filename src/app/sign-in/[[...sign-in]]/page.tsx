@@ -63,17 +63,17 @@ export default function SignInPage() {
           />
           <span aria-hidden className="h-4 w-px bg-grid" />
           <span className="text-[13px] font-semibold tracking-[-0.005em]">
-            PM Intel
+            Operator IQ
           </span>
         </div>
         {/* One concise heading — replaces Clerk's verbose
-            "Sign in to PM Intel from Dwellsy IQ" title. */}
+            "Sign in to Operator IQ from Dwellsy IQ" title. */}
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-[22px] font-semibold tracking-[-0.01em] text-navy">
             Sign in
           </h1>
           <p className="text-[14px] text-muted-foreground">
-            Welcome back — continue to PM Intel.
+            Welcome back — continue to Operator IQ.
           </p>
         </div>
         <SignIn

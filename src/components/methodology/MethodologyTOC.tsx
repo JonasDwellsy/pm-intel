@@ -58,7 +58,7 @@ export function MethodologyTOC({
   }, [items]);
 
   function handleCopy() {
-    const citation = `Dwellsy IQ, 2026. PM Intel Methodology ${version}. iq.dwellsy.com/methodology`;
+    const citation = `Dwellsy IQ, 2026. Operator IQ Methodology ${version}. iq.dwellsy.com/methodology`;
     void navigator.clipboard.writeText(citation).then(() => {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1400);
@@ -119,7 +119,7 @@ export function MethodologyTOC({
             </p>
             <p className="dq-mono text-[11.5px] leading-[1.5] text-navy">
               Dwellsy IQ, 2026.{" "}
-              <em>PM Intel Methodology {version}</em>.
+              <em>Operator IQ Methodology {version}</em>.
               iq.dwellsy.com/methodology
             </p>
             <button
@@ -170,7 +170,7 @@ export function MethodologyTOC({
               Download as PDF
             </a>
             <a
-              href="mailto:pmintel@dwellsy.com"
+              href="mailto:operatoriq@dwellsy.com"
               className="inline-flex items-center gap-1.5 px-1 py-1 text-[13px] font-semibold text-teal transition-colors hover:text-teal-700"
             >
               Email the methodology team →
