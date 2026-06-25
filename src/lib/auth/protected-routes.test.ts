@@ -1,18 +1,22 @@
-// PR #50 (Clerk auth foundation, v0.13).
+// PR #50 (Clerk auth foundation, v0.13) — expanded in v0.21 for the
+// first-paying-customer launch (PR #101).
 //
 // Verifies that the path patterns the middleware uses to decide
 // which routes need an authenticated Clerk session resolve correctly
 // against the actual URL shapes our pages and API handlers expose.
 //
-// Coverage focuses on the discovery-path invariants:
+// Coverage focuses on:
 //
-//   - /watch-lists/new (template picker) is PUBLIC so anonymous users
-//     can clone a starter watch list without an auth gate (PR #45 path).
-//   - /watch-lists (the saved list) is PROTECTED so anonymous users
-//     are bounced to /sign-in.
-//   - /api/watch-lists/preview is PUBLIC so the in-memory preview
-//     endpoint stays usable from the anon-friendly editor.
-//   - /api/watch-lists (CRUD) is PROTECTED so saves require a session.
+//   - Discovery-path invariants:
+//     - /watch-lists/new (template picker) is PUBLIC
+//     - /watch-lists, /watch-lists/:id/* (saved work) are PROTECTED
+//     - /api/watch-lists/preview is PUBLIC; CRUD is PROTECTED
+//
+//   - v0.21 premium-content boundary:
+//     - Market-level pages (state, market landing, market brief)
+//       are PUBLIC — the marketing wedge
+//     - Per-operator scorecards + operator profiles + /ask + the
+//       data APIs that back them are PROTECTED
 //
 // We compile the path patterns with path-to-regexp directly — same
 // library Clerk's createRouteMatcher uses internally — so the test
@@ -43,6 +47,8 @@ function isGated(pathname: string): boolean {
     !matchesAny(PUBLIC_BUYBOX_PATTERNS, pathname)
   );
 }
+
+// --- Watch-list discovery + workspace (existing coverage) ---
 
 test("anonymous users can hit /watch-lists/new (template picker)", () => {
   assert.equal(isGated("/watch-lists/new"), false);
@@ -80,18 +86,80 @@ test("anonymous users are gated off /api/watch-lists/:id/apply", () => {
   assert.equal(isGated("/api/watch-lists/cuid_abc123/apply"), true);
 });
 
-test("unrelated public routes (home, methodology, operators) are NOT gated", () => {
+// --- v0.21 premium-content boundary ---
+
+test("v0.21: marketing surface pages stay public", () => {
   for (const path of [
     "/",
     "/methodology",
     "/methodology/portfolio-estimator",
     "/property-managers",
-    "/property-managers/nashville-davidson-murfreesboro-franklin-tn",
-    "/operators/evernest",
+    "/property-managers/texas",
+    "/property-managers/texas/dallas-fort-worth",
+    "/property-managers/texas/dallas-fort-worth/brief",
     "/briefs",
+    "/claim",
+    "/claim/mayflower",
     "/sign-in",
     "/sign-up",
   ]) {
     assert.equal(isGated(path), false, `expected ${path} to be public`);
   }
+});
+
+test("v0.21: per-operator scorecards are gated (premium content)", () => {
+  assert.equal(
+    isGated("/property-managers/texas/dallas-fort-worth/mayflower"),
+    true
+  );
+});
+
+test("v0.21: operator compare subpage is gated", () => {
+  assert.equal(
+    isGated("/property-managers/texas/dallas-fort-worth/mayflower/compare"),
+    true
+  );
+});
+
+test("v0.21: operator OG image route is gated (no preview leaks for premium content)", () => {
+  // Next.js auto-generates a route at .../opengraph-image from the
+  // opengraph-image.tsx file convention. The :path* wildcard catches
+  // it so social-unfurl scrapers can't pull the rendered preview
+  // for a gated scorecard.
+  assert.equal(
+    isGated(
+      "/property-managers/texas/dallas-fort-worth/mayflower/opengraph-image"
+    ),
+    true
+  );
+});
+
+test("v0.21: operator profile pages are gated", () => {
+  assert.equal(isGated("/operators/invitation-homes"), true);
+});
+
+test("v0.21: AI /ask tool is gated", () => {
+  assert.equal(isGated("/ask"), true);
+});
+
+test("v0.21: /api/ask endpoints are gated", () => {
+  assert.equal(isGated("/api/ask"), true);
+  assert.equal(isGated("/api/ask/stream"), true);
+});
+
+test("v0.21: data APIs backing premium UI are gated", () => {
+  assert.equal(isGated("/api/pms/mayflower"), true);
+  assert.equal(isGated("/api/markets/dallas-fort-worth-arlington-tx"), true);
+  assert.equal(isGated("/api/scorecard/mayflower/pdf"), true);
+});
+
+test("v0.21 carve-out: /property-managers/:state/:city/brief stays public", () => {
+  // The brief route has the same path shape as the gated scorecard
+  // (4 segments under /property-managers), but is whitelisted in
+  // PUBLIC_BUYBOX_PATTERNS so the public market-brief surface keeps
+  // working.
+  assert.equal(
+    isGated("/property-managers/tennessee/chattanooga/brief"),
+    false
+  );
 });
