@@ -1406,6 +1406,10 @@ async function main() {
         quadrant: legacyQuadrant,
         quadrant7Cell,
         hybrid: Boolean(pm.hybrid),
+        // v0.6.4 Patch 9 — company-type bucket. Defaults to "pm" when the
+        // field is absent (markets seeded before the company-type columns
+        // existed), so mixed-schema seeds behave correctly.
+        operatorType: asString(pm.operatorType) === "broker" ? "broker" : "pm",
         rankOverall: asInt(rank.overall),
         rankOverallTotal: asInt(rank.overallTotal),
         rankQuadrant: asInt(rank.quadrant),
