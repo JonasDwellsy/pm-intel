@@ -170,6 +170,17 @@ const MARKETS: Array<{
   { slug: "baltimore", id: "baltimore-towson-md", city: "Baltimore", state: "MD", stateSlug: "maryland", citySlug: "baltimore" },
   { slug: "cincinnati", id: "cincinnati-middletown-oh-ky-in", city: "Cincinnati", state: "OH", stateSlug: "ohio", citySlug: "cincinnati" },
   { slug: "pittsburgh", id: "pittsburgh-pa", city: "Pittsburgh", state: "PA", stateSlug: "pennsylvania", citySlug: "pittsburgh" },
+  // v0.6.4 Patch 7 — Midwest expansion: Chicago + Cleveland + Columbus +
+  // Detroit + Indianapolis + Fort Wayne. First IL / MI presence; OH grows
+  // to three markets (Cincinnati + Cleveland + Columbus), IN to two
+  // (Indianapolis + Fort Wayne). Chicago is the largest market by ranked
+  // operators on the platform (245).
+  { slug: "chicago", id: "chicago-joliet-naperville-il-in-wi", city: "Chicago", state: "IL", stateSlug: "illinois", citySlug: "chicago" },
+  { slug: "cleveland", id: "cleveland-elyria-mentor-oh", city: "Cleveland", state: "OH", stateSlug: "ohio", citySlug: "cleveland" },
+  { slug: "columbus", id: "columbus-oh", city: "Columbus", state: "OH", stateSlug: "ohio", citySlug: "columbus" },
+  { slug: "detroit", id: "detroit-warren-livonia-mi", city: "Detroit", state: "MI", stateSlug: "michigan", citySlug: "detroit" },
+  { slug: "indianapolis", id: "indianapolis-carmel-in", city: "Indianapolis", state: "IN", stateSlug: "indiana", citySlug: "indianapolis" },
+  { slug: "fort-wayne", id: "fort-wayne-in", city: "Fort Wayne", state: "IN", stateSlug: "indiana", citySlug: "fort-wayne" },
 ];
 const MIN_T12 = 3;
 

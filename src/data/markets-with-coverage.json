@@ -125,10 +125,11 @@
     },
     {
       "slug": "indianapolis-in",
-      "name": "Indianapolis-Carmel-Anderson, IN MSA",
+      "name": "Indianapolis-Carmel, IN MSA",
       "shortName": "Indianapolis",
       "centroid": { "lat": 39.7684, "lng": -86.1581 },
-      "status": "available"
+      "status": "live",
+      "marketPageHref": "/property-managers/indiana/indianapolis"
     },
     {
       "slug": "des-moines-ia",
@@ -240,7 +241,24 @@
       "name": "Columbus, OH MSA",
       "shortName": "Columbus",
       "centroid": { "lat": 39.9612, "lng": -82.9988 },
-      "status": "available"
+      "status": "live",
+      "marketPageHref": "/property-managers/ohio/columbus"
+    },
+    {
+      "slug": "cleveland-oh",
+      "name": "Cleveland-Elyria-Mentor, OH MSA",
+      "shortName": "Cleveland",
+      "centroid": { "lat": 41.4993, "lng": -81.6944 },
+      "status": "live",
+      "marketPageHref": "/property-managers/ohio/cleveland"
+    },
+    {
+      "slug": "fort-wayne-in",
+      "name": "Fort Wayne, IN MSA",
+      "shortName": "Fort Wayne",
+      "centroid": { "lat": 41.0793, "lng": -85.1394 },
+      "status": "live",
+      "marketPageHref": "/property-managers/indiana/fort-wayne"
     },
     {
       "slug": "oklahoma-city-ok",
@@ -335,10 +353,11 @@
     },
     {
       "slug": "chicago-il",
-      "name": "Chicago-Naperville-Elgin, IL-IN-WI MSA",
+      "name": "Chicago-Joliet-Naperville, IL-IN-WI MSA",
       "shortName": "Chicago",
       "centroid": { "lat": 41.8781, "lng": -87.6298 },
-      "status": "available"
+      "status": "live",
+      "marketPageHref": "/property-managers/illinois/chicago"
     },
     {
       "slug": "dallas-fort-worth-tx",
@@ -406,10 +425,11 @@
     },
     {
       "slug": "detroit-mi",
-      "name": "Detroit-Warren-Dearborn, MI MSA",
+      "name": "Detroit-Warren-Livonia, MI MSA",
       "shortName": "Detroit",
       "centroid": { "lat": 42.3314, "lng": -83.0458 },
-      "status": "available"
+      "status": "live",
+      "marketPageHref": "/property-managers/michigan/detroit"
     },
     {
       "slug": "seattle-wa",

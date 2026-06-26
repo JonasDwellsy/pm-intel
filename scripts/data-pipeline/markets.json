@@ -211,6 +211,72 @@
       "primaryCity": "Pittsburgh",
       "csvFile": "export_20260625131429.csv",
       "dataAsOf": "2026-06-25"
+    },
+    {
+      "id": "chicago-joliet-naperville-il-in-wi",
+      "outputSlug": "chicago",
+      "msaCode": "16980",
+      "msaFullName": "Chicago-Joliet-Naperville, IL-IN-WI MSA",
+      "name": "Chicago",
+      "state": "IL",
+      "primaryCity": "Chicago",
+      "csvFile": "export_20260625161132.csv",
+      "dataAsOf": "2026-06-25"
+    },
+    {
+      "id": "cleveland-elyria-mentor-oh",
+      "outputSlug": "cleveland",
+      "msaCode": "17460",
+      "msaFullName": "Cleveland-Elyria-Mentor, OH MSA",
+      "name": "Cleveland",
+      "state": "OH",
+      "primaryCity": "Cleveland",
+      "csvFile": "export_20260625160703.csv",
+      "dataAsOf": "2026-06-25"
+    },
+    {
+      "id": "columbus-oh",
+      "outputSlug": "columbus",
+      "msaCode": "18140",
+      "msaFullName": "Columbus, OH MSA",
+      "name": "Columbus",
+      "state": "OH",
+      "primaryCity": "Columbus",
+      "csvFile": "export_20260625164036.csv",
+      "dataAsOf": "2026-06-25"
+    },
+    {
+      "id": "detroit-warren-livonia-mi",
+      "outputSlug": "detroit",
+      "msaCode": "19820",
+      "msaFullName": "Detroit-Warren-Livonia, MI MSA",
+      "name": "Detroit",
+      "state": "MI",
+      "primaryCity": "Detroit",
+      "csvFile": "export_20260625164640.csv",
+      "dataAsOf": "2026-06-25"
+    },
+    {
+      "id": "indianapolis-carmel-in",
+      "outputSlug": "indianapolis",
+      "msaCode": "26900",
+      "msaFullName": "Indianapolis-Carmel, IN MSA",
+      "name": "Indianapolis",
+      "state": "IN",
+      "primaryCity": "Indianapolis",
+      "csvFile": "export_20260625165049.csv",
+      "dataAsOf": "2026-06-25"
+    },
+    {
+      "id": "fort-wayne-in",
+      "outputSlug": "fort-wayne",
+      "msaCode": "23060",
+      "msaFullName": "Fort Wayne, IN MSA",
+      "name": "Fort Wayne",
+      "state": "IN",
+      "primaryCity": "Fort Wayne",
+      "csvFile": "export_20260625165648.csv",
+      "dataAsOf": "2026-06-25"
     }
   ]
 }
