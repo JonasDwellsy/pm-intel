@@ -50,6 +50,42 @@ DEFAULT_DATA_DIR = os.path.expanduser(
     "~/Documents/Claude/Projects/Product Support"
 )
 
+# v0.6.4 Patch 9 — denylisted operators (excluded_operators.json) no longer
+# appear in the per-market JSONs, so canonical-decision entries that
+# reference them (e.g. a Spherexx cross-market group curated before the
+# exclusion) would "go missing". Those are EXPECTED skips, not errors —
+# load the denylist's slug stems so resolve-failures on them warn instead
+# of halting. Genuine typos (a slug that's neither present nor denylisted)
+# still hard-fail.
+def _load_denylist_stems():
+    path = os.path.join(SCRIPT_DIR, "..", "..", "src", "data",
+                        "excluded_operators.json")
+    try:
+        with open(path) as f:
+            cfg = json.load(f)
+    except FileNotFoundError:
+        return set()
+    stems = set()
+    for e in cfg.get("excluded", []):
+        nm = (e.get("normalizedName") or "").strip().lower()
+        if nm:
+            # Match pipeline slug form: non-alnum runs → single hyphen.
+            stem = "".join(c if c.isalnum() else "-" for c in nm)
+            while "--" in stem:
+                stem = stem.replace("--", "-")
+            stems.add(stem.strip("-"))
+    return stems
+
+
+_DENYLIST_STEMS = _load_denylist_stems()
+
+
+def _is_denylisted_slug(pm_slug):
+    return any(
+        pm_slug == stem or pm_slug.startswith(stem + "-")
+        for stem in _DENYLIST_STEMS
+    )
+
 
 def load_registry(path):
     with open(path) as f:
@@ -138,7 +174,10 @@ def main():
         for pm_slug in ext.get("add_pm_slugs", []):
             file_path, market_id = resolve_pm(pm_slug)
             if file_path is None:
-                errors.append(f"extension PM not found: {pm_slug}")
+                if _is_denylisted_slug(pm_slug):
+                    print(f"  ↷ skip (denylisted): {pm_slug}")
+                else:
+                    errors.append(f"extension PM not found: {pm_slug}")
                 continue
             edits_by_file[file_path].append({
                 "pm_slug": pm_slug,
@@ -155,7 +194,10 @@ def main():
         for pm_slug in nc.get("pm_slugs", []):
             file_path, market_id = resolve_pm(pm_slug)
             if file_path is None:
-                errors.append(f"new-canonical PM not found: {pm_slug}")
+                if _is_denylisted_slug(pm_slug):
+                    print(f"  ↷ skip (denylisted): {pm_slug}")
+                else:
+                    errors.append(f"new-canonical PM not found: {pm_slug}")
                 continue
             edits_by_file[file_path].append({
                 "pm_slug": pm_slug,

@@ -70,6 +70,13 @@ model PM {
   // Institutional", "Hybrid", etc.). Nullable for forward-compat.
   quadrant7Cell          String?
   hybrid                 Boolean  @default(false)
+  // v0.6.4 Patch 9 (Phase A) — company-type bucket: "pm" (default-shown)
+  // or "broker" (hidden from ranked lists by default, scored in its own
+  // cohort, still searchable + has a scorecard). Defaults to "pm" so
+  // markets seeded before the company-type columns existed behave
+  // unchanged until re-exported. Indexed: the market data layer filters
+  // on it for every market-page query.
+  operatorType           String   @default("pm")
   rankOverall            Int?
   rankOverallTotal       Int?
   rankQuadrant           Int?
@@ -117,6 +124,10 @@ model PM {
   concessionSamples      String   @default("[]")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
+
+  // v0.6.4 Patch 9 — market pages query PMs by market then split by
+  // company-type bucket; this composite index serves that access path.
+  @@index([marketId, operatorType])
 }
 
 // v0.6.4 Patch 1 — cross-market canonical operator entity.

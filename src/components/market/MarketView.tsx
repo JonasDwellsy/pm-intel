@@ -3,6 +3,7 @@ import { MarketHero } from "./MarketHero";
 import { QuadrantSummaryCard } from "./QuadrantSummaryCard";
 import { FilterChips } from "./FilterChips";
 import { PMListItem } from "./PMListItem";
+import { BrokerToggleSection } from "./BrokerToggleSection";
 import { MarketMap } from "./MarketMap";
 import { TrackedOperatorBanner } from "./TrackedOperatorBanner";
 import { TrackEvent } from "@/components/analytics/TrackEvent";
@@ -214,6 +215,7 @@ export function MarketView({
     methodologyVersion,
     dataAsOf,
     filteredPms,
+    brokerPms,
     countsBySegment,
     stateSlug,
     citySlug,
@@ -437,6 +439,13 @@ export function MarketView({
               })}
             </ul>
           )}
+          {/* v0.6.4 Patch 9 — brokers, hidden behind a toggle. Renders
+              nothing when the market has no brokers. */}
+          <BrokerToggleSection
+            brokers={brokerPms}
+            stateSlug={stateSlug}
+            citySlug={citySlug}
+          />
         </div>
       </section>
 

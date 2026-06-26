@@ -163,6 +163,9 @@ type PmRowForList = {
   rankQuadrant: number | null;
   claimed: boolean;
   scorecardData: string;
+  // v0.6.4 Patch 9 — optional so callers that predate the column (or
+  // don't select it) still type-check; absent/!= "broker" → "pm".
+  operatorType?: string | null;
 };
 
 export function toPmListItem(row: PmRowForList): PMListItem {
@@ -199,6 +202,7 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     name: row.name,
     quadrant: row.quadrant,
     quadrant7Cell: sc.pm.quadrant7Cell ?? null,
+    operatorType: row.operatorType === "broker" ? "broker" : "pm",
     hybrid: row.hybrid,
     rankOverall: row.rankOverall,
     rankOverallTotal: sc.rank.overallTotal ?? null,

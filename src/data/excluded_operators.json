@@ -1,0 +1,12 @@
+{
+  "_comment": "Curated hard-exclusion denylist (v0.6.4 Patch 9 Phase A). Operators here are dropped at the pipeline's row stage — no operator formed, no scorecard, not searchable, not counted — REGARDLESS of their source company_type. This is the safety net for data-source artifacts (PM marketing software, listing-syndication platforms) that the source classifier mislabels as a real operator type (e.g. 'Owner'). The type-based exclusion (Property Management Software / Syndication Service in pipeline.py) is the primary mechanism; this list catches the misclassified stragglers. Matched on normalize_name(company_name) — lowercase, whitespace-collapsed — so it works on both old- and new-schema CSVs. Surfaced read-only in the admin panel (/admin/exclusions) for visibility. Phase B will additionally support keying on company_id for precision.",
+  "version": "v0.6.4-p9",
+  "excluded": [
+    {
+      "normalizedName": "spherexx",
+      "displayName": "Spherexx",
+      "reason": "Multifamily marketing / listing-syndication software platform — not a property manager or owner/operator. Mislabeled 'Owner' in the source data (1,495 Cincinnati rows), where it ranked #1; also appeared in San Antonio + Dallas-Fort Worth. Hard-excluded everywhere.",
+      "addedOn": "2026-06-26"
+    }
+  ]
+}

@@ -409,6 +409,9 @@ export interface PMListItem {
   quadrant: string;
   /** v0.6.2 7-cell taxonomy label; nullable for forward-compat. */
   quadrant7Cell: string | null;
+  /** v0.6.4 Patch 9 — company-type bucket. "broker" operators are hidden
+   *  from ranked lists by default; everything else is "pm". */
+  operatorType: "pm" | "broker";
   hybrid: boolean;
   rankOverall: number | null;
   rankOverallTotal: number | null;

@@ -23,6 +23,10 @@ export type LoadedMarket = {
   dataAsOf: string;
   allPms: PMListItem[];
   filteredPms: PMListItem[];
+  // v0.6.4 Patch 9 — eligible brokers for this market, hidden from the
+  // default ranked list and surfaced behind the UI's "Show brokers"
+  // toggle. Empty on markets not yet re-exported with company-type data.
+  brokerPms: PMListItem[];
   countsBySegment: Partial<Record<QuadrantSegment, number>>;
   hybridCount: number;
   state: string; // 2-letter
@@ -68,6 +72,8 @@ const PM_SELECT = {
   scorecardData: true,
   methodologyVersion: true,
   dataAsOf: true,
+  // v0.6.4 Patch 9 — company-type bucket; drives the broker split below.
+  operatorType: true,
   // v0.6.3 — Patch 1 per-PM submarket listing map. Backs the filtered-state
   // "Eligible with <submarket> footprint" tile in MarketHero by counting
   // PMs where the map's entry for the submarket slug is > 0. Stored as a
@@ -110,9 +116,19 @@ export async function loadMarketView({
   // most golds, then most silvers, then composite rank as the final break.
   // toArray()-stable .sort preserves DB order for equal keys, so an operator
   // with 0 golds + 0 silvers stays in composite-rank order at the bottom.
-  const allPms = marketRow.pms
+  // v0.6.4 Patch 9 — split brokers out of the default operator universe.
+  // `allPms` (PM-only) drives every existing path: quadrant summaries, the
+  // ranked list, submarket filtering, counts. `brokerPms` is surfaced
+  // separately for the UI's hidden-by-default "Show brokers" section, so
+  // brokers never enter the PM cohort math or the default list while
+  // staying reachable (scorecards + search are unaffected). Markets seeded
+  // before the company-type columns existed have operatorType "pm" for
+  // every operator, so brokerPms is empty and behavior is unchanged.
+  const mappedPms = marketRow.pms
     .map(toPmListItem)
     .sort(comparePmsByStarCount);
+  const allPms = mappedPms.filter((p) => p.operatorType !== "broker");
+  const brokerPms = mappedPms.filter((p) => p.operatorType === "broker");
 
   // v0.6.2: the 4 newer markets (Memphis/Knoxville/Clarksville/Phoenix)
   // emit only the 7-cell quadrant summary at seed time; their 5-cell
@@ -283,6 +299,7 @@ export async function loadMarketView({
     dataAsOf,
     allPms,
     filteredPms,
+    brokerPms,
     countsBySegment,
     hybridCount,
     state: stateCode,

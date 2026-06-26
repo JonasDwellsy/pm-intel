@@ -134,6 +134,47 @@ ELIG_BIG_COMM_MIN = 30
 ACTIVE_OP_T12_MIN = 3
 INSTITUTIONAL_THRESHOLD = 500
 
+# v0.6.4 Patch 9 (Phase A) — company-type classification from the
+# child/parent_company_type columns in the source CSV. Three buckets:
+#
+#   - BROKER: included on the platform but hidden from ranked lists by
+#     default + scored in their own cohort (never mixed into the PM
+#     cohort math). UI exposes a "show brokers" toggle.
+#   - EXCLUDED: data-source artifacts, not real operators — hard-dropped
+#     at the row level (no operator formed, no scorecard, not searchable).
+#   - everything else → PM (the primary, default-shown bucket; includes
+#     Owner/operators and Building/Apartment per the v0.6.4-p9 spec).
+#
+# Effective type per row = parent_company_type when a parent company is
+# populated, else child_company_type (parent rules). Blank / "Unknown" /
+# any unrecognized value falls through to PM (inclusive default — these
+# aren't known non-operators).
+#
+# Mixed-schema: pre-Phase-A CSVs lack these columns entirely; row.get()
+# returns None, every operator classifies as PM, and the market behaves
+# exactly as before until it's re-exported with the new columns.
+BROKER_COMPANY_TYPES = {"Broker - Agent", "Broker - Team", "Brokerage"}
+EXCLUDED_COMPANY_TYPES = {"Property Management Software", "Syndication Service"}
+
+
+def effective_company_type(row):
+    """Parent type if a parent company is named, else child type. '' when
+    neither column is present (old-schema CSV)."""
+    parent_name = (row.get("parent_company_name") or "").strip()
+    if parent_name:
+        return (row.get("parent_company_type") or "").strip()
+    return (row.get("child_company_type") or "").strip()
+
+
+def classify_operator_type(type_votes):
+    """Map an operator's accumulated per-row effective-type votes to a
+    bucket: 'broker' if its most common type is in the broker family,
+    else 'pm'. No votes (old-schema market) → 'pm'."""
+    if not type_votes:
+        return "pm"
+    top = type_votes.most_common(1)[0][0]
+    return "broker" if top in BROKER_COMPANY_TYPES else "pm"
+
 START_T = time.time()
 
 
@@ -213,6 +254,25 @@ with open(_PM_NAME_ACRONYMS_PATH) as _f:
     _acronym_cfg = json.load(_f)
 _ACRONYM_MAP = {a.upper(): a for a in _acronym_cfg["acronyms"]}
 _STOPWORDS_2CHAR = set(_acronym_cfg.get("stopwords_2char", []))
+
+# v0.6.4 Patch 9 — curated hard-exclusion denylist. Lives in src/data/ (not
+# here) so the Next.js admin panel can import the same file for read-only
+# visibility — single source of truth across the pipeline + the app. Keyed
+# on normalize_name(company_name), so it catches artifacts on both old- and
+# new-schema CSVs. See the file's _comment for the full rationale.
+_DENYLIST_PATH = os.path.join(
+    _SCRIPT_DIR, "..", "..", "src", "data", "excluded_operators.json"
+)
+try:
+    with open(_DENYLIST_PATH) as _f:
+        _denylist_cfg = json.load(_f)
+    _DENYLIST_NORMS = {
+        normalize_name(e["normalizedName"])
+        for e in _denylist_cfg.get("excluded", [])
+        if e.get("normalizedName")
+    }
+except FileNotFoundError:
+    _DENYLIST_NORMS = set()
 
 
 def normalize_pm_name(name):
@@ -344,6 +404,9 @@ def init_rich(norm):
         "tenancy_episodes": defaultdict(list),
         "city_urus_t12": defaultdict(set),
         "uru_addr_type": {}, "uru_meta": {},
+        # v0.6.4 Patch 9 — per-row effective company-type tally; resolved
+        # to a single pm|broker bucket after accumulation.
+        "type_votes": Counter(),
         "concession_t12_count": 0,
         "concession_patterns": Counter(),
         "concession_samples": [],
@@ -353,6 +416,8 @@ def init_rich(norm):
 
 rows_total = 0
 rows_market = 0
+rows_excluded_type = 0  # v0.6.4 Patch 9 — software/syndication rows dropped
+rows_excluded_denylist = 0  # v0.6.4 Patch 9 — curated denylist rows dropped
 with open(CSV_PATH, newline="", encoding="utf-8") as f:
     reader = csv.DictReader(f)
     for row in reader:
@@ -364,12 +429,35 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
         if not company: continue
         norm = normalize_name(company)
         if not norm: continue
+        # v0.6.4 Patch 9 — curated denylist (excluded_operators.json). Drops
+        # known data-source artifacts the source type-classifier mislabels
+        # as real operators (e.g. Spherexx, tagged "Owner"). Matches on the
+        # same normalized name the pipeline groups by, so it works on old-
+        # and new-schema CSVs alike.
+        if norm in _DENYLIST_NORMS:
+            rows_excluded_denylist += 1
+            continue
+        # v0.6.4 Patch 9 — hard-exclude data-source artifacts (PM software,
+        # syndication services) at the row level: they never form an
+        # operator, so no scorecard / search entry / cohort presence. On
+        # old-schema CSVs effective_company_type() is "" and nothing is
+        # dropped. Done before init_rich so excluded operators leave no
+        # trace in pm_rich.
+        eff_type = effective_company_type(row)
+        if eff_type in EXCLUDED_COMPANY_TYPES:
+            rows_excluded_type += 1
+            continue
         if norm not in pm_rich:
             init_rich(norm)
             pm_display_name[norm] = company.strip()
         if norm not in pm_display_name or len(company.strip()) > len(pm_display_name.get(norm) or ""):
             pm_display_name[norm] = company.strip()
         d = pm_rich[norm]
+        # Tally this row's effective type so the operator can be bucketed
+        # pm|broker after accumulation. Skip blanks so they don't outvote
+        # a real signal; classify_operator_type() defaults to pm anyway.
+        if eff_type:
+            d["type_votes"][eff_type] += 1
 
         ct = parse_dt(row.get("creation_time"))
         dt_ = parse_dt(row.get("deactivation_time"))
@@ -838,6 +926,17 @@ for norm, feats in pm_features.items():
     feats["institutional"] = inst
     feats["national_count"] = national_count
     feats["quadrant7Cell"] = quadrant_7cell(feats["op_type"], inst)
+    # v0.6.4 Patch 9 — company-type bucket (pm|broker). NOTE this is a
+    # distinct axis from op_type (SFR/MF-BTR size class) and quadrant7Cell.
+    feats["operator_type"] = classify_operator_type(pm_rich[norm]["type_votes"])
+
+# v0.6.4 Patch 9 — operator-type partition. Every cohort statistic and
+# market-headline count below is PM-only; brokers are scored within their
+# own broker cohort and never enter the PM math. PM_NORMS / BROKER_NORMS
+# are the eligible (T12>=30) operators in each bucket.
+PM_NORMS = {n for n, f in pm_features.items() if f["operator_type"] == "pm"}
+BROKER_NORMS = {n for n, f in pm_features.items() if f["operator_type"] == "broker"}
+log(f"Eligible PMs: {len(PM_NORMS)} · eligible brokers: {len(BROKER_NORMS)}")
 
 for norm, feats in pm_features.items():
     d = pm_rich[norm]
@@ -854,9 +953,21 @@ for norm, feats in pm_features.items():
     if feats["cv_block"] and feats["cv_block"].get("qualifies"):
         metric_values["communityVisibility"][norm] = feats["cv_block"]["ratio"]
 
-valid_yoys = [v for v in metric_values["rentPerformance"].values() if v is not None]
-cohort_median_yoy_change = round(statistics.median(valid_yoys), 4) if valid_yoys else 0.0
-log(f"cohortMedianYoyRentChange: {cohort_median_yoy_change}")
+# v0.6.4 Patch 9 — per-type cohort median YoY. The market headline uses
+# the PM-only median; each operator's rentPerformance delta is computed
+# against its OWN bucket's median so brokers are scored broker-relative.
+def _median_yoy(norms):
+    vals = [
+        metric_values["rentPerformance"][n]
+        for n in norms
+        if metric_values["rentPerformance"].get(n) is not None
+    ]
+    return round(statistics.median(vals), 4) if vals else 0.0
+
+pm_median_yoy = _median_yoy(PM_NORMS)
+broker_median_yoy = _median_yoy(BROKER_NORMS)
+cohort_median_yoy_change = pm_median_yoy  # PM-only market headline
+log(f"cohortMedianYoyRentChange (PM-only): {cohort_median_yoy_change}")
 market_rent_growth_t12 = cohort_median_yoy_change
 
 for norm, feats in pm_features.items():
@@ -864,14 +975,26 @@ for norm, feats in pm_features.items():
     if pm_yoy is None:
         metric_values["rentPerformance"][norm] = None
     else:
-        metric_values["rentPerformance"][norm] = round(pm_yoy - cohort_median_yoy_change, 4)
+        baseline = (
+            broker_median_yoy
+            if feats["operator_type"] == "broker"
+            else pm_median_yoy
+        )
+        metric_values["rentPerformance"][norm] = round(pm_yoy - baseline, 4)
 
 
 def cohort_members(level, focal_norm):
     f_q7 = pm_features[focal_norm]["quadrant7Cell"]
     f_type = pm_features[focal_norm]["op_type"]
+    # v0.6.4 Patch 9 — operator-type partition. A PM is only ever ranked
+    # against other PMs; a broker only against other brokers. This single
+    # filter implements both "remove brokers from PM cohort math" AND
+    # "score brokers within their own cohort" across all three levels.
+    f_optype = pm_features[focal_norm]["operator_type"]
     out = []
     for n, f in pm_features.items():
+        if f["operator_type"] != f_optype:
+            continue
         if level == "primary":
             if f["quadrant7Cell"] == f_q7: out.append(n)
         elif level == "fallback":
@@ -979,27 +1102,35 @@ for norm in pm_features:
             "cohortName": cohort_name(used, norm), "percentile": pct,
         }
 
-# Ranks
-comp_pairs = [(n, composite_values[n]) for n in pm_features if composite_values.get(n) is not None]
-# v0.6.4 Patch 3 — secondary tie-break on `n` (the normalized name) so
-# composite-tied PMs sort into a deterministic order. Without the
-# secondary key, two PMs with identical composite scores can swap
-# positions between runs (Python's sort is stable, but pm_features
-# insertion order — its source — was previously hash-randomized; we
-# fixed that above by sorting eligible_norms, but the explicit
-# tie-break is defensive belt-and-suspenders).
-comp_pairs.sort(key=lambda x: (-x[1], x[0]))
-overall_rank = {n: i + 1 for i, (n, _) in enumerate(comp_pairs)}
-overall_total = len(comp_pairs)
-by_quad = defaultdict(list)
-for n, c in comp_pairs:
-    q = pm_features[n]["quadrant7Cell"]
-    by_quad[q].append((n, c))
-within_quad_rank = {}; within_quad_total = {}
-for q, lst in by_quad.items():
-    for i, (n, _) in enumerate(lst):
-        within_quad_rank[n] = i + 1
-        within_quad_total[n] = len(lst)
+# Ranks — v0.6.4 Patch 9: partitioned by operator_type. PMs are ranked
+# among PMs and brokers among brokers, so a broker's scorecard reads
+# "rank X of {brokers}" rather than interleaving into the PM cohort.
+# overall_total becomes a per-operator dict (each operator's group size).
+#
+# v0.6.4 Patch 3 — secondary tie-break on `n` (normalized name) so
+# composite-tied operators sort deterministically across runs.
+overall_rank = {}
+overall_total = {}
+within_quad_rank = {}
+within_quad_total = {}
+for _optype in ("pm", "broker"):
+    group = [
+        (n, composite_values[n])
+        for n in pm_features
+        if pm_features[n]["operator_type"] == _optype
+        and composite_values.get(n) is not None
+    ]
+    group.sort(key=lambda x: (-x[1], x[0]))
+    for i, (n, _) in enumerate(group):
+        overall_rank[n] = i + 1
+        overall_total[n] = len(group)
+    by_quad = defaultdict(list)
+    for n, c in group:
+        by_quad[pm_features[n]["quadrant7Cell"]].append((n, c))
+    for q, lst in by_quad.items():
+        for i, (n, _) in enumerate(lst):
+            within_quad_rank[n] = i + 1
+            within_quad_total[n] = len(lst)
 
 
 def compute_rent_stability_block(feats):
@@ -1282,10 +1413,14 @@ cohort_median_listing_trajectory_yoy = round(statistics.median(trajectories), 4)
 
 
 log("Assembling v0.6.4 JSON...")
-q7_counts = Counter(pm_features[n]["quadrant7Cell"] for n in pm_features)
+# v0.6.4 Patch 9 — all market-headline summary stats (quadrant
+# distribution, median DOM, eligible count, concession count) are
+# PM-only. Brokers are a hidden, separately-scored cohort and must not
+# shape the numbers that describe the market's PM landscape.
+q7_counts = Counter(pm_features[n]["quadrant7Cell"] for n in PM_NORMS)
 
 legacy_quad_buckets = defaultdict(list)
-for norm in pm_features:
+for norm in PM_NORMS:
     legacy_q = legacy_quadrant(pm_features[norm]["quadrant7Cell"])
     dom = pm_features[norm]["dom_block"]["domT12"]
     legacy_quad_buckets[legacy_q].append(dom)
@@ -1307,18 +1442,26 @@ else:
 
 
 all_dom_t12 = []
-for norm in pm_features:
+for norm in PM_NORMS:
     apt = pm_rich[norm]["dom_t12_apt"]
     house = pm_rich[norm]["dom_t12_house"]
     all_dom_t12.extend(apt + house)
 median_dom_t12 = round(statistics.median(all_dom_t12), 1) if all_dom_t12 else None
 
+# Raw market-universe counts (msaIndexUrus, msaTotalListings,
+# operatorCountTotal) stay all-inclusive — they measure observed market
+# size, not the ranked cohort, and don't feed any ranking.
 msa_index_urus = sum(len(pm_rich[n]["urus_t12"]) for n in pm_rich)
 msa_total_listings = sum(pm_t12_listings.values())
 
 operator_count_total = sum(1 for v in pm_t12_listings.values() if v >= 1)
-operator_count_eligible = len(pm_features)
-operators_with_concessions = sum(1 for f in pm_features.values() if f["concession_count"] > 0)
+# v0.6.4 Patch 9 — eligible / concession counts are PM-only; broker count
+# tracked separately for the market header + the UI broker toggle.
+operator_count_eligible = len(PM_NORMS)
+operator_count_eligible_broker = len(BROKER_NORMS)
+operators_with_concessions = sum(
+    1 for n in PM_NORMS if pm_features[n]["concession_count"] > 0
+)
 
 
 pms = []
@@ -1533,10 +1676,14 @@ for norm in sorted(eligible_norms):
         "claimed": False, "accentColor": "#0E5C73",
         "quadrant": legacy_q, "quadrant7Cell": q7,
         "hybrid": q7 == "Hybrid", "institutional": feats["institutional"],
+        # v0.6.4 Patch 9 — company-type bucket: "pm" (default-shown) or
+        # "broker" (hidden from ranked lists by default; scored in its own
+        # cohort). The data layer + UI key the broker filter off this.
+        "operatorType": feats["operator_type"],
         "newlyEligibleInV063": False,
         "rank": {
             "overall": overall_rank.get(norm),
-            "overallTotal": overall_total,
+            "overallTotal": overall_total.get(norm),
             "quadrant": within_quad_rank.get(norm),
             "quadrantTotal": within_quad_total.get(norm),
             "composite": composite_values.get(norm),
@@ -1605,6 +1752,9 @@ market = {
     "city": PRIMARY_CITY_FOR_MARKET, "state": MARKET_STATE, "fullName": MSA_FULL_NAME,
     "operatorCountTotal": operator_count_total,
     "operatorCountEligible": operator_count_eligible,
+    # v0.6.4 Patch 9 — eligible brokers (hidden from ranked lists by
+    # default). 0 on markets not yet re-exported with company-type columns.
+    "operatorCountEligibleBroker": operator_count_eligible_broker,
     "medianDomT12": median_dom_t12, "medianDomLifetime": median_dom_t12,
     "msaIndexUrus": msa_index_urus, "msaTotalListings": msa_total_listings,
     "cohortMedianYoyRentChange": cohort_median_yoy_change,
@@ -1705,7 +1855,8 @@ lines.append("")
 lines.append("## Market rent growth T12")
 lines.append("")
 lines.append(f"- **marketRentGrowthT12** (median pmYoyChange across ranked operators): **{market_rent_growth_t12*100:+.2f}%** ({market_rent_growth_t12})")
-lines.append(f"- Number of ranked operators with non-null pmYoyChange: **{len(valid_yoys)}** / {operator_count_eligible}")
+_pm_yoy_n = sum(1 for n in PM_NORMS if metric_values["rentPerformance"].get(n) is not None)
+lines.append(f"- Number of ranked PMs with non-null pmYoyChange: **{_pm_yoy_n}** / {operator_count_eligible}")
 lines.append("")
 lines.append("## Listing trajectory (T24-T12 vs T12)")
 lines.append("")
@@ -1797,7 +1948,10 @@ print()
 print("=== FINAL DIAGNOSTIC ===")
 print(f"MSA: {MSA_FULL_NAME}")
 print(f"BHM rows: {rows_market:,}")
-print(f"Ranked operators: {operator_count_eligible}")
+print(f"Rows hard-excluded (PM software / syndication): {rows_excluded_type:,}")
+print(f"Rows hard-excluded (curated denylist): {rows_excluded_denylist:,}")
+print(f"Ranked operators (PM): {operator_count_eligible}")
+print(f"Eligible brokers (hidden by default): {operator_count_eligible_broker}")
 print(f"Active operators (T12 >=3): {active_operator_count}")
 print(f"Total operators (T12 >=1): {operator_count_total}")
 print(f"7-cell distribution: {dict(q7_counts)}")
