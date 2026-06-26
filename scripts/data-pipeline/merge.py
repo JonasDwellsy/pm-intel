@@ -110,6 +110,14 @@ def load_per_market(data_dir, output_slug):
 # rename happens here; address/city/type are dropped (dead fields, never
 # consumed downstream); n defaults to 1 when not aggregated. Also halves
 # the JSON size since the dead fields were ~50 bytes/point × ~99K points.
+# v0.6.4 Patch 8 — coordinate precision. Source points carry 6-decimal
+# lat/lon (~0.1m); on a metro-scale dot map 4 decimals (~11m) is visually
+# identical and trims ~0.7MB off the merged seed at 25 markets. Rounding
+# here (at merge time) keeps it a single source-of-truth transform that
+# applies to every market automatically.
+COORD_DECIMALS = 4
+
+
 def normalize_coverage_points(points):
     out = []
     for p in points or []:
@@ -118,7 +126,11 @@ def normalize_coverage_points(points):
         if lat is None or lon is None:
             continue  # drop malformed points
         n = p.get("n", 1)
-        point = {"lat": lat, "lon": lon, "n": n}
+        point = {
+            "lat": round(lat, COORD_DECIMALS),
+            "lon": round(lon, COORD_DECIMALS),
+            "n": n,
+        }
         # Keep `city` when present — OperatorProfilePDF.tsx groups points
         # by city to compute centroids for the PDF map's city labels.
         # Dropping it would silently kill city labels on PDF maps for the
@@ -467,6 +479,30 @@ def snapshot_and_write(merged, target_path):
     with open(target_path, "w") as f:
         json.dump(out, f, separators=(",", ":"))
     print(f"[merge] wrote {target_path} ({os.path.getsize(target_path):,} bytes)")
+
+    # v0.6.4 Patch 8 — slim markets-summary sidecar. The full seed is
+    # imported at runtime by src/app/property-managers/page.tsx (reads
+    # markets.length) and src/lib/ask-system-prompt.ts (reads the market
+    # list) — a default JSON import bundles the WHOLE 24MB file into those
+    # serverless functions even though neither touches the multi-MB `pms`
+    # array. Emitting a markets-only sidecar (~0.3MB) and pointing those
+    # importers at it keeps the public markets page + the /api/ask bundle
+    # tiny. Written here (not a separate step) so it can never drift from
+    # the seed — every merge --apply regenerates both atomically.
+    summary = {
+        "methodologyVersion": out.get("methodologyVersion"),
+        "dataAsOf": out.get("dataAsOf"),
+        "markets": out.get("markets", []),
+    }
+    summary_path = os.path.join(
+        os.path.dirname(target_path), "markets-summary.json"
+    )
+    with open(summary_path, "w") as f:
+        json.dump(summary, f, separators=(",", ":"))
+    print(
+        f"[merge] wrote {summary_path} "
+        f"({os.path.getsize(summary_path):,} bytes)"
+    )
 
 
 # ---------------------------------------------------------------------------

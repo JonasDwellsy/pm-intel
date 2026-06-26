@@ -11,18 +11,24 @@
 // the seed JSON at module-load time. New markets surface in the LLM
 // context automatically on next deploy; no code edit needed.
 
-import scorecardData from "@/data/scorecard_data.json";
+// v0.6.4 Patch 8 — import the slim markets-summary.json (~0.3MB), not
+// the full scorecard_data.json (~24MB). This module is bundled into the
+// /api/ask serverless function (already heavy with the Anthropic SDK);
+// a default JSON import pulls the whole module in, and we only need the
+// markets list for the LLM context — never the multi-MB `pms` array.
+// merge.py regenerates the sidecar alongside the seed so it can't drift.
+import marketsSummary from "@/data/markets-summary.json";
 
 interface SeedMarket {
   id: string;
   fullName: string;
 }
 
-// Read once at module load — scorecard_data.json is bundled at build
-// time, so this is constant for the lifetime of the process. New
-// markets land via the data-pipeline workflow + a fresh deploy.
+// Read once at module load — the summary is bundled at build time, so
+// this is constant for the lifetime of the process. New markets land
+// via the data-pipeline workflow + a fresh deploy.
 const COVERED_MARKETS: SeedMarket[] = (
-  scorecardData as { markets: SeedMarket[] }
+  marketsSummary as { markets: SeedMarket[] }
 ).markets;
 
 export interface SystemPromptInput {
