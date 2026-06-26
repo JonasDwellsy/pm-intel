@@ -6,14 +6,19 @@ import { fmtDays, fmtInt } from "@/lib/format";
 import { MarketsCoverageMap } from "@/components/markets/MarketsCoverageMap";
 import { buildCoverageRequestMailto } from "@/lib/markets-coverage";
 import { countAsWord } from "@/lib/format-count";
-import scorecardData from "@/data/scorecard_data.json";
+import marketsSummary from "@/data/markets-summary.json";
 
-// v0.6.4 Patch 4 — derive the market count from the seed JSON at
-// build-time so the metadata description doesn't go stale. Reading
-// at module level (not inside the component) means the count is
-// inlined into the static bundle; Next.js's import-JSON-as-module
-// tree-shakes the rest of the seed away.
-const LIVE_MARKET_COUNT = (scorecardData as { markets: unknown[] }).markets.length;
+// v0.6.4 Patch 4 — derive the market count from the seed at build time
+// so the metadata description doesn't go stale.
+//
+// v0.6.4 Patch 8 — import the slim markets-summary.json (~0.3MB),
+// NOT the full scorecard_data.json (~24MB). A default JSON import
+// bundles the ENTIRE module into this route's serverless function —
+// webpack does not property-level tree-shake JSON — so importing the
+// full seed just to read markets.length was dragging 24MB of `pms`
+// data into this public marketing page's bundle. The sidecar carries
+// only the markets array; merge.py regenerates it alongside the seed.
+const LIVE_MARKET_COUNT = (marketsSummary as { markets: unknown[] }).markets.length;
 
 export const metadata: Metadata = {
   title: "All markets — Dwellsy IQ",
