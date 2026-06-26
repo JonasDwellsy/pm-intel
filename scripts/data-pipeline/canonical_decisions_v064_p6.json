@@ -1,0 +1,193 @@
+{
+  "_comment": "Curated canonical-operator decisions for the v0.6.4 Patch 7 release (25 markets — added Chicago + Cleveland + Columbus + Detroit + Indianapolis + Fort Wayne on top of the v0.6.4-p6 19-market baseline). Generated 2026-06-25. The 6 new markets + existing Cincinnati form a tight Midwest cluster, so many regional operators legitimately span them. Tier 1/2/3 pattern: accept distinctive names + Midwest-cluster-coherent pairs; reject generic-name pairings with distant geography and no operational tie (same bar as the prior 'Davis Property Management' / 'Mid South Best Rentals' rejects).",
+  "version": "v0.6.4-p7",
+  "generated_at": "2026-06-25",
+  "curator": "claude (autonomous per established Tier 1/2/3 pattern)",
+  "summary": {
+    "extends_existing": 15,
+    "new_canonicals": 23,
+    "rejected": 4
+  },
+
+  "extend_existing": [
+    { "canonical_slug": "brookside-properties", "add_pm_slugs": ["brookside-properties-indianapolis-carmel-in"] },
+    { "canonical_slug": "northpoint-asset-management", "add_pm_slugs": ["northpoint-asset-management-inc-columbus-oh"] },
+    { "canonical_slug": "sylvan-homes", "add_pm_slugs": ["sylvan-homes-indianapolis-carmel-in"] },
+    { "canonical_slug": "mynd-property-management", "add_pm_slugs": ["mynd-property-management-columbus-oh", "mynd-property-management-indianapolis-carmel-in"] },
+    { "canonical_slug": "bridge-property-management", "add_pm_slugs": ["bridge-property-management-chicago-joliet-naperville-il-in-wi"] },
+    { "canonical_slug": "progress-residential", "add_pm_slugs": ["progress-residential-columbus-oh", "progress-residential-indianapolis-carmel-in"] },
+    { "canonical_slug": "second-avenue", "add_pm_slugs": ["second-avenue-chicago-joliet-naperville-il-in-wi", "second-avenue-cleveland-elyria-mentor-oh"] },
+    { "canonical_slug": "tricon-residential", "add_pm_slugs": ["tricon-residential-chicago-joliet-naperville-il-in-wi", "tricon-residential-indianapolis-carmel-in"] },
+    { "canonical_slug": "invitation-homes", "add_pm_slugs": ["invitation-homes-chicago-joliet-naperville-il-in-wi"] },
+    { "canonical_slug": "first-keys-homes", "add_pm_slugs": ["first-keys-homes-chicago-joliet-naperville-il-in-wi", "first-keys-homes-columbus-oh", "first-keys-homes-indianapolis-carmel-in"] },
+    { "canonical_slug": "mccormack-baron-management", "add_pm_slugs": ["mccormack-baron-management-cleveland-elyria-mentor-oh", "mccormack-baron-management-columbus-oh"] },
+    { "canonical_slug": "hamilton-point-investments", "add_pm_slugs": ["hamilton-point-investments-columbus-oh"] },
+    { "canonical_slug": "ti-communities", "add_pm_slugs": ["ti-communities-lp-chicago-joliet-naperville-il-in-wi"] },
+    { "canonical_slug": "trinity-property-consultants", "add_pm_slugs": ["trinity-property-consultants-chicago-joliet-naperville-il-in-wi"] },
+    { "canonical_slug": "monarch-investment-and-management-group", "add_pm_slugs": ["monarch-investment-and-management-group-chicago-joliet-naperville-il-in-wi"] }
+  ],
+
+  "new_canonicals": [
+    {
+      "canonical_slug": "haven-residential",
+      "canonical_name": "Haven Residential",
+      "pm_slugs": ["haven-residential-phoenix-az", "haven-residential-denver-co", "haven-residential-columbus-oh"],
+      "notes": "National MF operator. NOTE: separate from the existing 29th-street-property-management canonical, which carries 'Haven Residential' as a DBA alias for a different entity. Flagging for a future audit to confirm these are distinct; grouping the un-canonicalized Haven Residential slugs here for now."
+    },
+    {
+      "canonical_slug": "edward-rose-sons",
+      "canonical_name": "Edward Rose & Sons",
+      "pm_slugs": ["edward-rose-sons-huntsville-al", "edward-rose-sons-chicago-joliet-naperville-il-in-wi", "edward-rose-sons-indianapolis-carmel-in", "edward-rose-sons-fort-wayne-in"],
+      "notes": "Real Michigan-HQ national multifamily owner/operator. Distinctive possessive name; 4-market footprint, Midwest-heavy."
+    },
+    {
+      "canonical_slug": "strategic-management-solution",
+      "canonical_name": "Strategic Management Solution, LLC",
+      "pm_slugs": ["strategic-management-solution-llc-dallas-fort-worth-arlington-tx", "strategic-management-solution-llc-chicago-joliet-naperville-il-in-wi", "strategic-management-solution-llc-indianapolis-carmel-in", "strategic-management-solution-llc-fort-wayne-in"],
+      "notes": "Exact unusual full-name match (singular 'Solution') across 4 markets — coincidence unlikely."
+    },
+    {
+      "canonical_slug": "coastal-ridge-real-estate",
+      "canonical_name": "Coastal Ridge Real Estate",
+      "pm_slugs": ["coastal-ridge-real-estate-dallas-fort-worth-arlington-tx", "coastal-ridge-real-estate-columbus-oh", "coastal-ridge-real-estate-indianapolis-carmel-in"],
+      "notes": "Columbus-OH-HQ national multifamily firm; distinctive name."
+    },
+    {
+      "canonical_slug": "rushmore-management",
+      "canonical_name": "Rushmore Management",
+      "pm_slugs": ["rushmore-management-baltimore-towson-md", "rushmore-management-columbus-oh"],
+      "notes": "Distinctive name (Rushmore)."
+    },
+    {
+      "canonical_slug": "j-and-g-capital",
+      "canonical_name": "J and G Capital LLC",
+      "pm_slugs": ["j-and-g-capital-llc-cincinnati-middletown-oh-ky-in", "j-and-g-capital-llc-indianapolis-carmel-in"],
+      "notes": "Cincinnati + Indianapolis adjacent (~110mi); intra-Midwest coherence."
+    },
+    {
+      "canonical_slug": "homeriver-group-ohio-kentucky",
+      "canonical_name": "Homeriver Group Ohio/Kentucky",
+      "pm_slugs": ["homeriver-group-ohio-kentucky-cincinnati-middletown-oh-ky-in", "homeriver-group-ohio-kentucky-columbus-oh"],
+      "notes": "HomeRiver Group national PM, exact OH/KY regional-branch name; both OH-region."
+    },
+    {
+      "canonical_slug": "denizen-management",
+      "canonical_name": "Denizen Management",
+      "pm_slugs": ["denizen-management-cincinnati-middletown-oh-ky-in", "denizen-management-cleveland-elyria-mentor-oh", "denizen-management-indianapolis-carmel-in"],
+      "notes": "Distinctive name; 3-market Midwest cluster."
+    },
+    {
+      "canonical_slug": "era-real-solutions-property-management",
+      "canonical_name": "ERA Real Solutions Property Management",
+      "pm_slugs": ["era-real-solutions-property-management-cincinnati-middletown-oh-ky-in", "era-real-solutions-property-management-columbus-oh"],
+      "notes": "Specific full name; intra-Ohio."
+    },
+    {
+      "canonical_slug": "peak-property-group",
+      "canonical_name": "Peak Property Group",
+      "pm_slugs": ["peak-property-group-cincinnati-middletown-oh-ky-in", "peak-property-group-columbus-oh"],
+      "notes": "Cincinnati + Columbus adjacent intra-Ohio; regional coherence."
+    },
+    {
+      "canonical_slug": "ten27-living",
+      "canonical_name": "Ten27 Living LLC",
+      "pm_slugs": ["ten27-living-llc-cincinnati-middletown-oh-ky-in", "ten27-living-llc-columbus-oh"],
+      "notes": "Distinctive alphanumeric name."
+    },
+    {
+      "canonical_slug": "b7-properties",
+      "canonical_name": "b7 Properties",
+      "pm_slugs": ["b7-properties-pittsburgh-pa", "b7-properties-cleveland-elyria-mentor-oh"],
+      "notes": "Distinctive alphanumeric name; Pittsburgh + Cleveland adjacent."
+    },
+    {
+      "canonical_slug": "hh-property-management-services",
+      "canonical_name": "HH Property Management Services",
+      "pm_slugs": ["hh-property-management-services-pittsburgh-pa", "hh-property-management-services-columbus-oh"],
+      "notes": "Initials-based name; Pittsburgh + Columbus regional (~185mi). Weaker match signal — flag for audit."
+    },
+    {
+      "canonical_slug": "gene-b-glick-company",
+      "canonical_name": "Gene B. Glick Company",
+      "pm_slugs": ["gene-b-glick-company-chicago-joliet-naperville-il-in-wi", "gene-b-glick-company-indianapolis-carmel-in", "gene-b-glick-company-fort-wayne-in"],
+      "notes": "Real Indianapolis-HQ multifamily company; very distinctive full personal name."
+    },
+    {
+      "canonical_slug": "slater-realty-and-investments",
+      "canonical_name": "Slater Realty And Investments Inc",
+      "pm_slugs": ["slater-realty-and-investments-inc-chicago-joliet-naperville-il-in-wi", "slater-realty-and-investments-inc-columbus-oh"],
+      "notes": "Specific full name with Inc."
+    },
+    {
+      "canonical_slug": "in-good-company-real-estate-property-management",
+      "canonical_name": "In Good Company Real Estate Property Management",
+      "pm_slugs": ["in-good-company-real-estate-property-management-chicago-joliet-naperville-il-in-wi", "in-good-company-real-estate-property-management-fort-wayne-in"],
+      "notes": "Very distinctive long name."
+    },
+    {
+      "canonical_slug": "cym-living",
+      "canonical_name": "CYM Living LLC",
+      "pm_slugs": ["cym-living-llc-chicago-joliet-naperville-il-in-wi", "cym-living-llc-indianapolis-carmel-in", "cym-living-llc-fort-wayne-in"],
+      "notes": "Distinctive acronym; 3-market Midwest."
+    },
+    {
+      "canonical_slug": "smartland",
+      "canonical_name": "Smartland",
+      "pm_slugs": ["smartland-cleveland-elyria-mentor-oh", "smartland-columbus-oh"],
+      "notes": "Distinctive single-word name; intra-Ohio."
+    },
+    {
+      "canonical_slug": "goldberg-companies",
+      "canonical_name": "Goldberg Companies",
+      "pm_slugs": ["goldberg-companies-cleveland-elyria-mentor-oh", "goldberg-companies-detroit-warren-livonia-mi"],
+      "notes": "Specific name; Cleveland + Detroit Great-Lakes adjacency."
+    },
+    {
+      "canonical_slug": "carlton-equities",
+      "canonical_name": "Carlton Equities",
+      "pm_slugs": ["carlton-equities-cleveland-elyria-mentor-oh", "carlton-equities-columbus-oh"],
+      "notes": "Specific name; intra-Ohio."
+    },
+    {
+      "canonical_slug": "blue-leaf-residential",
+      "canonical_name": "Blue Leaf Residential",
+      "pm_slugs": ["blue-leaf-residential-columbus-oh", "blue-leaf-residential-indianapolis-carmel-in"],
+      "notes": "Distinctive name; adjacent Midwest metros."
+    },
+    {
+      "canonical_slug": "herman-kittle",
+      "canonical_name": "Herman & Kittle",
+      "pm_slugs": ["herman-kittle-columbus-oh", "herman-kittle-indianapolis-carmel-in"],
+      "notes": "Herman & Kittle Properties — real Indianapolis-HQ developer; distinctive name."
+    },
+    {
+      "canonical_slug": "lauth-communities",
+      "canonical_name": "Lauth Communities",
+      "pm_slugs": ["lauth-communities-indianapolis-carmel-in", "lauth-communities-fort-wayne-in"],
+      "notes": "Distinctive name; both Indiana."
+    }
+  ],
+
+  "rejected": [
+    {
+      "normalized_name": "link real estate group",
+      "reason": "'...Real Estate Group' is a generic suffix and Jacksonville + Columbus is a distant pairing with no operational tie. Keeping separate as the conservative default.",
+      "pm_slugs": ["link-real-estate-group-jacksonville-fl", "link-real-estate-group-columbus-oh"]
+    },
+    {
+      "normalized_name": "allstate property management",
+      "reason": "'Allstate' is a common brand word and Memphis + Cleveland is distant with no cluster coherence. Likely two unrelated local firms. Keeping separate.",
+      "pm_slugs": ["allstate-property-management-llc-memphis-tn", "allstate-property-management-llc-cleveland-elyria-mentor-oh"]
+    },
+    {
+      "normalized_name": "smart property management",
+      "reason": "'Smart Property Management' is a generic name; Denver + Chicago distant with name-variant mismatch (one carries -llc, one doesn't). Keeping separate.",
+      "pm_slugs": ["smart-property-management-llc-denver-co", "smart-property-management-chicago-joliet-naperville-il-in-wi"]
+    },
+    {
+      "normalized_name": "daniel management group",
+      "reason": "'Daniel' is a common given name + generic 'Management Group' suffix; Dallas + Chicago distant. Keeping separate pending corroboration.",
+      "pm_slugs": ["daniel-management-group-dallas-fort-worth-arlington-tx", "daniel-management-group-chicago-joliet-naperville-il-in-wi"]
+    }
+  ]
+}
