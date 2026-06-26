@@ -1,5 +1,5 @@
 {
-  "_comment": "Registry of v0.6.4 markets. To add a new market, append an entry below and run `python pipeline.py --market <id>`. See README.md for the full add-a-market runbook. Methodology constants (eligibility thresholds, institutional cutoff) live in pipeline.py — vary them only as a methodology version bump.",
+  "_comment": "Registry of v0.6.4 markets. To add a new market, append an entry below and run `python pipeline.py --market <id>`. See README.md for the full add-a-market runbook. Methodology constants (eligibility thresholds, institutional cutoff) live in pipeline.py \u2014 vary them only as a methodology version bump.",
   "methodologyVersion": "v0.6.4",
   "nationalLookup": "Operator_National_Urus_v0.6.2.json",
   "markets": [
@@ -187,7 +187,7 @@
       "name": "Baltimore",
       "state": "MD",
       "primaryCity": "Baltimore",
-      "csvFile": "export_20260625130605.csv",
+      "csvFile": "export_20260626115049.csv",
       "dataAsOf": "2026-06-25"
     },
     {
@@ -209,7 +209,7 @@
       "name": "Pittsburgh",
       "state": "PA",
       "primaryCity": "Pittsburgh",
-      "csvFile": "export_20260625131429.csv",
+      "csvFile": "export_20260626115049.csv",
       "dataAsOf": "2026-06-25"
     },
     {
@@ -220,7 +220,7 @@
       "name": "Chicago",
       "state": "IL",
       "primaryCity": "Chicago",
-      "csvFile": "export_20260625161132.csv",
+      "csvFile": "export_20260626111826.csv",
       "dataAsOf": "2026-06-25"
     },
     {
@@ -231,7 +231,7 @@
       "name": "Cleveland",
       "state": "OH",
       "primaryCity": "Cleveland",
-      "csvFile": "export_20260625160703.csv",
+      "csvFile": "export_20260626065804.csv",
       "dataAsOf": "2026-06-25"
     },
     {
@@ -242,7 +242,7 @@
       "name": "Columbus",
       "state": "OH",
       "primaryCity": "Columbus",
-      "csvFile": "export_20260625164036.csv",
+      "csvFile": "export_20260626110438.csv",
       "dataAsOf": "2026-06-25"
     },
     {
@@ -253,7 +253,7 @@
       "name": "Detroit",
       "state": "MI",
       "primaryCity": "Detroit",
-      "csvFile": "export_20260625164640.csv",
+      "csvFile": "export_20260626105704.csv",
       "dataAsOf": "2026-06-25"
     },
     {
@@ -264,7 +264,7 @@
       "name": "Indianapolis",
       "state": "IN",
       "primaryCity": "Indianapolis",
-      "csvFile": "export_20260625165049.csv",
+      "csvFile": "export_20260626110438.csv",
       "dataAsOf": "2026-06-25"
     },
     {
@@ -275,7 +275,7 @@
       "name": "Fort Wayne",
       "state": "IN",
       "primaryCity": "Fort Wayne",
-      "csvFile": "export_20260625165648.csv",
+      "csvFile": "export_20260626105704.csv",
       "dataAsOf": "2026-06-25"
     }
   ]

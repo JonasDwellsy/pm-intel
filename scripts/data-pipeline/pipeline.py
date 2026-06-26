@@ -255,6 +255,25 @@ with open(_PM_NAME_ACRONYMS_PATH) as _f:
 _ACRONYM_MAP = {a.upper(): a for a in _acronym_cfg["acronyms"]}
 _STOPWORDS_2CHAR = set(_acronym_cfg.get("stopwords_2char", []))
 
+# v0.6.4 Patch 9 — curated hard-exclusion denylist. Lives in src/data/ (not
+# here) so the Next.js admin panel can import the same file for read-only
+# visibility — single source of truth across the pipeline + the app. Keyed
+# on normalize_name(company_name), so it catches artifacts on both old- and
+# new-schema CSVs. See the file's _comment for the full rationale.
+_DENYLIST_PATH = os.path.join(
+    _SCRIPT_DIR, "..", "..", "src", "data", "excluded_operators.json"
+)
+try:
+    with open(_DENYLIST_PATH) as _f:
+        _denylist_cfg = json.load(_f)
+    _DENYLIST_NORMS = {
+        normalize_name(e["normalizedName"])
+        for e in _denylist_cfg.get("excluded", [])
+        if e.get("normalizedName")
+    }
+except FileNotFoundError:
+    _DENYLIST_NORMS = set()
+
 
 def normalize_pm_name(name):
     if not name:
@@ -398,6 +417,7 @@ def init_rich(norm):
 rows_total = 0
 rows_market = 0
 rows_excluded_type = 0  # v0.6.4 Patch 9 — software/syndication rows dropped
+rows_excluded_denylist = 0  # v0.6.4 Patch 9 — curated denylist rows dropped
 with open(CSV_PATH, newline="", encoding="utf-8") as f:
     reader = csv.DictReader(f)
     for row in reader:
@@ -409,6 +429,14 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
         if not company: continue
         norm = normalize_name(company)
         if not norm: continue
+        # v0.6.4 Patch 9 — curated denylist (excluded_operators.json). Drops
+        # known data-source artifacts the source type-classifier mislabels
+        # as real operators (e.g. Spherexx, tagged "Owner"). Matches on the
+        # same normalized name the pipeline groups by, so it works on old-
+        # and new-schema CSVs alike.
+        if norm in _DENYLIST_NORMS:
+            rows_excluded_denylist += 1
+            continue
         # v0.6.4 Patch 9 — hard-exclude data-source artifacts (PM software,
         # syndication services) at the row level: they never form an
         # operator, so no scorecard / search entry / cohort presence. On
@@ -1921,6 +1949,7 @@ print("=== FINAL DIAGNOSTIC ===")
 print(f"MSA: {MSA_FULL_NAME}")
 print(f"BHM rows: {rows_market:,}")
 print(f"Rows hard-excluded (PM software / syndication): {rows_excluded_type:,}")
+print(f"Rows hard-excluded (curated denylist): {rows_excluded_denylist:,}")
 print(f"Ranked operators (PM): {operator_count_eligible}")
 print(f"Eligible brokers (hidden by default): {operator_count_eligible_broker}")
 print(f"Active operators (T12 >=3): {active_operator_count}")
