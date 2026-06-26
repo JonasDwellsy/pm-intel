@@ -53,6 +53,49 @@ function MapSvgFallback({
   );
 }
 
+// v0.21 — Frame the map to the OPERATOR'S footprint, not the whole MSA.
+//
+// Previously the map was initialized with the MSA-wide `mapBounds`, so
+// every scorecard zoomed out to the entire metro region regardless of
+// where the PM actually operates — a PM concentrated in one Baltimore
+// neighborhood and one spread across five submarkets looked identically
+// zoomed-out, and the user couldn't make out the streets/places needed
+// to read which submarkets the operator serves.
+//
+// Compute a tight bounding box from the operator's coverage points and
+// fit to that (with a maxZoom cap applied at fit time, see below). The
+// MSA `mapBounds` stays as a fallback for the rare PM with no plotted
+// points. A small degenerate-box guard keeps single-point operators
+// from producing a zero-area box that fitBounds can't reason about.
+function footprintBounds(
+  points: CoveragePoint[]
+): { west: number; south: number; east: number; north: number } | null {
+  if (!points.length) return null;
+  let west = Infinity;
+  let east = -Infinity;
+  let south = Infinity;
+  let north = -Infinity;
+  for (const p of points) {
+    if (p.lon < west) west = p.lon;
+    if (p.lon > east) east = p.lon;
+    if (p.lat < south) south = p.lat;
+    if (p.lat > north) north = p.lat;
+  }
+  // Pad a degenerate (single-point or single-line) box by ~0.01° (~1km)
+  // so fitBounds has a real rectangle to work with; the maxZoom cap then
+  // governs the actual close-in level.
+  const EPS = 0.01;
+  if (east - west < EPS) {
+    west -= EPS;
+    east += EPS;
+  }
+  if (north - south < EPS) {
+    south -= EPS;
+    north += EPS;
+  }
+  return { west, south, east, north };
+}
+
 function pointsToGeoJSON(
   points: Array<CoveragePoint | BackdropPoint>,
   includeProps = false
@@ -126,6 +169,10 @@ export function CoverageMapClient({
     let resizeObserver: ResizeObserver | null = null;
     let cancelled = false;
 
+    // Frame to the operator footprint; fall back to MSA bounds if the PM
+    // has no plotted coverage points.
+    const fitTo = footprintBounds(coveragePoints) ?? mapBounds;
+
     (async () => {
       try {
         const mod = await import("mapbox-gl");
@@ -138,14 +185,36 @@ export function CoverageMapClient({
           container: el,
           style: "mapbox://styles/mapbox/light-v11",
           bounds: [
-            [mapBounds.west, mapBounds.south],
-            [mapBounds.east, mapBounds.north],
+            [fitTo.west, fitTo.south],
+            [fitTo.east, fitTo.north],
           ],
-          fitBoundsOptions: { padding: 40 },
-          interactive: false,
+          // maxZoom caps the initial fit so a tightly-clustered operator
+          // lands at neighborhood level (streets + place labels legible —
+          // enough to read which submarkets they serve) rather than
+          // zooming to building level. Spread operators fit naturally
+          // below this cap.
+          fitBoundsOptions: { padding: 48, maxZoom: 13 },
+          // v0.21 — interactive so users can zoom/pan to inspect the
+          // footprint. cooperativeGestures means page-scroll over the map
+          // doesn't hijack into zoom: it takes ⌘/Ctrl+scroll or a
+          // two-finger trackpad gesture (or the +/- buttons below).
+          interactive: true,
+          cooperativeGestures: true,
+          // Floor lets users pull back to full-MSA context (the grey
+          // backdrop dots give geographic reference); ceiling lets them
+          // reach street level without zooming into nothing.
+          minZoom: 8,
+          maxZoom: 16,
           attributionControl: { compact: false },
         }) as MapInstance;
         map = m;
+
+        // Zoom +/- buttons (top-right). The discoverable, scroll-trap-free
+        // way to zoom; pairs with cooperativeGestures. No compass/pitch —
+        // this is a flat 2D reference map.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const NavCtl = (mapboxgl as any).NavigationControl;
+        m.addControl(new NavCtl({ showCompass: false, visualizePitch: false }), "top-right");
 
         // Scale bar bottom-left
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
