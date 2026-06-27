@@ -1,0 +1,39 @@
+{
+  "_comment": "Curated canonical-operator decisions for the v0.6.4 Patch 10 release — adds Orlando-Kissimmee-Sanford, FL (the 26th market) and re-establishes links for the 6 markets re-exported with company-type columns in this batch (Jacksonville, Chattanooga, Knoxville, Memphis, Nashville, Huntsville). Generated 2026-06-26 from `merge.py --propose-canonicals --new-markets orlando-kissimmee-sanford-fl`. Allegiant-Carter + DLP appeared in the proposal as 'new pairs' only because the re-runs reset their member slugs; they are EXISTING canonicals and are folded in here as extensions (their non-Orlando links are restored by re-applying p2-p6).",
+  "version": "v0.6.4-p10",
+  "generated_at": "2026-06-26",
+  "curator": "claude (autonomous per established Tier 1/2/3 pattern)",
+  "summary": { "extends_existing": 12, "new_canonicals": 9, "rejected": 2 },
+
+  "extend_existing": [
+    { "canonical_slug": "mission-rock-residential", "add_pm_slugs": ["mission-rock-residential-orlando-kissimmee-sanford-fl"] },
+    { "canonical_slug": "resprop", "add_pm_slugs": ["resprop-orlando-kissimmee-sanford-fl"] },
+    { "canonical_slug": "tricon-residential", "add_pm_slugs": ["tricon-residential-orlando-kissimmee-sanford-fl"] },
+    { "canonical_slug": "bridge-property-management", "add_pm_slugs": ["bridge-property-management-orlando-kissimmee-sanford-fl"] },
+    { "canonical_slug": "invitation-homes", "add_pm_slugs": ["invitation-homes-orlando-kissimmee-sanford-fl"] },
+    { "canonical_slug": "mynd-property-management", "add_pm_slugs": ["mynd-property-management-orlando-kissimmee-sanford-fl"] },
+    { "canonical_slug": "progress-residential", "add_pm_slugs": ["progress-residential-orlando-kissimmee-sanford-fl"] },
+    { "canonical_slug": "first-keys-homes", "add_pm_slugs": ["first-keys-homes-orlando-kissimmee-sanford-fl"] },
+    { "canonical_slug": "udr", "add_pm_slugs": ["udr-orlando-kissimmee-sanford-fl"] },
+    { "canonical_slug": "madison-apartment-group", "add_pm_slugs": ["madison-apartment-group-l-p-orlando-kissimmee-sanford-fl"] },
+    { "canonical_slug": "allegiant-carter-management", "add_pm_slugs": ["allegiant-carter-management-orlando-kissimmee-sanford-fl"] },
+    { "canonical_slug": "dlp-real-estate-management", "add_pm_slugs": ["dlp-real-estate-management-orlando-kissimmee-sanford-fl"] }
+  ],
+
+  "new_canonicals": [
+    { "canonical_slug": "arium-living", "canonical_name": "ARIUM Living", "pm_slugs": ["arium-living-jacksonville-fl", "arium-living-denver-co", "arium-living-orlando-kissimmee-sanford-fl"], "notes": "National MF brand (Carroll). Distinctive." },
+    { "canonical_slug": "cmc-apartments", "canonical_name": "Cmc Apartments", "pm_slugs": ["cmc-apartments-jacksonville-fl", "cmc-apartments-orlando-kissimmee-sanford-fl"], "notes": "Intra-Florida (Jax + Orlando)." },
+    { "canonical_slug": "infinity-bh-ltd", "canonical_name": "Infinity BH Ltd", "pm_slugs": ["infinity-bh-ltd-jacksonville-fl", "infinity-bh-ltd-orlando-kissimmee-sanford-fl"], "notes": "Distinctive 'BH Ltd' suffix; intra-FL." },
+    { "canonical_slug": "pacifica-residential", "canonical_name": "Pacifica Residential", "pm_slugs": ["pacifica-residential-jacksonville-fl", "pacifica-residential-seattle-wa", "pacifica-residential-orlando-kissimmee-sanford-fl"], "notes": "Pacifica is a real national MF operator." },
+    { "canonical_slug": "watson-realty-corp-property-management", "canonical_name": "Watson Realty Corp Property Management", "pm_slugs": ["watson-realty-corp-property-management-jacksonville-fl", "watson-realty-corp-property-management-orlando-kissimmee-sanford-fl"], "notes": "Watson Realty Corp — large Florida brokerage/PM; intra-FL." },
+    { "canonical_slug": "meadow-wood-property-company", "canonical_name": "Meadow Wood Property Company", "pm_slugs": ["meadow-wood-property-company-jacksonville-fl", "meadow-wood-property-company-orlando-kissimmee-sanford-fl"], "notes": "Specific full name; intra-FL." },
+    { "canonical_slug": "alica-property-management", "canonical_name": "Alica Property Management", "pm_slugs": ["alica-property-management-jacksonville-fl", "alica-property-management-orlando-kissimmee-sanford-fl"], "notes": "Distinctive spelling ('Alica'); intra-FL." },
+    { "canonical_slug": "atrium-management-company", "canonical_name": "Atrium Management Company", "pm_slugs": ["atrium-management-company-jacksonville-fl", "atrium-management-company-orlando-kissimmee-sanford-fl"], "notes": "Specific full name; intra-FL." },
+    { "canonical_slug": "homeriver-group-florida", "canonical_name": "Homeriver Group Florida", "pm_slugs": ["homeriver-group-florida-jacksonville-fl", "homeriver-group-florida-orlando-kissimmee-sanford-fl"], "notes": "HomeRiver national PM, exact FL regional-branch name; distinct from the OH/KY branch canonical." }
+  ],
+
+  "rejected": [
+    { "normalized_name": "premier management group", "reason": "'Premier' + 'Management Group' is a generic name; Nashville + Orlando is distant (TN+FL) with no cluster coherence. Keeping separate.", "pm_slugs": ["premier-management-group-nashville-davidson-murfreesboro-franklin-tn", "premier-management-group-orlando-kissimmee-sanford-fl"] },
+    { "normalized_name": "property management", "reason": "Operator name is literally the words 'Property Management' — a data-entry placeholder, not a real shared brand. Pittsburgh + Orlando almost certainly distinct entities. Keeping separate.", "pm_slugs": ["property-management-pittsburgh-pa", "property-management-orlando-kissimmee-sanford-fl"] }
+  ]
+}

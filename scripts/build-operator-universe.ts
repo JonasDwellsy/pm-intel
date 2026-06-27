@@ -181,6 +181,9 @@ const MARKETS: Array<{
   { slug: "detroit", id: "detroit-warren-livonia-mi", city: "Detroit", state: "MI", stateSlug: "michigan", citySlug: "detroit" },
   { slug: "indianapolis", id: "indianapolis-carmel-in", city: "Indianapolis", state: "IN", stateSlug: "indiana", citySlug: "indianapolis" },
   { slug: "fort-wayne", id: "fort-wayne-in", city: "Fort Wayne", state: "IN", stateSlug: "indiana", citySlug: "fort-wayne" },
+  // v0.6.4 Patch 10 — Orlando added (26th market), first new market with
+  // company-type columns from the start.
+  { slug: "orlando", id: "orlando-kissimmee-sanford-fl", city: "Orlando", state: "FL", stateSlug: "florida", citySlug: "orlando" },
 ];
 const MIN_T12 = 3;
 
