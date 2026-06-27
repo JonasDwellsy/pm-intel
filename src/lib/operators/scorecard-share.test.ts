@@ -227,30 +227,31 @@ test("CopyLinkButton is wired into IdentityHero's right rail", () => {
   );
 });
 
-test("SynthesisLayer renders the cohort framing line above the Executive summary", () => {
-  // Order check: the cohort framing must precede the Executive
-  // summary in the source so the rendered DOM matches the spec
-  // ("TL;DR first, then narrative"). Anchored on JSX-only markers
-  // (data-testid + the {executiveSummary && (...)} guard) so
-  // comments mentioning "Executive summary" don't fool the
-  // ordering check.
+test("SynthesisLayer renders the facts-oriented lede above the Executive summary", () => {
+  // v0.21 — the judgmental cohort-framing sentence ("ranks above cohort
+  // median... top-quartile") was replaced by the facts-oriented lede:
+  // a positional headline fact line + the 5-dimension grade strip. Order
+  // check: the lede must precede the Executive summary so the DOM matches
+  // the spec ("fast read first, then narrative"). Anchored on JSX-only
+  // markers so comments don't fool the ordering check.
   const synthesisSrc = readFileSync(
     join(process.cwd(), "src/components/scorecard/SynthesisLayer.tsx"),
     "utf8"
   );
   assert.ok(
-    synthesisSrc.includes("buildCohortFramingSentence"),
-    "SynthesisLayer must import + call buildCohortFramingSentence"
+    synthesisSrc.includes("<HeadlineFactLine") &&
+      synthesisSrc.includes("<GradeStrip"),
+    "SynthesisLayer must render <HeadlineFactLine /> + <GradeStrip />"
   );
-  const framingIdx = synthesisSrc.indexOf('data-testid="cohort-framing"');
+  const ledeIdx = synthesisSrc.indexOf("<HeadlineFactLine");
   const executiveJsxIdx = synthesisSrc.indexOf("{executiveSummary && (");
-  assert.ok(framingIdx > 0, "cohort framing line must be rendered");
+  assert.ok(ledeIdx > 0, "headline fact line must be rendered");
   assert.ok(
     executiveJsxIdx > 0,
     "Executive summary conditional render must still be present"
   );
   assert.ok(
-    framingIdx < executiveJsxIdx,
-    "cohort framing JSX must come BEFORE the Executive summary JSX in source order"
+    ledeIdx < executiveJsxIdx,
+    "facts-oriented lede JSX must come BEFORE the Executive summary JSX in source order"
   );
 });

@@ -4,7 +4,12 @@ import { marketingDataSuppressed } from "@/lib/types";
 import { fmtInt, fmtNumber, fmtPct } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
 import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
-import { buildCohortFramingSentence } from "@/lib/operators/stars";
+import { StarIcon } from "@/components/scorecard/StarIcon";
+import {
+  HeadlineFactLine,
+  GradeStrip,
+  QuestionsRaised,
+} from "@/components/scorecard/ScorecardLede";
 import type { MetricKey } from "@/lib/metric-definitions";
 
 // Layer 2 — Synthesis block (v1.0 design, per Scorecard_Design_Spec_v1.0.md
@@ -64,28 +69,23 @@ export function SynthesisLayer({ scorecard }: { scorecard: ScorecardData }) {
       (b) => typeof b === "string" && b.trim().length > 0
     ) ?? [];
 
-  // PR #75 — One-sentence cohort framing. Mechanical TL;DR derived
-  // from the per-metric star counts; complements the IdentityHero
-  // star chip (visual) and the Executive summary below (narrative).
-  // Rendered as the first child of the Synthesis section, above the
-  // Executive summary, so a first-time reader sees the operator's
-  // cohort position before the prose paragraph.
-  const cohortFraming = buildCohortFramingSentence(scorecard);
-
   return (
     <section id="synthesis" aria-label="Synthesis" className="dq-section space-y-10">
       <LayerSectionHeader num="01" title="Synthesis" />
-      {/* PR #75 — Cohort framing TL;DR. Single sentence, no border
-          or background — reads as part of the page, not a callout
-          box. Sits ABOVE the Executive summary so prospect-share
-          readers see the cohort position in one glance before the
-          narrative paragraph. */}
-      <p
-        className="-mt-4 max-w-[780px] text-[15.5px] leading-[1.55] text-muted-foreground"
-        data-testid="cohort-framing"
-      >
-        {cohortFraming}
-      </p>
+      {/* v0.21 — facts-oriented lede. Replaces the prior "ranks above
+          cohort median… top-quartile" framing sentence with: a positional
+          fact line (rank in 7-cell cohort + composite), the 5-dimension
+          grade strip (each metric vs cohort, at a glance), and rule-based
+          "Questions this raises" that flag anomalies AS QUESTIONS, not
+          verdicts. The reader judges; we surface what's notable. */}
+      <div className="space-y-5">
+        <HeadlineFactLine scorecard={scorecard} />
+        <GradeStrip
+          scorecard={scorecard}
+          showInventoryTransparency={showInventoryTransparency}
+        />
+        <QuestionsRaised scorecard={scorecard} />
+      </div>
       {/* 2A — Executive summary */}
       {executiveSummary && (
         <div>
@@ -412,50 +412,6 @@ function MetricTile({
         </p>
       )}
     </article>
-  );
-}
-
-// --- Inline primitives ---
-
-function StarIcon({
-  level,
-  size = 16,
-}: {
-  level: StarLevel;
-  size?: number;
-}) {
-  const isGold = level === "gold";
-  const isSilver = level === "silver";
-  const fill = isGold
-    ? "#E5A800"
-    : isSilver
-      ? "#9CA3AF"
-      : "transparent";
-  const stroke = isGold
-    ? "#B98700"
-    : isSilver
-      ? "#6B7280"
-      : "var(--color-muted-2)";
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill={fill}
-      stroke={stroke}
-      strokeWidth="1.8"
-      strokeLinejoin="round"
-      aria-label={
-        level === "gold"
-          ? "Gold star — top quartile in cohort"
-          : level === "silver"
-            ? "Silver star — above median in cohort"
-            : "No star — present in cohort"
-      }
-      className="shrink-0"
-    >
-      <path d="M12 2.6l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.7l-5.9 3.1 1.13-6.58L2.45 9.54l6.6-.96L12 2.6z" />
-    </svg>
   );
 }
 
