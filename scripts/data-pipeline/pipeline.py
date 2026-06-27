@@ -166,6 +166,18 @@ def effective_company_type(row):
     return (row.get("child_company_type") or "").strip()
 
 
+def effective_company_id(row):
+    """v0.6.4 Phase B-2 — the operator's identity id for WITHIN-market
+    grouping: parent_company_id when present (the parent rules — all of a
+    parent's child entities in a market collapse into one operator), else
+    the child_company_id. '' on old-schema CSVs (caller falls back to the
+    normalized name as the grouping key)."""
+    pid = (row.get("parent_company_id") or "").strip()
+    if pid:
+        return pid
+    return (row.get("child_company_id") or "").strip()
+
+
 def classify_operator_type(type_votes):
     """Map an operator's accumulated per-row effective-type votes to a
     bucket: 'broker' if its most common type is in the broker family,
@@ -454,11 +466,39 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
         if eff_type in EXCLUDED_COMPANY_TYPES:
             rows_excluded_type += 1
             continue
+        # v0.6.4 Phase B-2 — WITHIN-market grouping key. Group by the
+        # effective company id (parent rules) when the row carries one;
+        # fall back to the normalized name on old-schema CSVs (no id
+        # columns). `norm` below is the opaque grouping handle used
+        # throughout the rest of the pipeline; only the two national-lookup
+        # sites need the operator's actual name, which they recover from
+        # pm_display_name. Keying by id splits operators that merely share
+        # a name (distinct companies) and unites a parent's child entities.
+        eff_id = effective_company_id(row)
+        if eff_id:
+            key = eff_id
+            # Display name: the PARENT name when parented (the operator IS
+            # the parent — "parent rules"), else the friendly company_name
+            # (col 8). We deliberately do NOT use child_company_name for
+            # standalone operators — it's often a less readable internal
+            # form (e.g. "Equityteam" vs the col-8 "Equity Team").
+            _pname = (row.get("parent_company_name") or "").strip()
+            disp = _pname if _pname else company.strip()
+        else:
+            key = norm  # old-schema fallback: name is the identity
+            disp = company.strip()
+        norm = key
         if norm not in pm_rich:
             init_rich(norm)
-            pm_display_name[norm] = company.strip()
-        if norm not in pm_display_name or len(company.strip()) > len(pm_display_name.get(norm) or ""):
-            pm_display_name[norm] = company.strip()
+            pm_display_name[norm] = disp
+        # Pick the most readable display variant when an id-group contains
+        # spelling variants of the same name (id-grouping unites e.g.
+        # "Equity Team" + "Equityteam"): prefer more word boundaries
+        # (spaces), then the longer string. Keeps the human-formatted
+        # spelling over a run-together one.
+        _prev = pm_display_name.get(norm)
+        if _prev is None or (disp.count(" "), len(disp)) > (_prev.count(" "), len(_prev)):
+            pm_display_name[norm] = disp
         d = pm_rich[norm]
         # Tally this row's effective type so the operator can be bucketed
         # pm|broker after accumulation. Skip blanks so they don't outvote
@@ -911,7 +951,10 @@ log(f"Computed features for {len(pm_features)} eligible PMs")
 
 
 def is_institutional(norm, feats):
-    rec = national.get(norm)
+    # v0.6.4 Phase B-2 — the grouping key (norm) may now be a company id,
+    # but the national-operator table is keyed by normalized name. Recover
+    # the operator's name from its display name for the lookup.
+    rec = national.get(normalize_name(pm_display_name.get(norm, norm)))
     if rec:
         national_total = int(rec.get("national_observed_urus_t12", 0))
         bhm_total = feats["urus_t12_count"]
@@ -1347,7 +1390,10 @@ def build_exec_summary(name, focal_norm, q7, feats):
 
 def build_distinguishing(name, focal_norm, q7, feats):
     bullets = []
-    rec = national.get(focal_norm)
+    # v0.6.4 Phase B-2 — national table is name-keyed; focal_norm may be an
+    # id. Recover the name (national.get falls through to None harmlessly
+    # for operators absent from the national table).
+    rec = national.get(normalize_name(pm_display_name.get(focal_norm, focal_norm)))
     if rec and rec.get("by_market"):
         markets = [m for m, c in rec["by_market"].items() if c and c > 0]
         if len(markets) >= 1:
