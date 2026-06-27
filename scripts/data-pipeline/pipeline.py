@@ -379,6 +379,10 @@ log(f"Streaming {os.path.basename(CSV_PATH)}, filtering to msa_code='{MSA_CODE}'
 
 pm_rich = {}
 pm_display_name = {}
+# v0.6.4 Phase B — global parent_company_id → parent_company_name map.
+# The source guarantees id→name is 1:1, so first-seen name per id is
+# authoritative; used to name the cross-market canonical entity in merge.
+PARENT_NAME_BY_ID = {}
 pm_t12_listings = Counter()
 pm_t12_by_sub = defaultdict(lambda: Counter())
 pm_t24t12_listings = Counter()
@@ -407,6 +411,9 @@ def init_rich(norm):
         # v0.6.4 Patch 9 — per-row effective company-type tally; resolved
         # to a single pm|broker bucket after accumulation.
         "type_votes": Counter(),
+        # v0.6.4 Phase B — per-row parent_company_id tally; resolved to the
+        # operator's cross-market identity key (modal parent id) afterward.
+        "parent_id_votes": Counter(),
         "concession_t12_count": 0,
         "concession_patterns": Counter(),
         "concession_samples": [],
@@ -458,6 +465,18 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
         # a real signal; classify_operator_type() defaults to pm anyway.
         if eff_type:
             d["type_votes"][eff_type] += 1
+        # v0.6.4 Phase B — record the row's PARENT company id (the
+        # cross-market identity key). Only parent ids unite operators
+        # across markets; a standalone operator's child id is market-
+        # specific. Modal parent id per operator is resolved after the
+        # stream; the global id→name map names the canonical entity (the
+        # source guarantees id→name is 1:1).
+        _parent_id = (row.get("parent_company_id") or "").strip()
+        _parent_name = (row.get("parent_company_name") or "").strip()
+        if _parent_id:
+            d["parent_id_votes"][_parent_id] += 1
+            if _parent_name and _parent_id not in PARENT_NAME_BY_ID:
+                PARENT_NAME_BY_ID[_parent_id] = _parent_name
 
         ct = parse_dt(row.get("creation_time"))
         dt_ = parse_dt(row.get("deactivation_time"))
@@ -1670,6 +1689,17 @@ for norm in sorted(eligible_norms):
     cons_samples = list(feats["concession_samples"])
     cons_sample_text = cons_samples[0] if cons_samples else None
 
+    # v0.6.4 Phase B — resolve the operator's cross-market identity key:
+    # the modal parent_company_id among its rows (None for standalone
+    # operators with no parent). merge.py groups same-parent-id operators
+    # across markets into one canonical entity, replacing the name-based
+    # decision files for typed markets.
+    _pid_votes = pm_rich[norm]["parent_id_votes"]
+    parent_company_id = _pid_votes.most_common(1)[0][0] if _pid_votes else None
+    parent_company_name = (
+        PARENT_NAME_BY_ID.get(parent_company_id) if parent_company_id else None
+    )
+
     pm_out = {
         "slug": slug, "name": name, "marketId": MARKET_ID,
         "primaryCity": (feats["top_cities"][0]["name"] if feats["top_cities"] else PRIMARY_CITY_FOR_MARKET),
@@ -1724,6 +1754,9 @@ for norm in sorted(eligible_norms):
                                  if feats["t24t12_listings"] > 0 else None),
         "canonicalOperatorId": slug,
         "canonicalOperatorName": name,
+        # v0.6.4 Phase B — cross-market identity key (None when standalone).
+        "parentCompanyId": parent_company_id,
+        "parentCompanyName": parent_company_name,
         "concessionListingCount": cons_count,
         "concessionRate": cons_rate,
         "concessionPatterns": cons_patterns_top3,
