@@ -1,0 +1,1000 @@
+{
+  "_comment": "BASE canonical decisions, reconstructed from the PR #112 seed (commit 4d8f380) \u2014 the last seed before original markets began being re-exported with company-type columns. The original v0.6.4 canonicalization (Invitation Homes, Progress, Mynd, etc. across the first ~15 markets) was baked directly into the per-market JSONs with no decision file; re-running an original market reset those links with nothing to restore them (regression first shipped in PR #113). This file makes the original canonicalization reproducible: re-apply it FIRST in the apply loop, before p2..p7. Phase B (company_id-keyed identity) will retire this whole decision-file mechanism. Slugs absent from current data are warn-and-skipped by apply_canonicals.",
+  "version": "v0.6.4-p1-base",
+  "generated_at": "2026-06-26",
+  "curator": "reconstructed from PR #112 seed by claude",
+  "summary": {
+    "extends_existing": 0,
+    "new_canonicals": 107,
+    "rejected": 0
+  },
+  "extend_existing": [],
+  "new_canonicals": [
+    {
+      "canonical_slug": "8z-rentals",
+      "canonical_name": "8Z Rentals",
+      "pm_slugs": [
+        "8z-rentals-boulder-co",
+        "8z-rentals-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "alabama-rental-managers",
+      "canonical_name": "Alabama Rental Managers",
+      "pm_slugs": [
+        "alabama-rental-managers-birmingham-al",
+        "alabama-rental-managers-huntsville-al"
+      ]
+    },
+    {
+      "canonical_slug": "all-county",
+      "canonical_name": "All County",
+      "pm_slugs": [
+        "all-county-central-property-management-birmingham-al",
+        "all-county-complete-property-management-jacksonville-fl",
+        "all-county-music-city-property-management-nashville-tn",
+        "all-county-prestige-property-management-phoenix-az"
+      ]
+    },
+    {
+      "canonical_slug": "allegiant-carter-management",
+      "canonical_name": "Allegiant-Carter Management",
+      "pm_slugs": [
+        "allegiant-carter-management-baltimore-towson-md",
+        "allegiant-carter-management-birmingham-al",
+        "allegiant-carter-management-huntsville-al",
+        "allegiant-carter-management-jacksonville-fl"
+      ]
+    },
+    {
+      "canonical_slug": "american-residential-group",
+      "canonical_name": "American Residential Group",
+      "pm_slugs": [
+        "american-residential-group-birmingham-al",
+        "american-residential-group-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "anterra-management-corporation",
+      "canonical_name": "Anterra Management Corporation",
+      "pm_slugs": [
+        "anterra-management-corporation-dallas-fort-worth-arlington-tx",
+        "anterra-management-corporation-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "araho-group",
+      "canonical_name": "Araho Group",
+      "pm_slugs": [
+        "araho-group-boulder-co",
+        "araho-group-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "arium-living",
+      "canonical_name": "ARIUM Living",
+      "pm_slugs": [
+        "arium-living-denver-co",
+        "arium-living-jacksonville-fl"
+      ]
+    },
+    {
+      "canonical_slug": "ark-homes-for-rent",
+      "canonical_name": "Ark Homes For Rent",
+      "pm_slugs": [
+        "ark-homes-for-rent-birmingham-al",
+        "ark-homes-for-rent-huntsville-al",
+        "ark-homes-for-rent-jacksonville-fl",
+        "ark-homes-for-rent-knoxville-tn",
+        "ark-homes-for-rent-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "aspen-management",
+      "canonical_name": "Aspen Management",
+      "pm_slugs": [
+        "aspen-management-boulder-co",
+        "aspen-management-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "atlas-rental-property",
+      "canonical_name": "Atlas Rental Property LLC",
+      "pm_slugs": [
+        "atlas-rental-property-llc-birmingham-al",
+        "atlas-rental-property-llc-montgomery-al"
+      ]
+    },
+    {
+      "canonical_slug": "auben-realty",
+      "canonical_name": "Auben Realty",
+      "pm_slugs": [
+        "auben-realty-chattanooga-chattanooga-tn"
+      ]
+    },
+    {
+      "canonical_slug": "auben-realty-augusta-pod-a",
+      "canonical_name": "Auben Realty - Augusta (Pod A)",
+      "pm_slugs": [
+        "auben-realty---augusta-pod-a-jacksonville-fl",
+        "auben-realty-augusta-pod-a-chattanooga-tn",
+        "auben-realty-augusta-pod-a-dallas-fort-worth-arlington-tx"
+      ]
+    },
+    {
+      "canonical_slug": "b7-properties",
+      "canonical_name": "b7 Properties",
+      "pm_slugs": [
+        "b7-properties-cleveland-elyria-mentor-oh",
+        "b7-properties-pittsburgh-pa"
+      ]
+    },
+    {
+      "canonical_slug": "barvin",
+      "canonical_name": "Barvin",
+      "pm_slugs": [
+        "barvin-dallas-fort-worth-arlington-tx",
+        "barvin-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "bell-partners",
+      "canonical_name": "Bell Partners",
+      "pm_slugs": [
+        "bell-partners-dallas-fort-worth-arlington-tx",
+        "bell-partners-jacksonville-fl"
+      ]
+    },
+    {
+      "canonical_slug": "blue-leaf-residential",
+      "canonical_name": "Blue Leaf Residential",
+      "pm_slugs": [
+        "blue-leaf-residential-columbus-oh",
+        "blue-leaf-residential-indianapolis-carmel-in"
+      ]
+    },
+    {
+      "canonical_slug": "brc-real-estate",
+      "canonical_name": "Brc Real Estate",
+      "pm_slugs": [
+        "brc-real-estate-boulder-co",
+        "brc-real-estate-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "bridge-property-management",
+      "canonical_name": "Bridge Property Management",
+      "pm_slugs": [
+        "bridge-property-management-chicago-joliet-naperville-il-in-wi",
+        "bridge-property-management-dallas-fort-worth-arlington-tx",
+        "bridge-property-management-denver-co",
+        "bridge-property-management-jacksonville-fl",
+        "bridge-property-management-nashville-tn",
+        "bridge-property-management-phoenix-az",
+        "bridge-property-management-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "brookside-properties",
+      "canonical_name": "Brookside Properties",
+      "pm_slugs": [
+        "brookside-properties-chattanooga-tn",
+        "brookside-properties-indianapolis-carmel-in",
+        "brookside-properties-nashville-tn"
+      ]
+    },
+    {
+      "canonical_slug": "carlton-equities",
+      "canonical_name": "Carlton Equities",
+      "pm_slugs": [
+        "carlton-equities-cleveland-elyria-mentor-oh",
+        "carlton-equities-columbus-oh"
+      ]
+    },
+    {
+      "canonical_slug": "centerspace",
+      "canonical_name": "Centerspace",
+      "pm_slugs": [
+        "centerspace-boulder-co",
+        "centerspace-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "coastal-ridge-real-estate",
+      "canonical_name": "Coastal Ridge Real Estate",
+      "pm_slugs": [
+        "coastal-ridge-real-estate-columbus-oh",
+        "coastal-ridge-real-estate-dallas-fort-worth-arlington-tx",
+        "coastal-ridge-real-estate-indianapolis-carmel-in"
+      ]
+    },
+    {
+      "canonical_slug": "crye-leike-commercial",
+      "canonical_name": "Crye Leike Commercial",
+      "pm_slugs": [
+        "crye-leike-commercial-chattanooga-tn",
+        "crye-leike-commercial-nashville-tn"
+      ]
+    },
+    {
+      "canonical_slug": "cym-living",
+      "canonical_name": "CYM Living LLC",
+      "pm_slugs": [
+        "cym-living-llc-chicago-joliet-naperville-il-in-wi",
+        "cym-living-llc-fort-wayne-in",
+        "cym-living-llc-indianapolis-carmel-in"
+      ]
+    },
+    {
+      "canonical_slug": "denizen-management",
+      "canonical_name": "Denizen Management",
+      "pm_slugs": [
+        "denizen-management-cincinnati-middletown-oh-ky-in",
+        "denizen-management-cleveland-elyria-mentor-oh",
+        "denizen-management-indianapolis-carmel-in"
+      ]
+    },
+    {
+      "canonical_slug": "dlh-properties",
+      "canonical_name": "DLH Properties",
+      "pm_slugs": [
+        "dlh-properties-birmingham-al",
+        "dlh-properties-knoxville-tn",
+        "dlh-properties-montgomery-al"
+      ]
+    },
+    {
+      "canonical_slug": "dlp-real-estate-management",
+      "canonical_name": "DLP Real Estate Management",
+      "pm_slugs": [
+        "dlp-real-estate-management-dallas-fort-worth-arlington-tx",
+        "dlp-real-estate-management-memphis-tn"
+      ]
+    },
+    {
+      "canonical_slug": "edward-rose-sons",
+      "canonical_name": "Edward Rose & Sons",
+      "pm_slugs": [
+        "edward-rose-sons-chicago-joliet-naperville-il-in-wi",
+        "edward-rose-sons-fort-wayne-in",
+        "edward-rose-sons-huntsville-al",
+        "edward-rose-sons-indianapolis-carmel-in"
+      ]
+    },
+    {
+      "canonical_slug": "envolve-communities",
+      "canonical_name": "Envolve Communities",
+      "pm_slugs": [
+        "envolve-communities-cincinnati-middletown-oh-ky-in",
+        "envolve-communities-memphis-tn"
+      ]
+    },
+    {
+      "canonical_slug": "equity-residential",
+      "canonical_name": "Equity Residential",
+      "pm_slugs": [
+        "equity-residential-boulder-co",
+        "equity-residential-dallas-fort-worth-arlington-tx",
+        "equity-residential-denver-co",
+        "equity-residential-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "era-real-solutions-property-management",
+      "canonical_name": "ERA Real Solutions Property Management",
+      "pm_slugs": [
+        "era-real-solutions-property-management-cincinnati-middletown-oh-ky-in",
+        "era-real-solutions-property-management-columbus-oh"
+      ]
+    },
+    {
+      "canonical_slug": "firemark-property-management",
+      "canonical_name": "Firemark Property Management",
+      "pm_slugs": [
+        "firemark-property-management-chattanooga-tn",
+        "firemark-property-management-knoxville-tn",
+        "firemark-property-management-nashville-tn"
+      ]
+    },
+    {
+      "canonical_slug": "first-keys-homes",
+      "canonical_name": "First Keys Homes",
+      "pm_slugs": [
+        "first-keys-homes-birmingham-al",
+        "first-keys-homes-chicago-joliet-naperville-il-in-wi",
+        "first-keys-homes-cincinnati-middletown-oh-ky-in",
+        "first-keys-homes-clarksville-tn-ky",
+        "first-keys-homes-columbus-oh",
+        "first-keys-homes-dallas-fort-worth-arlington-tx",
+        "first-keys-homes-denver-co",
+        "first-keys-homes-indianapolis-carmel-in",
+        "first-keys-homes-jacksonville-fl",
+        "first-keys-homes-memphis-tn",
+        "first-keys-homes-nashville-tn",
+        "first-keys-homes-phoenix-az",
+        "first-keys-homes-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "fox-property-management",
+      "canonical_name": "Fox Property Management",
+      "pm_slugs": [
+        "fox-property-management-boulder-co",
+        "fox-property-management-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "fox-property-management-executive-rentals",
+      "canonical_name": "Fox Property Management Executive Rentals",
+      "pm_slugs": [
+        "fox-property-management-executive-rentals-boulder-co",
+        "fox-property-management-executive-rentals-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "gene-b-glick-company",
+      "canonical_name": "Gene B. Glick Company",
+      "pm_slugs": [
+        "gene-b-glick-company-chicago-joliet-naperville-il-in-wi",
+        "gene-b-glick-company-fort-wayne-in",
+        "gene-b-glick-company-indianapolis-carmel-in"
+      ]
+    },
+    {
+      "canonical_slug": "goldberg-companies",
+      "canonical_name": "Goldberg Companies",
+      "pm_slugs": [
+        "goldberg-companies-cleveland-elyria-mentor-oh",
+        "goldberg-companies-detroit-warren-livonia-mi"
+      ]
+    },
+    {
+      "canonical_slug": "green-leaf-partners-management",
+      "canonical_name": "Green Leaf Partners Management, Inc",
+      "pm_slugs": [
+        "green-leaf-partners-management-inc-boulder-co",
+        "green-leaf-partners-management-inc-denver-co",
+        "green-leaf-partners-management-inc-fort-collins-co",
+        "green-leaf-partners-management-inc-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "hamilton-point-investments",
+      "canonical_name": "Hamilton Point Investments",
+      "pm_slugs": [
+        "hamilton-point-investments-columbus-oh",
+        "hamilton-point-investments-dallas-fort-worth-arlington-tx",
+        "hamilton-point-investments-montgomery-al"
+      ]
+    },
+    {
+      "canonical_slug": "haven-residential",
+      "canonical_name": "Haven Residential",
+      "pm_slugs": [
+        "haven-residential-columbus-oh",
+        "haven-residential-denver-co",
+        "haven-residential-phoenix-az"
+      ]
+    },
+    {
+      "canonical_slug": "herman-kittle",
+      "canonical_name": "Herman & Kittle",
+      "pm_slugs": [
+        "herman-kittle-columbus-oh",
+        "herman-kittle-indianapolis-carmel-in"
+      ]
+    },
+    {
+      "canonical_slug": "hh-property-management-services",
+      "canonical_name": "HH Property Management Services",
+      "pm_slugs": [
+        "hh-property-management-services-columbus-oh",
+        "hh-property-management-services-pittsburgh-pa"
+      ]
+    },
+    {
+      "canonical_slug": "holland-partner-group",
+      "canonical_name": "Holland Partner Group",
+      "pm_slugs": [
+        "holland-partner-group-denver-co",
+        "holland-partner-group-phoenix-az",
+        "holland-partner-group-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "homeriver-group",
+      "canonical_name": "HomeRiver Group",
+      "pm_slugs": [
+        "homeriver-group-alabama-huntsville-al",
+        "homeriver-group-arizona-phoenix-az",
+        "homeriver-group-chattanooga-chattanooga-tn",
+        "homeriver-group-florida-jacksonville-fl",
+        "homeriver-group-tennessee-memphis-tn"
+      ]
+    },
+    {
+      "canonical_slug": "homeriver-group-ohio-kentucky",
+      "canonical_name": "Homeriver Group Ohio/Kentucky",
+      "pm_slugs": [
+        "homeriver-group-ohio-kentucky-cincinnati-middletown-oh-ky-in",
+        "homeriver-group-ohio-kentucky-columbus-oh"
+      ]
+    },
+    {
+      "canonical_slug": "horizon-realty-advisors",
+      "canonical_name": "Horizon Realty Advisors",
+      "pm_slugs": [
+        "horizon-realty-advisors-knoxville-tn",
+        "horizon-realty-advisors-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "housing-helpers-of-colorado",
+      "canonical_name": "Housing Helpers Of Colorado",
+      "pm_slugs": [
+        "housing-helpers-of-colorado-boulder-co",
+        "housing-helpers-of-colorado-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "in-good-company-real-estate-property-management",
+      "canonical_name": "In Good Company Real Estate Property Management",
+      "pm_slugs": [
+        "in-good-company-real-estate-property-management-chicago-joliet-naperville-il-in-wi",
+        "in-good-company-real-estate-property-management-fort-wayne-in"
+      ]
+    },
+    {
+      "canonical_slug": "integrity-realty-management",
+      "canonical_name": "Integrity Realty & Management",
+      "pm_slugs": [
+        "integrity-realty-and-management-jacksonville-fl",
+        "integrity-realty-management-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "intempus-realty",
+      "canonical_name": "Intempus Realty",
+      "pm_slugs": [
+        "intempus-realty-knoxville-knoxville-tn",
+        "intempus-realty-nashville-nashville-tn"
+      ]
+    },
+    {
+      "canonical_slug": "invitation-homes",
+      "canonical_name": "Invitation Homes",
+      "pm_slugs": [
+        "invitation-homes-boulder-co",
+        "invitation-homes-chicago-joliet-naperville-il-in-wi",
+        "invitation-homes-clarksville-tn-ky",
+        "invitation-homes-dallas-fort-worth-arlington-tx",
+        "invitation-homes-denver-co",
+        "invitation-homes-fort-collins-co",
+        "invitation-homes-jacksonville-fl",
+        "invitation-homes-nashville-tn",
+        "invitation-homes-phoenix-az",
+        "invitation-homes-san-antonio-tx",
+        "invitation-homes-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "ironridge-capital",
+      "canonical_name": "Ironridge Capital",
+      "pm_slugs": [
+        "ironridge-capital-dallas-fort-worth-arlington-tx",
+        "ironridge-capital-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "j-and-g-capital",
+      "canonical_name": "J and G Capital LLC",
+      "pm_slugs": [
+        "j-and-g-capital-llc-cincinnati-middletown-oh-ky-in",
+        "j-and-g-capital-llc-indianapolis-carmel-in"
+      ]
+    },
+    {
+      "canonical_slug": "lauth-communities",
+      "canonical_name": "Lauth Communities",
+      "pm_slugs": [
+        "lauth-communities-fort-wayne-in",
+        "lauth-communities-indianapolis-carmel-in"
+      ]
+    },
+    {
+      "canonical_slug": "lighthouse-property-management",
+      "canonical_name": "Lighthouse Property Management",
+      "pm_slugs": [
+        "lighthouse-property-management-dallas-fort-worth-arlington-tx",
+        "lighthouse-property-management-jacksonville-fl",
+        "lighthouse-property-management-nashville-tn"
+      ]
+    },
+    {
+      "canonical_slug": "lion-real-estate-group",
+      "canonical_name": "Lion Real Estate Group",
+      "pm_slugs": [
+        "lion-real-estate-group-dallas-fort-worth-arlington-tx",
+        "lion-real-estate-group-nashville-tn"
+      ]
+    },
+    {
+      "canonical_slug": "madison-apartment-group",
+      "canonical_name": "Madison Apartment Group, L.p.",
+      "pm_slugs": [
+        "madison-apartment-group-l-p-dallas-fort-worth-arlington-tx",
+        "madison-apartment-group-l-p-fort-collins-co",
+        "madison-apartment-group-l-p-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "marshall-reddick-real-estate",
+      "canonical_name": "Marshall Reddick Real Estate",
+      "pm_slugs": [
+        "marshall-reddick-real-estate-clarksville-tn-ky",
+        "marshall-reddick-real-estate-nashville-tn",
+        "marshall-reddick-real-estate-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "maryland-management-company",
+      "canonical_name": "Maryland Management Company",
+      "pm_slugs": [
+        "maryland-management-company-baltimore-towson-md",
+        "maryland-management-company-jacksonville-fl"
+      ]
+    },
+    {
+      "canonical_slug": "maxx-properties",
+      "canonical_name": "Maxx Properties",
+      "pm_slugs": [
+        "maxx-properties-denver-co",
+        "maxx-properties-phoenix-az"
+      ]
+    },
+    {
+      "canonical_slug": "mccormack-baron-management",
+      "canonical_name": "McCormack Baron Management",
+      "pm_slugs": [
+        "mccormack-baron-management-cleveland-elyria-mentor-oh",
+        "mccormack-baron-management-columbus-oh",
+        "mccormack-baron-management-memphis-tn",
+        "mccormack-baron-management-phoenix-az",
+        "mccormack-baron-management-pittsburgh-pa"
+      ]
+    },
+    {
+      "canonical_slug": "mg-properties-group",
+      "canonical_name": "MG Properties Group",
+      "pm_slugs": [
+        "mg-properties-group-denver-co",
+        "mg-properties-group-phoenix-az",
+        "mg-properties-group-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "mid-state-properties-gp",
+      "canonical_name": "Mid State Properties GP",
+      "pm_slugs": [
+        "mid-state-properties-gp-clarksville-tn-ky",
+        "mid-state-properties-gp-nashville-tn"
+      ]
+    },
+    {
+      "canonical_slug": "mission-rock-residential",
+      "canonical_name": "Mission Rock Residential",
+      "pm_slugs": [
+        "mission-rock-residential-baltimore-towson-md",
+        "mission-rock-residential-boulder-co",
+        "mission-rock-residential-chattanooga-tn",
+        "mission-rock-residential-clarksville-tn-ky",
+        "mission-rock-residential-denver-co",
+        "mission-rock-residential-fort-collins-co",
+        "mission-rock-residential-knoxville-tn",
+        "mission-rock-residential-nashville-tn",
+        "mission-rock-residential-phoenix-az",
+        "mission-rock-residential-san-antonio-tx",
+        "mission-rock-residential-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "monarch-investment-and-management-group",
+      "canonical_name": "Monarch Investment And Management Group",
+      "pm_slugs": [
+        "monarch-investment-and-management-group-chicago-joliet-naperville-il-in-wi",
+        "monarch-investment-and-management-group-dallas-fort-worth-arlington-tx",
+        "monarch-investment-and-management-group-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "mynd-property-management",
+      "canonical_name": "Mynd Property Management",
+      "pm_slugs": [
+        "mynd-property-management-birmingham-al",
+        "mynd-property-management-columbus-oh",
+        "mynd-property-management-dallas-fort-worth-arlington-tx",
+        "mynd-property-management-denver-co",
+        "mynd-property-management-huntsville-al",
+        "mynd-property-management-indianapolis-carmel-in",
+        "mynd-property-management-jacksonville-fl",
+        "mynd-property-management-memphis-tn",
+        "mynd-property-management-nashville-tn",
+        "mynd-property-management-phoenix-az",
+        "mynd-property-management-san-antonio-tx",
+        "mynd-property-management-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "new-age-real-estate",
+      "canonical_name": "New Age Real Estate",
+      "pm_slugs": [
+        "new-age-real-estate-boulder-co",
+        "new-age-real-estate-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "northpoint-asset-management",
+      "canonical_name": "Northpoint Asset Management Inc",
+      "pm_slugs": [
+        "northpoint-asset-management-dallas-fort-worth-arlington-tx",
+        "northpoint-asset-management-inc-columbus-oh",
+        "northpoint-asset-management-inc-dallas-fort-worth-arlington-tx",
+        "northpoint-asset-management-inc-jacksonville-fl"
+      ]
+    },
+    {
+      "canonical_slug": "omega-realty-group",
+      "canonical_name": "Omega Realty Group",
+      "pm_slugs": [
+        "omega-realty-group-birmingham-al",
+        "omega-realty-group-huntsville-al",
+        "omega-realty-group-montgomery-al"
+      ]
+    },
+    {
+      "canonical_slug": "omni-property-management",
+      "canonical_name": "Omni Property Management",
+      "pm_slugs": [
+        "omni-property-management-memphis-tn",
+        "omni-property-management-pittsburgh-pa"
+      ]
+    },
+    {
+      "canonical_slug": "pacific-urban-investors",
+      "canonical_name": "Pacific Urban Investors",
+      "pm_slugs": [
+        "pacific-urban-investors-dallas-fort-worth-arlington-tx",
+        "pacific-urban-investors-denver-co",
+        "pacific-urban-investors-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "pacifica-residential",
+      "canonical_name": "Pacifica Residential",
+      "pm_slugs": [
+        "pacifica-residential-jacksonville-fl",
+        "pacifica-residential-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "peak-property-group",
+      "canonical_name": "Peak Property Group",
+      "pm_slugs": [
+        "peak-property-group-cincinnati-middletown-oh-ky-in",
+        "peak-property-group-columbus-oh"
+      ]
+    },
+    {
+      "canonical_slug": "ppmg-of-texas",
+      "canonical_name": "Ppmg Of Texas",
+      "pm_slugs": [
+        "ppmg-of-texas-dallas-fort-worth-arlington-tx",
+        "ppmg-of-texas-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "progress-residential",
+      "canonical_name": "Progress Residential",
+      "pm_slugs": [
+        "progress-residential-birmingham-al",
+        "progress-residential-columbus-oh",
+        "progress-residential-dallas-fort-worth-arlington-tx",
+        "progress-residential-denver-co",
+        "progress-residential-indianapolis-carmel-in",
+        "progress-residential-jacksonville-fl",
+        "progress-residential-memphis-tn",
+        "progress-residential-nashville-tn",
+        "progress-residential-phoenix-az",
+        "progress-residential-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "pure-property-management",
+      "canonical_name": "Pure Property Management",
+      "pm_slugs": [
+        "pure-property-management-of-alabama-birmingham-office-birmingham-al",
+        "pure-property-management-of-alabama-huntsville-al",
+        "pure-property-management-of-alabama-huntsville-office-huntsville-al",
+        "pure-property-management-of-arizona-phoenix-az",
+        "pure-property-management-of-tennessee-nashville-office-nashville-tn"
+      ]
+    },
+    {
+      "canonical_slug": "renting-earth-property-management",
+      "canonical_name": "Renting Earth Property Management",
+      "pm_slugs": [
+        "renting-earth-property-management-birmingham-al",
+        "renting-earth-property-management-montgomery-al"
+      ]
+    },
+    {
+      "canonical_slug": "resprop",
+      "canonical_name": "ResProp",
+      "pm_slugs": [
+        "resprop-dallas-fort-worth-arlington-tx",
+        "resprop-jacksonville-fl",
+        "resprop-nashville-tn",
+        "resprop-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "riparian-management",
+      "canonical_name": "Riparian Management",
+      "pm_slugs": [
+        "riparian-management-baltimore-towson-md",
+        "riparian-management-pittsburgh-pa"
+      ]
+    },
+    {
+      "canonical_slug": "rise48-equity",
+      "canonical_name": "Rise48 Equity",
+      "pm_slugs": [
+        "rise48-equity-dallas-fort-worth-arlington-tx",
+        "rise48-equity-phoenix-az"
+      ]
+    },
+    {
+      "canonical_slug": "roselyfe-management",
+      "canonical_name": "Roselyfe Management",
+      "pm_slugs": [
+        "roselyfe-management-jacksonville-fl",
+        "roselyfe-management-nashville-tn"
+      ]
+    },
+    {
+      "canonical_slug": "rushmore-management",
+      "canonical_name": "Rushmore Management",
+      "pm_slugs": [
+        "rushmore-management-baltimore-towson-md",
+        "rushmore-management-columbus-oh"
+      ]
+    },
+    {
+      "canonical_slug": "s-h-realty-management",
+      "canonical_name": "S & H Realty Management LLP",
+      "pm_slugs": [
+        "s-h-realty-management-llp-dallas-fort-worth-arlington-tx",
+        "s-h-realty-management-llp-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "sares-regis-management",
+      "canonical_name": "Sares Regis Management",
+      "pm_slugs": [
+        "sares-regis-management-denver-co",
+        "sares-regis-management-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "schweb-partners",
+      "canonical_name": "Schweb Partners",
+      "pm_slugs": [
+        "schweb-partners-baltimore-towson-md",
+        "schweb-partners-jacksonville-fl"
+      ]
+    },
+    {
+      "canonical_slug": "second-avenue",
+      "canonical_name": "Second Avenue",
+      "pm_slugs": [
+        "second-avenue-birmingham-al",
+        "second-avenue-chicago-joliet-naperville-il-in-wi",
+        "second-avenue-cincinnati-middletown-oh-ky-in",
+        "second-avenue-cleveland-elyria-mentor-oh",
+        "second-avenue-dallas-fort-worth-arlington-tx",
+        "second-avenue-jacksonville-fl",
+        "second-avenue-memphis-tn",
+        "second-avenue-pittsburgh-pa",
+        "second-avenue-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "security-properties-residential",
+      "canonical_name": "Security Properties Residential",
+      "pm_slugs": [
+        "security-properties-residential-denver-co",
+        "security-properties-residential-nashville-tn",
+        "security-properties-residential-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "sherman-residential",
+      "canonical_name": "Sherman Residential",
+      "pm_slugs": [
+        "sherman-residential-dallas-fort-worth-arlington-tx",
+        "sherman-residential-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "simplyhome-by-camillo",
+      "canonical_name": "Simplyhome By Camillo",
+      "pm_slugs": [
+        "simplyhome-by-camillo-dallas-fort-worth-arlington-tx",
+        "simplyhome-by-camillo-san-antonio-tx"
+      ]
+    },
+    {
+      "canonical_slug": "slater-realty-and-investments",
+      "canonical_name": "Slater Realty And Investments Inc",
+      "pm_slugs": [
+        "slater-realty-and-investments-inc-chicago-joliet-naperville-il-in-wi",
+        "slater-realty-and-investments-inc-columbus-oh"
+      ]
+    },
+    {
+      "canonical_slug": "smartland",
+      "canonical_name": "Smartland",
+      "pm_slugs": [
+        "smartland-cleveland-elyria-mentor-oh",
+        "smartland-columbus-oh"
+      ]
+    },
+    {
+      "canonical_slug": "specialized-property-management",
+      "canonical_name": "Specialized Property Management",
+      "pm_slugs": [
+        "specialized-property-management-alabama-birmingham-al",
+        "specialized-property-management-memphis-memphis-tn"
+      ]
+    },
+    {
+      "canonical_slug": "stones-river-property-management",
+      "canonical_name": "Stones River Property Management",
+      "pm_slugs": [
+        "stones-river-property-management-chattanooga-tn",
+        "stones-river-property-management-nashville-tn"
+      ]
+    },
+    {
+      "canonical_slug": "strategic-management-solution",
+      "canonical_name": "Strategic Management Solution, LLC",
+      "pm_slugs": [
+        "strategic-management-solution-llc-chicago-joliet-naperville-il-in-wi",
+        "strategic-management-solution-llc-dallas-fort-worth-arlington-tx",
+        "strategic-management-solution-llc-fort-wayne-in",
+        "strategic-management-solution-llc-indianapolis-carmel-in"
+      ]
+    },
+    {
+      "canonical_slug": "sylvan-homes",
+      "canonical_name": "Sylvan Homes",
+      "pm_slugs": [
+        "sylvan-homes-baltimore-towson-md",
+        "sylvan-homes-birmingham-al",
+        "sylvan-homes-dallas-fort-worth-arlington-tx",
+        "sylvan-homes-indianapolis-carmel-in",
+        "sylvan-homes-jacksonville-fl",
+        "sylvan-homes-phoenix-az",
+        "sylvan-homes-pittsburgh-pa"
+      ]
+    },
+    {
+      "canonical_slug": "ten27-living",
+      "canonical_name": "Ten27 Living LLC",
+      "pm_slugs": [
+        "ten27-living-llc-cincinnati-middletown-oh-ky-in",
+        "ten27-living-llc-columbus-oh"
+      ]
+    },
+    {
+      "canonical_slug": "thompson-thrift",
+      "canonical_name": "Thompson Thrift",
+      "pm_slugs": [
+        "thompson-thrift-boulder-co",
+        "thompson-thrift-denver-co"
+      ]
+    },
+    {
+      "canonical_slug": "ti-communities",
+      "canonical_name": "TI Communities, LP",
+      "pm_slugs": [
+        "ti-communities-lp-chicago-joliet-naperville-il-in-wi",
+        "ti-communities-lp-dallas-fort-worth-arlington-tx",
+        "ti-communities-lp-denver-co",
+        "ti-communities-lp-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "tricon-residential",
+      "canonical_name": "Tricon Residential",
+      "pm_slugs": [
+        "tricon-residential-baltimore-towson-md",
+        "tricon-residential-chicago-joliet-naperville-il-in-wi",
+        "tricon-residential-clarksville-tn-ky",
+        "tricon-residential-dallas-fort-worth-arlington-tx",
+        "tricon-residential-denver-co",
+        "tricon-residential-fort-collins-co",
+        "tricon-residential-indianapolis-carmel-in",
+        "tricon-residential-jacksonville-fl",
+        "tricon-residential-nashville-tn",
+        "tricon-residential-phoenix-az",
+        "tricon-residential-san-antonio-tx",
+        "tricon-residential-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "trinity-property-consultants",
+      "canonical_name": "Trinity Property Consultants",
+      "pm_slugs": [
+        "trinity-property-consultants-chicago-joliet-naperville-il-in-wi",
+        "trinity-property-consultants-dallas-fort-worth-arlington-tx",
+        "trinity-property-consultants-denver-co",
+        "trinity-property-consultants-fort-collins-co",
+        "trinity-property-consultants-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "udr",
+      "canonical_name": "UDR",
+      "pm_slugs": [
+        "udr-baltimore-towson-md",
+        "udr-dallas-fort-worth-arlington-tx",
+        "udr-denver-co",
+        "udr-nashville-tn",
+        "udr-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "valor-residential-group",
+      "canonical_name": "Valor Residential Group LLC",
+      "pm_slugs": [
+        "valor-residential-group-llc-clarksville-tn-ky",
+        "valor-residential-group-llc-knoxville-tn"
+      ]
+    },
+    {
+      "canonical_slug": "wasatch-group",
+      "canonical_name": "Wasatch Group",
+      "pm_slugs": [
+        "wasatch-group-denver-co",
+        "wasatch-group-phoenix-az",
+        "wasatch-group-seattle-wa"
+      ]
+    },
+    {
+      "canonical_slug": "western-wealth-communities",
+      "canonical_name": "Western Wealth Communities",
+      "pm_slugs": [
+        "western-wealth-communities-dallas-fort-worth-arlington-tx",
+        "western-wealth-communities-phoenix-az"
+      ]
+    },
+    {
+      "canonical_slug": "winwood-management",
+      "canonical_name": "Winwood Management LLC",
+      "pm_slugs": [
+        "winwood-management-llc-birmingham-al",
+        "winwood-management-llc-huntsville-al"
+      ]
+    },
+    {
+      "canonical_slug": "zeal-property-management",
+      "canonical_name": "Zeal Property Management",
+      "pm_slugs": [
+        "zeal-property-management-boulder-co",
+        "zeal-property-management-denver-co"
+      ]
+    }
+  ],
+  "rejected": []
+}

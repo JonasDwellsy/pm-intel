@@ -149,6 +149,15 @@ def main():
     # new_canonical_name) edits, grouped by file.
     edits_by_file = defaultdict(list)
     errors = []
+    # v0.6.4 Patch 10 — slugs referenced by a decision file but absent from
+    # the current per-market data. Expected during the typed re-export
+    # rollout: an operator can drop below the eligibility threshold, get
+    # reclassified (broker/excluded), or have its source name shift between
+    # exports — any of which changes or removes its name-based slug. These
+    # are warn-and-skip, not fatal: re-applying historical decisions against
+    # refreshed data should link what's present and quietly pass over what
+    # isn't. (Phase B's company_id-keyed identity removes this fragility.)
+    missing = []
 
     def resolve_pm(pm_slug):
         """Return (file_path, market_id). Errors out if not found."""
@@ -177,7 +186,7 @@ def main():
                 if _is_denylisted_slug(pm_slug):
                     print(f"  ↷ skip (denylisted): {pm_slug}")
                 else:
-                    errors.append(f"extension PM not found: {pm_slug}")
+                    missing.append(pm_slug)
                 continue
             edits_by_file[file_path].append({
                 "pm_slug": pm_slug,
@@ -197,7 +206,7 @@ def main():
                 if _is_denylisted_slug(pm_slug):
                     print(f"  ↷ skip (denylisted): {pm_slug}")
                 else:
-                    errors.append(f"new-canonical PM not found: {pm_slug}")
+                    missing.append(pm_slug)
                 continue
             edits_by_file[file_path].append({
                 "pm_slug": pm_slug,
@@ -207,6 +216,13 @@ def main():
                 "kind": "new",
             })
 
+    if missing:
+        print(
+            f"\n[apply_canonicals] ⚠ {len(missing)} decision slug(s) not in "
+            f"current data (skipped — see note in source):"
+        )
+        for s in missing:
+            print(f"    {s}")
     if errors:
         print(f"\n[apply_canonicals] ⚠ {len(errors)} errors:")
         for e in errors:
