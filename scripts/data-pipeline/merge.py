@@ -154,6 +154,65 @@ def normalize_pms_inplace(pms):
 
 
 # ---------------------------------------------------------------------------
+# v0.6.4 Phase B — ID-based cross-market identity
+# ---------------------------------------------------------------------------
+
+def _canonical_slug(name):
+    """Slug for a canonical entity. Mirrors the pipeline's pm_slug minus the
+    market suffix, so an ID-derived canonical slug ('invitation-homes')
+    matches the name-based one the decision files produced — keeping
+    existing /operators/<slug> URLs stable."""
+    return re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
+
+
+def link_by_parent_id(pms):
+    """Group operators across markets by parentCompanyId and assign each
+    group a shared canonicalOperatorId (slug of the parent name) +
+    canonicalOperatorName, overriding the name-based value already present.
+
+    Operators without a parentCompanyId are left untouched (decision-file /
+    self canonical remains — the fallback for untyped markets + standalone
+    operators). The source guarantees parentCompanyId→name is 1:1; the rare
+    two-distinct-parents-same-name case is disambiguated by appending the id
+    to the smaller group's slug, leaving the larger group on the bare slug.
+
+    Returns the number of PMs whose canonicalOperatorId was (re)assigned."""
+    pid_name = {}
+    pid_groups = defaultdict(list)
+    for pm in pms:
+        pid = pm.get("parentCompanyId")
+        if pid:
+            pid_groups[pid].append(pm)
+            nm = pm.get("parentCompanyName")
+            if nm and pid not in pid_name:
+                pid_name[pid] = nm
+
+    # Resolve a unique slug per parent id.
+    base_to_pids = defaultdict(list)
+    for pid in pid_groups:
+        base_to_pids[_canonical_slug(pid_name.get(pid) or pid)].append(pid)
+    pid_slug = {}
+    for base, pids in base_to_pids.items():
+        if len(pids) == 1:
+            pid_slug[pids[0]] = base
+            continue
+        # Same base slug, genuinely different parents: largest group keeps
+        # the bare slug (URL stability), the rest get an id suffix.
+        for i, pid in enumerate(sorted(pids, key=lambda p: (-len(pid_groups[p]), p))):
+            pid_slug[pid] = base if i == 0 else f"{base}-{pid}"
+
+    assigned = 0
+    for pid, group in pid_groups.items():
+        slug = pid_slug[pid]
+        name = pid_name.get(pid) or group[0].get("canonicalOperatorName") or group[0]["name"]
+        for pm in group:
+            pm["canonicalOperatorId"] = slug
+            pm["canonicalOperatorName"] = name
+            assigned += 1
+    return assigned
+
+
+# ---------------------------------------------------------------------------
 # Merge
 # ---------------------------------------------------------------------------
 
@@ -200,6 +259,15 @@ def merge_markets(per_market_blobs, methodology_version="v0.6.4"):
 
     merged["dataAsOf"] = max_data_as_of
     duplicate_slugs = [s for s, n in slug_counts.items() if n > 1]
+
+    # v0.6.4 Phase B — ID-based cross-market identity. Operators sharing a
+    # parentCompanyId are one entity; assign them a shared canonical slug
+    # (from the parent name) + name. AUTHORITATIVE over the name-based
+    # decision-file canonicalOperatorId already on each PM. Operators with
+    # no parentCompanyId keep their existing canonicalOperatorId — that's
+    # the fallback path covering the untyped market(s) + standalone ops.
+    id_linked = link_by_parent_id(merged["pms"])
+    merged["_id_linked_count"] = id_linked
 
     # Roll up canonicalOperators from the merged PM set.
     co_groups = defaultdict(list)
