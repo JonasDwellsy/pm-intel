@@ -239,9 +239,8 @@ test("SynthesisLayer renders the facts-oriented lede above the Executive summary
     "utf8"
   );
   assert.ok(
-    synthesisSrc.includes("<HeadlineFactLine") &&
-      synthesisSrc.includes("<GradeStrip"),
-    "SynthesisLayer must render <HeadlineFactLine /> + <GradeStrip />"
+    synthesisSrc.includes("<HeadlineFactLine"),
+    "SynthesisLayer must render the <HeadlineFactLine /> lede"
   );
   const ledeIdx = synthesisSrc.indexOf("<HeadlineFactLine");
   const executiveJsxIdx = synthesisSrc.indexOf("{executiveSummary && (");

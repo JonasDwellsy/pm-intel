@@ -1275,44 +1275,46 @@ def size_word(q7):
     return ""
 
 
-def quartile_phrase(star, pct):
-    if star == "gold": return "top quartile"
-    if star == "silver": return "the middle of the cohort"
-    if pct is not None and pct < 25: return "the bottom quartile"
-    return "the lower half of the cohort"
+# v0.21 — facts-not-judgments voice. The exec summary states each dimension's
+# position RELATIVE TO THE COHORT MEDIAN as a fact ("above the cohort median
+# on lease-up speed and rent growth; below on …"), instead of the prior
+# verdict language ("ranks top quartile, driven by top-quartile operational
+# discipline"). No "top quartile" / "driven by" / "strong" — the reader
+# judges. Rank + composite are stated by the page's headline fact line, so
+# this sentence deliberately does NOT restate them.
+_DIM_LABELS = {
+    "dom": "lease-up speed",
+    "tenancy": "tenant retention",
+    "rentPerformance": "rent growth",
+    "marketing": "operational discipline",
+    "communityVisibility": "community visibility",
+}
 
 
-def driving_phrase(metric, percentile):
-    if metric == "dom":
-        if percentile >= 90: return "top-decile lease-up speed"
-        if percentile >= 75: return "top-quartile lease-up speed"
-        if percentile >= 50: return "above-cohort lease-up speed"
-    elif metric == "tenancy":
-        if percentile >= 90: return "top-decile tenant retention"
-        if percentile >= 75: return "top-quartile tenant retention"
-        if percentile >= 50: return "above-cohort tenant retention"
-    elif metric == "rentPerformance":
-        if percentile >= 75: return "above-cohort rent growth"
-        if percentile >= 50: return "near-cohort rent growth"
-    elif metric == "marketing":
-        if percentile >= 75: return "top-quartile operational discipline"
-        if percentile >= 50: return "above-cohort operational discipline"
-    elif metric == "communityVisibility":
-        if percentile >= 75: return "comprehensive community visibility"
-        if percentile >= 50: return "above-cohort community visibility"
-    return None
+def _join_list(xs):
+    if len(xs) == 1:
+        return xs[0]
+    if len(xs) == 2:
+        return f"{xs[0]} and {xs[1]}"
+    return ", ".join(xs[:-1]) + f", and {xs[-1]}"
 
 
-def drivers_for(focal_norm):
+def neutral_position_clause(focal_norm, cohort_name):
     sd = star_data[focal_norm]
-    pos = []
+    above, below = [], []
     for m in ("dom", "tenancy", "rentPerformance", "marketing", "communityVisibility"):
         md = sd.get(m)
-        if md and md["percentile"] is not None and md["percentile"] >= 50:
-            phrase = driving_phrase(m, md["percentile"])
-            if phrase: pos.append((md["percentile"], phrase))
-    pos.sort(reverse=True)
-    return [p for _, p in pos[:2]]
+        if not md or md.get("percentile") is None:
+            continue
+        (above if md["percentile"] >= 50 else below).append(_DIM_LABELS[m])
+    if not above and not below:
+        return ""
+    segs = []
+    if above:
+        segs.append(f"above the cohort median on {_join_list(above)}")
+    if below:
+        segs.append(f"below on {_join_list(below)}")
+    return f"Within the {cohort_name}: {'; '.join(segs)}."
 
 
 def tenure_clause(years_visible):
@@ -1328,13 +1330,8 @@ def build_exec_summary(name, focal_norm, q7, feats):
     market = f"{MARKET_NAME} MSA"
     sd = star_data[focal_norm]
     comp = sd.get("composite") or {}
-    pct = comp.get("percentile")
-    star = comp.get("star")
     cn = comp.get("cohortName") or f"{MARKET_NAME} MSA cohort"
-    quartile = quartile_phrase(star, pct)
-    drv = drivers_for(focal_norm)
-    drivers_clause = (f"driven by {' and '.join(drv)}" if drv
-                      else "no metric reaching the top quartile of the cohort")
+    position_clause = neutral_position_clause(focal_norm, cn)
     tc = tenure_clause(feats["years_visible"])
 
     if q7.startswith("SFR"):
@@ -1343,8 +1340,8 @@ def build_exec_summary(name, focal_norm, q7, feats):
         s1 = (f"{name} oversees a scattered single-family portfolio in {market}, "
               f"with {fmt_int(n_addr)} distinct addresses observed and "
               f"{fmt_int(m_listings)} listings in the trailing 12 months.")
-        s2 = f"Within the {cn}, composite ranks {quartile}, {drivers_clause}."
-        parts = [s1, s2]
+        s2 = position_clause
+        parts = [s1] + ([s2] if s2 else [])
         if tc: parts.append(tc)
         return " ".join(parts)
 
@@ -1361,8 +1358,8 @@ def build_exec_summary(name, focal_norm, q7, feats):
             s1 = (f"{name} is a mixed-mode operator in {market} with {fmt_int(concentrated_units)} units across "
                   f"{n_conc} concentrated {comm_word} and {fmt_int(scattered_units)} units across "
                   f"scattered addresses observed in T12.")
-        s2 = f"Within the {cn}, composite ranks {quartile}, {drivers_clause}."
-        parts = [s1, s2]
+        s2 = position_clause
+        parts = [s1] + ([s2] if s2 else [])
         if tc: parts.append(tc)
         return " ".join(parts)
 
@@ -1382,8 +1379,8 @@ def build_exec_summary(name, focal_norm, q7, feats):
               f"with approximately {fmt_int(comm_total_approx)} units total across these properties.")
         s2 = (f"We observed {fmt_int(m_listings)} distinct listings across these communities "
               f"in the trailing 12 months.")
-    s3 = f"Within the {cn}, composite ranks {quartile}, {drivers_clause}."
-    parts = [s1, s2, s3]
+    s3 = position_clause
+    parts = [s1, s2] + ([s3] if s3 else [])
     if tc: parts.append(tc)
     return " ".join(parts)
 

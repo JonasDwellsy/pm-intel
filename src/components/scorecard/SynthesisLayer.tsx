@@ -5,11 +5,7 @@ import { fmtInt, fmtNumber, fmtPct } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
 import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
 import { StarIcon } from "@/components/scorecard/StarIcon";
-import {
-  HeadlineFactLine,
-  GradeStrip,
-  QuestionsRaised,
-} from "@/components/scorecard/ScorecardLede";
+import { HeadlineFactLine } from "@/components/scorecard/ScorecardLede";
 import type { MetricKey } from "@/lib/metric-definitions";
 
 // Layer 2 — Synthesis block (v1.0 design, per Scorecard_Design_Spec_v1.0.md
@@ -72,20 +68,12 @@ export function SynthesisLayer({ scorecard }: { scorecard: ScorecardData }) {
   return (
     <section id="synthesis" aria-label="Synthesis" className="dq-section space-y-10">
       <LayerSectionHeader num="01" title="Synthesis" />
-      {/* v0.21 — facts-oriented lede. Replaces the prior "ranks above
-          cohort median… top-quartile" framing sentence with: a positional
-          fact line (rank in 7-cell cohort + composite), the 5-dimension
-          grade strip (each metric vs cohort, at a glance), and rule-based
-          "Questions this raises" that flag anomalies AS QUESTIONS, not
-          verdicts. The reader judges; we surface what's notable. */}
-      <div className="space-y-5">
-        <HeadlineFactLine scorecard={scorecard} />
-        <GradeStrip
-          scorecard={scorecard}
-          showInventoryTransparency={showInventoryTransparency}
-        />
-        <QuestionsRaised scorecard={scorecard} />
-      </div>
+      {/* v0.21 — facts-oriented lede: a single positional fact line (rank
+          in the 7-cell cohort + composite). Deliberately NOT a grade strip
+          — the headline-metric tiles below already carry the per-dimension
+          facts, so a strip here would duplicate them. The fact line owns
+          the one thing the tiles don't show: where the operator ranks. */}
+      <HeadlineFactLine scorecard={scorecard} />
       {/* 2A — Executive summary */}
       {executiveSummary && (
         <div>
