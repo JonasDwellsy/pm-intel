@@ -26,6 +26,10 @@ import {
 } from "@/lib/watch-list/aggregate";
 import type { PMRecord } from "@/lib/watch-list/fields";
 import type { ScorecardData } from "@/lib/types";
+import {
+  isMarketEntitled,
+  type MarketEntitlement,
+} from "@/lib/auth/market-entitlements";
 
 export interface OperatorMember {
   pmSlug: string;
@@ -68,13 +72,21 @@ export interface OperatorScorecardData {
 }
 
 export async function loadOperatorScorecard(
-  canonicalSlug: string
+  canonicalSlug: string,
+  // v0.22 — when provided, scope the operator to the viewer's entitled
+  // markets: members in non-entitled markets are dropped BEFORE
+  // aggregation, so the header stats + breakdown reflect only the
+  // markets the org bought (no leak of presence/stats in markets they
+  // didn't). Omit (or pass "all") for the unscoped view. Returns null
+  // when the operator has no entitled markets — the page distinguishes
+  // that from "operator doesn't exist" and shows the upsell.
+  entitlement?: MarketEntitlement
 ): Promise<OperatorScorecardData | null> {
   // Pull every PM whose canonicalOperatorId matches. For multi-
   // market operators this lands the full member set in one query;
   // for single-market operators (canonicalOperatorId === pm.slug)
   // it lands one row.
-  const rows = await prisma.pM.findMany({
+  const allRows = await prisma.pM.findMany({
     where: { canonicalOperatorId: canonicalSlug },
     select: {
       slug: true,
@@ -86,6 +98,15 @@ export async function loadOperatorScorecard(
       market: { select: { fullName: true, city: true, state: true } },
     },
   });
+  if (allRows.length === 0) return null;
+
+  const rows =
+    entitlement === undefined
+      ? allRows
+      : allRows.filter((r) => isMarketEntitled(entitlement, r.marketId));
+  // Operator exists but none of its markets are entitled → signal the
+  // caller to render the upsell (it can tell this apart from a true
+  // not-found because allRows was non-empty).
   if (rows.length === 0) return null;
 
   // Resolve the operator display name. Multi-market entities live

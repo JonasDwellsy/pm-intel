@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/prisma";
 import { fmtInt, fmtPct } from "@/lib/format";
 import { loadOperatorScorecard } from "@/lib/operators/lookup";
 import { getWatchList } from "@/lib/watch-list/store";
 import { getActiveOrgId } from "@/lib/auth/active-org";
+import { resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
+import { MarketLockedUpsell } from "@/components/entitlements/MarketLockedUpsell";
 import { STATE_CODE_TO_NAME } from "@/lib/slugify";
 
 // v0.11 — Operator-level scorecard.
@@ -49,8 +52,24 @@ export default async function OperatorScorecardPage({
   const { canonicalSlug } = await params;
   const { fromWatchList } = await searchParams;
 
-  const view = await loadOperatorScorecard(canonicalSlug);
-  if (!view) notFound();
+  // Scope the operator to the viewer's entitled markets — members in
+  // non-entitled markets are dropped before aggregation, so the header
+  // stats + breakdown never reveal the operator's presence in markets
+  // the org didn't buy.
+  const entitlement = await resolveViewerEntitlement();
+  const view = await loadOperatorScorecard(canonicalSlug, entitlement);
+  if (!view) {
+    // loadOperatorScorecard returns null both for "doesn't exist" and
+    // "exists but no entitled markets". Distinguish: if the operator has
+    // any PMs at all, it's a real operator the org just hasn't bought →
+    // upsell; otherwise a genuine 404.
+    const exists =
+      (await prisma.pM.count({
+        where: { canonicalOperatorId: canonicalSlug },
+      })) > 0;
+    if (exists) return <MarketLockedUpsell marketName={null} />;
+    notFound();
+  }
 
   // Optional watch-list breadcrumb. Reads the row only when the
   // ?fromWatchList=… query param is present AND the requester is

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { applyWatchList } from "@/lib/watch-list/apply";
+import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
 import { getWatchListWithCrossOrgCheck } from "@/lib/watch-list/store";
 import { computeChangesForDetailView } from "@/lib/watch-list/changes";
 import type { OperatorChange } from "@/lib/watch-list/change-detection";
@@ -52,14 +53,19 @@ export default async function WatchListChangesPage({ params }: PageProps) {
   }
   const watchList = access.record;
 
-  const applied = await applyWatchList({
-    id: watchList.id,
-    name: watchList.name,
-    description: watchList.description,
-    requiredCriteria: watchList.requiredCriteria,
-    preferredCriteria: watchList.preferredCriteria,
-    excludedCriteria: watchList.excludedCriteria,
-  });
+  // v0.22 — scope to the owning org's entitled markets.
+  const entitlement = await getEntitledMarketIds(organizationId);
+  const applied = await applyWatchList(
+    {
+      id: watchList.id,
+      name: watchList.name,
+      description: watchList.description,
+      requiredCriteria: watchList.requiredCriteria,
+      preferredCriteria: watchList.preferredCriteria,
+      excludedCriteria: watchList.excludedCriteria,
+    },
+    entitlement
+  );
 
   const matchedPmSlugs = applied.results.map((r) => r.pmSlug);
   const { changesByOperator, firstVisit } = await computeChangesForDetailView({

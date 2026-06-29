@@ -16,6 +16,10 @@
 
 import { prisma } from "@/lib/prisma";
 import type { ScorecardData } from "@/lib/types";
+import {
+  isMarketEntitled,
+  type MarketEntitlement,
+} from "@/lib/auth/market-entitlements";
 import { type PMRecord } from "./fields";
 import {
   evaluateWatchList,
@@ -84,9 +88,14 @@ export interface TargetListResult {
 }
 
 export async function applyWatchList(
-  watchList: WatchListDefinition
+  watchList: WatchListDefinition,
+  // v0.22 — when provided, only operators in the org's entitled markets
+  // are evaluated, so results (per-market and per-operator rollups)
+  // never surface operators in markets the org didn't buy. Omit for the
+  // unscoped evaluation.
+  entitlement?: MarketEntitlement
 ): Promise<TargetListResult> {
-  const rows = await prisma.pM.findMany({
+  const allRows = await prisma.pM.findMany({
     select: {
       slug: true,
       name: true,
@@ -97,6 +106,10 @@ export async function applyWatchList(
       market: { select: { fullName: true } },
     },
   });
+  const rows =
+    entitlement === undefined
+      ? allRows
+      : allRows.filter((r) => isMarketEntitled(entitlement, r.marketId));
 
   const canonicals = await prisma.canonicalOperator.findMany({
     select: { canonicalSlug: true, canonicalName: true, marketCount: true },

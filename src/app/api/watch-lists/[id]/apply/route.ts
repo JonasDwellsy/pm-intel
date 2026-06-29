@@ -14,6 +14,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { applyWatchList } from "@/lib/watch-list/apply";
+import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
 import { getWatchList } from "@/lib/watch-list/store";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 
@@ -40,6 +41,8 @@ export async function POST(_req: Request, { params }: RouteParams) {
   const watchList = await getWatchList(id, organizationId);
   if (!watchList) return Response.json({ error: "Not found." }, { status: 404 });
 
-  const result = await applyWatchList(watchList);
+  // v0.22 — scope to the owning org's entitled markets.
+  const entitlement = await getEntitledMarketIds(organizationId);
+  const result = await applyWatchList(watchList, entitlement);
   return Response.json(result);
 }

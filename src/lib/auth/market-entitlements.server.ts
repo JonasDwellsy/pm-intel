@@ -45,9 +45,26 @@ export async function getEntitledMarketIds(
 /** Resolve the current request's viewer entitlement. Applies the admin
  *  bypass first, then the viewer's active org. No session or no
  *  resolvable org → empty set (fail-closed); callers gate accordingly.
- *  This is the single entry point premium pages/data layers call. */
+ *  This is the entry point LOGIN-PROTECTED premium pages/data layers
+ *  call. */
 export async function resolveViewerEntitlement(): Promise<MarketEntitlement> {
   const { userId, organizationId } = await getActiveOrgContext();
+  if (isAdminUser(userId)) return ALL_MARKETS;
+  if (!organizationId) return new Set<string>();
+  return getEntitledMarketIds(organizationId);
+}
+
+/** Variant for PUBLIC surfaces that anonymous visitors can reach (the
+ *  coverage map, the watch-list preview). Returns `undefined` for
+ *  anonymous (no session) so the caller leaves the view UNSCOPED — the
+ *  all-markets marketing/SEO view. Signed-in users are scoped exactly
+ *  as resolveViewerEntitlement (admin bypass, fail-closed on no org).
+ *  Callers treat `undefined` as "don't filter". */
+export async function resolveViewerEntitlementForPublicSurface(): Promise<
+  MarketEntitlement | undefined
+> {
+  const { userId, organizationId } = await getActiveOrgContext();
+  if (!userId) return undefined;
   if (isAdminUser(userId)) return ALL_MARKETS;
   if (!organizationId) return new Set<string>();
   return getEntitledMarketIds(organizationId);
