@@ -372,17 +372,46 @@ model Organization {
   // "find personal org for user X" a single indexed lookup AND
   // enforces idempotency of the signup-time org provisioning.
   personalForUserId String?  @unique
+  // v0.22 — market entitlements. `allMarkets = true` means the org is
+  // entitled to every current AND future market (internal/comp accounts
+  // and national-tier clients); the migration backfills it to true for
+  // every pre-existing org so current users don't lose access. When
+  // false, entitlement is the explicit set in `marketAccess`. A brand-new
+  // org defaults to false + zero grants (fail-closed) — access is
+  // provisioned per deal from the admin panel. See
+  // src/lib/auth/market-entitlements.ts for the resolver.
+  allMarkets        Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   memberships     OrganizationMembership[]
   watchLists      WatchList[]
   pendingWelcomes PendingWelcome[]
+  marketAccess    OrganizationMarketAccess[]
 
   // Hot lookups: "find personal org for user X" (already covered by
   // the @unique on personalForUserId) and "find org by Clerk id"
   // (covered by the @unique on clerkOrgId). No additional indexes
   // needed for Phase 1.
+}
+
+// v0.22 — explicit per-market grants for an organization. One row per
+// (org, market) the org has purchased. The effective entitlement is
+// `org.allMarkets ? <all markets> : <set of these marketIds>`. Managed
+// entirely from the admin panel (no Clerk involvement). marketId is the
+// Market.id string ("chattanooga-tn"); not an FK so granting a market
+// can't be blocked by Market-row lifecycle and a removed market simply
+// stops resolving — but the @@unique keeps grants idempotent.
+model OrganizationMarketAccess {
+  id             String   @id @default(cuid())
+  organizationId String
+  marketId       String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, marketId])
+  @@index([organizationId])
 }
 
 // v0.18 (PR #71, Phase 3) — Transient row marking a user as
