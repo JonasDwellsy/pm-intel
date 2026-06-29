@@ -58,9 +58,8 @@ export default async function MarketsIndexPage() {
           Markets covered
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          {countAsWord(markets.length)} US MSAs are live today, with 200+
-          markets available upon request. National coverage is rolling out
-          through 2026 — prioritized by demand.
+          {countAsWord(markets.length)} US MSAs are live today, and we can
+          stand up any of the top 200 US markets on request — no waiting.
         </p>
       </header>
 
@@ -106,9 +105,8 @@ export default async function MarketsIndexPage() {
           Available in 200+ markets on request.
         </h2>
         <p className="mt-2 max-w-[60ch] text-[14px] text-foreground/75">
-          Dwellsy IQ is rolling out national coverage through 2026,
-          prioritized by demand. If your market isn&rsquo;t live yet, we can
-          stand it up on request.
+          If your market isn&rsquo;t live yet, we can stand up any of the top
+          200 US markets on request — no waiting on a roadmap.
         </p>
         <a
           href={buildCoverageRequestMailto()}
