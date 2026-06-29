@@ -1,19 +1,20 @@
 import type { Metadata } from "next";
 
-// v0.22 — public Privacy page. Content is grounded in the engineering
-// PRIVACY.md (the factual record of what the observability stack does and
-// does not capture), restated for a non-engineer / procurement audience.
-// Public route — no auth gate. Counsel should review before this is relied
-// on contractually; the data-practice statements below are accurate to the
-// current implementation.
+// v0.22 — public Privacy page for the Dwellsy IQ product. It SUPPLEMENTS
+// Dwellsy's company-wide Privacy Policy (dwellsy.com/pages/privacy-policy)
+// with product-specific data-handling detail grounded in the engineering
+// PRIVACY.md (the factual record of what the observability stack does/does
+// not capture). Entity, contact, and California-rights framing are aligned
+// to the corporate policy. Public route — no auth gate.
 
 export const metadata: Metadata = {
   title: "Privacy — Dwellsy IQ",
   description:
-    "How Dwellsy IQ handles data: what we collect, what we deliberately do not, and how to reach us.",
+    "How the Dwellsy IQ product handles data — a product supplement to Dwellsy's company-wide Privacy Policy.",
 };
 
 const LAST_UPDATED = "June 29, 2026";
+const CORPORATE_POLICY = "https://dwellsy.com/pages/privacy-policy";
 
 function Section({
   title,
@@ -43,10 +44,21 @@ export default function PrivacyPage() {
           Privacy at Dwellsy IQ
         </h1>
         <p className="mt-3 text-[14.5px] leading-relaxed text-muted-foreground">
-          Dwellsy IQ is an institutional intelligence product. This page
-          describes how we handle data in the product itself. It is written to
-          be specific about what we collect — and, just as importantly, what we
-          deliberately do not.
+          Dwellsy IQ is an institutional intelligence product operated by
+          Dwellsy, Inc. This page describes how data is handled in the product
+          itself and{" "}
+          <strong className="font-semibold text-navy">supplements</strong>{" "}
+          Dwellsy&rsquo;s company-wide{" "}
+          <a
+            href={CORPORATE_POLICY}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-teal hover:text-teal-700"
+          >
+            Privacy Policy
+          </a>
+          , which governs generally. It is written to be specific about what we
+          collect — and what we deliberately do not.
         </p>
         <p className="mt-2 text-[12.5px] text-muted-2">
           Last updated: {LAST_UPDATED}
@@ -122,33 +134,54 @@ export default function PrivacyPage() {
 
       <Section title="Sharing">
         <p>
-          We do not sell personal information. Data is processed by the
-          infrastructure and observability vendors that run the product
-          (hosting, authentication, analytics, and error monitoring) solely to
-          operate Dwellsy IQ on our behalf.
+          Consistent with Dwellsy&rsquo;s company-wide policy,{" "}
+          <strong className="font-semibold text-navy">
+            we do not sell, rent, or lease customer information
+          </strong>
+          . Data is processed by the infrastructure and observability vendors
+          that run the product (hosting, authentication, analytics, and error
+          monitoring) solely to operate Dwellsy IQ on our behalf.
+        </p>
+      </Section>
+
+      <Section title="California privacy rights">
+        <p>
+          California residents have the right to know what personal information
+          we have collected, used, and disclosed, and to request its deletion.
+          Dwellsy does not &ldquo;sell&rdquo; personal information within the
+          meaning of the CCPA. To exercise these rights, contact{" "}
+          <a
+            href="mailto:privacy@dwellsy.com?subject=California%20privacy%20request"
+            className="font-semibold text-teal hover:text-teal-700"
+          >
+            privacy@dwellsy.com
+          </a>
+          . See the full{" "}
+          <a
+            href={CORPORATE_POLICY}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-teal hover:text-teal-700"
+          >
+            company Privacy Policy
+          </a>{" "}
+          for the complete California Privacy Rights section.
         </p>
       </Section>
 
       <Section title="Contact">
         <p>
-          Questions about privacy, or a data request, can be sent to{" "}
+          Privacy questions or data requests:{" "}
           <a
-            href="mailto:operatoriq@dwellsy.com?subject=Privacy%20inquiry"
+            href="mailto:privacy@dwellsy.com?subject=Privacy%20inquiry"
             className="font-semibold text-teal hover:text-teal-700"
           >
-            operatoriq@dwellsy.com
-          </a>
-          . For Dwellsy&rsquo;s company-wide privacy practices, see the privacy
-          policy at{" "}
-          <a
-            href="https://dwellsy.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-teal hover:text-teal-700"
-          >
-            dwellsy.com
-          </a>
-          .
+            privacy@dwellsy.com
+          </a>{" "}
+          or (202) 601-3675.
+        </p>
+        <p className="text-[13px] text-muted-foreground">
+          Dwellsy, Inc., 171 Main St. Suite 164, Los Altos, CA 94022.
         </p>
       </Section>
     </main>
