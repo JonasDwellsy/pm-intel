@@ -194,6 +194,9 @@ const MARKETS: Array<{
   { slug: "kansas-city", id: "kansas-city-mo-ks", city: "Kansas City", state: "MO", stateSlug: "missouri", citySlug: "kansas-city" },
   { slug: "minneapolis", id: "minneapolis-st-paul-bloomington-mn-wi", city: "Minneapolis", state: "MN", stateSlug: "minnesota", citySlug: "minneapolis" },
   { slug: "richmond", id: "richmond-va", city: "Richmond", state: "VA", stateSlug: "virginia", citySlug: "richmond" },
+  // v0.6.4 Patch 12 — Houston added (33rd market; completes the Adamas
+  // client's 17-market set). Houston-Sugar Land-Baytown, TX MSA (26420).
+  { slug: "houston", id: "houston-tx", city: "Houston", state: "TX", stateSlug: "texas", citySlug: "houston" },
 ];
 const MIN_T12 = 3;
 
