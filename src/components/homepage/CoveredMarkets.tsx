@@ -32,7 +32,7 @@ export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
         <HomepageSectionHead
           eyebrow="Coverage"
           title={`${countWord} markets currently live on Dwellsy IQ.`}
-          context={`We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. ${countWord} MSAs are live today, with 200+ more available upon request; additional MSAs roll out through 2026.`}
+          context={`We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. ${countWord} MSAs are live today, and we can stand up any of the top 200 US markets on request — no waiting.`}
         />
 
         {/* Desktop: the interactive coverage map (the component hides
@@ -61,7 +61,7 @@ export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
         </div>
 
         <p className="mt-9 max-w-[760px] text-[14.5px] italic leading-[1.6] text-muted-foreground">
-          More markets rolling out in 2026.{" "}
+          Any of the top 200 US markets can be stood up on request.{" "}
           <span className="not-italic">
             Operating in a market we don&apos;t cover yet?{" "}
           </span>

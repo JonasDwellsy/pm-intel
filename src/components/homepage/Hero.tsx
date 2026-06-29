@@ -81,7 +81,7 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
           </div>
           <p className="mt-6 text-[14.5px] italic text-muted-foreground">
             Methodology {METHODOLOGY_VERSION} · Design {DESIGN_VERSION} ·{" "}
-            {marketCount} markets live · National coverage rolling out.
+            {marketCount} markets live · Any top-200 US market on request.
           </p>
         </div>
 
