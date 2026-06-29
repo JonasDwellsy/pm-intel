@@ -76,6 +76,13 @@ _parser.add_argument(
     "--out-dir", default=None,
     help="Output directory for the per-market JSON + Summary.md (defaults to --data-dir).",
 )
+_parser.add_argument(
+    "--as-of", default=None,
+    help="Override the market's dataAsOf (YYYY-MM-DD). The entire pipeline "
+         "is keyed off this date (T12/T24 windows, eligibility, cohorts), so "
+         "a past date reconstructs the market as it stood then — the v0.22 "
+         "3b historical-trajectory backfill. Defaults to markets.json.",
+)
 _args = _parser.parse_args()
 
 # Resolve --data-dir: explicit CLI > env var > home-relative default.
@@ -122,7 +129,7 @@ MARKET_ID = _mkt["id"]
 MARKET_STATE = _mkt["state"]
 PRIMARY_CITY_FOR_MARKET = _mkt["primaryCity"]
 
-DATA_AS_OF = _mkt["dataAsOf"]
+DATA_AS_OF = _args.as_of or _mkt["dataAsOf"]
 NOW = datetime.strptime(DATA_AS_OF, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 T12_START = NOW - timedelta(days=365)
 T24_START = NOW - timedelta(days=730)
