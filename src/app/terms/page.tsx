@@ -165,7 +165,7 @@ export default function TermsPage() {
         <p>
           These terms are governed by the laws of the State of California and
           controlling U.S. federal law, with exclusive jurisdiction in the state
-          and federal courts located in Austin, Texas.
+          and federal courts located in the State of California.
         </p>
         <p>
           The parties will first attempt to resolve any dispute informally. A
