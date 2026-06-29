@@ -20,9 +20,12 @@ interface HeroProps {
    *  collapses to just the hero copy on the left in that case
    *  rather than 500ing the homepage. */
   heroCard: SampleCard | null;
+  /** Count of live markets, derived from the seed by the page so the
+   *  hero subline never goes stale as we add markets. */
+  marketCount: number;
 }
 
-export function Hero({ heroCard }: HeroProps) {
+export function Hero({ heroCard, marketCount }: HeroProps) {
   return (
     <section className="relative">
       <div className="mx-auto grid max-w-[1280px] items-start gap-12 px-6 pb-24 pt-20 sm:px-16 lg:grid-cols-[1.45fr_1fr] lg:gap-[72px] lg:pb-32 lg:pt-28">
@@ -77,8 +80,8 @@ export function Hero({ heroCard }: HeroProps) {
             </TrackedLink>
           </div>
           <p className="mt-6 text-[14.5px] italic text-muted-foreground">
-            Methodology {METHODOLOGY_VERSION} · Design {DESIGN_VERSION} · 10
-            markets live · National coverage rolling out.
+            Methodology {METHODOLOGY_VERSION} · Design {DESIGN_VERSION} ·{" "}
+            {marketCount} markets live · National coverage rolling out.
           </p>
         </div>
 

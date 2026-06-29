@@ -410,7 +410,7 @@ function NotFoundFooter({
   counts,
   onOpenModal,
 }: {
-  counts: { ranked: number; tracked: number; total: number };
+  counts: { ranked: number; tracked: number; markets: number; total: number };
   onOpenModal?: () => void;
 }) {
   return (
@@ -424,7 +424,7 @@ function NotFoundFooter({
         <span className="dq-mono font-medium text-navy">
           {counts.tracked}
         </span>{" "}
-        tracked operators across 7 markets.
+        tracked operators across {counts.markets} markets.
       </p>
       <p className="mt-1.5">
         <Link

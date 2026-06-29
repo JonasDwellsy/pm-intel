@@ -216,7 +216,7 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
       "Same primary→fallback→MSA waterfall on yearsVisible percentile.",
     caveats: [
       "Persistent-eligibility-across-last-8-windows component is not in v0.6.2 — surfacing in v0.7 will tighten the composite.",
-      "Cross-market footprint depends on the markets currently covered (7 MSAs as of v0.6.2). National operators in non-covered markets aren't reflected.",
+      "Cross-market footprint depends on the markets currently covered by Dwellsy IQ. National operators in non-covered markets aren't reflected.",
     ],
     methodologyHref: "/methodology#lending-signals",
   },

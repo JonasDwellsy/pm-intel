@@ -195,7 +195,7 @@ export function SearchModal({
         >
           {state === "empty" && (
             <div className="px-5 py-6 text-[14px] text-muted-foreground">
-              <p>Search by operator name across all 7 markets.</p>
+              <p>Search by operator name across all {counts.markets} markets.</p>
               <p className="mt-3 text-[12.5px] text-muted-2">
                 We track{" "}
                 <span className="dq-mono font-medium text-navy">
@@ -343,7 +343,7 @@ export function SearchModal({
 function ModalFooterBrowse({
   counts,
 }: {
-  counts: { ranked: number; tracked: number; total: number };
+  counts: { ranked: number; tracked: number; markets: number; total: number };
 }) {
   return (
     <div className="border-t border-grid bg-surface-soft px-5 py-3 text-[13px] leading-[1.5] text-muted-foreground">
@@ -354,7 +354,7 @@ function ModalFooterBrowse({
         <span className="dq-mono font-medium text-navy">
           {counts.tracked}
         </span>{" "}
-        tracked operators across 7 markets.
+        tracked operators across {counts.markets} markets.
       </p>
       <p className="mt-1.5">
         <Link
