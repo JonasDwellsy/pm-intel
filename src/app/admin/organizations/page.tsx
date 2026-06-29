@@ -32,6 +32,7 @@ interface OrgRow {
   name: string;
   memberCount: number;
   watchListCount: number;
+  marketAccess: string;
   createdAt: Date;
 }
 
@@ -44,7 +45,7 @@ async function loadOrganizations(): Promise<OrgRow[]> {
     where: { personalForUserId: null },
     include: {
       _count: {
-        select: { memberships: true, watchLists: true },
+        select: { memberships: true, watchLists: true, marketAccess: true },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -56,6 +57,13 @@ async function loadOrganizations(): Promise<OrgRow[]> {
     name: o.name,
     memberCount: o._count.memberships,
     watchListCount: o._count.watchLists,
+    // v0.22 — at-a-glance market entitlement. "All" (flag), "N markets"
+    // (explicit grants), or "None" (fail-closed, not yet provisioned).
+    marketAccess: o.allMarkets
+      ? "All markets"
+      : o._count.marketAccess > 0
+        ? `${o._count.marketAccess} markets`
+        : "None",
     createdAt: o.createdAt,
   }));
 }
@@ -112,6 +120,9 @@ export default async function AdminOrganizationsPage() {
                     Watch lists
                   </th>
                   <th className="text-left px-3 py-2 font-semibold text-grey-600 text-[12px] uppercase tracking-wider">
+                    Market access
+                  </th>
+                  <th className="text-left px-3 py-2 font-semibold text-grey-600 text-[12px] uppercase tracking-wider">
                     Created
                   </th>
                   <th className="text-left px-3 py-2 font-semibold text-grey-600 text-[12px] uppercase tracking-wider">
@@ -136,6 +147,7 @@ export default async function AdminOrganizationsPage() {
                     <td className="px-3 py-3 text-right tabular-nums text-grey-600">
                       {o.watchListCount}
                     </td>
+                    <td className="px-3 py-3 text-navy">{o.marketAccess}</td>
                     <td className="px-3 py-3 text-grey-600">
                       {formatDate(o.createdAt)}
                     </td>
