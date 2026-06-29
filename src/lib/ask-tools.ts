@@ -20,6 +20,11 @@ import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { searchPMs } from "@/lib/pm-search";
 import { loadOperatorView } from "@/lib/operator-data";
 import type { ScorecardData, StarLevel } from "@/lib/types";
+import {
+  ALL_MARKETS,
+  isMarketEntitled,
+  type MarketEntitlement,
+} from "@/lib/auth/market-entitlements";
 
 // ─── shared helpers ─────────────────────────────────────────────────
 
@@ -72,13 +77,20 @@ export type SearchOperatorsResult = {
 
 export async function searchOperators(
   query: string,
-  limit = 10
+  limit = 10,
+  // v0.22 — when scoped (not ALL), single-market hits (ranked/tracked)
+  // in non-entitled markets are dropped. Multi-market canonical hits are
+  // kept; their /operators page is itself entitlement-scoped downstream.
+  entitlement: MarketEntitlement = ALL_MARKETS
 ): Promise<SearchOperatorsResult> {
   if (typeof query !== "string" || query.trim().length === 0) {
     throw new Error("searchOperators: query is required");
   }
   const cap = Math.min(Math.max(1, limit ?? 10), 20);
-  const hits = searchPMs(query.trim(), cap);
+  const hits = searchPMs(query.trim(), cap).filter(
+    (h) =>
+      h.tier === "canonical" || isMarketEntitled(entitlement, h.marketId)
+  );
 
   return {
     count: hits.length,
@@ -966,9 +978,22 @@ export const ASK_TOOLS: Anthropic.Messages.Tool[] = [
 // Wraps each branch in a try/catch so a tool-implementation error returns
 // a structured error object the model can read and recover from, rather
 // than crashing the streaming response.
+// v0.22 — message the model relays when it asks about a market the
+// viewer's org hasn't purchased. Phrased so the model surfaces the
+// upsell rather than inventing data.
+const NOT_ENTITLED_MSG =
+  "That market isn't part of this account's Dwellsy IQ plan. Don't answer " +
+  "about it from memory — tell the user it's available to add and to contact " +
+  "sales.";
+
 export async function executeTool(
   name: string,
-  input: unknown
+  input: unknown,
+  // v0.22 — viewer's entitled markets. Defaults to ALL for back-compat /
+  // internal callers; the /ask route passes the resolved viewer
+  // entitlement so the assistant can only read + answer about markets
+  // the org bought.
+  entitlement: MarketEntitlement = ALL_MARKETS
 ): Promise<{ ok: true; result: unknown } | { ok: false; error: string }> {
   try {
     const args = (input ?? {}) as Record<string, unknown>;
@@ -978,42 +1003,79 @@ export async function executeTool(
           ok: true,
           result: await searchOperators(
             String(args.query ?? ""),
-            typeof args.limit === "number" ? args.limit : undefined
+            typeof args.limit === "number" ? args.limit : undefined,
+            entitlement
           ),
         };
-      case "listMarkets":
-        return { ok: true, result: await listMarkets() };
-      case "getMarket":
-        return {
-          ok: true,
-          result: await getMarket(String(args.marketSlug ?? "")),
-        };
-      case "getOperatorScorecard":
+      case "listMarkets": {
+        const result = await listMarkets();
+        result.markets = result.markets.filter((m) =>
+          isMarketEntitled(entitlement, m.marketSlug)
+        );
+        result.count = result.markets.length;
+        return { ok: true, result };
+      }
+      case "getMarket": {
+        const marketSlug = String(args.marketSlug ?? "");
+        if (!isMarketEntitled(entitlement, marketSlug)) {
+          return { ok: false, error: NOT_ENTITLED_MSG };
+        }
+        return { ok: true, result: await getMarket(marketSlug) };
+      }
+      case "getOperatorScorecard": {
+        const marketSlug = String(args.marketSlug ?? "");
+        if (!isMarketEntitled(entitlement, marketSlug)) {
+          return { ok: false, error: NOT_ENTITLED_MSG };
+        }
         return {
           ok: true,
           result: await getOperatorScorecard(
             String(args.operatorSlug ?? ""),
-            String(args.marketSlug ?? "")
+            marketSlug
           ),
         };
-      case "getCanonicalOperator":
-        return {
-          ok: true,
-          result: await getCanonicalOperator(String(args.canonicalSlug ?? "")),
-        };
-      case "filterOperators":
+      }
+      case "getCanonicalOperator": {
+        const result = await getCanonicalOperator(String(args.canonicalSlug ?? ""));
+        // Scope the cross-market profile to entitled markets only.
+        result.markets = result.markets.filter((m) =>
+          isMarketEntitled(entitlement, m.marketSlug)
+        );
+        if (result.markets.length === 0) {
+          return { ok: false, error: NOT_ENTITLED_MSG };
+        }
+        result.marketCount = result.markets.length;
+        result.totalT12Listings = result.markets.reduce(
+          (sum, m) => sum + (m.t12Listings ?? 0),
+          0
+        );
+        return { ok: true, result };
+      }
+      case "filterOperators": {
+        const marketSlug = String(
+          (args as unknown as FilterOperatorsInput).marketSlug ?? ""
+        );
+        if (!isMarketEntitled(entitlement, marketSlug)) {
+          return { ok: false, error: NOT_ENTITLED_MSG };
+        }
         return {
           ok: true,
           result: await filterOperators(args as unknown as FilterOperatorsInput),
         };
-      case "compareOperators":
+      }
+      case "compareOperators": {
+        const marketSlugs = (args.marketSlugs as string[]) ?? [];
+        if (marketSlugs.some((s) => !isMarketEntitled(entitlement, s))) {
+          return { ok: false, error: NOT_ENTITLED_MSG };
+        }
         return {
           ok: true,
           result: await compareOperators(
             (args.operatorSlugs as string[]) ?? [],
-            (args.marketSlugs as string[]) ?? []
+            marketSlugs
           ),
         };
+      }
       default:
         return { ok: false, error: `Unknown tool: ${name}` };
     }

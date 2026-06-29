@@ -173,8 +173,32 @@ function layoutMarkers(markets: MarketCoverageEntry[]): MarkerLayout[] {
 
 // ─── Component ───────────────────────────────────────────────────
 
-export function MarketsCoverageMap() {
-  const markets = React.useMemo(() => getCoverageMarkets(), []);
+export function MarketsCoverageMap({
+  // v0.22 — entitlement-aware live/available. Undefined (anonymous
+  // visitor) or "all" (admin / all-markets org) → every seeded market
+  // shows live, the public marketing view. An array → only those market
+  // ids stay live; every other seeded market is greyed to "available to
+  // add" for this signed-in, market-scoped viewer.
+  entitledMarkets,
+}: {
+  entitledMarkets?: "all" | string[];
+} = {}) {
+  const markets = React.useMemo(() => {
+    const base = getCoverageMarkets();
+    if (entitledMarkets === undefined || entitledMarkets === "all") return base;
+    const allowed = new Set(entitledMarkets);
+    return base.map((m) =>
+      m.status === "live" && !allowed.has(m.slug)
+        ? {
+            slug: m.slug,
+            name: m.name,
+            shortName: m.shortName,
+            centroid: m.centroid,
+            status: "available" as const,
+          }
+        : m
+    );
+  }, [entitledMarkets]);
   const layout = React.useMemo(() => layoutMarkers(markets), [markets]);
   const [hovered, setHovered] = React.useState<MarkerLayout | null>(null);
 

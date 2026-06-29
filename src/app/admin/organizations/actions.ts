@@ -15,6 +15,7 @@ import { revalidatePath } from "next/cache";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { isClerkAPIResponseError } from "@clerk/shared/error";
 import { isAdminUser } from "@/lib/auth/is-admin";
+import { prisma } from "@/lib/prisma";
 
 /** Extract a human-readable error message from a Clerk SDK throw.
  *  Clerk's API returns a structured { errors: [{ code, message, long_message }] }
@@ -158,6 +159,99 @@ export async function inviteUserToOrganization(
     // into the DB for this MVP.
     revalidatePath(`/admin/organizations`);
     return { ok: true, email };
+  } catch (err) {
+    return { ok: false, error: describeError(err) };
+  }
+}
+
+export interface SetMarketAccessResult {
+  ok: boolean;
+  /** "all" or the number of markets granted, for the confirmation line. */
+  summary?: string;
+  error?: string;
+}
+
+/** Provision which markets an organization can access. Pure Prisma —
+ *  market entitlements live entirely in our DB, never in Clerk.
+ *
+ *  Form fields:
+ *    - orgId: local Organization id (hidden)
+ *    - allMarkets: "on" when the "all current + future markets" toggle
+ *      is checked; absent otherwise
+ *    - marketIds: zero or more Market ids (checkbox group). Ignored when
+ *      allMarkets is on.
+ *
+ *  Semantics: sets Organization.allMarkets, then REPLACES the org's
+ *  OrganizationMarketAccess rows with the submitted set (delete-all +
+ *  recreate inside a transaction so the grant set is exactly what the
+ *  admin saw). Submitted ids are validated against real markets so a
+ *  stale form can't write garbage grants. */
+export async function setOrganizationMarketAccess(
+  _prevState: SetMarketAccessResult | null,
+  formData: FormData
+): Promise<SetMarketAccessResult> {
+  const { userId } = await auth();
+  if (!userId || !isAdminUser(userId)) {
+    return { ok: false, error: "Not found." };
+  }
+
+  const orgId = formData.get("orgId");
+  if (typeof orgId !== "string" || orgId.length === 0) {
+    return { ok: false, error: "Organization id is missing." };
+  }
+
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { id: true, personalForUserId: true },
+  });
+  if (!org || org.personalForUserId !== null) {
+    // Mirror the page-layer opacity: personal orgs aren't managed here.
+    return { ok: false, error: "Not found." };
+  }
+
+  const allMarkets = formData.get("allMarkets") === "on";
+
+  // Validate submitted ids against real markets so a stale form (e.g. a
+  // market that was removed) can't persist a dangling grant.
+  const submitted = formData
+    .getAll("marketIds")
+    .filter((v): v is string => typeof v === "string" && v.length > 0);
+  const validIds = new Set(
+    (
+      await prisma.market.findMany({
+        where: { id: { in: submitted } },
+        select: { id: true },
+      })
+    ).map((m) => m.id)
+  );
+  const marketIds = [...new Set(submitted.filter((id) => validIds.has(id)))];
+
+  try {
+    await prisma.$transaction([
+      prisma.organization.update({
+        where: { id: orgId },
+        data: { allMarkets },
+      }),
+      prisma.organizationMarketAccess.deleteMany({
+        where: { organizationId: orgId },
+      }),
+      // Only persist explicit grants when NOT all-markets — the flag
+      // alone is the entitlement in that case, and stored rows would be
+      // dead weight that drift from "all".
+      ...(allMarkets || marketIds.length === 0
+        ? []
+        : [
+            prisma.organizationMarketAccess.createMany({
+              data: marketIds.map((marketId) => ({ organizationId: orgId, marketId })),
+            }),
+          ]),
+    ]);
+    revalidatePath(`/admin/organizations/${orgId}`);
+    revalidatePath(`/admin/organizations`);
+    return {
+      ok: true,
+      summary: allMarkets ? "all markets" : `${marketIds.length} markets`,
+    };
   } catch (err) {
     return { ok: false, error: describeError(err) };
   }

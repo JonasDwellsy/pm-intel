@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  filterResultsByEntitlement,
   getSearchCounts,
   partitionByTier,
   searchPMs,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/pm-search";
 import { SearchResultRow } from "./SearchResultRow";
 import { useSearchOverlay } from "./SearchOverlay";
+import { useEntitledMarkets } from "./useEntitledMarkets";
 import { capture } from "@/lib/analytics";
 
 // Top-nav search input. Live filter as the user types; up to 10 results
@@ -58,11 +60,18 @@ function SearchInputInner({
     return () => clearTimeout(id);
   }, [query]);
 
+  // v0.22 — scope results to the viewer's entitled markets (fetched
+  // once; "all" until it resolves).
+  const entitledMarkets = useEntitledMarkets();
+
   // Run the search against the debounced query. Memoized so re-renders
   // from active-index changes don't rerun the search.
   const results = useMemo(() => {
-    return searchPMs(debouncedQuery, DROPDOWN_LIMIT);
-  }, [debouncedQuery]);
+    return filterResultsByEntitlement(
+      searchPMs(debouncedQuery, DROPDOWN_LIMIT),
+      entitledMarkets
+    );
+  }, [debouncedQuery, entitledMarkets]);
 
   // Partition strict-match results from fuzzy suggestions for the
   // not-found branch. A "strict" result here is one whose Fuse score

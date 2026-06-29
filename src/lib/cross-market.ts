@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import type { ScorecardData, StarLevel } from "@/lib/types";
+import {
+  isMarketEntitled,
+  type MarketEntitlement,
+} from "@/lib/auth/market-entitlements";
 
 // Cross-market footprint lookup — returns one entry per market where an
 // operator with the given canonical name is observed. Used by the v1.0 Layer 1
@@ -37,9 +41,15 @@ export type MarketFootprintPill = {
 export async function loadMarketFootprint({
   name,
   currentSlug,
+  entitlement,
 }: {
   name: string;
   currentSlug: string;
+  // v0.22 — when provided, the footprint only surfaces markets the
+  // viewer's org is entitled to, so a scoped client never sees the
+  // operator's presence in markets they didn't buy. Omit for the
+  // unscoped view.
+  entitlement?: MarketEntitlement;
 }): Promise<MarketFootprintPill[]> {
   if (!name) return [];
 
@@ -54,6 +64,10 @@ export async function loadMarketFootprint({
   });
 
   return rows
+    .filter(
+      (row) =>
+        entitlement === undefined || isMarketEntitled(entitlement, row.marketId)
+    )
     .map((row) => {
       // Parse the per-market scorecard for urusT12 + composite star. We're
       // already paying the JSON.parse cost for the focal scorecard upstream;

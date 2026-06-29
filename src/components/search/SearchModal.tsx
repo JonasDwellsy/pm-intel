@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  filterResultsByEntitlement,
   getSearchCounts,
   partitionByTier,
   searchPMs,
 } from "@/lib/pm-search";
 import { SearchResultRow } from "./SearchResultRow";
+import { useEntitledMarkets } from "./useEntitledMarkets";
 
 // Global Cmd+K (Ctrl+K) search modal. Lives at app shell level so it's
 // reachable from every page. Same Fuse.js backing as the top-nav
@@ -76,9 +78,15 @@ export function SearchModal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
+  // v0.22 — scope results to the viewer's entitled markets.
+  const entitledMarkets = useEntitledMarkets();
   const results = useMemo(
-    () => searchPMs(debouncedQuery, MODAL_LIMIT),
-    [debouncedQuery]
+    () =>
+      filterResultsByEntitlement(
+        searchPMs(debouncedQuery, MODAL_LIMIT),
+        entitledMarkets
+      ),
+    [debouncedQuery, entitledMarkets]
   );
   const strictResults = useMemo(
     () => results.filter((r) => r.score <= STRICT_MATCH_SCORE),

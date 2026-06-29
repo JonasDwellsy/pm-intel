@@ -24,6 +24,16 @@ import { hasComparablePeers } from "@/lib/peer-comparison-view";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import { MarketView } from "@/components/market/MarketView";
 import { TrackEvent } from "@/components/analytics/TrackEvent";
+import {
+  resolveViewerEntitlement,
+  isMarketEntitled,
+} from "@/lib/auth/market-entitlements.server";
+import { MarketLockedUpsell } from "@/components/entitlements/MarketLockedUpsell";
+
+// Premium per-operator + segment pages gate on the viewer's market
+// entitlement, which requires per-request auth — so they render
+// dynamically rather than as build-time static HTML.
+export const dynamic = "force-dynamic";
 
 type RouteParams = { state: string; city: string; slug: string };
 type RouteSearch = {
@@ -135,6 +145,10 @@ export default async function MarketChildPage({
         submarketParam && submarketParam.length > 0 ? submarketParam : null,
     });
     if (!view) notFound();
+    const entitlement = await resolveViewerEntitlement();
+    if (!isMarketEntitled(entitlement, view.market.id)) {
+      return <MarketLockedUpsell marketName={view.market.fullName} />;
+    }
     return <MarketView view={view} activeSegment={slug as QuadrantSegment} />;
   }
 
@@ -145,12 +159,22 @@ export default async function MarketChildPage({
   const loaded = await loadScorecard(slug);
   if (!loaded) notFound();
   const { scorecard, isClaimed } = loaded;
+  // Entitlement gate — the operator's market must be in the viewer's
+  // plan. Hybrid model: non-entitled → upsell, not 404.
+  const entitlement = await resolveViewerEntitlement();
+  if (!isMarketEntitled(entitlement, scorecard.market.id)) {
+    return <MarketLockedUpsell marketName={scorecard.market.fullName} />;
+  }
   // Layer 1 needs cross-market footprint; Layers 3 + 4 share an MSA pool
   // loaded once and consumed by both peer-comparison (Layer 3) and
   // lending-signals (Layer 4). Both renders run in-memory once the pool
   // arrives.
   const [marketFootprint, msaPool] = await Promise.all([
-    loadMarketFootprint({ name: scorecard.pm.name, currentSlug: slug }),
+    loadMarketFootprint({
+      name: scorecard.pm.name,
+      currentSlug: slug,
+      entitlement,
+    }),
     loadMsaPool(scorecard.market.id),
   ]);
   const peerComparisons = buildPeerComparisons(scorecard, msaPool);

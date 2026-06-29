@@ -17,6 +17,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { InviteUserForm } from "@/components/admin/InviteUserForm";
+import {
+  MarketAccessForm,
+  type MarketAccessGroup,
+} from "@/components/admin/MarketAccessForm";
+import { STATE_CODE_TO_NAME } from "@/lib/slugify";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +49,34 @@ function roleLabel(role: string): string {
   return role;
 }
 
+/** "north-carolina" → "North Carolina" for the checklist state headers. */
+function stateDisplay(stateCode: string): string {
+  const slug = STATE_CODE_TO_NAME[stateCode] ?? stateCode.toLowerCase();
+  return slug
+    .split("-")
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
+/** Group every market into the checklist shape: states alphabetical,
+ *  cities alphabetical within each state. */
+function buildMarketGroups(
+  markets: Array<{ id: string; city: string; state: string }>
+): MarketAccessGroup[] {
+  const byState = new Map<string, Array<{ id: string; label: string }>>();
+  for (const m of markets) {
+    const arr = byState.get(m.state) ?? [];
+    arr.push({ id: m.id, label: m.city });
+    byState.set(m.state, arr);
+  }
+  return [...byState.entries()]
+    .map(([state, ms]) => ({
+      stateLabel: stateDisplay(state),
+      markets: ms.sort((a, b) => a.label.localeCompare(b.label)),
+    }))
+    .sort((a, b) => a.stateLabel.localeCompare(b.stateLabel));
+}
+
 export default async function AdminOrganizationDetailPage({
   params,
 }: {
@@ -57,6 +90,7 @@ export default async function AdminOrganizationDetailPage({
       memberships: {
         orderBy: { createdAt: "asc" },
       },
+      marketAccess: { select: { marketId: true } },
     },
   });
 
@@ -64,6 +98,12 @@ export default async function AdminOrganizationDetailPage({
     // Personal orgs aren't manageable from this admin surface.
     notFound();
   }
+
+  const allMarketRows = await prisma.market.findMany({
+    select: { id: true, city: true, state: true },
+  });
+  const marketGroups = buildMarketGroups(allMarketRows);
+  const grantedIds = org.marketAccess.map((m) => m.marketId);
 
   const members: MemberRow[] = org.memberships.map((m) => ({
     id: m.id,
@@ -88,6 +128,25 @@ export default async function AdminOrganizationDetailPage({
           {org.clerkOrgId}
         </p>
       </header>
+
+      <section className="mb-8">
+        <h2 className="text-[12px] font-semibold uppercase tracking-[0.12em] text-grey-600 mb-1">
+          Market access
+        </h2>
+        <p className="text-[13px] text-grey-500 mb-3 max-w-[680px]">
+          Provision the markets this organization can see. Members get full
+          scorecards, search, and AI answers for these markets only;
+          everything else shows as &ldquo;available to add.&rdquo; New orgs
+          start with no access until provisioned here.
+        </p>
+        <MarketAccessForm
+          orgId={org.id}
+          initialAllMarkets={org.allMarkets}
+          initialSelectedIds={grantedIds}
+          groups={marketGroups}
+          totalMarkets={allMarketRows.length}
+        />
+      </section>
 
       <section className="mb-8">
         <h2 className="text-[12px] font-semibold uppercase tracking-[0.12em] text-grey-600 mb-3">

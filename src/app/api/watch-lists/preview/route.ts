@@ -12,6 +12,7 @@
 // the caller throws away the id anyway.
 
 import { applyWatchList } from "@/lib/watch-list/apply";
+import { resolveViewerEntitlementForPublicSurface } from "@/lib/auth/market-entitlements.server";
 import type { WatchListDefinition } from "@/lib/watch-list/scoring";
 
 export interface PreviewResponse {
@@ -63,7 +64,12 @@ export async function POST(req: Request) {
     excludedCriteria: input.excludedCriteria as never,
   };
 
-  const result = await applyWatchList(draft);
+  // v0.22 — this preview is PUBLIC (anonymous template cloning), so
+  // leave it unscoped for anonymous visitors (marketing teaser across
+  // all markets) but scope signed-in users to their org's entitled
+  // markets.
+  const entitlement = await resolveViewerEntitlementForPublicSurface();
+  const result = await applyWatchList(draft, entitlement);
 
   const scores = result.results.map((r) => r.fitScore);
   const scoreMin = scores.length > 0 ? Math.min(...scores) : null;

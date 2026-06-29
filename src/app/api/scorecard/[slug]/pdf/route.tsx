@@ -13,6 +13,10 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
+import {
+  resolveViewerEntitlement,
+  isMarketEntitled,
+} from "@/lib/auth/market-entitlements.server";
 import { OperatorProfilePDF } from "@/components/scorecard/OperatorProfilePDF";
 import { loadMsaPool } from "@/lib/msa-pool";
 import { buildCohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
@@ -142,6 +146,14 @@ export async function GET(
   try {
     const pm = await prisma.pM.findUnique({ where: { slug } });
     if (!pm) {
+      return new Response("Operator not found", { status: 404 });
+    }
+
+    // Entitlement gate — the PDF is the full premium scorecard. 404
+    // (not 403) so we don't confirm the operator exists in a market the
+    // caller's org hasn't purchased.
+    const entitlement = await resolveViewerEntitlement();
+    if (!isMarketEntitled(entitlement, pm.marketId)) {
       return new Response("Operator not found", { status: 404 });
     }
 
