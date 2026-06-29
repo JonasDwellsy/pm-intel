@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { HomepageSectionHead } from "./SectionHead";
-import { citySlug, stateCodeToSlug } from "@/lib/slugify";
-import { fmtDate, fmtInt } from "@/lib/format";
 import { countAsWord } from "@/lib/format-count";
+import { MarketsCoverageMap } from "@/components/markets/MarketsCoverageMap";
 
 export type LiveMarket = {
   id: string;
@@ -16,159 +14,52 @@ export type LiveMarket = {
   dataAsOf: string;
 };
 
-const FUTURE_MARKETS: Array<{ name: string; description: string }> = [
-  {
-    name: "Atlanta, GA MSA",
-    description:
-      "Coverage scoping underway. Larger cohort means a slower, more conservative eligibility review.",
-  },
-  {
-    name: "Dallas-Fort Worth, TX MSA",
-    description:
-      "Data ingestion complete. Eligibility threshold tuning in progress for the next cohort of v0.8 markets.",
-  },
-];
-
-function StatBlock({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: React.ReactNode;
-  sub: string;
-}) {
-  return (
-    <div>
-      <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="text-[22px] font-semibold leading-[1.2] tracking-[-0.005em] text-navy">
-        {value}
-      </p>
-      <p className="mt-0.5 text-[12px] text-muted-foreground">{sub}</p>
-    </div>
-  );
-}
-
-function LiveMarketCard({ market }: { market: LiveMarket }) {
-  const href = `/property-managers/${stateCodeToSlug(market.state)}/${citySlug(
-    market.city
-  )}`;
-  return (
-    <TrackedLink
-      event="market_page_view"
-      properties={{
-        source: "homepage_coverage",
-        marketId: market.id,
-      }}
-      href={href}
-      className="group flex min-h-[260px] flex-col rounded-md border border-grid bg-white p-8 transition-all duration-[180ms] hover:-translate-y-0.5 hover:border-navy hover:shadow-[0_8px_24px_rgb(15_31_63_/_0.06)]"
-    >
-      <div className="mb-5 flex flex-wrap gap-2.5">
-        {/* PR #46 — Pilot MSA badge dropped. All 10 markets are
-            production-grade as of v0.8; the "pilot" framing
-            implies tentativeness that no longer applies. */}
-        <span className="dq-pill dq-pill-green inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-good" />
-          Live
-        </span>
-      </div>
-      <h3 className="dq-h2 mb-5 text-[22px] leading-[1.2] tracking-[-0.005em]">
-        {market.fullName.replace("TN-GA", "TN–GA")}
-      </h3>
-      <div className="my-5 grid grid-cols-2 gap-x-7 gap-y-5">
-        <StatBlock
-          label="Operators"
-          value={<span className="dq-tnum">{fmtInt(market.operatorCountTotal)}</span>}
-          sub={`${fmtInt(market.operatorCountEligible)} eligible for ranking`}
-        />
-        <StatBlock
-          label="Median DOM (T12)"
-          value={
-            <>
-              <span className="dq-tnum">{market.medianDomT12.toFixed(1)}</span>
-              <span className="ml-1 text-[14px] font-medium text-muted-foreground">
-                days
-              </span>
-            </>
-          }
-          sub="across eligible cohort"
-        />
-        <StatBlock
-          label="7-Cell coverage"
-          value={
-            <>
-              <span className="dq-tnum">7</span>
-              <span className="ml-1 text-[14px] font-medium text-muted-foreground">
-                of 7
-              </span>
-            </>
-          }
-          sub="SFR + Small/Large MF/BTR · Independent/Institutional · Hybrid"
-        />
-        <StatBlock
-          label="Data through"
-          value={<span className="dq-tnum">{fmtDate(market.dataAsOf)}</span>}
-          sub="refreshed monthly"
-        />
-      </div>
-      <p className="mt-auto text-[13.5px] font-semibold text-teal transition-colors group-hover:text-teal-700">
-        Browse property managers →
-      </p>
-    </TrackedLink>
-  );
-}
-
-function FutureMarketCard({
-  name,
-  description,
-}: {
-  name: string;
-  description: string;
-}) {
-  return (
-    <div className="flex min-h-[260px] flex-col rounded-md border border-dashed border-[#D9D4C3] bg-transparent p-8">
-      <p className="mb-5 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted-2">
-        Rolling out · 2026
-      </p>
-      <h3 className="text-[22px] font-medium leading-[1.2] tracking-[-0.005em] text-muted-foreground">
-        {name}
-      </h3>
-      <p className="mt-3.5 text-[15px] leading-[1.55] text-muted-foreground">
-        {description}
-      </p>
-    </div>
-  );
-}
-
 export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
-  // v0.6.4 Patch 4 — section title + body context derive their market
-  // count from the markets prop, so the page stays accurate as we add
-  // markets without anyone needing to edit copy. The Alabama-expansion
-  // callout was removed in the same pass — that framing made sense at
-  // 10 markets but goes stale fast as we cross 12, 15, 20.
-  const countWord = countAsWord(markets.length);
+  // v0.6.4 Patch 11 — the section now leads with the coverage map
+  // instead of a card per market. At 30+ markets the card grid had
+  // become a wall; the map is the same component the /markets page
+  // uses, scales as we keep adding markets, and never goes stale (its
+  // live/available dots derive from the seed). The "rolling out 2026"
+  // future-market cards were dropped in the same pass — they were a
+  // hand-maintained list that stranded live markets (Dallas-Fort Worth)
+  // as "coming soon" once they shipped. Per-market stat detail still
+  // lives on /markets and each market page.
+  const count = markets.length;
+  const countWord = countAsWord(count);
   return (
     <section className="border-t border-grid">
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
           eyebrow="Coverage"
           title={`${countWord} markets currently live on Dwellsy IQ.`}
-          context={`We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. ${countWord} MSAs are live today; additional MSAs roll out through 2026.`}
+          context={`We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. ${countWord} MSAs are live today, with 200+ more available upon request; additional MSAs roll out through 2026.`}
         />
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {markets.map((m) => (
-            <LiveMarketCard key={m.id} market={m} />
-          ))}
-          {FUTURE_MARKETS.map((f) => (
-            <FutureMarketCard
-              key={f.name}
-              name={f.name}
-              description={f.description}
-            />
-          ))}
+
+        {/* Desktop: the interactive coverage map (the component hides
+            itself below the md breakpoint). */}
+        <div className="mt-10">
+          <MarketsCoverageMap />
         </div>
+
+        {/* Mobile fallback — the map is hidden at phone widths, so give
+            a compact entry point into the full market list. */}
+        <div className="md:hidden">
+          <div className="rounded-md border border-grid bg-white p-7 text-center">
+            <p className="text-[40px] font-semibold leading-none tracking-[-0.01em] text-navy dq-tnum">
+              {count}
+            </p>
+            <p className="mt-2 text-[14.5px] text-muted-foreground">
+              live markets across the United States
+            </p>
+            <Link
+              href="/property-managers"
+              className="mt-5 inline-flex h-10 items-center rounded-md bg-navy px-5 text-[13.5px] font-semibold text-white transition-colors hover:bg-navy-700"
+            >
+              Explore all markets →
+            </Link>
+          </div>
+        </div>
+
         <p className="mt-9 max-w-[760px] text-[14.5px] italic leading-[1.6] text-muted-foreground">
           More markets rolling out in 2026.{" "}
           <span className="not-italic">
