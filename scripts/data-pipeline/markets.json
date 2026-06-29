@@ -354,6 +354,17 @@
       "primaryCity": "Richmond",
       "csvFile": "export_20260628152604.csv",
       "dataAsOf": "2026-06-28"
+    },
+    {
+      "id": "houston-tx",
+      "outputSlug": "houston",
+      "msaCode": "26420",
+      "msaFullName": "Houston-Sugar Land-Baytown, TX MSA",
+      "name": "Houston",
+      "state": "TX",
+      "primaryCity": "Houston",
+      "csvFile": "export_20260629114404.csv",
+      "dataAsOf": "2026-06-29"
     }
   ]
 }
