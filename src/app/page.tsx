@@ -411,7 +411,7 @@ export default async function HomePage() {
         event="market_page_view"
         properties={{ source: "homepage", page: "home" }}
       />
-      <Hero heroCard={heroCard} />
+      <Hero heroCard={heroCard} marketCount={liveMarkets.length} />
       <MethodologyPillars />
       <CoveredMarkets markets={liveMarkets} />
       <SampleScorecards cards={sampleCards} />

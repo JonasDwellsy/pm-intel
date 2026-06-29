@@ -10,10 +10,14 @@
 // in Phoenix + Memphis + Nashville) are counted once per MSA they appear
 // in; cross-market identity dedup is on the v0.7 roadmap.
 //
-// National DOM is computed at runtime by pooling every PM across every
-// MSA (cheap — ~575 PMs across 7 markets). National rent growth is
-// already pre-computed at seed time and stored on every Market row
-// (identical value); we read it from any market.
+// National DOM median + national rent growth are BOTH pre-computed at
+// merge time and read from the markets-summary sidecar — never recomputed
+// at runtime. The previous approach pooled every PM across every MSA in
+// loadStateView (loading all markets' scorecardData on every state page);
+// that was "cheap" at ~575 PMs / 7 markets but at 32 markets / 3,400+ PMs
+// it pulled the whole ~36MB seed per render and exhausted the build's DB
+// connection budget. Now each state page loads only its own state's
+// markets, and the national baselines come from the sidecar.
 
 import { prisma } from "@/lib/prisma";
 import {
@@ -24,6 +28,14 @@ import {
 } from "@/lib/slugify";
 import { toPmListItem } from "@/lib/slugify";
 import type { PMListItem } from "@/lib/types";
+import marketsSummary from "@/data/markets-summary.json";
+
+// National operator-weighted DOM median, precomputed by merge.py across
+// every ranked PM in every market. null only if the sidecar predates the
+// field (defensive — every current merge emits it).
+const NATIONAL_MEDIAN_DOM_T12 =
+  (marketsSummary as { nationalMedianDomT12: number | null })
+    .nationalMedianDomT12 ?? null;
 
 // Per-MSA snapshot rendered inside the MarketCard grid on the state page.
 // Mirrors the MarketHero tile values so the grid reads as a row of mini
@@ -152,39 +164,25 @@ export async function loadStateView(
   const stateName = STATE_CODE_TO_NAME[stateCode];
   if (!stateName) return null;
 
-  // Pull every market in our coverage (max 7 in v0.6.3) along with its PMs.
-  // The state branch in-memory filters to in-state markets; the cross-state
-  // pool drives the national DOM median used for the state-level
-  // benchmark line. Single query keeps the round-trip count low.
-  const allMarkets = await prisma.market.findMany({
+  // Load only this state's markets (with their PMs). Everything below
+  // operates on in-state data; the national baselines are precomputed in
+  // the sidecar, so there's no longer any reason to pull every market's
+  // scorecardData here — that was the build-time memory/connection blowup.
+  const inState = await prisma.market.findMany({
+    where: { state: stateCode },
     include: {
       pms: { select: STATE_PM_SELECT, orderBy: { rankOverall: "asc" } },
     },
   });
-
-  const inState = allMarkets.filter((m) => m.state === stateCode);
   if (inState.length === 0) return null;
 
   // National DOM — operator-weighted median across every ranked PM in every
-  // MSA. Mirrors the national rent growth computation already done at seed
-  // time (Patch 3); we recompute here because national DOM isn't pre-seeded.
-  // Cheap: ~575 PMs.
-  const nationalDoms: number[] = [];
-  for (const m of allMarkets) {
-    for (const row of m.pms) {
-      const sc = JSON.parse(row.scorecardData) as { performance?: { domT12?: number } };
-      const d = sc.performance?.domT12;
-      if (typeof d === "number" && Number.isFinite(d)) nationalDoms.push(d);
-    }
-  }
-  const nationalMedianDomT12 = median(nationalDoms);
+  // MSA, precomputed by merge.py and read from the sidecar (see top-of-file).
+  const nationalMedianDomT12 = NATIONAL_MEDIAN_DOM_T12;
 
-  // National rent growth lifted from any market row — seed embeds the same
-  // value on every market (single national number across the 7-market footprint).
-  const nationalRentGrowthT12 =
-    inState[0]?.nationalRentGrowthT12 ??
-    allMarkets[0]?.nationalRentGrowthT12 ??
-    null;
+  // National rent growth lifted from any in-state market row — seed embeds
+  // the same national value on every market row.
+  const nationalRentGrowthT12 = inState[0]?.nationalRentGrowthT12 ?? null;
 
   // State-scoped pool: every in-state PM, parsed once. We need domT12 +
   // pmYoyChange for the operator-weighted medians, and the parsed list
@@ -192,7 +190,7 @@ export async function loadStateView(
   const stateDoms: number[] = [];
   const stateRents: number[] = [];
   const perMarket: Array<{
-    row: (typeof allMarkets)[number];
+    row: (typeof inState)[number];
     pms: PMListItem[];
   }> = [];
   for (const m of inState) {

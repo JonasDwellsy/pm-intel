@@ -202,17 +202,25 @@ export function getAllSearchEntries(): IndexedEntry[] {
   return corpus;
 }
 
-/** Aggregate counts for the not-found-state copy and analytics. */
+/** Aggregate counts for the not-found-state copy and analytics. The
+ *  market count is derived from the distinct marketIds in the index
+ *  (ranked + tracked), so the search copy ("across N markets") tracks
+ *  the seed automatically rather than via a hand-maintained literal. */
 export function getSearchCounts(): {
   ranked: number;
   tracked: number;
   canonical: number;
+  markets: number;
   total: number;
 } {
+  const marketIds = new Set<string>();
+  for (const e of data.ranked) marketIds.add(e.marketId);
+  for (const e of data.tracked) marketIds.add(e.marketId);
   return {
     ranked: data.ranked.length,
     tracked: data.tracked.length,
     canonical: data.canonical?.length ?? 0,
+    markets: marketIds.size,
     total: corpus.length,
   };
 }

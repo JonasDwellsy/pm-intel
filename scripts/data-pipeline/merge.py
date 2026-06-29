@@ -557,9 +557,35 @@ def snapshot_and_write(merged, target_path):
     # importers at it keeps the public markets page + the /api/ask bundle
     # tiny. Written here (not a separate step) so it can never drift from
     # the seed — every merge --apply regenerates both atomically.
+    # National operator-weighted DOM median — median of performance.domT12
+    # across every ranked PM in every market. Previously recomputed at
+    # runtime inside loadStateView() by loading *all* markets' scorecardData
+    # on every state page; at 32 markets that pulled the whole ~36MB seed per
+    # state-page render and blew the build's DB connection budget. Precompute
+    # it once here from the full in-memory seed (exact same value) and read it
+    # from the sidecar at runtime. Median formula mirrors state-data.ts
+    # median() exactly so the benchmark line is unchanged.
+    national_doms = sorted(
+        d
+        for pm in out.get("pms", [])
+        for d in (pm.get("performance", {}).get("domT12"),)
+        if isinstance(d, (int, float))
+    )
+    if national_doms:
+        n = len(national_doms)
+        mid = n // 2
+        national_median_dom = (
+            (national_doms[mid - 1] + national_doms[mid]) / 2
+            if n % 2 == 0
+            else national_doms[mid]
+        )
+    else:
+        national_median_dom = None
+
     summary = {
         "methodologyVersion": out.get("methodologyVersion"),
         "dataAsOf": out.get("dataAsOf"),
+        "nationalMedianDomT12": national_median_dom,
         "markets": out.get("markets", []),
     }
     summary_path = os.path.join(

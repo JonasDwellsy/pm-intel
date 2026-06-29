@@ -184,6 +184,16 @@ const MARKETS: Array<{
   // v0.6.4 Patch 10 — Orlando added (26th market), first new market with
   // company-type columns from the start.
   { slug: "orlando", id: "orlando-kissimmee-sanford-fl", city: "Orlando", state: "FL", stateSlug: "florida", citySlug: "orlando" },
+  // v0.6.4 Patch 11 — six-market expansion to 32. First KY / MO / NC / MN /
+  // VA presence (Louisville straddles KY-IN; Kansas City + St. Louis bring
+  // Missouri to two markets). All six ship typed (company-type columns) from
+  // the start, so cross-market identity links via parent_company_id.
+  { slug: "louisville", id: "louisville-jefferson-county-ky-in", city: "Louisville", state: "KY", stateSlug: "kentucky", citySlug: "louisville" },
+  { slug: "st-louis", id: "st-louis-mo-il", city: "St. Louis", state: "MO", stateSlug: "missouri", citySlug: "st-louis" },
+  { slug: "charlotte", id: "charlotte-gastonia-rock-hill-nc-sc", city: "Charlotte", state: "NC", stateSlug: "north-carolina", citySlug: "charlotte" },
+  { slug: "kansas-city", id: "kansas-city-mo-ks", city: "Kansas City", state: "MO", stateSlug: "missouri", citySlug: "kansas-city" },
+  { slug: "minneapolis", id: "minneapolis-st-paul-bloomington-mn-wi", city: "Minneapolis", state: "MN", stateSlug: "minnesota", citySlug: "minneapolis" },
+  { slug: "richmond", id: "richmond-va", city: "Richmond", state: "VA", stateSlug: "virginia", citySlug: "richmond" },
 ];
 const MIN_T12 = 3;
 
