@@ -66,8 +66,8 @@
       "name": "Clarksville",
       "state": "TN",
       "primaryCity": "Clarksville",
-      "csvFile": "All other TN MSAs.csv",
-      "dataAsOf": "2026-05-19"
+      "csvFile": "export_20260628084704.csv",
+      "dataAsOf": "2026-06-28"
     },
     {
       "id": "phoenix-az",
@@ -288,6 +288,72 @@
       "primaryCity": "Orlando",
       "csvFile": "export_20260626145829.csv",
       "dataAsOf": "2026-06-26"
+    },
+    {
+      "id": "louisville-jefferson-county-ky-in",
+      "outputSlug": "louisville",
+      "msaCode": "31140",
+      "msaFullName": "Louisville/Jefferson County, KY-IN MSA",
+      "name": "Louisville",
+      "state": "KY",
+      "primaryCity": "Louisville",
+      "csvFile": "export_20260628084704.csv",
+      "dataAsOf": "2026-06-28"
+    },
+    {
+      "id": "st-louis-mo-il",
+      "outputSlug": "st-louis",
+      "msaCode": "41180",
+      "msaFullName": "St. Louis, MO-IL MSA",
+      "name": "St. Louis",
+      "state": "MO",
+      "primaryCity": "St. Louis",
+      "csvFile": "export_20260628084704.csv",
+      "dataAsOf": "2026-06-28"
+    },
+    {
+      "id": "charlotte-gastonia-rock-hill-nc-sc",
+      "outputSlug": "charlotte",
+      "msaCode": "16740",
+      "msaFullName": "Charlotte-Gastonia-Rock Hill, NC-SC MSA",
+      "name": "Charlotte",
+      "state": "NC",
+      "primaryCity": "Charlotte",
+      "csvFile": "export_20260628152604.csv",
+      "dataAsOf": "2026-06-28"
+    },
+    {
+      "id": "kansas-city-mo-ks",
+      "outputSlug": "kansas-city",
+      "msaCode": "28140",
+      "msaFullName": "Kansas City, MO-KS MSA",
+      "name": "Kansas City",
+      "state": "MO",
+      "primaryCity": "Kansas City",
+      "csvFile": "export_20260628152604.csv",
+      "dataAsOf": "2026-06-28"
+    },
+    {
+      "id": "minneapolis-st-paul-bloomington-mn-wi",
+      "outputSlug": "minneapolis",
+      "msaCode": "33460",
+      "msaFullName": "Minneapolis-St. Paul-Bloomington, MN-WI MSA",
+      "name": "Minneapolis",
+      "state": "MN",
+      "primaryCity": "Minneapolis",
+      "csvFile": "export_20260628152604.csv",
+      "dataAsOf": "2026-06-28"
+    },
+    {
+      "id": "richmond-va",
+      "outputSlug": "richmond",
+      "msaCode": "40060",
+      "msaFullName": "Richmond, VA MSA",
+      "name": "Richmond",
+      "state": "VA",
+      "primaryCity": "Richmond",
+      "csvFile": "export_20260628152604.csv",
+      "dataAsOf": "2026-06-28"
     }
   ]
 }
