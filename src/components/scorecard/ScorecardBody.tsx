@@ -11,6 +11,8 @@ import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { MetricInfoProvider } from "@/components/scorecard/MetricInfoProvider";
 import { IdentityHero } from "@/components/scorecard/IdentityHero";
 import { SynthesisLayer } from "@/components/scorecard/SynthesisLayer";
+import { OperatorTrajectorySection } from "@/components/scorecard/OperatorTrajectorySection";
+import type { OperatorTrajectory } from "@/lib/operators/trajectory";
 import { PerformanceLayer } from "@/components/scorecard/PerformanceLayer";
 import { LendingSignals } from "@/components/scorecard/LendingSignals";
 import { PortfolioLayer } from "@/components/scorecard/PortfolioLayer";
@@ -44,10 +46,13 @@ export function ScorecardBody({
   concessionContext,
   compareHref,
   crossMarketOperator = null,
+  operatorTrajectory,
 }: {
   scorecard: ScorecardData;
   isClaimed: boolean;
   marketFootprint: MarketFootprintPill[];
+  /** Snapshot time-series for this operator (3a). */
+  operatorTrajectory: OperatorTrajectory;
   peerComparisons: Record<Layer3Metric, PeerComparison | null>;
   lendingSignals: LendingSignalsData;
   cohortRentTrajectory: CohortRentTrajectory | null;
@@ -105,6 +110,7 @@ export function ScorecardBody({
               shareTrajectory={shareTrajectory}
               concessionContext={concessionContext}
             />
+            <OperatorTrajectorySection trajectory={operatorTrajectory} />
             <MethodologyFooter scorecard={scorecard} />
             <SimilarOperatorsCta pmSlug={scorecard.pm.slug} />
           </article>

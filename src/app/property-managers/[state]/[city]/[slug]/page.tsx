@@ -15,6 +15,7 @@ import {
 } from "@/lib/market-data";
 import { loadMarketFootprint } from "@/lib/cross-market";
 import { loadMsaPool } from "@/lib/msa-pool";
+import { loadOperatorTrajectory } from "@/lib/operators/trajectory";
 import { buildPeerComparisons } from "@/lib/peer-comparison";
 import { buildLendingSignals } from "@/lib/lending-signals";
 import { buildCohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
@@ -169,13 +170,14 @@ export default async function MarketChildPage({
   // loaded once and consumed by both peer-comparison (Layer 3) and
   // lending-signals (Layer 4). Both renders run in-memory once the pool
   // arrives.
-  const [marketFootprint, msaPool] = await Promise.all([
+  const [marketFootprint, msaPool, operatorTrajectory] = await Promise.all([
     loadMarketFootprint({
       name: scorecard.pm.name,
       currentSlug: slug,
       entitlement,
     }),
     loadMsaPool(scorecard.market.id),
+    loadOperatorTrajectory(slug),
   ]);
   const peerComparisons = buildPeerComparisons(scorecard, msaPool);
   const lendingSignals = buildLendingSignals(
@@ -248,6 +250,7 @@ export default async function MarketChildPage({
         shareTrajectory={shareTrajectory}
         concessionContext={concessionContext}
         compareHref={compareHref}
+        operatorTrajectory={operatorTrajectory}
       />
     </>
   );
