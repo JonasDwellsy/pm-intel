@@ -59,9 +59,10 @@ export const FOOTER_LINKS: ReadonlyArray<FooterLink> = [
     label: "Request errata",
     external: true,
   },
-  {
-    href: "https://dwellsy.com/pages/terms-of-use",
-    label: "Terms",
-    external: true,
-  },
+  // v0.22 — product-specific Privacy + Terms (in-app). Replaces the prior
+  // external link to dwellsy.com's consumer-marketplace terms-of-use, which
+  // doesn't speak to the IQ product. The /terms page is a draft pending
+  // counsel review; revert to the corporate URL here if preferred.
+  { href: "/privacy", label: "Privacy" },
+  { href: "/terms", label: "Terms" },
 ];
