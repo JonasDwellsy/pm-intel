@@ -242,6 +242,25 @@ export function searchPMs(query: string, limit = 10): PMSearchResult[] {
 }
 
 /**
+ * v0.22 — scope search results to a viewer's entitled markets. "all"
+ * passes everything through. A Set keeps single-market hits (ranked +
+ * tracked) only when their marketId is entitled; multi-market canonical
+ * hits are kept regardless, since their /operators page is itself
+ * entitlement-scoped (it shows only entitled markets, or the upsell).
+ * Pure — the entitled set is fetched client-side from
+ * /api/me/entitled-markets so the global nav stays statically rendered.
+ */
+export function filterResultsByEntitlement(
+  results: PMSearchResult[],
+  entitled: "all" | Set<string>
+): PMSearchResult[] {
+  if (entitled === "all") return results;
+  return results.filter((r) =>
+    r.tier === "canonical" ? true : entitled.has(r.marketId)
+  );
+}
+
+/**
  * Splits a result list by tier so the renderer can group the dropdown.
  * Stable order preserved within each tier (Fuse's ranking carries
  * through). v0.6.4 Patch 1 adds the canonical bucket; it renders above

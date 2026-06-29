@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { cookies } from "next/headers";
 import { auth } from "@clerk/nextjs/server";
 import { ASK_TOOLS, executeTool } from "@/lib/ask-tools";
+import { resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
 import { buildSystemPrompt } from "@/lib/ask-system-prompt";
 import { prisma } from "@/lib/prisma";
 import { captureServerEvent, flushAnalyticsServer } from "@/lib/analytics-server";
@@ -135,6 +136,9 @@ export async function POST(req: Request) {
   // guardrail). userId is best-effort — AskAI is open to anonymous
   // visitors who passed the research-preview password gate.
   const { userId: askUserId } = await auth();
+  // v0.22 — scope every tool call to the viewer's entitled markets, so
+  // the assistant can only read + answer about markets the org bought.
+  const askEntitlement = await resolveViewerEntitlement();
   const lastUserMessage = messages[messages.length - 1].content;
   captureServerEvent({
     userId: askUserId,
@@ -242,7 +246,7 @@ export async function POST(req: Request) {
           const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
           for (const tu of toolUses) {
             emit({ type: "tool_use", tool: tu.name, status: "running" });
-            const result = await executeTool(tu.name, tu.input);
+            const result = await executeTool(tu.name, tu.input, askEntitlement);
             emit({ type: "tool_use", tool: tu.name, status: "complete" });
             toolResults.push({
               type: "tool_result",

@@ -5,6 +5,7 @@ import { stateCodeToSlug, citySlug } from "@/lib/slugify";
 import { fmtDays, fmtInt } from "@/lib/format";
 import { MarketsCoverageMap } from "@/components/markets/MarketsCoverageMap";
 import { buildCoverageRequestMailto } from "@/lib/markets-coverage";
+import { resolveViewerEntitlementForPublicSurface } from "@/lib/auth/market-entitlements.server";
 import { countAsWord } from "@/lib/format-count";
 import marketsSummary from "@/data/markets-summary.json";
 
@@ -33,10 +34,22 @@ export const metadata: Metadata = {
 // footer CTA cover the same surface area.
 
 export default async function MarketsIndexPage() {
-  const markets = await prisma.market.findMany({
+  const allMarkets = await prisma.market.findMany({
     orderBy: { city: "asc" },
     include: { _count: { select: { pms: true } } },
   });
+
+  // v0.22 — entitlement-aware. Anonymous visitors see all markets live
+  // (public marketing/SEO). A signed-in, market-scoped org sees only its
+  // entitled markets as live in both the map (rest greyed "available to
+  // add") and the "Currently live" card list.
+  const entitlement = await resolveViewerEntitlementForPublicSurface();
+  const isScoped = entitlement !== undefined && entitlement !== "all";
+  const entitledMapProp: "all" | string[] =
+    isScoped ? [...(entitlement as Set<string>)] : "all";
+  const markets = isScoped
+    ? allMarkets.filter((m) => (entitlement as Set<string>).has(m.id))
+    : allMarkets;
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
@@ -52,8 +65,9 @@ export default async function MarketsIndexPage() {
       </header>
 
       {/* Coverage map — desktop-only (the component hides itself
-          below the md breakpoint). */}
-      <MarketsCoverageMap />
+          below the md breakpoint). Entitlement-aware: a scoped org sees
+          its markets live and the rest greyed "available to add". */}
+      <MarketsCoverageMap entitledMarkets={entitledMapProp} />
 
       <section className="mt-12 md:mt-16">
         <h2 className="dq-eyebrow text-teal">Currently live</h2>
