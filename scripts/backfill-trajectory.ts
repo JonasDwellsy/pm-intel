@@ -1,0 +1,204 @@
+// v0.22 (3b) — historical operator-trajectory backfill.
+//
+// Reconstructs per-operator OperatorSnapshot rows for past quarters by
+// running the existing pipeline with --as-of set to each quarter-end (the
+// whole pipeline is keyed off that date), then computing portfolio + star
+// roll-ups via the SAME helpers the live seed uses — so reconstructed
+// values match what the live estimator would have produced. Rows are
+// tagged methodologyVersion = "v0.6.4-recon" and only written for
+// operators that still exist today (so they join the scorecard the
+// trajectory UI renders). The 3a UI reads OperatorSnapshot, so this
+// deepens it with no UI change.
+//
+// Usage:
+//   npx tsx scripts/backfill-trajectory.ts [--markets=id1,id2] \
+//     [--quarters=2024-12-31,2025-12-31] [--dry-run] [--reset]
+//
+//   --dry-run  compute + summarize, write nothing (validation)
+//   --reset    delete prior recon rows before writing (idempotent re-run)
+
+import { PrismaClient } from "@prisma/client";
+import { execFileSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { estimatePortfolioSize } from "@/lib/operators/portfolio-estimate";
+import {
+  extractStarsPerMetric,
+  countStarTotals,
+  readActiveSubmarkets,
+  readPortfolioBand,
+} from "@/lib/watch-list/snapshot";
+import type { ScorecardData } from "@/lib/types";
+
+const RECON_VERSION = "v0.6.4-recon";
+const SCRIPT_DIR = path.join(process.cwd(), "scripts/data-pipeline");
+const TMP = path.join(process.cwd(), ".trajectory-backfill-tmp");
+
+/** Quarter-end dates 2020Q4 → 2026Q1 (inclusive). Quarterly cadence:
+ *  T12 windows make monthly steps 11/12 redundant. */
+function defaultQuarters(): string[] {
+  const out: string[] = [];
+  for (let y = 2020; y <= 2026; y++) {
+    for (const [m, d] of [[3, 31], [6, 30], [9, 30], [12, 31]] as const) {
+      const s = `${y}-${String(m).padStart(2, "0")}-${d}`;
+      if (s >= "2020-12-31" && s <= "2026-03-31") out.push(s);
+    }
+  }
+  return out;
+}
+
+function arg(name: string): string | undefined {
+  const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
+  return hit ? hit.split("=").slice(1).join("=") : undefined;
+}
+
+async function main() {
+  const dryRun = process.argv.includes("--dry-run");
+  const reset = process.argv.includes("--reset");
+  const cfg = JSON.parse(
+    fs.readFileSync(path.join(SCRIPT_DIR, "markets.json"), "utf8")
+  ) as { markets: Array<{ id: string; outputSlug: string }> };
+
+  const marketFilter = arg("markets")?.split(",");
+  const markets = marketFilter
+    ? cfg.markets.filter((m) => marketFilter.includes(m.id))
+    : cfg.markets;
+  const quarters = arg("quarters")?.split(",") ?? defaultQuarters();
+
+  const prisma = new PrismaClient();
+  const todaySlugs = new Set(
+    (await prisma.pM.findMany({ select: { slug: true } })).map((p) => p.slug)
+  );
+  console.log(
+    `backfill: ${markets.length} market(s) × ${quarters.length} quarter(s); ` +
+      `${todaySlugs.size} current operators; ${dryRun ? "DRY-RUN" : "WRITING"}`
+  );
+
+  if (reset && !dryRun) {
+    const del = await prisma.operatorSnapshot.deleteMany({
+      where: { methodologyVersion: RECON_VERSION },
+    });
+    console.log(`reset: deleted ${del.count} prior recon rows`);
+  }
+
+  fs.mkdirSync(TMP, { recursive: true });
+  let grandTotal = 0;
+
+  for (const mkt of markets) {
+    let mktRows = 0;
+    // dry-run portfolio probe: operator → quarter → point
+    const probe = new Map<string, Record<string, number | null>>();
+    for (const q of quarters) {
+      const outDir = path.join(TMP, mkt.id, q);
+      fs.mkdirSync(outDir, { recursive: true });
+      try {
+        execFileSync(
+          "python3",
+          ["pipeline.py", "--market", mkt.id, "--as-of", q, "--out-dir", outDir],
+          { cwd: SCRIPT_DIR, stdio: "ignore" }
+        );
+      } catch {
+        // A quarter before this market had data can yield an empty cohort;
+        // skip rather than abort the whole backfill.
+        continue;
+      }
+      const file = path.join(outDir, `Scorecard_Data_v0.6.4_${mkt.outputSlug}.json`);
+      if (!fs.existsSync(file)) continue;
+      const pms: Array<Record<string, unknown>> =
+        JSON.parse(fs.readFileSync(file, "utf8")).pms ?? [];
+
+      const rows = [];
+      let withPortfolio = 0;
+      let portfolioSum = 0;
+      for (const pm of pms) {
+        const slug = pm.slug as string;
+        if (!todaySlugs.has(slug)) continue;
+        const coverage = (pm.coverage as Record<string, unknown>) ?? {};
+        const q7 = (pm.quadrant7Cell as string | null) ?? null;
+        const sc = {
+          ...pm,
+          portfolioEstimate: estimatePortfolioSize(coverage, q7),
+        } as unknown as ScorecardData;
+        const stars = extractStarsPerMetric(sc);
+        const totals = countStarTotals(stars);
+        const band = readPortfolioBand(sc);
+        const subs = readActiveSubmarkets(
+          JSON.stringify(pm.t12ListingsBySubmarket ?? {})
+        );
+        if (band.point !== null) {
+          withPortfolio++;
+          portfolioSum += band.point;
+        }
+        if (dryRun) {
+          const series = probe.get(slug) ?? {};
+          series[q] = band.point;
+          probe.set(slug, series);
+        }
+        rows.push({
+          pmSlug: slug,
+          snapshotDate: new Date(`${q}T00:00:00Z`),
+          methodologyVersion: RECON_VERSION,
+          starsPerMetric: JSON.stringify(stars),
+          starGoldCount: totals.gold,
+          starSilverCount: totals.silver,
+          estimatedPortfolioPoint: band.point,
+          estimatedPortfolioBand: band.band,
+          topMSAs: JSON.stringify([mkt.id]),
+          topSubmarkets: JSON.stringify(subs),
+          concessionRate:
+            typeof pm.concessionRate === "number" ? pm.concessionRate : null,
+          isEligibleForRanking: true,
+        });
+      }
+
+      if (!dryRun && rows.length > 0) {
+        const r = await prisma.operatorSnapshot.createMany({
+          data: rows,
+          skipDuplicates: true,
+        });
+        mktRows += r.count;
+      } else {
+        mktRows += rows.length;
+      }
+      if (dryRun) {
+        console.log(
+          `  ${q}  eligible=${pms.length}  joined=${rows.length}  ` +
+            `w/portfolio=${withPortfolio}  Σunits=${portfolioSum.toLocaleString()}`
+        );
+      }
+    }
+    console.log(
+      `${mkt.id}: ${mktRows} rows${dryRun ? " (dry-run, not written)" : " written"}`
+    );
+
+    if (dryRun) {
+      // Show one portfolio-rich operator's reconstructed curve.
+      const ranked = [...probe.entries()]
+        .map(([slug, s]) => [slug, Object.values(s).filter((v) => v !== null).length] as const)
+        .sort((a, b) => b[1] - a[1]);
+      const sample = ranked.find(([, n]) => n >= 2);
+      if (sample) {
+        console.log(`  sample portfolio trajectory — ${sample[0]}:`);
+        const s = probe.get(sample[0])!;
+        for (const q of quarters) {
+          if (q in s) console.log(`    ${q}: ${s[q] ?? "—"} units`);
+        }
+      }
+    }
+    grandTotal += mktRows;
+  }
+
+  fs.rmSync(TMP, { recursive: true, force: true });
+  console.log(
+    `\nDONE: ${grandTotal} reconstructed snapshot rows ${
+      dryRun ? "(dry-run, nothing written)" : "written"
+    }`
+  );
+  await prisma.$disconnect();
+}
+
+main().catch((e) => {
+  console.error("backfill error:", e);
+  fs.rmSync(TMP, { recursive: true, force: true });
+  process.exit(1);
+});
