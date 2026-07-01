@@ -93,6 +93,132 @@ export function summarizeTrajectory(t: OperatorTrajectory): TrajectorySummary {
   };
 }
 
+// ─── operator-level (cross-market) aggregate ───────────────────────
+
+/** One quarter of an operator's aggregate trajectory: its members'
+ *  values rolled up. Extends TrajectoryPoint (so summarizeTrajectory /
+ *  buildSparkline work directly) with the footprint count. portfolioPoint
+ *  here is the SUM of members' point estimates that quarter. */
+export interface AggregateTrajectoryPoint extends TrajectoryPoint {
+  /** Distinct member markets with a snapshot that quarter (footprint). */
+  marketsPresent: number;
+}
+
+export interface OperatorAggregateTrajectory {
+  points: AggregateTrajectoryPoint[];
+}
+
+/** Minimal snapshot row the aggregator needs, pre-normalized (date as
+ *  yyyy-mm-dd). Pure + unit-tested. */
+export interface MemberSnapshotRow {
+  date: string;
+  pmSlug: string;
+  portfolioPoint: number | null;
+  goldCount: number;
+  silverCount: number;
+}
+
+/** The quarter-end date (yyyy-mm-dd) containing `date`. */
+export function quarterEndDate(date: string): string {
+  const y = date.slice(0, 4);
+  const m = Number(date.slice(5, 7));
+  const q = Math.ceil(m / 3); // 1..4
+  const [em, ed] = [
+    [3, 31],
+    [6, 30],
+    [9, 30],
+    [12, 31],
+  ][q - 1];
+  return `${y}-${String(em).padStart(2, "0")}-${ed}`;
+}
+
+/** Collapse rows to one per (member, quarter), keeping the LATEST
+ *  snapshot in each quarter and stamping it with the quarter-end date.
+ *  This removes the intra-quarter ramp artifact from forward snapshots
+ *  captured while markets were still being onboarded — the aggregate then
+ *  reads as a clean quarterly series. Reconstructed rows are already
+ *  quarter-ends, so they pass through unchanged. Pure + unit-tested. */
+export function collapseMemberRowsToQuarterly(
+  rows: MemberSnapshotRow[]
+): MemberSnapshotRow[] {
+  const best = new Map<string, { origDate: string; row: MemberSnapshotRow }>();
+  for (const r of rows) {
+    const qe = quarterEndDate(r.date);
+    const key = `${r.pmSlug}|${qe}`;
+    const cur = best.get(key);
+    if (!cur || r.date > cur.origDate) {
+      best.set(key, { origDate: r.date, row: { ...r, date: qe } });
+    }
+  }
+  return [...best.values()].map((v) => v.row);
+}
+
+/** Roll member snapshots up to a per-quarter aggregate: sum portfolio
+ *  across members that have an estimate (null only when NONE do), count
+ *  distinct member markets present, sum stars. Ascending by date. */
+export function aggregateMemberSnapshots(
+  rows: MemberSnapshotRow[]
+): AggregateTrajectoryPoint[] {
+  const byDate = new Map<
+    string,
+    { members: Set<string>; portfolios: number[]; gold: number; silver: number }
+  >();
+  for (const r of rows) {
+    const g =
+      byDate.get(r.date) ??
+      { members: new Set<string>(), portfolios: [], gold: 0, silver: 0 };
+    g.members.add(r.pmSlug);
+    if (typeof r.portfolioPoint === "number") g.portfolios.push(r.portfolioPoint);
+    g.gold += r.goldCount;
+    g.silver += r.silverCount;
+    byDate.set(r.date, g);
+  }
+  return [...byDate.entries()]
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+    .map(([date, g]) => ({
+      date,
+      portfolioPoint:
+        g.portfolios.length > 0
+          ? g.portfolios.reduce((s, v) => s + v, 0)
+          : null,
+      portfolioBand: null,
+      goldCount: g.gold,
+      silverCount: g.silver,
+      eligible: true,
+      marketsPresent: g.members.size,
+    }));
+}
+
+/** Load the cross-market aggregate trajectory for an operator from its
+ *  member pmSlugs (which the caller has already scoped to the viewer's
+ *  entitled markets, so entitlement is respected for free). */
+export async function loadOperatorAggregateTrajectory(
+  memberPmSlugs: string[]
+): Promise<OperatorAggregateTrajectory> {
+  if (memberPmSlugs.length === 0) return { points: [] };
+  const rows = await prisma.operatorSnapshot.findMany({
+    where: { pmSlug: { in: memberPmSlugs } },
+    orderBy: { snapshotDate: "asc" },
+    select: {
+      snapshotDate: true,
+      pmSlug: true,
+      estimatedPortfolioPoint: true,
+      starGoldCount: true,
+      starSilverCount: true,
+    },
+  });
+  const mapped: MemberSnapshotRow[] = rows.map((r) => ({
+    date: r.snapshotDate.toISOString().slice(0, 10),
+    pmSlug: r.pmSlug,
+    portfolioPoint: r.estimatedPortfolioPoint,
+    goldCount: r.starGoldCount,
+    silverCount: r.starSilverCount,
+  }));
+  // Collapse to one point per (member, quarter) so incrementally-onboarded
+  // forward snapshots don't create an intra-quarter footprint ramp.
+  return { points: aggregateMemberSnapshots(collapseMemberRowsToQuarterly(mapped)) };
+}
+
 export interface SparkPoint {
   x: number;
   y: number;

@@ -5,6 +5,8 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { fmtInt, fmtPct } from "@/lib/format";
 import { loadOperatorScorecard } from "@/lib/operators/lookup";
+import { loadOperatorAggregateTrajectory } from "@/lib/operators/trajectory";
+import { OperatorAggregateTrajectorySection } from "@/components/scorecard/OperatorAggregateTrajectorySection";
 import { getWatchList } from "@/lib/watch-list/store";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 import { resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
@@ -70,6 +72,12 @@ export default async function OperatorScorecardPage({
     if (exists) return <MarketLockedUpsell marketName={null} />;
     notFound();
   }
+
+  // v0.22 — cross-market trajectory: roll up the (entitlement-scoped)
+  // member markets' snapshot history into a per-quarter aggregate.
+  const aggregateTrajectory = await loadOperatorAggregateTrajectory(
+    view.members.map((m) => m.pmSlug)
+  );
 
   // Optional watch-list breadcrumb. Reads the row only when the
   // ?fromWatchList=… query param is present AND the requester is
@@ -262,6 +270,10 @@ export default async function OperatorScorecardPage({
             />
           </div>
         </section>
+
+        {/* Cross-market trajectory (v0.22) — total portfolio + footprint
+            over time, rolled up from member markets. */}
+        <OperatorAggregateTrajectorySection trajectory={aggregateTrajectory} />
 
         {/* Listing trajectory */}
         <section className="mt-6 rounded-lg border border-grid bg-white p-6">
