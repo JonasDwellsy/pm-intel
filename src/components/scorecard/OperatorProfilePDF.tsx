@@ -3,43 +3,59 @@
 // Purpose-built deal-room artifact. Replaces the old window.print()
 // "Print / Save as PDF" path (which rendered the live page DOM
 // through the browser's print pipeline and produced inconsistent
-// output across browsers). Instead, this is a deterministic 4–5
-// page PDF rendered server-side via @react-pdf/renderer, branded
-// to match the OG-image design language (navy + teal + gold/silver
-// star chips), with the same data the scorecard surface exposes
-// but laid out for a single-shot share artifact:
+// output across browsers). Instead, this is a deterministic 7-page
+// PDF rendered server-side via @react-pdf/renderer, branded to
+// match the OG-image design language (navy + teal + gold/silver
+// star chips), at full content parity with the live web report:
 //
 //   Page 1 — Identity + Synthesis
 //     Wordmark + operator name + cohort + star chips +
 //     cohort framing sentence + executive summary +
 //     headline metric tiles + distinguishing characteristics
 //
-//   Page 2 — Performance dimensions
-//     One card per starable axis (Lease-up Speed, Tenant Retention,
-//     Rent Performance, Marketing Discipline, + Inventory
-//     Transparency for MF/BTR). Star + headline value + cohort
-//     comparison.
+//   Page 2 — Performance dimensions  (mirrors PerformanceLayer.tsx)
+//     One card per starable axis (Lease-up Performance, Tenant
+//     Retention, Rent Performance, Marketing Discipline, +
+//     Inventory Transparency for MF/BTR). Each card carries the
+//     headline value + star, sample size (n), a P25/median/P75
+//     distribution band with a focal marker, and a nearest-peers
+//     mini-table (name + value + mini-bar). Cards flow (wrap) onto
+//     a continuation page when content overflows.
 //
 //   Page 3 — Lending signals
 //     The 5 underwriting-relevant synthesis signals from
-//     scorecard.lendingSignals (Vacancy, Rent Stability, Operator
+//     buildLendingSignals (Vacancy, Rent Stability, Operator
 //     Stability, Geographic Concentration, Pricing Tier).
 //
-//   Page 4 — Portfolio context
-//     Estimated portfolio + range + confidence, observation
-//     history, cross-market presence (if multi-market), geographic
-//     concentration narrative.
+//   Page 4 — Geographic Coverage & Rent
+//     Mapbox (or SVG fallback) coverage map + narrative, and the
+//     6-quarter mix-adjusted rent trajectory chart with the cohort
+//     median overlay.
 //
-//   Page 5 — Methodology & limits
-//     Methodology version, design version, dataAsOf, data caveats,
-//     pointer to iq.dwellsy.com/methodology for the full version.
+//   Page 5 — Portfolio context
+//     Estimated portfolio + range + confidence, rent-level snapshot,
+//     share-of-listing-activity, cross-market presence (if
+//     multi-market), concession activity + sample excerpts.
+//
+//   Page 6 — Trajectory  (mirrors OperatorTrajectorySection.tsx)
+//     How the operator has tracked across Dwellsy IQ refreshes: an
+//     est.-portfolio sparkline with a net-change delta, axis
+//     endpoint labels, and a newest-first per-snapshot table
+//     (Refresh · Est. portfolio · Gold · Silver · Ranked). Omitted
+//     entirely when there are no snapshots.
+//
+//   Page 7 — Methodology & limits  (mirrors MethodologyFooter.tsx)
+//     Version stamp + dataAsOf + caveats, plus ported coverage-
+//     parameters, portfolio-composition, and per-metric sample-size
+//     tables. Pointer to iq.dwellsy.com/methodology.
 //
 // Every page carries a footer with brand + page number + URL +
-// methodology + dataAsOf. Charts (rent trajectory, share trajectory,
-// peer comparisons) are intentionally OMITTED — those depend on
-// Recharts which is client-side only, and the analytical content
-// they convey is already in the prose + metric values. Per PR #84
-// scope decision: text + metrics only.
+// methodology + dataAsOf. Charts are drawn with @react-pdf/renderer
+// native SVG primitives (no Recharts — that's client-side only), so
+// the sparkline / distribution bands / rent trajectory all render
+// server-side. NOTE: the Trajectory page is conditional, so when an
+// operator has zero snapshots the document is 6 pages and the
+// footers still read "of 7" (the page just doesn't exist).
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -74,6 +90,18 @@ import type {
   PricingTierSignal,
 } from "@/lib/lending-signals";
 import type { ShareTrajectoryView } from "@/lib/share-trajectory";
+import {
+  summarizeTrajectory,
+  buildSparkline,
+} from "@/lib/operators/trajectory";
+import type {
+  OperatorTrajectory,
+  TrajectoryPoint,
+} from "@/lib/operators/trajectory";
+import {
+  METRIC_DIRECTIONS,
+} from "@/lib/peer-comparison";
+import type { Layer3Metric, PeerComparison } from "@/lib/peer-comparison";
 
 // PR #86 — Load the Dwellsy IQ wordmark from public/ at module
 // load time and embed it as a data URL. Module-scope cache so
@@ -112,6 +140,27 @@ const COLOR_MUTED_2 = "#8b95a8";
 const COLOR_GRID = "#e1e5ec";
 const COLOR_SURFACE = "#f6f7fa";
 const COLOR_BG = "#ffffff";
+// Directional tones — mirror --color-good / --color-bad from
+// globals.css so the Trajectory delta + Performance trend labels
+// read the same green/red as the live report.
+const COLOR_GOOD = "#3e7c3e";
+const COLOR_BAD = "#a63a2a";
+// Teal used for the peer-comparison IQR band + the sparkline stroke.
+// The live components use #0E7C86 for the sparkline; we reuse the
+// existing brand COLOR_TEAL (#1b6e8c) for consistency across the PDF.
+const COLOR_TEAL_SOFT = "#d3e5eb";
+
+// All-null peer-comparison map — the default when the API route
+// couldn't build peer comparisons (msaPool load failed). Each null
+// card renders the "Insufficient data" state, same as the live
+// PerformanceLayer.
+const EMPTY_PEER_COMPARISONS: Record<Layer3Metric, PeerComparison | null> = {
+  dom: null,
+  tenancy: null,
+  rentPerformance: null,
+  marketing: null,
+  communityVisibility: null,
+};
 
 const styles = StyleSheet.create({
   // --- Page chrome ---
@@ -378,6 +427,196 @@ const styles = StyleSheet.create({
     fontWeight: 700,
     fontFamily: "Helvetica-Bold",
   },
+  // --- Trajectory page (mirrors OperatorTrajectorySection.tsx) ---
+  trajectorySubtitle: {
+    fontSize: 10,
+    color: COLOR_MUTED,
+    marginTop: 2,
+    marginBottom: 4,
+    lineHeight: 1.45,
+  },
+  trajectoryHeadlineRow: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "baseline",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  trajectoryHeadlineEyebrow: {
+    fontSize: 8,
+    fontWeight: 700,
+    color: COLOR_MUTED,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    fontFamily: "Helvetica-Bold",
+  },
+  trajectoryHeadlineValue: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: COLOR_NAVY,
+    fontFamily: "Helvetica-Bold",
+  },
+  trajectoryDelta: {
+    fontSize: 11,
+    fontWeight: 700,
+    fontFamily: "Helvetica-Bold",
+  },
+  trajectoryAxisRow: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  trajectoryAxisLabel: {
+    fontSize: 8,
+    color: COLOR_MUTED_2,
+  },
+  trajectoryAxisCenter: {
+    fontSize: 8,
+    color: COLOR_MUTED_2,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    fontFamily: "Helvetica-Bold",
+  },
+  trajectoryFooter: {
+    fontSize: 8.5,
+    color: COLOR_MUTED_2,
+    marginTop: 16,
+    lineHeight: 1.45,
+  },
+  // --- Generic table (Trajectory snapshots + Methodology tables) ---
+  tableHeaderRow: {
+    display: "flex",
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomStyle: "solid",
+    borderBottomColor: COLOR_GRID,
+    paddingVertical: 4,
+  },
+  tableRow: {
+    display: "flex",
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomStyle: "solid",
+    borderBottomColor: COLOR_GRID,
+    paddingVertical: 4,
+  },
+  tableHeaderCell: {
+    fontSize: 7.5,
+    fontWeight: 700,
+    color: COLOR_MUTED,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    fontFamily: "Helvetica-Bold",
+  },
+  tableCell: {
+    fontSize: 9,
+    color: COLOR_NAVY,
+  },
+  tableCellMuted: {
+    fontSize: 9,
+    color: COLOR_MUTED,
+  },
+  // --- Performance card enrichment (mirrors PerformanceLayer.tsx) ---
+  perfCard: {
+    padding: 14,
+    marginTop: 8,
+    backgroundColor: COLOR_BG,
+    borderColor: COLOR_GRID,
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderRadius: 6,
+  },
+  perfCardHeaderRow: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomStyle: "solid",
+    borderBottomColor: COLOR_GRID,
+    paddingBottom: 8,
+  },
+  perfCardTitle: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: COLOR_NAVY,
+    fontFamily: "Helvetica-Bold",
+  },
+  perfCardQualifier: {
+    fontSize: 9,
+    color: COLOR_MUTED,
+    marginTop: 3,
+  },
+  perfHeadlineValue: {
+    fontSize: 26,
+    fontWeight: 700,
+    color: COLOR_NAVY,
+    fontFamily: "Helvetica-Bold",
+    lineHeight: 1,
+  },
+  perfHeadlineUnit: {
+    fontSize: 9,
+    color: COLOR_MUTED,
+    marginTop: 3,
+  },
+  perfTrend: {
+    fontSize: 9.5,
+    fontWeight: 700,
+    fontFamily: "Helvetica-Bold",
+  },
+  perfEyebrowMuted: {
+    fontSize: 7.5,
+    fontWeight: 700,
+    color: COLOR_MUTED,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    fontFamily: "Helvetica-Bold",
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  perfDistCaption: {
+    fontSize: 8,
+    color: COLOR_MUTED_2,
+    marginTop: 4,
+    lineHeight: 1.4,
+  },
+  perfContext: {
+    fontSize: 9.5,
+    color: COLOR_MUTED,
+    marginTop: 8,
+    lineHeight: 1.5,
+  },
+  perfFootnote: {
+    fontSize: 8.5,
+    fontStyle: "italic",
+    color: COLOR_MUTED_2,
+    marginTop: 4,
+    lineHeight: 1.4,
+  },
+  // Peer mini-table row
+  peerRow: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 3,
+    borderBottomWidth: 0.5,
+    borderBottomStyle: "solid",
+    borderBottomColor: COLOR_GRID,
+  },
+  peerName: {
+    fontSize: 9,
+    color: COLOR_NAVY,
+  },
+  peerValue: {
+    fontSize: 9,
+    color: COLOR_NAVY,
+    textAlign: "right",
+  },
 });
 
 // --- Helpers (mirrored from the live components, kept here so
@@ -476,13 +715,7 @@ function Tile({
   );
 }
 
-function PageFooter({
-  scorecard,
-  pageLabel,
-}: {
-  scorecard: ScorecardData;
-  pageLabel: string;
-}) {
+function PageFooter({ scorecard }: { scorecard: ScorecardData }) {
   return (
     <View style={styles.footer} fixed>
       <Text>
@@ -492,7 +725,17 @@ function PageFooter({
         {fmtDate(scorecard.dataAsOf)}
       </Text>
       <Text>
-        {pageLabel} · <Text style={styles.footerLink}>iq.dwellsy.com</Text>
+        {/* Dynamic page numbering — the Trajectory page is conditional
+            and the Performance page can overflow, so counting the
+            actual rendered pages (via react-pdf's render callback) is
+            the only way to keep "Page X of Y" correct. */}
+        <Text
+          render={({ pageNumber, totalPages }) =>
+            `Page ${pageNumber} of ${totalPages}`
+          }
+        />
+        {" · "}
+        <Text style={styles.footerLink}>iq.dwellsy.com</Text>
       </Text>
     </View>
   );
@@ -1314,7 +1557,771 @@ function lendingSignalCards(
 }
 
 // =====================================================================
-//  Document — the actual 4–5 page PDF
+//  Enriched Performance page — mirrors PerformanceLayer.tsx
+// =====================================================================
+//
+// PR (full parity) — the Page-2 Performance page now carries the same
+// analytical content as the live PerformanceLayer: per-card sample
+// size (n), a P25/median/P75 distribution band with a focal marker,
+// and a nearest-peers mini-table (name + value + mini-bar). Driven by
+// the peerComparisons the API route computes via buildPeerComparisons.
+
+interface PerfCardConfig {
+  metric: Layer3Metric;
+  title: string;
+  headline: (v: number) => { value: string; unit: string };
+  rowFormat: (v: number) => string;
+  /** short axis noun used on the distribution endpoints (e.g. "DOM"). */
+  axisLabel: string;
+  definition: string;
+}
+
+// Mirrors SHARED_CARDS + INVENTORY_TRANSPARENCY_CARD in
+// PerformanceLayer.tsx (titles, formats, definitions all identical).
+const PERF_CARDS: PerfCardConfig[] = [
+  {
+    metric: "dom",
+    title: "Lease-up Performance",
+    headline: (v) => ({ value: fmtNumber(v, 1), unit: "days median DOM" }),
+    rowFormat: (v) => `${fmtNumber(v, 1)} d`,
+    axisLabel: "DOM",
+    definition:
+      "Lease-up Performance measures the median days a listing sits between activation and lease in trailing 12 months.",
+  },
+  {
+    metric: "tenancy",
+    title: "Tenant Retention",
+    headline: (v) => ({ value: fmtNumber(v, 1), unit: "months median tenancy" }),
+    rowFormat: (v) => `${fmtNumber(v, 1)} mo`,
+    axisLabel: "tenancy",
+    definition:
+      "Tenant Retention measures the median time between successive listings of the same unit — a proxy for how long the average tenant stays.",
+  },
+  {
+    metric: "rentPerformance",
+    title: "Rent Performance",
+    headline: (v) => ({
+      value: `${v > 0 ? "+" : ""}${fmtNumber(v * 100, 1)}`,
+      unit: "pp vs cohort YoY",
+    }),
+    rowFormat: (v) => `${v > 0 ? "+" : ""}${fmtNumber(v * 100, 1)}pp`,
+    axisLabel: "rent delta",
+    definition:
+      "Rent Performance measures the operator's mix-adjusted YoY rent change against the cohort median for the same period.",
+  },
+  {
+    metric: "marketing",
+    title: "Marketing Discipline",
+    headline: (v) => ({ value: fmtNumber(v, 0), unit: "/ 100 marketing quality" }),
+    rowFormat: (v) => `${fmtNumber(v, 0)} / 100`,
+    axisLabel: "marketing score",
+    definition:
+      "Marketing Discipline measures listing completeness, amenity disclosure, description depth, and photo coverage on a 0-100 composite.",
+  },
+];
+
+const PERF_INVENTORY_CARD: PerfCardConfig = {
+  metric: "communityVisibility",
+  title: "Inventory Transparency",
+  headline: (v) => ({ value: fmtNumber(v, 2), unit: "visibility ratio" }),
+  rowFormat: (v) => fmtNumber(v, 2),
+  axisLabel: "ratio",
+  definition:
+    "Inventory Transparency measures observed listings against expected turnover for known MF/BTR community sizes — a ratio of what we see vs. what we'd expect at typical turnover.",
+};
+
+// fmtNumber above (module helper) takes (n, digits, signed?) — the
+// peer-comparison rowFormats call it with (v, digits) which matches.
+
+// Direction-aware trend label, mirroring trendArrowFor in
+// PerformanceLayer.tsx (favorable = green, unfavorable = red).
+function perfTrend(
+  metric: Layer3Metric,
+  comparison: PeerComparison
+): { label: string; color: string } | null {
+  if (comparison.focalValue === null || comparison.cohortMedian === null) {
+    return null;
+  }
+  const delta = comparison.focalValue - comparison.cohortMedian;
+  if (Math.abs(delta) < 1e-6) {
+    return { label: "at cohort median", color: COLOR_MUTED };
+  }
+  const direction = METRIC_DIRECTIONS[metric];
+  const favorable = direction === "higher_better" ? delta > 0 : delta < 0;
+  // Plain "+/-" prefix instead of ▲/▼ (Helvetica lacks those glyphs
+  // in the PDF font — same fix as leaseUpDetail's arrow removal).
+  const sign = delta > 0 ? "+" : "-";
+  let magnitude = "";
+  if (metric === "rentPerformance") {
+    magnitude = `${fmtNumber(Math.abs(delta) * 100, 1)} pp vs cohort`;
+  } else if (metric === "marketing") {
+    magnitude = `${fmtNumber(Math.abs(delta), 0)} pts vs cohort`;
+  } else if (metric === "communityVisibility") {
+    magnitude = `${fmtNumber(Math.abs(delta), 2)} vs cohort`;
+  } else if (metric === "tenancy") {
+    magnitude = `${fmtNumber(Math.abs(delta), 1)} mo vs cohort`;
+  } else {
+    magnitude = `${fmtNumber(Math.abs(delta), 1)} d vs cohort`;
+  }
+  return {
+    label: `${sign}${magnitude}`,
+    color: favorable ? COLOR_GOOD : COLOR_BAD,
+  };
+}
+
+// P25/median/P75 distribution band drawn with react-pdf SVG. Track +
+// teal IQR band + median tick + navy focal marker — the react-pdf
+// analogue of PerformanceLayer's DistributionChart.
+function PerfDistribution({
+  comparison,
+  cfg,
+}: {
+  comparison: PeerComparison;
+  cfg: PerfCardConfig;
+}) {
+  if (
+    comparison.cohortP25 === null ||
+    comparison.cohortP75 === null ||
+    comparison.cohortMedian === null ||
+    comparison.focalValue === null
+  ) {
+    return (
+      <Text style={styles.perfDistCaption}>Distribution unavailable</Text>
+    );
+  }
+  const W = 300;
+  const H = 26;
+  const cy = H / 2;
+  const values = comparison.rows.map((r) => r.value);
+  const minV = Math.min(comparison.cohortP25, comparison.focalValue, ...values);
+  const maxV = Math.max(comparison.cohortP75, comparison.focalValue, ...values);
+  const span = maxV - minV || 1;
+  const pad = span * 0.08;
+  const lo = minV - pad;
+  const hi = maxV + pad;
+  const total = hi - lo || 1;
+  const posX = (v: number) => ((v - lo) / total) * W;
+  const p25x = posX(comparison.cohortP25);
+  const p75x = posX(comparison.cohortP75);
+  const medx = posX(comparison.cohortMedian);
+  const focx = posX(comparison.focalValue);
+  const direction = METRIC_DIRECTIONS[cfg.metric];
+  return (
+    <View>
+      <Svg width={W} height={H}>
+        {/* Track */}
+        <Rect x={0} y={cy - 2} width={W} height={4} rx={2} fill={COLOR_GRID} />
+        {/* IQR band */}
+        <Rect
+          x={Math.min(p25x, p75x)}
+          y={cy - 2}
+          width={Math.max(1, Math.abs(p75x - p25x))}
+          height={4}
+          rx={2}
+          fill={COLOR_TEAL_SOFT}
+        />
+        {/* Median tick */}
+        <Rect x={medx - 1} y={cy - 6} width={2} height={12} fill={COLOR_TEAL} />
+        {/* Focal marker */}
+        <Circle
+          cx={focx}
+          cy={cy}
+          r={5}
+          fill={COLOR_BG}
+          stroke={COLOR_NAVY}
+          strokeWidth={2}
+        />
+      </Svg>
+      <Text style={styles.perfDistCaption}>
+        {`Cohort IQR — P25 ${cfg.rowFormat(comparison.cohortP25)} · median ${cfg.rowFormat(comparison.cohortMedian)} · P75 ${cfg.rowFormat(comparison.cohortP75)}`}
+      </Text>
+      <Text style={styles.perfDistCaption}>
+        {direction === "lower_better"
+          ? `Left = faster ${cfg.axisLabel}, right = slower`
+          : `Left = lower ${cfg.axisLabel}, right = higher`}
+      </Text>
+    </View>
+  );
+}
+
+// Nearest-peers mini-table: name + value + a mini value-bar, mirroring
+// PerformanceLayer's PeerTable. Focal row is tinted + labelled.
+function PerfPeerTable({
+  comparison,
+  cfg,
+}: {
+  comparison: PeerComparison;
+  cfg: PerfCardConfig;
+}) {
+  if (comparison.rows.length === 0) return null;
+  const values = comparison.rows.map((r) => r.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const direction = METRIC_DIRECTIONS[cfg.metric];
+  const BAR_W = 120;
+  return (
+    <View style={{ marginTop: 4 }}>
+      {comparison.rows.map((row) => {
+        const ratio = (row.value - min) / span;
+        const fillPct =
+          direction === "higher_better" ? ratio : 1 - ratio;
+        const fillW = Math.max(3, fillPct * BAR_W);
+        return (
+          <View
+            key={row.slug}
+            style={[
+              styles.peerRow,
+              row.isFocal ? { backgroundColor: COLOR_TEAL_SOFT } : {},
+            ]}
+          >
+            {/* Star glyph */}
+            <Text
+              style={{
+                width: 10,
+                fontSize: 9,
+                color:
+                  row.star === "gold"
+                    ? COLOR_GOLD
+                    : row.star === "silver"
+                      ? COLOR_SILVER
+                      : "transparent",
+              }}
+            >
+              ★
+            </Text>
+            {/* Name (focal is bold) */}
+            <Text
+              style={[
+                styles.peerName,
+                { flex: 2 },
+                row.isFocal
+                  ? { fontFamily: "Helvetica-Bold", fontWeight: 700 }
+                  : {},
+              ]}
+            >
+              {row.isFocal ? `${row.name} (this operator)` : row.name}
+            </Text>
+            {/* Mini value-bar */}
+            <View style={{ width: BAR_W }}>
+              <View
+                style={{
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: COLOR_GRID,
+                }}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: direction === "lower_better" ? BAR_W - fillW : 0,
+                  height: 4,
+                  width: fillW,
+                  borderRadius: 2,
+                  backgroundColor: row.isFocal ? COLOR_NAVY : COLOR_TEAL,
+                }}
+              />
+            </View>
+            {/* Value */}
+            <Text
+              style={[
+                styles.peerValue,
+                { width: 58 },
+                row.isFocal
+                  ? { fontFamily: "Helvetica-Bold", fontWeight: 700 }
+                  : {},
+              ]}
+            >
+              {cfg.rowFormat(row.value)}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+// Single enriched performance card.
+function EnrichedPerformanceCard({
+  scorecard,
+  cfg,
+  comparison,
+}: {
+  scorecard: ScorecardData;
+  cfg: PerfCardConfig;
+  comparison: PeerComparison | null;
+}) {
+  // Tenancy short-history caveat — mirrors PerformanceLayer's footnote.
+  const tenancyCaveat =
+    cfg.metric === "tenancy" &&
+    scorecard.tenancy.shortHistoryFlag === true &&
+    scorecard.tenancy.yearsVisible !== undefined
+      ? `Tenancy estimate may be biased low for operators with shorter observation history. ${scorecard.pm.name} has been observed in our data for ${fmtNumber(scorecard.tenancy.yearsVisible, 1)} years.`
+      : null;
+  const footnote = [comparison?.footnote, tenancyCaveat]
+    .filter(Boolean)
+    .join(" ");
+
+  // No comparison / no focal value → header + insufficient-data line,
+  // keeping the structural cadence consistent (matches the live page).
+  if (!comparison || comparison.focalValue === null) {
+    return (
+      <View style={styles.perfCard} wrap={false}>
+        <View style={styles.perfCardHeaderRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.perfCardTitle}>{cfg.title}</Text>
+            {comparison ? (
+              <Text style={styles.perfCardQualifier}>
+                {`${comparison.cohortName} · n = ${comparison.cohortN}`}
+              </Text>
+            ) : null}
+            {footnote ? (
+              <Text style={styles.perfFootnote}>{footnote}</Text>
+            ) : null}
+          </View>
+        </View>
+        <Text style={styles.perfContext}>
+          {`Insufficient data to compute ${cfg.title.toLowerCase()} for this operator.`}
+        </Text>
+      </View>
+    );
+  }
+
+  const headline = cfg.headline(comparison.focalValue);
+  const trend = perfTrend(cfg.metric, comparison);
+  const star = comparison.focalStar;
+  const qualifier =
+    star === "gold"
+      ? "Gold star · Top quartile in cohort"
+      : star === "silver"
+        ? "Silver star · Above median in cohort"
+        : null;
+
+  return (
+    <View style={styles.perfCard} wrap={false}>
+      {/* Header: title + qualifier + n */}
+      <View style={styles.perfCardHeaderRow}>
+        <View style={{ flex: 1 }}>
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 5,
+            }}
+          >
+            <Text style={styles.perfCardTitle}>{cfg.title}</Text>
+            {star === "gold" && (
+              <Text style={[styles.starGlyph, { color: COLOR_GOLD }]}>★</Text>
+            )}
+            {star === "silver" && (
+              <Text style={[styles.starGlyph, { color: COLOR_SILVER }]}>★</Text>
+            )}
+          </View>
+          <Text style={styles.perfCardQualifier}>
+            {qualifier ? `${qualifier} · ` : ""}
+            {`${comparison.cohortName} · n = ${comparison.cohortN}`}
+          </Text>
+          {footnote ? (
+            <Text style={styles.perfFootnote}>{footnote}</Text>
+          ) : null}
+        </View>
+      </View>
+
+      {/* Headline value + trend, alongside the distribution band */}
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 16,
+          marginTop: 10,
+        }}
+      >
+        <View style={{ width: 150 }}>
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "baseline",
+              gap: 6,
+            }}
+          >
+            <Text style={styles.perfHeadlineValue}>{headline.value}</Text>
+            {trend && (
+              <Text style={[styles.perfTrend, { color: trend.color }]}>
+                {trend.label}
+              </Text>
+            )}
+          </View>
+          {headline.unit ? (
+            <Text style={styles.perfHeadlineUnit}>{headline.unit}</Text>
+          ) : null}
+        </View>
+        <View style={{ flex: 1, paddingTop: 2 }}>
+          <PerfDistribution comparison={comparison} cfg={cfg} />
+        </View>
+      </View>
+
+      {/* Peer comparison mini-table */}
+      <Text style={styles.perfEyebrowMuted}>
+        {`How peers compare in ${comparison.cohortName}`}
+      </Text>
+      <PerfPeerTable comparison={comparison} cfg={cfg} />
+
+      {/* Factual context sentence (mirrors the live definition line) */}
+      <Text style={styles.perfContext}>
+        {cfg.definition} {scorecard.pm.name}
+        {`'s value of ${cfg.rowFormat(comparison.focalValue)}`}
+        {comparison.cohortMedian !== null
+          ? ` compares to the ${comparison.cohortName} median of ${cfg.rowFormat(comparison.cohortMedian)}.`
+          : "."}
+      </Text>
+    </View>
+  );
+}
+
+// =====================================================================
+//  Trajectory page — mirrors OperatorTrajectorySection.tsx
+// =====================================================================
+//
+// PR (full parity) — hand-rolled react-pdf SVG sparkline of the est.-
+// portfolio series over time + a newest-first per-snapshot table.
+// Thin history (1 snapshot) collapses to a "first tracked" line. Zero
+// snapshots → the caller skips the page entirely.
+
+function TrajectoryPageBody({
+  trajectory,
+}: {
+  trajectory: OperatorTrajectory;
+}) {
+  const summary = summarizeTrajectory(trajectory);
+
+  if (summary.pointCount === 1) {
+    return (
+      <>
+        <Text style={[styles.paragraph, { marginTop: 12 }]}>
+          {"First tracked "}
+          <Text style={{ fontFamily: "Helvetica-Bold", fontWeight: 700 }}>
+            {summary.firstDate ? fmtDate(summary.firstDate) : "recently"}
+          </Text>
+          {". A trend builds with each monthly refresh."}
+        </Text>
+        <TrajectoryFooterLine summary={summary} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      {summary.hasTrend && (
+        <TrajectorySparkline trajectory={trajectory} summary={summary} />
+      )}
+      <TrajectorySnapshotTable trajectory={trajectory} />
+      <TrajectoryFooterLine summary={summary} />
+    </>
+  );
+}
+
+function TrajectorySparkline({
+  trajectory,
+  summary,
+}: {
+  trajectory: OperatorTrajectory;
+  summary: ReturnType<typeof summarizeTrajectory>;
+}) {
+  const W = 500;
+  const H = 90;
+  const PAD = 8;
+  const spark = buildSparkline(trajectory.points, W, H, PAD);
+  if (spark.length === 0) return null;
+  const polyline = spark.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const delta = summary.netPortfolioDelta;
+  const deltaColor =
+    delta === null || delta === 0
+      ? COLOR_NAVY
+      : delta > 0
+        ? COLOR_GOOD
+        : COLOR_BAD;
+  const deltaLabel =
+    delta === null
+      ? null
+      : `${delta > 0 ? "+" : delta < 0 ? "-" : "±"}${fmtInt(Math.abs(delta))} units since ${
+          summary.firstDate ? fmtDate(summary.firstDate) : "tracking began"
+        }`;
+
+  return (
+    <View>
+      {/* Headline: latest estimate + net change */}
+      <View style={styles.trajectoryHeadlineRow}>
+        <Text style={styles.trajectoryHeadlineEyebrow}>Est. portfolio</Text>
+        <Text style={styles.trajectoryHeadlineValue}>
+          {summary.lastPortfolio !== null ? fmtInt(summary.lastPortfolio) : "—"}
+        </Text>
+        {deltaLabel && (
+          <Text style={[styles.trajectoryDelta, { color: deltaColor }]}>
+            {deltaLabel}
+          </Text>
+        )}
+      </View>
+
+      {/* Sparkline — oldest left → newest right */}
+      <View style={{ marginTop: 10 }}>
+        <Svg width={W} height={H}>
+          <Polyline
+            points={polyline}
+            fill="none"
+            stroke={COLOR_TEAL}
+            strokeWidth={2}
+          />
+          {spark.map((p) => (
+            <Circle key={p.date} cx={p.x} cy={p.y} r={2.5} fill={COLOR_TEAL} />
+          ))}
+        </Svg>
+      </View>
+
+      {/* Axis endpoint labels under the chart */}
+      <View style={styles.trajectoryAxisRow}>
+        <Text style={styles.trajectoryAxisLabel}>
+          {fmtDate(spark[0].date)}
+        </Text>
+        {/* Guillemet, not an arrow — Helvetica's built-in glyph set
+            (no custom font registered) lacks →, which would render as a
+            blank box; » is in the standard set. */}
+        <Text style={styles.trajectoryAxisCenter}>OLDER » NEWER</Text>
+        <Text style={styles.trajectoryAxisLabel}>
+          {fmtDate(spark[spark.length - 1].date)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function TrajectorySnapshotTable({
+  trajectory,
+}: {
+  trajectory: OperatorTrajectory;
+}) {
+  // Newest-first (reverse the ascending points).
+  const rows: TrajectoryPoint[] = [...trajectory.points].reverse();
+  return (
+    <View style={{ marginTop: 16 }}>
+      <View style={styles.tableHeaderRow}>
+        <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Refresh</Text>
+        <Text style={[styles.tableHeaderCell, { flex: 2, textAlign: "right" }]}>
+          Est. portfolio
+        </Text>
+        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: "right" }]}>
+          Gold
+        </Text>
+        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: "right" }]}>
+          Silver
+        </Text>
+        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: "right" }]}>
+          Ranked
+        </Text>
+      </View>
+      {rows.map((p) => (
+        <View key={p.date} style={styles.tableRow}>
+          <Text style={[styles.tableCell, { flex: 2 }]}>{fmtDate(p.date)}</Text>
+          <Text style={[styles.tableCell, { flex: 2, textAlign: "right" }]}>
+            {p.portfolioPoint !== null ? fmtInt(p.portfolioPoint) : "—"}
+          </Text>
+          <Text style={[styles.tableCellMuted, { flex: 1, textAlign: "right" }]}>
+            {p.goldCount}
+          </Text>
+          <Text style={[styles.tableCellMuted, { flex: 1, textAlign: "right" }]}>
+            {p.silverCount}
+          </Text>
+          <Text style={[styles.tableCellMuted, { flex: 1, textAlign: "right" }]}>
+            {p.eligible ? "Yes" : "No"}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function TrajectoryFooterLine({
+  summary,
+}: {
+  summary: ReturnType<typeof summarizeTrajectory>;
+}) {
+  return (
+    <Text style={styles.trajectoryFooter}>
+      {`Tracked since ${summary.firstDate ? fmtDate(summary.firstDate) : "—"} · ${summary.pointCount} ${summary.pointCount === 1 ? "snapshot" : "snapshots"} · modeled on current methodology.`}
+    </Text>
+  );
+}
+
+// =====================================================================
+//  Methodology tables — mirror MethodologyFooter.tsx
+// =====================================================================
+//
+// PR (full parity) — ported react-pdf tables for coverage parameters,
+// portfolio composition, and per-metric sample sizes.
+
+function MethodologyCoverageTable({
+  scorecard,
+}: {
+  scorecard: ScorecardData;
+}) {
+  const c = scorecard.coverage;
+  const rows: Array<{ label: string; value: string }> = [
+    { label: "First observed listing", value: fmtDate(c.firstListing) },
+    { label: "Months on platform", value: fmtInt(c.monthsOnPlatform) },
+    { label: "Listings — lifetime", value: fmtInt(c.lifetimeListings) },
+    { label: "Listings — T12", value: fmtInt(c.t12Listings) },
+  ];
+  if (c.t6Listings !== null) {
+    rows.push({ label: "Listings — T6", value: fmtInt(c.t6Listings) });
+  }
+  rows.push({
+    label: "URUs — lifetime / T12",
+    value: `${fmtInt(c.urusLifetime)} / ${fmtInt(c.urusT12)}`,
+  });
+  rows.push({ label: "Active inventory", value: fmtInt(c.activeListings) });
+  rows.push({ label: "Data tier", value: c.dataTier });
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={styles.perfEyebrowMuted}>Coverage parameters</Text>
+      <View style={styles.tableHeaderRow}>
+        <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Parameter</Text>
+        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: "right" }]}>
+          Value
+        </Text>
+      </View>
+      {rows.map((r) => (
+        <View key={r.label} style={styles.tableRow}>
+          <Text style={[styles.tableCell, { flex: 2 }]}>{r.label}</Text>
+          <Text style={[styles.tableCell, { flex: 1, textAlign: "right" }]}>
+            {r.value}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function MethodologyPortfolioTable({
+  scorecard,
+}: {
+  scorecard: ScorecardData;
+}) {
+  const c = scorecard.coverage;
+  const rows: Array<{ label: string; value: string }> = [
+    {
+      label: "Observed managed units · this MSA",
+      value: fmtInt(c.totalObservedUnits),
+    },
+  ];
+  if (c.nationalObservedUnitsT12 !== null) {
+    rows.push({
+      label: "Observed units · all markets (T12)",
+      value: fmtInt(c.nationalObservedUnitsT12),
+    });
+  }
+  rows.push({ label: "Cities observed", value: fmtInt(c.citiesObserved) });
+  if (c.concentratedShare !== null) {
+    rows.push({
+      label: "Share in concentrated communities (≥10 units)",
+      value: fmtPct(c.concentratedShare * 100, 0),
+    });
+  }
+  if (c.observedCommunityTotalUnits !== undefined) {
+    rows.push({
+      label: "Observed community totals (top-down)",
+      value: fmtInt(c.observedCommunityTotalUnits),
+    });
+  }
+  rows.push({
+    label: "7-cell classification",
+    value: scorecard.pm.quadrant7Cell ?? scorecard.pm.quadrant ?? "—",
+  });
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={styles.perfEyebrowMuted}>Portfolio composition</Text>
+      <View style={styles.tableHeaderRow}>
+        <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Signal</Text>
+        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: "right" }]}>
+          Value
+        </Text>
+      </View>
+      {rows.map((r) => (
+        <View key={r.label} style={styles.tableRow}>
+          <Text style={[styles.tableCell, { flex: 2 }]}>{r.label}</Text>
+          <Text style={[styles.tableCell, { flex: 1, textAlign: "right" }]}>
+            {r.value}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function MethodologySampleSizeTable({
+  scorecard,
+}: {
+  scorecard: ScorecardData;
+}) {
+  const c = scorecard.coverage;
+  const t = scorecard.tenancy;
+  const rows: Array<{ metric: string; n: string; note: string }> = [
+    {
+      metric: "Lease-up Performance (DOM)",
+      n: fmtInt(scorecard.performance.domT12N),
+      note: "T12 leased listings",
+    },
+    {
+      metric: "Tenant Retention",
+      n: fmtInt(t.multiEpisodeUnits),
+      note: `multi-episode units (${t.multiEpisodePct}% of ${fmtInt(t.totalUnits)} observed)`,
+    },
+    {
+      metric: "Rent Performance",
+      n: fmtInt(c.urusT12),
+      note: "T12 observed urus feeding mix-adjusted YoY",
+    },
+    {
+      metric: "Marketing Discipline",
+      n: fmtInt(c.t12Listings),
+      note: "T12 listings scored",
+    },
+  ];
+  if (scorecard.communityVisibility) {
+    rows.push({
+      metric: "Inventory Transparency",
+      n: fmtInt(scorecard.communityVisibility.perCommunity.length),
+      note: "concentrated communities backing the ratio",
+    });
+  }
+  return (
+    <View style={{ marginTop: 12 }}>
+      <Text style={styles.perfEyebrowMuted}>Sample sizes per metric</Text>
+      <View style={styles.tableHeaderRow}>
+        <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Metric</Text>
+        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: "right" }]}>
+          N
+        </Text>
+        <Text style={[styles.tableHeaderCell, { flex: 3 }]}>Backing</Text>
+      </View>
+      {rows.map((r) => (
+        <View key={r.metric} style={styles.tableRow}>
+          <Text style={[styles.tableCell, { flex: 2 }]}>{r.metric}</Text>
+          <Text style={[styles.tableCell, { flex: 1, textAlign: "right" }]}>
+            {r.n}
+          </Text>
+          <Text style={[styles.tableCellMuted, { flex: 3 }]}>{r.note}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// =====================================================================
+//  Document — the actual 7-page PDF
 // =====================================================================
 
 export function OperatorProfilePDF({
@@ -1323,6 +2330,8 @@ export function OperatorProfilePDF({
   lendingSignals = null,
   shareTrajectory = null,
   mapImageDataUrl = null,
+  peerComparisons = EMPTY_PEER_COMPARISONS,
+  operatorTrajectory = { pmSlug: "", points: [] },
 }: {
   scorecard: ScorecardData;
   /** PR #85 — optional cohort-median rent trajectory overlay. The
@@ -1350,6 +2359,20 @@ export function OperatorProfilePDF({
    *  (real streets / water / state boundaries). When null, the
    *  PDF falls back to the SVG dot map from PRs #85-#87. */
   mapImageDataUrl?: string | null;
+  /** PR (full parity) — per-metric peer comparisons computed via
+   *  buildPeerComparisons at the API route. Drives the enriched
+   *  Performance page (sample size, P25/median/P75 distribution
+   *  band, nearest-peers mini-table) so it matches the live
+   *  PerformanceLayer. Defaults to an all-null map — each null
+   *  card renders the "Insufficient data" state, same as the live
+   *  page. */
+  peerComparisons?: Record<Layer3Metric, PeerComparison | null>;
+  /** PR (full parity) — operator snapshot time-series loaded via
+   *  loadOperatorTrajectory at the API route. Drives the new
+   *  Trajectory page. Empty points → the Trajectory page is
+   *  skipped entirely (mirrors OperatorTrajectorySection returning
+   *  null). */
+  operatorTrajectory?: OperatorTrajectory;
 }) {
   const logoDataUrl = getLogoDataUrl();
   const operatorType = classifyOperator(scorecard);
@@ -1374,6 +2397,19 @@ export function OperatorProfilePDF({
     ? inventoryTransparencyDetail(scorecard)
     : null;
   const lendingCards = lendingSignalCards(scorecard, lendingSignals);
+
+  // PR (full parity) — enriched Performance page card set. The shared
+  // four always render; Inventory Transparency is appended only when
+  // the peer-comparison helper resolved a communityVisibility card
+  // (MF/BTR scope gate passed), exactly matching PerformanceLayer.tsx.
+  const perfCards: PerfCardConfig[] = [...PERF_CARDS];
+  if (peerComparisons.communityVisibility) {
+    perfCards.push(PERF_INVENTORY_CARD);
+  }
+
+  // Trajectory page is conditional — omitted entirely when there are
+  // no snapshots (mirrors OperatorTrajectorySection returning null).
+  const showTrajectory = operatorTrajectory.points.length > 0;
 
   return (
     <Document
@@ -1494,25 +2530,34 @@ export function OperatorProfilePDF({
           </>
         )}
 
-        <PageFooter scorecard={scorecard} pageLabel="Page 1 of 6" />
+        <PageFooter scorecard={scorecard} />
       </Page>
 
-      {/* ============== PAGE 2 — Performance Dimensions ============== */}
+      {/* ============== PAGE 2 — Performance Dimensions ==============
+          PR (full parity) — the plain PerformanceCard list is replaced
+          by EnrichedPerformanceCards that mirror PerformanceLayer.tsx:
+          headline value + trend, sample size (n), a P25/median/P75
+          distribution band, and a nearest-peers mini-table. Cards
+          carry wrap={false} so a single card never splits across a
+          page boundary; the card sequence itself flows onto a
+          continuation page when it overflows (react-pdf pagination).
+      */}
       <Page size="LETTER" style={styles.page}>
         <PageHeader scorecard={scorecard} sectionTitle="Performance Dimensions" />
         <Text style={styles.paragraph}>
-          {`Per-metric performance across the ${axes} starable axes for ${cohortName}. Each card shows the operator's value, the cohort comparison, and the star tier earned.`}
+          {`Per-metric performance across the ${axes} starable axes for ${cohortName}. Each card shows the operator's value, the cohort it's compared against, the four nearest neighbors by value, and the star tier earned. Stars reflect quartile position within cohort.`}
         </Text>
 
-        <PerformanceCard title="Lease-up Speed" detail={leaseUpDetail(scorecard)} />
-        <PerformanceCard title="Tenant Retention" detail={tenancyDetail(scorecard)} />
-        <PerformanceCard title="Rent Performance" detail={rentDetail(scorecard)} />
-        <PerformanceCard title="Marketing Discipline" detail={marketingDetail(scorecard)} />
-        {invTrans && (
-          <PerformanceCard title="Inventory Transparency" detail={invTrans} />
-        )}
+        {perfCards.map((cfg) => (
+          <EnrichedPerformanceCard
+            key={cfg.metric}
+            scorecard={scorecard}
+            cfg={cfg}
+            comparison={peerComparisons[cfg.metric]}
+          />
+        ))}
 
-        <PageFooter scorecard={scorecard} pageLabel="Page 2 of 6" />
+        <PageFooter scorecard={scorecard} />
       </Page>
 
       {/* ============== PAGE 3 — Lending Signals ============== */}
@@ -1532,7 +2577,7 @@ export function OperatorProfilePDF({
           lendingCards.map((card, i) => <MetricCard key={i} data={card} />)
         )}
 
-        <PageFooter scorecard={scorecard} pageLabel="Page 3 of 6" />
+        <PageFooter scorecard={scorecard} />
       </Page>
 
       {/* ============== PAGE 4 — Geographic Coverage + Rent Trajectory ==============
@@ -1540,7 +2585,8 @@ export function OperatorProfilePDF({
           Page 4 carries the geographic coverage map and the cohort-
           overlay rent trajectory chart. Page 5 carries the remaining
           portfolio narratives (size estimate, cross-market presence,
-          concession activity). Page 6 is methodology.
+          concession activity). Page 6 is the Trajectory page (when the
+          operator has snapshots), Page 7 is methodology.
       */}
       <Page size="LETTER" style={styles.page}>
         <PageHeader scorecard={scorecard} sectionTitle="Geographic Coverage & Rent" />
@@ -1593,7 +2639,7 @@ export function OperatorProfilePDF({
           </Text>
         )}
 
-        <PageFooter scorecard={scorecard} pageLabel="Page 4 of 6" />
+        <PageFooter scorecard={scorecard} />
       </Page>
 
       {/* ============== PAGE 5 — Portfolio Context ============== */}
@@ -1650,10 +2696,28 @@ export function OperatorProfilePDF({
           );
         })()}
 
-        <PageFooter scorecard={scorecard} pageLabel="Page 5 of 6" />
+        <PageFooter scorecard={scorecard} />
       </Page>
 
-      {/* ============== PAGE 6 — Methodology & Limits ============== */}
+      {/* ============== PAGE 6 — Trajectory ==============
+          PR (full parity) — mirrors OperatorTrajectorySection.tsx.
+          Web order is Portfolio → Trajectory → Methodology, so this
+          sits between Page 5 (Portfolio Context) and Page 7
+          (Methodology). Rendered only when the operator has at least
+          one OperatorSnapshot; otherwise the page is omitted and the
+          document is 6 pages (footers still read "of 7"). */}
+      {showTrajectory && (
+        <Page size="LETTER" style={styles.page}>
+          <PageHeader scorecard={scorecard} sectionTitle="Trajectory" />
+          <Text style={styles.trajectorySubtitle}>
+            How this operator has tracked across Dwellsy IQ refreshes.
+          </Text>
+          <TrajectoryPageBody trajectory={operatorTrajectory} />
+          <PageFooter scorecard={scorecard} />
+        </Page>
+      )}
+
+      {/* ============== PAGE 7 — Methodology & Limits ============== */}
       <Page size="LETTER" style={styles.page}>
         <PageHeader scorecard={scorecard} sectionTitle="Methodology & Limits" />
 
@@ -1684,6 +2748,32 @@ Lending signals are descriptive synthesis only — they don't feed the
 composite ranking.`}
         </Text>
 
+        {/* PR (full parity) — classification rationale + coverage
+            universe tables ported from MethodologyFooter.tsx. */}
+        {scorecard.classificationRationale ? (
+          <>
+            <Text style={styles.sectionHeader}>Classification Rationale</Text>
+            <Text style={styles.paragraph}>
+              {scorecard.classificationRationale}
+            </Text>
+          </>
+        ) : null}
+
+        <Text style={styles.sectionHeader}>Coverage Universe</Text>
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            gap: 24,
+            marginTop: 2,
+          }}
+        >
+          <MethodologyCoverageTable scorecard={scorecard} />
+          <MethodologyPortfolioTable scorecard={scorecard} />
+        </View>
+
+        <MethodologySampleSizeTable scorecard={scorecard} />
+
         <Text style={styles.sectionHeader}>Where to dig deeper</Text>
         <Text style={styles.paragraph}>
           {`The full methodology document — including data sources, the
@@ -1692,7 +2782,7 @@ derivation — lives at iq.dwellsy.com/methodology. Per-market
 context and peer comparison tools are at iq.dwellsy.com.`}
         </Text>
 
-        <PageFooter scorecard={scorecard} pageLabel="Page 6 of 6" />
+        <PageFooter scorecard={scorecard} />
       </Page>
     </Document>
   );
@@ -1768,77 +2858,10 @@ function MetricCard({ data }: { data: MetricCardData }) {
   );
 }
 
-function PerformanceCard({
-  title,
-  detail,
-}: {
-  title: string;
-  detail: {
-    value: string;
-    unit: string;
-    star: StarLevel;
-    compare: string;
-  };
-}) {
-  // PR #86 — Restructured layout per Jonas's feedback. Numbers
-  // need to right-align across every card so the values stack
-  // in a single column. Solution: two-column flex with the metric
-  // name + comparison narrative on the left, and the number + unit
-  // (with unit stacked BELOW the number) + star on the right. The
-  // right column has a fixed width so number alignment stays
-  // consistent across rent-pp, days, mo, /100, etc.
-  return (
-    <View style={styles.signalCard}>
-      <View
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 12,
-        }}
-      >
-        {/* Left column — metric name + comparison narrative */}
-        <View style={{ flex: 1, paddingTop: 2 }}>
-          <Text style={styles.signalTitle}>{title}</Text>
-          <Text style={[styles.signalDetail, { marginTop: 6 }]}>
-            {detail.compare}
-          </Text>
-        </View>
-
-        {/* Right column — big number + unit below + star.
-            Width fixed so values align across cards. */}
-        <View
-          style={{
-            width: 110,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
-          }}
-        >
-          <View
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "baseline",
-              gap: 4,
-            }}
-          >
-            <Text style={styles.tileValue}>{detail.value}</Text>
-            {detail.star === "gold" ? (
-              <Text style={[styles.starGlyph, { color: COLOR_GOLD }]}>★</Text>
-            ) : detail.star === "silver" ? (
-              <Text style={[styles.starGlyph, { color: COLOR_SILVER }]}>★</Text>
-            ) : null}
-          </View>
-          {detail.unit ? (
-            <Text style={[styles.tileUnit, { marginTop: 2 }]}>{detail.unit}</Text>
-          ) : null}
-        </View>
-      </View>
-    </View>
-  );
-}
+// PR (full parity) — the old text-only PerformanceCard (Page 2 before
+// the parity work) has been superseded by EnrichedPerformanceCard,
+// which mirrors the live PerformanceLayer (distribution band + peer
+// table). It was removed to keep the module free of dead code.
 
 // --- Page 4 narratives ---
 

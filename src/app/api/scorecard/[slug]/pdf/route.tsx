@@ -1,7 +1,8 @@
 // PR #84 — Operator profile PDF route.
 //
 // GET /api/scorecard/[slug]/pdf
-//   → 200 application/pdf  (4-5 page branded operator profile)
+//   → 200 application/pdf  (7-page branded operator profile;
+//     6 pages when the operator has no trajectory snapshots)
 //   → 404 if the PM slug doesn't exist
 //   → 500 + branded error PDF on render failure (Sentry-instrumented)
 //
@@ -23,10 +24,14 @@ import { buildCohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import { buildLendingSignals } from "@/lib/lending-signals";
 import { loadMarketFootprint } from "@/lib/cross-market";
 import { buildShareTrajectoryView } from "@/lib/share-trajectory";
+import { buildPeerComparisons } from "@/lib/peer-comparison";
+import { loadOperatorTrajectory } from "@/lib/operators/trajectory";
 import type { ScorecardData } from "@/lib/types";
 import type { LendingSignals } from "@/lib/lending-signals";
 import type { ShareTrajectoryView } from "@/lib/share-trajectory";
 import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
+import type { Layer3Metric, PeerComparison } from "@/lib/peer-comparison";
+import type { OperatorTrajectory } from "@/lib/operators/trajectory";
 
 // PR #88 — Mapbox Static Images API integration. The previous SVG
 // dot-map (PRs #85-#87) gave us positioning + city labels but had
@@ -82,7 +87,7 @@ async function fetchScorecardMap(
 
   // PR #89 — Set the Referer header to match the production
   // hostname. The NEXT_PUBLIC_MAPBOX_TOKEN is URL-restricted in
-  // the Mapbox console (allowed for pm-intel-chi.vercel.app /
+  // the Mapbox console (allowed for intel.iq.dwellsy.com /
   // iq.dwellsy.com only — same restriction the live page's
   // browser-side use relies on). Mapbox validates URL
   // restrictions via the Referer header on each request.
@@ -95,13 +100,14 @@ async function fetchScorecardMap(
   //
   // Resolution order matches src/app/layout.tsx's metadataBase:
   // explicit override > VERCEL_PROJECT_PRODUCTION_URL > VERCEL_URL
-  // > the current deployed hostname pm-intel-chi.vercel.app as a
-  // hardcoded fallback (already allowlisted in Mapbox).
+  // > the current production hostname intel.iq.dwellsy.com as a
+  // hardcoded fallback (already allowlisted in Mapbox post-domain
+  // cutover; the old pm-intel-chi.vercel.app host is retired).
   const refererHost =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, "") ??
     process.env.VERCEL_PROJECT_PRODUCTION_URL ??
     process.env.VERCEL_URL ??
-    "pm-intel-chi.vercel.app";
+    "intel.iq.dwellsy.com";
   const referer = `https://${refererHost}/`;
 
   try {
@@ -170,9 +176,24 @@ export async function GET(
     let cohortTrajectory: CohortRentTrajectory | null = null;
     let lendingSignals: LendingSignals | null = null;
     let shareTrajectory: ShareTrajectoryView | null = null;
+    // PR — full parity: the Page-2 Performance page now mirrors the
+    // live PerformanceLayer, which needs per-metric peer comparisons
+    // (cohort quartiles + nearest neighbors). Default to an all-null
+    // map — the component treats each null card as "Insufficient
+    // data", identical to the live page's fallback.
+    const EMPTY_PEER_COMPARISONS: Record<Layer3Metric, PeerComparison | null> = {
+      dom: null,
+      tenancy: null,
+      rentPerformance: null,
+      marketing: null,
+      communityVisibility: null,
+    };
+    let peerComparisons: Record<Layer3Metric, PeerComparison | null> =
+      EMPTY_PEER_COMPARISONS;
     try {
       const msaPool = await loadMsaPool(scorecard.market.id);
       cohortTrajectory = buildCohortRentTrajectory(scorecard, msaPool);
+      peerComparisons = buildPeerComparisons(scorecard, msaPool);
       // marketFootprint is the operator's cross-market footprint
       // (one row per MSA they appear in). buildLendingSignals
       // uses the length to compute the operatorStability signal
@@ -193,8 +214,24 @@ export async function GET(
       );
     } catch (poolErr) {
       console.error(
-        "[scorecard-pdf] msaPool / lending signals / share trajectory load failed; rendering PDF with reduced enrichment",
+        "[scorecard-pdf] msaPool / lending signals / share trajectory / peer comparisons load failed; rendering PDF with reduced enrichment",
         poolErr,
+        { slug }
+      );
+    }
+
+    // PR — full parity: operator trajectory (OperatorSnapshot
+    // time-series) for the new Trajectory page. Loaded in its own
+    // try/catch so a failure here (e.g., snapshot table unavailable)
+    // degrades to an empty-points default — the Trajectory page then
+    // renders nothing rather than taking down the whole PDF.
+    let operatorTrajectory: OperatorTrajectory = { pmSlug: slug, points: [] };
+    try {
+      operatorTrajectory = await loadOperatorTrajectory(slug);
+    } catch (trajErr) {
+      console.error(
+        "[scorecard-pdf] operator trajectory load failed; rendering PDF without the Trajectory page",
+        trajErr,
         { slug }
       );
     }
@@ -212,6 +249,8 @@ export async function GET(
         lendingSignals={lendingSignals}
         shareTrajectory={shareTrajectory}
         mapImageDataUrl={mapImageDataUrl}
+        peerComparisons={peerComparisons}
+        operatorTrajectory={operatorTrajectory}
       />
     );
 
