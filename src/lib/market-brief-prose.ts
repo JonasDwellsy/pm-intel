@@ -17,6 +17,11 @@ import type { MarketBriefData } from "@/lib/market-brief";
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 2000;
 
+// Bump when the system prompt or brief structure changes. Folded into the
+// input digest below, so every cached brief regenerates on its next visit
+// (readCache treats a digest mismatch as a cache miss).
+const PROMPT_VERSION = "v2-2026-07";
+
 export interface BriefProse {
   headlineRead: string;
   shareMovement: string;
@@ -30,7 +35,7 @@ export interface BriefProse {
   freshlyGenerated: boolean;
 }
 
-const SYSTEM_PROMPT = `You are Dwellsy IQ's research analyst. You write weekly market briefs — short, structural reads of rental-market dynamics in the seven covered MSAs (Phoenix, Jacksonville, and five Tennessee markets) using the same v0.6.4 methodology (7-cell operator taxonomy, gold/silver per-metric stars, share-of-market trajectory, canonical operator identity for multi-market entities).
+const SYSTEM_PROMPT = `You are Dwellsy IQ's research analyst. You write weekly market briefs — short, structural reads of rental-market dynamics across Dwellsy IQ's covered U.S. metro markets, using the v0.6.4 methodology (7-cell operator taxonomy, gold/silver per-metric stars, share-of-market trajectory, canonical operator identity for multi-market entities). Write ONLY about the single market described in the user message — do not assume which metros are covered or how many exist.
 
 Tone: institutional. Calm, declarative, structural. Think Brookings or Urban Institute, not industry press release. Reads as analyst-to-analyst — no marketing voice, no superlatives ("amazing", "best", "tremendous"), no hype. When the data is thin, say so plainly. When something is genuinely interesting, let the structure speak — don't manufacture excitement.
 
@@ -38,7 +43,7 @@ Rules:
 
 1. **Use ONLY the data provided in the user message.** Do not invent operator names, statistics, or rankings from training knowledge. Do not assert market-wide patterns the data doesn't support.
 
-2. **Acknowledge methodology caveats where relevant**: share trajectory is context, not ranked. Cohort sizes vary across markets (Memphis, Knoxville, Clarksville run smaller cohorts than Phoenix, Nashville, Jacksonville). New entrants below cohort threshold show as "new in coverage" not as share losers.
+2. **Acknowledge methodology caveats where relevant**: share trajectory is context, not ranked. Cohort sizes vary widely across markets — smaller metros run thinner ranked cohorts than large ones, so temper claims where the market's eligible cohort is small. New entrants below cohort threshold show as "new in coverage" not as share losers.
 
 3. **Output format**: Respond with valid JSON exactly matching this shape:
 {
@@ -156,7 +161,10 @@ function inputDigest(data: MarketBriefData): string {
   // digest changes without the dataAsOf/methodologyVersion changing,
   // the upstream seed shifted and we should invalidate.
   const json = JSON.stringify(data);
-  return crypto.createHash("sha256").update(json).digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(`${PROMPT_VERSION}\n${json}`)
+    .digest("hex");
 }
 
 /** Look up the cached brief for this (marketSlug, methodologyVersion,
@@ -175,6 +183,11 @@ async function readCache(
     },
   });
   if (!row) return null;
+  // Self-heal on drift: if the brief's input data (or the prompt version,
+  // folded into the digest) changed since this row was written, treat it
+  // as a miss and regenerate rather than serve a stale narrative. This is
+  // what auto-repairs briefs generated against an earlier data state.
+  if (row.inputDigest !== inputDigest(data)) return null;
   return {
     headlineRead: row.headlineRead,
     shareMovement: row.shareMovement,
