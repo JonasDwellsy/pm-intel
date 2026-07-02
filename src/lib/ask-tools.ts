@@ -207,7 +207,6 @@ export type GetMarketResult = {
   topOperators: Array<{
     name: string;
     pmSlug: string;
-    rankOverall: number | null;
     goldStars: number;
     silverStars: number;
     quadrant7Cell: string | null;
@@ -259,7 +258,6 @@ export async function getMarket(marketSlug: string): Promise<GetMarketResult> {
     return {
       name: row.name,
       pmSlug: row.slug,
-      rankOverall: row.rankOverall,
       goldStars,
       silverStars,
       quadrant7Cell: row.quadrant7Cell ?? null,
@@ -268,10 +266,11 @@ export async function getMarket(marketSlug: string): Promise<GetMarketResult> {
     };
   });
 
+  // Stars first; equal-star ties keep the query's rankOverall-asc order
+  // via stable sort — we no longer expose or reference the rank number.
   scored.sort((a, b) => {
     if (a.goldStars !== b.goldStars) return b.goldStars - a.goldStars;
-    if (a.silverStars !== b.silverStars) return b.silverStars - a.silverStars;
-    return (a.rankOverall ?? 9999) - (b.rankOverall ?? 9999);
+    return b.silverStars - a.silverStars;
   });
 
   return {
@@ -310,10 +309,8 @@ export type GetOperatorScorecardResult = {
     rationale: string;
   };
   rank: {
-    overall: number;
-    overallTotal: number;
-    quadrant: number | null;
-    quadrantTotal: number;
+    // Precise ordinal rank (overall + within-quadrant) intentionally
+    // omitted — the AI must not surface a rank. Star only.
     compositeStar: "gold" | "silver" | "none";
   };
   coverage: {
@@ -408,10 +405,6 @@ export async function getOperatorScorecard(
       rationale: sc.classificationRationale,
     },
     rank: {
-      overall: sc.rank.overall,
-      overallTotal: sc.rank.overallTotal,
-      quadrant: sc.rank.quadrant,
-      quadrantTotal: sc.rank.quadrantTotal,
       compositeStar: starLabel(sc.rank.compositeStar),
     },
     coverage: {
@@ -561,7 +554,6 @@ export type FilterOperatorsResult = {
     scorecardUrl: string;
     quadrant7Cell: string | null;
     institutional: boolean | undefined;
-    rankOverall: number | null;
     t12Listings: number;
     domT12: number;
     rentPerformanceYoY: string | null;
@@ -588,6 +580,9 @@ export async function filterOperators(
   // don't have full scorecard data so filters wouldn't apply meaningfully.
   const pms = await prisma.pM.findMany({
     where: { marketId: market.id, rankOverall: { not: null } },
+    // Pre-order by rank so equal-star ties keep composite order after the
+    // stable sort below — without exposing the rank number in the results.
+    orderBy: { rankOverall: "asc" },
   });
 
   // Need share-trajectory only if a trajectory filter is set. The YoY is
@@ -680,7 +675,6 @@ export async function filterOperators(
       scorecardUrl: scorecardHref(market.state, market.city, sc.pm.slug),
       quadrant7Cell: sc.pm.quadrant7Cell ?? null,
       institutional: sc.pm.institutional,
-      rankOverall: sc.rank.overall,
       t12Listings: t12,
       domT12: sc.performance.domT12,
       rentPerformanceYoY: pct(sc.rentPerformance?.pmYoyChange, 2),
@@ -695,8 +689,7 @@ export async function filterOperators(
   // visible product.
   matches.sort((a, b) => {
     if (a.goldStars !== b.goldStars) return b.goldStars - a.goldStars;
-    if (a.silverStars !== b.silverStars) return b.silverStars - a.silverStars;
-    return (a.rankOverall ?? 9999) - (b.rankOverall ?? 9999);
+    return b.silverStars - a.silverStars;
   });
 
   const truncated = matches.length > RESULT_CAP;
@@ -720,8 +713,6 @@ export type CompareOperatorsResult = {
     scorecardUrl: string;
     quadrant7Cell: string | null;
     institutional: boolean | undefined;
-    rankOverall: number;
-    rankOverallTotal: number;
     compositeStar: "gold" | "silver" | "none";
     goldStars: number;
     silverStars: number;
@@ -789,8 +780,6 @@ export async function compareOperators(
       scorecardUrl: scorecardHref(market.state, market.city, sc.pm.slug),
       quadrant7Cell: sc.pm.quadrant7Cell ?? null,
       institutional: sc.pm.institutional,
-      rankOverall: sc.rank.overall,
-      rankOverallTotal: sc.rank.overallTotal,
       compositeStar: starLabel(sc.rank.compositeStar),
       goldStars,
       silverStars,
@@ -874,7 +863,7 @@ export const ASK_TOOLS: Anthropic.Messages.Tool[] = [
     name: "getOperatorScorecard",
     description:
       "Full scorecard for a single operator in a single market. Returns classification, " +
-      "rank, all 5 metric stars (DOM, rent performance, marketing, tenancy, community visibility), " +
+      "all 5 metric stars (DOM, rent performance, marketing, tenancy, community visibility), " +
       "executive summary, distinguishing characteristics. Use this when the user wants depth on a " +
       "specific operator. Resolve the exact slugs via searchOperators first.",
     input_schema: {
