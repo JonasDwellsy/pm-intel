@@ -456,7 +456,7 @@ export function QuadrantGrid({
           );
         })}
 
-        {/* v0.8 7-cell footnote — sits below the chart frame
+        {/* v0.6.4 7-cell footnote — sits below the chart frame
             (frame ends at y=310; viewBox runs to y=360). PR #46
             spec calls for this when we keep the 4-quadrant
             visualization but reference the 7-cell taxonomy that
@@ -470,7 +470,7 @@ export function QuadrantGrid({
           fontWeight={500}
           fontStyle="italic"
         >
-          v0.8 methodology further subdivides MF/BTR by community size
+          v0.6.4 methodology further subdivides MF/BTR by community size
           into a 7-cell taxonomy.
         </text>
       </svg>
