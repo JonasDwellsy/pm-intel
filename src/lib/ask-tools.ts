@@ -292,7 +292,7 @@ export async function getMarket(marketSlug: string): Promise<GetMarketResult> {
       medianDomT12: stats.medianDomT12,
       medianRentVsComp: stats.medianRentVsComp,
     })),
-    topOperators: scored.slice(0, 10),
+    topOperators: scored.slice(0, 25),
   };
 }
 
@@ -532,7 +532,21 @@ export type FilterOperatorsInput = {
   shareTrajectoryMinPp?: number;
   quadrant7Cell?: string;
   isInstitutional?: boolean;
-  hasGoldStar?: "dom" | "rentPerformance" | "tenancy" | "marketing" | "any";
+  hasGoldStar?:
+    | "dom"
+    | "rentPerformance"
+    | "tenancy"
+    | "marketing"
+    | "communityVisibility"
+    | "any";
+  /** Total gold-star count bounds (0-5). Set maxGoldStars: 0 to surface
+   *  operators with NO gold stars — the absence query hasGoldStar can't
+   *  express. */
+  minGoldStars?: number;
+  maxGoldStars?: number;
+  /** Total silver-star count bounds (0-5). */
+  minSilverStars?: number;
+  maxSilverStars?: number;
 };
 
 export type FilterOperatorsResult = {
@@ -587,7 +601,9 @@ export async function filterOperators(
     input.shareTrajectoryDirection &&
     input.shareTrajectoryDirection !== "any";
 
-  // Score + filter every row, keeping at most 20.
+  // Score + filter every row, keeping at most RESULT_CAP. matchCount
+  // still reports the true total so the model knows whether more exist.
+  const RESULT_CAP = 50;
   const matches: FilterOperatorsResult["results"] = [];
   for (const row of pms) {
     const sc = JSON.parse(row.scorecardData) as ScorecardData;
@@ -610,6 +626,7 @@ export async function filterOperators(
         rentPerformance: sc.rentPerformance?.star === "gold",
         tenancy: sc.tenancy.star === "gold",
         marketing: sc.marketing.star === "gold",
+        communityVisibility: sc.communityVisibility?.star === "gold",
       };
       if (input.hasGoldStar === "any") {
         if (!Object.values(goldMap).some(Boolean)) continue;
@@ -648,6 +665,15 @@ export async function filterOperators(
       (sc.tenancy.star === "silver" ? 1 : 0) +
       (sc.communityVisibility?.star === "silver" ? 1 : 0);
 
+    // Star-count bounds — enables "no gold stars" (maxGoldStars: 0) and
+    // threshold queries the per-metric hasGoldStar filter can't express.
+    if (input.minGoldStars != null && goldStars < input.minGoldStars) continue;
+    if (input.maxGoldStars != null && goldStars > input.maxGoldStars) continue;
+    if (input.minSilverStars != null && silverStars < input.minSilverStars)
+      continue;
+    if (input.maxSilverStars != null && silverStars > input.maxSilverStars)
+      continue;
+
     matches.push({
       name: sc.pm.name,
       pmSlug: sc.pm.slug,
@@ -673,14 +699,14 @@ export async function filterOperators(
     return (a.rankOverall ?? 9999) - (b.rankOverall ?? 9999);
   });
 
-  const truncated = matches.length > 20;
+  const truncated = matches.length > RESULT_CAP;
   return {
     marketSlug: market.id,
     marketName: market.fullName,
     filtersApplied: input,
     matchCount: matches.length,
     truncated,
-    results: matches.slice(0, 20),
+    results: matches.slice(0, RESULT_CAP),
   };
 }
 
@@ -824,9 +850,11 @@ export const ASK_TOOLS: Anthropic.Messages.Tool[] = [
     name: "getMarket",
     description:
       "Deep dive on a single market. Returns market stats, 7-cell quadrant breakdown " +
-      "(count + median DOM + median rent-vs-comp per cell), and the top 10 ranked operators " +
+      "(count + median DOM + median rent-vs-comp per cell), and the top 25 ranked operators " +
       "ordered by star count. Use this when the user asks about a specific market's operator landscape, " +
-      "quadrant distribution, or 'best operators in <market>'.",
+      "quadrant distribution, or 'best operators in <market>'. This returns only the top slice — for the " +
+      "FULL ranked cohort, or any 'operators that lack X / have no gold stars / match criteria Y' query, " +
+      "use filterOperators, which scans every ranked operator in the market and reports the true match count.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -887,10 +915,12 @@ export const ASK_TOOLS: Anthropic.Messages.Tool[] = [
   {
     name: "filterOperators",
     description:
-      "Flexible filtered query against operators in a specific market. " +
-      "Use this for compound queries like 'Memphis institutional operators with rising share trajectory ≥3pp' " +
-      "or 'Phoenix operators with gold star on rent performance'. " +
-      "Returns up to 20 matches sorted by star count then rank.",
+      "Flexible filtered query against EVERY ranked operator in a market — use this (not getMarket) " +
+      "whenever the user wants the full cohort or a subset by criteria. Handles compound queries like " +
+      "'Memphis institutional operators with rising share trajectory ≥3pp' and 'Phoenix operators with a " +
+      "gold star on rent performance', AND absence/threshold queries like 'operators with NO gold stars' " +
+      "(set maxGoldStars: 0). Returns matchCount (the true total across the whole cohort) plus up to 50 " +
+      "matches sorted by star count then rank; truncated=true means more matched than were returned.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -937,9 +967,34 @@ export const ASK_TOOLS: Anthropic.Messages.Tool[] = [
         },
         hasGoldStar: {
           type: "string",
-          enum: ["dom", "rentPerformance", "tenancy", "marketing", "any"],
+          enum: [
+            "dom",
+            "rentPerformance",
+            "tenancy",
+            "marketing",
+            "communityVisibility",
+            "any",
+          ],
           description:
-            "Filter to operators with a gold star on the named metric, or 'any' for at least one gold star.",
+            "Filter to operators with a gold star on the named metric, or 'any' for at least one gold star. " +
+            "To find operators LACKING gold stars, use maxGoldStars (this filter only matches presence).",
+        },
+        minGoldStars: {
+          type: "number",
+          description: "Minimum total gold stars (0-5), inclusive.",
+        },
+        maxGoldStars: {
+          type: "number",
+          description:
+            "Maximum total gold stars (0-5), inclusive. Set to 0 to surface operators with NO gold stars.",
+        },
+        minSilverStars: {
+          type: "number",
+          description: "Minimum total silver stars (0-5), inclusive.",
+        },
+        maxSilverStars: {
+          type: "number",
+          description: "Maximum total silver stars (0-5), inclusive.",
         },
       },
       required: ["marketSlug"],
