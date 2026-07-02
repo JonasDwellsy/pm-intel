@@ -164,6 +164,96 @@ export async function inviteUserToOrganization(
   }
 }
 
+export interface DeleteOrganizationResult {
+  ok: boolean;
+  /** Deleted org name on success, for the confirmation line. */
+  name?: string;
+  error?: string;
+}
+
+/** Permanently delete a team/enterprise organization and everything the
+ *  app owns for it. Used to purge orgs left over from the dev→prod Clerk
+ *  cutover and to offboard real customers.
+ *
+ *  Form fields:
+ *    - orgId: local Organization id (hidden)
+ *    - confirmName: the org name, re-typed by the admin. Must match
+ *      exactly — a typed-confirmation guard against fat-fingered deletes.
+ *
+ *  What gets removed (in one transaction):
+ *    - the org's WatchLists (their WatchListView history cascades at the
+ *      DB level), and
+ *    - the Organization row itself — which cascades OrganizationMembership,
+ *      OrganizationMarketAccess, and PendingWelcome (all onDelete: Cascade).
+ *  Watch lists are deleted explicitly first because WatchList.organizationId
+ *  is nullable (its FK is ON DELETE SET NULL), so a plain org delete would
+ *  orphan them rather than remove them.
+ *
+ *  Clerk side: after the DB delete we best-effort delete the Clerk org too,
+ *  so an org.updated webhook can't re-mirror a row we just purged. For orgs
+ *  left over from the dead dev instance the Clerk id won't exist in the prod
+ *  instance — that 404 is expected and swallowed; the DB purge is what
+ *  matters and has already committed.
+ *
+ *  Personal workspaces are NOT deletable here (same opacity as the rest of
+ *  this surface) — they're owned by their user's Clerk account lifecycle. */
+export async function deleteOrganization(
+  _prevState: DeleteOrganizationResult | null,
+  formData: FormData
+): Promise<DeleteOrganizationResult> {
+  const { userId } = await auth();
+  if (!userId || !isAdminUser(userId)) {
+    return { ok: false, error: "Not found." };
+  }
+
+  const orgId = formData.get("orgId");
+  if (typeof orgId !== "string" || orgId.length === 0) {
+    return { ok: false, error: "Organization id is missing." };
+  }
+
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { id: true, name: true, clerkOrgId: true, personalForUserId: true },
+  });
+  if (!org || org.personalForUserId !== null) {
+    // Personal orgs aren't managed here; unknown ids get the same opacity.
+    return { ok: false, error: "Not found." };
+  }
+
+  const confirmRaw = formData.get("confirmName");
+  const confirmName = typeof confirmRaw === "string" ? confirmRaw.trim() : "";
+  if (confirmName !== org.name.trim()) {
+    return {
+      ok: false,
+      error: "Type the organization name exactly to confirm deletion.",
+    };
+  }
+
+  try {
+    await prisma.$transaction([
+      prisma.watchList.deleteMany({ where: { organizationId: orgId } }),
+      prisma.organization.delete({ where: { id: orgId } }),
+    ]);
+  } catch (err) {
+    return { ok: false, error: describeError(err) };
+  }
+
+  // Best-effort Clerk cleanup — must not fail the action if it errors
+  // (the authoritative DB purge already committed above).
+  try {
+    const client = await clerkClient();
+    await client.organizations.deleteOrganization(org.clerkOrgId);
+  } catch (err) {
+    console.warn(
+      `[admin/deleteOrganization] DB row for ${org.clerkOrgId} deleted; Clerk-side delete did not complete (expected for dev-instance leftovers):`,
+      describeError(err)
+    );
+  }
+
+  revalidatePath("/admin/organizations");
+  return { ok: true, name: org.name };
+}
+
 export interface SetMarketAccessResult {
   ok: boolean;
   /** "all" or the number of markets granted, for the confirmation line. */

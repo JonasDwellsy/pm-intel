@@ -17,6 +17,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { InviteUserForm } from "@/components/admin/InviteUserForm";
+import { DeleteOrgButton } from "@/components/admin/DeleteOrgButton";
 import {
   MarketAccessForm,
   type MarketAccessGroup,
@@ -91,6 +92,7 @@ export default async function AdminOrganizationDetailPage({
         orderBy: { createdAt: "asc" },
       },
       marketAccess: { select: { marketId: true } },
+      _count: { select: { watchLists: true } },
     },
   });
 
@@ -204,6 +206,24 @@ export default async function AdminOrganizationDetailPage({
             </table>
           </div>
         )}
+      </section>
+
+      <section className="mt-10 rounded-md border border-red-200 bg-red-50/40 p-5">
+        <h2 className="text-[12px] font-semibold uppercase tracking-[0.12em] text-red-700 mb-1">
+          Danger zone
+        </h2>
+        <p className="text-[13px] text-grey-600 mb-4 max-w-[680px]">
+          Permanently delete this organization and everything the app stores
+          for it — its members, market grants, and watch lists. Use this to
+          remove leftover accounts from the dev&rarr;prod migration or to
+          offboard a customer. This can&apos;t be undone.
+        </p>
+        <DeleteOrgButton
+          orgId={org.id}
+          orgName={org.name}
+          memberCount={members.length}
+          watchListCount={org._count.watchLists}
+        />
       </section>
     </div>
   );
