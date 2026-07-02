@@ -4,7 +4,7 @@ import { listMarketHeaders, type MarketHeader } from "@/lib/market-brief";
 import { readLatestCachedProse } from "@/lib/market-brief-prose";
 import { fmtDate, fmtInt } from "@/lib/format";
 
-// /briefs — index of all 7 market briefs. Lists each market with its
+// /briefs — index of all market briefs. Lists each market with its
 // most-recently-cached headline snippet so visitors can scan the
 // landscape without opening every brief. Sorted alphabetically by city
 // for predictable navigation.
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Market briefs",
   description:
-    "Weekly analyst-style market briefs across the 7 Dwellsy IQ covered markets — share movement, operator landscape, and notable signals.",
+    "Weekly analyst-style market briefs across Dwellsy IQ's covered markets — share movement, operator landscape, and notable signals.",
 };
 
 interface BriefCardData {
@@ -55,11 +55,11 @@ export default async function BriefsIndex() {
           Market briefs
         </h1>
         <p className="mt-4 max-w-[56ch] text-[16px] leading-[1.55] text-foreground/80">
-          Analyst-style structural reads across the 7 Dwellsy IQ covered
-          markets. Each brief synthesizes the current methodology version
-          and data window into a short, scannable narrative — share
-          movement, operator landscape, notable signals worth knowing by
-          name.
+          Analyst-style structural reads across Dwellsy IQ&apos;s{" "}
+          {cards.length} covered markets. Each brief synthesizes the current
+          methodology version and data window into a short, scannable
+          narrative — share movement, operator landscape, notable signals
+          worth knowing by name.
         </p>
 
         <div className="mt-10 grid gap-5 md:grid-cols-2">

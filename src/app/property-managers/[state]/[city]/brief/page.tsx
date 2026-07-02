@@ -3,12 +3,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { slugToStateCode, citySlug } from "@/lib/slugify";
-import { buildMarketBriefData } from "@/lib/market-brief";
+import {
+  buildMarketBriefData,
+  type QuadrantBreakdownEntry,
+  type PortfolioSizeLeader,
+  type ShareMovement,
+  type CrossMarketOperatorEntry,
+} from "@/lib/market-brief";
 import {
   generateBriefProse,
   type BriefProse,
 } from "@/lib/market-brief-prose";
-import { fmtDate, fmtInt } from "@/lib/format";
+import { fmtDate, fmtInt, fmtPct } from "@/lib/format";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -197,6 +203,24 @@ export default async function MarketBriefPage({
           </div>
         )}
 
+        {/* ── Data-backed detail — rendered from the seed regardless of the
+            LLM prose above, so the brief stays substantive even when a
+            prose section is thin. Each renders only when it has data. ── */}
+        <div className="mt-12 space-y-12">
+          {data.quadrantBreakdown.length > 0 && (
+            <CompositionTable rows={data.quadrantBreakdown} />
+          )}
+          {data.portfolioSizeLeaders.length > 0 && (
+            <PortfolioLeaders rows={data.portfolioSizeLeaders} />
+          )}
+          {(data.shareGainers.length > 0 || data.shareLosers.length > 0) && (
+            <ShareMovers gainers={data.shareGainers} losers={data.shareLosers} />
+          )}
+          {data.crossMarketOperators.length > 0 && (
+            <MultiMarketOperators rows={data.crossMarketOperators} />
+          )}
+        </div>
+
         {/* Cross-reference block */}
         <div className="mt-14 rounded-lg border border-grid bg-white px-5 py-4">
           <p className="dq-eyebrow-muted text-[11px] tracking-[0.14em]">
@@ -276,6 +300,203 @@ function BriefSection({ title, body }: { title: string; body: string }) {
       <div className="dq-markdown mt-3 text-[16.5px] leading-[1.65] text-foreground/85">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
       </div>
+    </section>
+  );
+}
+
+/** Shared magazine-style section heading for the data-backed blocks. */
+function DataSectionHeading({ title, sub }: { title: string; sub: string }) {
+  return (
+    <>
+      <h2 className="text-[20px] font-semibold leading-[1.2] tracking-[-0.012em] text-navy">
+        {title}
+      </h2>
+      <p className="mt-1.5 text-[13.5px] leading-[1.5] text-muted-foreground">
+        {sub}
+      </p>
+    </>
+  );
+}
+
+/** Operator composition — the 7-cell classification table. Makes the
+ *  "operator landscape" concrete even when the LLM prose is thin. */
+function CompositionTable({ rows }: { rows: QuadrantBreakdownEntry[] }) {
+  const sorted = [...rows].sort((a, b) => b.count - a.count);
+  return (
+    <section>
+      <DataSectionHeading
+        title="Operator composition"
+        sub="Ranked-cohort operators by 7-cell classification."
+      />
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[440px] border-collapse text-[14px]">
+          <thead>
+            <tr className="border-b border-grid text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              <th className="py-2 pr-4 font-semibold">Cell</th>
+              <th className="py-2 pr-4 text-right font-semibold">Operators</th>
+              <th className="py-2 pr-4 text-right font-semibold">Median DOM</th>
+              <th className="py-2 text-right font-semibold">Rent vs comp</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((q) => (
+              <tr key={q.cell} className="border-b border-grid/60">
+                <td className="py-2 pr-4 text-navy">{q.cell}</td>
+                <td className="py-2 pr-4 text-right text-navy dq-tnum">
+                  {q.count}
+                  <span className="text-muted-foreground">
+                    {" "}
+                    ({Math.round(q.share * 100)}%)
+                  </span>
+                </td>
+                <td className="py-2 pr-4 text-right text-foreground/80 dq-tnum">
+                  {q.medianDomT12 != null ? `${q.medianDomT12.toFixed(1)}d` : "—"}
+                </td>
+                <td className="py-2 text-right text-foreground/80 dq-tnum">
+                  {fmtPct(q.medianRentVsComp, 1, true)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+/** Largest operators by estimated portfolio (v0.7 estimator). */
+function PortfolioLeaders({ rows }: { rows: PortfolioSizeLeader[] }) {
+  return (
+    <section>
+      <DataSectionHeading
+        title="Largest operators by estimated portfolio"
+        sub="Modeled unit counts (an estimate, not a rent roll) with the cohort confidence band."
+      />
+      <ul className="mt-4 divide-y divide-grid border-t border-grid">
+        {rows.map((p) => (
+          <li
+            key={p.pmSlug}
+            className="flex items-baseline justify-between gap-4 py-2.5"
+          >
+            <div className="min-w-0">
+              <Link
+                href={p.scorecardUrl}
+                className="text-[15px] font-medium text-navy hover:text-teal"
+              >
+                {p.name}
+              </Link>
+              {p.quadrant7Cell && (
+                <span className="ml-2 text-[12px] text-muted-foreground">
+                  {p.quadrant7Cell}
+                </span>
+              )}
+            </div>
+            <div className="shrink-0 text-right">
+              <span className="text-[15px] font-semibold text-navy dq-tnum">
+                ~{fmtInt(p.pointEstimate)}
+              </span>
+              <span className="ml-1.5 text-[12px] text-muted-foreground dq-tnum">
+                ({fmtInt(p.lowEstimate)}–{fmtInt(p.highEstimate)})
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Share movers — YoY change in share of ranked-cohort listing activity. */
+function ShareMovers({
+  gainers,
+  losers,
+}: {
+  gainers: ShareMovement[];
+  losers: ShareMovement[];
+}) {
+  return (
+    <section>
+      <DataSectionHeading
+        title="Share movers"
+        sub="Year-over-year change in share of ranked-cohort listing activity. Context, not a quality ranking."
+      />
+      <div className="mt-4 grid gap-6 sm:grid-cols-2">
+        <MoverList title="Gaining share" rows={gainers} />
+        <MoverList title="Losing share" rows={losers} />
+      </div>
+    </section>
+  );
+}
+
+function MoverList({ title, rows }: { title: string; rows: ShareMovement[] }) {
+  return (
+    <div>
+      <p className="dq-eyebrow-muted text-[10.5px] tracking-[0.12em]">{title}</p>
+      {rows.length === 0 ? (
+        <p className="mt-2 text-[13px] text-muted-foreground">
+          None in the continuing cohort.
+        </p>
+      ) : (
+        <ul className="mt-2 space-y-1.5">
+          {rows.map((r) => (
+            <li
+              key={r.pmSlug}
+              className="flex items-baseline justify-between gap-3 text-[14px]"
+            >
+              <Link
+                href={r.scorecardUrl}
+                className="min-w-0 truncate text-navy hover:text-teal"
+              >
+                {r.name}
+              </Link>
+              <span
+                className={`shrink-0 font-medium dq-tnum ${
+                  r.shareYoYPp >= 0 ? "text-good" : "text-bad"
+                }`}
+              >
+                {r.shareYoYPp >= 0 ? "+" : ""}
+                {r.shareYoYPp.toFixed(1)}pp
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Multi-market operators — operators active here that Dwellsy IQ also
+ *  tracks elsewhere, linking to their cross-market profile. */
+function MultiMarketOperators({ rows }: { rows: CrossMarketOperatorEntry[] }) {
+  return (
+    <section>
+      <DataSectionHeading
+        title="Multi-market operators"
+        sub="Operators active here that Dwellsy IQ also tracks in other markets."
+      />
+      <ul className="mt-4 divide-y divide-grid border-t border-grid">
+        {rows.map((o) => (
+          <li
+            key={o.canonicalSlug}
+            className="flex items-baseline justify-between gap-4 py-2.5"
+          >
+            <Link
+              href={o.crossMarketProfileUrl}
+              className="text-[15px] font-medium text-navy hover:text-teal"
+            >
+              {o.canonicalName}
+            </Link>
+            <span className="shrink-0 text-right text-[12.5px] text-muted-foreground">
+              {o.marketCount} markets
+              {o.otherMarketNames.length > 0
+                ? ` · also ${o.otherMarketNames.slice(0, 3).join(", ")}${
+                    o.otherMarketNames.length > 3 ? "…" : ""
+                  }`
+                : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
