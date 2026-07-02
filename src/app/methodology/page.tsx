@@ -62,7 +62,7 @@ const TOC: TocItem[] = [
   { id: "uru", num: "02", label: "Unit identity (URU)" },
   { id: "classification", num: "03", label: "Operator classification" },
   { id: "community-visibility", num: "04", label: "Community visibility" },
-  { id: "tenancy", num: "05", label: "Tenancy" },
+  { id: "tenancy", num: "05", label: "DOM & Tenant Retention" },
   { id: "rent-trajectory", num: "06", label: "Rent trajectory" },
   { id: "rent-performance", num: "07", label: "Rent performance" },
   { id: "marketing", num: "08", label: "Marketing scores" },
@@ -327,12 +327,12 @@ export default async function MethodologyPage() {
             >
               <p>
                 Every operator in our coverage markets is evaluated against
-                three eligibility tests before a scorecard is produced. The
+                two eligibility tests before a scorecard is produced. The
                 tests are designed to filter single-rental owners and one-off
                 listings while admitting operators with meaningful market
                 presence.
               </p>
-              <p>A property manager qualifies if all of the following are true:</p>
+              <p>A property manager qualifies if both of the following are true:</p>
               <ol>
                 <li>
                   <strong>At least 30 listings observed in the trailing 12
@@ -343,10 +343,6 @@ export default async function MethodologyPage() {
                   <strong>At least three distinct addresses</strong>{" "}
                   <em>or</em> <strong>at least one community with thirty or
                   more listings</strong>.
-                </li>
-                <li>
-                  <strong>At least one currently-active listing</strong> (still
-                  active or deactivated within the last 90 days).
                 </li>
               </ol>
               <p>
@@ -630,38 +626,83 @@ export default async function MethodologyPage() {
             <SectionAnchor
               id="tenancy"
               num="05"
-              title="Tenancy."
-              lede="How long tenants stay in an operator's units before moving out — one of the strongest signals of post-lease-up operational quality."
+              title="Days on Market & Tenant Retention."
+              lede="The two halves of the lease cycle — how quickly an operator leases a vacant unit, and how long a unit holds a tenant before it comes back to market."
             >
+              <h3
+                id="days-on-market"
+                className="text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
+              >
+                Days on Market (DOM).
+              </h3>
               <p>
-                Longer tenancy reflects multiple compounding operator behaviors
+                DOM measures lease-up speed — how efficiently an operator moves
+                a vacant unit off the market. It is the joint-largest component
+                of the composite (
+                <span className="dq-chip dq-tnum">30%</span>) because it
+                captures pricing strategy, marketing reach, and lease-up
+                execution in a single clean signal.
+              </p>
+              <p>
+                For each trailing-12-month listing where the listing was
+                deactivated on or after it was created, per-listing DOM is the
+                number of days the listing stayed live.
+              </p>
+              <FormulaBlock label="Formula · days on market">
+                <span className="text-navy">dom_listing</span> <Op>=</Op>{" "}
+                deactivation <Op>−</Op> creation{" "}
+                <span className="text-muted-foreground">(days)</span>
+              </FormulaBlock>
+              <p>
+                The operator&apos;s DOM is the{" "}
+                <strong>median</strong> across its house and apartment listings.
+                We use median rather than mean because listing-duration
+                distributions are right-skewed. Lower DOM means faster lease-up:
+                the metric is inverted for star assignment, so an operator in
+                the top quartile of its cohort (fastest lease-up) earns a gold
+                star.
+              </p>
+
+              <h3
+                id="tenant-retention"
+                className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
+              >
+                Tenant Retention.
+              </h3>
+              <p>
+                Longer tenure reflects multiple compounding operator behaviors
                 — tenant screening, property condition, responsiveness, fair
                 renewal pricing — and is one of the cleanest behavioral signals
                 in the scorecard.
               </p>
               <p>
-                We measure tenancy at the unit level using episode clustering.
-                For each unit, we sort all listings by creation date and group
-                consecutive listings into episodes — sequences where the next
-                listing&apos;s creation falls within{" "}
-                <span className="dq-chip dq-tnum">180 days</span> of the prior
-                listing&apos;s deactivation. The gap between consecutive
-                episodes on the same unit approximates the tenant&apos;s stay.
+                We measure retention at the unit level from re-lease cadence.
+                For each unit we observe listing two or more times, we sort its
+                listings by creation date and measure the spacing between{" "}
+                <strong>consecutive listing creations</strong> — the interval
+                from when a unit is listed to when the same unit is listed
+                again. That spacing is a proxy for how long the unit held a
+                tenant between marketings: a longer gap between successive
+                listings implies a longer tenure.
               </p>
-              <FormulaBlock label="Formula · tenancy gap">
-                <span className="text-navy">tenancy_gap_uru</span> <Op>=</Op>{" "}
-                activation<Op>[</Op>k<Op>]</Op> <Op>−</Op> deactivation
-                <Op>[</Op>k<Op>−</Op>1<Op>]</Op>
+              <FormulaBlock label="Formula · re-lease gap">
+                <span className="text-navy">gap_uru</span> <Op>=</Op>{" "}
+                <Op>(</Op>creation<Op>[</Op>k<Op>]</Op> <Op>−</Op> creation
+                <Op>[</Op>k<Op>−</Op>1<Op>]</Op><Op>)</Op> <Op>÷</Op> 30.44{" "}
+                <span className="text-muted-foreground">(months)</span>
               </FormulaBlock>
               <p>
-                Per-operator tenancy is the{" "}
-                <strong>unit-weighted median</strong> of all observed tenancy
-                gaps across the operator&apos;s portfolio. We use median rather
-                than mean because lease-length distributions are right-skewed
-                (a small number of very-long stays would otherwise inflate
-                averages). Units with only a single observed episode
-                don&apos;t contribute to the calculation — we don&apos;t infer
-                tenancy without a measurable gap.
+                Only gaps between{" "}
+                <span className="dq-chip dq-tnum">1 and 60 months</span> are
+                counted — shorter spacings reflect churn or re-listing noise
+                rather than a completed tenancy, and longer ones reflect gaps in
+                coverage rather than a single stay. Per-operator retention is
+                the <strong>median</strong> of those qualifying gaps across the
+                operator&apos;s units. We use median rather than mean because
+                tenure distributions are right-skewed (a small number of
+                very-long stays would otherwise inflate averages). Units seen
+                only once contribute no gap and are excluded — we don&apos;t
+                infer tenure without a measurable interval.
               </p>
               <p>Reported in months, rounded to one decimal.</p>
               <div className="dq-callout-important">
@@ -669,11 +710,11 @@ export default async function MethodologyPage() {
                   Short-observation caveat · v0.6.2
                 </p>
                 <p>
-                  Episode-clustered tenancy is right-censored for operators
+                  Re-lease-cadence tenure is right-censored for operators
                   with short observation history. A tenant who occupied a unit
                   for 24+ months when the operator has only been observed for
                   2.3 years can never produce a 24+ month gap in our data —
-                  this biases tenancy estimates downward. v0.6.2 surfaces a
+                  this biases retention estimates downward. v0.6.2 surfaces a
                   short-observation caveat on every PM where{" "}
                   <span className="dq-chip dq-tnum">yearsVisible &lt; 3</span>;
                   the per-PM caveat string renders on the Tenant Retention
@@ -699,8 +740,13 @@ export default async function MethodologyPage() {
               </p>
               <p>
                 The trajectory chart shows the last six quarters. The headline
-                YoY change is the percentage difference between the most recent
-                quarter and the same quarter one year prior.
+                YoY change compares the two most recent trailing-four-quarter
+                windows: it is the mean mix-adjusted rent across the most recent
+                four quarters divided by the mean across the prior four
+                quarters, minus one. Averaging four quarters on each side
+                smooths quarter-to-quarter noise; the figure is computed only
+                when each four-quarter window has at least two non-null
+                quarters.
               </p>
               <div className="dq-rationale">
                 <p className="dq-rationale-label">Reported, not ranked.</p>
@@ -1112,25 +1158,42 @@ export default async function MethodologyPage() {
               </p>
               <ul>
                 <li>
-                  <strong>Completeness</strong> — percentage of listings with
-                  non-null values for rent, bedrooms, bathrooms, square
-                  footage, description, amenities, and at least one photo.
-                  Each missing field deducts proportionally.
+                  <strong>Completeness</strong> — percentage of listings that
+                  are fully populated on all three core fields: a non-empty
+                  description, at least one photo, and at least one amenity.
+                  The test is all-or-nothing per listing — a listing missing
+                  any one of the three does not count toward completeness.
                 </li>
                 <li>
-                  <strong>Amenities</strong> — median count of amenity entries
-                  per listing, cap-normalized (20 amenities = 100).
+                  <strong>Amenities</strong> — the mean number of amenities per
+                  listing, scaled so that an average of 10 amenities reaches
+                  100:{" "}
+                  <span className="dq-mono">min(100, 10 × mean_amenities)</span>.
                 </li>
                 <li>
-                  <strong>Description Length</strong> — median description
-                  character count, cap-normalized (500 characters = 100).
+                  <strong>Description Length</strong> — the mean description
+                  character count, scaled so that an average of 500 characters
+                  reaches 100:{" "}
+                  <span className="dq-mono">
+                    min(100, 100 × mean_length ÷ 500)
+                  </span>
+                  .
                 </li>
               </ul>
               <p>
-                The reported Marketing Quality score is the average of the
-                three subscores. Operators with consistently well-prepared
-                listings score in the 80s and 90s. Operators with sparse data,
-                missing photos, or threadbare descriptions score lower.
+                The reported Marketing Quality score is a{" "}
+                <strong>weighted blend</strong> of the three subscores, not a
+                simple average:
+              </p>
+              <FormulaBlock label="Formula · marketing quality">
+                <span className="text-navy">marketing_quality</span> <Op>=</Op>{" "}
+                0.40 <Op>×</Op> completeness <Op>+</Op> 0.30 <Op>×</Op>{" "}
+                amenities <Op>+</Op> 0.30 <Op>×</Op> description
+              </FormulaBlock>
+              <p>
+                Operators with consistently well-prepared listings score in the
+                80s and 90s. Operators with sparse data, missing photos, or
+                threadbare descriptions score lower.
               </p>
             </SectionAnchor>
 
@@ -1317,6 +1380,14 @@ export default async function MethodologyPage() {
                 The cohort label displayed in the scorecard (e.g., &ldquo;Gold
                 star · Chattanooga SFR Independent cohort&rdquo;) reflects
                 whichever level was actually selected.
+              </p>
+              <p>
+                <strong>Broker / property-manager partition.</strong> Every
+                cohort — and the rent-performance baseline — is partitioned by
+                operator type, so property managers are compared only against
+                other property managers and brokers only against other brokers.
+                The two operator types are never pooled at any level of the
+                waterfall.
               </p>
 
               {/* Lending Signals sub-anchor — modal "Read full methodology"
