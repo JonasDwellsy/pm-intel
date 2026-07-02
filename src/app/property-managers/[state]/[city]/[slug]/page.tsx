@@ -110,7 +110,9 @@ export async function generateMetadata({
   if (!loaded) return { title: "Property manager not found" };
   const { scorecard } = loaded;
   const title = `${scorecard.pm.name} — Scorecard (${scorecard.market.fullName})`;
-  const description = `Independent scorecard for ${scorecard.pm.name}: ${scorecard.pm.quadrant} operator ranked #${scorecard.rank.overall} of ${scorecard.rank.overallTotal} in ${scorecard.market.name}.`;
+  // No precise rank in metadata — facts-not-judgments (never surface an
+  // ordinal rank/composite on scorecards). Keep it descriptive + keyword-rich.
+  const description = `Independent scorecard for ${scorecard.pm.name}: ${scorecard.pm.quadrant} operator in ${scorecard.market.name}. Days-on-market, tenant retention, rent performance, and marketing signals with peer-cohort context.`;
   // PR #75 — Add canonical URL so search engines + OG unfurls agree
   // on the stable scorecard URL (no querystring variations). The
   // opengraph-image.tsx file in this directory is auto-attached by
