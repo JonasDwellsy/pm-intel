@@ -102,7 +102,7 @@ function PortfolioTrend({
         viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
         role="img"
         aria-label={`Total estimated portfolio over ${spark.length} snapshots, oldest on the left, newest on the right`}
-        className="mt-3 block h-auto w-full max-w-[560px]"
+        className="mt-3 block h-auto w-full"
       >
         <polyline
           points={polyline}
@@ -118,7 +118,7 @@ function PortfolioTrend({
       </svg>
       {/* Axis endpoints make the time direction explicit. */}
       {spark.length > 0 && (
-        <div className="mt-1 flex w-full max-w-[560px] items-center justify-between text-[10.5px] text-muted-2">
+        <div className="mt-1 flex w-full items-center justify-between text-[10.5px] text-muted-2">
           <span>{fmtDate(spark[0].date)}</span>
           <span className="uppercase tracking-wider">older → newer</span>
           <span>{fmtDate(spark[spark.length - 1].date)}</span>
