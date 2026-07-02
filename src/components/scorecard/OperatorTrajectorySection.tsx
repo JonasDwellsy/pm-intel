@@ -106,11 +106,11 @@ function PortfolioTrend({
         )}
       </div>
 
-      {/* Sparkline */}
+      {/* Sparkline — time runs left (oldest) → right (newest). */}
       <svg
         viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
         role="img"
-        aria-label={`Estimated portfolio over ${spark.length} snapshots`}
+        aria-label={`Estimated portfolio over ${spark.length} snapshots, oldest on the left, newest on the right`}
         className="mt-3 block h-auto w-full max-w-[560px]"
       >
         <polyline
@@ -125,6 +125,14 @@ function PortfolioTrend({
           <circle key={p.date} cx={p.x} cy={p.y} r={2.5} fill="#0E7C86" />
         ))}
       </svg>
+      {/* Axis endpoints make the time direction explicit. */}
+      {spark.length > 0 && (
+        <div className="mt-1 flex w-full max-w-[560px] items-center justify-between text-[10.5px] text-muted-2">
+          <span>{fmtDate(spark[0].date)}</span>
+          <span className="uppercase tracking-wider">older → newer</span>
+          <span>{fmtDate(spark[spark.length - 1].date)}</span>
+        </div>
+      )}
     </>
   );
 }
@@ -146,7 +154,9 @@ function SnapshotTable({ trajectory }: { trajectory: OperatorTrajectory }) {
             </tr>
           </thead>
           <tbody>
-            {trajectory.points.map((p) => (
+            {/* Newest first — most recent refresh at the top for quick
+                scanning. (The sparkline above stays chronological.) */}
+            {[...trajectory.points].reverse().map((p) => (
               <tr key={p.date} className="border-b border-grid/60">
                 <td className="py-1.5 pr-4 text-navy">{fmtDate(p.date)}</td>
                 <td className="py-1.5 pr-4 text-right dq-mono tabular-nums text-navy">

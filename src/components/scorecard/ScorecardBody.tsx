@@ -10,6 +10,7 @@ import { TrackEvent } from "@/components/analytics/TrackEvent";
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { MetricInfoProvider } from "@/components/scorecard/MetricInfoProvider";
 import { IdentityHero } from "@/components/scorecard/IdentityHero";
+import { StickyOperatorBar } from "@/components/scorecard/StickyOperatorBar";
 import { SynthesisLayer } from "@/components/scorecard/SynthesisLayer";
 import { OperatorTrajectorySection } from "@/components/scorecard/OperatorTrajectorySection";
 import type { OperatorTrajectory } from "@/lib/operators/trajectory";
@@ -90,12 +91,17 @@ export function ScorecardBody({
                 operatorName={scorecard.canonicalOperatorName ?? scorecard.pm.name}
               />
             )}
-            <IdentityHero
-              scorecard={scorecard}
-              isClaimed={isClaimed}
-              marketFootprint={marketFootprint}
-              crossMarketOperator={crossMarketOperator}
-            />
+            <StickyOperatorBar
+              name={scorecard.pm.name}
+              location={scorecard.market.fullName}
+            >
+              <IdentityHero
+                scorecard={scorecard}
+                isClaimed={isClaimed}
+                marketFootprint={marketFootprint}
+                crossMarketOperator={crossMarketOperator}
+              />
+            </StickyOperatorBar>
             <SynthesisLayer scorecard={scorecard} />
             <PerformanceLayer
               scorecard={scorecard}
