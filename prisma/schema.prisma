@@ -485,3 +485,31 @@ model OrganizationMembership {
   @@index([userId])
   @@index([organizationId])
 }
+
+// v0.23 — Admin operator-merge tool. Human-curated decisions about
+// within-market operator fragmentation (one operator recorded as several
+// records). One row per (market, cluster) the admin has acted on:
+//   decision "merge"   — collapse memberSlugs into survivorSlug under
+//                        canonicalName (applied OFFLINE by the pipeline:
+//                        pool raw listings + recompute metrics/stars).
+//   decision "dismiss" — reviewed, not a merge; don't resurface.
+// Nothing in the app mutates operator records at read time — this table
+// only captures decisions; the pipeline is the single applier.
+model OperatorMergeDecision {
+  id              String   @id @default(cuid())
+  marketId        String
+  // Normalized-name identity of the cluster (lowercase, punctuation +
+  // legal-suffix stripped). Stable key so a decided cluster stops
+  // surfacing as a candidate.
+  clusterKey      String
+  decision        String   // "merge" | "dismiss"
+  canonicalName   String?  // chosen display name (merge only)
+  survivorSlug    String?  // operator whose slug the merged group keeps (merge only)
+  memberSlugs     String   @default("[]") // JSON array of member PM slugs
+  decidedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([marketId, clusterKey])
+  @@index([marketId])
+}
