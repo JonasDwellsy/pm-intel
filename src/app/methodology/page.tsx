@@ -45,7 +45,7 @@ async function loadVersion() {
         marketList,
       }
     : {
-        version: "v0.8",
+        version: "v0.6.4",
         designVersion,
         dataAsOf: "2026-05-19",
         marketCount,
@@ -1690,7 +1690,7 @@ export default async function MethodologyPage() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td className="dq-mono whitespace-nowrap">v0.8</td>
+                    <td className="dq-mono whitespace-nowrap">v0.6.4</td>
                     <td className="dq-mono whitespace-nowrap text-muted-foreground">
                       May 21, 2026
                     </td>
@@ -1719,7 +1719,7 @@ export default async function MethodologyPage() {
                     </td>
                   </tr>
                   <tr>
-                    <td className="dq-mono whitespace-nowrap">v0.7</td>
+                    <td className="dq-mono whitespace-nowrap">v0.6.4</td>
                     <td className="dq-mono whitespace-nowrap text-muted-foreground">
                       May 21, 2026
                     </td>
@@ -1747,7 +1747,7 @@ export default async function MethodologyPage() {
                       those scorecards prompt for a verified
                       self-report via the claim flow rather than
                       pretending to a number. Methodology version
-                      bumped v0.6.4 → v0.7 — no cohort or ranking
+                      unchanged (still v0.6.4) — no cohort or ranking
                       changes; estimator is context only and does not
                       feed the composite.
                     </td>
