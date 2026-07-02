@@ -39,19 +39,19 @@ function MatchCard({
   const city = citySlug(row.market.city);
   const href = `/property-managers/${state}/${city}/${pm.slug}`;
   const matchNum = String(index + 1).padStart(2, "0");
-  const rankCohortLabel = pm.rankQuadrant
-    ? `Rank ${pm.rankQuadrant} of ${pm.rankQuadrantTotal ?? "—"} in ${pm.quadrant}`
-    : `Rank #${pm.rankOverall ?? "—"} overall`;
+  // Peer cohort (quadrant), not an ordinal rank — facts-not-judgments;
+  // the Match NN order already conveys relative fit without a precise rank.
+  const cohortLabel = pm.quadrant;
 
   return (
     <li className="relative list-none rounded-lg border border-grid bg-white p-7 sm:px-8">
       {/* Absolute-positioned overall rank · city, top-right */}
       <p className="dq-mono absolute right-7 top-6 text-[12px] text-muted-foreground sm:right-8">
-        #{pm.rankOverall ?? "—"} / {row.market.city}
+        {row.market.city}
       </p>
 
       <p className="dq-mono text-[11.5px] uppercase leading-none tracking-[0.04em] text-muted-foreground">
-        Match {matchNum} <span className="text-muted-2">·</span> {rankCohortLabel}
+        Match {matchNum} <span className="text-muted-2">·</span> {cohortLabel}
       </p>
 
       <h3 className="mt-3 text-[22px] font-semibold leading-[1.2] tracking-[-0.012em] text-navy sm:text-[24px]">

@@ -450,8 +450,11 @@ function OperatorColumn({
           {quadrant7.label}
         </span>
       </div>
+      {/* Peer cohort context instead of an ordinal rank (no precise
+          rank/composite surfaced — facts, not judgments). */}
       <p className="mt-1 text-[11.5px] text-muted-foreground">
-        Rank #{scorecard.rank.overall} of {scorecard.rank.overallTotal}
+        {scorecard.rank.compositeCohortName ??
+          `${scorecard.market.name} MSA cohort`}
       </p>
 
       <dl className="mt-4 divide-y divide-grid border-t border-grid">
