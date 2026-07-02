@@ -398,6 +398,10 @@ log(f"Streaming {os.path.basename(CSV_PATH)}, filtering to msa_code='{MSA_CODE}'
 
 pm_rich = {}
 pm_display_name = {}
+# v0.24 — norms that came from a real effective company id (parent/child), as
+# opposed to the old-schema name-fallback. Drives each operator's Dwellsy
+# company-page id (companyId) + the merge-tool sub-eligible fragment sidecar.
+eff_id_norms = set()
 # v0.6.4 Phase B — global parent_company_id → parent_company_name map.
 # The source guarantees id→name is 1:1, so first-seen name per id is
 # authoritative; used to name the cross-market canonical entity in merge.
@@ -495,6 +499,8 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
             key = norm  # old-schema fallback: name is the identity
             disp = company.strip()
         norm = key
+        if eff_id:
+            eff_id_norms.add(norm)
         if norm not in pm_rich:
             init_rich(norm)
             pm_display_name[norm] = disp
@@ -1810,6 +1816,11 @@ for norm in sorted(eligible_norms):
         # v0.6.4 Phase B — cross-market identity key (None when standalone).
         "parentCompanyId": parent_company_id,
         "parentCompanyName": parent_company_name,
+        # v0.24 — Dwellsy company-page id: the effective grouping id
+        # (parent_company_id if parented, else child_company_id). Deep-links
+        # each operator to dwellsy.com/company/<id>. None only for the rare
+        # name-fallback operators on old-schema CSVs (no id columns).
+        "companyId": norm if norm in eff_id_norms else None,
         "concessionListingCount": cons_count,
         "concessionRate": cons_rate,
         "concessionPatterns": cons_patterns_top3,
@@ -1831,6 +1842,85 @@ for norm, subs in pm_t12_by_sub.items():
         "t12Listings": pm_t12_listings[norm],
         "t12ListingsBySubmarket": dict(subs),
     }
+
+# v0.24 — merge-tool sidecar source: sub-eligible operators (below the ranking
+# cutoff, ELIG_T12_MIN) that carry a real company id. Surfaced ONLY in the
+# admin merge tool so a human can merge a real operator's hidden fragments up
+# to eligibility. These NEVER enter the seed's `pms` array, the PM table, or
+# any ranked / searchable / Ask-AI surface — merge.py routes them to
+# src/data/merge_fragments.json. Excluded + denylisted rows are already gone
+# (dropped before pm_rich), so they can't appear here.
+# Mirror the admin merge tool's clustering rules (merge-candidates.ts) so the
+# sidecar carries exactly the fragments the tool can cluster — no more, no
+# fewer. Same normalization (lowercase, non-alnum -> space, drop legal
+# suffixes), and the same distinctiveCore guard: a name must have >=2 tokens
+# with >=1 non-generic token. That drops bare first names ("David", "Mike")
+# and purely-generic names — coincidental collisions, not fragments — and the
+# placeholder set drops source junk. The tool itself does the exact/near-match
+# clustering + the combined-T12 >= cutoff filter, so we deliberately do NOT
+# pre-filter on name-sharing here (that would miss near-match satellites like
+# "Auben Realty - DFW" <- "Auben Realty").
+_APP_LEGAL_SUFFIXES = {"inc", "llc", "llp", "lp", "ltd", "co", "corp",
+                       "corporation", "company"}
+_APP_GENERIC_TOKENS = {"property", "properties", "management", "mgmt", "realty",
+                       "real", "estate", "group", "homes", "home", "rentals",
+                       "rental", "services", "service", "the", "of", "and"}
+_PLACEHOLDER_NORMS = {"name not provided", "not provided", "unknown", "none",
+                      "n a", "na", "tbd", "test"}
+def _app_norm(name):
+    s = re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip()
+    toks = [t for t in s.split(" ") if t and t not in _APP_LEGAL_SUFFIXES]
+    return " ".join(toks) or s
+def _tokset(an):
+    return {t for t in an.split(" ") if t}
+def _distinctive_set(s):
+    return len(s) >= 2 and any(t not in _APP_GENERIC_TOKENS for t in s)
+def _distinctive_subset(small, big):
+    # small ⊊ big and the shared core is distinctive — the tool's near-match rule.
+    return 0 < len(small) < len(big) and small <= big and _distinctive_set(small)
+
+# Candidate fragments: sub-eligible, id-bearing, >=1 recent listing, with a
+# distinctive non-placeholder name.
+_cand = []  # (norm, app_norm, token_set)
+for _n, _d in pm_rich.items():
+    if _n in eligible_norms or _n not in eff_id_norms: continue
+    if _d["t12_listings"] < 1: continue
+    _an = _app_norm(pm_display_name.get(_n, _n))
+    if _an in _PLACEHOLDER_NORMS or not _distinctive_set(_tokset(_an)): continue
+    _cand.append((_n, _an, _tokset(_an)))
+# Name landscape for the two clustering signals the tool uses:
+#   exact  — the app_norm appears on >=1 OTHER operator (eligible or candidate);
+#   near   — a distinctive-subset relationship with an ELIGIBLE operator
+#            (the "satellite" case, e.g. "Auben Realty - DFW" <- "Auben Realty").
+# (Fragment<->fragment near-matches are a documented v1 gap — rare in practice.)
+_norm_count = Counter()
+_elig_sets = []
+for _n in eligible_norms:
+    _ean = _app_norm(pm_display_name.get(_n, _n))
+    _norm_count[_ean] += 1
+    _elig_sets.append(_tokset(_ean))
+for (_n, _an, _ts) in _cand:
+    _norm_count[_an] += 1
+merge_fragments = []
+for (_n, _an, _ts) in _cand:
+    _keep = _norm_count[_an] >= 2
+    if not _keep:
+        for _es in _elig_sets:
+            if _distinctive_subset(_ts, _es) or _distinctive_subset(_es, _ts):
+                _keep = True
+                break
+    if not _keep: continue
+    _fd = pm_rich[_n]
+    merge_fragments.append({
+        "marketId": MARKET_ID,
+        "companyId": _n,
+        "name": pm_display_name.get(_n, _n),
+        "slug": f"frag-{_n}",
+        "t12ListingsCount": _fd["t12_listings"],
+        "operatorType": classify_operator_type(_fd["type_votes"]),
+    })
+merge_fragments.sort(key=lambda x: -x["t12ListingsCount"])
+log(f"Merge-tool sub-eligible fragments (clusterable, id-bearing, T12>=1): {len(merge_fragments)}")
 
 
 market = {
@@ -1870,6 +1960,7 @@ out = {
     "pms": pms,
     "allOperatorsT12BySubmarket": all_operators_t12_by_sub,
     "canonicalOperators": {},
+    "mergeFragments": merge_fragments,
 }
 
 with open(OUT_JSON, "w") as f:

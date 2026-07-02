@@ -13,6 +13,12 @@
 //              Holdings" ⊃ "KRS Holdings").
 // Clusters already sharing a canonicalOperatorId (already linked) and any
 // cluster whose key has a stored decision are excluded.
+//
+// v0.24 — operators include sub-eligible fragments (eligible=false) surfaced
+// so a real operator's hidden pieces can be merged up to the ranking cutoff. A
+// cluster is only returned when its members' combined T12 reaches
+// MERGE_ELIGIBILITY_T12_MIN — the list never shows a merge that still wouldn't
+// rank. Each member also carries a companyId for the Dwellsy company-page link.
 
 export interface MergeOperator {
   slug: string;
@@ -21,6 +27,13 @@ export interface MergeOperator {
   claimed: boolean;
   listings: number;
   canonicalOperatorId: string | null;
+  /** Dwellsy company-page id (dwellsy.com/company/<id>); null when unknown. */
+  companyId: string | null;
+  /** True for ranked operators (in the seed). False for sub-eligible
+   *  fragments surfaced only so a real operator's hidden pieces can be merged
+   *  up to eligibility — these are below the ranking cutoff and not in the
+   *  seed / rankings / search. */
+  eligible: boolean;
 }
 
 export type MergeTier = "exact" | "possible";
@@ -32,7 +45,16 @@ export interface MergeCluster {
   canonicalNameSuggestion: string;
   survivorSlugSuggestion: string;
   members: MergeOperator[];
+  /** Sum of members' T12 listings — what the merged operator would carry. */
+  combinedListings: number;
 }
+
+/** Ranking eligibility cutoff (T12 listings) — mirrors pipeline.py
+ *  ELIG_T12_MIN. A cluster surfaces only if its members' combined T12 reaches
+ *  this, i.e. the merge would actually put the operator into the rankings.
+ *  All-eligible clusters clear it trivially; it gates the newly-surfaced
+ *  sub-eligible fragment clusters. */
+export const MERGE_ELIGIBILITY_T12_MIN = 30;
 
 const LEGAL_SUFFIXES = new Set([
   "inc", "llc", "llp", "lp", "ltd", "co", "corp", "corporation", "company",
@@ -137,6 +159,12 @@ export function findMergeCandidates(
   for (const idxs of groups.values()) {
     if (idxs.length < 2) continue;
     const members = idxs.map((i) => ops[i]);
+    // Only surface a cluster that would clear the ranking cutoff if merged —
+    // no point curating a merge that still wouldn't rank. All-eligible
+    // clusters pass trivially (each member is already >= the cutoff); this
+    // gates the newly-surfaced sub-eligible fragment clusters.
+    const combinedListings = members.reduce((s, m) => s + m.listings, 0);
+    if (combinedListings < MERGE_ELIGIBILITY_T12_MIN) continue;
     // already linked? (all share one canonical identity)
     const canonIds = new Set(members.map((m) => m.canonicalOperatorId ?? m.slug));
     if (canonIds.size === 1) continue;
@@ -160,6 +188,7 @@ export function findMergeCandidates(
       canonicalNameSuggestion: pickCanonical(members.map((m) => m.name)),
       survivorSlugSuggestion: sorted[0].slug,
       members: sorted,
+      combinedListings,
     });
   }
 

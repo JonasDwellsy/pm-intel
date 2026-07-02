@@ -75,12 +75,25 @@ step recover the id), `t12ListingsCount`, `operatorType`. The sidecar shape:
 rankings, scorecards, search, briefs, Ask AI, or entitlements — the sidecar is
 read *only* by the merge-tool server loader.
 
-**Emission rule.** Emit a sub-eligible operator to the sidecar when it (a)
-carries a company id and (b) has T12 ≥ 1. If the pilot shows the tail is large,
-tighten to "normalized name shared by ≥1 other in-market operator" (using the
-app's `normalizeOperatorName` normalization so the pipeline never under-emits
-relative to what the app can cluster). Pilot on Dallas and **report the sidecar
-row count before wiring the UI.**
+**Emission rule (finalized after Dallas pilot).** A liberal "any id-bearing
+sub-eligible op" emitted 4,476 rows for Dallas — mostly isolated individual
+landlords that never cluster. The final rule mirrors the two ways the tool
+clusters, so the sidecar carries only fragments that can actually surface. Emit
+a sub-eligible (T12 below cutoff), id-bearing operator with T12 ≥ 1 when its
+name is **distinctive** (≥2 tokens, ≥1 non-generic — the tool's `distinctiveCore`
+guard, which drops bare first names like "David"/"Mike" and pure generics) and
+non-placeholder, **AND** either:
+- its normalized name is shared by ≥1 other in-market operator (eligible or
+  another candidate) — covers exact rescue pairs + exact satellites; or
+- it is a distinctive token-subset (either direction) of an **eligible**
+  operator — covers near-match satellites (e.g. "Auben Realty - DFW" ↔ "Auben
+  Realty").
+
+The pipeline mirrors the app's `normalizeOperatorName` exactly so it never
+under-emits. Result: Dallas 4,476 → **497** fragments (~85 KB), with identical
+shown-cluster coverage (54 clusters, 46 including a fragment). **Documented v1
+gap:** fragment↔fragment *near-match* rescues (two differently-named
+sub-eligible fragments) are not emitted — rare, and addable later if needed.
 
 **Clustering + filter (app).** `loadAllMergeCandidates()` reads eligible PMs
 (from the DB, now with `companyId`) **plus** the sidecar stubs, tags each

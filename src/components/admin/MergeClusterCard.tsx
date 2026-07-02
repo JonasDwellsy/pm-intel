@@ -86,7 +86,7 @@ export function MergeClusterCard({
           {cluster.tier === "exact" ? "Exact match" : "Possible"}
         </span>
         <span className="text-[12px] text-grey-500">
-          {cluster.members.length} records
+          {cluster.members.length} records · {cluster.combinedListings} T12 combined
         </span>
       </div>
 
@@ -115,9 +115,29 @@ export function MergeClusterCard({
               className="shrink-0"
             />
             <span className="min-w-0 flex-1 truncate text-navy">{m.name}</span>
-            {m.quadrant7Cell && (
-              <span className="shrink-0 text-[11.5px] text-grey-500">
-                {m.quadrant7Cell}
+            {m.companyId && (
+              <a
+                href={`https://dwellsy.com/company/${m.companyId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 text-[11.5px] font-medium text-teal-700 hover:underline"
+                title="Open this operator's Dwellsy company page"
+              >
+                Dwellsy ↗
+              </a>
+            )}
+            {m.eligible ? (
+              m.quadrant7Cell && (
+                <span className="shrink-0 text-[11.5px] text-grey-500">
+                  {m.quadrant7Cell}
+                </span>
+              )
+            ) : (
+              <span
+                className="shrink-0 rounded-full border border-grid px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-grey-500"
+                title="Below the ranking cutoff — surfaced only so it can be merged into the operator above"
+              >
+                not yet ranked
               </span>
             )}
             <span className="shrink-0 dq-tnum text-[12.5px] text-grey-600">

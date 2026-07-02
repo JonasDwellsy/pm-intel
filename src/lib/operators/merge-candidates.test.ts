@@ -1,4 +1,5 @@
 // v0.23 — tests for the pure operator-merge candidate clustering.
+// v0.24 — + sub-eligible fragments, combined-eligibility filter, companyId.
 
 import test from "node:test";
 import { strict as assert } from "node:assert";
@@ -20,7 +21,9 @@ function op(
     quadrant7Cell: "SFR Independent",
     claimed: false,
     listings,
-    canonicalOperatorId: extra.canonicalOperatorId ?? slug,
+    canonicalOperatorId: slug,
+    companyId: null,
+    eligible: true,
     ...extra,
   };
 }
@@ -138,4 +141,52 @@ test("exact clusters sort before possible; canonical suggestion is cleanest", ()
   // suggestion pool — just assert it's one of the member names.
   const foo = clusters.find((c) => c.tier === "possible")!;
   assert.ok(foo.members.map((m) => m.name).includes(foo.canonicalNameSuggestion));
+});
+
+// ─── v0.24: sub-eligible fragments + combined-eligibility filter ────
+
+test("sub-eligible fragments merge when combined reaches the cutoff", () => {
+  const clusters = findMergeCandidates([
+    op("frag-1", "Boot Team Property Management", 20, {
+      eligible: false,
+      companyId: "1",
+    }),
+    op("frag-2", "Boot Team Property Management", 15, {
+      eligible: false,
+      companyId: "2",
+    }),
+  ]);
+  assert.equal(clusters.length, 1);
+  assert.equal(clusters[0].combinedListings, 35);
+  assert.equal(clusters[0].members.length, 2);
+  assert.ok(clusters[0].members.every((m) => !m.eligible));
+});
+
+test("sub-eligible fragments below the combined cutoff are dropped", () => {
+  const clusters = findMergeCandidates([
+    op("frag-1", "Tiny Realty Group", 10, { eligible: false, companyId: "1" }),
+    op("frag-2", "Tiny Realty Group", 12, { eligible: false, companyId: "2" }),
+  ]);
+  assert.equal(clusters.length, 0); // combined 22 < 30
+});
+
+test("a ranked operator absorbs a sub-eligible satellite (always clears cutoff)", () => {
+  const clusters = findMergeCandidates([
+    op("auben-realty-dfw", "Auben Realty", 40, { companyId: "100" }),
+    op("frag-1", "Auben Realty - DFW", 8, { eligible: false, companyId: "101" }),
+  ]);
+  assert.equal(clusters.length, 1);
+  assert.equal(clusters[0].tier, "possible"); // near-match subset
+  assert.equal(clusters[0].combinedListings, 48);
+});
+
+test("companyId + eligible are carried onto members", () => {
+  const clusters = findMergeCandidates([
+    op("a", "KRS Holdings", 100, { companyId: "191930" }),
+    op("b", "KRS Holdings Inc", 20, { eligible: false, companyId: "545691" }),
+  ]);
+  assert.equal(clusters.length, 1);
+  const byCompany = new Map(clusters[0].members.map((m) => [m.companyId, m]));
+  assert.equal(byCompany.get("191930")!.eligible, true);
+  assert.equal(byCompany.get("545691")!.eligible, false);
 });

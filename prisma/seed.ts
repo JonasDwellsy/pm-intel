@@ -1436,6 +1436,9 @@ async function main() {
         // would write null which the downstream renderers null-guard.
         canonicalOperatorId: asString(pm.canonicalOperatorId) || null,
         canonicalOperatorName: asString(pm.canonicalOperatorName) || null,
+        // v0.24 — Dwellsy company-page id (see schema PM.companyId). Deep-links
+        // the admin merge tool to dwellsy.com/company/<id>.
+        companyId: asString(pm.companyId) || null,
         // v0.6.4 Patch 2 — concession classifier output. Rate is null
         // when the operator was absent from the classifier CSV input
         // (no T12 description data to scan); 0 when present but no
