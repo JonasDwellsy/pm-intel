@@ -35,3 +35,18 @@ test("no cohort or no focal rent → null", () => {
   assert.equal(rentTierPosition(R("f", 1500), []), null);
   assert.equal(rentTierPosition(R("f", null), [R("a", 1000)]), null);
 });
+
+test("focal tied with a cohort rent lands at the tie midpoint, not the lower bound", () => {
+  // focal 2000, cohort [1000, 2000, 3000] → below=1, equal=1, n=4 → 1.5/3 = 0.5
+  assert.equal(rentTierPosition(R("f", 2000), [R("a", 1000), R("b", 2000), R("c", 3000)]), 0.5);
+});
+
+test("latestRent returns null when every quarter is non-positive", () => {
+  assert.equal(
+    latestRent({ pm: { slug: "x" }, rentTrajectory: [
+      { quarter: "2025Q1", mixAdjMedian: 0, n: 1 },
+      { quarter: "2025Q2", mixAdjMedian: -5, n: 1 },
+    ] }),
+    null
+  );
+});

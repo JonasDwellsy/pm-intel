@@ -29,7 +29,11 @@ export function rentTierPosition(focal: RentInput, pool: RentInput[]): number | 
     .map((p) => latestRent(p))
     .filter((v): v is number => v !== null);
   if (cohortRents.length === 0) return null;
-  const all = [...cohortRents, operatorRent].sort((a, b) => a - b);
-  const idx = all.indexOf(operatorRent);
-  return all.length > 1 ? idx / (all.length - 1) : 0.5;
+  // Fair 0..1 rank: cohort rents strictly below the focal, plus half of any
+  // exact ties, over the full set size minus one. Ties get the midpoint
+  // position rather than the lower bound.
+  const below = cohortRents.filter((r) => r < operatorRent).length;
+  const equal = cohortRents.filter((r) => r === operatorRent).length;
+  const n = cohortRents.length + 1; // include the focal
+  return n > 1 ? (below + equal / 2) / (n - 1) : 0.5;
 }
