@@ -137,7 +137,13 @@ export function findMergeCandidates(
     for (let k = 1; k < idxs.length; k++) union(idxs[0], idxs[k]);
   }
 
-  // near-match unions (distinctive subset)
+  // near-match unions (distinctive subset). O(n²) in the market's operator
+  // count. Surfacing sub-eligible fragments (v0.24) grows n — the busiest
+  // market (Dallas) is ~766 operators ≈ 300k pairs, still sub-second on the
+  // admin render. If a market ever gets large enough to feel slow here, bucket
+  // candidates by a shared distinctive token before the pairwise subset test
+  // (two names can only be sub/superset if they share every token of the
+  // smaller), which prunes the vast majority of pairs.
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       if (norms[i] === norms[j]) continue;

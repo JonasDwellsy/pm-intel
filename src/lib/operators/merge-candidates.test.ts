@@ -3,9 +3,12 @@
 
 import test from "node:test";
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   normalizeOperatorName,
   findMergeCandidates,
+  MERGE_ELIGIBILITY_T12_MIN,
   type MergeOperator,
 } from "./merge-candidates";
 
@@ -189,4 +192,23 @@ test("companyId + eligible are carried onto members", () => {
   const byCompany = new Map(clusters[0].members.map((m) => [m.companyId, m]));
   assert.equal(byCompany.get("191930")!.eligible, true);
   assert.equal(byCompany.get("545691")!.eligible, false);
+});
+
+// ─── drift guard: the combined-listing filter must use the pipeline cutoff ──
+
+test("MERGE_ELIGIBILITY_T12_MIN matches pipeline.py ELIG_T12_MIN", () => {
+  const py = readFileSync(
+    join(process.cwd(), "scripts/data-pipeline/pipeline.py"),
+    "utf8"
+  );
+  const m = py.match(/^ELIG_T12_MIN\s*=\s*(\d+)/m);
+  assert.ok(m, "could not find ELIG_T12_MIN in pipeline.py");
+  assert.equal(
+    MERGE_ELIGIBILITY_T12_MIN,
+    Number(m[1]),
+    `MERGE_ELIGIBILITY_T12_MIN (${MERGE_ELIGIBILITY_T12_MIN}) must equal ` +
+      `pipeline.py ELIG_T12_MIN (${m[1]}). The merge-tool combined-listing ` +
+      `filter has to use the same ranking cutoff the pipeline seeds with — ` +
+      `bump both together if the eligibility threshold ever changes.`
+  );
 });
