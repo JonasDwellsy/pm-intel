@@ -115,7 +115,10 @@ function metricValueBenchmark(sc: ScorecardData, k: MetricKey): { value: string;
     benchmark: "quality / 100", sub: [],
   };
   if (k === "tenancy") return {
-    value: sc.tenancy?.multiEpisodePct != null ? `${Math.round(sc.tenancy.multiEpisodePct * 100)}%` : "—",
+    // multiEpisodePct is already on a 0–100 scale in the seed (e.g. 42 = 42%),
+    // matching MethodologyFooter/PDF which render it as `${pct}%` directly. Do
+    // NOT multiply by 100 (that produced "2200%" on real data).
+    value: sc.tenancy?.multiEpisodePct != null ? `${Math.round(sc.tenancy.multiEpisodePct)}%` : "—",
     benchmark: "re-list rate (lower = stickier)", sub: [],
   };
   return { value: "—", benchmark: "", sub: [] };
