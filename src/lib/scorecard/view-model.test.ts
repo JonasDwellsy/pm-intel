@@ -76,3 +76,20 @@ test("operating rows carry label/value/position/star and drop null-percentile me
   assert.equal(dom.star, "silver");
   assert.equal(v.operating.sectionLabel, "good"); // composite 68
 });
+
+test("momentum classifies portfolio from trajectory; other series insufficient for now", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({ rentTrajectory: [] }),
+    pool: [],
+    trajectory: { points: [
+      { portfolioPoint: 100 }, { portfolioPoint: 110 }, { portfolioPoint: 120 }, { portfolioPoint: 135 },
+    ] },
+    marketConcessionMedian: 0.01,
+  });
+  const portfolio = v.momentum.sparklines.find((s) => s.key === "portfolio")!;
+  assert.equal(portfolio.direction, "growing");
+  assert.deepEqual(portfolio.series, [100, 110, 120, 135]);
+  const reach = v.momentum.sparklines.find((s) => s.key === "reach")!;
+  assert.equal(reach.direction, "insufficient"); // no history yet
+  assert.equal(v.momentum.direction, "growing");
+});

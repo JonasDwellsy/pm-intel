@@ -7,6 +7,7 @@ import type { ScorecardData } from "@/lib/types";
 import { countOperatorStars } from "@/lib/operators/stars";
 import { operatingPerformanceLabel, type ScoreLabel } from "./labels";
 import { metricLabels, strongestAndWatch, type MetricKey } from "./labels";
+import { momentumDirection, type MomentumDirection } from "./momentum";
 
 export interface HeaderView {
   name: string;
@@ -45,11 +46,18 @@ export interface OperatingView {
   sectionLabel: ScoreLabel; strongest: string[]; watch: string[]; metrics: MetricRow[];
 }
 
+export interface MomentumView {
+  direction: MomentumDirection;
+  takeaway: string;
+  sparklines: Array<{ key: "portfolio" | "share" | "reach" | "quality"; label: string; direction: MomentumDirection; series: number[] }>;
+}
+
 export interface ScorecardView {
   header: HeaderView;
   readout: ReadoutRow[];
   scaleFit: ScaleFitView;
   operating: OperatingView;
+  momentum: MomentumView;
 }
 
 export interface BuildViewInput {
@@ -99,6 +107,16 @@ function metricValueBenchmark(sc: ScorecardData, k: MetricKey): { value: string;
 function buildScaleFitTakeaway(sc: ScorecardData): string {
   const type = sc.pm.quadrant7Cell ?? "operator";
   return `${sc.pm.name} operates in ${sc.market.fullName} as a ${type}.`;
+}
+
+function momentumTakeaway(name: string, dir: MomentumDirection): string {
+  if (dir === "insufficient") return `Not enough history yet to read ${name}'s trajectory.`;
+  if (dir === "volatile") return `${name}'s recent estimates are volatile — interpret recent moves cautiously.`;
+  return `${name} appears ${dir === "growing" ? "larger" : dir === "declining" ? "smaller" : "steady"} versus when first observed.`;
+}
+
+function momentumReadout(dir: MomentumDirection): string {
+  return dir === "insufficient" ? "Building history" : dir[0].toUpperCase() + dir.slice(1);
 }
 
 export function buildScorecardView(input: BuildViewInput): ScorecardView {
@@ -170,5 +188,23 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const aboveCount = metrics.filter((m) => m.label === "strong" || m.label === "good").length;
   readout[1].value = `Above cohort median on ${aboveCount} of ${metrics.length} scored dimensions`;
 
-  return { header, readout, scaleFit, operating };
+  const portfolioSeries = (input.trajectory?.points ?? [])
+    .map((p) => p.portfolioPoint)
+    .filter((n): n is number => n != null);
+  const portfolioDir = momentumDirection({ values: portfolioSeries });
+  const mkSpark = (key: "portfolio" | "share" | "reach" | "quality", label: string, series: number[]) =>
+    ({ key, label, series, direction: momentumDirection({ values: series }) });
+  const momentum: MomentumView = {
+    direction: portfolioDir,
+    takeaway: momentumTakeaway(scorecard.pm.name, portfolioDir),
+    sparklines: [
+      mkSpark("portfolio", "Portfolio", portfolioSeries),
+      mkSpark("share", "Listing share", []),   // filled by pipeline phase
+      mkSpark("reach", "Geographic reach", []), // filled by pipeline phase
+      mkSpark("quality", "Operating quality", []), // filled by pipeline phase
+    ],
+  };
+  readout[2].value = momentumReadout(portfolioDir);
+
+  return { header, readout, scaleFit, operating, momentum };
 }
