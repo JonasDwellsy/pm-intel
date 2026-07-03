@@ -84,6 +84,18 @@ export function buildWatchItems(
     });
   }
 
+  // DATA — single / very small footprint: metrics describe one property, not a portfolio.
+  const communities = scorecard.coverage?.observedCommunities ?? null;
+  if (communities != null && communities <= 2) {
+    const units = scorecard.coverage?.totalObservedUnits ?? scorecard.coverage?.urusT12 ?? null;
+    const months = scorecard.coverage?.monthsOnPlatform ?? null;
+    items.push({
+      kind: "data",
+      headline: communities === 1 ? "Single community observed" : `Limited footprint (${communities} communities)`,
+      explanation: `Only ${communities === 1 ? "one community" : `${communities} communities`}${units != null ? ` (~${units} units)` : ""} observed${months != null ? ` over ${months} months` : ""}. Metrics reflect ${communities === 1 ? "one property" : "a handful of properties"}, not a portfolio — read peer comparisons, momentum, and estimates as indicative only.`,
+    });
+  }
+
   // CONTEXT — concentrated geography.
   const geo = scorecard.lendingSignals?.geographicConcentration;
   if (geo && geo.top3CityShare != null && geo.cohortMedianTop3 != null && geo.top3CityShare > geo.cohortMedianTop3) {

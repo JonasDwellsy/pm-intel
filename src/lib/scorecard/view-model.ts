@@ -9,7 +9,8 @@ import { operatingPerformanceLabel, type ScoreLabel, metricLabels, strongestAndW
 import { momentumDirection, type MomentumDirection } from "./momentum";
 import { buildWatchItems, type WatchItem, type WatchTrajectory } from "./watch-items";
 import { selectSimilarLocalPlayers, type PeerCandidate, type SelectedPeer } from "./peers";
-import { rentTierPosition } from "./rent-tier";
+import { rentTierPosition, rentTierDetail } from "./rent-tier";
+import type { RentTierDetail } from "./rent-tier";
 
 export interface HeaderView {
   name: string;
@@ -36,6 +37,8 @@ export interface ScaleFitView {
   top3Share: number | null;
   cohortTop3: number | null;
   rentTierPosition: number | null;
+  rentTier: RentTierDetail | null;
+  communitiesObserved: number | null;
   propertyType: string | null;
   citiesObserved: number | null;
   singleMarket: boolean;
@@ -63,6 +66,7 @@ export interface ScorecardView {
   momentum: MomentumView;
   watchItems: WatchItem[];
   peers: SelectedPeer[];
+  maturityNote: string | null;
 }
 
 export interface BuildViewInput {
@@ -171,6 +175,14 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const pe = scorecard.portfolioEstimate;
   const geo = scorecard.geographicCoverage;
   const conc = scorecard.lendingSignals?.geographicConcentration;
+
+  const communitiesObserved = scorecard.coverage?.observedCommunities ?? null;
+  const months = scorecard.coverage?.monthsOnPlatform ?? null;
+  const thin = communitiesObserved != null && communitiesObserved <= 2;
+
+  const focalRentInput = { pm: { slug: scorecard.pm.slug }, rentTrajectory: scorecard.rentTrajectory };
+  const poolRentInputs = pool.map((m) => ({ pm: { slug: m.slug }, rentTrajectory: m.scorecard.rentTrajectory }));
+
   const scaleFit: ScaleFitView = {
     takeaway: buildScaleFitTakeaway(scorecard),
     observedUnits: scorecard.coverage?.urusT12 ?? null,
@@ -181,18 +193,25 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     topCities: geo?.topCities ?? [],
     top3Share: conc?.top3CityShare ?? null,
     cohortTop3: conc?.cohortMedianTop3 ?? null,
-    rentTierPosition: rentTierPosition(
-      { pm: { slug: scorecard.pm.slug }, rentTrajectory: scorecard.rentTrajectory },
-      pool.map((m) => ({ pm: { slug: m.slug }, rentTrajectory: m.scorecard.rentTrajectory }))
-    ),
+    rentTierPosition: rentTierPosition(focalRentInput, poolRentInputs),
+    rentTier: rentTierDetail(focalRentInput, poolRentInputs),
+    communitiesObserved,
     propertyType: scorecard.pm.quadrant7Cell ?? null,
     citiesObserved: scorecard.coverage?.citiesObserved ?? null,
     singleMarket: header.singleMarket,
   };
 
-  readout[0].value = pe?.point != null
-    ? `~${pe.point} est. units · ${pe.confidence ?? "unrated"} confidence`
-    : (pe?.message ?? "Portfolio size not estimated");
+  const maturityNote: string | null = thin
+    ? `Early coverage — ${months ?? "under 12"} months observed across ${communitiesObserved} ${communitiesObserved === 1 ? "community" : "communities"}. Treat estimates, trends, and cohort comparisons as provisional.`
+    : null;
+
+  if (pe?.point != null) {
+    readout[0].value = `~${pe.point} est. units · ${pe.confidence ?? "unrated"} confidence`;
+  } else if (communitiesObserved != null) {
+    readout[0].value = `${communitiesObserved} ${communitiesObserved === 1 ? "community" : "communities"} · ${scorecard.coverage?.totalObservedUnits ?? scorecard.coverage?.urusT12 ?? "—"} units observed — self-report needed for a portfolio estimate`;
+  } else {
+    readout[0].value = pe?.message ?? "Portfolio size not estimated";
+  }
 
   const labels = metricLabels(scorecard);
   const sw = strongestAndWatch(scorecard);
@@ -247,7 +266,9 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
       mkSpark("quality", "Operating quality", qualitySeries),
     ],
   };
-  readout[2].value = momentumReadout(portfolioDir);
+  readout[2].value = portfolioDir === "insufficient"
+    ? `Building history${months != null ? ` (${months} mo observed)` : ""}`
+    : momentumReadout(portfolioDir);
 
   const watchItems = buildWatchItems(
     scorecard,
@@ -265,5 +286,5 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     ? `${nonPositive} to review${watchItems.length > nonPositive ? " · 1+ positive" : ""}`
     : (watchItems.length > 0 ? "positives only" : "none");
 
-  return { header, readout, scaleFit, operating, momentum, watchItems, peers };
+  return { header, readout, scaleFit, operating, momentum, watchItems, peers, maturityNote };
 }

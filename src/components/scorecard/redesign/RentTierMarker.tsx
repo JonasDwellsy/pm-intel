@@ -2,17 +2,19 @@
 // Pure server component; no client hooks.
 // Matches the mockup .rt/.rtmark gradient track.
 
+import type { RentTierDetail } from "@/lib/scorecard/rent-tier";
+
 interface RentTierMarkerProps {
-  /** 0–1 position on the value→premium track. null = not yet computed. */
-  position: number | null;
+  /** Rich rent-tier detail. null = not yet computed. */
+  detail: RentTierDetail | null;
 }
 
 /**
- * A linear value↔premium gradient track with a vertical marker at `position`.
- * When position is null (pending pricing phase), renders a muted "not available" state.
+ * A linear value↔premium gradient track with a vertical marker at `detail.position`.
+ * When detail is null (pending pricing phase), renders a muted "not available" state.
  */
-export function RentTierMarker({ position }: RentTierMarkerProps) {
-  if (position == null) {
+export function RentTierMarker({ detail }: RentTierMarkerProps) {
+  if (detail == null) {
     return (
       <div>
         {/* Muted track placeholder */}
@@ -33,13 +35,21 @@ export function RentTierMarker({ position }: RentTierMarkerProps) {
   }
 
   // Clamp to [0, 1]
-  const clamped = Math.min(1, Math.max(0, position));
+  const clamped = Math.min(1, Math.max(0, detail.position));
   const leftPct = clamped * 100;
 
-  // Map position to a label
-  const tierLabel =
+  // Map position to a tier word
+  const tierWord =
     clamped < 0.33 ? "value" : clamped < 0.67 ? "mid-market" : "premium";
-  const caption = `Typical rent near the ${tierLabel === "mid-market" ? "market median" : `${tierLabel} end`} — ${tierLabel}.`;
+
+  // Line 2: market P25/P75 + sample size
+  let line2: string | null = null;
+  if (detail.marketP25 != null && detail.marketP75 != null) {
+    line2 = `Market P25 $${Math.round(detail.marketP25).toLocaleString()} – P75 $${Math.round(detail.marketP75).toLocaleString()}`;
+    if (detail.sampleSize != null) {
+      line2 += ` · based on ${detail.sampleSize} recent listing${detail.sampleSize === 1 ? "" : "s"}`;
+    }
+  }
 
   return (
     <div>
@@ -106,10 +116,17 @@ export function RentTierMarker({ position }: RentTierMarkerProps) {
         />
       </div>
 
-      {/* Caption */}
+      {/* Caption line 1 */}
       <p style={{ fontSize: "10.5px", color: "#8894ac", margin: 0 }}>
-        {caption}
+        {`≈ $${Math.round(detail.rentMedian).toLocaleString()}/mo median · ${tierWord} end`}
       </p>
+
+      {/* Caption line 2: market range + sample size */}
+      {line2 != null && (
+        <p style={{ fontSize: "9.5px", color: "#8894ac", margin: "2px 0 0" }}>
+          {line2}
+        </p>
+      )}
     </div>
   );
 }

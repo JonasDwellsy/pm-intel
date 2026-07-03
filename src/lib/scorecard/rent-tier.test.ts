@@ -1,6 +1,6 @@
 import test from "node:test";
 import { strict as assert } from "node:assert";
-import { rentTierPosition, latestRent } from "./rent-tier";
+import { rentTierPosition, latestRent, rentTierDetail } from "./rent-tier";
 
 const R = (slug: string, rent: number | null) => ({
   pm: { slug },
@@ -49,4 +49,27 @@ test("latestRent returns null when every quarter is non-positive", () => {
     ] }),
     null
   );
+});
+
+// ── rentTierDetail tests ──────────────────────────────────────────────────────
+
+test("rentTierDetail returns rentMedian = focal latest rent, position matches rentTierPosition, sampleSize = 10", () => {
+  const focal = R("f", 2000);
+  const pool = [R("a", 1000), R("b", 1500), R("c", 3000)];
+  const detail = rentTierDetail(focal, pool);
+  assert.ok(detail !== null);
+  assert.equal(detail.rentMedian, 2000);
+  assert.equal(detail.sampleSize, 10);
+  const pos = rentTierPosition(focal, pool);
+  assert.equal(detail.position, pos);
+  assert.ok(detail.marketP25 != null && detail.marketP75 != null);
+  assert.ok(detail.marketP25 <= detail.marketP75);
+});
+
+test("rentTierDetail returns null when focal has no rent", () => {
+  assert.equal(rentTierDetail(R("f", null), [R("a", 1000), R("b", 2000)]), null);
+});
+
+test("rentTierDetail returns null when cohort is empty", () => {
+  assert.equal(rentTierDetail(R("f", 1500), []), null);
 });

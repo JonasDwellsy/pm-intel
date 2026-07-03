@@ -19,6 +19,62 @@ export function latestRent(input: RentInput): number | null {
   return null;
 }
 
+export interface RentTierDetail {
+  /** 0..1 track position (same value rentTierPosition returns). */
+  position: number;
+  /** Operator's most recent mix-adjusted median rent (dollars). */
+  rentMedian: number;
+  /** Cohort P25 / P75 of latest rents (dollars). */
+  marketP25: number | null;
+  marketP75: number | null;
+  /** Listing count behind the operator's latest rent quarter (sample size). */
+  sampleSize: number | null;
+}
+
+/** Linear-interpolated quantile over an ascending-sorted numeric array. */
+function quantile(sortedAsc: number[], q: number): number | null {
+  if (sortedAsc.length === 0) return null;
+  if (sortedAsc.length === 1) return sortedAsc[0];
+  const pos = (sortedAsc.length - 1) * q;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  if (lo === hi) return sortedAsc[lo];
+  return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (pos - lo);
+}
+
+/** Most recent positive-rent quarter's { rent, n }, else null. */
+function latestRentEntry(input: RentInput): { rent: number; n: number | null } | null {
+  const traj = input.rentTrajectory;
+  if (!Array.isArray(traj) || traj.length === 0) return null;
+  const sorted = [...traj].sort((a, b) => (b.quarter || "").localeCompare(a.quarter || ""));
+  for (const q of sorted) {
+    if (typeof q.mixAdjMedian === "number" && q.mixAdjMedian > 0) {
+      return { rent: q.mixAdjMedian, n: typeof (q as any).n === "number" ? (q as any).n : null };
+    }
+  }
+  return null;
+}
+
+/** Rich rent-tier detail: position + operator rent + cohort P25/P75 + sample size.
+ *  null when the focal has no rent or the cohort is empty. */
+export function rentTierDetail(focal: RentInput, pool: RentInput[]): RentTierDetail | null {
+  const entry = latestRentEntry(focal);
+  const position = rentTierPosition(focal, pool);
+  if (entry === null || position === null) return null;
+  const cohortRents = pool
+    .filter((p) => p.pm.slug !== focal.pm.slug)
+    .map((p) => latestRent(p))
+    .filter((v): v is number => v !== null)
+    .sort((a, b) => a - b);
+  return {
+    position,
+    rentMedian: entry.rent,
+    marketP25: quantile(cohortRents, 0.25),
+    marketP75: quantile(cohortRents, 0.75),
+    sampleSize: entry.n,
+  };
+}
+
 /** 0..1 position of the focal operator's rent within its cohort (focal
  *  excluded by slug). null when focal has no rent or the cohort is empty. */
 export function rentTierPosition(focal: RentInput, pool: RentInput[]): number | null {

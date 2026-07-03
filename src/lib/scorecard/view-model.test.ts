@@ -161,6 +161,56 @@ test("reach and quality sparklines populate from trajectory; share stays empty",
   assert.equal(spark("share").series.length, 0);
 });
 
+test("thin operator: maturityNote contains 'Early coverage', communitiesObserved = 1, readout[0] mentions community + self-report, momentum readout contains 'mo observed' when insufficient", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      coverage: { observedCommunities: 1, monthsOnPlatform: 6, urusT12: 58, totalObservedUnits: 58 },
+      portfolioEstimate: { status: "insufficient_data", point: null, low: null, high: null, confidence: null },
+      rentTrajectory: [],
+    }),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.ok(v.maturityNote != null && v.maturityNote.includes("Early coverage"));
+  assert.equal(v.scaleFit.communitiesObserved, 1);
+  const scaleRow = v.readout.find((r) => r.area === "Scale & Fit")!;
+  assert.match(scaleRow.value, /community/i);
+  assert.match(scaleRow.value, /self-report/i);
+  // momentum: portfolioDir will be "insufficient" (no trajectory points), months = 6
+  const momRow = v.readout.find((r) => r.area === "Momentum")!;
+  assert.match(momRow.value, /6 mo observed/i);
+});
+
+test("non-thin operator (observedCommunities = 40): maturityNote is null", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      coverage: { observedCommunities: 40, monthsOnPlatform: 48, urusT12: 2000 },
+    }),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.equal(v.maturityNote, null);
+});
+
+test("rentTier populated when scorecard + pool carry rentTrajectory", () => {
+  const focalRentTraj = [{ quarter: "2024-Q4", mixAdjMedian: 2000, n: 15 }];
+  const v = buildScorecardView({
+    scorecard: scFixture({ rentTrajectory: focalRentTraj }),
+    pool: makePool([
+      { slug: "member-a", rentTrajectory: [{ quarter: "2024-Q4", mixAdjMedian: 1000 }] },
+      { slug: "member-b", rentTrajectory: [{ quarter: "2024-Q4", mixAdjMedian: 1500 }] },
+    ]),
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.ok(v.scaleFit.rentTier !== null);
+  assert.equal(v.scaleFit.rentTier!.rentMedian, 2000);
+  assert.equal(v.scaleFit.rentTier!.sampleSize, 15);
+  assert.ok(v.scaleFit.rentTier!.position > 0.5);
+});
+
 test("watch items + peers assembled; readout shows non-positive count", () => {
   const poolMember = (slug: string, name: string, units: number) => ({
     slug, name, quadrant7Cell: "SFR Independent",

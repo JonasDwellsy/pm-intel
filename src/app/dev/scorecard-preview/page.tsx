@@ -241,6 +241,8 @@ const FIXTURE_VIEW: ScorecardView = {
     top3Share: 0.91,
     cohortTop3: 0.78,
     rentTierPosition: 0.72,
+    rentTier: { position: 0.72, rentMedian: 1850, marketP25: 1400, marketP75: 2100, sampleSize: 240 },
+    communitiesObserved: 36,
     propertyType: "SFR Independent",
     citiesObserved: 4,
     singleMarket: true,
@@ -358,6 +360,7 @@ const FIXTURE_VIEW: ScorecardView = {
         "The operator moved up in its star rating over the most recent scoring period — a sign of improving operating consistency.",
     },
   ],
+  maturityNote: null,
   peers: [
     {
       slug: "sonoran-property-management",

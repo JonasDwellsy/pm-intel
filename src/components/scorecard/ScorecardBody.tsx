@@ -77,7 +77,7 @@ export function ScorecardBody({
         <ScorecardHeader header={view.header} />
 
         {/* 30-second exec readout */}
-        <ExecReadout readout={view.readout} />
+        <ExecReadout readout={view.readout} maturityNote={view.maturityNote} />
 
         {/* 01 Scale & Fit */}
         <ScaleFitSection

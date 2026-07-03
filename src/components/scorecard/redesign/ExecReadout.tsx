@@ -14,15 +14,16 @@ const AREA_ANCHORS: Record<ReadoutRow["area"], string> = {
 
 interface ExecReadoutProps {
   readout: ReadoutRow[];
+  maturityNote?: string | null;
 }
 
 /**
  * 4-row bordered table: eyebrow "30-second readout" + one row per area.
  * Each area name links to its section anchor. LabelChip rendered when label set.
  */
-export function ExecReadout({ readout }: ExecReadoutProps) {
+export function ExecReadout({ readout, maturityNote }: ExecReadoutProps) {
   return (
-    <div style={{ marginBottom: "24px" }}>
+    <div style={{ marginTop: "22px", marginBottom: "24px" }}>
       {/* Eyebrow */}
       <div
         style={{
@@ -88,6 +89,13 @@ export function ExecReadout({ readout }: ExecReadoutProps) {
           </div>
         ))}
       </div>
+
+      {/* Maturity note — shown when thin/early coverage */}
+      {maturityNote != null && (
+        <div style={{ fontSize: "11px", color: "#8894ac", marginTop: "7px" }}>
+          ⓘ {maturityNote}
+        </div>
+      )}
     </div>
   );
 }

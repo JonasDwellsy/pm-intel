@@ -89,3 +89,23 @@ test("no trajectory → no trend items (back-compat)", () => {
   const items = buildWatchItems(sc(), 0.01);
   assert.ok(items.every((i) => !/climbing|downgrade|dropped|improvement/i.test(i.headline)));
 });
+
+// ── Single-community watch item tests ────────────────────────────────────────
+
+test("observedCommunities = 1 yields a data item with headline matching /single community/i", () => {
+  const items = buildWatchItems(
+    sc({ coverage: { observedCommunities: 1, monthsOnPlatform: 6, urusT12: 58, yearsVisible: 6 } }),
+    0.01
+  );
+  const item = items.find((i) => /single community/i.test(i.headline));
+  assert.ok(item !== undefined);
+  assert.equal(item!.kind, "data");
+});
+
+test("observedCommunities = 40 does not yield a single-community data item", () => {
+  const items = buildWatchItems(
+    sc({ coverage: { observedCommunities: 40, yearsVisible: 6 } }),
+    0.01
+  );
+  assert.ok(items.every((i) => !/single community/i.test(i.headline) && !/limited footprint/i.test(i.headline)));
+});
