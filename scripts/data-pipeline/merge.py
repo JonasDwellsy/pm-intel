@@ -234,6 +234,10 @@ def merge_markets(per_market_blobs, methodology_version="v0.6.4"):
         "markets": [],
         "pms": [],
         "canonicalOperators": {},
+        # v0.24 — internal (underscore prefix = stripped from the seed by
+        # snapshot_and_write): sub-eligible merge-tool fragments, aggregated
+        # across markets + written to the separate merge_fragments.json sidecar.
+        "_mergeFragments": [],
     }
 
     max_data_as_of = None
@@ -254,6 +258,7 @@ def merge_markets(per_market_blobs, methodology_version="v0.6.4"):
             # on the methodology backlog.
             slug_counts[pm["slug"]] += 1
             merged["pms"].append(pm)
+        merged["_mergeFragments"].extend(blob.get("mergeFragments", []))
         if blob.get("dataAsOf") and (max_data_as_of is None or blob["dataAsOf"] > max_data_as_of):
             max_data_as_of = blob["dataAsOf"]
 
@@ -596,6 +601,31 @@ def snapshot_and_write(merged, target_path):
     print(
         f"[merge] wrote {summary_path} "
         f"({os.path.getsize(summary_path):,} bytes)"
+    )
+
+    # v0.24 — merge-tool sidecar: sub-eligible operator fragments surfaced
+    # ONLY in the admin merge tool (never in the seed, PM table, or any
+    # ranked / searchable surface). Written atomically with the seed so it
+    # can't drift. Deterministic order (market, then -T12, then companyId) and
+    # no generatedAt stamp keep the committed git diff stable across re-runs.
+    fragments = sorted(
+        merged.get("_mergeFragments", []),
+        key=lambda x: (x.get("marketId", ""),
+                       -x.get("t12ListingsCount", 0),
+                       x.get("companyId", "")),
+    )
+    fragments_path = os.path.join(
+        os.path.dirname(target_path), "merge_fragments.json"
+    )
+    with open(fragments_path, "w") as f:
+        json.dump({
+            "methodologyVersion": out.get("methodologyVersion"),
+            "dataAsOf": out.get("dataAsOf"),
+            "fragments": fragments,
+        }, f, separators=(",", ":"))
+    print(
+        f"[merge] wrote {fragments_path} "
+        f"({len(fragments)} fragments, {os.path.getsize(fragments_path):,} bytes)"
     )
 
 

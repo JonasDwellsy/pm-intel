@@ -103,6 +103,12 @@ model PM {
   // entities; single-market ids have no matching row.
   canonicalOperatorId    String?
   canonicalOperatorName  String?
+  // v0.24 — Dwellsy company-page id: the effective grouping id
+  // (parent_company_id if parented, else child_company_id). Deep-links each
+  // operator to dwellsy.com/company/<id>; the admin merge tool uses it to
+  // confirm merges from source. Null only for the rare name-fallback
+  // operators on old-schema CSVs. Not indexed (admin-only read path).
+  companyId              String?
   // v0.6.4 Patch 2 — concession detection results from the regex
   // classifier run against listing descriptions over the T12 window.
   // concessionRate is null when the operator wasn't found in the CSV
