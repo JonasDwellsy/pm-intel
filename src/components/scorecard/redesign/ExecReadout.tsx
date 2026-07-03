@@ -67,7 +67,7 @@ export function ExecReadout({ readout, maturityNote }: ExecReadoutProps) {
             }}
           >
             {/* Area label — icon + link to section anchor */}
-            <div style={{ width: "150px", flexShrink: 0 }}>
+            <div style={{ width: "178px", flexShrink: 0, whiteSpace: "nowrap" }}>
               <span
                 style={{
                   fontSize: "12px",

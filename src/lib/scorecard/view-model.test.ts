@@ -84,7 +84,8 @@ test("scaleFit surfaces estimate band + confidence + observed units, and fills t
   assert.equal(v.scaleFit.top3Share, 0.84);
   const row = v.readout.find((r) => r.area === "Scale & Fit")!;
   assert.match(row.value, /644/);
-  assert.match(row.value, /medium/i); // confidence lowercased
+  assert.match(row.value, /est\. units/i);
+  assert.doesNotMatch(row.value, /confidence/i); // confidence dropped from headline (still in scaleFit.estimate)
   assert.match(row.value, /SFR Independent/i); // type label included
   assert.match(row.value, /Chattanooga/i); // market name included
 });
@@ -163,9 +164,10 @@ test("reach and quality sparklines populate from trajectory; share stays empty",
   assert.equal(spark("share").series.length, 0);
 });
 
-test("thin operator: maturityNote contains 'Early coverage', communitiesObserved = 1, readout[0] mentions community + self-report, momentum readout contains 'mo observed' when insufficient", () => {
+test("thin MF/BTR operator: maturityNote contains 'Early coverage', communitiesObserved = 1, readout[0] mentions community + self-report, momentum readout contains 'mo observed' when insufficient", () => {
   const v = buildScorecardView({
     scorecard: scFixture({
+      pm: { quadrant7Cell: "MF/BTR" },
       coverage: { observedCommunities: 1, monthsOnPlatform: 6, urusT12: 58, totalObservedUnits: 58 },
       portfolioEstimate: { status: "insufficient_data", point: null, low: null, high: null, confidence: null },
       rentTrajectory: [],
@@ -193,6 +195,20 @@ test("non-thin operator (observedCommunities = 40): maturityNote is null", () =>
     trajectory: { points: [] },
     marketConcessionMedian: null,
   });
+  assert.equal(v.maturityNote, null);
+});
+
+test("SFR operator: communitiesObserved is null and maturityNote is null even with a small community count", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      pm: { quadrant7Cell: "SFR Independent" },
+      coverage: { observedCommunities: 26, monthsOnPlatform: 6 },
+    }),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.equal(v.scaleFit.communitiesObserved, null);
   assert.equal(v.maturityNote, null);
 });
 

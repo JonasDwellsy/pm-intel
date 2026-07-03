@@ -92,9 +92,9 @@ test("no trajectory → no trend items (back-compat)", () => {
 
 // ── Single-community watch item tests ────────────────────────────────────────
 
-test("observedCommunities = 1 yields a data item with headline matching /single community/i", () => {
+test("observedCommunities = 1 yields a data item with headline matching /single community/i for MF/BTR", () => {
   const items = buildWatchItems(
-    sc({ coverage: { observedCommunities: 1, monthsOnPlatform: 6, urusT12: 58, yearsVisible: 6 } }),
+    sc({ pm: { quadrant7Cell: "MF/BTR" }, coverage: { observedCommunities: 1, monthsOnPlatform: 6, urusT12: 58, yearsVisible: 6 } }),
     0.01
   );
   const item = items.find((i) => /single community/i.test(i.headline));
@@ -102,9 +102,17 @@ test("observedCommunities = 1 yields a data item with headline matching /single 
   assert.equal(item!.kind, "data");
 });
 
-test("observedCommunities = 40 does not yield a single-community data item", () => {
+test("observedCommunities = 40 does not yield a single-community data item (MF/BTR)", () => {
   const items = buildWatchItems(
-    sc({ coverage: { observedCommunities: 40, yearsVisible: 6 } }),
+    sc({ pm: { quadrant7Cell: "MF/BTR" }, coverage: { observedCommunities: 40, yearsVisible: 6 } }),
+    0.01
+  );
+  assert.ok(items.every((i) => !/single community/i.test(i.headline) && !/limited footprint/i.test(i.headline)));
+});
+
+test("SFR: observedCommunities = 1 does NOT yield a single-community item ('community' is meaningless for SFR)", () => {
+  const items = buildWatchItems(
+    sc({ pm: { quadrant7Cell: "SFR Independent" }, coverage: { observedCommunities: 1, monthsOnPlatform: 6, urusT12: 58, yearsVisible: 6 } }),
     0.01
   );
   assert.ok(items.every((i) => !/single community/i.test(i.headline) && !/limited footprint/i.test(i.headline)));

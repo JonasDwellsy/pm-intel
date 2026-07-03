@@ -223,29 +223,31 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage }: ScaleFi
                 </div>
               )}
 
-              {/* Communities observed */}
-              <div>
-                <div
-                  style={{
-                    fontSize: "10px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                    color: "#8894ac",
-                    fontWeight: 600,
-                  }}
-                >
-                  Communities
+              {/* Communities observed — MF/BTR only; meaningless for SFR */}
+              {scaleFit.communitiesObserved != null && (
+                <div>
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: "#8894ac",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Communities
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      color: "#0f1f3f",
+                    }}
+                  >
+                    {scaleFit.communitiesObserved}
+                  </div>
                 </div>
-                <div
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    color: "#0f1f3f",
-                  }}
-                >
-                  {scaleFit.communitiesObserved ?? "—"}
-                </div>
-              </div>
+              )}
 
               {/* Footprint */}
               <div>

@@ -175,9 +175,11 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const geo = scorecard.geographicCoverage;
   const conc = scorecard.lendingSignals?.geographicConcentration;
 
-  const communitiesObserved = scorecard.coverage?.observedCommunities ?? null;
+  const isMultifamily = (scorecard.pm.quadrant7Cell ?? "").includes("MF/BTR");
+  const rawCommunities = scorecard.coverage?.observedCommunities ?? null;
+  const communitiesObserved = isMultifamily ? rawCommunities : null;
   const months = scorecard.coverage?.monthsOnPlatform ?? null;
-  const thin = communitiesObserved != null && communitiesObserved <= 2;
+  const thin = isMultifamily && rawCommunities != null && rawCommunities <= 2;
 
   const focalRentInput = { pm: { slug: scorecard.pm.slug }, rentTrajectory: scorecard.rentTrajectory };
   const poolRentInputs = pool.map((m) => ({ pm: { slug: m.slug }, rentTrajectory: m.scorecard.rentTrajectory }));
@@ -207,7 +209,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const mktShort = scorecard.market.name ?? scorecard.market.fullName;
   const units = scorecard.coverage?.totalObservedUnits ?? scorecard.coverage?.urusT12 ?? "—";
   if (pe?.point != null) {
-    readout[0].value = `${typeLabel} in ${mktShort} · ~${pe.point} est. units · ${(pe.confidence ?? "unrated").toLowerCase()} confidence`;
+    readout[0].value = `${typeLabel} in ${mktShort} · ~${pe.point} est. units`;
   } else if (communitiesObserved != null) {
     readout[0].value = `${typeLabel} in ${mktShort} · ${communitiesObserved} ${communitiesObserved === 1 ? "community" : "communities"} · ${units} units observed — self-report needed for a portfolio estimate`;
   } else {

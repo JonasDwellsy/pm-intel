@@ -85,8 +85,10 @@ export function buildWatchItems(
   }
 
   // DATA — single / very small footprint: metrics describe one property, not a portfolio.
+  // "Community" is an MF/BTR concept (apartment complexes); meaningless for SFR.
+  const isMultifamily = (scorecard.pm?.quadrant7Cell ?? "").includes("MF/BTR");
   const communities = scorecard.coverage?.observedCommunities ?? null;
-  if (communities != null && communities <= 2) {
+  if (isMultifamily && communities != null && communities <= 2) {
     const units = scorecard.coverage?.totalObservedUnits ?? scorecard.coverage?.urusT12 ?? null;
     const months = scorecard.coverage?.monthsOnPlatform ?? null;
     items.push({
