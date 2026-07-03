@@ -51,6 +51,10 @@ type AnyRecord = Record<string, unknown>;
 
 type InputMarket = {
   id: string;
+  // Per-market data cutoff (each market refreshes on its own cadence).
+  // Populated by merge.py from the per-market source blob. Optional for
+  // back-compat with pre-fix seed JSONs; falls back to the global dataAsOf.
+  dataAsOf?: string;
   msaCode: string;
   city: string;
   state: string;
@@ -127,6 +131,16 @@ type InputFile = {
 };
 
 const data = seedData as unknown as InputFile;
+
+// Per-market data-cutoff lookup. The scorecard footer shows each operator's
+// OWN market cutoff (markets refresh on different dates), not the global max
+// across all markets — which is what data.dataAsOf holds. Falls back to the
+// global value for any market missing a per-market date.
+const marketDataAsOf = new Map<string, string>(
+  data.markets
+    .filter((m) => typeof m.dataAsOf === "string")
+    .map((m) => [m.id, m.dataAsOf as string])
+);
 
 // ─── Canonical-operator manual overrides ────────────────────────────
 //
@@ -861,7 +875,8 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
   return {
     methodologyVersion: data.methodologyVersion,
     designVersion: data.designVersion,
-    dataAsOf: data.dataAsOf,
+    // Per-market cutoff (this operator's market), not the global max.
+    dataAsOf: marketDataAsOf.get(asString(pm.marketId)) ?? data.dataAsOf,
     pm: {
       slug: asString(pm.slug),
       name: asString(pm.name),
