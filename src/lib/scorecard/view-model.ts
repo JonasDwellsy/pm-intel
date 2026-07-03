@@ -9,7 +9,7 @@ import { operatingPerformanceLabel, type ScoreLabel, metricLabels, strongestAndW
 import { momentumDirection, type MomentumDirection } from "./momentum";
 import { buildWatchItems, type WatchItem, type WatchTrajectory } from "./watch-items";
 import { selectSimilarLocalPlayers, type PeerCandidate, type SelectedPeer } from "./peers";
-import { rentTierPosition, rentTierDetail } from "./rent-tier";
+import { rentTierDetail } from "./rent-tier";
 import type { RentTierDetail } from "./rent-tier";
 
 export interface HeaderView {
@@ -32,11 +32,10 @@ export interface ReadoutRow {
 export interface ScaleFitView {
   takeaway: string;
   observedUnits: number | null;
-  estimate: { point: number | null; low: number | null; high: number | null; confidence: string | null; status: string };
+  estimate: { point: number | null; low: number | null; high: number | null; confidence: string | null; status: string; message: string | null };
   topCities: Array<{ name: string; pct: number }>;
   top3Share: number | null;
   cohortTop3: number | null;
-  rentTierPosition: number | null;
   rentTier: RentTierDetail | null;
   communitiesObserved: number | null;
   propertyType: string | null;
@@ -188,12 +187,11 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     observedUnits: scorecard.coverage?.urusT12 ?? null,
     estimate: {
       point: pe?.point ?? null, low: pe?.low ?? null, high: pe?.high ?? null,
-      confidence: pe?.confidence ?? null, status: pe?.status ?? "insufficient_data",
+      confidence: pe?.confidence ?? null, status: pe?.status ?? "insufficient_data", message: pe?.message ?? null,
     },
     topCities: geo?.topCities ?? [],
     top3Share: conc?.top3CityShare ?? null,
     cohortTop3: conc?.cohortMedianTop3 ?? null,
-    rentTierPosition: rentTierPosition(focalRentInput, poolRentInputs),
     rentTier: rentTierDetail(focalRentInput, poolRentInputs),
     communitiesObserved,
     propertyType: scorecard.pm.quadrant7Cell ?? null,

@@ -232,6 +232,7 @@ const FIXTURE_VIEW: ScorecardView = {
       high: 870,
       confidence: "Medium",
       status: "estimated",
+      message: null,
     },
     topCities: [
       { name: "Phoenix", pct: 0.61 },
@@ -240,7 +241,6 @@ const FIXTURE_VIEW: ScorecardView = {
     ],
     top3Share: 0.91,
     cohortTop3: 0.78,
-    rentTierPosition: 0.72,
     rentTier: { position: 0.72, rentMedian: 1850, marketP25: 1400, marketP75: 2100, sampleSize: 240 },
     communitiesObserved: 36,
     propertyType: "SFR Independent",

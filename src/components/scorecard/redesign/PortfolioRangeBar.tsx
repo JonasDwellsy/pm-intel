@@ -16,7 +16,7 @@ interface PortfolioRangeBarProps {
  *  - Shows estimate.status message when point is null.
  */
 export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBarProps) {
-  const { point, low, high, confidence, status } = estimate;
+  const { point, low, high, confidence, status, message } = estimate;
   const hasBand = low != null && high != null;
 
   // We need a reference scale to convert unit counts to track positions.
@@ -33,6 +33,11 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
 
   if (point == null && !hasBand) {
     // Cannot render — show status message only.
+    const friendly =
+      message ??
+      (status === "insufficient_data"
+        ? "Not enough observed data to estimate portfolio size yet."
+        : status);
     return (
       <div
         style={{
@@ -55,7 +60,7 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
         >
           Portfolio size
         </span>
-        <p style={{ margin: "6px 0 0" }}>{status}</p>
+        <p style={{ margin: "6px 0 0" }}>{friendly}</p>
       </div>
     );
   }

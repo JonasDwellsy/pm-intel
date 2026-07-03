@@ -40,7 +40,11 @@ export function ConcentrationBar({ topCities, top3Share, cohortTop3 }: Concentra
     const topPct = Math.round(top3Share * 100);
     if (cohortTop3 != null) {
       const cohortPct = Math.round(cohortTop3 * 100);
-      const direction = topPct > cohortPct ? "more concentrated than peers" : "less concentrated than peers";
+      const delta = topPct - cohortPct;
+      const direction =
+        Math.abs(delta) <= 2 ? "in line with peers"
+        : delta > 0 ? "more concentrated than peers"
+        : "less concentrated than peers";
       concentrationLine = `Top-3 share ${topPct}% vs cohort median ${cohortPct}% — ${direction}.`;
     } else {
       concentrationLine = `Top-3 share ${topPct}% of portfolio.`;

@@ -140,7 +140,7 @@ test("rent tier position is populated from operator rent vs pool", () => {
     trajectory: { points: [] },
     marketConcessionMedian: 0.01,
   });
-  assert.ok(view.scaleFit.rentTierPosition != null && view.scaleFit.rentTierPosition > 0.5);
+  assert.ok(view.scaleFit.rentTier != null && view.scaleFit.rentTier.position > 0.5);
 });
 
 test("reach and quality sparklines populate from trajectory; share stays empty", () => {
