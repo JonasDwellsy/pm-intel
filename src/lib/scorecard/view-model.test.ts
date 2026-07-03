@@ -37,3 +37,22 @@ test("readout has the four areas with the Operating Performance label", () => {
   const op = v.readout.find((r) => r.area === "Operating Performance");
   assert.equal(op!.label, "good"); // composite primary 68 -> good
 });
+
+test("scaleFit surfaces estimate band + confidence + observed units, and fills the readout", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      portfolioEstimate: { status: "estimated", point: 644, low: 410, high: 870, confidence: "Medium" },
+      coverage: { urusT12: 318, citiesObserved: 3 },
+      geographicCoverage: { topCities: [{ name: "Chattanooga", pct: 0.52 }], coverageMapPoints: [] },
+      lendingSignals: { geographicConcentration: { top3CityShare: 0.84, cohortMedianTop3: 0.61 } },
+    }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01,
+  });
+  assert.equal(v.scaleFit.estimate.point, 644);
+  assert.equal(v.scaleFit.estimate.confidence, "Medium");
+  assert.equal(v.scaleFit.observedUnits, 318);
+  assert.equal(v.scaleFit.top3Share, 0.84);
+  const row = v.readout.find((r) => r.area === "Scale & Fit")!;
+  assert.match(row.value, /644/);
+  assert.match(row.value, /Medium/i);
+});

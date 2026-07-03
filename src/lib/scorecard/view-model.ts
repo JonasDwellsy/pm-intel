@@ -24,9 +24,22 @@ export interface ReadoutRow {
   label?: ScoreLabel | string;
 }
 
+export interface ScaleFitView {
+  takeaway: string;
+  observedUnits: number | null;
+  estimate: { point: number | null; low: number | null; high: number | null; confidence: string | null; status: string };
+  topCities: Array<{ name: string; pct: number }>;
+  top3Share: number | null;
+  cohortTop3: number | null;
+  propertyType: string | null;
+  citiesObserved: number | null;
+  singleMarket: boolean;
+}
+
 export interface ScorecardView {
   header: HeaderView;
   readout: ReadoutRow[];
+  scaleFit: ScaleFitView;
 }
 
 export interface BuildViewInput {
@@ -34,6 +47,11 @@ export interface BuildViewInput {
   pool: unknown[];
   trajectory: { points: Array<{ portfolioPoint: number | null }> };
   marketConcessionMedian: number | null;
+}
+
+function buildScaleFitTakeaway(sc: ScorecardData): string {
+  const type = sc.pm.quadrant7Cell ?? "operator";
+  return `${sc.pm.name} operates in ${sc.market.fullName} as a ${type}.`;
 }
 
 export function buildScorecardView(input: BuildViewInput): ScorecardView {
@@ -64,5 +82,27 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     { area: "Watch Items", value: "" },
   ];
 
-  return { header, readout };
+  const pe = scorecard.portfolioEstimate;
+  const geo = scorecard.geographicCoverage;
+  const conc = scorecard.lendingSignals?.geographicConcentration;
+  const scaleFit: ScaleFitView = {
+    takeaway: buildScaleFitTakeaway(scorecard),
+    observedUnits: scorecard.coverage?.urusT12 ?? null,
+    estimate: {
+      point: pe?.point ?? null, low: pe?.low ?? null, high: pe?.high ?? null,
+      confidence: pe?.confidence ?? null, status: pe?.status ?? "estimated",
+    },
+    topCities: geo?.topCities ?? [],
+    top3Share: conc?.top3CityShare ?? null,
+    cohortTop3: conc?.cohortMedianTop3 ?? null,
+    propertyType: scorecard.pm.quadrant7Cell ?? null,
+    citiesObserved: scorecard.coverage?.citiesObserved ?? null,
+    singleMarket: header.singleMarket,
+  };
+
+  readout[0].value = pe?.point != null
+    ? `~${pe.point} est. units · ${pe.confidence ?? "unrated"} confidence`
+    : (pe?.message ?? "Portfolio size not estimated");
+
+  return { header, readout, scaleFit };
 }
