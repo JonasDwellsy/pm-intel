@@ -1,0 +1,93 @@
+// Scorecard redesign — 30-second exec readout table.
+// Pure server component; no client hooks.
+
+import type { ReadoutRow } from "@/lib/scorecard/view-model";
+import { LabelChip } from "@/components/scorecard/redesign/LabelChip";
+
+/** Maps a ReadoutRow area to its section anchor href. */
+const AREA_ANCHORS: Record<ReadoutRow["area"], string> = {
+  "Scale & Fit": "#scale-fit",
+  "Operating Performance": "#operating-performance",
+  "Momentum": "#momentum",
+  "Watch Items": "#watch-items",
+};
+
+interface ExecReadoutProps {
+  readout: ReadoutRow[];
+}
+
+/**
+ * 4-row bordered table: eyebrow "30-second readout" + one row per area.
+ * Each area name links to its section anchor. LabelChip rendered when label set.
+ */
+export function ExecReadout({ readout }: ExecReadoutProps) {
+  return (
+    <div style={{ marginBottom: "24px" }}>
+      {/* Eyebrow */}
+      <div
+        style={{
+          fontSize: "10px",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "#8894ac",
+          fontWeight: 600,
+          marginBottom: "6px",
+        }}
+      >
+        30-second readout
+      </div>
+
+      {/* Bordered table */}
+      <div
+        style={{
+          border: "1px solid #e0e5ee",
+          borderRadius: "9px",
+          overflow: "hidden",
+        }}
+      >
+        {readout.map((row, i) => (
+          <div
+            key={row.area}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              padding: "11px 14px",
+              borderTop: i === 0 ? "none" : "1px solid #eef1f6",
+              background: i === 0 ? "#f7f9fc" : undefined,
+            }}
+          >
+            {/* Area label — links to section anchor */}
+            <div style={{ width: "150px", flexShrink: 0 }}>
+              <a
+                href={AREA_ANCHORS[row.area]}
+                style={{
+                  fontWeight: 600,
+                  fontSize: "12px",
+                  color: "#0f1f3f",
+                  textDecoration: "none",
+                }}
+              >
+                {row.area}
+              </a>
+            </div>
+
+            {/* Value text */}
+            <div
+              style={{
+                flex: 1,
+                color: "#374356",
+                fontSize: "13px",
+              }}
+            >
+              {row.value}
+            </div>
+
+            {/* Label chip — only when label is set */}
+            {row.label != null && <LabelChip label={row.label} />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
