@@ -33,11 +33,34 @@
     "TI",
     "UDR",
     "DLH",
-    "ARG"
+    "ARG",
+    "PMC",
+    "RPM",
+    "PMG",
+    "KMG",
+    "TMG",
+    "REI",
+    "CRM"
   ],
   "_stopwords_comment": "2-letter English words that should NOT be uppercased by the auto-upper-2-char rule. The auto rule treats any 2-char all-letter token as an acronym; these are the exceptions that are real English words and would create false positives ('Mansion At Bala' → 'Mansion AT Bala' is wrong). State codes (TX, FL, WA, CO, etc.) that happen to spell English words (IN, OR, OK, ME, HI, NO) default to staying lowercase here — those collisions are rarer than the prepositions/conjunctions they conflict with. If a specific state-code-as-token case shows up wrong, use the per-PM nameOverrides mechanism.",
   "stopwords_2char": [
-    "of", "to", "at", "in", "on", "as", "by", "my", "is", "it",
-    "an", "do", "no", "or", "so", "me", "hi", "ok"
+    "of",
+    "to",
+    "at",
+    "in",
+    "on",
+    "as",
+    "by",
+    "my",
+    "is",
+    "it",
+    "an",
+    "do",
+    "no",
+    "or",
+    "so",
+    "me",
+    "hi",
+    "ok"
   ]
 }
