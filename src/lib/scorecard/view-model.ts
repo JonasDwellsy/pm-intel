@@ -45,7 +45,7 @@ export interface MetricRow {
   position: number | null; star: "gold" | "silver" | null; sub: string[];
 }
 export interface OperatingView {
-  sectionLabel: ScoreLabel; strongest: string[]; watch: string[]; metrics: MetricRow[];
+  sectionLabel: ScoreLabel; takeaway: string; strongest: string[]; watch: string[]; metrics: MetricRow[];
 }
 
 export interface MomentumView {
@@ -188,11 +188,19 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
         benchmark: vb.benchmark, position: pcts[k] != null ? pcts[k]! / 100 : null,
         star: metricStar(scorecard, k), sub: vb.sub };
     });
+  const aboveCount = metrics.filter((m) => m.label === "strong" || m.label === "good").length;
+  const operatingTakeaway = metrics.length === 0
+    ? "Insufficient data to score operating performance."
+    : aboveCount === metrics.length
+      ? `Above the cohort median on all ${metrics.length} scored dimensions.`
+      : aboveCount === 0
+        ? `Below the cohort median on all ${metrics.length} scored dimensions.`
+        : `Above the cohort median on ${aboveCount} of ${metrics.length} scored dimensions.`;
   const operating: OperatingView = {
-    sectionLabel: opLabel, strongest: sw.strongest.map((k) => METRIC_TITLES[k]),
+    sectionLabel: opLabel, takeaway: operatingTakeaway,
+    strongest: sw.strongest.map((k) => METRIC_TITLES[k]),
     watch: sw.watch.map((k) => METRIC_TITLES[k]), metrics,
   };
-  const aboveCount = metrics.filter((m) => m.label === "strong" || m.label === "good").length;
   readout[1].value = `Above cohort median on ${aboveCount} of ${metrics.length} scored dimensions`;
 
   const portfolioSeries = (input.trajectory?.points ?? [])
