@@ -12,6 +12,7 @@ import {
   aggregateMemberSnapshots,
   quarterEndDate,
   collapseMemberRowsToQuarterly,
+  parseSubmarketCount,
   type OperatorTrajectory,
   type TrajectoryPoint,
   type MemberSnapshotRow,
@@ -242,4 +243,14 @@ test("operator page renders the aggregate trajectory section", () => {
     src.includes("OperatorAggregateTrajectorySection"),
     "operator page must render the aggregate trajectory section"
   );
+});
+
+// ─── parseSubmarketCount ────────────────────────────────────────
+
+test("parseSubmarketCount counts a JSON array and tolerates null/garbage", () => {
+  assert.equal(parseSubmarketCount(JSON.stringify(["a", "b", "c"])), 3);
+  assert.equal(parseSubmarketCount(JSON.stringify([])), 0);
+  assert.equal(parseSubmarketCount(null), null);
+  assert.equal(parseSubmarketCount("not json"), null);
+  assert.equal(parseSubmarketCount(JSON.stringify({ a: 1 })), null);
 });
