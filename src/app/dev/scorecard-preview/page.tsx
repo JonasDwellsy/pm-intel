@@ -219,7 +219,7 @@ const FIXTURE_VIEW: ScorecardView = {
     },
     {
       area: "Watch Items",
-      value: "2 to review · 1 positive",
+      value: "3 to review · 2 positive",
     },
   ],
   scaleFit: {
@@ -240,7 +240,7 @@ const FIXTURE_VIEW: ScorecardView = {
     ],
     top3Share: 0.91,
     cohortTop3: 0.78,
-    rentTierPosition: null,
+    rentTierPosition: 0.72,
     propertyType: "SFR Independent",
     citiesObserved: 4,
     singleMarket: true,
@@ -313,14 +313,14 @@ const FIXTURE_VIEW: ScorecardView = {
       {
         key: "reach",
         label: "Geographic reach",
-        direction: "insufficient",
-        series: [],
+        direction: "growing",
+        series: [2, 3, 3, 4, 5],
       },
       {
         key: "quality",
         label: "Operating quality",
-        direction: "insufficient",
-        series: [],
+        direction: "growing",
+        series: [4, 4, 5, 6, 7],
       },
     ],
   },
@@ -333,6 +333,13 @@ const FIXTURE_VIEW: ScorecardView = {
       ask: "What's the plan for geographic diversification over the next 12–24 months?",
     },
     {
+      kind: "risk",
+      headline: "Concession use climbing",
+      explanation:
+        "Concessions rose from 4% to 11% of listings over recent quarters — a sharp increase.",
+      ask: "Is this a response to softening demand, or a deliberate leasing push?",
+    },
+    {
       kind: "data",
       headline: "Portfolio estimate is model-derived",
       explanation:
@@ -343,6 +350,12 @@ const FIXTURE_VIEW: ScorecardView = {
       headline: "Best-in-cohort lease-up speed",
       explanation:
         "21-day average DOM (gold star) — meaningfully faster than the 28-day market average. Suggests strong pricing and listing quality.",
+    },
+    {
+      kind: "positive",
+      headline: "Recent rating improvement",
+      explanation:
+        "The operator moved up in its star rating over the most recent scoring period — a sign of improving operating consistency.",
     },
   ],
   peers: [
