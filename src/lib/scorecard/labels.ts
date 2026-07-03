@@ -49,3 +49,15 @@ export function compositePercentile(scorecard: ScorecardData): number | null {
 export function operatingPerformanceLabel(scorecard: ScorecardData): ScoreLabel {
   return scoreLabel(compositePercentile(scorecard));
 }
+
+/** Section-header summary: strengths (strong, then good) and the watch list
+ *  (metrics in the bottom band). Insufficient-data metrics are omitted. */
+export function strongestAndWatch(
+  scorecard: ScorecardData
+): { strongest: MetricKey[]; watch: MetricKey[] } {
+  const labels = metricLabels(scorecard);
+  const strong = METRIC_KEYS.filter((k) => labels[k] === "strong");
+  const good = METRIC_KEYS.filter((k) => labels[k] === "good");
+  const watch = METRIC_KEYS.filter((k) => labels[k] === "watch");
+  return { strongest: [...strong, ...good], watch };
+}

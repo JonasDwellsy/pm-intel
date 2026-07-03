@@ -1,6 +1,6 @@
 import test from "node:test";
 import { strict as assert } from "node:assert";
-import { scoreLabel, metricLabels, operatingPerformanceLabel, compositePercentile } from "./labels";
+import { scoreLabel, metricLabels, operatingPerformanceLabel, compositePercentile, strongestAndWatch } from "./labels";
 import type { ScorecardData } from "@/lib/types";
 
 test("scoreLabel maps percentile bands (>=75/50/25) with boundaries", () => {
@@ -58,4 +58,11 @@ test("operatingPerformanceLabel is insufficient when no composite percentile", (
     operatingPerformanceLabel(fixture({ rank: { percentiles: {}, percentilesMulti: {}, compositeCohortUsedForStar: undefined } })),
     "insufficient"
   );
+});
+
+test("strongestAndWatch splits strengths (strong>good) from watch, ignoring insufficient", () => {
+  const sw = strongestAndWatch(fixture());
+  // dom=strong, tenancy=good, rentPerformance=watch, marketing/cv=insufficient
+  assert.deepEqual(sw.strongest, ["dom", "tenancy"]); // strong before good
+  assert.deepEqual(sw.watch, ["rentPerformance"]);
 });
