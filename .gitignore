@@ -51,3 +51,6 @@ src/data/.backups/
 
 # v0.22 3b — transient backfill scratch (pipeline outputs per quarter)
 .trajectory-backfill-tmp/
+
+# brainstorming visual-companion scratch
+.superpowers/
