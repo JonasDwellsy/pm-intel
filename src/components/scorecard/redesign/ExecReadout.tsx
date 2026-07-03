@@ -12,6 +12,14 @@ const AREA_ANCHORS: Record<ReadoutRow["area"], string> = {
   "Watch Items": "#watch-items",
 };
 
+/** Small muted area icon rendered before each row's label. */
+const AREA_ICONS: Record<ReadoutRow["area"], string> = {
+  "Scale & Fit": "⚖",
+  "Operating Performance": "📊",
+  "Momentum": "📈",
+  "Watch Items": "⚑",
+};
+
 interface ExecReadoutProps {
   readout: ReadoutRow[];
   maturityNote?: string | null;
@@ -58,8 +66,17 @@ export function ExecReadout({ readout, maturityNote }: ExecReadoutProps) {
               background: i === 0 ? "#f7f9fc" : undefined,
             }}
           >
-            {/* Area label — links to section anchor */}
+            {/* Area label — icon + link to section anchor */}
             <div style={{ width: "150px", flexShrink: 0 }}>
+              <span
+                style={{
+                  fontSize: "12px",
+                  marginRight: "6px",
+                  opacity: 0.75,
+                }}
+              >
+                {AREA_ICONS[row.area]}
+              </span>
               <a
                 href={AREA_ANCHORS[row.area]}
                 style={{
@@ -77,8 +94,8 @@ export function ExecReadout({ readout, maturityNote }: ExecReadoutProps) {
             <div
               style={{
                 flex: 1,
-                color: "#374356",
-                fontSize: "13px",
+                color: "#1e2a3d",
+                fontSize: "13.5px",
               }}
             >
               {row.value}

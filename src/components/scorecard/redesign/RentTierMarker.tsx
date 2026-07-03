@@ -47,7 +47,7 @@ export function RentTierMarker({ detail }: RentTierMarkerProps) {
   if (detail.marketP25 != null && detail.marketP75 != null) {
     line2 = `Market P25 $${Math.round(detail.marketP25).toLocaleString()} – P75 $${Math.round(detail.marketP75).toLocaleString()}`;
     if (detail.sampleSize != null) {
-      line2 += ` · based on ${detail.sampleSize} recent listing${detail.sampleSize === 1 ? "" : "s"}`;
+      line2 += ` · from ${detail.sampleSize} of this operator's own recent listing${detail.sampleSize === 1 ? "" : "s"}`;
     }
   }
 

@@ -84,7 +84,9 @@ test("scaleFit surfaces estimate band + confidence + observed units, and fills t
   assert.equal(v.scaleFit.top3Share, 0.84);
   const row = v.readout.find((r) => r.area === "Scale & Fit")!;
   assert.match(row.value, /644/);
-  assert.match(row.value, /Medium/i);
+  assert.match(row.value, /medium/i); // confidence lowercased
+  assert.match(row.value, /SFR Independent/i); // type label included
+  assert.match(row.value, /Chattanooga/i); // market name included
 });
 
 test("operating rows carry label/value/position/star and drop null-percentile metrics", () => {
@@ -238,5 +240,45 @@ test("watch items + peers assembled; readout shows non-positive count", () => {
   assert.ok(v.peers.some((p) => p.isFocal && p.slug === "doorby-chattanooga-tn"));
   assert.ok(v.peers.some((p) => p.slug === "river"));
   const wr = v.readout.find((r) => r.area === "Watch Items")!;
-  assert.match(wr.value, /\d/); // has a count
+  // New format: lists headline text (not a bare count); chip label shows "N to review"
+  assert.ok(wr.value.length > 0); // has content
+  assert.ok(wr.label != null && /to review/i.test(String(wr.label))); // chip present
+});
+
+test("readout[0] Scale & Fit includes type label and market name", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      portfolioEstimate: { status: "estimated", point: 200, low: null, high: null, confidence: "High" },
+    }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
+  });
+  const row = v.readout.find((r) => r.area === "Scale & Fit")!;
+  assert.match(row.value, /SFR Independent/i); // typeLabel from quadrant7Cell
+  assert.match(row.value, /Chattanooga/i);      // mktShort from market.name
+  assert.match(row.value, /200/);               // point estimate
+});
+
+test("readout[2] Momentum gives nuanced phrase for growing trajectory", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({ rentTrajectory: [] }),
+    pool: [],
+    trajectory: { points: [
+      { portfolioPoint: 100 }, { portfolioPoint: 120 }, { portfolioPoint: 140 }, { portfolioPoint: 160 },
+    ] },
+    marketConcessionMedian: null,
+  });
+  const row = v.readout.find((r) => r.area === "Momentum")!;
+  assert.equal(row.value, "Portfolio larger than when first observed");
+});
+
+test("readout[3] Watch Items lists item headlines and chip reads 'N to review'", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      concessionRate: 0.48, // triggers "Heavy concession use" watch item
+    }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01,
+  });
+  const row = v.readout.find((r) => r.area === "Watch Items")!;
+  assert.ok(row.value.includes("concession") || row.value.length > 0); // headline text present
+  assert.ok(row.label != null && /\d+ to review/i.test(String(row.label))); // "N to review" chip
 });

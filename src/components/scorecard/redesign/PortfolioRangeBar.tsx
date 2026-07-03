@@ -70,6 +70,9 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
   const pointLeft = point != null ? toPct(point) : null;
   const obsLeft = observedUnits != null ? toPct(observedUnits) : null;
 
+  // Stagger the observed label down when it overlaps the est point label.
+  const near = obsLeft != null && pointLeft != null && Math.abs(obsLeft - pointLeft) < 8;
+
   return (
     <div
       style={{
@@ -201,7 +204,7 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
             <span
               style={{
                 position: "absolute",
-                top: "-22px",
+                top: near ? "-36px" : "-22px",
                 left: `${obsLeft}%`,
                 fontSize: "10px",
                 color: "#1a7f5a",

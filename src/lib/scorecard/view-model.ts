@@ -203,12 +203,15 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     ? `Early coverage — ${months ?? "under 12"} months observed across ${communitiesObserved} ${communitiesObserved === 1 ? "community" : "communities"}. Treat estimates, trends, and cohort comparisons as provisional.`
     : null;
 
+  const typeLabel = scorecard.pm.quadrant7Cell ?? "operator";
+  const mktShort = scorecard.market.name ?? scorecard.market.fullName;
+  const units = scorecard.coverage?.totalObservedUnits ?? scorecard.coverage?.urusT12 ?? "—";
   if (pe?.point != null) {
-    readout[0].value = `~${pe.point} est. units · ${pe.confidence ?? "unrated"} confidence`;
+    readout[0].value = `${typeLabel} in ${mktShort} · ~${pe.point} est. units · ${(pe.confidence ?? "unrated").toLowerCase()} confidence`;
   } else if (communitiesObserved != null) {
-    readout[0].value = `${communitiesObserved} ${communitiesObserved === 1 ? "community" : "communities"} · ${scorecard.coverage?.totalObservedUnits ?? scorecard.coverage?.urusT12 ?? "—"} units observed — self-report needed for a portfolio estimate`;
+    readout[0].value = `${typeLabel} in ${mktShort} · ${communitiesObserved} ${communitiesObserved === 1 ? "community" : "communities"} · ${units} units observed — self-report needed for a portfolio estimate`;
   } else {
-    readout[0].value = pe?.message ?? "Portfolio size not estimated";
+    readout[0].value = `${typeLabel} in ${mktShort} · ${pe?.message ?? "portfolio size not estimated"}`;
   }
 
   const labels = metricLabels(scorecard);
@@ -264,9 +267,17 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
       mkSpark("quality", "Operating quality", qualitySeries),
     ],
   };
-  readout[2].value = portfolioDir === "insufficient"
-    ? `Building history${months != null ? ` (${months} mo observed)` : ""}`
-    : momentumReadout(portfolioDir);
+  if (portfolioDir === "growing") {
+    readout[2].value = "Portfolio larger than when first observed";
+  } else if (portfolioDir === "declining") {
+    readout[2].value = "Portfolio smaller than when first observed";
+  } else if (portfolioDir === "stable") {
+    readout[2].value = "Portfolio steady since first observed";
+  } else if (portfolioDir === "volatile") {
+    readout[2].value = "Long-term trend up, recent estimates volatile";
+  } else {
+    readout[2].value = `Building history${months != null ? ` (${months} mo observed)` : ""}`;
+  }
 
   const watchItems = buildWatchItems(
     scorecard,
@@ -279,10 +290,11 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     operatingLabel: operatingPerformanceLabel(m.scorecard),
   }));
   const peers = selectSimilarLocalPlayers(scorecard.pm.slug, candidates, { limit: 4 });
-  const nonPositive = watchItems.filter((w) => w.kind !== "positive").length;
-  readout[3].value = nonPositive > 0
-    ? `${nonPositive} to review${watchItems.length > nonPositive ? " · 1+ positive" : ""}`
+  const flagged = watchItems.filter((w) => w.kind !== "positive").map((w) => w.headline);
+  readout[3].value = flagged.length > 0
+    ? flagged.slice(0, 3).join(" · ")
     : (watchItems.length > 0 ? "positives only" : "none");
+  readout[3].label = flagged.length > 0 ? `${flagged.length} to review` : undefined;
 
   return { header, readout, scaleFit, operating, momentum, watchItems, peers, maturityNote };
 }
