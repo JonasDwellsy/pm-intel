@@ -43,3 +43,49 @@ test("no items when nothing is notable", () => {
   });
   assert.equal(buildWatchItems(quiet, 0.01).length, 0);
 });
+
+// --- Trajectory-based (trend) tests ---
+
+const quiet = {
+  concessionRate: 0.0,
+  coverage: { yearsVisible: 6 },
+  lendingSignals: {
+    rentStability: { volatilityPP: 3.1, cohortMedianVolatility: 3.0, suppressed: false },
+    geographicConcentration: { top3CityShare: 0.4, cohortMedianTop3: 0.6 },
+  },
+};
+const traj = (points: any[]) => ({ points });
+
+test("concession climbing sharply is a trend risk", () => {
+  const items = buildWatchItems(sc({ concessionRate: 0.0 }), 0.5, traj([
+    { date: "2024-06-30", concessionRate: 0.05 },
+    { date: "2025-06-30", concessionRate: 0.20 },
+  ]));
+  assert.ok(items.some((i) => i.kind === "risk" && /climbing/i.test(i.headline)));
+});
+
+test("rating downgrade is a risk; improvement is positive", () => {
+  const down = buildWatchItems(sc(quiet), null, traj([
+    { date: "2024-06-30", goldCount: 3, silverCount: 1 },
+    { date: "2025-06-30", goldCount: 1, silverCount: 1 },
+  ]));
+  assert.ok(down.some((i) => i.kind === "risk" && /downgrade/i.test(i.headline)));
+  const up = buildWatchItems(sc(quiet), null, traj([
+    { date: "2024-06-30", goldCount: 1, silverCount: 0 },
+    { date: "2025-06-30", goldCount: 3, silverCount: 1 },
+  ]));
+  assert.ok(up.some((i) => i.kind === "positive" && /improvement/i.test(i.headline)));
+});
+
+test("dropped from rankings is a risk", () => {
+  const items = buildWatchItems(sc(quiet), null, traj([
+    { date: "2024-06-30", eligible: true, goldCount: 1, silverCount: 0 },
+    { date: "2025-06-30", eligible: false, goldCount: 0, silverCount: 0 },
+  ]));
+  assert.ok(items.some((i) => i.kind === "risk" && /dropped/i.test(i.headline)));
+});
+
+test("no trajectory → no trend items (back-compat)", () => {
+  const items = buildWatchItems(sc(), 0.01);
+  assert.ok(items.every((i) => !/climbing|downgrade|dropped|improvement/i.test(i.headline)));
+});

@@ -7,7 +7,7 @@ import type { ScorecardData } from "@/lib/types";
 import { countOperatorStars } from "@/lib/operators/stars";
 import { operatingPerformanceLabel, type ScoreLabel, metricLabels, strongestAndWatch, type MetricKey } from "./labels";
 import { momentumDirection, type MomentumDirection } from "./momentum";
-import { buildWatchItems, type WatchItem } from "./watch-items";
+import { buildWatchItems, type WatchItem, type WatchTrajectory } from "./watch-items";
 import { selectSimilarLocalPlayers, type PeerCandidate, type SelectedPeer } from "./peers";
 import { rentTierPosition } from "./rent-tier";
 
@@ -246,7 +246,11 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   };
   readout[2].value = momentumReadout(portfolioDir);
 
-  const watchItems = buildWatchItems(scorecard, input.marketConcessionMedian);
+  const watchItems = buildWatchItems(
+    scorecard,
+    input.marketConcessionMedian,
+    input.trajectory as unknown as WatchTrajectory | undefined
+  );
   const candidates: PeerCandidate[] = pool.map((m) => ({
     slug: m.slug, name: m.name, quadrant7Cell: m.quadrant7Cell,
     estimatedUnits: m.scorecard.portfolioEstimate?.point ?? null,
