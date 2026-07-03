@@ -222,11 +222,11 @@ test("scorecard page renders the trajectory section", () => {
     "utf8"
   );
   assert.ok(src.includes("loadOperatorTrajectory"), "scorecard page must load the trajectory");
-  const body = readFileSync(
-    join(process.cwd(), "src/components/scorecard/ScorecardBody.tsx"),
-    "utf8"
-  );
-  assert.ok(body.includes("OperatorTrajectorySection"), "ScorecardBody must render the trajectory section");
+  // Redesign (Task 8): trajectory data is fed through buildScorecardView →
+  // MomentumSection (sparklines) rather than rendered via OperatorTrajectorySection
+  // directly. Verify the view model receives the trajectory.
+  assert.ok(src.includes("buildScorecardView"), "scorecard page must build the view model");
+  assert.ok(src.includes("trajectory:"), "scorecard page must pass trajectory to view model");
 });
 
 test("operator page renders the aggregate trajectory section", () => {

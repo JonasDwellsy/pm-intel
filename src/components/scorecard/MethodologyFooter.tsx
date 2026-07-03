@@ -119,7 +119,7 @@ export function MethodologyFooter({
             Dwellsy IQ scorecards reflect operator behavior observable in our
             first-party listings data. Figures are not portfolio totals;
             they&rsquo;re what we see. Composite is descriptive, not
-            predictive — it doesn&rsquo;t forecast underwriting outcomes.
+            predictive — it doesn&rsquo;t forecast future outcomes.
             Operators with shorter observation history have noisier estimates
             on metrics that depend on multi-episode unit pairs (Tenancy) or
             multi-year trajectory (Rent Stability). See the methodology page
