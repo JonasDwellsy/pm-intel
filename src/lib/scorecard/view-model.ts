@@ -8,6 +8,8 @@ import { countOperatorStars } from "@/lib/operators/stars";
 import { operatingPerformanceLabel, type ScoreLabel } from "./labels";
 import { metricLabels, strongestAndWatch, type MetricKey } from "./labels";
 import { momentumDirection, type MomentumDirection } from "./momentum";
+import { buildWatchItems, type WatchItem } from "./watch-items";
+import { selectSimilarLocalPlayers, type PeerCandidate, type SelectedPeer } from "./peers";
 
 export interface HeaderView {
   name: string;
@@ -58,6 +60,8 @@ export interface ScorecardView {
   scaleFit: ScaleFitView;
   operating: OperatingView;
   momentum: MomentumView;
+  watchItems: WatchItem[];
+  peers: SelectedPeer[];
 }
 
 export interface BuildViewInput {
@@ -66,6 +70,8 @@ export interface BuildViewInput {
   trajectory: { points: Array<{ portfolioPoint: number | null }> };
   marketConcessionMedian: number | null;
 }
+
+interface PoolMember { slug: string; name: string; quadrant7Cell: string | null; scorecard: ScorecardData }
 
 const METRIC_TITLES: Record<MetricKey, string> = {
   dom: "Lease-up speed", tenancy: "Tenant retention", rentPerformance: "Rent performance",
@@ -206,5 +212,18 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   };
   readout[2].value = momentumReadout(portfolioDir);
 
-  return { header, readout, scaleFit, operating, momentum };
+  const pool = input.pool as PoolMember[];
+  const watchItems = buildWatchItems(scorecard, input.marketConcessionMedian);
+  const candidates: PeerCandidate[] = pool.map((m) => ({
+    slug: m.slug, name: m.name, quadrant7Cell: m.quadrant7Cell,
+    estimatedUnits: m.scorecard.portfolioEstimate?.point ?? null,
+    operatingLabel: operatingPerformanceLabel(m.scorecard),
+  }));
+  const peers = selectSimilarLocalPlayers(scorecard.pm.slug, candidates, { limit: 4 });
+  const nonPositive = watchItems.filter((w) => w.kind !== "positive").length;
+  readout[3].value = nonPositive > 0
+    ? `${nonPositive} to review${watchItems.length > nonPositive ? " · 1+ positive" : ""}`
+    : (watchItems.length > 0 ? "positives only" : "none");
+
+  return { header, readout, scaleFit, operating, momentum, watchItems, peers };
 }

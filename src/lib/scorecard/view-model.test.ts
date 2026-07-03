@@ -93,3 +93,33 @@ test("momentum classifies portfolio from trajectory; other series insufficient f
   assert.equal(reach.direction, "insufficient"); // no history yet
   assert.equal(v.momentum.direction, "growing");
 });
+
+test("watch items + peers assembled; readout shows non-positive count", () => {
+  const poolMember = (slug: string, name: string, units: number) => ({
+    slug, name, quadrant7Cell: "SFR Independent",
+    scorecard: scFixture({ pm: { slug, name, quadrant7Cell: "SFR Independent" },
+      portfolioEstimate: { status: "estimated", point: units },
+      rank: { percentilesMulti: { composite: { msa: 55 } }, compositeCohortUsedForStar: "msa", percentiles: {} } }),
+  });
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      pm: { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent", companyId: "1" },
+      concessionRate: 0.48, coverage: { yearsVisible: 2.3 },
+      lendingSignals: { geographicConcentration: { top3CityShare: 0.84, cohortMedianTop3: 0.61 },
+                        rentStability: { volatilityPP: 1.1, cohortMedianVolatility: 3.0, suppressed: false } },
+      portfolioEstimate: { status: "estimated", point: 644 },
+    }),
+    pool: [
+      { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent",
+        scorecard: scFixture({ pm: { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent" }, portfolioEstimate: { status: "estimated", point: 644 } }) },
+      poolMember("river", "River City Homes", 720),
+      poolMember("volunteer", "Volunteer PM", 520),
+    ],
+    trajectory: { points: [] }, marketConcessionMedian: 0.01,
+  });
+  assert.ok(v.watchItems.length >= 1 && v.watchItems[0].kind === "risk");
+  assert.ok(v.peers.some((p) => p.isFocal && p.slug === "doorby-chattanooga-tn"));
+  assert.ok(v.peers.some((p) => p.slug === "river"));
+  const wr = v.readout.find((r) => r.area === "Watch Items")!;
+  assert.match(wr.value, /\d/); // has a count
+});
