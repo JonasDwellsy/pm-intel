@@ -6,6 +6,7 @@
 import type { ScorecardData } from "@/lib/types";
 import { countOperatorStars } from "@/lib/operators/stars";
 import { operatingPerformanceLabel, type ScoreLabel } from "./labels";
+import { metricLabels, strongestAndWatch, type MetricKey } from "./labels";
 
 export interface HeaderView {
   name: string;
@@ -36,10 +37,19 @@ export interface ScaleFitView {
   singleMarket: boolean;
 }
 
+export interface MetricRow {
+  key: MetricKey; title: string; label: ScoreLabel; value: string; benchmark: string;
+  position: number | null; star: "gold" | "silver" | null; sub: string[];
+}
+export interface OperatingView {
+  sectionLabel: ScoreLabel; strongest: string[]; watch: string[]; metrics: MetricRow[];
+}
+
 export interface ScorecardView {
   header: HeaderView;
   readout: ReadoutRow[];
   scaleFit: ScaleFitView;
+  operating: OperatingView;
 }
 
 export interface BuildViewInput {
@@ -47,6 +57,43 @@ export interface BuildViewInput {
   pool: unknown[];
   trajectory: { points: Array<{ portfolioPoint: number | null }> };
   marketConcessionMedian: number | null;
+}
+
+const METRIC_TITLES: Record<MetricKey, string> = {
+  dom: "Lease-up speed", tenancy: "Tenant retention", rentPerformance: "Rent performance",
+  marketing: "Marketing discipline", communityVisibility: "Inventory transparency",
+};
+
+function metricStar(sc: ScorecardData, k: MetricKey): "gold" | "silver" | null {
+  const s = k === "dom" ? sc.performance?.domStar
+    : k === "tenancy" ? sc.tenancy?.star
+    : k === "rentPerformance" ? sc.rentPerformance?.star
+    : k === "marketing" ? sc.marketing?.star
+    : sc.communityVisibility?.star;
+  return s === "gold" || s === "silver" ? s : null;
+}
+
+function metricValueBenchmark(sc: ScorecardData, k: MetricKey): { value: string; benchmark: string; sub: string[] } {
+  if (k === "dom") return {
+    value: sc.performance?.domT12 != null ? `${Math.round(sc.performance.domT12)}d` : "—",
+    benchmark: sc.performance?.marketDomT12 != null ? `market avg ${Math.round(sc.performance.marketDomT12)}d` : "",
+    sub: [sc.performance?.houseDomT12 != null ? `Houses ${Math.round(sc.performance.houseDomT12)}d` : "",
+          sc.performance?.aptDomT12 != null ? `Apartments ${Math.round(sc.performance.aptDomT12)}d` : ""].filter(Boolean),
+  };
+  if (k === "rentPerformance") return {
+    value: sc.rentPerformance?.pmYoyChange != null ? `${(sc.rentPerformance.pmYoyChange * 100).toFixed(1)}%` : "—",
+    benchmark: sc.rentPerformance?.cohortMedianYoyChange != null ? `cohort ${(sc.rentPerformance.cohortMedianYoyChange * 100).toFixed(1)}%` : "",
+    sub: [],
+  };
+  if (k === "marketing") return {
+    value: sc.marketing?.compositeScore != null ? String(Math.round(sc.marketing.compositeScore)) : "—",
+    benchmark: "quality / 100", sub: [],
+  };
+  if (k === "tenancy") return {
+    value: sc.tenancy?.multiEpisodePct != null ? `${Math.round(sc.tenancy.multiEpisodePct * 100)}%` : "—",
+    benchmark: "re-list rate (lower = stickier)", sub: [],
+  };
+  return { value: "—", benchmark: "", sub: [] };
 }
 
 function buildScaleFitTakeaway(sc: ScorecardData): string {
@@ -104,5 +151,24 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     ? `~${pe.point} est. units · ${pe.confidence ?? "unrated"} confidence`
     : (pe?.message ?? "Portfolio size not estimated");
 
-  return { header, readout, scaleFit };
+  const labels = metricLabels(scorecard);
+  const sw = strongestAndWatch(scorecard);
+  const metricKeys: MetricKey[] = ["dom", "tenancy", "rentPerformance", "marketing", "communityVisibility"];
+  const pcts = scorecard.rank?.percentiles ?? ({} as Record<MetricKey, number | null>);
+  const metrics: MetricRow[] = metricKeys
+    .filter((k) => pcts[k] != null || metricStar(scorecard, k) != null)
+    .map((k) => {
+      const vb = metricValueBenchmark(scorecard, k);
+      return { key: k, title: METRIC_TITLES[k], label: labels[k], value: vb.value,
+        benchmark: vb.benchmark, position: pcts[k] != null ? pcts[k]! / 100 : null,
+        star: metricStar(scorecard, k), sub: vb.sub };
+    });
+  const operating: OperatingView = {
+    sectionLabel: opLabel, strongest: sw.strongest.map((k) => METRIC_TITLES[k]),
+    watch: sw.watch.map((k) => METRIC_TITLES[k]), metrics,
+  };
+  const aboveCount = metrics.filter((m) => m.label === "strong" || m.label === "good").length;
+  readout[1].value = `Above cohort median on ${aboveCount} of ${metrics.length} scored dimensions`;
+
+  return { header, readout, scaleFit, operating };
 }

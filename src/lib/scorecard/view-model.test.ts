@@ -56,3 +56,23 @@ test("scaleFit surfaces estimate band + confidence + observed units, and fills t
   assert.match(row.value, /644/);
   assert.match(row.value, /Medium/i);
 });
+
+test("operating rows carry label/value/position/star and drop null-percentile metrics", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      performance: { domT12: 18, marketDomT12: 31, houseDomT12: 16, aptDomT12: 22, domStar: "silver" },
+      rentPerformance: { pmYoyChange: 0.031, cohortMedianYoyChange: 0.028, star: null },
+      marketing: { compositeScore: 88, star: "silver" },
+      tenancy: { multiEpisodePct: 0.31, star: "gold" },
+    }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01,
+  });
+  const keys = v.operating.metrics.map((m) => m.key);
+  assert.ok(keys.includes("dom"));
+  assert.ok(!keys.includes("communityVisibility")); // null percentile + null star -> dropped
+  const dom = v.operating.metrics.find((m) => m.key === "dom")!;
+  assert.equal(dom.label, "good");        // 66th
+  assert.equal(dom.position, 0.66);
+  assert.equal(dom.star, "silver");
+  assert.equal(v.operating.sectionLabel, "good"); // composite 68
+});
