@@ -5,8 +5,7 @@
 
 import type { ScorecardData } from "@/lib/types";
 import { countOperatorStars } from "@/lib/operators/stars";
-import { operatingPerformanceLabel, type ScoreLabel } from "./labels";
-import { metricLabels, strongestAndWatch, type MetricKey } from "./labels";
+import { operatingPerformanceLabel, type ScoreLabel, metricLabels, strongestAndWatch, type MetricKey } from "./labels";
 import { momentumDirection, type MomentumDirection } from "./momentum";
 import { buildWatchItems, type WatchItem } from "./watch-items";
 import { selectSimilarLocalPlayers, type PeerCandidate, type SelectedPeer } from "./peers";
@@ -35,6 +34,7 @@ export interface ScaleFitView {
   topCities: Array<{ name: string; pct: number }>;
   top3Share: number | null;
   cohortTop3: number | null;
+  rentTierPosition: number | null;
   propertyType: string | null;
   citiesObserved: number | null;
   singleMarket: boolean;
@@ -161,11 +161,12 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     observedUnits: scorecard.coverage?.urusT12 ?? null,
     estimate: {
       point: pe?.point ?? null, low: pe?.low ?? null, high: pe?.high ?? null,
-      confidence: pe?.confidence ?? null, status: pe?.status ?? "estimated",
+      confidence: pe?.confidence ?? null, status: pe?.status ?? "insufficient_data",
     },
     topCities: geo?.topCities ?? [],
     top3Share: conc?.top3CityShare ?? null,
     cohortTop3: conc?.cohortMedianTop3 ?? null,
+    rentTierPosition: null, // computed in the components/pricing phase from operator rent vs MSA distribution
     propertyType: scorecard.pm.quadrant7Cell ?? null,
     citiesObserved: scorecard.coverage?.citiesObserved ?? null,
     singleMarket: header.singleMarket,
