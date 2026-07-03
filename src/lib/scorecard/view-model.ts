@@ -9,6 +9,7 @@ import { operatingPerformanceLabel, type ScoreLabel, metricLabels, strongestAndW
 import { momentumDirection, type MomentumDirection } from "./momentum";
 import { buildWatchItems, type WatchItem } from "./watch-items";
 import { selectSimilarLocalPlayers, type PeerCandidate, type SelectedPeer } from "./peers";
+import { rentTierPosition } from "./rent-tier";
 
 export interface HeaderView {
   name: string;
@@ -67,7 +68,17 @@ export interface ScorecardView {
 export interface BuildViewInput {
   scorecard: ScorecardData;
   pool: unknown[];
-  trajectory: { points: Array<{ portfolioPoint: number | null }> };
+  trajectory: {
+    points: Array<{
+      portfolioPoint: number | null;
+      goldCount?: number;
+      silverCount?: number;
+      submarketCount?: number | null;
+      concessionRate?: number | null;
+      eligible?: boolean;
+      date?: string;
+    }>;
+  };
   marketConcessionMedian: number | null;
 }
 
@@ -127,6 +138,7 @@ function momentumReadout(dir: MomentumDirection): string {
 
 export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const { scorecard } = input;
+  const pool = input.pool as PoolMember[];
   const { goldCount, silverCount } = countOperatorStars(scorecard);
   const companyId = scorecard.pm.companyId ?? null;
 
@@ -166,7 +178,10 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     topCities: geo?.topCities ?? [],
     top3Share: conc?.top3CityShare ?? null,
     cohortTop3: conc?.cohortMedianTop3 ?? null,
-    rentTierPosition: null, // computed in the components/pricing phase from operator rent vs MSA distribution
+    rentTierPosition: rentTierPosition(
+      { pm: { slug: scorecard.pm.slug }, rentTrajectory: scorecard.rentTrajectory },
+      pool.map((m) => ({ pm: { slug: m.slug }, rentTrajectory: m.scorecard.rentTrajectory }))
+    ),
     propertyType: scorecard.pm.quadrant7Cell ?? null,
     citiesObserved: scorecard.coverage?.citiesObserved ?? null,
     singleMarket: header.singleMarket,
@@ -206,6 +221,16 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const portfolioSeries = (input.trajectory?.points ?? [])
     .map((p) => p.portfolioPoint)
     .filter((n): n is number => n != null);
+  const reachSeries = (input.trajectory?.points ?? [])
+    .map((p) => p.submarketCount)
+    .filter((n): n is number => n != null);
+  const qualitySeries = (input.trajectory?.points ?? [])
+    .map((p) =>
+      p.goldCount != null || p.silverCount != null
+        ? (p.goldCount ?? 0) * 2 + (p.silverCount ?? 0)
+        : null
+    )
+    .filter((n): n is number => n != null);
   const portfolioDir = momentumDirection({ values: portfolioSeries });
   const mkSpark = (key: "portfolio" | "share" | "reach" | "quality", label: string, series: number[]) =>
     ({ key, label, series, direction: momentumDirection({ values: series }) });
@@ -214,14 +239,13 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     takeaway: momentumTakeaway(scorecard.pm.name, portfolioDir),
     sparklines: [
       mkSpark("portfolio", "Portfolio", portfolioSeries),
-      mkSpark("share", "Listing share", []),   // filled by pipeline phase
-      mkSpark("reach", "Geographic reach", []), // filled by pipeline phase
-      mkSpark("quality", "Operating quality", []), // filled by pipeline phase
+      mkSpark("share", "Listing share", []), // deferred: needs t12ListingsCount history (Phase 4b)
+      mkSpark("reach", "Geographic reach", reachSeries),
+      mkSpark("quality", "Operating quality", qualitySeries),
     ],
   };
   readout[2].value = momentumReadout(portfolioDir);
 
-  const pool = input.pool as PoolMember[];
   const watchItems = buildWatchItems(scorecard, input.marketConcessionMedian);
   const candidates: PeerCandidate[] = pool.map((m) => ({
     slug: m.slug, name: m.name, quadrant7Cell: m.quadrant7Cell,

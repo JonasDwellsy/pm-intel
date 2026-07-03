@@ -3,6 +3,24 @@ import { strict as assert } from "node:assert";
 import { buildScorecardView } from "./view-model";
 import type { ScorecardData } from "@/lib/types";
 
+type TrajPoint = {
+  portfolioPoint: number | null;
+  goldCount?: number;
+  silverCount?: number;
+  submarketCount?: number | null;
+  concessionRate?: number | null;
+  eligible?: boolean;
+  date?: string;
+};
+
+type PoolMemberFixture = {
+  slug: string;
+  name?: string;
+  quadrant7Cell?: string | null;
+  rentTrajectory?: Array<{ quarter: string; mixAdjMedian: number }> | null;
+  scorecard?: any;
+};
+
 function scFixture(over: any = {}): ScorecardData {
   return {
     pm: { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent",
@@ -14,6 +32,18 @@ function scFixture(over: any = {}): ScorecardData {
     marketing: { star: "silver" }, communityVisibility: { star: null },
     ...over,
   } as unknown as ScorecardData;
+}
+
+function makePool(members: PoolMemberFixture[]) {
+  return members.map((m) => ({
+    slug: m.slug,
+    name: m.name ?? m.slug,
+    quadrant7Cell: m.quadrant7Cell ?? "SFR Independent",
+    scorecard: m.scorecard ?? scFixture({
+      pm: { slug: m.slug, name: m.name ?? m.slug, quadrant7Cell: m.quadrant7Cell ?? "SFR Independent" },
+      rentTrajectory: m.rentTrajectory ?? null,
+    }),
+  }));
 }
 
 test("header carries name, star counts, and both links (companyId + website)", () => {
@@ -92,6 +122,39 @@ test("momentum classifies portfolio from trajectory; other series insufficient f
   const reach = v.momentum.sparklines.find((s) => s.key === "reach")!;
   assert.equal(reach.direction, "insufficient"); // no history yet
   assert.equal(v.momentum.direction, "growing");
+});
+
+test("rent tier position is populated from operator rent vs pool", () => {
+  // focal rent 2000 above pool [1000, 1500] → upper half
+  const focalRentTraj = [{ quarter: "2024-Q4", mixAdjMedian: 2000 }];
+  const view = buildScorecardView({
+    scorecard: scFixture({ rentTrajectory: focalRentTraj }),
+    pool: makePool([
+      { slug: "member-a", rentTrajectory: [{ quarter: "2024-Q4", mixAdjMedian: 1000 }] },
+      { slug: "member-b", rentTrajectory: [{ quarter: "2024-Q4", mixAdjMedian: 1500 }] },
+    ]),
+    trajectory: { points: [] },
+    marketConcessionMedian: 0.01,
+  });
+  assert.ok(view.scaleFit.rentTierPosition != null && view.scaleFit.rentTierPosition > 0.5);
+});
+
+test("reach and quality sparklines populate from trajectory; share stays empty", () => {
+  const points: TrajPoint[] = [
+    { portfolioPoint: 100, goldCount: 1, silverCount: 1, submarketCount: 3 },
+    { portfolioPoint: 120, goldCount: 2, silverCount: 1, submarketCount: 4 },
+    { portfolioPoint: 140, goldCount: 3, silverCount: 1, submarketCount: 6 },
+  ];
+  const view = buildScorecardView({
+    scorecard: scFixture({ rentTrajectory: [] }),
+    pool: [],
+    trajectory: { points },
+    marketConcessionMedian: 0.01,
+  });
+  const spark = (k: string) => view.momentum.sparklines.find((s) => s.key === k)!;
+  assert.deepEqual(spark("reach").series, [3, 4, 6]);
+  assert.deepEqual(spark("quality").series, [3, 5, 7]); // gold*2 + silver
+  assert.equal(spark("share").series.length, 0);
 });
 
 test("watch items + peers assembled; readout shows non-positive count", () => {
