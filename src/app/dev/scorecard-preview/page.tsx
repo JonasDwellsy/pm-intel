@@ -247,6 +247,7 @@ const FIXTURE_VIEW: ScorecardView = {
     citiesObserved: 4,
     singleMarket: true,
     tenure: null,
+    unitMix: null,
   },
   operating: {
     sectionLabel: "good",
@@ -254,6 +255,7 @@ const FIXTURE_VIEW: ScorecardView = {
     strongest: ["Lease-up speed", "Marketing discipline"],
     vacancy: null,
     rentStability: null,
+    concession: null,
     watch: [],
     metrics: [
       {

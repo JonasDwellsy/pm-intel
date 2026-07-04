@@ -441,3 +441,112 @@ test("scaleFit.tenure defaults marketCount to 1 when input.marketCount is omitte
   assert.equal(v.scaleFit.tenure!.marketCount, 1);
   assert.equal(v.scaleFit.tenure!.yearsVisible, 2.1);
 });
+
+// --- Task 2: concession detail + apartment/house unit mix ---
+
+test("concession detail surfaces rate, market median, patterns, samples", () => {
+  const focalScorecard = scFixture({
+    pm: { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent", companyId: "1" },
+    coverage: { t12Listings: 100 },
+    concessionRate: 0.4,
+    concessionListingCount: 40,
+    concessionPatterns: ["move_in_special"],
+    concessionSamples: ["Move in today and get a free month on us"],
+  });
+  // buildConcessionContext's median cohort is every pool member with a
+  // non-null concessionRate, INCLUDING the focal itself (it doesn't
+  // exclude the focal slug — see concession-context.ts). Cohort here is
+  // [0.4 (focal), 0.1, 0.2] -> median 0.2 -> 20%.
+  const pool = [
+    { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent", scorecard: focalScorecard },
+    { slug: "member-a", name: "A", quadrant7Cell: "SFR Independent", scorecard: scFixture({ pm: { slug: "member-a", name: "A", quadrant7Cell: "SFR Independent" }, coverage: { t12Listings: 50 }, concessionRate: 0.1 }) },
+    { slug: "member-b", name: "B", quadrant7Cell: "SFR Independent", scorecard: scFixture({ pm: { slug: "member-b", name: "B", quadrant7Cell: "SFR Independent" }, coverage: { t12Listings: 50 }, concessionRate: 0.2 }) },
+  ];
+  const v = buildScorecardView({
+    scorecard: focalScorecard,
+    pool,
+    trajectory: { points: [] },
+    marketConcessionMedian: 0.01,
+  });
+  assert.ok(v.operating.concession != null);
+  assert.equal(v.operating.concession!.ratePct, 40);
+  assert.equal(v.operating.concession!.marketMedianPct, 20); // median of [0.4, 0.1, 0.2] * 100
+  assert.equal(v.operating.concession!.patterns.length >= 1, true);
+  assert.equal(v.operating.concession!.patterns[0], "Move-in special");
+  assert.equal(v.operating.concession!.samples.length, 1);
+});
+
+test("no concession object when operator has zero concessions", () => {
+  const focalScorecard = scFixture({
+    coverage: { t12Listings: 100 },
+    concessionRate: 0,
+    concessionListingCount: 0,
+  });
+  const v = buildScorecardView({
+    scorecard: focalScorecard,
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.equal(v.operating.concession, null);
+});
+
+test("no concession object when concessionRate is absent", () => {
+  const focalScorecard = scFixture({ coverage: { t12Listings: 100 } });
+  const v = buildScorecardView({
+    scorecard: focalScorecard,
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.equal(v.operating.concession, null);
+});
+
+test("unit mix present for SFR/hybrid with a nonzero split; null for pure MF", () => {
+  const sfr = buildScorecardView({
+    scorecard: scFixture({
+      pm: { quadrant7Cell: "SFR Independent" },
+      performance: { houseUrusT12: 1035, aptUrusT12: 258 },
+    }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
+  });
+  assert.deepEqual(
+    { h: sfr.scaleFit.unitMix!.houseUrus, a: sfr.scaleFit.unitMix!.aptUrus },
+    { h: 1035, a: 258 }
+  );
+
+  const mf = buildScorecardView({
+    scorecard: scFixture({
+      pm: { quadrant7Cell: "Large MF/BTR Independent" },
+      performance: { houseUrusT12: 0, aptUrusT12: 155 },
+    }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
+  });
+  assert.equal(mf.scaleFit.unitMix, null);
+});
+
+test("unit mix present for Hybrid quadrant7Cell", () => {
+  const hybrid = buildScorecardView({
+    scorecard: scFixture({
+      pm: { quadrant7Cell: "Hybrid" },
+      performance: { houseUrusT12: 400, aptUrusT12: 100 },
+    }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
+  });
+  assert.ok(hybrid.scaleFit.unitMix != null);
+  assert.deepEqual(
+    { h: hybrid.scaleFit.unitMix!.houseUrus, a: hybrid.scaleFit.unitMix!.aptUrus },
+    { h: 400, a: 100 }
+  );
+});
+
+test("unit mix null for SFR when house+apt urus total is zero", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      pm: { quadrant7Cell: "SFR Independent" },
+      performance: { houseUrusT12: 0, aptUrusT12: 0 },
+    }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
+  });
+  assert.equal(v.scaleFit.unitMix, null);
+});

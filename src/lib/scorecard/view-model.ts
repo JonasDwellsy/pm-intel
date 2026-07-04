@@ -13,6 +13,7 @@ import { rentTierDetail } from "./rent-tier";
 import type { RentTierDetail } from "./rent-tier";
 import { buildLendingSignals } from "@/lib/lending-signals";
 import type { PoolPm } from "@/lib/msa-pool";
+import { buildConcessionContext, uniquePatternLabels, formatConcessionSample } from "@/lib/concession-context";
 
 export interface HeaderView {
   name: string;
@@ -44,6 +45,7 @@ export interface ScaleFitView {
   citiesObserved: number | null;
   singleMarket: boolean;
   tenure: { yearsVisible: number; marketCount: number; cohortMedianYears: number | null } | null;
+  unitMix: { houseUrus: number; aptUrus: number } | null;
 }
 
 export interface MetricRow {
@@ -54,6 +56,7 @@ export interface OperatingView {
   sectionLabel: ScoreLabel; takeaway: string; strongest: string[]; watch: string[]; metrics: MetricRow[];
   vacancy: { pct: number; cohortMedianPct: number | null; star: "gold" | "silver" | null } | null;
   rentStability: { volatilityPP: number | null; cohortMedianPP: number | null; suppressed: boolean; reason: string | null; star: "gold" | "silver" | null } | null;
+  concession: { ratePct: number; marketMedianPct: number | null; patterns: string[]; samples: string[] } | null;
 }
 
 export interface MomentumView {
@@ -203,15 +206,22 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     ? (pool as unknown as PoolPm[])
     : ([focal, ...pool] as unknown as PoolPm[]);
   const marketCount = input.marketCount ?? 1;
-  // buildLendingSignals assumes coverage/tenancy are always-present objects
-  // (true for real seeded ScorecardData); guard defensively since callers
-  // may pass partial data.
-  let lendingSignals: ReturnType<typeof buildLendingSignals>;
-  try {
-    lendingSignals = buildLendingSignals(scorecard, lendingPool, marketCount);
-  } catch {
-    lendingSignals = { vacancy: null, rentStability: null, operatorStability: null, geographicConcentration: null, pricingTier: null };
-  }
+  // buildLendingSignals's vacancy/operatorStability builders dereference
+  // scorecard.performance/tenancy/coverage directly (no optional chaining)
+  // on the focal AND on every pool member (cohort-median computation), so
+  // they throw on partial ScorecardData anywhere in lendingPool. The real
+  // precondition is that coverage + tenancy are present on every member;
+  // guard on that instead of a blanket try/catch so genuine future
+  // exceptions inside the builders aren't silently swallowed. True for
+  // real seeded ScorecardData — only ad hoc/partial fixtures hit this.
+  const lendingPreconditionMet =
+    !!scorecard.coverage &&
+    !!scorecard.tenancy &&
+    lendingPool.every((p) => !!p.scorecard.coverage && !!p.scorecard.tenancy);
+  const lendingSignals: ReturnType<typeof buildLendingSignals> =
+    lendingPreconditionMet
+      ? buildLendingSignals(scorecard, lendingPool, marketCount)
+      : { vacancy: null, rentStability: null, operatorStability: null, geographicConcentration: null, pricingTier: null };
 
   const vacancy: OperatingView["vacancy"] = lendingSignals.vacancy?.vacancyPct != null
     ? {
@@ -240,6 +250,44 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
       }
     : null;
 
+  // Concession detail — reuse the Layer-5 concession-context builder rather
+  // than recomputing the market median or pattern/sample formatting.
+  // concessionRate is a 0-1 fraction on ScorecardData (mirrored in
+  // page.tsx / OperatorProfilePDF.tsx as `rate * 100`); ratePct here
+  // scales it to 0-100 for display, matching those call sites. Null when
+  // the operator has no concession signal (rate absent) or a literal 0
+  // rate (no concessions observed) — a "0%" concession callout isn't a
+  // fact worth surfacing on its own row.
+  // buildConcessionContext dereferences scorecard.coverage.t12Listings
+  // directly (no optional chaining); guard on that precondition rather
+  // than assuming it — true for real seeded ScorecardData, but partial
+  // fixtures/callers can omit coverage.
+  const concessionContext = scorecard.coverage
+    ? buildConcessionContext(scorecard, pool as unknown as PoolPm[])
+    : null;
+  const concession: OperatingView["concession"] =
+    concessionContext && concessionContext.rate != null && concessionContext.rate > 0
+      ? {
+          ratePct: concessionContext.rate * 100,
+          marketMedianPct: concessionContext.marketMedianRate != null ? concessionContext.marketMedianRate * 100 : null,
+          patterns: uniquePatternLabels(concessionContext.patterns),
+          samples: concessionContext.samples.slice(0, 3).map(formatConcessionSample),
+        }
+      : null;
+
+  // Apartment/house unit mix — only meaningful for operators with
+  // both-type visibility (SFR + Hybrid per metric-definitions.ts); pure
+  // MF/BTR operators don't carry a house/apt split worth surfacing. Null
+  // when the observed split totals zero (nothing to show either way).
+  const q7 = scorecard.pm.quadrant7Cell ?? "";
+  const isSfrOrHybrid = q7.startsWith("SFR") || q7 === "Hybrid";
+  const houseUrusT12 = scorecard.performance?.houseUrusT12 ?? 0;
+  const aptUrusT12 = scorecard.performance?.aptUrusT12 ?? 0;
+  const unitMix: ScaleFitView["unitMix"] =
+    isSfrOrHybrid && houseUrusT12 + aptUrusT12 > 0
+      ? { houseUrus: houseUrusT12, aptUrus: aptUrusT12 }
+      : null;
+
   const scaleFit: ScaleFitView = {
     takeaway: buildScaleFitTakeaway(scorecard),
     observedUnits: scorecard.coverage?.urusT12 ?? null,
@@ -256,6 +304,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     citiesObserved: scorecard.coverage?.citiesObserved ?? null,
     singleMarket: header.singleMarket,
     tenure,
+    unitMix,
   };
 
   const maturityLead = (months != null && months >= 18) ? "Limited footprint" : "Early coverage";
@@ -298,7 +347,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     sectionLabel: opLabel, takeaway: operatingTakeaway,
     strongest: sw.strongest.map((k) => METRIC_TITLES[k]),
     watch: sw.watch.map((k) => METRIC_TITLES[k]), metrics,
-    vacancy, rentStability,
+    vacancy, rentStability, concession,
   };
   readout[1].value = `Above cohort median on ${aboveCount} of ${metrics.length} scored dimensions`;
 
