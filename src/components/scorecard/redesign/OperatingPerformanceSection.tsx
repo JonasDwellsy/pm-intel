@@ -225,13 +225,25 @@ function CardHeader({ title, star }: { title: string; star: MetricRow["star"] })
   );
 }
 
-/** Evidence row: big value + position bar (n/a — no percentile for these metrics) + benchmark text. */
-function EvidenceRow({ value, benchmark }: { value: string; benchmark: string }) {
+/**
+ * Compact value/unit + benchmark row for metrics with no percentile position
+ * (re-enrichment metrics: vacancy, rent stability, concessions). Mirrors the
+ * mockup's `.bigval` + `<small>` caption convention, without a PositionBar.
+ */
+function EvidenceRow({
+  value,
+  unit,
+  benchmark,
+}: {
+  value: string;
+  unit: string;
+  benchmark: string;
+}) {
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "74px 1fr 150px",
+        gridTemplateColumns: "74px 1fr",
         gap: "14px",
         alignItems: "center",
       }}
@@ -248,23 +260,33 @@ function EvidenceRow({ value, benchmark }: { value: string; benchmark: string })
         >
           {value}
         </span>
-      </div>
-      <div>
-        <PositionBar position={null} />
+        <span
+          style={{
+            display: "block",
+            fontSize: "9.5px",
+            fontWeight: 600,
+            color: "#8894ac",
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            marginTop: "3px",
+          }}
+        >
+          {unit}
+        </span>
       </div>
       <div style={{ fontSize: "11.5px", color: "#5b6577" }}>{benchmark}</div>
     </div>
   );
 }
 
-/** Vacancy signal card — value `${pct}% of cycle`, benchmark `cohort median ${cohortMedianPct}%`. */
+/** Vacancy signal card — value `${pct}%` / unit `of cycle`, benchmark `cohort median ${cohortMedianPct}%`. */
 function VacancyCard({ vacancy }: { vacancy: NonNullable<OperatingView["vacancy"]> }) {
   const pct = fmt(vacancy.pct);
   const benchmark = vacancy.cohortMedianPct != null ? `cohort median ${fmt(vacancy.cohortMedianPct)}%` : "";
   return (
     <div style={cardShellStyle}>
       <CardHeader title="Vacancy signal" star={vacancy.star} />
-      <EvidenceRow value={`${pct}% of cycle`} benchmark={benchmark} />
+      <EvidenceRow value={`${pct}%`} unit="of cycle" benchmark={benchmark} />
     </div>
   );
 }
@@ -288,7 +310,7 @@ function RentStabilityCard({ rentStability }: { rentStability: NonNullable<Opera
   return (
     <div style={cardShellStyle}>
       <CardHeader title="Rent stability" star={rentStability.star} />
-      <EvidenceRow value={`${volatility} pp YoY stdev`} benchmark={benchmark} />
+      <EvidenceRow value={`${volatility} pp`} unit="YoY stdev" benchmark={benchmark} />
     </div>
   );
 }
@@ -321,7 +343,7 @@ function ConcessionCard({ concession }: { concession: NonNullable<OperatingView[
   return (
     <div style={cardShellStyle}>
       <CardHeader title="Concessions" star={null} />
-      <EvidenceRow value={`${rate}% of listings`} benchmark={benchmark} />
+      <EvidenceRow value={`${rate}%`} unit="of listings" benchmark={benchmark} />
 
       {concession.patterns.length > 0 && (
         <div
