@@ -131,6 +131,34 @@ test("momentum classifies portfolio from trajectory; other series insufficient f
   assert.equal(v.momentum.direction, "growing");
 });
 
+test("momentum falls back to quality series when portfolio series is empty (MF/BTR, no self-report)", () => {
+  const points: TrajPoint[] = [
+    { portfolioPoint: null, goldCount: 1, silverCount: 1 },
+    { portfolioPoint: null, goldCount: 2, silverCount: 1 },
+    { portfolioPoint: null, goldCount: 3, silverCount: 2 },
+    { portfolioPoint: null, goldCount: 4, silverCount: 2 },
+  ];
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      pm: { quadrant7Cell: "MF/BTR" },
+      portfolioEstimate: { status: "insufficient_data", point: null, low: null, high: null, confidence: null },
+      coverage: { monthsOnPlatform: 57, observedCommunities: 12 },
+      rentTrajectory: [],
+    }),
+    pool: [],
+    trajectory: { points },
+    marketConcessionMedian: null,
+  });
+  assert.notEqual(v.momentum.direction, "insufficient");
+  const row = v.readout.find((r) => r.area === "Momentum")!;
+  assert.match(row.value, /Operating quality/i);
+  assert.doesNotMatch(row.value, /Building history/i);
+  // portfolio sparkline itself is untouched — still reflects its own empty/insufficient state
+  const portfolio = v.momentum.sparklines.find((s) => s.key === "portfolio")!;
+  assert.equal(portfolio.direction, "insufficient");
+  assert.deepEqual(portfolio.series, []);
+});
+
 test("rent tier position is populated from operator rent vs pool", () => {
   // focal rent 2000 above pool [1000, 1500] → upper half
   const focalRentTraj = [{ quarter: "2024-Q4", mixAdjMedian: 2000 }];
@@ -181,9 +209,40 @@ test("thin MF/BTR operator: maturityNote contains 'Early coverage', communitiesO
   const scaleRow = v.readout.find((r) => r.area === "Scale & Fit")!;
   assert.match(scaleRow.value, /community/i);
   assert.match(scaleRow.value, /self-report/i);
-  // momentum: portfolioDir will be "insufficient" (no trajectory points), months = 6
+  // momentum: all series insufficient (no trajectory points), months = 6
   const momRow = v.readout.find((r) => r.area === "Momentum")!;
   assert.match(momRow.value, /6 mo observed/i);
+});
+
+test("maturity note lead: 'Limited footprint' at months >= 18, 'Early coverage' below that (single-community MF)", () => {
+  const longHistory = buildScorecardView({
+    scorecard: scFixture({
+      pm: { quadrant7Cell: "MF/BTR" },
+      coverage: { observedCommunities: 1, monthsOnPlatform: 57, urusT12: 58, totalObservedUnits: 58 },
+      portfolioEstimate: { status: "insufficient_data", point: null, low: null, high: null, confidence: null },
+      rentTrajectory: [],
+    }),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.ok(longHistory.maturityNote != null);
+  assert.match(longHistory.maturityNote!, /^Limited footprint —/);
+  assert.doesNotMatch(longHistory.maturityNote!, /Early coverage/);
+
+  const shortHistory = buildScorecardView({
+    scorecard: scFixture({
+      pm: { quadrant7Cell: "MF/BTR" },
+      coverage: { observedCommunities: 1, monthsOnPlatform: 6, urusT12: 58, totalObservedUnits: 58 },
+      portfolioEstimate: { status: "insufficient_data", point: null, low: null, high: null, confidence: null },
+      rentTrajectory: [],
+    }),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.ok(shortHistory.maturityNote != null);
+  assert.match(shortHistory.maturityNote!, /^Early coverage —/);
 });
 
 test("non-thin operator (observedCommunities = 40): maturityNote is null", () => {

@@ -42,13 +42,12 @@ export function RentTierMarker({ detail }: RentTierMarkerProps) {
   const tierWord =
     clamped < 0.33 ? "value" : clamped < 0.67 ? "mid-market" : "premium";
 
-  // Line 2: market P25/P75 + sample size
+  // Line 2: market P25/P75, explicitly framed as the other-operator cohort —
+  // the operator's own sample size lives in line 1 with its median, so this
+  // line isn't mistaken for a comparison against the operator's own listings.
   let line2: string | null = null;
   if (detail.marketP25 != null && detail.marketP75 != null) {
-    line2 = `Market P25 $${Math.round(detail.marketP25).toLocaleString()} – P75 $${Math.round(detail.marketP75).toLocaleString()}`;
-    if (detail.sampleSize != null) {
-      line2 += ` · from ${detail.sampleSize} of this operator's own recent listing${detail.sampleSize === 1 ? "" : "s"}`;
-    }
+    line2 = `Market P25 $${Math.round(detail.marketP25).toLocaleString()} – P75 $${Math.round(detail.marketP75).toLocaleString()} · other operators in the MSA`;
   }
 
   return (
@@ -116,12 +115,12 @@ export function RentTierMarker({ detail }: RentTierMarkerProps) {
         />
       </div>
 
-      {/* Caption line 1 */}
+      {/* Caption line 1 — operator's own median + sample size together */}
       <p style={{ fontSize: "10.5px", color: "#8894ac", margin: 0 }}>
-        {`≈ $${Math.round(detail.rentMedian).toLocaleString()}/mo median · ${tierWord} end`}
+        {`≈ $${Math.round(detail.rentMedian).toLocaleString()}/mo median${detail.sampleSize != null ? ` (from ${detail.sampleSize} recent listing${detail.sampleSize === 1 ? "" : "s"})` : ""} · ${tierWord} end`}
       </p>
 
-      {/* Caption line 2: market range + sample size */}
+      {/* Caption line 2: market range vs. other operators in the MSA */}
       {line2 != null && (
         <p style={{ fontSize: "9.5px", color: "#8894ac", margin: "2px 0 0" }}>
           {line2}

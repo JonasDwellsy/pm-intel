@@ -70,8 +70,11 @@ export function ExecReadout({ readout, maturityNote }: ExecReadoutProps) {
             <div style={{ width: "178px", flexShrink: 0, whiteSpace: "nowrap" }}>
               <span
                 style={{
+                  display: "inline-block",
+                  width: "20px",
+                  textAlign: "center",
                   fontSize: "12px",
-                  marginRight: "6px",
+                  marginRight: "4px",
                   opacity: 0.75,
                 }}
               >

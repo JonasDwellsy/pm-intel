@@ -132,14 +132,16 @@ function buildScaleFitTakeaway(sc: ScorecardData): string {
   return `${sc.pm.name} operates in ${sc.market.fullName} as a ${type}.`;
 }
 
-function momentumTakeaway(name: string, dir: MomentumDirection): string {
-  if (dir === "insufficient") return `Not enough history yet to read ${name}'s trajectory.`;
+function momentumTakeaway(name: string, driver: "portfolio" | "quality" | "reach" | "none", dir: MomentumDirection): string {
+  if (driver === "none" || dir === "insufficient") return `Not enough history yet to read ${name}'s trajectory.`;
   if (dir === "volatile") return `${name}'s recent estimates are volatile — interpret recent moves cautiously.`;
-  return `${name} appears ${dir === "growing" ? "larger" : dir === "declining" ? "smaller" : "steady"} versus when first observed.`;
-}
-
-function momentumReadout(dir: MomentumDirection): string {
-  return dir === "insufficient" ? "Building history" : dir[0].toUpperCase() + dir.slice(1);
+  if (driver === "portfolio") {
+    return `${name} appears ${dir === "growing" ? "larger" : dir === "declining" ? "smaller" : "steady"} versus when first observed.`;
+  }
+  if (driver === "quality") {
+    return `Operating quality has been trending ${dir === "growing" ? "up" : dir === "declining" ? "down" : "steady"} for ${name}.`;
+  }
+  return `Geographic footprint has been ${dir === "growing" ? "expanding" : dir === "declining" ? "contracting" : "steady"} for ${name}.`;
 }
 
 export function buildScorecardView(input: BuildViewInput): ScorecardView {
@@ -201,8 +203,9 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     singleMarket: header.singleMarket,
   };
 
+  const maturityLead = (months != null && months >= 18) ? "Limited footprint" : "Early coverage";
   const maturityNote: string | null = thin
-    ? `Early coverage — ${months ?? "under 12"} months observed across ${communitiesObserved} ${communitiesObserved === 1 ? "community" : "communities"}. Treat estimates, trends, and cohort comparisons as provisional.`
+    ? `${maturityLead} — ${months ?? "under 12"} months observed across ${communitiesObserved} ${communitiesObserved === 1 ? "community" : "communities"}. Treat estimates, trends, and cohort comparisons as provisional.`
     : null;
 
   const typeLabel = scorecard.pm.quadrant7Cell ?? "operator";
@@ -257,11 +260,29 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     )
     .filter((n): n is number => n != null);
   const portfolioDir = momentumDirection({ values: portfolioSeries });
+  const reachDir = momentumDirection({ values: reachSeries });
+  const qualityDir = momentumDirection({ values: qualitySeries });
   const mkSpark = (key: "portfolio" | "share" | "reach" | "quality", label: string, series: number[]) =>
     ({ key, label, series, direction: momentumDirection({ values: series }) });
+
+  // Best-available series drives the section direction + readout, in priority
+  // order [portfolio, quality, reach] — MF/BTR operators with no self-report
+  // have an empty portfolio series (portfolioEstimate.status = "insufficient_data")
+  // but may still have 50+ months of real reach/quality history.
+  const driver: "portfolio" | "quality" | "reach" | "none" =
+    portfolioDir !== "insufficient" ? "portfolio"
+    : qualityDir !== "insufficient" ? "quality"
+    : reachDir !== "insufficient" ? "reach"
+    : "none";
+  const sectionDirection: MomentumDirection =
+    driver === "portfolio" ? portfolioDir
+    : driver === "quality" ? qualityDir
+    : driver === "reach" ? reachDir
+    : "insufficient";
+
   const momentum: MomentumView = {
-    direction: portfolioDir,
-    takeaway: momentumTakeaway(scorecard.pm.name, portfolioDir),
+    direction: sectionDirection,
+    takeaway: momentumTakeaway(scorecard.pm.name, driver, sectionDirection),
     sparklines: [
       mkSpark("portfolio", "Portfolio", portfolioSeries),
       mkSpark("share", "Listing share", []), // deferred: needs t12ListingsCount history (Phase 4b)
@@ -269,14 +290,20 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
       mkSpark("quality", "Operating quality", qualitySeries),
     ],
   };
-  if (portfolioDir === "growing") {
-    readout[2].value = "Portfolio larger than when first observed";
-  } else if (portfolioDir === "declining") {
-    readout[2].value = "Portfolio smaller than when first observed";
-  } else if (portfolioDir === "stable") {
-    readout[2].value = "Portfolio steady since first observed";
-  } else if (portfolioDir === "volatile") {
-    readout[2].value = "Long-term trend up, recent estimates volatile";
+  if (driver === "portfolio") {
+    if (portfolioDir === "growing") {
+      readout[2].value = "Portfolio larger than when first observed";
+    } else if (portfolioDir === "declining") {
+      readout[2].value = "Portfolio smaller than when first observed";
+    } else if (portfolioDir === "stable") {
+      readout[2].value = "Portfolio steady since first observed";
+    } else {
+      readout[2].value = "Long-term trend up, recent estimates volatile";
+    }
+  } else if (driver === "quality") {
+    readout[2].value = `Operating quality trending ${qualityDir === "growing" ? "up" : qualityDir === "declining" ? "down" : qualityDir === "volatile" ? "volatile" : "flat"}`;
+  } else if (driver === "reach") {
+    readout[2].value = `Geographic reach ${reachDir === "growing" ? "expanding" : reachDir === "declining" ? "contracting" : reachDir === "volatile" ? "volatile" : "steady"}`;
   } else {
     readout[2].value = `Building history${months != null ? ` (${months} mo observed)` : ""}`;
   }
