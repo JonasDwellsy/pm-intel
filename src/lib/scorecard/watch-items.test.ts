@@ -77,17 +77,32 @@ test("rating downgrade is a risk; improvement is positive", () => {
   assert.ok(up.some((i) => i.kind === "positive" && /improvement/i.test(i.headline)));
 });
 
-test("dropped from rankings is a risk", () => {
+test("falling below the listing threshold is a risk", () => {
   const items = buildWatchItems(sc(quiet), null, traj([
     { date: "2024-06-30", eligible: true, goldCount: 1, silverCount: 0 },
     { date: "2025-06-30", eligible: false, goldCount: 0, silverCount: 0 },
   ]));
-  assert.ok(items.some((i) => i.kind === "risk" && /dropped/i.test(i.headline)));
+  assert.ok(items.some((i) => i.kind === "risk" && /listing threshold/i.test(i.headline)));
+});
+
+test("concession-spike trend is suppressed when the level-based risk already fired", () => {
+  // Level fires: 0.6 >= max(0.1, 0.02*5). Trajectory would also flag "climbing"
+  // (0.05 → 0.6) — but must be suppressed so a single spike isn't double-counted.
+  const items = buildWatchItems(
+    sc({ concessionRate: 0.6, coverage: { yearsVisible: 6 } }),
+    0.02,
+    traj([
+      { date: "2024-06-30", concessionRate: 0.05 },
+      { date: "2025-06-30", concessionRate: 0.6 },
+    ])
+  );
+  assert.ok(items.some((i) => /heavy concession/i.test(i.headline)));
+  assert.ok(items.every((i) => !/climbing/i.test(i.headline)));
 });
 
 test("no trajectory → no trend items (back-compat)", () => {
   const items = buildWatchItems(sc(), 0.01);
-  assert.ok(items.every((i) => !/climbing|downgrade|dropped|improvement/i.test(i.headline)));
+  assert.ok(items.every((i) => !/climbing|downgrade|listing threshold|improvement/i.test(i.headline)));
 });
 
 // ── Single-community watch item tests ────────────────────────────────────────

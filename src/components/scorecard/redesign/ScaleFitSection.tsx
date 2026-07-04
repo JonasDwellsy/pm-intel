@@ -199,6 +199,10 @@ interface ScaleFitSectionProps {
   scaleFit: ScaleFitView;
   peers: SelectedPeer[];
   geographicCoverage: ScorecardData["geographicCoverage"];
+  /** Short MSA label (e.g. "Charlotte-Gastonia-Rock Hill, NC-SC MSA") for the
+   *  coverage-map fallback caption. NOT the long citiesText concentration
+   *  sentence — that overflows the fallback's right-anchored label. */
+  marketFullName: string;
 }
 
 /**
@@ -209,7 +213,7 @@ interface ScaleFitSectionProps {
  *                right = CoverageMapClient
  *  - Similar local players peer table
  */
-export function ScaleFitSection({ scaleFit, peers, geographicCoverage }: ScaleFitSectionProps) {
+export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFullName }: ScaleFitSectionProps) {
   return (
     <div
       id="scale-fit"
@@ -541,9 +545,9 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage }: ScaleFi
             accentColor="#1b6e8c"
             fallbackCity={
               geographicCoverage.topCities?.[0]?.name ??
-              geographicCoverage.citiesText.split(",")[0].trim()
+              marketFullName.split(/[–—-]/)[0].split(",")[0].trim()
             }
-            fallbackMsa={geographicCoverage.citiesText}
+            fallbackMsa={marketFullName}
           />
         </div>
       </div>

@@ -36,6 +36,10 @@ export function ScorecardBody({
 }) {
   void isClaimed; // reserved for future claimed-operator badge rendering
 
+  const nonPositiveWatchCount = view.watchItems.filter(
+    (w) => w.kind !== "positive"
+  ).length;
+
   // Build the nav sections array for the right rail.
   const navSections = [
     { id: "scale-fit", num: "01", label: "Scale & Fit" },
@@ -49,13 +53,19 @@ export function ScorecardBody({
       id: "momentum",
       num: "03",
       label: "Momentum",
-      statusLabel: view.momentum.direction,
+      // Omit the chip for the "insufficient" direction — a bare "INSUFFICIENT"
+      // chip reads as an error, not a signal.
+      statusLabel:
+        view.momentum.direction === "insufficient" ? undefined : view.momentum.direction,
     },
     {
       id: "watch-items",
       num: "04",
       label: "Watch Items",
-      statusLabel: String(view.watchItems.filter((w) => w.kind !== "positive").length),
+      // Count of non-positive (risk/data) items; omit the chip when there are
+      // none rather than rendering a bare "0".
+      statusLabel:
+        nonPositiveWatchCount > 0 ? String(nonPositiveWatchCount) : undefined,
     },
     { id: "methodology-footer", num: "05", label: "Methodology" },
   ];
@@ -84,6 +94,7 @@ export function ScorecardBody({
           scaleFit={view.scaleFit}
           peers={view.peers}
           geographicCoverage={geographicCoverage}
+          marketFullName={view.header.marketFullName}
         />
 
         {/* 02 Operating Performance */}
@@ -99,15 +110,15 @@ export function ScorecardBody({
         <MethodologyFooter scorecard={scorecard} />
       </div>
 
-      {/* Right-rail nav (client component, sticky) */}
+      {/* Right-rail nav (client component, sticky). Visibility is controlled
+          by the `hidden lg:block` class — hidden below lg, shown at lg+. Do
+          NOT add an inline `display` here: an inline style beats the class's
+          media query and would hide the rail at every width. */}
       <div
         style={{
           width: "210px",
           flexShrink: 0,
           paddingTop: "28px",
-          display: "none",
-          // shown on md+ via a wrapper — works with inline style only on server;
-          // ScorecardNav's own sticky positioning handles the rest
         }}
         className="hidden lg:block"
       >

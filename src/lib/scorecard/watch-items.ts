@@ -140,9 +140,9 @@ export function buildWatchItems(
     if (droppedOut) {
       items.push({
         kind: "risk",
-        headline: "Recently dropped from rankings",
+        headline: "Recently fell below the listing threshold",
         explanation:
-          "This operator met the ranking threshold in an earlier snapshot but no longer does — its recent listing volume has fallen below the eligibility floor.",
+          "This operator met the listing threshold in an earlier snapshot but no longer does — its recent listing volume has fallen below the floor for cohort inclusion.",
         ask: "Is the operator winding down, or did its listings simply move off-platform?",
       });
     } else {

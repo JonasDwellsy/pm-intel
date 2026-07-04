@@ -21,3 +21,10 @@ test("stable when net change is within the flat band and low volatility", () => 
 test("volatile when swings are large even if net change is small", () => {
   assert.equal(momentumDirection({ values: [100, 180, 60, 105] }), "volatile");
 });
+
+test("large swings with a strong net direction are growing/declining, not volatile", () => {
+  // maxSwing (1.0) exceeds volatilityPct (0.4), but |netChange| (3.0) is >=
+  // maxSwing/2, so the volatility guard must NOT win — net direction governs.
+  assert.equal(momentumDirection({ values: [100, 200, 300, 400] }), "growing");
+  assert.equal(momentumDirection({ values: [400, 300, 200, 100] }), "declining");
+});
