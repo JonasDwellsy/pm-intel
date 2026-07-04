@@ -28,15 +28,14 @@ export function ScorecardNav({ sections }: ScorecardNavProps) {
     <nav
       aria-label="On this page"
       style={{
+        // Stickiness is handled by the wrapper in ScorecardBody (the flex
+        // child), which has room to stick; this panel is a plain box.
         width: "186px",
         borderLeft: "1px solid #e6eaf1",
         padding: "18px 14px",
         background: "#fafbfd",
         fontSize: "12px",
         flexShrink: 0,
-        alignSelf: "flex-start",
-        position: "sticky",
-        top: "20px",
       }}
     >
       <div

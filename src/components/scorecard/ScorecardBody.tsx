@@ -95,6 +95,8 @@ export function ScorecardBody({
           peers={view.peers}
           geographicCoverage={geographicCoverage}
           marketFullName={view.header.marketFullName}
+          marketStateCode={scorecard.market.state}
+          marketCity={scorecard.market.name}
         />
 
         {/* 02 Operating Performance */}
@@ -110,15 +112,23 @@ export function ScorecardBody({
         <MethodologyFooter scorecard={scorecard} />
       </div>
 
-      {/* Right-rail nav (client component, sticky). Visibility is controlled
-          by the `hidden lg:block` class — hidden below lg, shown at lg+. Do
-          NOT add an inline `display` here: an inline style beats the class's
-          media query and would hide the rail at every width. */}
+      {/* Right-rail nav (client component). Visibility is controlled by the
+          `hidden lg:block` class — hidden below lg, shown at lg+. Do NOT add an
+          inline `display` here: an inline style beats the class's media query
+          and would hide the rail at every width.
+          Stickiness lives on THIS wrapper (the flex child), not on the nav:
+          the wrapper's containing block is the tall flex row, so it has room to
+          stick; the nav's own box is only as tall as itself and can't. */}
       <div
         style={{
           width: "210px",
           flexShrink: 0,
           paddingTop: "28px",
+          position: "sticky",
+          top: "20px",
+          alignSelf: "flex-start",
+          maxHeight: "calc(100vh - 40px)",
+          overflowY: "auto",
         }}
         className="hidden lg:block"
       >

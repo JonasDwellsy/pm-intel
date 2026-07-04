@@ -10,6 +10,7 @@ import { PortfolioRangeBar } from "./PortfolioRangeBar";
 import { ConcentrationBar } from "./ConcentrationBar";
 import { RentTierMarker } from "./RentTierMarker";
 import { CoverageMapClient } from "@/components/scorecard/CoverageMapClient";
+import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 
 const MAX_MEMBER_MARKETS_SHOWN = 4;
 
@@ -203,6 +204,10 @@ interface ScaleFitSectionProps {
    *  coverage-map fallback caption. NOT the long citiesText concentration
    *  sentence — that overflows the fallback's right-anchored label. */
   marketFullName: string;
+  /** Focal operator's market state code + city — peers are same-MSA, so their
+   *  scorecard URLs share these path segments. Used to link peer rows. */
+  marketStateCode: string;
+  marketCity: string;
 }
 
 /**
@@ -213,7 +218,11 @@ interface ScaleFitSectionProps {
  *                right = CoverageMapClient
  *  - Similar local players peer table
  */
-export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFullName }: ScaleFitSectionProps) {
+export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFullName, marketStateCode, marketCity }: ScaleFitSectionProps) {
+  // Peers are same-MSA, so each peer's scorecard lives under the focal
+  // operator's state/city path segments.
+  const peerHref = (slug: string) =>
+    `/property-managers/${stateCodeToSlug(marketStateCode)}/${citySlug(marketCity)}/${slug}`;
   return (
     <div
       id="scale-fit"
@@ -601,7 +610,8 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
             <tbody>
               {peers.map((peer) => (
                 <tr key={peer.slug}>
-                  {/* Operator name — plain text (no route available this phase) */}
+                  {/* Operator name — links to that operator's scorecard
+                      (same MSA). The focal row stays plain text. */}
                   <td
                     style={{
                       padding: "7px 8px",
@@ -611,17 +621,26 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
                       background: peer.isFocal ? "#eef4f7" : "transparent",
                     }}
                   >
-                    {peer.name}
-                    {peer.isFocal && (
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          color: "#8894ac",
-                          marginLeft: "6px",
-                        }}
+                    {peer.isFocal ? (
+                      <>
+                        {peer.name}
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            color: "#8894ac",
+                            marginLeft: "6px",
+                          }}
+                        >
+                          (this operator)
+                        </span>
+                      </>
+                    ) : (
+                      <a
+                        href={peerHref(peer.slug)}
+                        style={{ color: "#155772", textDecoration: "none", fontWeight: 500 }}
                       >
-                        (this operator)
-                      </span>
+                        {peer.name}
+                      </a>
                     )}
                   </td>
 
