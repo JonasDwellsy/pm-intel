@@ -10,6 +10,11 @@ interface OperatingPerformanceSectionProps {
   operating: OperatingView;
 }
 
+/** Round a number for display; guards null. */
+function fmt(n: number | null, digits = 1): string | null {
+  return n != null ? n.toFixed(digits) : null;
+}
+
 /** Star glyph rendered when metric.star is "gold" or "silver". */
 function StarGlyph({ star }: { star: MetricRow["star"] }) {
   if (!star) return null;
@@ -195,6 +200,176 @@ function MetricCard({ metric }: { metric: MetricRow }) {
   );
 }
 
+/** Shared card shell (border/radius/padding) for the restored-metric cards below. */
+const cardShellStyle: React.CSSProperties = {
+  border: "1px solid #e2e7ef",
+  borderRadius: "10px",
+  padding: "13px 15px",
+  marginBottom: "11px",
+};
+
+/** Card header row: title + star + spacer. No label chip (these metrics aren't cohort-scored labels). */
+function CardHeader({ title, star }: { title: string; star: MetricRow["star"] }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        marginBottom: "5px",
+      }}
+    >
+      <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f1f3f" }}>{title}</span>
+      <StarGlyph star={star} />
+    </div>
+  );
+}
+
+/** Evidence row: big value + position bar (n/a — no percentile for these metrics) + benchmark text. */
+function EvidenceRow({ value, benchmark }: { value: string; benchmark: string }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "74px 1fr 150px",
+        gap: "14px",
+        alignItems: "center",
+      }}
+    >
+      <div>
+        <span
+          style={{
+            fontSize: "22px",
+            fontWeight: 700,
+            color: "#0f1f3f",
+            lineHeight: 1.1,
+            display: "block",
+          }}
+        >
+          {value}
+        </span>
+      </div>
+      <div>
+        <PositionBar position={null} />
+      </div>
+      <div style={{ fontSize: "11.5px", color: "#5b6577" }}>{benchmark}</div>
+    </div>
+  );
+}
+
+/** Vacancy signal card — value `${pct}% of cycle`, benchmark `cohort median ${cohortMedianPct}%`. */
+function VacancyCard({ vacancy }: { vacancy: NonNullable<OperatingView["vacancy"]> }) {
+  const pct = fmt(vacancy.pct);
+  const benchmark = vacancy.cohortMedianPct != null ? `cohort median ${fmt(vacancy.cohortMedianPct)}%` : "";
+  return (
+    <div style={cardShellStyle}>
+      <CardHeader title="Vacancy signal" star={vacancy.star} />
+      <EvidenceRow value={`${pct}% of cycle`} benchmark={benchmark} />
+    </div>
+  );
+}
+
+/** Rent stability card — suppressed → muted/italic caveat; else value + benchmark + star. */
+function RentStabilityCard({ rentStability }: { rentStability: NonNullable<OperatingView["rentStability"]> }) {
+  if (rentStability.suppressed) {
+    return (
+      <div style={cardShellStyle}>
+        <CardHeader title="Rent stability" star={null} />
+        <div style={{ fontSize: "12px", color: "#8894ac", fontStyle: "italic" }}>
+          {rentStability.reason}
+        </div>
+      </div>
+    );
+  }
+
+  const volatility = fmt(rentStability.volatilityPP);
+  const benchmark =
+    rentStability.cohortMedianPP != null ? `cohort median ${fmt(rentStability.cohortMedianPP)} pp` : "";
+  return (
+    <div style={cardShellStyle}>
+      <CardHeader title="Rent stability" star={rentStability.star} />
+      <EvidenceRow value={`${volatility} pp YoY stdev`} benchmark={benchmark} />
+    </div>
+  );
+}
+
+/** Small pill chip for concession patterns (e.g. "1 month free"). */
+function PatternChip({ label }: { label: string }) {
+  return (
+    <span
+      style={{
+        fontSize: "11px",
+        padding: "3px 9px",
+        borderRadius: "20px",
+        border: "1px solid #e0e5ee",
+        display: "inline-block",
+        color: "#5b6577",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+/** Concession card — value/benchmark row + pattern chips + up to 3 muted sample quotes. */
+function ConcessionCard({ concession }: { concession: NonNullable<OperatingView["concession"]> }) {
+  const rate = fmt(concession.ratePct);
+  const benchmark =
+    concession.marketMedianPct != null ? `market median ${fmt(concession.marketMedianPct)}%` : "";
+  const samples = concession.samples.slice(0, 3);
+
+  return (
+    <div style={cardShellStyle}>
+      <CardHeader title="Concessions" star={null} />
+      <EvidenceRow value={`${rate}% of listings`} benchmark={benchmark} />
+
+      {concession.patterns.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            gap: "6px",
+            flexWrap: "wrap",
+            marginTop: "11px",
+          }}
+        >
+          {concession.patterns.map((p) => (
+            <PatternChip key={p} label={p} />
+          ))}
+        </div>
+      )}
+
+      {samples.length > 0 && (
+        <div
+          style={{
+            marginTop: "9px",
+            paddingTop: "9px",
+            borderTop: "1px solid #f0f2f6",
+            display: "flex",
+            flexDirection: "column",
+            gap: "4px",
+          }}
+        >
+          {samples.map((s, i) => (
+            <blockquote
+              key={i}
+              style={{
+                margin: 0,
+                paddingLeft: "10px",
+                borderLeft: "2px solid #e2e7ef",
+                fontSize: "11.5px",
+                color: "#8894ac",
+                fontStyle: "italic",
+              }}
+            >
+              {s}
+            </blockquote>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * "02 Operating Performance" section:
  *  - Numbered header + sectionLabel chip
@@ -261,6 +436,11 @@ export function OperatingPerformanceSection({ operating }: OperatingPerformanceS
       {operating.metrics.map((metric) => (
         <MetricCard key={metric.key} metric={metric} />
       ))}
+
+      {/* Restored metrics: vacancy / rent stability / concession detail */}
+      {operating.vacancy && <VacancyCard vacancy={operating.vacancy} />}
+      {operating.rentStability && <RentStabilityCard rentStability={operating.rentStability} />}
+      {operating.concession && <ConcessionCard concession={operating.concession} />}
     </div>
   );
 }
