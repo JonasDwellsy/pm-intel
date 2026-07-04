@@ -269,14 +269,14 @@ function VacancyCard({ vacancy }: { vacancy: NonNullable<OperatingView["vacancy"
   );
 }
 
-/** Rent stability card — suppressed → muted/italic caveat; else value + benchmark + star. */
+/** Rent stability card — suppressed or missing volatility → muted/italic caveat; else value + benchmark + star. */
 function RentStabilityCard({ rentStability }: { rentStability: NonNullable<OperatingView["rentStability"]> }) {
-  if (rentStability.suppressed) {
+  if (rentStability.suppressed || rentStability.volatilityPP == null) {
     return (
       <div style={cardShellStyle}>
         <CardHeader title="Rent stability" star={null} />
         <div style={{ fontSize: "12px", color: "#8894ac", fontStyle: "italic" }}>
-          {rentStability.reason}
+          {rentStability.reason ?? "Rent stability data is not available for this property."}
         </div>
       </div>
     );
