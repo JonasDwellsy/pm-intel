@@ -185,9 +185,18 @@ export default async function MarketChildPage({
         })
       : Promise.resolve([]),
   ]);
-  const memberPmSlugs = members.map((m) => m.slug);
-  const memberMarketNames = Array.from(new Set(members.map((m) => m.market.fullName)));
-  const marketCount = new Set(members.map((m) => m.marketId)).size;
+  // Scope the cross-market member enumeration to the viewer's entitled
+  // markets BEFORE deriving anything from it — mirrors the filter in
+  // loadOperatorScorecard (src/lib/operators/lookup.ts:103-106). Without
+  // this, a viewer entitled to only some of the operator's markets would
+  // see non-entitled markets' names/counts leak into the aggregate
+  // trajectory + member-market list, violating loadOperatorAggregateTrajectory's
+  // documented precondition that the caller has already scoped to the
+  // viewer's entitled markets.
+  const entitledMembers = members.filter((m) => isMarketEntitled(entitlement, m.marketId));
+  const memberPmSlugs = entitledMembers.map((m) => m.slug);
+  const memberMarketNames = Array.from(new Set(entitledMembers.map((m) => m.market.fullName)));
+  const marketCount = new Set(entitledMembers.map((m) => m.marketId)).size;
   const aggregateTrajectory = isMultiMarket
     ? await loadOperatorAggregateTrajectory(memberPmSlugs)
     : undefined;
