@@ -12,6 +12,7 @@ import {
   aggregateMemberSnapshots,
   quarterEndDate,
   collapseMemberRowsToQuarterly,
+  parseSubmarketCount,
   type OperatorTrajectory,
   type TrajectoryPoint,
   type MemberSnapshotRow,
@@ -222,11 +223,11 @@ test("scorecard page renders the trajectory section", () => {
     "utf8"
   );
   assert.ok(src.includes("loadOperatorTrajectory"), "scorecard page must load the trajectory");
-  const body = readFileSync(
-    join(process.cwd(), "src/components/scorecard/ScorecardBody.tsx"),
-    "utf8"
-  );
-  assert.ok(body.includes("OperatorTrajectorySection"), "ScorecardBody must render the trajectory section");
+  // Redesign (Task 8): trajectory data is fed through buildScorecardView →
+  // MomentumSection (sparklines) rather than rendered via OperatorTrajectorySection
+  // directly. Verify the view model receives the trajectory.
+  assert.ok(src.includes("buildScorecardView"), "scorecard page must build the view model");
+  assert.ok(src.includes("trajectory:"), "scorecard page must pass trajectory to view model");
 });
 
 test("operator page renders the aggregate trajectory section", () => {
@@ -242,4 +243,14 @@ test("operator page renders the aggregate trajectory section", () => {
     src.includes("OperatorAggregateTrajectorySection"),
     "operator page must render the aggregate trajectory section"
   );
+});
+
+// ─── parseSubmarketCount ────────────────────────────────────────
+
+test("parseSubmarketCount counts a JSON array and tolerates null/garbage", () => {
+  assert.equal(parseSubmarketCount(JSON.stringify(["a", "b", "c"])), 3);
+  assert.equal(parseSubmarketCount(JSON.stringify([])), 0);
+  assert.equal(parseSubmarketCount(null), null);
+  assert.equal(parseSubmarketCount("not json"), null);
+  assert.equal(parseSubmarketCount(JSON.stringify({ a: 1 })), null);
 });

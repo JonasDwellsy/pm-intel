@@ -19,12 +19,29 @@ export interface TrajectoryPoint {
   goldCount: number;
   silverCount: number;
   eligible: boolean;
+  /** Distinct submarkets with T12 listings that snapshot — geographic-reach
+   *  proxy. Optional: only the per-operator loader populates it. */
+  submarketCount?: number | null;
+  /** Fraction (0..1) of T12 listings mentioning concessions that snapshot. */
+  concessionRate?: number | null;
 }
 
 export interface OperatorTrajectory {
   pmSlug: string;
   /** Ascending by date. */
   points: TrajectoryPoint[];
+}
+
+/** Count of distinct submarkets in the stored `topSubmarkets` JSON array
+ *  (geographic-reach proxy). null when absent or unparseable. */
+export function parseSubmarketCount(topSubmarkets: string | null): number | null {
+  if (!topSubmarkets) return null;
+  try {
+    const arr = JSON.parse(topSubmarkets);
+    return Array.isArray(arr) ? arr.length : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function loadOperatorTrajectory(
@@ -40,6 +57,8 @@ export async function loadOperatorTrajectory(
       starGoldCount: true,
       starSilverCount: true,
       isEligibleForRanking: true,
+      topSubmarkets: true,
+      concessionRate: true,
     },
   });
   return {
@@ -51,6 +70,8 @@ export async function loadOperatorTrajectory(
       goldCount: r.starGoldCount,
       silverCount: r.starSilverCount,
       eligible: r.isEligibleForRanking,
+      submarketCount: parseSubmarketCount(r.topSubmarkets),
+      concessionRate: r.concessionRate,
     })),
   };
 }

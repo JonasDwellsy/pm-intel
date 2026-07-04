@@ -72,6 +72,10 @@ export interface ScorecardData {
     institutional?: boolean;
     accentColor?: string;
     primaryCity?: string;
+    // v0.24 — Dwellsy company-page id + the operator's own website (surfaced
+    // in the redesigned scorecard header; populated into the blob at seed time).
+    companyId?: string;
+    website?: string;
   };
   // v0.6.4 Patch 1 — canonical operator identity. Every PM carries
   // these; multi-market operators share the same id across markets.

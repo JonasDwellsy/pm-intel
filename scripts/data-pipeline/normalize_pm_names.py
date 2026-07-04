@@ -207,13 +207,21 @@ def main():
             # render code falls back to it for the DBA case.
             old_canonical_name = pm.get("canonicalOperatorName") or ""
             new_canonical_name = normalize_name(old_canonical_name, acronym_map, stopwords_2char)
-            if new_name != old_name or new_canonical_name != old_canonical_name:
+            # Also normalize parentCompanyName — merge.py's link_by_parent_id
+            # re-derives canonicalOperatorName from it, so stale casing here
+            # silently reverts corrected acronym casing at merge time.
+            old_parent_name = pm.get("parentCompanyName") or ""
+            new_parent_name = normalize_name(old_parent_name, acronym_map, stopwords_2char)
+            if (new_name != old_name or new_canonical_name != old_canonical_name
+                    or new_parent_name != old_parent_name):
                 market_changes.append({
                     "slug": pm.get("slug"),
                     "name_before": old_name,
                     "name_after": new_name,
                     "canonical_before": old_canonical_name,
                     "canonical_after": new_canonical_name,
+                    "parent_before": old_parent_name,
+                    "parent_after": new_parent_name,
                 })
         if market_changes:
             per_market_changes[m["id"]] = market_changes
@@ -256,6 +264,8 @@ def main():
                 pm["name"] = c["name_after"]
                 if pm.get("canonicalOperatorName"):
                     pm["canonicalOperatorName"] = c["canonical_after"]
+                if pm.get("parentCompanyName"):
+                    pm["parentCompanyName"] = c["parent_after"]
         with open(path, "w") as f:
             json.dump(blob, f, indent=2)
         print(f"  ✓ {m['id']:50s} {len(market_changes)} change(s) → "

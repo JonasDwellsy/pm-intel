@@ -244,7 +244,14 @@ def merge_markets(per_market_blobs, methodology_version="v0.6.4"):
     slug_counts = Counter()
 
     for blob in per_market_blobs:
-        # Each per-market JSON has markets[] of length 1.
+        # Each per-market JSON has markets[] of length 1. Stamp each market
+        # with its OWN data cutoff so the scorecard footer can show the
+        # per-market "data as of" date (markets refresh on different dates)
+        # rather than the global max computed below.
+        blob_data_as_of = blob.get("dataAsOf")
+        for m in blob["markets"]:
+            if blob_data_as_of and "dataAsOf" not in m:
+                m["dataAsOf"] = blob_data_as_of
         merged["markets"].extend(blob["markets"])
         for pm in blob["pms"]:
             # Intentionally NOT deduping. The upstream Python pipeline

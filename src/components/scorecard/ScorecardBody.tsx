@@ -1,189 +1,129 @@
-import Link from "next/link";
-import type { ScorecardData } from "@/lib/types";
-import type { MarketFootprintPill } from "@/lib/cross-market";
-import type { Layer3Metric, PeerComparison } from "@/lib/peer-comparison";
-import type { LendingSignals as LendingSignalsData } from "@/lib/lending-signals";
-import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
-import type { ConcessionContext } from "@/lib/concession-context";
-
-import { TrackEvent } from "@/components/analytics/TrackEvent";
-import { TrackedLink } from "@/components/analytics/TrackedLink";
-import { MetricInfoProvider } from "@/components/scorecard/MetricInfoProvider";
-import { IdentityHero } from "@/components/scorecard/IdentityHero";
-import { StickyOperatorBar } from "@/components/scorecard/StickyOperatorBar";
-import { SynthesisLayer } from "@/components/scorecard/SynthesisLayer";
-import { OperatorTrajectorySection } from "@/components/scorecard/OperatorTrajectorySection";
-import type { OperatorTrajectory } from "@/lib/operators/trajectory";
-import { PerformanceLayer } from "@/components/scorecard/PerformanceLayer";
-import { LendingSignals } from "@/components/scorecard/LendingSignals";
-import { PortfolioLayer } from "@/components/scorecard/PortfolioLayer";
-import type { ShareTrajectoryView } from "@/lib/share-trajectory";
-import { MethodologyFooter } from "@/components/scorecard/MethodologyFooter";
-import { ScorecardSidebar } from "@/components/scorecard/ScorecardSidebar";
-
-// v1.0 scorecard layer order (per Scorecard_Design_Spec_v1.0.md Section 3):
-//   Layer 1 — Identity hero (IdentityHero)
-//   Layer 2 — Synthesis (SynthesisLayer)
-//   Layer 3 — Performance dimensions (PerformanceLayer)
-//   Layer 4 — Lending Signals (LendingSignals)
-//   Layer 5 — Portfolio Characteristics (PortfolioLayer)
-//   Layer 6 — Methodology footer (MethodologyFooter)
+// Scorecard redesign — main body compositor (v2).
+// Composes the redesigned sections in order:
+//   ScorecardHeader · ExecReadout · ScaleFitSection · OperatingPerformanceSection
+//   · MomentumSection · WatchItemsSection · MethodologyFooter (section 05)
+// Right rail: ScorecardNav (client component, sticky).
 //
-// PR #47 retires the paywall. All sections render unconditionally
-// for every visitor; the `?unlocked=true` query param is still
-// accepted but ignored (kept as a no-op so stale inbound links
-// don't 404 or land in an unexpected state). The "Build a watch list
-// to find more like this" CTA that lived on the paywall card is
-// preserved as a contextual block between Methodology and the end
-// of the article.
+// Takes a pre-built ScorecardView from buildScorecardView() so this component
+// is purely presentational — no raw ScorecardData plumbing except what
+// MethodologyFooter needs (scorecard) and geographicCoverage for the map.
+
+import type { ScorecardData } from "@/lib/types";
+import type { ScorecardView } from "@/lib/scorecard/view-model";
+
+import { ScorecardHeader } from "@/components/scorecard/redesign/ScorecardHeader";
+import { ExecReadout } from "@/components/scorecard/redesign/ExecReadout";
+import { ScaleFitSection } from "@/components/scorecard/redesign/ScaleFitSection";
+import { OperatingPerformanceSection } from "@/components/scorecard/redesign/OperatingPerformanceSection";
+import { MomentumSection } from "@/components/scorecard/redesign/MomentumSection";
+import { WatchItemsSection } from "@/components/scorecard/redesign/WatchItemsSection";
+import { ScorecardNav } from "@/components/scorecard/redesign/ScorecardNav";
+import { MethodologyFooter } from "@/components/scorecard/MethodologyFooter";
+
 export function ScorecardBody({
+  view,
   scorecard,
   isClaimed,
-  marketFootprint,
-  peerComparisons,
-  lendingSignals,
-  cohortRentTrajectory,
-  shareTrajectory,
-  concessionContext,
-  compareHref,
-  crossMarketOperator = null,
-  operatorTrajectory,
+  geographicCoverage,
 }: {
+  /** Pre-built view model from buildScorecardView(). */
+  view: ScorecardView;
+  /** Raw scorecard — needed by MethodologyFooter only. */
   scorecard: ScorecardData;
   isClaimed: boolean;
-  marketFootprint: MarketFootprintPill[];
-  /** Snapshot time-series for this operator (3a). */
-  operatorTrajectory: OperatorTrajectory;
-  peerComparisons: Record<Layer3Metric, PeerComparison | null>;
-  lendingSignals: LendingSignalsData;
-  cohortRentTrajectory: CohortRentTrajectory | null;
-  /** Resolved compare URL passed through to the sidebar's "Compare with
-   *  similar PMs" button. Null when the market has no other ranked
-   *  operators (sidebar then hides the button). */
-  compareHref: string | null;
-  shareTrajectory: ShareTrajectoryView | null;
-  concessionContext: ConcessionContext;
-  crossMarketOperator?: {
-    canonicalSlug: string;
-    marketCount: number;
-  } | null;
+  /** Geographic coverage data for the map in ScaleFitSection. */
+  geographicCoverage: ScorecardData["geographicCoverage"];
 }) {
-  return (
-    <MetricInfoProvider>
-      <div className="mx-auto max-w-[1440px] px-6 sm:px-10">
-        <TrackEvent
-          event="scorecard_full_view"
-          properties={{
-            pmSlug: scorecard.pm.slug,
-            marketId: scorecard.market.id,
-            rank: scorecard.rank.overall,
-            methodologyVersion: scorecard.methodologyVersion,
-          }}
-        />
-        <div className="grid gap-x-16 gap-y-10 pt-10 pb-16 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <article className="min-w-0 space-y-14">
-            {/* v0.11 — contextual link up to the operator-level scorecard
-                for multi-market canonical operators. */}
-            {crossMarketOperator && crossMarketOperator.marketCount >= 2 && (
-              <OperatorScorecardBackLink
-                canonicalSlug={crossMarketOperator.canonicalSlug}
-                marketCount={crossMarketOperator.marketCount}
-                operatorName={scorecard.canonicalOperatorName ?? scorecard.pm.name}
-              />
-            )}
-            <StickyOperatorBar
-              name={scorecard.pm.name}
-              location={scorecard.market.fullName}
-            >
-              <IdentityHero
-                scorecard={scorecard}
-                isClaimed={isClaimed}
-                marketFootprint={marketFootprint}
-                crossMarketOperator={crossMarketOperator}
-              />
-            </StickyOperatorBar>
-            <SynthesisLayer scorecard={scorecard} />
-            <PerformanceLayer
-              scorecard={scorecard}
-              peerComparisons={peerComparisons}
-            />
-            <LendingSignals signals={lendingSignals} />
-            <PortfolioLayer
-              scorecard={scorecard}
-              crossMarketPresence={marketFootprint}
-              cohortRentTrajectory={cohortRentTrajectory}
-              pricingTier={lendingSignals.pricingTier}
-              shareTrajectory={shareTrajectory}
-              concessionContext={concessionContext}
-            />
-            <OperatorTrajectorySection trajectory={operatorTrajectory} />
-            <MethodologyFooter scorecard={scorecard} />
-            <SimilarOperatorsCta pmSlug={scorecard.pm.slug} />
-          </article>
-          <ScorecardSidebar
-            pmSlug={scorecard.pm.slug}
-            compareHref={compareHref}
-          />
-        </div>
-      </div>
-    </MetricInfoProvider>
-  );
-}
+  void isClaimed; // reserved for future claimed-operator badge rendering
 
-/** v0.11 — Up-arrow link to the aggregate operator scorecard from
- *  a per-market scorecard, rendered above IdentityHero when the
- *  canonical operator spans 2+ markets. */
-function OperatorScorecardBackLink({
-  canonicalSlug,
-  marketCount,
-  operatorName,
-}: {
-  canonicalSlug: string;
-  marketCount: number;
-  operatorName: string;
-}) {
+  const nonPositiveWatchCount = view.watchItems.filter(
+    (w) => w.kind !== "positive"
+  ).length;
+
+  // Build the nav sections array for the right rail.
+  const navSections = [
+    { id: "scale-fit", num: "01", label: "Scale & Fit" },
+    {
+      id: "operating-performance",
+      num: "02",
+      label: "Operating Performance",
+      statusLabel: view.operating.sectionLabel,
+    },
+    {
+      id: "momentum",
+      num: "03",
+      label: "Momentum",
+      // Omit the chip for the "insufficient" direction — a bare "INSUFFICIENT"
+      // chip reads as an error, not a signal.
+      statusLabel:
+        view.momentum.direction === "insufficient" ? undefined : view.momentum.direction,
+    },
+    {
+      id: "watch-items",
+      num: "04",
+      label: "Watch Items",
+      // Count of non-positive (risk/data) items; omit the chip when there are
+      // none rather than rendering a bare "0".
+      statusLabel:
+        nonPositiveWatchCount > 0 ? String(nonPositiveWatchCount) : undefined,
+    },
+    { id: "methodology-footer", num: "05", label: "Methodology" },
+  ];
+
   return (
-    <Link
-      href={`/operators/${encodeURIComponent(canonicalSlug)}`}
-      className="inline-flex items-center gap-1.5 self-start rounded-full border border-grid bg-white px-3 py-1 text-[12.5px] font-medium text-teal hover:border-teal hover:text-teal-700"
+    <div
+      style={{
+        maxWidth: "1280px",
+        margin: "0 auto",
+        padding: "0 24px",
+        display: "flex",
+        gap: "32px",
+        alignItems: "flex-start",
+      }}
     >
-      <span aria-hidden>←</span>
-      View operator-level scorecard for{" "}
-      <span className="font-semibold">{operatorName}</span>
-      <span className="text-[11px] text-muted-foreground">
-        ({marketCount} markets)
-      </span>
-    </Link>
-  );
-}
+      {/* Main content column */}
+      <div style={{ flex: 1, minWidth: 0, paddingTop: "28px", paddingBottom: "48px" }}>
+        {/* Header */}
+        <ScorecardHeader header={view.header} />
 
-/** PR #47 — the "Build a watch list to find more like this" CTA that
- *  used to live on the now-deleted PaywallCard. Surfaces as a
- *  contextual block at the end of the scorecard. Same TrackedLink
- *  event so the existing analytics keep flowing. */
-function SimilarOperatorsCta({ pmSlug }: { pmSlug: string }) {
-  return (
-    <aside className="rounded-lg border border-grid bg-surface-soft px-6 py-7">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="dq-eyebrow text-teal">Next step</p>
-          <h2 className="mt-1.5 text-[20px] font-semibold leading-snug text-navy">
-            Find more operators that match this profile.
-          </h2>
-          <p className="mt-1.5 max-w-[60ch] text-[13.5px] text-foreground/75">
-            Start from a named acquisition thesis or build a custom set of
-            criteria. Preview matches and ranked fit scores before saving.
-          </p>
-        </div>
-        <TrackedLink
-          event="scorecard_cta_click"
-          properties={{ pmSlug, action: "build_watch_list" }}
-          href="/watch-lists/new"
-          className="inline-flex h-11 shrink-0 items-center justify-center rounded-md bg-navy px-6 text-[14px] font-semibold text-white transition-colors hover:bg-navy-700"
-        >
-          Build a watch list →
-        </TrackedLink>
+        {/* 30-second exec readout */}
+        <ExecReadout readout={view.readout} maturityNote={view.maturityNote} />
+
+        {/* 01 Scale & Fit */}
+        <ScaleFitSection
+          scaleFit={view.scaleFit}
+          peers={view.peers}
+          geographicCoverage={geographicCoverage}
+          marketFullName={view.header.marketFullName}
+        />
+
+        {/* 02 Operating Performance */}
+        <OperatingPerformanceSection operating={view.operating} />
+
+        {/* 03 Momentum */}
+        <MomentumSection momentum={view.momentum} />
+
+        {/* 04 Watch Items */}
+        <WatchItemsSection items={view.watchItems} />
+
+        {/* 05 Methodology */}
+        <MethodologyFooter scorecard={scorecard} />
       </div>
-    </aside>
+
+      {/* Right-rail nav (client component, sticky). Visibility is controlled
+          by the `hidden lg:block` class — hidden below lg, shown at lg+. Do
+          NOT add an inline `display` here: an inline style beats the class's
+          media query and would hide the rail at every width. */}
+      <div
+        style={{
+          width: "210px",
+          flexShrink: 0,
+          paddingTop: "28px",
+        }}
+        className="hidden lg:block"
+      >
+        <ScorecardNav sections={navSections} />
+      </div>
+    </div>
   );
 }
