@@ -161,18 +161,29 @@ export function MomentumSection({ momentum }: MomentumSectionProps) {
         {momentum.takeaway}
       </div>
 
-      {/* Small-multiples sparkline row */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "10px",
-        }}
-      >
-        {momentum.sparklines.map((spark) => (
-          <SparkCell key={spark.key} spark={spark} />
-        ))}
-      </div>
+      {/* Small-multiples sparkline row. "footprint" is included only when its
+          series is non-empty (single-market operators have no cross-market
+          history to show); the grid sizes to however many cells remain, so
+          the common 4-cell case is unaffected and the 5-cell (multi-market)
+          case doesn't overflow a fixed 4-col grid. */}
+      {(() => {
+        const cells = momentum.sparklines.filter(
+          (spark) => spark.key !== "footprint" || spark.series.length > 0
+        );
+        return (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${cells.length}, 1fr)`,
+              gap: "10px",
+            }}
+          >
+            {cells.map((spark) => (
+              <SparkCell key={spark.key} spark={spark} />
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Static "▸ View full history" disclose affordance */}
       <div

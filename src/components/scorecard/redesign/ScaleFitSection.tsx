@@ -11,6 +11,190 @@ import { ConcentrationBar } from "./ConcentrationBar";
 import { RentTierMarker } from "./RentTierMarker";
 import { CoverageMapClient } from "@/components/scorecard/CoverageMapClient";
 
+const MAX_MEMBER_MARKETS_SHOWN = 4;
+
+/**
+ * House / apartment stacked bar — ported from PortfolioLayer.tsx's
+ * composition bar into the redesign's inline-style convention.
+ * Teal = houses, orange = apartments.
+ */
+function UnitMixBar({ unitMix }: { unitMix: NonNullable<ScaleFitView["unitMix"]> }) {
+  const { houseUrus, aptUrus } = unitMix;
+  const total = houseUrus + aptUrus;
+  if (total <= 0) return null;
+
+  const housePct = Math.round((houseUrus / total) * 100);
+  const aptPct = Math.round((aptUrus / total) * 100);
+
+  return (
+    <div
+      style={{
+        border: "1px solid #eaeef4",
+        borderRadius: "8px",
+        padding: "10px 12px",
+        marginBottom: "10px",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "10px",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          color: "#8894ac",
+          fontWeight: 600,
+          marginBottom: "6px",
+        }}
+      >
+        House vs apartment split
+      </div>
+      <div
+        style={{
+          display: "flex",
+          height: "18px",
+          width: "100%",
+          overflow: "hidden",
+          borderRadius: "6px",
+        }}
+      >
+        {houseUrus > 0 && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              width: `${housePct}%`,
+              minWidth: "30px",
+              background: "#1b6e8c",
+              color: "#fff",
+              fontSize: "11px",
+              fontWeight: 600,
+            }}
+          >
+            {housePct}%
+          </div>
+        )}
+        {aptUrus > 0 && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              width: `${aptPct}%`,
+              minWidth: "30px",
+              background: "#d97834",
+              color: "#fff",
+              fontSize: "11px",
+              fontWeight: 600,
+            }}
+          >
+            {aptPct}%
+          </div>
+        )}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginTop: "8px",
+          fontSize: "11.5px",
+          color: "#5b6577",
+        }}
+      >
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: "8px",
+              height: "8px",
+              borderRadius: "2px",
+              background: "#1b6e8c",
+              marginRight: "6px",
+              verticalAlign: "middle",
+            }}
+          />
+          Houses ·{" "}
+          <span style={{ fontWeight: 600, color: "#0f1f3f" }}>
+            {houseUrus.toLocaleString()}
+          </span>{" "}
+          urus
+        </span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: "8px",
+              height: "8px",
+              borderRadius: "2px",
+              background: "#d97834",
+              marginRight: "6px",
+              verticalAlign: "middle",
+            }}
+          />
+          Apartments ·{" "}
+          <span style={{ fontWeight: 600, color: "#0f1f3f" }}>
+            {aptUrus.toLocaleString()}
+          </span>{" "}
+          urus
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Member-markets chip list for cross-market operators — links to the
+ * canonical cross-market operator page.
+ */
+function CrossMarketChips({
+  crossMarket,
+}: {
+  crossMarket: NonNullable<ScaleFitView["crossMarket"]>;
+}) {
+  const { canonicalSlug, marketNames } = crossMarket;
+  if (marketNames.length === 0) return null;
+
+  const shown = marketNames.slice(0, MAX_MEMBER_MARKETS_SHOWN);
+  const remaining = marketNames.length - shown.length;
+  const label = shown.join(" · ") + (remaining > 0 ? ` +${remaining} more` : "");
+
+  return (
+    <div
+      style={{
+        border: "1px solid #eaeef4",
+        borderRadius: "8px",
+        padding: "10px 12px",
+        marginBottom: "10px",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "10px",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          color: "#8894ac",
+          fontWeight: 600,
+          marginBottom: "6px",
+        }}
+      >
+        Also operates in
+      </div>
+      <a
+        href={`/operators/${canonicalSlug}`}
+        style={{
+          fontSize: "13px",
+          fontWeight: 600,
+          color: "#1b6e8c",
+          textDecoration: "none",
+        }}
+      >
+        {label}
+      </a>
+    </div>
+  );
+}
+
 interface ScaleFitSectionProps {
   scaleFit: ScaleFitView;
   peers: SelectedPeer[];
@@ -298,8 +482,42 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage }: ScaleFi
                   </div>
                 </div>
               )}
+
+              {/* Tenure — years visible + markets observed in */}
+              {scaleFit.tenure != null && (
+                <div>
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: "#8894ac",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Tenure
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      color: "#0f1f3f",
+                    }}
+                  >
+                    {`${scaleFit.tenure.yearsVisible.toFixed(1)}y visible · ${scaleFit.tenure.marketCount} market${scaleFit.tenure.marketCount === 1 ? "" : "s"}`}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* House / apartment split — SFR/hybrid operators only */}
+          {scaleFit.unitMix != null && <UnitMixBar unitMix={scaleFit.unitMix} />}
+
+          {/* Cross-market member markets — multi-market operators only */}
+          {scaleFit.crossMarket != null && (
+            <CrossMarketChips crossMarket={scaleFit.crossMarket} />
+          )}
         </div>
 
         {/* RIGHT COLUMN — map */}
