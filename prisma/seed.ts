@@ -20,6 +20,11 @@
 
 import { PrismaClient } from "@prisma/client";
 import seedData from "../src/data/scorecard_data.json";
+// v0.24 — operator website enrichment (companyId → {website,phone,name}),
+// scraped from Dwellsy company pages by scripts/data-pipeline/enrich_company_websites.py.
+// Keyed by the same companyId the scorecard blob carries; missing/empty websites
+// leave scorecard.pm.website undefined so the header link stays hidden.
+import companyEnrichment from "../src/data/company_enrichment.json";
 import type {
   CohortLevel,
   CommunityVisibilityBlock,
@@ -131,6 +136,22 @@ type InputFile = {
 };
 
 const data = seedData as unknown as InputFile;
+
+// companyId → operator website, from the enrichment scrape. Normalized to an
+// absolute https URL so the scorecard header can use it as an href directly.
+const enrichmentByCompanyId = companyEnrichment as Record<
+  string,
+  { website?: string | null; phone?: string | null; name?: string | null; error?: string }
+>;
+function websiteForCompany(companyId: string | undefined): string | undefined {
+  if (!companyId) return undefined;
+  const raw = enrichmentByCompanyId[companyId]?.website?.trim();
+  if (!raw) return undefined;
+  // Enrichment values are mostly absolute (http/https); coerce the rare bare
+  // domain to https and reject anything that isn't a plausible URL.
+  const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return /^https?:\/\/[^\s.]+\.[^\s]+$/i.test(url) ? url : undefined;
+}
 
 // Per-market data-cutoff lookup. The scorecard footer shows each operator's
 // OWN market cutoff (markets refresh on different dates), not the global max
@@ -886,6 +907,12 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
       institutional: Boolean(pm.institutional),
       accentColor: pm.accentColor as string | undefined,
       primaryCity: asString(pm.primaryCity) || undefined,
+      // v0.24 — Dwellsy company-page id (100% populated) drives the header's
+      // "View listings on Dwellsy" link; website (from the enrichment scrape,
+      // ~partial coverage) drives the "Operator website" link. Both optional;
+      // the redesigned header null-guards each independently.
+      companyId: asString(pm.companyId) || undefined,
+      website: websiteForCompany(asString(pm.companyId) || undefined),
     },
     market: {
       id: market.id,
