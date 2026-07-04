@@ -11,6 +11,8 @@ import { buildWatchItems, type WatchItem, type WatchTrajectory } from "./watch-i
 import { selectSimilarLocalPlayers, type PeerCandidate, type SelectedPeer } from "./peers";
 import { rentTierDetail } from "./rent-tier";
 import type { RentTierDetail } from "./rent-tier";
+import { buildLendingSignals } from "@/lib/lending-signals";
+import type { PoolPm } from "@/lib/msa-pool";
 
 export interface HeaderView {
   name: string;
@@ -41,6 +43,7 @@ export interface ScaleFitView {
   propertyType: string | null;
   citiesObserved: number | null;
   singleMarket: boolean;
+  tenure: { yearsVisible: number; marketCount: number; cohortMedianYears: number | null } | null;
 }
 
 export interface MetricRow {
@@ -49,6 +52,8 @@ export interface MetricRow {
 }
 export interface OperatingView {
   sectionLabel: ScoreLabel; takeaway: string; strongest: string[]; watch: string[]; metrics: MetricRow[];
+  vacancy: { pct: number; cohortMedianPct: number | null; star: "gold" | "silver" | null } | null;
+  rentStability: { volatilityPP: number | null; cohortMedianPP: number | null; suppressed: boolean; reason: string | null; star: "gold" | "silver" | null } | null;
 }
 
 export interface MomentumView {
@@ -83,6 +88,7 @@ export interface BuildViewInput {
     }>;
   };
   marketConcessionMedian: number | null;
+  marketCount?: number;
 }
 
 interface PoolMember { slug: string; name: string; quadrant7Cell: string | null; scorecard: ScorecardData }
@@ -186,6 +192,54 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const focalRentInput = { pm: { slug: scorecard.pm.slug }, rentTrajectory: scorecard.rentTrajectory };
   const poolRentInputs = pool.map((m) => ({ pm: { slug: m.slug }, rentTrajectory: m.scorecard.rentTrajectory }));
 
+  // Vacancy / rent-stability / operator-tenure — reuse the Layer-4
+  // lending-signal builders (src/lib/lending-signals.ts) rather than
+  // recomputing. buildLendingSignals finds its own focal by slug match
+  // inside `pool`, so the focal's own scorecard must be present in the
+  // pool passed here (the msaPool loaders used elsewhere already include
+  // it; test fixtures must too, or these signals come back null).
+  const focal = { slug: scorecard.pm.slug, scorecard };
+  const lendingPool = pool.some((m) => m.slug === scorecard.pm.slug)
+    ? (pool as unknown as PoolPm[])
+    : ([focal, ...pool] as unknown as PoolPm[]);
+  const marketCount = input.marketCount ?? 1;
+  // buildLendingSignals assumes coverage/tenancy are always-present objects
+  // (true for real seeded ScorecardData); guard defensively since callers
+  // may pass partial data.
+  let lendingSignals: ReturnType<typeof buildLendingSignals>;
+  try {
+    lendingSignals = buildLendingSignals(scorecard, lendingPool, marketCount);
+  } catch {
+    lendingSignals = { vacancy: null, rentStability: null, operatorStability: null, geographicConcentration: null, pricingTier: null };
+  }
+
+  const vacancy: OperatingView["vacancy"] = lendingSignals.vacancy?.vacancyPct != null
+    ? {
+        pct: lendingSignals.vacancy.vacancyPct,
+        cohortMedianPct: lendingSignals.vacancy.dist.cohortMedian,
+        star: lendingSignals.vacancy.star,
+      }
+    : null;
+
+  const rentStability: OperatingView["rentStability"] = lendingSignals.rentStability
+    ? {
+        volatilityPP: lendingSignals.rentStability.volatilityPP,
+        cohortMedianPP: lendingSignals.rentStability.cohortMedianVolatility,
+        suppressed: lendingSignals.rentStability.suppressed,
+        reason: lendingSignals.rentStability.reason ?? null,
+        star: lendingSignals.rentStability.star,
+      }
+    : null;
+
+  const yearsVisible = scorecard.coverage?.yearsVisible ?? scorecard.tenancy?.yearsVisible ?? null;
+  const tenure: ScaleFitView["tenure"] = yearsVisible != null
+    ? {
+        yearsVisible,
+        marketCount,
+        cohortMedianYears: lendingSignals.operatorStability?.dist.cohortMedian ?? null,
+      }
+    : null;
+
   const scaleFit: ScaleFitView = {
     takeaway: buildScaleFitTakeaway(scorecard),
     observedUnits: scorecard.coverage?.urusT12 ?? null,
@@ -201,6 +255,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     propertyType: scorecard.pm.quadrant7Cell ?? null,
     citiesObserved: scorecard.coverage?.citiesObserved ?? null,
     singleMarket: header.singleMarket,
+    tenure,
   };
 
   const maturityLead = (months != null && months >= 18) ? "Limited footprint" : "Early coverage";
@@ -243,6 +298,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     sectionLabel: opLabel, takeaway: operatingTakeaway,
     strongest: sw.strongest.map((k) => METRIC_TITLES[k]),
     watch: sw.watch.map((k) => METRIC_TITLES[k]), metrics,
+    vacancy, rentStability,
   };
   readout[1].value = `Above cohort median on ${aboveCount} of ${metrics.length} scored dimensions`;
 

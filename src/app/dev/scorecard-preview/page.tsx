@@ -246,11 +246,14 @@ const FIXTURE_VIEW: ScorecardView = {
     propertyType: "SFR Independent",
     citiesObserved: 4,
     singleMarket: true,
+    tenure: null,
   },
   operating: {
     sectionLabel: "good",
     takeaway: "Above the cohort median on 4 of 4 scored dimensions.",
     strongest: ["Lease-up speed", "Marketing discipline"],
+    vacancy: null,
+    rentStability: null,
     watch: [],
     metrics: [
       {

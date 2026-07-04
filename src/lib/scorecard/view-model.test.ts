@@ -357,3 +357,87 @@ test("readout[3] Watch Items lists item headlines and chip reads 'N to review'",
   assert.ok(row.value.includes("concession") || row.value.length > 0); // headline text present
   assert.ok(row.label != null && /\d+ to review/i.test(String(row.label))); // "N to review" chip
 });
+
+// --- Task 1: vacancy / rent stability / operator tenure ---
+
+test("operating view surfaces vacancy + rent stability from lending-signal builders", () => {
+  const focalScorecard = scFixture({
+    pm: { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent", companyId: "1" },
+    performance: { domT12: 18 },
+    tenancy: { overallGap: 2 },
+    coverage: { yearsVisible: 4 },
+    lendingSignals: { rentStability: { volatilityPP: 1.1, cohortMedianVolatility: 3.0, yearsOfHistory: 4, suppressed: false, star: "gold" } },
+  });
+  const pool = makePool([
+    { slug: "doorby-chattanooga-tn", quadrant7Cell: "SFR Independent", scorecard: focalScorecard },
+    { slug: "member-a", quadrant7Cell: "SFR Independent", scorecard: scFixture({ pm: { slug: "member-a", name: "A", quadrant7Cell: "SFR Independent" }, performance: { domT12: 30 }, tenancy: { overallGap: 3 }, coverage: { yearsVisible: 3 } }) },
+    { slug: "member-b", quadrant7Cell: "SFR Independent", scorecard: scFixture({ pm: { slug: "member-b", name: "B", quadrant7Cell: "SFR Independent" }, performance: { domT12: 25 }, tenancy: { overallGap: 4 }, coverage: { yearsVisible: 5 } }) },
+  ]);
+  const v = buildScorecardView({
+    scorecard: focalScorecard,
+    pool,
+    trajectory: { points: [] },
+    marketConcessionMedian: 0.01,
+  });
+  assert.ok(v.operating.vacancy != null && typeof v.operating.vacancy.pct === "number");
+  assert.ok(v.operating.rentStability != null);
+  assert.equal(v.operating.rentStability!.suppressed, false);
+  assert.equal(v.operating.rentStability!.volatilityPP, 1.1);
+  assert.equal(v.operating.rentStability!.cohortMedianPP, 3.0);
+  assert.equal(v.operating.rentStability!.star, "gold");
+});
+
+test("rent stability suppressed state carries the reason", () => {
+  const focalScorecard = scFixture({
+    pm: { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent", companyId: "1" },
+    coverage: { yearsVisible: 0.5 },
+    lendingSignals: { rentStability: { volatilityPP: null, cohortMedianVolatility: null, yearsOfHistory: 0.5, suppressed: true, reason: "Insufficient observation history for a stable estimate.", star: null } },
+  });
+  const v = buildScorecardView({
+    scorecard: focalScorecard,
+    pool: makePool([{ slug: "doorby-chattanooga-tn", quadrant7Cell: "SFR Independent", scorecard: focalScorecard }]),
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.equal(v.operating.rentStability!.suppressed, true);
+  assert.match(v.operating.rentStability!.reason!, /insufficient/i);
+});
+
+test("scaleFit tenure surfaces yearsVisible + marketCount", () => {
+  const focalScorecard = scFixture({
+    pm: { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent", companyId: "1" },
+    coverage: { yearsVisible: 4.77 },
+  });
+  const v = buildScorecardView({
+    scorecard: focalScorecard,
+    pool: makePool([{ slug: "doorby-chattanooga-tn", quadrant7Cell: "SFR Independent", scorecard: focalScorecard }]),
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+    marketCount: 1,
+  });
+  assert.equal(v.scaleFit.tenure!.marketCount, 1);
+  assert.ok(v.scaleFit.tenure!.yearsVisible > 0);
+  assert.equal(v.scaleFit.tenure!.yearsVisible, 4.77);
+});
+
+test("operating.vacancy and operating.rentStability are null when focal is absent from pool", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture(),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.equal(v.operating.vacancy, null);
+  assert.equal(v.operating.rentStability, null);
+});
+
+test("scaleFit.tenure defaults marketCount to 1 when input.marketCount is omitted", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({ coverage: { yearsVisible: 2.1 } }),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.equal(v.scaleFit.tenure!.marketCount, 1);
+  assert.equal(v.scaleFit.tenure!.yearsVisible, 2.1);
+});
