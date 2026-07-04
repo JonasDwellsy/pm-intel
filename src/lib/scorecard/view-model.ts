@@ -46,6 +46,7 @@ export interface ScaleFitView {
   singleMarket: boolean;
   tenure: { yearsVisible: number; marketCount: number; cohortMedianYears: number | null } | null;
   unitMix: { houseUrus: number; aptUrus: number } | null;
+  crossMarket: { canonicalSlug: string; marketNames: string[] } | null;
 }
 
 export interface MetricRow {
@@ -62,7 +63,7 @@ export interface OperatingView {
 export interface MomentumView {
   direction: MomentumDirection;
   takeaway: string;
-  sparklines: Array<{ key: "portfolio" | "share" | "reach" | "quality"; label: string; direction: MomentumDirection; series: number[] }>;
+  sparklines: Array<{ key: "portfolio" | "share" | "reach" | "quality" | "footprint"; label: string; direction: MomentumDirection; series: number[] }>;
 }
 
 export interface ScorecardView {
@@ -92,6 +93,12 @@ export interface BuildViewInput {
   };
   marketConcessionMedian: number | null;
   marketCount?: number;
+  /** Cross-market aggregate trajectory (multi-market operators only) —
+   *  fed by page.tsx via loadOperatorAggregateTrajectory(memberPmSlugs).
+   *  Each point's marketsPresent count drives the "footprint" sparkline. */
+  aggregateTrajectory?: { points: Array<{ portfolioPoint: number | null; marketsPresent: number }> };
+  /** Distinct member-market display names (multi-market operators only). */
+  memberMarketNames?: string[];
 }
 
 interface PoolMember { slug: string; name: string; quadrant7Cell: string | null; scorecard: ScorecardData }
@@ -288,6 +295,21 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
       ? { houseUrus: houseUrusT12, aptUrus: aptUrusT12 }
       : null;
 
+  // Cross-market footprint — multi-market operators only (canonicalOperatorId
+  // set and distinct from this member's own slug, per the v0.6.4 seed
+  // convention). page.tsx does the member-enumeration query + loads
+  // loadOperatorAggregateTrajectory; the view-model only shapes what it's
+  // handed. Single-market operators get null (no back-link, no chip list).
+  const isMultiMarket =
+    !!scorecard.canonicalOperatorId &&
+    scorecard.canonicalOperatorId !== scorecard.pm.slug;
+  const crossMarket: ScaleFitView["crossMarket"] = isMultiMarket
+    ? {
+        canonicalSlug: scorecard.canonicalOperatorId!,
+        marketNames: input.memberMarketNames ?? [],
+      }
+    : null;
+
   const scaleFit: ScaleFitView = {
     takeaway: buildScaleFitTakeaway(scorecard),
     observedUnits: scorecard.coverage?.urusT12 ?? null,
@@ -305,6 +327,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     singleMarket: header.singleMarket,
     tenure,
     unitMix,
+    crossMarket,
   };
 
   const maturityLead = (months != null && months >= 18) ? "Limited footprint" : "Early coverage";
@@ -364,10 +387,16 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
         : null
     )
     .filter((n): n is number => n != null);
+  // Cross-market footprint — distinct member markets present per aggregate-
+  // trajectory quarter. Empty for single-market operators (no
+  // aggregateTrajectory passed in) — the component hides an empty series.
+  const footprintSeries = (input.aggregateTrajectory?.points ?? []).map(
+    (p) => p.marketsPresent
+  );
   const portfolioDir = momentumDirection({ values: portfolioSeries });
   const reachDir = momentumDirection({ values: reachSeries });
   const qualityDir = momentumDirection({ values: qualitySeries });
-  const mkSpark = (key: "portfolio" | "share" | "reach" | "quality", label: string, series: number[]) =>
+  const mkSpark = (key: "portfolio" | "share" | "reach" | "quality" | "footprint", label: string, series: number[]) =>
     ({ key, label, series, direction: momentumDirection({ values: series }) });
 
   // Best-available series drives the section direction + readout, in priority
@@ -393,6 +422,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
       mkSpark("share", "Listing share", []), // deferred: needs t12ListingsCount history (Phase 4b)
       mkSpark("reach", "Geographic reach", reachSeries),
       mkSpark("quality", "Operating quality", qualitySeries),
+      mkSpark("footprint", "Cross-market footprint", footprintSeries), // [] for single-market operators
     ],
   };
   if (driver === "portfolio") {

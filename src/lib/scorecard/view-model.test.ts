@@ -550,3 +550,45 @@ test("unit mix null for SFR when house+apt urus total is zero", () => {
   });
   assert.equal(v.scaleFit.unitMix, null);
 });
+
+// --- Task 3: cross-market aggregate (footprint sparkline + member markets) ---
+
+test("cross-market footprint sparkline + market list for multi-market operator", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      pm: { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent", companyId: "1" },
+      canonicalOperatorId: "doorby",
+    }),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+    marketCount: 3,
+    memberMarketNames: ["Charlotte", "Baltimore", "Chicago"],
+    aggregateTrajectory: {
+      points: [
+        { portfolioPoint: 100, marketsPresent: 2 },
+        { portfolioPoint: 110, marketsPresent: 3 },
+        { portfolioPoint: 120, marketsPresent: 3 },
+      ],
+    },
+  });
+  assert.deepEqual(v.scaleFit.crossMarket!.marketNames, ["Charlotte", "Baltimore", "Chicago"]);
+  assert.equal(v.scaleFit.crossMarket!.canonicalSlug, "doorby");
+  const fp = v.momentum.sparklines.find((s) => s.key === "footprint")!;
+  assert.deepEqual(fp.series, [2, 3, 3]);
+});
+
+test("no crossMarket for single-market operator", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      pm: { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent", companyId: "1" },
+      canonicalOperatorId: "doorby-chattanooga-tn",
+    }),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.equal(v.scaleFit.crossMarket, null);
+  const fp = v.momentum.sparklines.find((s) => s.key === "footprint")!;
+  assert.deepEqual(fp.series, []);
+});

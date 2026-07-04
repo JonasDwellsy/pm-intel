@@ -248,6 +248,7 @@ const FIXTURE_VIEW: ScorecardView = {
     singleMarket: true,
     tenure: null,
     unitMix: null,
+    crossMarket: null,
   },
   operating: {
     sectionLabel: "good",

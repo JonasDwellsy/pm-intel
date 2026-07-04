@@ -14,7 +14,7 @@ import {
   loadMarketView,
 } from "@/lib/market-data";
 import { loadMsaPool } from "@/lib/msa-pool";
-import { loadOperatorTrajectory } from "@/lib/operators/trajectory";
+import { loadOperatorTrajectory, loadOperatorAggregateTrajectory } from "@/lib/operators/trajectory";
 import { buildConcessionContext } from "@/lib/concession-context";
 import { buildScorecardView } from "@/lib/scorecard/view-model";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
@@ -163,12 +163,35 @@ export default async function MarketChildPage({
   if (!isMarketEntitled(entitlement, scorecard.market.id)) {
     return <MarketLockedUpsell marketName={scorecard.market.fullName} />;
   }
+  // Multi-market operators (canonicalOperatorId set and distinct from this
+  // member's own slug, per the v0.6.4 seed convention) get a cross-market
+  // aggregate trajectory + member-market list; single-market operators pass
+  // none (view-model defaults to null/[]).
+  const isMultiMarket =
+    !!scorecard.canonicalOperatorId &&
+    scorecard.canonicalOperatorId !== scorecard.pm.slug;
+
   // Load MSA pool (feeds view model peer selection + concession cohort)
-  // and operator trajectory (feeds momentum sparklines).
-  const [msaPool, operatorTrajectory] = await Promise.all([
+  // and operator trajectory (feeds momentum sparklines), plus — for
+  // multi-market operators — the member PM enumeration needed to load the
+  // cross-market aggregate trajectory.
+  const [msaPool, operatorTrajectory, members] = await Promise.all([
     loadMsaPool(scorecard.market.id),
     loadOperatorTrajectory(slug),
+    isMultiMarket
+      ? prisma.pM.findMany({
+          where: { canonicalOperatorId: scorecard.canonicalOperatorId },
+          select: { slug: true, marketId: true, market: { select: { fullName: true } } },
+        })
+      : Promise.resolve([]),
   ]);
+  const memberPmSlugs = members.map((m) => m.slug);
+  const memberMarketNames = Array.from(new Set(members.map((m) => m.market.fullName)));
+  const marketCount = new Set(members.map((m) => m.marketId)).size;
+  const aggregateTrajectory = isMultiMarket
+    ? await loadOperatorAggregateTrajectory(memberPmSlugs)
+    : undefined;
+
   // Market-median concession rate for watch-items detector.
   const concessionContext = buildConcessionContext(scorecard, msaPool);
 
@@ -178,6 +201,9 @@ export default async function MarketChildPage({
     pool: msaPool,
     trajectory: operatorTrajectory,
     marketConcessionMedian: concessionContext.marketMedianRate,
+    ...(isMultiMarket
+      ? { aggregateTrajectory, memberMarketNames, marketCount }
+      : {}),
   });
 
   return (
