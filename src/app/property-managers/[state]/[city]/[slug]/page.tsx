@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import type { ScorecardData } from "@/lib/types";
@@ -13,11 +14,19 @@ import {
   listSegmentRouteParams,
   loadMarketView,
 } from "@/lib/market-data";
+import { loadMarketFootprint } from "@/lib/cross-market";
 import { loadMsaPool } from "@/lib/msa-pool";
 import { loadOperatorTrajectory, loadOperatorAggregateTrajectory } from "@/lib/operators/trajectory";
+import { buildPeerComparisons } from "@/lib/peer-comparison";
+import { buildLendingSignals } from "@/lib/lending-signals";
+import { buildCohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
+import { buildShareTrajectoryView } from "@/lib/share-trajectory";
+import { hasComparablePeers } from "@/lib/peer-comparison-view";
 import { buildConcessionContext } from "@/lib/concession-context";
 import { buildScorecardView } from "@/lib/scorecard/view-model";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
+import { ClassicScorecardBody } from "@/components/scorecard/ClassicScorecardBody";
+import { ScorecardViewToggle } from "@/components/scorecard/ScorecardViewToggle";
 import { MarketView } from "@/components/market/MarketView";
 import { TrackEvent } from "@/components/analytics/TrackEvent";
 import {
@@ -163,58 +172,156 @@ export default async function MarketChildPage({
   if (!isMarketEntitled(entitlement, scorecard.market.id)) {
     return <MarketLockedUpsell marketName={scorecard.market.fullName} />;
   }
-  // Multi-market operators (canonicalOperatorId set and distinct from this
-  // member's own slug, per the v0.6.4 seed convention) get a cross-market
-  // aggregate trajectory + member-market list; single-market operators pass
-  // none (view-model defaults to null/[]).
-  const isMultiMarket =
-    !!scorecard.canonicalOperatorId &&
-    scorecard.canonicalOperatorId !== scorecard.pm.slug;
 
-  // Load MSA pool (feeds view model peer selection + concession cohort)
-  // and operator trajectory (feeds momentum sparklines), plus — for
-  // multi-market operators — the member PM enumeration needed to load the
-  // cross-market aggregate trajectory.
-  const [msaPool, operatorTrajectory, members] = await Promise.all([
+  // Scorecard A/B toggle — cookie-gated dual render path. Default is
+  // Classic (A, the exact current production scorecard) until a viewer
+  // explicitly opts into New (B, the redesign) via ScorecardViewToggle.
+  // Only the selected branch's data loads: the redesign's multi-market
+  // member query + buildScorecardView never run for view==="classic",
+  // and the classic cross-market/peer/lending/cohort builders never run
+  // for view==="new".
+  const view = (await cookies()).get("scorecard_view")?.value === "new" ? "new" : "classic";
+
+  if (view === "new") {
+    // Multi-market operators (canonicalOperatorId set and distinct from this
+    // member's own slug, per the v0.6.4 seed convention) get a cross-market
+    // aggregate trajectory + member-market list; single-market operators pass
+    // none (view-model defaults to null/[]).
+    const isMultiMarket =
+      !!scorecard.canonicalOperatorId &&
+      scorecard.canonicalOperatorId !== scorecard.pm.slug;
+
+    // Load MSA pool (feeds view model peer selection + concession cohort)
+    // and operator trajectory (feeds momentum sparklines), plus — for
+    // multi-market operators — the member PM enumeration needed to load the
+    // cross-market aggregate trajectory.
+    const [msaPool, operatorTrajectory, members] = await Promise.all([
+      loadMsaPool(scorecard.market.id),
+      loadOperatorTrajectory(slug),
+      isMultiMarket
+        ? prisma.pM.findMany({
+            where: { canonicalOperatorId: scorecard.canonicalOperatorId },
+            select: { slug: true, marketId: true, market: { select: { fullName: true } } },
+          })
+        : Promise.resolve([]),
+    ]);
+    // Scope the cross-market member enumeration to the viewer's entitled
+    // markets BEFORE deriving anything from it — mirrors the filter in
+    // loadOperatorScorecard (src/lib/operators/lookup.ts:103-106). Without
+    // this, a viewer entitled to only some of the operator's markets would
+    // see non-entitled markets' names/counts leak into the aggregate
+    // trajectory + member-market list, violating loadOperatorAggregateTrajectory's
+    // documented precondition that the caller has already scoped to the
+    // viewer's entitled markets.
+    const entitledMembers = members.filter((m) => isMarketEntitled(entitlement, m.marketId));
+    const memberPmSlugs = entitledMembers.map((m) => m.slug);
+    const memberMarketNames = Array.from(new Set(entitledMembers.map((m) => m.market.fullName)));
+    const marketCount = new Set(entitledMembers.map((m) => m.marketId)).size;
+    const aggregateTrajectory = isMultiMarket
+      ? await loadOperatorAggregateTrajectory(memberPmSlugs)
+      : undefined;
+
+    // Market-median concession rate for watch-items detector.
+    const concessionContext = buildConcessionContext(scorecard, msaPool);
+
+    // Build the redesigned view model (pure, in-memory).
+    const scorecardView = buildScorecardView({
+      scorecard,
+      pool: msaPool,
+      trajectory: operatorTrajectory,
+      marketConcessionMedian: concessionContext.marketMedianRate,
+      ...(isMultiMarket
+        ? { aggregateTrajectory, memberMarketNames, marketCount }
+        : {}),
+    });
+
+    return (
+      <>
+        {/* v0.17 — scorecard_viewed. Slug + MSA + classification only.
+            Per the privacy guardrail in PRIVACY.md we never attach
+            underlying numerics (rent, DOM, star tiers, portfolio
+            estimates) — those are dimensions that belong on the
+            scorecard surface, not in funnel events. */}
+        <TrackEvent
+          event="scorecard_viewed"
+          properties={{
+            operator_slug: scorecard.pm.slug,
+            operator_msa: scorecard.market.id,
+            operator_classification:
+              scorecard.pm.quadrant7Cell ?? scorecard.pm.quadrant,
+          }}
+        />
+        <div className="mx-auto max-w-[1440px] px-6 pt-4 sm:px-10">
+          <ScorecardViewToggle currentView={view} />
+        </div>
+        <ScorecardBody
+          view={scorecardView}
+          scorecard={scorecard}
+          isClaimed={isClaimed}
+          geographicCoverage={scorecard.geographicCoverage}
+        />
+      </>
+    );
+  }
+
+  // Classic (A) — the exact current production scorecard, restored
+  // faithfully from `main`. Layer 1 needs cross-market footprint; Layers
+  // 3 + 4 share an MSA pool loaded once and consumed by both
+  // peer-comparison (Layer 3) and lending-signals (Layer 4). Both
+  // renders run in-memory once the pool arrives.
+  const [marketFootprint, msaPool, operatorTrajectory] = await Promise.all([
+    loadMarketFootprint({
+      name: scorecard.pm.name,
+      currentSlug: slug,
+      entitlement,
+    }),
     loadMsaPool(scorecard.market.id),
     loadOperatorTrajectory(slug),
-    isMultiMarket
-      ? prisma.pM.findMany({
-          where: { canonicalOperatorId: scorecard.canonicalOperatorId },
-          select: { slug: true, marketId: true, market: { select: { fullName: true } } },
-        })
-      : Promise.resolve([]),
   ]);
-  // Scope the cross-market member enumeration to the viewer's entitled
-  // markets BEFORE deriving anything from it — mirrors the filter in
-  // loadOperatorScorecard (src/lib/operators/lookup.ts:103-106). Without
-  // this, a viewer entitled to only some of the operator's markets would
-  // see non-entitled markets' names/counts leak into the aggregate
-  // trajectory + member-market list, violating loadOperatorAggregateTrajectory's
-  // documented precondition that the caller has already scoped to the
-  // viewer's entitled markets.
-  const entitledMembers = members.filter((m) => isMarketEntitled(entitlement, m.marketId));
-  const memberPmSlugs = entitledMembers.map((m) => m.slug);
-  const memberMarketNames = Array.from(new Set(entitledMembers.map((m) => m.market.fullName)));
-  const marketCount = new Set(entitledMembers.map((m) => m.marketId)).size;
-  const aggregateTrajectory = isMultiMarket
-    ? await loadOperatorAggregateTrajectory(memberPmSlugs)
-    : undefined;
-
-  // Market-median concession rate for watch-items detector.
-  const concessionContext = buildConcessionContext(scorecard, msaPool);
-
-  // Build the redesigned view model (pure, in-memory).
-  const view = buildScorecardView({
+  const peerComparisons = buildPeerComparisons(scorecard, msaPool);
+  const lendingSignals = buildLendingSignals(
     scorecard,
-    pool: msaPool,
-    trajectory: operatorTrajectory,
-    marketConcessionMedian: concessionContext.marketMedianRate,
-    ...(isMultiMarket
-      ? { aggregateTrajectory, memberMarketNames, marketCount }
-      : {}),
-  });
-
+    msaPool,
+    marketFootprint.length
+  );
+  // Phase F — Layer 5E cohort overlay. In-memory from the same MSA pool.
+  const cohortRentTrajectory = buildCohortRentTrajectory(scorecard, msaPool);
+  // v0.6.3 Patch 6 — Layer 5F share-trajectory view. Reuses the same
+  // msaPool the peer-comparison + lending-signals + cohort overlay
+  // already loaded; the national benchmark is module-level cached so
+  // only the cold first hit pays the cross-market query.
+  const shareTrajectory = await buildShareTrajectoryView(
+    scorecard,
+    slug,
+    msaPool
+  );
+  // v0.6.4 Patch 2 — Layer 5 concession context. Same msaPool feeds the
+  // market-median cohort comparison, so no extra DB round-trip. Section
+  // renders only when the focal operator has a non-null concessionRate
+  // (PM was present in the classifier CSV input).
+  const concessionContext = buildConcessionContext(scorecard, msaPool);
+  // Compare-with-similar-PMs button target. hasComparablePeers returns
+  // false on the rare edge case where this PM is the only ranked
+  // operator in their market — sidebar hides the button entirely in
+  // that case rather than routing to a comparison page that would show
+  // an empty grid.
+  const compareHref = hasComparablePeers(msaPool, slug)
+    ? `/property-managers/${state}/${city}/${slug}/compare`
+    : null;
+  // v0.6.4 Patch 1 — cross-market context for the Layer 1 badge. Look
+  // up the canonical entity only when this PM's canonicalOperatorId
+  // doesn't match its own slug (single-market PMs have id === slug per
+  // the v0.6.4 seed convention, so we can short-circuit the DB hit for
+  // ~590 of 694 PMs in the current 10-market footprint). Returns null
+  // for single-market operators → IdentityHero renders no badge.
+  const crossMarketContext =
+    scorecard.canonicalOperatorId &&
+    scorecard.canonicalOperatorId !== scorecard.pm.slug
+      ? await prisma.canonicalOperator.findUnique({
+          where: { canonicalSlug: scorecard.canonicalOperatorId },
+          select: { canonicalSlug: true, marketCount: true },
+        })
+      : null;
   return (
     <>
       {/* v0.17 — scorecard_viewed. Slug + MSA + classification only.
@@ -231,11 +338,21 @@ export default async function MarketChildPage({
             scorecard.pm.quadrant7Cell ?? scorecard.pm.quadrant,
         }}
       />
-      <ScorecardBody
-        view={view}
+      <div className="mx-auto max-w-[1440px] px-6 pt-4 sm:px-10">
+        <ScorecardViewToggle currentView={view} />
+      </div>
+      <ClassicScorecardBody
         scorecard={scorecard}
         isClaimed={isClaimed}
-        geographicCoverage={scorecard.geographicCoverage}
+        marketFootprint={marketFootprint}
+        peerComparisons={peerComparisons}
+        lendingSignals={lendingSignals}
+        cohortRentTrajectory={cohortRentTrajectory}
+        crossMarketOperator={crossMarketContext}
+        shareTrajectory={shareTrajectory}
+        concessionContext={concessionContext}
+        compareHref={compareHref}
+        operatorTrajectory={operatorTrajectory}
       />
     </>
   );
