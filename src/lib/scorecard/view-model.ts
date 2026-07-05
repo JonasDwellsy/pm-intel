@@ -5,7 +5,7 @@
 
 import type { ScorecardData } from "@/lib/types";
 import { countOperatorStars } from "@/lib/operators/stars";
-import { operatingPerformanceLabel, type ScoreLabel, metricLabels, strongestAndWatch, type MetricKey } from "./labels";
+import { operatingPerformanceLabel, type ScoreLabel, metricLabels, metricCohortPercentile, strongestAndWatch, type MetricKey } from "./labels";
 import { momentumDirection, type MomentumDirection } from "./momentum";
 import { buildWatchItems, type WatchItem, type WatchTrajectory } from "./watch-items";
 import { selectSimilarLocalPlayers, type PeerCandidate, type SelectedPeer } from "./peers";
@@ -406,7 +406,12 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const labels = metricLabels(scorecard);
   const sw = strongestAndWatch(scorecard);
   const metricKeys: MetricKey[] = ["dom", "tenancy", "rentPerformance", "marketing", "communityVisibility"];
-  const pcts = scorecard.rank?.percentiles ?? ({} as Record<MetricKey, number | null>);
+  // Position bar uses the primary 7-cell cohort percentile (same population as
+  // the star + label), not the MSA-wide flat value — so bar, label, and star
+  // all read against the same "same-cohort peers" the section describes.
+  const pcts = Object.fromEntries(
+    metricKeys.map((k) => [k, metricCohortPercentile(scorecard, k)])
+  ) as Record<MetricKey, number | null>;
   // Cohort-median tenancy (months) for the Tenant Retention comparison — the
   // seed carries only a percentile per operator, so median the primary 7-cell
   // cohort's overallGap from the pool. null when the cohort is empty.
