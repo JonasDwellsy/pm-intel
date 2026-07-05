@@ -632,3 +632,38 @@ test("no crossMarket for single-market operator", () => {
   const fp = v.momentum.sparklines.find((s) => s.key === "footprint")!;
   assert.deepEqual(fp.series, []);
 });
+
+test("'Also operates in' excludes the home market from the member list", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      pm: { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent", companyId: "1" },
+      market: { id: "chattanooga-tn", name: "Chattanooga", state: "TN", fullName: "Chattanooga MSA" },
+      canonicalOperatorId: "doorby",
+    }),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+    marketCount: 2,
+    memberMarketNames: ["Chattanooga MSA", "Nashville MSA"], // home + one other
+  } as any);
+  assert.deepEqual(v.scaleFit.crossMarket!.marketNames, ["Nashville MSA"]); // home dropped
+  assert.equal(v.header.singleMarket, false);
+});
+
+test("single-member canonical whose only market is the home market → single-market, no crossMarket (the Crye Leike case)", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      pm: { slug: "crye-leike-memphis", name: "Crye Leike", quadrant7Cell: "SFR Independent", companyId: "1" },
+      market: { id: "memphis-tn-ms-ar", name: "Memphis", state: "TN", fullName: "Memphis, TN-MS-AR MSA" },
+      // has a canonical id that differs from the slug, but the only member market IS the home market
+      canonicalOperatorId: "crye-leike-property-management",
+    }),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+    marketCount: 1,
+    memberMarketNames: ["Memphis, TN-MS-AR MSA"],
+  } as any);
+  assert.equal(v.scaleFit.crossMarket, null); // not "Also operates in Memphis"
+  assert.equal(v.header.singleMarket, true); // footprint reads "1 market", not "Multi-market"
+});
