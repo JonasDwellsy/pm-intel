@@ -533,8 +533,10 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
           )}
         </div>
 
-        {/* RIGHT COLUMN — map */}
-        <div>
+        {/* RIGHT COLUMN — map. Flex column so the map fills the full height of
+            the grid row (matched to the taller left column) instead of leaving
+            empty space below a fixed-aspect box. */}
+        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
           <div
             style={{
               fontSize: "10px",
@@ -547,7 +549,11 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
           >
             Where they operate
           </div>
+          {/* Grow to fill; minHeight keeps the map readable when the left
+              column is short (few facts). */}
+          <div style={{ flex: 1, minHeight: "280px" }}>
           <CoverageMapClient
+            fill
             coveragePoints={geographicCoverage.coverageMapPoints}
             backdropPoints={geographicCoverage.msaBackdropPoints ?? []}
             mapBounds={geographicCoverage.mapBounds}
@@ -558,6 +564,7 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
             }
             fallbackMsa={marketFullName}
           />
+          </div>
         </div>
       </div>
 

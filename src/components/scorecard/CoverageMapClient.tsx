@@ -13,14 +13,19 @@ type MapBounds = NonNullable<ScorecardData["geographicCoverage"]["mapBounds"]>;
 function MapSvgFallback({
   city,
   msaName,
+  fill = false,
 }: {
   city: string;
   msaName: string;
+  /** When true, the SVG fills its parent's height (cover) instead of keeping
+   *  its natural 880×380 aspect ratio. */
+  fill?: boolean;
 }) {
   return (
     <svg
       viewBox="0 0 880 380"
-      className="block h-auto w-full rounded"
+      className={fill ? "block h-full w-full rounded" : "block h-auto w-full rounded"}
+      preserveAspectRatio={fill ? "xMidYMid slice" : undefined}
       aria-hidden="true"
     >
       <rect x="0" y="0" width="880" height="380" fill="#F2F5F8" />
@@ -126,6 +131,7 @@ export function CoverageMapClient({
   accentColor,
   fallbackCity,
   fallbackMsa,
+  fill = false,
 }: {
   coveragePoints: CoveragePoint[];
   backdropPoints: BackdropPoint[];
@@ -133,6 +139,9 @@ export function CoverageMapClient({
   accentColor: string;
   fallbackCity: string;
   fallbackMsa: string;
+  /** When true, the map fills its parent's height (h-full) instead of using a
+   *  fixed 2:1 aspect ratio. The parent must supply a bounded height. */
+  fill?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -294,17 +303,17 @@ export function CoverageMapClient({
 
   if (unavailable) {
     return (
-      <div className="rounded-lg border border-grid bg-white p-2">
-        <MapSvgFallback city={fallbackCity} msaName={fallbackMsa} />
+      <div className={`rounded-lg border border-grid bg-white p-2${fill ? " h-full" : ""}`}>
+        <MapSvgFallback city={fallbackCity} msaName={fallbackMsa} fill={fill} />
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-grid bg-white">
+    <div className={`overflow-hidden rounded-lg border border-grid bg-white${fill ? " h-full" : ""}`}>
       <div
         ref={containerRef}
-        className="aspect-[2/1] w-full"
+        className={fill ? "h-full w-full" : "aspect-[2/1] w-full"}
         role="img"
         aria-label={`Coverage map · ${fallbackMsa}`}
       />
