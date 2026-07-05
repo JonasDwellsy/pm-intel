@@ -117,6 +117,43 @@ test("operating rows carry label/value/position/star and drop null-percentile me
   assert.ok(tenancy.sub.some((s) => /168 repeat-listed units/.test(s)));
 });
 
+// GUARDRAIL: locks each Operating metric to its correct seed field so a future
+// wrong-field regression (like tenancy showing multiEpisodePct) fails CI. Each
+// field gets a distinct value + a decoy where a wrong field would be plausible.
+test("GUARDRAIL: operating metrics map to the correct seed field (not a decoy)", () => {
+  const sc = scFixture({
+    performance: { domT12: 40, marketDomT12: 50, domStar: "silver" },
+    // multiEpisodePct/multiEpisodeUnits are DECOYS — the value must be overallGap months.
+    tenancy: { overallGap: 13.0, multiEpisodePct: 88, multiEpisodeUnits: 99, star: "gold" },
+    rentPerformance: { pmYoyChange: 0.05, cohortMedianYoyChange: 0.02, star: null },
+    marketing: { compositeScore: 77, star: "silver" },
+    rank: { percentiles: { dom: 66, tenancy: 82, rentPerformance: 48, marketing: 70, communityVisibility: null } },
+  });
+  const v = buildScorecardView({ scorecard: sc, pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01 } as any);
+  const by = new Map(v.operating.metrics.map((m) => [m.key, m.value]));
+  assert.equal(by.get("dom"), "40d");            // performance.domT12
+  assert.equal(by.get("tenancy"), "13.0mo");     // tenancy.overallGap — NOT the 88% decoy
+  assert.ok(!by.get("tenancy")!.includes("%"), "tenancy must render months, never a %");
+  assert.equal(by.get("rentPerformance"), "5.0%"); // rentPerformance.pmYoyChange
+  assert.equal(by.get("marketing"), "77");         // marketing.compositeScore
+});
+
+// The position bar + label read the primary 7-cell cohort percentile (where the
+// star lives), not the MSA-wide flat value.
+test("operating position + label use the primary cohort percentile, not MSA flat", () => {
+  const sc = scFixture({
+    tenancy: { overallGap: 12, star: "gold" },
+    rank: {
+      percentiles: { dom: 40, tenancy: 40, rentPerformance: 40, marketing: 40, communityVisibility: null },
+      percentilesMulti: { tenancy: { primary: 90, fallback: 80, msa: 40 } },
+    },
+  });
+  const v = buildScorecardView({ scorecard: sc, pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01 } as any);
+  const ten = v.operating.metrics.find((m) => m.key === "tenancy")!;
+  assert.equal(ten.position, 0.9); // primary cohort 90, not msa 40
+  assert.equal(ten.label, "strong"); // 90 → strong, not 40 → neutral
+});
+
 test("momentum classifies portfolio from trajectory; other series insufficient for now", () => {
   const v = buildScorecardView({
     scorecard: scFixture({ rentTrajectory: [] }),

@@ -26,11 +26,25 @@ const METRIC_KEYS: MetricKey[] = [
   "dom", "tenancy", "rentPerformance", "marketing", "communityVisibility",
 ];
 
-/** Per-metric judgment labels from the stored MSA-level percentiles. */
+/** Per-metric percentile at the primary 7-cell cohort level — the SAME
+ *  population the per-metric stars are assigned within — falling back to the
+ *  broader cohort, then the MSA/flat value. Keeps the position bar + label
+ *  aligned with the cohort-relative star (the section reads "against same-cohort
+ *  peers"), rather than the MSA-wide flat percentile. Internal only — never
+ *  rendered as a number. */
+export function metricCohortPercentile(
+  scorecard: ScorecardData,
+  k: MetricKey
+): number | null {
+  const multi = scorecard.rank?.percentilesMulti?.[k];
+  if (multi) return multi.primary ?? multi.fallback ?? multi.msa ?? null;
+  return scorecard.rank?.percentiles?.[k] ?? null;
+}
+
+/** Per-metric judgment labels from the cohort-level percentiles. */
 export function metricLabels(scorecard: ScorecardData): Record<MetricKey, ScoreLabel> {
-  const p = scorecard.rank?.percentiles ?? ({} as Record<MetricKey, number | null>);
   const out = {} as Record<MetricKey, ScoreLabel>;
-  for (const k of METRIC_KEYS) out[k] = scoreLabel(p[k]);
+  for (const k of METRIC_KEYS) out[k] = scoreLabel(metricCohortPercentile(scorecard, k));
   return out;
 }
 
