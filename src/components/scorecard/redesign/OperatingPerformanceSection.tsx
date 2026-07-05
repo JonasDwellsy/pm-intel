@@ -114,8 +114,10 @@ function MetricCard({ metric }: { metric: MetricRow }) {
         <LabelChip label={metric.label} />
       </div>
 
-      {/* Interpretive line — uses benchmark as the context sentence */}
-      {metric.benchmark && (
+      {/* Interpretive line — plain-English note (parity with the vacancy /
+          rent-stability / concession cards). Falls back to the terse benchmark
+          when no sentence is available. */}
+      {(metric.interpretation || metric.benchmark) && (
         <div
           style={{
             fontSize: "12.5px",
@@ -123,7 +125,7 @@ function MetricCard({ metric }: { metric: MetricRow }) {
             marginBottom: "12px",
           }}
         >
-          {metric.benchmark}
+          {metric.interpretation || metric.benchmark}
         </div>
       )}
 
