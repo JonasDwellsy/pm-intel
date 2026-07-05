@@ -279,74 +279,13 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
         observedUnits={scaleFit.observedUnits}
       />
 
-      {/* 2-col grid: data left / map right */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "0.9fr 1.1fr",
-          gap: "16px",
-          alignItems: "stretch",
-        }}
-      >
-        {/* LEFT COLUMN */}
-        <div>
-          {/* Geographic concentration */}
-          <div
-            style={{
-              border: "1px solid #eaeef4",
-              borderRadius: "8px",
-              padding: "10px 12px",
-              marginBottom: "10px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "10px",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "#8894ac",
-                fontWeight: 600,
-                marginBottom: "4px",
-              }}
-            >
-              Geographic concentration
-            </div>
-            <ConcentrationBar
-              topCities={scaleFit.topCities}
-              top3Share={scaleFit.top3Share}
-              cohortTop3={scaleFit.cohortTop3}
-            />
-          </div>
-
-          {/* Rent tier */}
-          <div
-            style={{
-              border: "1px solid #eaeef4",
-              borderRadius: "8px",
-              padding: "10px 12px",
-              marginBottom: "10px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "10px",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "#8894ac",
-                fontWeight: 600,
-              }}
-            >
-              Rent tier
-            </div>
-            <RentTierMarker detail={scaleFit.rentTier} />
-          </div>
-
           {/* At a glance facts */}
           <div
             style={{
               border: "1px solid #eaeef4",
               borderRadius: "8px",
-              padding: "10px 12px",
+              padding: "12px 14px",
+              marginBottom: "14px",
             }}
           >
             <div
@@ -364,8 +303,9 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
             <div
               style={{
                 display: "flex",
-                gap: "18px",
+                gap: "18px 32px",
                 flexWrap: "wrap",
+                justifyContent: "space-between",
               }}
             >
               {/* Property type */}
@@ -522,6 +462,68 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
                 </div>
               )}
             </div>
+          </div>
+
+      {/* 2-col grid: data left / map right */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "0.9fr 1.1fr",
+          gap: "16px",
+          alignItems: "stretch",
+        }}
+      >
+        {/* LEFT COLUMN */}
+        <div>
+          {/* Geographic concentration */}
+          <div
+            style={{
+              border: "1px solid #eaeef4",
+              borderRadius: "8px",
+              padding: "10px 12px",
+              marginBottom: "10px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "10px",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                color: "#8894ac",
+                fontWeight: 600,
+                marginBottom: "4px",
+              }}
+            >
+              Geographic concentration
+            </div>
+            <ConcentrationBar
+              topCities={scaleFit.topCities}
+              top3Share={scaleFit.top3Share}
+              cohortTop3={scaleFit.cohortTop3}
+            />
+          </div>
+
+          {/* Rent tier */}
+          <div
+            style={{
+              border: "1px solid #eaeef4",
+              borderRadius: "8px",
+              padding: "10px 12px",
+              marginBottom: "10px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "10px",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                color: "#8894ac",
+                fontWeight: 600,
+              }}
+            >
+              Rent tier
+            </div>
+            <RentTierMarker detail={scaleFit.rentTier} />
           </div>
 
           {/* House / apartment split — SFR/hybrid operators only */}
