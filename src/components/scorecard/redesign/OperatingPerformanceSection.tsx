@@ -3,8 +3,10 @@
 // Renders evidence cards per the `.mcard` pattern in scorecard-v5.html.
 
 import type { OperatingView, MetricRow } from "@/lib/scorecard/view-model";
+import type { MetricTone } from "@/lib/scorecard/operating-detail";
 import { LabelChip } from "./LabelChip";
 import { PositionBar } from "./PositionBar";
+import { ComparisonBar } from "./ComparisonBar";
 
 interface OperatingPerformanceSectionProps {
   operating: OperatingView;
@@ -226,72 +228,135 @@ function CardHeader({ title, star }: { title: string; star: MetricRow["star"] })
 }
 
 /**
- * Compact value/unit + benchmark row for metrics with no percentile position
- * (re-enrichment metrics: vacancy, rent stability, concessions). Mirrors the
- * mockup's `.bigval` + `<small>` caption convention, without a PositionBar.
+ * Full-parity card body for the re-enrichment metrics (vacancy, rent stability,
+ * concessions). Mirrors MetricCard: header with a tone chip, a plain-English
+ * interpretation line, an evidence row (big value + ComparisonBar + benchmark
+ * label), a "what this measures" definition caption, and optional children
+ * (concession pattern chips + sample quotes). These metrics carry only an
+ * operator value + one peer median (no full percentile), so the middle column
+ * uses ComparisonBar rather than PositionBar.
  */
-function EvidenceRow({
+function DetailCard({
+  title,
+  star,
+  tone,
   value,
   unit,
+  compareValue,
+  compareMedian,
   benchmark,
+  interpretation,
+  definition,
+  children,
 }: {
+  title: string;
+  star: MetricRow["star"];
+  tone: MetricTone;
   value: string;
   unit: string;
+  compareValue: number;
+  compareMedian: number | null;
   benchmark: string;
+  interpretation: string;
+  definition: string;
+  children?: React.ReactNode;
 }) {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "74px 1fr",
-        gap: "14px",
-        alignItems: "center",
-      }}
-    >
-      <div>
-        <span
-          style={{
-            fontSize: "22px",
-            fontWeight: 700,
-            color: "#0f1f3f",
-            lineHeight: 1.1,
-            display: "block",
-          }}
-        >
-          {value}
-        </span>
-        <span
-          style={{
-            display: "block",
-            fontSize: "9.5px",
-            fontWeight: 600,
-            color: "#8894ac",
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
-            marginTop: "3px",
-          }}
-        >
-          {unit}
-        </span>
+    <div style={cardShellStyle}>
+      {/* Header: title + star + spacer + tone chip */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
+        <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f1f3f" }}>{title}</span>
+        <StarGlyph star={star} />
+        <span style={{ flex: 1 }} />
+        <LabelChip label={tone === "neutral" ? "in line" : tone} />
       </div>
-      <div style={{ fontSize: "11.5px", color: "#5b6577" }}>{benchmark}</div>
+
+      {/* Interpretation line */}
+      {interpretation && (
+        <div style={{ fontSize: "12.5px", color: "#2a3547", marginBottom: "12px" }}>
+          {interpretation}
+        </div>
+      )}
+
+      {/* Evidence row: big value + comparison bar + benchmark label */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "74px 1fr 150px",
+          gap: "14px",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <span
+            style={{
+              fontSize: "22px",
+              fontWeight: 700,
+              color: "#0f1f3f",
+              lineHeight: 1.1,
+              display: "block",
+            }}
+          >
+            {value}
+          </span>
+          <span
+            style={{
+              display: "block",
+              fontSize: "9.5px",
+              fontWeight: 600,
+              color: "#8894ac",
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+              marginTop: "3px",
+            }}
+          >
+            {unit}
+          </span>
+        </div>
+        <div>
+          <ComparisonBar value={compareValue} median={compareMedian} tone={tone} />
+        </div>
+        <div style={{ fontSize: "11.5px", color: "#5b6577" }}>{benchmark}</div>
+      </div>
+
+      {/* "What this measures" definition caption */}
+      <div
+        style={{
+          marginTop: "11px",
+          paddingTop: "9px",
+          borderTop: "1px solid #f0f2f6",
+          fontSize: "11px",
+          color: "#8894ac",
+        }}
+      >
+        {definition}
+      </div>
+
+      {children}
     </div>
   );
 }
 
-/** Vacancy signal card — value `${pct}%` / unit `of cycle`, benchmark `cohort median ${cohortMedianPct}%`. */
+/** Vacancy signal card — full parity (interpretation + comparison bar + tone + definition). */
 function VacancyCard({ vacancy }: { vacancy: NonNullable<OperatingView["vacancy"]> }) {
-  const pct = fmt(vacancy.pct);
   const benchmark = vacancy.cohortMedianPct != null ? `cohort median ${fmt(vacancy.cohortMedianPct)}%` : "";
   return (
-    <div style={cardShellStyle}>
-      <CardHeader title="Vacancy signal" star={vacancy.star} />
-      <EvidenceRow value={`${pct}%`} unit="of cycle" benchmark={benchmark} />
-    </div>
+    <DetailCard
+      title="Vacancy signal"
+      star={vacancy.star}
+      tone={vacancy.tone}
+      value={`${fmt(vacancy.pct)}%`}
+      unit="of cycle"
+      compareValue={vacancy.pct}
+      compareMedian={vacancy.cohortMedianPct}
+      benchmark={benchmark}
+      interpretation={vacancy.interpretation}
+      definition={vacancy.definition}
+    />
   );
 }
 
-/** Rent stability card — suppressed or missing volatility → muted/italic caveat; else value + benchmark + star. */
+/** Rent stability card — suppressed/missing volatility → muted caveat; else full parity. */
 function RentStabilityCard({ rentStability }: { rentStability: NonNullable<OperatingView["rentStability"]> }) {
   if (rentStability.suppressed || rentStability.volatilityPP == null) {
     return (
@@ -300,18 +365,36 @@ function RentStabilityCard({ rentStability }: { rentStability: NonNullable<Opera
         <div style={{ fontSize: "12px", color: "#8894ac", fontStyle: "italic" }}>
           {rentStability.reason ?? "Rent stability data is not available for this property."}
         </div>
+        <div
+          style={{
+            marginTop: "9px",
+            paddingTop: "9px",
+            borderTop: "1px solid #f0f2f6",
+            fontSize: "11px",
+            color: "#8894ac",
+          }}
+        >
+          {rentStability.definition}
+        </div>
       </div>
     );
   }
 
-  const volatility = fmt(rentStability.volatilityPP);
   const benchmark =
     rentStability.cohortMedianPP != null ? `cohort median ${fmt(rentStability.cohortMedianPP)} pp` : "";
   return (
-    <div style={cardShellStyle}>
-      <CardHeader title="Rent stability" star={rentStability.star} />
-      <EvidenceRow value={`${volatility} pp`} unit="YoY stdev" benchmark={benchmark} />
-    </div>
+    <DetailCard
+      title="Rent stability"
+      star={rentStability.star}
+      tone={rentStability.tone}
+      value={`${fmt(rentStability.volatilityPP)} pp`}
+      unit="YoY stdev"
+      compareValue={rentStability.volatilityPP}
+      compareMedian={rentStability.cohortMedianPP}
+      benchmark={benchmark}
+      interpretation={rentStability.interpretation}
+      definition={rentStability.definition}
+    />
   );
 }
 
@@ -333,18 +416,25 @@ function PatternChip({ label }: { label: string }) {
   );
 }
 
-/** Concession card — value/benchmark row + pattern chips + up to 3 muted sample quotes. */
+/** Concession card — full parity + pattern chips + up to 3 muted sample quotes. */
 function ConcessionCard({ concession }: { concession: NonNullable<OperatingView["concession"]> }) {
-  const rate = fmt(concession.ratePct);
   const benchmark =
     concession.marketMedianPct != null ? `market median ${fmt(concession.marketMedianPct)}%` : "";
   const samples = concession.samples.slice(0, 3);
 
   return (
-    <div style={cardShellStyle}>
-      <CardHeader title="Concessions" star={null} />
-      <EvidenceRow value={`${rate}%`} unit="of listings" benchmark={benchmark} />
-
+    <DetailCard
+      title="Concessions"
+      star={null}
+      tone={concession.tone}
+      value={`${fmt(concession.ratePct)}%`}
+      unit="of listings"
+      compareValue={concession.ratePct}
+      compareMedian={concession.marketMedianPct}
+      benchmark={benchmark}
+      interpretation={concession.interpretation}
+      definition={concession.definition}
+    >
       {concession.patterns.length > 0 && (
         <div
           style={{
@@ -388,7 +478,7 @@ function ConcessionCard({ concession }: { concession: NonNullable<OperatingView[
           ))}
         </div>
       )}
-    </div>
+    </DetailCard>
   );
 }
 

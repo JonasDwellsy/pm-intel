@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import type { ScorecardView } from "@/lib/scorecard/view-model";
 import type { ScorecardData } from "@/lib/types";
+import { vacancyDetail, rentStabilityDetail, concessionDetail } from "@/lib/scorecard/operating-detail";
 
 export const dynamic = "force-dynamic";
 
@@ -257,13 +258,21 @@ const FIXTURE_VIEW: ScorecardView = {
     sectionLabel: "good",
     takeaway: "Above the cohort median on 4 of 4 scored dimensions.",
     strongest: ["Lease-up speed", "Marketing discipline"],
-    vacancy: { pct: 12.1, cohortMedianPct: 18.4, star: "gold" },
-    rentStability: { volatilityPP: 3.2, cohortMedianPP: 5.1, suppressed: false, reason: null, star: "silver" },
+    vacancy: { pct: 12.1, cohortMedianPct: 18.4, star: "gold", ...vacancyDetail(12.1, 18.4) },
+    rentStability: {
+      volatilityPP: 3.2,
+      cohortMedianPP: 5.1,
+      suppressed: false,
+      reason: null,
+      star: "silver",
+      ...rentStabilityDetail(3.2, 5.1),
+    },
     concession: {
       ratePct: 34,
       marketMedianPct: 12,
       patterns: ["Move-in special", "Reduced deposit"],
       samples: ["First month free on a 13-month lease.", "$500 off move-in costs."],
+      ...concessionDetail(34, 12),
     },
     watch: [],
     metrics: [
