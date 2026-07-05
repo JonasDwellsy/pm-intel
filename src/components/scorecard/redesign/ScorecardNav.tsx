@@ -57,35 +57,27 @@ export function ScorecardNav({ sections }: ScorecardNavProps) {
             <a
               href={`#${section.id}`}
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
+                display: "block",
                 padding: "7px 8px",
                 borderRadius: "6px",
                 color: "#3a4a6b",
                 textDecoration: "none",
-                gap: "6px",
               }}
             >
-              {/* Number + label */}
-              <span style={{ display: "flex", alignItems: "center", gap: "5px", minWidth: 0 }}>
+              {/* Number + label — label renders in full (wraps if ever needed,
+                  never truncates) since the status chip sits on its own line. */}
+              <span style={{ display: "flex", alignItems: "baseline", gap: "5px" }}>
                 <span style={{ color: "#aab3c6", fontWeight: 700, flexShrink: 0 }}>
                   {section.num}
                 </span>
-                <span
-                  style={{
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {section.label}
-                </span>
+                <span>{section.label}</span>
               </span>
 
-              {/* Status chip */}
+              {/* Status chip — stacked under the label, indented to align with
+                  the label text (past the number). Keeps the rail narrow while
+                  letting labels + wide chips (e.g. DECLINING) both show fully. */}
               {section.statusLabel && (
-                <span style={{ flexShrink: 0 }}>
+                <span style={{ display: "inline-block", marginTop: "4px", marginLeft: "18px" }}>
                   <LabelChip label={section.statusLabel} />
                 </span>
               )}
