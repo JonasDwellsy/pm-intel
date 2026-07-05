@@ -2,7 +2,7 @@ import Link from "next/link";
 import { MarketHero } from "./MarketHero";
 import { QuadrantSummaryCard } from "./QuadrantSummaryCard";
 import { FilterChips } from "./FilterChips";
-import { PMListItem } from "./PMListItem";
+import { RankedOperatorList } from "./RankedOperatorList";
 import { BrokerToggleSection } from "./BrokerToggleSection";
 import { MarketMap } from "./MarketMap";
 import { TrackedOperatorBanner } from "./TrackedOperatorBanner";
@@ -310,7 +310,7 @@ export function MarketView({
             </p>
           </header>
 
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-4">
+          <div className="mb-3 flex flex-wrap items-center gap-4">
             <FilterChips
               stateSlug={stateSlug}
               citySlug={citySlug}
@@ -319,10 +319,6 @@ export function MarketView({
               countsBySegment={countsBySegment}
               submarketSlug={submarket?.slug ?? null}
             />
-            <div className="inline-flex h-8 items-center gap-2 rounded-full border border-grid bg-white px-3.5 text-[13px] text-muted-foreground">
-              Sorted by: <span className="font-medium text-navy">Within-quadrant rank</span>
-              <span className="text-muted-2">↓</span>
-            </div>
           </div>
 
           {/* Submarket reinforcement strip — visible only when ?submarket=
@@ -375,70 +371,21 @@ export function MarketView({
             </Link>
           </p>
 
-          {filteredPms.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-grid bg-[#FAFAF8] p-10 text-center">
-              <p className="text-sm font-medium text-navy">
-                {submarket
-                  ? `No operators observed in ${submarket.displayName}.`
-                  : "No operators in this segment yet."}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {submarket ? (
-                  <>
-                    The submarket filter matched zero operators in {market.city}.{" "}
-                    <Link
-                      href={marketHref}
-                      className="text-teal hover:text-teal-700"
-                    >
-                      Clear the filter
-                    </Link>{" "}
-                    to view all operators.
-                  </>
-                ) : (
-                  <>
-                    Try another filter or{" "}
-                    <Link href={marketHref} className="text-teal hover:text-teal-700">
-                      view all operators
-                    </Link>
-                    .
-                  </>
-                )}
-              </p>
-            </div>
-          ) : (
-            <ul className="flex flex-col gap-3.5">
-              {filteredPms.map((pm) => {
-                // Resolve the operator's share-of-portfolio in the active
-                // submarket from the index-aligned topCitySlugs / topCityPcts
-                // arrays populated by toPmListItem. The PMListItem stays
-                // unaware of the lookup mechanics — it just receives a
-                // pre-resolved share or null (silent fallback) when the
-                // submarket isn't found in this PM's topCities entries.
-                let pmSubmarket: {
-                  displayName: string;
-                  share: number | null;
-                } | null = null;
-                if (submarket) {
-                  const idx = (pm.topCitySlugs ?? []).indexOf(submarket.slug);
-                  const share =
-                    idx >= 0 ? pm.topCityPcts?.[idx] ?? null : null;
-                  pmSubmarket = {
-                    displayName: submarket.displayName,
-                    share: share ?? null,
-                  };
-                }
-                return (
-                  <PMListItem
-                    key={pm.slug}
-                    pm={pm}
-                    stateSlug={stateSlug}
-                    citySlug={citySlug}
-                    submarket={pmSubmarket}
-                  />
-                );
-              })}
-            </ul>
-          )}
+          {/* Client wrapper: renders the sort control + the list, re-ordering
+              the server-loaded rows instantly. The submarket share per row is
+              resolved inside from the index-aligned topCitySlugs/topCityPcts. */}
+          <RankedOperatorList
+            pms={filteredPms}
+            stateSlug={stateSlug}
+            citySlug={citySlug}
+            submarket={
+              submarket
+                ? { slug: submarket.slug, displayName: submarket.displayName }
+                : null
+            }
+            marketHref={marketHref}
+            marketCity={market.city}
+          />
           {/* v0.6.4 Patch 9 — brokers, hidden behind a toggle. Renders
               nothing when the market has no brokers. */}
           <BrokerToggleSection
