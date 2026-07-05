@@ -96,7 +96,7 @@ test("operating rows carry label/value/position/star and drop null-percentile me
       performance: { domT12: 18, marketDomT12: 31, houseDomT12: 16, aptDomT12: 22, domStar: "silver" },
       rentPerformance: { pmYoyChange: 0.031, cohortMedianYoyChange: 0.028, star: null },
       marketing: { compositeScore: 88, star: "silver" },
-      tenancy: { multiEpisodePct: 31, star: "gold" }, // seed scale is 0–100, not a fraction
+      tenancy: { overallGap: 13.1, multiEpisodeUnits: 168, multiEpisodePct: 31, star: "gold" },
     }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01,
   });
@@ -108,10 +108,13 @@ test("operating rows carry label/value/position/star and drop null-percentile me
   assert.equal(dom.position, 0.66);
   assert.equal(dom.star, "silver");
   assert.equal(v.operating.sectionLabel, "good"); // composite 68
-  // Regression: multiEpisodePct is already 0–100 in the seed — render "31%",
-  // never "3100%" (the *100 bug that showed "2200%" on real data).
+  // Tenant retention renders overallGap (median months, higher = better), NOT
+  // multiEpisodePct (which is only the analysis-pool size). Sub-line carries the
+  // repeat-listed unit count for coverage context.
   const tenancy = v.operating.metrics.find((m) => m.key === "tenancy")!;
-  assert.equal(tenancy.value, "31%");
+  assert.equal(tenancy.value, "13.1mo");
+  assert.match(tenancy.interpretation, /Median tenancy of about 13\.1 months/);
+  assert.ok(tenancy.sub.some((s) => /168 repeat-listed units/.test(s)));
 });
 
 test("momentum classifies portfolio from trajectory; other series insufficient for now", () => {

@@ -129,11 +129,13 @@ function MetricCard({ metric }: { metric: MetricRow }) {
         </div>
       )}
 
-      {/* Evidence row: big value + position bar + benchmark text */}
+      {/* Evidence row: big value + position bar (fills the width; the
+          benchmark now lives in the top interpretation line, so no redundant
+          right-hand label). */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "74px 1fr 150px",
+          gridTemplateColumns: "74px 1fr",
           gap: "14px",
           alignItems: "center",
         }}
@@ -156,16 +158,6 @@ function MetricCard({ metric }: { metric: MetricRow }) {
         {/* Position bar */}
         <div>
           <PositionBar position={metric.position} />
-        </div>
-
-        {/* Benchmark label */}
-        <div
-          style={{
-            fontSize: "11.5px",
-            color: "#5b6577",
-          }}
-        >
-          {metric.benchmark}
         </div>
       </div>
 
@@ -246,7 +238,6 @@ function DetailCard({
   unit,
   compareValue,
   compareMedian,
-  benchmark,
   interpretation,
   definition,
   children,
@@ -258,7 +249,6 @@ function DetailCard({
   unit: string;
   compareValue: number;
   compareMedian: number | null;
-  benchmark: string;
   interpretation: string;
   definition: string;
   children?: React.ReactNode;
@@ -280,11 +270,12 @@ function DetailCard({
         </div>
       )}
 
-      {/* Evidence row: big value + comparison bar + benchmark label */}
+      {/* Evidence row: big value + comparison bar (fills the width; the
+          benchmark now lives in the top interpretation line). */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "74px 1fr 150px",
+          gridTemplateColumns: "74px 1fr",
           gap: "14px",
           alignItems: "center",
         }}
@@ -318,7 +309,6 @@ function DetailCard({
         <div>
           <ComparisonBar value={compareValue} median={compareMedian} tone={tone} />
         </div>
-        <div style={{ fontSize: "11.5px", color: "#5b6577" }}>{benchmark}</div>
       </div>
 
       {/* "What this measures" definition caption */}
@@ -341,7 +331,6 @@ function DetailCard({
 
 /** Vacancy signal card — full parity (interpretation + comparison bar + tone + definition). */
 function VacancyCard({ vacancy }: { vacancy: NonNullable<OperatingView["vacancy"]> }) {
-  const benchmark = vacancy.cohortMedianPct != null ? `cohort median ${fmt(vacancy.cohortMedianPct)}%` : "";
   return (
     <DetailCard
       title="Vacancy signal"
@@ -351,7 +340,6 @@ function VacancyCard({ vacancy }: { vacancy: NonNullable<OperatingView["vacancy"
       unit="of cycle"
       compareValue={vacancy.pct}
       compareMedian={vacancy.cohortMedianPct}
-      benchmark={benchmark}
       interpretation={vacancy.interpretation}
       definition={vacancy.definition}
     />
@@ -382,8 +370,6 @@ function RentStabilityCard({ rentStability }: { rentStability: NonNullable<Opera
     );
   }
 
-  const benchmark =
-    rentStability.cohortMedianPP != null ? `cohort median ${fmt(rentStability.cohortMedianPP)} pp` : "";
   return (
     <DetailCard
       title="Rent stability"
@@ -393,7 +379,6 @@ function RentStabilityCard({ rentStability }: { rentStability: NonNullable<Opera
       unit="YoY stdev"
       compareValue={rentStability.volatilityPP}
       compareMedian={rentStability.cohortMedianPP}
-      benchmark={benchmark}
       interpretation={rentStability.interpretation}
       definition={rentStability.definition}
     />
@@ -420,8 +405,6 @@ function PatternChip({ label }: { label: string }) {
 
 /** Concession card — full parity + pattern chips + up to 3 muted sample quotes. */
 function ConcessionCard({ concession }: { concession: NonNullable<OperatingView["concession"]> }) {
-  const benchmark =
-    concession.marketMedianPct != null ? `market median ${fmt(concession.marketMedianPct)}%` : "";
   const samples = concession.samples.slice(0, 3);
 
   return (
@@ -433,7 +416,6 @@ function ConcessionCard({ concession }: { concession: NonNullable<OperatingView[
       unit="of listings"
       compareValue={concession.ratePct}
       compareMedian={concession.marketMedianPct}
-      benchmark={benchmark}
       interpretation={concession.interpretation}
       definition={concession.definition}
     >

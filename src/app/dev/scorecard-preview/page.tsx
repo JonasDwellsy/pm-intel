@@ -291,13 +291,13 @@ const FIXTURE_VIEW: ScorecardView = {
         key: "tenancy",
         title: "Tenant retention",
         label: "good",
-        value: "27%",
-        benchmark: "re-list rate (lower = stickier)",
+        value: "9.2mo",
+        benchmark: "cohort 6.5 mo",
         position: 0.64,
         star: null,
-        sub: [],
+        sub: ["based on 140 repeat-listed units"],
         interpretation:
-          "About 27% of tracked units re-listed over the observed window — a lower re-list rate signals stickier tenancies.",
+          "Median tenancy of about 9.2 months, versus a 6.5-month cohort median (longer = stickier).",
       },
       {
         key: "rentPerformance",
