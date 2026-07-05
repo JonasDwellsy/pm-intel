@@ -130,7 +130,8 @@ function metricStar(sc: ScorecardData, k: MetricKey): "gold" | "silver" | null {
 
 function metricValueBenchmark(
   sc: ScorecardData,
-  k: MetricKey
+  k: MetricKey,
+  tenancyCohortMedianMonths: number | null = null
 ): { value: string; benchmark: string; sub: string[]; interpretation: string } {
   if (k === "dom") {
     const dom = sc.performance?.domT12;
@@ -170,16 +171,21 @@ function metricValueBenchmark(
     };
   }
   if (k === "tenancy") {
-    // multiEpisodePct is already on a 0–100 scale in the seed (e.g. 42 = 42%),
-    // matching MethodologyFooter/PDF which render it as `${pct}%` directly. Do
-    // NOT multiply by 100 (that produced "2200%" on real data).
-    const mp = sc.tenancy?.multiEpisodePct;
+    // The retention metric is overallGap = median months between successive
+    // listings of the same unit (longer = stickier); higher is better. NOT
+    // multiEpisodePct, which is only the analysis-pool size (% of units listed
+    // 2+ times) — surfacing that as the headline made strong operators look
+    // weak (e.g. Crye Leike: 13.1mo / 82.7th pctile shown as "44%").
+    const gap = sc.tenancy?.overallGap;
+    const multiUnits = sc.tenancy?.multiEpisodeUnits;
     return {
-      value: mp != null ? `${Math.round(mp)}%` : "—",
-      benchmark: "re-list rate (lower = stickier)", sub: [],
-      interpretation: mp != null
-        ? `About ${Math.round(mp)}% of tracked units re-listed over the observed window — a lower re-list rate signals stickier tenancies.`
-        : "",
+      value: gap != null ? `${gap.toFixed(1)}mo` : "—",
+      benchmark: tenancyCohortMedianMonths != null ? `cohort ${tenancyCohortMedianMonths.toFixed(1)} mo` : "",
+      sub: multiUnits != null ? [`based on ${multiUnits.toLocaleString()} repeat-listed units`] : [],
+      interpretation: gap == null ? ""
+        : tenancyCohortMedianMonths != null
+          ? `Median tenancy of about ${gap.toFixed(1)} months, versus a ${tenancyCohortMedianMonths.toFixed(1)}-month cohort median (longer = stickier).`
+          : `Median tenancy of about ${gap.toFixed(1)} months (longer = stickier).`,
     };
   }
   return { value: "—", benchmark: "", sub: [], interpretation: "" };
@@ -401,10 +407,24 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const sw = strongestAndWatch(scorecard);
   const metricKeys: MetricKey[] = ["dom", "tenancy", "rentPerformance", "marketing", "communityVisibility"];
   const pcts = scorecard.rank?.percentiles ?? ({} as Record<MetricKey, number | null>);
+  // Cohort-median tenancy (months) for the Tenant Retention comparison — the
+  // seed carries only a percentile per operator, so median the primary 7-cell
+  // cohort's overallGap from the pool. null when the cohort is empty.
+  const cohortQ7 = scorecard.pm.quadrant7Cell ?? null;
+  const cohortGapMonths = cohortQ7
+    ? pool
+        .filter((m) => m.scorecard.pm?.quadrant7Cell === cohortQ7 && m.scorecard.tenancy?.overallGap != null)
+        .map((m) => m.scorecard.tenancy!.overallGap as number)
+        .sort((a, b) => a - b)
+    : [];
+  const tenancyCohortMedianMonths =
+    cohortGapMonths.length > 0
+      ? cohortGapMonths[Math.floor((cohortGapMonths.length - 1) / 2)]
+      : null;
   const metrics: MetricRow[] = metricKeys
     .filter((k) => pcts[k] != null || metricStar(scorecard, k) != null)
     .map((k) => {
-      const vb = metricValueBenchmark(scorecard, k);
+      const vb = metricValueBenchmark(scorecard, k, k === "tenancy" ? tenancyCohortMedianMonths : null);
       return { key: k, title: METRIC_TITLES[k], label: labels[k], value: vb.value,
         benchmark: vb.benchmark, position: pcts[k] != null ? pcts[k]! / 100 : null,
         star: metricStar(scorecard, k), sub: vb.sub, interpretation: vb.interpretation };
