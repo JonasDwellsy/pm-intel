@@ -285,6 +285,7 @@ const FIXTURE_VIEW: ScorecardView = {
         position: 0.82,
         star: "gold",
         sub: ["Houses 19d", "Apartments 28d"],
+        interpretation: "Leases in about 21 days, versus a 28-day market average.",
       },
       {
         key: "tenancy",
@@ -295,6 +296,8 @@ const FIXTURE_VIEW: ScorecardView = {
         position: 0.64,
         star: null,
         sub: [],
+        interpretation:
+          "About 27% of tracked units re-listed over the observed window — a lower re-list rate signals stickier tenancies.",
       },
       {
         key: "rentPerformance",
@@ -305,6 +308,7 @@ const FIXTURE_VIEW: ScorecardView = {
         position: 0.58,
         star: "silver",
         sub: [],
+        interpretation: "Year-over-year rent change of 3.8%, versus a 2.2% cohort median.",
       },
       {
         key: "marketing",
@@ -315,6 +319,8 @@ const FIXTURE_VIEW: ScorecardView = {
         position: 0.76,
         star: "silver",
         sub: [],
+        interpretation:
+          "Composite listing-quality score of 78 out of 100 (photos, description, completeness).",
       },
     ],
   },

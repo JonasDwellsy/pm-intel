@@ -58,6 +58,9 @@ export interface ScaleFitView {
 export interface MetricRow {
   key: MetricKey; title: string; label: ScoreLabel; value: string; benchmark: string;
   position: number | null; star: "gold" | "silver" | null; sub: string[];
+  // Plain-English note shown at the top of the card (parity with the
+  // vacancy/rent-stability/concession cards). "" → fall back to benchmark.
+  interpretation: string;
 }
 export interface OperatingView {
   sectionLabel: ScoreLabel; takeaway: string; strongest: string[]; watch: string[]; metrics: MetricRow[];
@@ -125,30 +128,61 @@ function metricStar(sc: ScorecardData, k: MetricKey): "gold" | "silver" | null {
   return s === "gold" || s === "silver" ? s : null;
 }
 
-function metricValueBenchmark(sc: ScorecardData, k: MetricKey): { value: string; benchmark: string; sub: string[] } {
-  if (k === "dom") return {
-    value: sc.performance?.domT12 != null ? `${Math.round(sc.performance.domT12)}d` : "—",
-    benchmark: sc.performance?.marketDomT12 != null ? `market avg ${Math.round(sc.performance.marketDomT12)}d` : "",
-    sub: [sc.performance?.houseDomT12 != null ? `Houses ${Math.round(sc.performance.houseDomT12)}d` : "",
-          sc.performance?.aptDomT12 != null ? `Apartments ${Math.round(sc.performance.aptDomT12)}d` : ""].filter(Boolean),
-  };
-  if (k === "rentPerformance") return {
-    value: sc.rentPerformance?.pmYoyChange != null ? `${(sc.rentPerformance.pmYoyChange * 100).toFixed(1)}%` : "—",
-    benchmark: sc.rentPerformance?.cohortMedianYoyChange != null ? `cohort ${(sc.rentPerformance.cohortMedianYoyChange * 100).toFixed(1)}%` : "",
-    sub: [],
-  };
-  if (k === "marketing") return {
-    value: sc.marketing?.compositeScore != null ? String(Math.round(sc.marketing.compositeScore)) : "—",
-    benchmark: "quality / 100", sub: [],
-  };
-  if (k === "tenancy") return {
+function metricValueBenchmark(
+  sc: ScorecardData,
+  k: MetricKey
+): { value: string; benchmark: string; sub: string[]; interpretation: string } {
+  if (k === "dom") {
+    const dom = sc.performance?.domT12;
+    const mkt = sc.performance?.marketDomT12;
+    return {
+      value: dom != null ? `${Math.round(dom)}d` : "—",
+      benchmark: mkt != null ? `market avg ${Math.round(mkt)}d` : "",
+      sub: [sc.performance?.houseDomT12 != null ? `Houses ${Math.round(sc.performance.houseDomT12)}d` : "",
+            sc.performance?.aptDomT12 != null ? `Apartments ${Math.round(sc.performance.aptDomT12)}d` : ""].filter(Boolean),
+      interpretation: dom == null ? ""
+        : mkt != null
+          ? `Leases in about ${Math.round(dom)} days, versus a ${Math.round(mkt)}-day market average.`
+          : `Leases in about ${Math.round(dom)} days.`,
+    };
+  }
+  if (k === "rentPerformance") {
+    const pm = sc.rentPerformance?.pmYoyChange;
+    const med = sc.rentPerformance?.cohortMedianYoyChange;
+    return {
+      value: pm != null ? `${(pm * 100).toFixed(1)}%` : "—",
+      benchmark: med != null ? `cohort ${(med * 100).toFixed(1)}%` : "",
+      sub: [],
+      interpretation: pm == null ? ""
+        : med != null
+          ? `Year-over-year rent change of ${(pm * 100).toFixed(1)}%, versus a ${(med * 100).toFixed(1)}% cohort median.`
+          : `Year-over-year rent change of ${(pm * 100).toFixed(1)}%.`,
+    };
+  }
+  if (k === "marketing") {
+    const cs = sc.marketing?.compositeScore;
+    return {
+      value: cs != null ? String(Math.round(cs)) : "—",
+      benchmark: "quality / 100", sub: [],
+      interpretation: cs != null
+        ? `Composite listing-quality score of ${Math.round(cs)} out of 100 (photos, description, completeness).`
+        : "",
+    };
+  }
+  if (k === "tenancy") {
     // multiEpisodePct is already on a 0–100 scale in the seed (e.g. 42 = 42%),
     // matching MethodologyFooter/PDF which render it as `${pct}%` directly. Do
     // NOT multiply by 100 (that produced "2200%" on real data).
-    value: sc.tenancy?.multiEpisodePct != null ? `${Math.round(sc.tenancy.multiEpisodePct)}%` : "—",
-    benchmark: "re-list rate (lower = stickier)", sub: [],
-  };
-  return { value: "—", benchmark: "", sub: [] };
+    const mp = sc.tenancy?.multiEpisodePct;
+    return {
+      value: mp != null ? `${Math.round(mp)}%` : "—",
+      benchmark: "re-list rate (lower = stickier)", sub: [],
+      interpretation: mp != null
+        ? `About ${Math.round(mp)}% of tracked units re-listed over the observed window — a lower re-list rate signals stickier tenancies.`
+        : "",
+    };
+  }
+  return { value: "—", benchmark: "", sub: [], interpretation: "" };
 }
 
 function buildScaleFitTakeaway(sc: ScorecardData): string {
@@ -373,7 +407,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
       const vb = metricValueBenchmark(scorecard, k);
       return { key: k, title: METRIC_TITLES[k], label: labels[k], value: vb.value,
         benchmark: vb.benchmark, position: pcts[k] != null ? pcts[k]! / 100 : null,
-        star: metricStar(scorecard, k), sub: vb.sub };
+        star: metricStar(scorecard, k), sub: vb.sub, interpretation: vb.interpretation };
     });
   const aboveCount = metrics.filter((m) => m.label === "strong" || m.label === "good").length;
   const operatingTakeaway = metrics.length === 0
