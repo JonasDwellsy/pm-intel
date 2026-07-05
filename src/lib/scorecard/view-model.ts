@@ -214,13 +214,22 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const { goldCount, silverCount } = countOperatorStars(scorecard);
   const companyId = scorecard.pm.companyId ?? null;
 
+  // Multi-market = the operator's canonical has member markets OTHER than the
+  // one being viewed. Every operator carries a canonicalOperatorId (its own
+  // canonical), so "has a canonical id" is NOT a multi-market signal — a
+  // single-market operator would otherwise show "Also operates in <its own
+  // market>" and a "Multi-market" footprint. Exclude the home market from the
+  // member list and gate on what remains.
+  const otherMarketNames = (input.memberMarketNames ?? []).filter(
+    (n) => n !== scorecard.market.fullName
+  );
+  const isMultiMarket = otherMarketNames.length > 0;
+
   const header: HeaderView = {
     name: scorecard.pm.name,
     quadrant7Cell: scorecard.pm.quadrant7Cell ?? null,
     marketFullName: scorecard.market.fullName,
-    singleMarket:
-      !scorecard.canonicalOperatorId ||
-      scorecard.canonicalOperatorId === scorecard.pm.slug,
+    singleMarket: !isMultiMarket,
     goldCount,
     silverCount,
     dwellsyCompanyUrl: companyId ? `https://dwellsy.com/company/${companyId}` : null,
@@ -352,18 +361,16 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
       ? { houseUrus: houseUrusT12, aptUrus: aptUrusT12 }
       : null;
 
-  // Cross-market footprint — multi-market operators only (canonicalOperatorId
-  // set and distinct from this member's own slug, per the v0.6.4 seed
-  // convention). page.tsx does the member-enumeration query + loads
-  // loadOperatorAggregateTrajectory; the view-model only shapes what it's
+  // Cross-market footprint — only when the operator has member markets beyond
+  // the one being viewed (isMultiMarket, computed above). marketNames lists
+  // only those OTHER markets (home excluded), so "Also operates in" never
+  // echoes the current market. page.tsx does the member-enumeration query +
+  // loads loadOperatorAggregateTrajectory; the view-model shapes what it's
   // handed. Single-market operators get null (no back-link, no chip list).
-  const isMultiMarket =
-    !!scorecard.canonicalOperatorId &&
-    scorecard.canonicalOperatorId !== scorecard.pm.slug;
   const crossMarket: ScaleFitView["crossMarket"] = isMultiMarket
     ? {
         canonicalSlug: scorecard.canonicalOperatorId!,
-        marketNames: input.memberMarketNames ?? [],
+        marketNames: otherMarketNames,
       }
     : null;
 
