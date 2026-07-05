@@ -14,6 +14,12 @@ import type { RentTierDetail } from "./rent-tier";
 import { buildLendingSignals } from "@/lib/lending-signals";
 import type { PoolPm } from "@/lib/msa-pool";
 import { buildConcessionContext, uniquePatternLabels, formatConcessionSample } from "@/lib/concession-context";
+import {
+  vacancyDetail,
+  rentStabilityDetail,
+  concessionDetail,
+  type MetricTone,
+} from "./operating-detail";
 
 export interface HeaderView {
   name: string;
@@ -55,9 +61,11 @@ export interface MetricRow {
 }
 export interface OperatingView {
   sectionLabel: ScoreLabel; takeaway: string; strongest: string[]; watch: string[]; metrics: MetricRow[];
-  vacancy: { pct: number; cohortMedianPct: number | null; star: "gold" | "silver" | null } | null;
-  rentStability: { volatilityPP: number | null; cohortMedianPP: number | null; suppressed: boolean; reason: string | null; star: "gold" | "silver" | null } | null;
-  concession: { ratePct: number; marketMedianPct: number | null; patterns: string[]; samples: string[] } | null;
+  // `interpretation`/`tone`/`definition` bring these re-enriched cards to parity
+  // with the scored metric cards (see operating-detail.ts).
+  vacancy: { pct: number; cohortMedianPct: number | null; star: "gold" | "silver" | null; interpretation: string; tone: MetricTone; definition: string } | null;
+  rentStability: { volatilityPP: number | null; cohortMedianPP: number | null; suppressed: boolean; reason: string | null; star: "gold" | "silver" | null; interpretation: string; tone: MetricTone; definition: string } | null;
+  concession: { ratePct: number; marketMedianPct: number | null; patterns: string[]; samples: string[]; interpretation: string; tone: MetricTone; definition: string } | null;
 }
 
 export interface MomentumView {
@@ -235,6 +243,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
         pct: lendingSignals.vacancy.vacancyPct,
         cohortMedianPct: lendingSignals.vacancy.dist.cohortMedian,
         star: lendingSignals.vacancy.star,
+        ...vacancyDetail(lendingSignals.vacancy.vacancyPct, lendingSignals.vacancy.dist.cohortMedian),
       }
     : null;
 
@@ -245,6 +254,10 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
         suppressed: lendingSignals.rentStability.suppressed,
         reason: lendingSignals.rentStability.reason ?? null,
         star: lendingSignals.rentStability.star,
+        ...rentStabilityDetail(
+          lendingSignals.rentStability.volatilityPP,
+          lendingSignals.rentStability.cohortMedianVolatility
+        ),
       }
     : null;
 
@@ -279,6 +292,10 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
           marketMedianPct: concessionContext.marketMedianRate != null ? concessionContext.marketMedianRate * 100 : null,
           patterns: uniquePatternLabels(concessionContext.patterns),
           samples: concessionContext.samples.slice(0, 3).map(formatConcessionSample),
+          ...concessionDetail(
+            concessionContext.rate * 100,
+            concessionContext.marketMedianRate != null ? concessionContext.marketMedianRate * 100 : null
+          ),
         }
       : null;
 
