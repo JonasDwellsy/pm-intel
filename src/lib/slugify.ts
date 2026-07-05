@@ -262,8 +262,16 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     // can show the operating-company name. Equal names → undefined so
     // the field stays surgical (only DBA cases carry it; non-DBA
     // canonicals where canonical name == PM name set nothing).
+    //
+    // Compare case-INSENSITIVELY: a canonicalOperatorName that differs
+    // from the PM name only by casing (e.g. "Cr Holland" vs the corrected
+    // "CR Holland") is NOT a real DBA alias — it's stale casing drift.
+    // Treat it as equal so the PM list shows the authoritative `name`
+    // (the same value the scorecard header renders), keeping capitalization
+    // consistent across both surfaces.
     displayName:
-      sc.canonicalOperatorName && sc.canonicalOperatorName !== row.name
+      sc.canonicalOperatorName &&
+      sc.canonicalOperatorName.toLowerCase() !== row.name.toLowerCase()
         ? sc.canonicalOperatorName
         : undefined,
     // v0.6.3 Patch 5 — raw operator YoY rent change. The state-level
