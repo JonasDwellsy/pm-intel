@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -52,14 +53,17 @@ type RouteSearch = {
   submarket?: string | string[];
 };
 
-async function loadScorecard(slug: string) {
+// Wrapped in React cache() so generateMetadata and the page component — two
+// separate entry points in the SAME request — share one fetch + parse instead
+// of each doing its own findUnique + JSON.parse of the ~30KB blob.
+const loadScorecard = cache(async (slug: string) => {
   const pm = await prisma.pM.findUnique({ where: { slug } });
   if (!pm) return null;
   return {
     scorecard: parseScorecard(pm),
     isClaimed: pm.claimed,
   };
-}
+});
 
 export async function generateStaticParams(): Promise<RouteParams[]> {
   const [pms, segmentParams] = await Promise.all([
