@@ -29,46 +29,47 @@ export interface ConcessionContext {
    *  1-element array built from sampleText when the seed predates the
    *  array field; empty array when no samples are available at all. */
   samples: string[];
-  /** Median concession rate across the focal market's ranked operators
-   *  with non-null concessionRate. Null when the cohort is empty. */
-  marketMedianRate: number | null;
-  /** Cohort size used for the median (count of ranked operators with
-   *  non-null concessionRate). Surfaces in the methodology disclosure
-   *  when needed. */
+  /** Listing-weighted concession rate across the focal market's ranked
+   *  operators: total concession-mentioning T12 listings ÷ total T12 listings.
+   *  This is the true market concession rate, not the median of per-operator
+   *  rates — the per-operator distribution is heavily zero-inflated (most small
+   *  operators run no concessions), so its median is often 0 and makes any
+   *  operator with concessions look like an outlier. Null when the market has
+   *  no T12 listings. */
+  marketRate: number | null;
+  /** Count of ranked operators contributing to the market rate (T12 > 0). */
   cohortSize: number;
-  /** Color-accent classification per spec:
-   *    high    — rate > median + 0.20 (i.e. 20pp above)
-   *    low     — rate < median - 0.20 (20pp below)
-   *    neutral — otherwise, or when median is unavailable
+  /** Color-accent classification:
+   *    high    — rate > marketRate + 0.20 (i.e. 20pp above)
+   *    low     — rate < marketRate - 0.20 (20pp below)
+   *    neutral — otherwise, or when the market rate is unavailable
    *  Null when the focal operator's rate is itself null. */
   accent: "high" | "low" | "neutral" | null;
 }
 
-const ACCENT_THRESHOLD_PP = 0.20; // 20pp above/below median triggers accent
-
-function median(values: number[]): number | null {
-  if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid];
-}
+const ACCENT_THRESHOLD_PP = 0.20; // 20pp above/below the market rate triggers accent
 
 export function buildConcessionContext(
   focalScorecard: ScorecardData,
   msaPool: PoolPm[]
 ): ConcessionContext {
-  // Cohort: every ranked PM in the market with a non-null concessionRate.
-  // Operators with null (absent from the classifier CSV) are excluded so
-  // they don't pull the median down. The msaPool is the canonical ranked
-  // set per the scorecard route loader.
-  const cohortRates: number[] = [];
+  // Listing-weighted market rate: sum every ranked operator's concession
+  // listings and T12 listings, then divide. This weights by listing volume
+  // (a 900-listing operator counts more than a 30-listing one) and yields the
+  // market's actual concession rate rather than the median of a zero-inflated
+  // per-operator distribution. The msaPool is the canonical ranked set.
+  let marketConcessionListings = 0;
+  let marketT12Listings = 0;
+  let cohortSize = 0;
   for (const p of msaPool) {
-    const r = p.scorecard.concessionRate;
-    if (typeof r === "number") cohortRates.push(r);
+    const t12 = p.scorecard.coverage?.t12Listings;
+    if (typeof t12 !== "number" || t12 <= 0) continue;
+    marketT12Listings += t12;
+    marketConcessionListings += p.scorecard.concessionListingCount ?? 0;
+    cohortSize += 1;
   }
-  const marketMedianRate = median(cohortRates);
+  const marketRate =
+    marketT12Listings > 0 ? marketConcessionListings / marketT12Listings : null;
 
   const rate =
     typeof focalScorecard.concessionRate === "number"
@@ -95,11 +96,11 @@ export function buildConcessionContext(
 
   let accent: ConcessionContext["accent"] = null;
   if (rate !== null) {
-    if (marketMedianRate === null) {
+    if (marketRate === null) {
       accent = "neutral";
-    } else if (rate > marketMedianRate + ACCENT_THRESHOLD_PP) {
+    } else if (rate > marketRate + ACCENT_THRESHOLD_PP) {
       accent = "high";
-    } else if (rate < marketMedianRate - ACCENT_THRESHOLD_PP) {
+    } else if (rate < marketRate - ACCENT_THRESHOLD_PP) {
       accent = "low";
     } else {
       accent = "neutral";
@@ -113,8 +114,8 @@ export function buildConcessionContext(
     patterns,
     sampleText,
     samples,
-    marketMedianRate,
-    cohortSize: cohortRates.length,
+    marketRate,
+    cohortSize,
     accent,
   };
 }

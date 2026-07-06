@@ -120,7 +120,7 @@ export default async function DevRealScorecard({
       scorecard,
       pool: msaPool,
       trajectory: operatorTrajectory,
-      marketConcessionMedian: concessionContext.marketMedianRate,
+      marketConcessionMedian: concessionContext.marketRate,
       ...(isMultiMarket
         ? { aggregateTrajectory, memberMarketNames, marketCount }
         : {}),

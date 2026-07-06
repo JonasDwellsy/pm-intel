@@ -19,9 +19,13 @@ test("metricTone higherWorse: above band watch, otherwise neutral (never 'good' 
   assert.equal(metricTone(3.7, 3.7, "higherWorse"), "neutral");
 });
 
-test("metricTone: null or zero median → neutral (no comparison)", () => {
+test("metricTone: null/negative benchmark → neutral; ZERO benchmark still compares", () => {
   assert.equal(metricTone(8.2, null, "lowerBetter"), "neutral");
-  assert.equal(metricTone(8.2, 0, "lowerBetter"), "neutral");
+  assert.equal(metricTone(8.2, -1, "higherWorse"), "neutral");
+  // A 0 benchmark is meaningful: a value above 0 is above the market.
+  assert.equal(metricTone(12.6, 0, "higherWorse"), "watch"); // the Houston concession case
+  assert.equal(metricTone(0, 0, "higherWorse"), "neutral"); // equal → in line
+  assert.equal(metricTone(8.2, 0, "lowerBetter"), "watch"); // above a 0 median → worse
 });
 
 test("vacancyDetail: factual interpretation vs cohort median, good when below", () => {
@@ -39,9 +43,9 @@ test("rentStabilityDetail: null volatility → empty interpretation + neutral (c
   assert.match(d.definition, /steadier pricing/);
 });
 
-test("concessionDetail: well above market median → watch", () => {
+test("concessionDetail: well above market rate → watch", () => {
   const d = concessionDetail(9.1, 3.7);
   assert.equal(d.tone, "watch");
   assert.match(d.interpretation, /9\.1% of trailing-12-month listings/);
-  assert.match(d.interpretation, /3\.7% market median/);
+  assert.match(d.interpretation, /3\.7% market rate/);
 });

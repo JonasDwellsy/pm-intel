@@ -415,7 +415,7 @@ function ConcessionCard({ concession }: { concession: NonNullable<OperatingView[
       value={`${fmt(concession.ratePct)}%`}
       unit="of listings"
       compareValue={concession.ratePct}
-      compareMedian={concession.marketMedianPct}
+      compareMedian={concession.marketRatePct}
       interpretation={concession.interpretation}
       definition={concession.definition}
     >

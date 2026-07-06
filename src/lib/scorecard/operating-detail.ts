@@ -37,7 +37,12 @@ export function metricTone(
   median: number | null,
   direction: "lowerBetter" | "higherWorse"
 ): MetricTone {
-  if (median == null || median <= 0) return "neutral";
+  // Only a null (absent) or negative benchmark is uninterpretable. A benchmark
+  // of exactly 0 is meaningful — an operator above a 0 market rate IS above the
+  // market — so let it flow through the band (lo=hi=0). The old `<= 0` guard
+  // wrongly neutralized these, e.g. 12.6% concessions vs a 0% median read
+  // "in line" instead of "watch".
+  if (median == null || median < 0) return "neutral";
   const lo = median * (1 - TOL);
   const hi = median * (1 + TOL);
   if (direction === "lowerBetter") {
@@ -80,16 +85,16 @@ export function rentStabilityDetail(
   };
 }
 
-export function concessionDetail(ratePct: number, marketMedianPct: number | null): OperatingDetail {
+export function concessionDetail(ratePct: number, marketRatePct: number | null): OperatingDetail {
   const definition =
     "Share of trailing-12-month listings advertising move-in incentives. Higher can signal softer demand.";
   const interpretation =
-    marketMedianPct != null
-      ? `${f(ratePct)}% of trailing-12-month listings advertise concessions, versus the ${f(marketMedianPct)}% market median.`
+    marketRatePct != null
+      ? `${f(ratePct)}% of trailing-12-month listings advertise concessions, versus the ${f(marketRatePct)}% market rate.`
       : `${f(ratePct)}% of trailing-12-month listings advertise concessions.`;
   return {
     interpretation,
-    tone: metricTone(ratePct, marketMedianPct, "higherWorse"),
+    tone: metricTone(ratePct, marketRatePct, "higherWorse"),
     definition,
   };
 }

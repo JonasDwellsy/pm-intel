@@ -233,7 +233,7 @@ export default async function MarketChildPage({
       scorecard,
       pool: msaPool,
       trajectory: operatorTrajectory,
-      marketConcessionMedian: concessionContext.marketMedianRate,
+      marketConcessionMedian: concessionContext.marketRate,
       ...(isMultiMarket
         ? { aggregateTrajectory, memberMarketNames, marketCount }
         : {}),
