@@ -1671,6 +1671,7 @@ async function captureOperatorSnapshots(
     topSubmarkets: string;
     concessionRate: number | null;
     isEligibleForRanking: boolean;
+    t12ListingsCount: number | null;
   }> = [];
 
   for (const pm of pms) {
@@ -1761,6 +1762,7 @@ async function captureOperatorSnapshots(
       topSubmarkets: JSON.stringify(activeSubmarkets),
       concessionRate: pm.concessionRate,
       isEligibleForRanking: t12Listings >= 30,
+      t12ListingsCount: t12Listings,
     });
   }
 

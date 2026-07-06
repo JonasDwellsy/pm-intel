@@ -11,6 +11,7 @@ type TrajPoint = {
   concessionRate?: number | null;
   eligible?: boolean;
   date?: string;
+  shareOfMarket?: number | null;
 };
 
 type PoolMemberFixture = {
@@ -214,11 +215,11 @@ test("rent tier position is populated from operator rent vs pool", () => {
   assert.ok(view.scaleFit.rentTier != null && view.scaleFit.rentTier.position > 0.5);
 });
 
-test("reach and quality sparklines populate from trajectory; share stays empty", () => {
+test("reach, quality, and share sparklines populate from trajectory", () => {
   const points: TrajPoint[] = [
-    { portfolioPoint: 100, goldCount: 1, silverCount: 1, submarketCount: 3 },
-    { portfolioPoint: 120, goldCount: 2, silverCount: 1, submarketCount: 4 },
-    { portfolioPoint: 140, goldCount: 3, silverCount: 1, submarketCount: 6 },
+    { portfolioPoint: 100, goldCount: 1, silverCount: 1, submarketCount: 3, shareOfMarket: 0.10 },
+    { portfolioPoint: 120, goldCount: 2, silverCount: 1, submarketCount: 4, shareOfMarket: 0.12 },
+    { portfolioPoint: 140, goldCount: 3, silverCount: 1, submarketCount: 6, shareOfMarket: 0.15 },
   ];
   const view = buildScorecardView({
     scorecard: scFixture({ rentTrajectory: [] }),
@@ -229,7 +230,26 @@ test("reach and quality sparklines populate from trajectory; share stays empty",
   const spark = (k: string) => view.momentum.sparklines.find((s) => s.key === k)!;
   assert.deepEqual(spark("reach").series, [3, 4, 6]);
   assert.deepEqual(spark("quality").series, [3, 5, 7]); // gold*2 + silver
-  assert.equal(spark("share").series.length, 0);
+  assert.deepEqual(spark("share").series, [0.10, 0.12, 0.15]);
+  assert.equal(spark("share").direction, "growing"); // scale-invariant: +50%
+});
+
+test("share sparkline stays empty (building history) when points carry no shareOfMarket", () => {
+  // Pre-backfill state: recon rows have no t12ListingsCount → shareOfMarket null.
+  const points: TrajPoint[] = [
+    { portfolioPoint: 100, submarketCount: 3 },
+    { portfolioPoint: 120, submarketCount: 4 },
+    { portfolioPoint: 140, submarketCount: 6 },
+  ];
+  const view = buildScorecardView({
+    scorecard: scFixture({ rentTrajectory: [] }),
+    pool: [],
+    trajectory: { points },
+    marketConcessionMedian: 0.01,
+  });
+  const share = view.momentum.sparklines.find((s) => s.key === "share")!;
+  assert.equal(share.series.length, 0);
+  assert.equal(share.direction, "insufficient");
 });
 
 test("thin MF/BTR operator: maturityNote contains 'Early coverage', communitiesObserved = 1, readout[0] mentions community + self-report, momentum readout contains 'mo observed' when insufficient", () => {

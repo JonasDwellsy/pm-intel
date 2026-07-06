@@ -312,6 +312,11 @@ model OperatorSnapshot {
 
   concessionRate       Float?
   isEligibleForRanking Boolean
+  // Operator's T12 listing count at this snapshot (coverage.t12Listings).
+  // Nullable: recon rows written before v0.25 lack it until the backfill
+  // re-run populates them. Feeds the Momentum "Listing share" sparkline —
+  // share per date = this ÷ the market's summed t12ListingsCount that date.
+  t12ListingsCount     Int?
   createdAt            DateTime @default(now())
 
   // One snapshot per operator per data-cutoff date.
