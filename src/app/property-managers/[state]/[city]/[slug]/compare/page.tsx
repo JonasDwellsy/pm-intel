@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -22,13 +23,17 @@ export const dynamic = "force-dynamic";
 
 type RouteParams = { state: string; city: string; slug: string };
 
-async function loadFocal(slug: string): Promise<{
+// Wrapped in React cache() so generateMetadata and the page component share
+// one fetch + parse per request instead of each running this findUnique.
+const loadFocal = cache(async (
+  slug: string
+): Promise<{
   scorecard: ScorecardData;
   marketId: string;
   marketCity: string;
   marketFullName: string;
   marketState: string;
-} | null> {
+} | null> => {
   const pm = await prisma.pM.findUnique({
     where: { slug },
     include: { market: { select: { id: true, city: true, state: true, fullName: true } } },
@@ -41,7 +46,7 @@ async function loadFocal(slug: string): Promise<{
     marketFullName: pm.market.fullName,
     marketState: pm.market.state,
   };
-}
+});
 
 export async function generateMetadata({
   params,
