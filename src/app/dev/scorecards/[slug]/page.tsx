@@ -77,15 +77,15 @@ export default async function DevRealScorecard({
   const isClaimed = pm.claimed;
 
   // View selection — query param first (headless rendering), then cookie,
-  // else default to classic.
+  // else default to new (matches the production default).
   const sp = await searchParams;
   const cookieView = (await cookies()).get("scorecard_view")?.value;
   const view =
     sp.view === "classic" || sp.view === "new"
       ? sp.view
-      : cookieView === "new"
-        ? "new"
-        : "classic";
+      : cookieView === "classic"
+        ? "classic"
+        : "new";
 
   if (view === "new") {
     // Mirror the production page's multi-market loading so the dev preview
