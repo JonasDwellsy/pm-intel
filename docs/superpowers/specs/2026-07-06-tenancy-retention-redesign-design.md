@@ -3,6 +3,7 @@
 **Status:** Design approved (2026-07-06), pending spec review.
 **Owner:** Jonas Bordo / Operator IQ
 **Supersedes:** the `overallGap` "median months between successive listings" tenancy metric (pipeline.py `compute_tenancy`).
+**Scope:** two related changes that both require an all-markets re-seed — (1) the survival-based 24-month retention metric (§4–§7), and (2) a departed-operator recency-exclusion eligibility gate (§4.5). They may ship as one PR or two (sequenced in the implementation plan); the recency gate is independently valuable and could land first.
 
 ---
 
@@ -147,6 +148,28 @@ Added to the dict `compute_tenancy` returns (and passed through `merge.py` to th
 | `tenancySuppressed` | bool | `not tenancyQualified` |
 | `tenancySuppressedReason` | string \| null | e.g. `"Too early to assess renewal — this operator has been tracked 1.4 years."` (uses `years_visible`) |
 
+## 4.5 Departed-operator exclusion (recency eligibility gate)
+
+Ground-truth (Jonas verified Bridge and Goldberg are no longer on Dwellsy) exposed a gap: the `T12 >= 30` window is 365 days wide, so it lags a departure by up to a year. An operator that went dark 2–3 months ago still has ample trailing-12-month activity and stays "eligible" — showing a stale scorecard for a company that has left the platform. This is broader than tenancy (every metric on a departed operator's card is stale), so the fix is a **new operator-level eligibility criterion**, not a tenancy-only suppression.
+
+**Rule:** an operator is eligible only if its most recent listing event (creation **or** deactivation) is within `RECENCY_GATE_DAYS = 60` of the market's `DATA_AS_OF`. Otherwise it is excluded from the ranked set entirely (no scorecard, not in cohorts, not in the seed) — the same treatment as failing `T12 >= 30`.
+
+- **Reference date:** `DATA_AS_OF` (= `NOW`, the market's last listing event), so the window is per-market and consistent with the rest of the pipeline.
+- **Signal:** last event = `max(creation_time, deactivation_time)` across the operator's lifetime listings. Add a per-operator `last_event_dt` to the streaming aggregation (alongside the existing `earliest_ct`), then in the eligibility block (pipeline.py:642–647): `if (NOW - d["last_event_dt"]).days > RECENCY_GATE_DAYS: continue`.
+- **Applied per normalized operator** (the `norm` the eligible-set loop already iterates), so canonical-merged operators use their combined last event.
+
+**Why 60 days (validated across all 34 markets):**
+- Active operators post constantly — median 3 days since last activity (p75 = 7). 60 days of total silence is a clean cliff with a wide empty gap before it; no active operator is near it.
+- 60 days catches confirmed departures a looser gate would miss: **Bridge is 74–81 days silent in most markets, so a 90-day gate fails to catch a company that has demonstrably left.**
+- Cross-market consistency confirms the flags are real departures, not noise: Bridge (13 markets), McCormack Baron (9), Goldberg (4), all with matching per-market departure dates.
+- Scale: **~304 of 4,023 ranked operators (7.6%) excluded** (the 2 Spherexx hits are already denylisted). At 90d it would be 259; at 120d, 235.
+
+**Self-healing:** the exclusion is recomputed every monthly re-seed against the fresh `DATA_AS_OF`. An operator wrongly excluded during a slow stretch re-qualifies automatically the next time it lists — so the residual false-positive risk (small single-market operators in the 61–90-day band) is temporary, not permanent.
+
+**Interaction with the tenancy metric:** this gate removes departed operators before `compute_tenancy` runs, so the censoring artifact (§9) is resolved at the source — no departed operator reaches the survival computation. The `turnoverEvents >= 5` floor (§4.3) remains as the secondary guard.
+
+**Sequencing note:** this gate is logically separable from the metric redesign and independently valuable (it removes stale ghosts regardless of the tenancy change). It may ship as its own PR ahead of the metric rewrite, or together — decided in the implementation plan. Both require the same all-markets re-seed.
+
 ## 5. Ranking, star, composite (pipeline)
 
 - **Metric value** (pipeline.py:1025): `metric_values["tenancy"][norm] = feats["tenancy_block"]["retention24Pct"]` (was `overallGap`). `None` for unqualified operators.
@@ -185,23 +208,24 @@ Add to the `tenancy` block: `retention24Pct: number | null`, `retentionCurve?: {
 ## 8. Migration & verification
 
 1. **Re-run pipeline** across all 34 markets (per-market `pipeline.py`), then `normalize → merge.py` to regenerate the seed. Do **not** `prisma db seed` locally — re-seed happens on deploy.
-2. **Before/after rank audit** (scratchpad, read-only over the two seeds):
+2. **Recency-gate exclusion audit** (scratchpad, read-only): regenerate the departed-operator list (the validation already run: ~304 operators, 7.6%) against the current data-as-of and confirm the count and per-market spread are stable; spot-check the 61–90-day borderline band for any obvious false positive before the re-seed removes them. The removed operators drop out of ranked counts, cohorts, and the seed — expected in the merge acceptance-gate diff.
+3. **Before/after rank audit** (scratchpad, read-only over the two seeds):
    - How many operators change composite rank, and by how much (distribution).
    - Suppression count/rate — expect ~29% (the `<2yr` population); confirm the *right* operators are suppressed (young/small), and that established large operators (e.g. UDR via `atRisk24=183`) remain qualified.
    - Distribution of `retention24Pct` and `kmMedianMonths`; sanity vs the Nashville validation (median tenancy in the 30s of months, not ~7).
    - **Anti-artifact tripwire:** flag any qualified operator with `retention24Pct >= 98 & turnoverEvents <= 2` for manual inspection (the frozen-inventory / off-platform-churn signature). In Nashville this occurs zero times in the eligible set once the min-events floor is applied; the audit confirms it stays zero across all 34 markets.
-   - **Staleness sanity:** confirm the eligible ranked set is genuinely active (median days-since-last-listing should be single digits, as in Nashville: median 3d). This validates that `T12 >= 30` eligibility — not a staleness gate — is what removes departed operators (see §9).
+   - **Staleness sanity:** after the recency gate is applied, confirm the ranked set is genuinely active (median days-since-last-listing single digits, as in Nashville: median 3d) — i.e. no residual departed operators slipped through.
    - Sensitivity of the suppression count to `QUALIFY_MIN_ATRISK24 ∈ {20, 25, 30}` and `QUALIFY_MIN_EVENTS ∈ {0, 5, 10}`; confirm 25 / 5 before locking.
-3. **tsc + full test suite green**; update/extend view-model, operating-detail, peer-comparison, watch-list tests for the new field and the suppressed path.
-4. **Screenshot** New scorecards via the `/dev/scorecards/[slug]?view=new` harness for a qualified operator and a suppressed operator; confirm the retention headline and the caveat render correctly.
-5. Commit + PR; re-seed triggers on merge.
+4. **tsc + full test suite green**; update/extend view-model, operating-detail, peer-comparison, watch-list tests for the new field and the suppressed path.
+5. **Screenshot** New scorecards via the `/dev/scorecards/[slug]?view=new` harness for a qualified operator and a suppressed operator; confirm the retention headline and the caveat render correctly.
+6. Commit + PR; re-seed triggers on merge.
 
 ## 9. Assumptions & limits (documented, accepted)
 
-- **"Still occupied" = closed listing not re-listed.** We cannot distinguish, at the unit level, a genuinely occupied unit from one whose operator stopped listing it on Dwellsy or sold it. This is handled at the operator level, not by a staleness gate:
-  - **Departure is caught by `T12 >= 30` eligibility, already in place.** An operator who left Dwellsy has no trailing-12-month listings and is never ranked. Validated on Nashville: applying real eligibility dropped the exact frozen-inventory artifacts (Evernest — 124 units, **0 turnovers**, 697 days silent; MAA — 1,801 days silent) that a unit-level view would otherwise read as ~100% retention. The eligible ranked set has median 3 days since last listing — demonstrably active.
-  - **A staleness gate was considered and rejected.** Among eligible operators, "days since last new listing" is *not* a departure signal — the only two Nashville operators >60 days quiet are large active operators with realistic retention (Goldberg: 139 T12 listings, 177 turnovers, 53%; Bridge: 300 listings, 321 turnovers, 46%). A 60-day gate would suppress good operators and catch zero real artifacts, because eligibility already removed them. It is also anti-correlated with the signal (high-retention operators post fewer new listings), so it is the wrong tool.
-  - **The min-events floor (`turnoverEvents >= 5`) is the residual guard.** It makes "high retention from censoring alone" structurally impossible for the operators that *do* pass eligibility, and the §8 audit tripwire confirms no artifact survives across all 34 markets.
+- **"Still occupied" = closed listing not re-listed.** We cannot distinguish, at the unit level, a genuinely occupied unit from one whose operator stopped listing it on Dwellsy or sold it. Departure is therefore handled at the operator level, by two layers:
+  - **Fully-departed operators (no recent T12 activity)** are excluded by `T12 >= 30` eligibility, already in place — the frozen-inventory artifacts (e.g. Evernest: 124 units, **0 turnovers**, 697 days silent) have zero trailing-12-month activity and are never ranked.
+  - **Recently-departed operators** — active within the last 12 months but since gone dark — are *not* caught by the 365-day T12 window, which lags a departure by up to a year. Ground-truth (Bridge and Goldberg verified off-platform) confirmed this real gap. The **recency gate (§4.5)** closes it: no listing event within 60 days of `DATA_AS_OF` → excluded. Validated across all 34 markets (~304 operators, 7.6%), with cross-market consistency confirming the flags are true departures (Bridge in 13 markets, McCormack Baron in 9). An earlier Nashville-only read wrongly dismissed a staleness gate as anti-correlated with retention; the 34-market validation plus ground-truth reversed that — the recency gate is adopted.
+  - **The min-events floor (`turnoverEvents >= 5`, §4.3)** is the residual guard for any operator that passes both eligibility layers, making "high retention from censoring alone" structurally impossible; the §8 audit tripwire confirms no such artifact survives.
   - Documented as an on-platform-observed retention measure.
 - **Re-post floor is a heuristic** (3 months). Intervals below it are dropped; a real ultra-fast turnover is rare and not worth the false positives from re-posts.
 - **Horizon fixed at 24 months** as the renewal signal. 12mo is emitted for context but never ranked (baseline lease, no accomplishment). 36mo is emitted for context; too few operators support it as a headline.
