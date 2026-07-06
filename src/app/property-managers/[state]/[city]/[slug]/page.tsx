@@ -173,14 +173,13 @@ export default async function MarketChildPage({
     return <MarketLockedUpsell marketName={scorecard.market.fullName} />;
   }
 
-  // Scorecard A/B toggle — cookie-gated dual render path. Default is
-  // Classic (A, the exact current production scorecard) until a viewer
-  // explicitly opts into New (B, the redesign) via ScorecardViewToggle.
-  // Only the selected branch's data loads: the redesign's multi-market
-  // member query + buildScorecardView never run for view==="classic",
-  // and the classic cross-market/peer/lending/cohort builders never run
-  // for view==="new".
-  const view = (await cookies()).get("scorecard_view")?.value === "new" ? "new" : "classic";
+  // Scorecard A/B toggle — cookie-gated dual render path. Default is now
+  // New (B, the redesign); a viewer only sees Classic (A) if they've
+  // explicitly opted back into it via ScorecardViewToggle. Only the
+  // selected branch's data loads: the redesign's multi-market member query
+  // + buildScorecardView never run for view==="classic", and the classic
+  // cross-market/peer/lending/cohort builders never run for view==="new".
+  const view = (await cookies()).get("scorecard_view")?.value === "classic" ? "classic" : "new";
 
   if (view === "new") {
     // Multi-market operators (canonicalOperatorId set and distinct from this
