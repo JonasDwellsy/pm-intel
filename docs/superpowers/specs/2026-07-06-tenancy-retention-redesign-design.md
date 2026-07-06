@@ -122,9 +122,12 @@ kmMedianMonths = km_median(curve)                            # float | None
 atRisk24       = at_risk(observations, 24)
 turnoverEvents = sum(1 for _, e in observations if e == 1)
 
-QUALIFY_MIN_ATRISK24 = 25                                    # tunable; validated in the audit (§8)
-qualified = atRisk24 >= QUALIFY_MIN_ATRISK24
+QUALIFY_MIN_ATRISK24 = 25            # units observed to 24 months (sample-size gate)
+QUALIFY_MIN_EVENTS   = 5             # real turnover events (anti-artifact gate; see §9)
+qualified = atRisk24 >= QUALIFY_MIN_ATRISK24 and turnoverEvents >= QUALIFY_MIN_EVENTS
 ```
+
+The min-events floor guarantees the curve rests on observed turnovers, not censoring alone — it makes "high retention from a frozen inventory snapshot" structurally impossible. Validated on Nashville: it drops zero legitimate eligible operators (thinnest has 29 events).
 
 - **`retention24Pct`** = `retention24` when `qualified`, else `None`. This is the ranked value.
 - **Legacy fields preserved unchanged** (`overallGap`, `multiEpisodePct`, `multiEpisodeUnits`, `house`, `apartment`) so Classic + PDF + the vacancy signal keep working (§6). `compute_tenancy` emits both the legacy block and the new fields.
@@ -140,7 +143,7 @@ Added to the dict `compute_tenancy` returns (and passed through `merge.py` to th
 | `kmMedianMonths` | number \| null | median tenancy in months where the curve reaches 50%, else null |
 | `atRisk24` | int | # observations lasting ≥ 24 months (the gate's basis) |
 | `turnoverEvents` | int | # turnover events (audit/context) |
-| `tenancyQualified` | bool | `atRisk24 >= QUALIFY_MIN_ATRISK24` |
+| `tenancyQualified` | bool | `atRisk24 >= QUALIFY_MIN_ATRISK24 and turnoverEvents >= QUALIFY_MIN_EVENTS` |
 | `tenancySuppressed` | bool | `not tenancyQualified` |
 | `tenancySuppressedReason` | string \| null | e.g. `"Too early to assess renewal — this operator has been tracked 1.4 years."` (uses `years_visible`) |
 
@@ -186,15 +189,20 @@ Add to the `tenancy` block: `retention24Pct: number | null`, `retentionCurve?: {
    - How many operators change composite rank, and by how much (distribution).
    - Suppression count/rate — expect ~29% (the `<2yr` population); confirm the *right* operators are suppressed (young/small), and that established large operators (e.g. UDR via `atRisk24=183`) remain qualified.
    - Distribution of `retention24Pct` and `kmMedianMonths`; sanity vs the Nashville validation (median tenancy in the 30s of months, not ~7).
-   - Flag any qualified operator with `retention24Pct == 100 & turnoverEvents == 0` for manual inspection (possible off-platform-churn artifact; bounded by the eligibility/recent-activity filter, but worth eyeballing).
-   - Sensitivity of the suppression count to `QUALIFY_MIN_ATRISK24 ∈ {20, 25, 30}`; confirm 25 before locking.
+   - **Anti-artifact tripwire:** flag any qualified operator with `retention24Pct >= 98 & turnoverEvents <= 2` for manual inspection (the frozen-inventory / off-platform-churn signature). In Nashville this occurs zero times in the eligible set once the min-events floor is applied; the audit confirms it stays zero across all 34 markets.
+   - **Staleness sanity:** confirm the eligible ranked set is genuinely active (median days-since-last-listing should be single digits, as in Nashville: median 3d). This validates that `T12 >= 30` eligibility — not a staleness gate — is what removes departed operators (see §9).
+   - Sensitivity of the suppression count to `QUALIFY_MIN_ATRISK24 ∈ {20, 25, 30}` and `QUALIFY_MIN_EVENTS ∈ {0, 5, 10}`; confirm 25 / 5 before locking.
 3. **tsc + full test suite green**; update/extend view-model, operating-detail, peer-comparison, watch-list tests for the new field and the suppressed path.
 4. **Screenshot** New scorecards via the `/dev/scorecards/[slug]?view=new` harness for a qualified operator and a suppressed operator; confirm the retention headline and the caveat render correctly.
 5. Commit + PR; re-seed triggers on merge.
 
 ## 9. Assumptions & limits (documented, accepted)
 
-- **"Still occupied" = closed listing not re-listed.** We cannot distinguish a genuinely occupied unit from one whose operator stopped listing on Dwellsy or sold it. The eligibility filter (recent T12 activity) bounds the fully-dark case; documented as an on-platform-observed retention measure.
+- **"Still occupied" = closed listing not re-listed.** We cannot distinguish, at the unit level, a genuinely occupied unit from one whose operator stopped listing it on Dwellsy or sold it. This is handled at the operator level, not by a staleness gate:
+  - **Departure is caught by `T12 >= 30` eligibility, already in place.** An operator who left Dwellsy has no trailing-12-month listings and is never ranked. Validated on Nashville: applying real eligibility dropped the exact frozen-inventory artifacts (Evernest — 124 units, **0 turnovers**, 697 days silent; MAA — 1,801 days silent) that a unit-level view would otherwise read as ~100% retention. The eligible ranked set has median 3 days since last listing — demonstrably active.
+  - **A staleness gate was considered and rejected.** Among eligible operators, "days since last new listing" is *not* a departure signal — the only two Nashville operators >60 days quiet are large active operators with realistic retention (Goldberg: 139 T12 listings, 177 turnovers, 53%; Bridge: 300 listings, 321 turnovers, 46%). A 60-day gate would suppress good operators and catch zero real artifacts, because eligibility already removed them. It is also anti-correlated with the signal (high-retention operators post fewer new listings), so it is the wrong tool.
+  - **The min-events floor (`turnoverEvents >= 5`) is the residual guard.** It makes "high retention from censoring alone" structurally impossible for the operators that *do* pass eligibility, and the §8 audit tripwire confirms no artifact survives across all 34 markets.
+  - Documented as an on-platform-observed retention measure.
 - **Re-post floor is a heuristic** (3 months). Intervals below it are dropped; a real ultra-fast turnover is rare and not worth the false positives from re-posts.
 - **Horizon fixed at 24 months** as the renewal signal. 12mo is emitted for context but never ranked (baseline lease, no accomplishment). 36mo is emitted for context; too few operators support it as a headline.
 
