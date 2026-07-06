@@ -27,6 +27,7 @@ import { buildShareTrajectoryView } from "@/lib/share-trajectory";
 import { buildPeerComparisons } from "@/lib/peer-comparison";
 import { loadOperatorTrajectory } from "@/lib/operators/trajectory";
 import type { ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 import type { LendingSignals } from "@/lib/lending-signals";
 import type { ShareTrajectoryView } from "@/lib/share-trajectory";
 import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
@@ -163,7 +164,7 @@ export async function GET(
       return new Response("Operator not found", { status: 404 });
     }
 
-    const scorecard = JSON.parse(pm.scorecardData) as ScorecardData;
+    const scorecard = parseScorecard(pm);
 
     // PR #85 — Load MSA pool for the cohort overlay on Page 4.
     // PR #86 — Extended to also compute the full LendingSignals

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 import {
   resolveViewerEntitlement,
   isMarketEntitled,
@@ -24,6 +25,6 @@ export async function GET(
     return Response.json({ error: "PM not found" }, { status: 404 });
   }
 
-  const scorecard: ScorecardData = JSON.parse(pm.scorecardData);
+  const scorecard: ScorecardData = parseScorecard(pm);
   return Response.json(scorecard);
 }

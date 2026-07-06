@@ -9,7 +9,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
+import { titleCaseSlug } from "@/lib/format";
 import type { ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 
 // ─── shapes ─────────────────────────────────────────────────────────
 
@@ -141,7 +143,7 @@ export async function buildMarketBriefData(
   // re-parsing in each pass below.
   const parsed = pms.map((row) => ({
     row,
-    sc: JSON.parse(row.scorecardData) as ScorecardData,
+    sc: parseScorecard(row),
   }));
 
   // ── share movement: build continuing cohort, compute per-op YoY ──
@@ -345,7 +347,7 @@ export async function buildMarketBriefData(
 
   // ── assemble header ──
 
-  const stateName = stateCodeToSlug(market.state).replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const stateName = titleCaseSlug(stateCodeToSlug(market.state));
   const dataAsOf = parsed[0]?.row.dataAsOf?.toISOString().slice(0, 10) ?? "2026-05-19";
   const methodologyVersion = parsed[0]?.row.methodologyVersion ?? "v0.6.4";
 
@@ -400,9 +402,7 @@ export async function listMarketHeaders(): Promise<MarketHeader[]> {
     marketName: m.fullName,
     city: m.city,
     state: m.state,
-    stateName: stateCodeToSlug(m.state)
-      .replace(/-/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase()),
+    stateName: titleCaseSlug(stateCodeToSlug(m.state)),
     marketUrl: `/property-managers/${stateCodeToSlug(m.state)}/${citySlug(m.city)}`,
     briefUrl: `/property-managers/${stateCodeToSlug(m.state)}/${citySlug(m.city)}/brief`,
     dataAsOf,

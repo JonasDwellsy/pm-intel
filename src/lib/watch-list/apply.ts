@@ -16,6 +16,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 import {
   isMarketEntitled,
   type MarketEntitlement,
@@ -128,7 +129,7 @@ export async function applyWatchList(
   for (const row of rows) {
     let scorecard: ScorecardData;
     try {
-      scorecard = JSON.parse(row.scorecardData) as ScorecardData;
+      scorecard = parseScorecard(row);
     } catch {
       continue; // skip malformed rows defensively
     }

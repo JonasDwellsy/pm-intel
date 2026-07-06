@@ -23,6 +23,15 @@ export function fmtDays(n: number | null | undefined): string {
   return `${fmtNumber(n, 1)} d`;
 }
 
+/** Title-case a hyphenated slug for display: "north-carolina" → "North
+ *  Carolina", "rock-hill-nc" → "Rock Hill Nc". Hyphens become spaces and every
+ *  word boundary is capitalized. Consolidates the identical state-slug → title
+ *  transform previously inlined across the market / scorecard / compare
+ *  surfaces (behavior-preserving — same regex those sites used). */
+export function titleCaseSlug(slug: string): string {
+  return slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function fmtDate(iso: string): string {
   const d = new Date(iso);
   // Methodology dates are calendar dates, not local-clock dates. Format in UTC

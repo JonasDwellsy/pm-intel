@@ -9,7 +9,7 @@ import type {
   MarketFootprintPill,
 } from "@/lib/cross-market";
 import type { ScorecardData } from "@/lib/types";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, titleCaseSlug } from "@/lib/format";
 import { InfoIcon } from "@/components/scorecard/InfoIcon";
 
 // Layer 1 — Identity hero block (v1.0 design, per Scorecard_Design_Spec_v1.0.md
@@ -83,9 +83,7 @@ export function IdentityHero({
           href={`/property-managers/${stateSlug}`}
           className="hover:text-navy"
         >
-          {stateSlug
-            .replace(/-/g, " ")
-            .replace(/\b\w/g, (c) => c.toUpperCase())}
+          {titleCaseSlug(stateSlug)}
         </Link>
         <span className="text-muted-2">/</span>
         <Link

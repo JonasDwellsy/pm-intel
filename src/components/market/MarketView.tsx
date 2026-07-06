@@ -8,7 +8,7 @@ import { MarketMap } from "./MarketMap";
 import { TrackedOperatorBanner } from "./TrackedOperatorBanner";
 import { TrackEvent } from "@/components/analytics/TrackEvent";
 import { buttonVariants } from "@/components/ui/button";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, titleCaseSlug } from "@/lib/format";
 import type { LoadedMarket } from "@/lib/market-data";
 import type { QuadrantSegment } from "@/lib/slugify";
 import { segmentLabel } from "@/lib/slugify";
@@ -104,9 +104,7 @@ function Breadcrumb({
   stateSlug: string;
   cityLabel: string;
 }) {
-  const stateName = stateSlug.replace(/-/g, " ").replace(/\b\w/g, (c) =>
-    c.toUpperCase()
-  );
+  const stateName = titleCaseSlug(stateSlug);
   return (
     <nav
       aria-label="Breadcrumb"

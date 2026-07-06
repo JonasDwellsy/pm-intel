@@ -1,4 +1,5 @@
 import type { PMListItem, ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 
 // --- State (2-letter code <-> URL slug) ---
 
@@ -169,7 +170,7 @@ type PmRowForList = {
 };
 
 export function toPmListItem(row: PmRowForList): PMListItem {
-  const sc = JSON.parse(row.scorecardData) as ScorecardData;
+  const sc = parseScorecard(row);
   // Derive primary-city share from the citiesText prefix. The seed data uses
   // two formats: "NN% City …" (single-city operators) or "City NN% · …"
   // (multi-city). Try both, default to null if neither matches.

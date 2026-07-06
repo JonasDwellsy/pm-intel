@@ -8,8 +8,9 @@ import { quadrant7Color } from "@/lib/quadrant7-colors";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { StarSummaryChip } from "@/components/scorecard/StarSummaryChip";
 import { countOperatorStars } from "@/lib/operators/stars";
-import { fmtInt } from "@/lib/format";
+import { fmtInt, titleCaseSlug } from "@/lib/format";
 import type { ScorecardData, StarLevel } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 
 // /property-managers/[state]/[city]/[slug]/compare — peer comparison
 // page. Server-rendered. Resolves the focal operator + their MSA pool,
@@ -34,7 +35,7 @@ async function loadFocal(slug: string): Promise<{
   });
   if (!pm) return null;
   return {
-    scorecard: JSON.parse(pm.scorecardData) as ScorecardData,
+    scorecard: parseScorecard(pm),
     marketId: pm.market.id,
     marketCity: pm.market.city,
     marketFullName: pm.market.fullName,
@@ -103,9 +104,7 @@ export default async function ComparePage({
             href={`/property-managers/${expectedStateSlug}`}
             className="hover:text-navy"
           >
-            {expectedStateSlug
-              .replace(/-/g, " ")
-              .replace(/\b\w/g, (c) => c.toUpperCase())}
+            {titleCaseSlug(expectedStateSlug)}
           </Link>
           <span className="text-muted-2">/</span>
           <Link

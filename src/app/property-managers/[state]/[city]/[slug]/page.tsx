@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import type { ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 import {
   citySlug,
   isQuadrantSegment,
@@ -55,7 +56,7 @@ async function loadScorecard(slug: string) {
   const pm = await prisma.pM.findUnique({ where: { slug } });
   if (!pm) return null;
   return {
-    scorecard: JSON.parse(pm.scorecardData) as ScorecardData,
+    scorecard: parseScorecard(pm),
     isClaimed: pm.claimed,
   };
 }

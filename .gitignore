@@ -54,3 +54,7 @@ src/data/.backups/
 
 # brainstorming visual-companion scratch
 .superpowers/
+
+# Python bytecode caches (data pipeline)
+__pycache__/
+*.pyc
