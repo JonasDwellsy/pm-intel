@@ -513,14 +513,15 @@ test("concession detail surfaces rate, market median, patterns, samples", () => 
     concessionPatterns: ["move_in_special"],
     concessionSamples: ["Move in today and get a free month on us"],
   });
-  // buildConcessionContext's median cohort is every pool member with a
-  // non-null concessionRate, INCLUDING the focal itself (it doesn't
-  // exclude the focal slug — see concession-context.ts). Cohort here is
-  // [0.4 (focal), 0.1, 0.2] -> median 0.2 -> 20%.
+  // buildConcessionContext's benchmark is the LISTING-WEIGHTED market rate:
+  // total concession listings ÷ total T12 listings across the pool (incl. the
+  // focal). Here: (40 + 5 + 10) / (100 + 50 + 50) = 55/200 = 0.275 -> 27.5%.
+  // Note this deliberately differs from the old median-of-rates (which was
+  // 20%) — that's the whole point of the switch.
   const pool = [
     { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent", scorecard: focalScorecard },
-    { slug: "member-a", name: "A", quadrant7Cell: "SFR Independent", scorecard: scFixture({ pm: { slug: "member-a", name: "A", quadrant7Cell: "SFR Independent" }, coverage: { t12Listings: 50 }, concessionRate: 0.1 }) },
-    { slug: "member-b", name: "B", quadrant7Cell: "SFR Independent", scorecard: scFixture({ pm: { slug: "member-b", name: "B", quadrant7Cell: "SFR Independent" }, coverage: { t12Listings: 50 }, concessionRate: 0.2 }) },
+    { slug: "member-a", name: "A", quadrant7Cell: "SFR Independent", scorecard: scFixture({ pm: { slug: "member-a", name: "A", quadrant7Cell: "SFR Independent" }, coverage: { t12Listings: 50 }, concessionRate: 0.1, concessionListingCount: 5 }) },
+    { slug: "member-b", name: "B", quadrant7Cell: "SFR Independent", scorecard: scFixture({ pm: { slug: "member-b", name: "B", quadrant7Cell: "SFR Independent" }, coverage: { t12Listings: 50 }, concessionRate: 0.2, concessionListingCount: 10 }) },
   ];
   const v = buildScorecardView({
     scorecard: focalScorecard,
@@ -530,7 +531,7 @@ test("concession detail surfaces rate, market median, patterns, samples", () => 
   });
   assert.ok(v.operating.concession != null);
   assert.equal(v.operating.concession!.ratePct, 40);
-  assert.equal(v.operating.concession!.marketMedianPct, 20); // median of [0.4, 0.1, 0.2] * 100
+  assert.ok(Math.abs(v.operating.concession!.marketRatePct! - 27.5) < 1e-6); // listing-weighted 55/200
   assert.equal(v.operating.concession!.patterns.length >= 1, true);
   assert.equal(v.operating.concession!.patterns[0], "Move-in special");
   assert.equal(v.operating.concession!.samples.length, 1);

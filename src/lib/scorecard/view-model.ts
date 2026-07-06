@@ -68,7 +68,7 @@ export interface OperatingView {
   // with the scored metric cards (see operating-detail.ts).
   vacancy: { pct: number; cohortMedianPct: number | null; star: "gold" | "silver" | null; interpretation: string; tone: MetricTone; definition: string } | null;
   rentStability: { volatilityPP: number | null; cohortMedianPP: number | null; suppressed: boolean; reason: string | null; star: "gold" | "silver" | null; interpretation: string; tone: MetricTone; definition: string } | null;
-  concession: { ratePct: number; marketMedianPct: number | null; patterns: string[]; samples: string[]; interpretation: string; tone: MetricTone; definition: string } | null;
+  concession: { ratePct: number; marketRatePct: number | null; patterns: string[]; samples: string[]; interpretation: string; tone: MetricTone; definition: string } | null;
 }
 
 export interface MomentumView {
@@ -106,6 +106,10 @@ export interface BuildViewInput {
       shareOfMarket?: number | null;
     }>;
   };
+  // Market concession benchmark fed to the watch-item logic. As of the
+  // listing-weighted-rate change this carries concessionContext.marketRate
+  // (total concession listings ÷ total T12 listings across the market), NOT a
+  // median — the field name is retained only to avoid churning every caller.
   marketConcessionMedian: number | null;
   marketCount?: number;
   /** Cross-market aggregate trajectory (multi-market operators only) —
@@ -342,12 +346,12 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     concessionContext && concessionContext.rate != null && concessionContext.rate > 0
       ? {
           ratePct: concessionContext.rate * 100,
-          marketMedianPct: concessionContext.marketMedianRate != null ? concessionContext.marketMedianRate * 100 : null,
+          marketRatePct: concessionContext.marketRate != null ? concessionContext.marketRate * 100 : null,
           patterns: uniquePatternLabels(concessionContext.patterns),
           samples: concessionContext.samples.slice(0, 3).map(formatConcessionSample),
           ...concessionDetail(
             concessionContext.rate * 100,
-            concessionContext.marketMedianRate != null ? concessionContext.marketMedianRate * 100 : null
+            concessionContext.marketRate != null ? concessionContext.marketRate * 100 : null
           ),
         }
       : null;

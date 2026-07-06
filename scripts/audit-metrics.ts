@@ -109,8 +109,8 @@ async function main() {
       if (rs && !rs.suppressed && rs.volatilityPP != null && rs.cohortMedianPP != null && rs.tone === "good" && !(rs.volatilityPP < rs.cohortMedianPP * 0.9))
         flags.push({ slug: r.slug, check: "C:rentStab", detail: `good but ${rs.volatilityPP} !< ${rs.cohortMedianPP}` });
       const co = v.operating.concession;
-      if (co?.marketMedianPct != null && co.tone === "watch" && !(co.ratePct > co.marketMedianPct * 1.1))
-        flags.push({ slug: r.slug, check: "C:concession", detail: `watch but ${co.ratePct} !> ${co.marketMedianPct}` });
+      if (co?.marketRatePct != null && co.tone === "watch" && !(co.ratePct > co.marketRatePct * 1.1))
+        flags.push({ slug: r.slug, check: "C:concession", detail: `watch but ${co.ratePct} !> ${co.marketRatePct}` });
 
       // D: render-safety (NaN/undefined/"null"; NOT "Infinity" — a real operator name)
       const strings = [

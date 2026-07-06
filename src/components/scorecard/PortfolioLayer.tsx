@@ -828,8 +828,8 @@ function ConcessionActivitySection({ ctx }: { ctx: ConcessionContext }) {
   const hasConcessions = ctx.listingCount > 0 && ctx.rate !== null;
   const ratePct = ctx.rate !== null ? Math.round(ctx.rate * 100) : null;
   const medianPct =
-    ctx.marketMedianRate !== null
-      ? Math.round(ctx.marketMedianRate * 100)
+    ctx.marketRate !== null
+      ? Math.round(ctx.marketRate * 100)
       : null;
 
   // Accent → color token. Orange + green map to the existing chart-warn

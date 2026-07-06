@@ -269,7 +269,7 @@ const FIXTURE_VIEW: ScorecardView = {
     },
     concession: {
       ratePct: 34,
-      marketMedianPct: 12,
+      marketRatePct: 12,
       patterns: ["Move-in special", "Reduced deposit"],
       samples: ["First month free on a 13-month lease.", "$500 off move-in costs."],
       ...concessionDetail(34, 12),
