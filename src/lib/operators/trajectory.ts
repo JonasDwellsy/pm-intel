@@ -24,6 +24,15 @@ export interface TrajectoryPoint {
   submarketCount?: number | null;
   /** Fraction (0..1) of T12 listings mentioning concessions that snapshot. */
   concessionRate?: number | null;
+  /** Operator's T12 listing count that snapshot (numerator of share).
+   *  null on recon rows written before the v0.25 backfill re-run. */
+  t12ListingsCount?: number | null;
+  /** Operator's share (0..1) of its market's total T12 listings that
+   *  snapshot: t12ListingsCount ÷ market total that date. null when either
+   *  the operator's count or the market total is unavailable. Populated only
+   *  by the single-operator loader (needs the market-wide sum). Drives the
+   *  Momentum "Listing share" sparkline. */
+  shareOfMarket?: number | null;
 }
 
 export interface OperatorTrajectory {
@@ -44,6 +53,57 @@ export function parseSubmarketCount(topSubmarkets: string | null): number | null
   }
 }
 
+/** Attach each point's share of its market's total T12 listings that
+ *  snapshot date. share = point.t12ListingsCount ÷ marketTotalByDate[date];
+ *  null when the operator's count is missing, or the market total for that
+ *  date is missing / zero. Pure + unit-tested. */
+export function attachShareOfMarket(
+  points: TrajectoryPoint[],
+  marketTotalByDate: Map<string, number>
+): TrajectoryPoint[] {
+  return points.map((p) => {
+    const total = marketTotalByDate.get(p.date);
+    const share =
+      p.t12ListingsCount != null && total != null && total > 0
+        ? p.t12ListingsCount / total
+        : null;
+    return { ...p, shareOfMarket: share };
+  });
+}
+
+/** Sum every operator's t12ListingsCount per snapshot date across the focal
+ *  operator's whole market — the denominator for share-of-market. Keyed by
+ *  yyyy-mm-dd. Empty when the operator's PM row or market can't be resolved
+ *  (share then degrades to null, hiding the sparkline). */
+async function loadMarketT12TotalsByDate(
+  pmSlug: string
+): Promise<Map<string, number>> {
+  const pm = await prisma.pM.findUnique({
+    where: { slug: pmSlug },
+    select: { marketId: true },
+  });
+  if (!pm) return new Map();
+  const marketSlugs = (
+    await prisma.pM.findMany({
+      where: { marketId: pm.marketId },
+      select: { slug: true },
+    })
+  ).map((p) => p.slug);
+  const grouped = await prisma.operatorSnapshot.groupBy({
+    by: ["snapshotDate"],
+    where: { pmSlug: { in: marketSlugs }, t12ListingsCount: { not: null } },
+    _sum: { t12ListingsCount: true },
+  });
+  const totals = new Map<string, number>();
+  for (const g of grouped) {
+    totals.set(
+      g.snapshotDate.toISOString().slice(0, 10),
+      g._sum.t12ListingsCount ?? 0
+    );
+  }
+  return totals;
+}
+
 export async function loadOperatorTrajectory(
   pmSlug: string
 ): Promise<OperatorTrajectory> {
@@ -59,21 +119,22 @@ export async function loadOperatorTrajectory(
       isEligibleForRanking: true,
       topSubmarkets: true,
       concessionRate: true,
+      t12ListingsCount: true,
     },
   });
-  return {
-    pmSlug,
-    points: rows.map((r) => ({
-      date: r.snapshotDate.toISOString().slice(0, 10),
-      portfolioPoint: r.estimatedPortfolioPoint,
-      portfolioBand: r.estimatedPortfolioBand,
-      goldCount: r.starGoldCount,
-      silverCount: r.starSilverCount,
-      eligible: r.isEligibleForRanking,
-      submarketCount: parseSubmarketCount(r.topSubmarkets),
-      concessionRate: r.concessionRate,
-    })),
-  };
+  const points: TrajectoryPoint[] = rows.map((r) => ({
+    date: r.snapshotDate.toISOString().slice(0, 10),
+    portfolioPoint: r.estimatedPortfolioPoint,
+    portfolioBand: r.estimatedPortfolioBand,
+    goldCount: r.starGoldCount,
+    silverCount: r.starSilverCount,
+    eligible: r.isEligibleForRanking,
+    submarketCount: parseSubmarketCount(r.topSubmarkets),
+    concessionRate: r.concessionRate,
+    t12ListingsCount: r.t12ListingsCount,
+  }));
+  const marketTotalByDate = await loadMarketT12TotalsByDate(pmSlug);
+  return { pmSlug, points: attachShareOfMarket(points, marketTotalByDate) };
 }
 
 // ─── pure shaping (unit-tested) ─────────────────────────────────────

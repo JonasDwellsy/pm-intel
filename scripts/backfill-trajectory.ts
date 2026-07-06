@@ -125,6 +125,10 @@ async function main() {
         const subs = readActiveSubmarkets(
           JSON.stringify(pm.t12ListingsBySubmarket ?? {})
         );
+        const t12 =
+          typeof coverage.t12Listings === "number"
+            ? Math.round(coverage.t12Listings)
+            : null;
         if (band.point !== null) {
           withPortfolio++;
           portfolioSum += band.point;
@@ -148,15 +152,31 @@ async function main() {
           concessionRate:
             typeof pm.concessionRate === "number" ? pm.concessionRate : null,
           isEligibleForRanking: true,
+          t12ListingsCount: t12,
         });
       }
 
       if (!dryRun && rows.length > 0) {
-        const r = await prisma.operatorSnapshot.createMany({
-          data: rows,
-          skipDuplicates: true,
-        });
-        mktRows += r.count;
+        // Upsert (not createMany/skipDuplicates) so a re-run REFRESHES existing
+        // recon rows — the whole point of the v0.25 re-run is to add
+        // t12ListingsCount to rows written by an earlier backfill. Upsert also
+        // makes the script idempotent without --reset, so there's no window
+        // where recon history is deleted on the live shared DB. Chunked so we
+        // don't exhaust the connection pool on the ~28k-row full run.
+        const CHUNK = 20;
+        for (let i = 0; i < rows.length; i += CHUNK) {
+          await Promise.all(
+            rows.slice(i, i + CHUNK).map((row) => {
+              const { pmSlug, snapshotDate, ...rest } = row;
+              return prisma.operatorSnapshot.upsert({
+                where: { pmSlug_snapshotDate: { pmSlug, snapshotDate } },
+                create: row,
+                update: rest,
+              });
+            })
+          );
+        }
+        mktRows += rows.length;
       } else {
         mktRows += rows.length;
       }

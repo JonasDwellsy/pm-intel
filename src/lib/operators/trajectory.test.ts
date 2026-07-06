@@ -13,6 +13,7 @@ import {
   quarterEndDate,
   collapseMemberRowsToQuarterly,
   parseSubmarketCount,
+  attachShareOfMarket,
   type OperatorTrajectory,
   type TrajectoryPoint,
   type MemberSnapshotRow,
@@ -99,6 +100,65 @@ test("sparkline — values stay within the padded box", () => {
     assert.ok(p.x >= 4 && p.x <= 196, `x ${p.x}`);
     assert.ok(p.y >= 4 && p.y <= 36, `y ${p.y}`);
   }
+});
+
+// ─── attachShareOfMarket ─────────────────────────────────────────
+
+function ptShare(date: string, t12: number | null): TrajectoryPoint {
+  return {
+    date,
+    portfolioPoint: null,
+    portfolioBand: null,
+    goldCount: 0,
+    silverCount: 0,
+    eligible: true,
+    t12ListingsCount: t12,
+  };
+}
+
+test("share — count ÷ market total for that date", () => {
+  const totals = new Map([
+    ["2025-03-31", 400],
+    ["2025-06-30", 500],
+  ]);
+  const out = attachShareOfMarket(
+    [ptShare("2025-03-31", 100), ptShare("2025-06-30", 50)],
+    totals
+  );
+  assert.equal(out[0].shareOfMarket, 0.25); // 100 / 400
+  assert.equal(out[1].shareOfMarket, 0.1); // 50 / 500
+});
+
+test("share — null when operator's own count is null", () => {
+  const out = attachShareOfMarket(
+    [ptShare("2025-03-31", null)],
+    new Map([["2025-03-31", 400]])
+  );
+  assert.equal(out[0].shareOfMarket, null);
+});
+
+test("share — null when the market total for that date is missing", () => {
+  const out = attachShareOfMarket([ptShare("2025-03-31", 100)], new Map());
+  assert.equal(out[0].shareOfMarket, null);
+});
+
+test("share — null when market total is zero (no div-by-zero)", () => {
+  const out = attachShareOfMarket(
+    [ptShare("2025-03-31", 100)],
+    new Map([["2025-03-31", 0]])
+  );
+  assert.equal(out[0].shareOfMarket, null);
+});
+
+test("share — preserves all other point fields", () => {
+  const [p] = attachShareOfMarket(
+    [ptShare("2025-03-31", 100)],
+    new Map([["2025-03-31", 400]])
+  );
+  assert.equal(p.date, "2025-03-31");
+  assert.equal(p.t12ListingsCount, 100);
+  assert.equal(p.eligible, true);
+  assert.equal(p.shareOfMarket, 0.25);
 });
 
 // ─── aggregateMemberSnapshots (operator-level rollup) ────────────

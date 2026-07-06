@@ -100,6 +100,10 @@ export interface BuildViewInput {
       concessionRate?: number | null;
       eligible?: boolean;
       date?: string;
+      /** Operator's share (0..1) of its market's T12 listings that snapshot
+       *  — drives the "Listing share" sparkline. Populated by
+       *  loadOperatorTrajectory; absent for single-point/thin history. */
+      shareOfMarket?: number | null;
     }>;
   };
   marketConcessionMedian: number | null;
@@ -470,6 +474,12 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
         : null
     )
     .filter((n): n is number => n != null);
+  // Listing share: operator's fraction of its market's T12 listings per
+  // snapshot. momentumDirection is scale-invariant (relative to first), so
+  // the raw fraction drives both the sparkline shape and its direction.
+  const shareSeries = (input.trajectory?.points ?? [])
+    .map((p) => p.shareOfMarket)
+    .filter((n): n is number => n != null);
   // Cross-market footprint — distinct member markets present per aggregate-
   // trajectory quarter. Empty for single-market operators (no
   // aggregateTrajectory passed in) — the component hides an empty series.
@@ -502,7 +512,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     takeaway: momentumTakeaway(scorecard.pm.name, driver, sectionDirection),
     sparklines: [
       mkSpark("portfolio", "Portfolio", portfolioSeries),
-      mkSpark("share", "Listing share", []), // deferred: needs t12ListingsCount history (Phase 4b)
+      mkSpark("share", "Listing share", shareSeries),
       mkSpark("reach", "Geographic reach", reachSeries),
       mkSpark("quality", "Operating quality", qualitySeries),
       mkSpark("footprint", "Cross-market footprint", footprintSeries), // [] for single-market operators
