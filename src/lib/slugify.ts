@@ -50,11 +50,11 @@ export function citySlug(city: string): string {
 // "Mt. Juliet", "Bay City"); the slug normalizes them to a URL-safe lower-
 // kebab form. Drops periods first so "St. Petersburg" and "St Petersburg"
 // collapse to the same slug, then collapses any remaining non-alphanumeric
-// run into a single hyphen. The audit in scripts/audit-top-cities.ts
-// confirmed every PM in src/data/scorecard_data.json produces a unique slug
-// within its market (no within-market collisions across 192 distinct city
-// names; cross-market collisions exist only for two minor cities and are
-// harmless because filtering is always scoped to a single market's PM list).
+// run into a single hyphen. A one-time audit confirmed every PM in
+// src/data/scorecard_data.json produces a unique slug within its market (no
+// within-market collisions across 192 distinct city names; cross-market
+// collisions exist only for two minor cities and are harmless because
+// filtering is always scoped to a single market's PM list).
 export function submarketSlug(name: string): string {
   return name
     .toLowerCase()
