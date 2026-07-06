@@ -42,7 +42,7 @@ from collections import defaultdict, Counter
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from tenancy_survival import is_departed, RECENCY_GATE_DAYS
+from tenancy_survival import is_departed, name_key, group_last_events, RECENCY_GATE_DAYS
 
 csv.field_size_limit(sys.maxsize)
 
@@ -646,9 +646,21 @@ def has_big_community(d):
     return any(len(urus) >= ELIG_BIG_COMM_MIN for urus in d["comm_urus_t12"].values())
 
 
+# Departed-operator recency gate (§4.5). Judge departure at the operator-NAME
+# level, not the per-child-id fragment level: within a market the same operator
+# churns across multiple child_company_id fragments over time, so a stale
+# old-child-id fragment of a still-active operator would be wrongly dropped if
+# each fragment were judged alone. Aggregate the most-recent event across all
+# same-name fragments; a fragment is departed only if its whole name is.
+name_last_event = group_last_events(
+    (name_key(pm_display_name.get(norm, norm)), d["last_event_dt"])
+    for norm, d in pm_rich.items()
+)
+
 eligible_norms = set()
 for norm, d in pm_rich.items():
-    if is_departed(d["last_event_dt"], NOW, RECENCY_GATE_DAYS): continue
+    if is_departed(name_last_event.get(name_key(pm_display_name.get(norm, norm))),
+                   NOW, RECENCY_GATE_DAYS): continue
     if d["t12_listings"] < ELIG_T12_MIN: continue
     if len(d["address_t12"]) < ELIG_ADDR_MIN and not has_big_community(d): continue
     if d["active_listings"] < 1 and d["t12_listings"] < 1: continue
