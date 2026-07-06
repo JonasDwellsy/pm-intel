@@ -11,8 +11,8 @@
       "name": "Chattanooga",
       "state": "TN",
       "primaryCity": "Chattanooga",
-      "csvFile": "export_20260626144219.csv",
-      "dataAsOf": "2026-05-19"
+      "csvFile": "merged_chattanooga-tn_20260705.csv",
+      "dataAsOf": "2026-07-05"
     },
     {
       "id": "jacksonville-fl",
@@ -22,8 +22,8 @@
       "name": "Jacksonville",
       "state": "FL",
       "primaryCity": "Jacksonville",
-      "csvFile": "export_20260626145829.csv",
-      "dataAsOf": "2026-05-19"
+      "csvFile": "merged_jacksonville-fl_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "nashville-davidson-murfreesboro-franklin-tn",
@@ -33,8 +33,8 @@
       "name": "Nashville",
       "state": "TN",
       "primaryCity": "Nashville",
-      "csvFile": "export_20260626144219.csv",
-      "dataAsOf": "2026-05-19"
+      "csvFile": "merged_nashville-davidson-murfreesboro-franklin-tn_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "memphis-tn-ms-ar",
@@ -44,8 +44,8 @@
       "name": "Memphis",
       "state": "TN",
       "primaryCity": "Memphis",
-      "csvFile": "export_20260626144219.csv",
-      "dataAsOf": "2026-05-19"
+      "csvFile": "merged_memphis-tn-ms-ar_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "knoxville-tn",
@@ -55,8 +55,8 @@
       "name": "Knoxville",
       "state": "TN",
       "primaryCity": "Knoxville",
-      "csvFile": "export_20260626144219.csv",
-      "dataAsOf": "2026-05-19"
+      "csvFile": "merged_knoxville-tn_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "clarksville-tn-ky",
@@ -66,8 +66,8 @@
       "name": "Clarksville",
       "state": "TN",
       "primaryCity": "Clarksville",
-      "csvFile": "export_20260628084704.csv",
-      "dataAsOf": "2026-06-28"
+      "csvFile": "merged_clarksville-tn-ky_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "phoenix-az",
@@ -77,8 +77,8 @@
       "name": "Phoenix",
       "state": "AZ",
       "primaryCity": "Phoenix",
-      "csvFile": "export_20260626142740.csv",
-      "dataAsOf": "2026-05-19"
+      "csvFile": "merged_phoenix-az_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "birmingham-al",
@@ -88,8 +88,8 @@
       "name": "Birmingham",
       "state": "AL",
       "primaryCity": "Birmingham",
-      "csvFile": "export_20260626131819.csv",
-      "dataAsOf": "2026-05-20"
+      "csvFile": "merged_birmingham-al_20260705.csv",
+      "dataAsOf": "2026-07-05"
     },
     {
       "id": "huntsville-al",
@@ -99,8 +99,8 @@
       "name": "Huntsville",
       "state": "AL",
       "primaryCity": "Huntsville",
-      "csvFile": "export_20260626152302.csv",
-      "dataAsOf": "2026-05-20"
+      "csvFile": "merged_huntsville-al_20260705.csv",
+      "dataAsOf": "2026-07-05"
     },
     {
       "id": "montgomery-al",
@@ -110,8 +110,8 @@
       "name": "Montgomery",
       "state": "AL",
       "primaryCity": "Montgomery",
-      "csvFile": "export_20260626131819.csv",
-      "dataAsOf": "2026-05-20"
+      "csvFile": "merged_montgomery-al_20260705.csv",
+      "dataAsOf": "2026-07-05"
     },
     {
       "id": "seattle-wa",
@@ -121,8 +121,8 @@
       "name": "Seattle",
       "state": "WA",
       "primaryCity": "Seattle",
-      "csvFile": "export_20260626140451.csv",
-      "dataAsOf": "2026-05-24"
+      "csvFile": "merged_seattle-wa_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "denver-co",
@@ -132,8 +132,8 @@
       "name": "Denver",
       "state": "CO",
       "primaryCity": "Denver",
-      "csvFile": "export_20260626134016.csv",
-      "dataAsOf": "2026-05-24"
+      "csvFile": "merged_denver-co_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "san-antonio-tx",
@@ -143,8 +143,8 @@
       "name": "San Antonio",
       "state": "TX",
       "primaryCity": "San Antonio",
-      "csvFile": "export_20260626131819.csv",
-      "dataAsOf": "2026-05-25"
+      "csvFile": "merged_san-antonio-tx_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "boulder-co",
@@ -154,8 +154,8 @@
       "name": "Boulder",
       "state": "CO",
       "primaryCity": "Boulder",
-      "csvFile": "export_20260626131819.csv",
-      "dataAsOf": "2026-05-25"
+      "csvFile": "merged_boulder-co_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "fort-collins-co",
@@ -165,8 +165,8 @@
       "name": "Fort Collins",
       "state": "CO",
       "primaryCity": "Fort Collins",
-      "csvFile": "export_20260626134016.csv",
-      "dataAsOf": "2026-05-25"
+      "csvFile": "merged_fort-collins-co_20260705.csv",
+      "dataAsOf": "2026-07-05"
     },
     {
       "id": "dallas-fort-worth-arlington-tx",
@@ -176,8 +176,8 @@
       "name": "Dallas-Fort Worth",
       "state": "TX",
       "primaryCity": "Dallas-Fort Worth",
-      "csvFile": "export_20260626124950.csv",
-      "dataAsOf": "2026-06-02"
+      "csvFile": "merged_dallas-fort-worth-arlington-tx_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "baltimore-towson-md",
@@ -187,8 +187,8 @@
       "name": "Baltimore",
       "state": "MD",
       "primaryCity": "Baltimore",
-      "csvFile": "export_20260626115049.csv",
-      "dataAsOf": "2026-06-25"
+      "csvFile": "merged_baltimore-towson-md_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "cincinnati-middletown-oh-ky-in",
@@ -198,8 +198,8 @@
       "name": "Cincinnati",
       "state": "OH",
       "primaryCity": "Cincinnati",
-      "csvFile": "export_20260626070211.csv",
-      "dataAsOf": "2026-06-25"
+      "csvFile": "merged_cincinnati-middletown-oh-ky-in_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "pittsburgh-pa",
@@ -209,8 +209,8 @@
       "name": "Pittsburgh",
       "state": "PA",
       "primaryCity": "Pittsburgh",
-      "csvFile": "export_20260626115049.csv",
-      "dataAsOf": "2026-06-25"
+      "csvFile": "merged_pittsburgh-pa_20260705.csv",
+      "dataAsOf": "2026-07-05"
     },
     {
       "id": "chicago-joliet-naperville-il-in-wi",
@@ -220,8 +220,8 @@
       "name": "Chicago",
       "state": "IL",
       "primaryCity": "Chicago",
-      "csvFile": "export_20260626111826.csv",
-      "dataAsOf": "2026-06-25"
+      "csvFile": "merged_chicago-joliet-naperville-il-in-wi_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "cleveland-elyria-mentor-oh",
@@ -231,8 +231,8 @@
       "name": "Cleveland",
       "state": "OH",
       "primaryCity": "Cleveland",
-      "csvFile": "export_20260626065804.csv",
-      "dataAsOf": "2026-06-25"
+      "csvFile": "merged_cleveland-elyria-mentor-oh_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "columbus-oh",
@@ -242,8 +242,8 @@
       "name": "Columbus",
       "state": "OH",
       "primaryCity": "Columbus",
-      "csvFile": "export_20260626110438.csv",
-      "dataAsOf": "2026-06-25"
+      "csvFile": "merged_columbus-oh_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "detroit-warren-livonia-mi",
@@ -253,8 +253,8 @@
       "name": "Detroit",
       "state": "MI",
       "primaryCity": "Detroit",
-      "csvFile": "export_20260626105704.csv",
-      "dataAsOf": "2026-06-25"
+      "csvFile": "merged_detroit-warren-livonia-mi_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "indianapolis-carmel-in",
@@ -264,8 +264,8 @@
       "name": "Indianapolis",
       "state": "IN",
       "primaryCity": "Indianapolis",
-      "csvFile": "export_20260626110438.csv",
-      "dataAsOf": "2026-06-25"
+      "csvFile": "merged_indianapolis-carmel-in_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "fort-wayne-in",
@@ -275,8 +275,8 @@
       "name": "Fort Wayne",
       "state": "IN",
       "primaryCity": "Fort Wayne",
-      "csvFile": "export_20260626105704.csv",
-      "dataAsOf": "2026-06-25"
+      "csvFile": "merged_fort-wayne-in_20260705.csv",
+      "dataAsOf": "2026-07-05"
     },
     {
       "id": "orlando-kissimmee-sanford-fl",
@@ -286,8 +286,8 @@
       "name": "Orlando",
       "state": "FL",
       "primaryCity": "Orlando",
-      "csvFile": "export_20260626145829.csv",
-      "dataAsOf": "2026-06-26"
+      "csvFile": "merged_orlando-kissimmee-sanford-fl_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "louisville-jefferson-county-ky-in",
@@ -297,8 +297,8 @@
       "name": "Louisville",
       "state": "KY",
       "primaryCity": "Louisville",
-      "csvFile": "export_20260628084704.csv",
-      "dataAsOf": "2026-06-28"
+      "csvFile": "merged_louisville-jefferson-county-ky-in_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "st-louis-mo-il",
@@ -308,8 +308,8 @@
       "name": "St. Louis",
       "state": "MO",
       "primaryCity": "St. Louis",
-      "csvFile": "export_20260628084704.csv",
-      "dataAsOf": "2026-06-28"
+      "csvFile": "merged_st-louis-mo-il_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "charlotte-gastonia-rock-hill-nc-sc",
@@ -319,8 +319,8 @@
       "name": "Charlotte",
       "state": "NC",
       "primaryCity": "Charlotte",
-      "csvFile": "export_20260628152604.csv",
-      "dataAsOf": "2026-06-28"
+      "csvFile": "merged_charlotte-gastonia-rock-hill-nc-sc_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "kansas-city-mo-ks",
@@ -330,8 +330,8 @@
       "name": "Kansas City",
       "state": "MO",
       "primaryCity": "Kansas City",
-      "csvFile": "export_20260628152604.csv",
-      "dataAsOf": "2026-06-28"
+      "csvFile": "merged_kansas-city-mo-ks_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "minneapolis-st-paul-bloomington-mn-wi",
@@ -341,8 +341,8 @@
       "name": "Minneapolis",
       "state": "MN",
       "primaryCity": "Minneapolis",
-      "csvFile": "export_20260628152604.csv",
-      "dataAsOf": "2026-06-28"
+      "csvFile": "merged_minneapolis-st-paul-bloomington-mn-wi_20260706.csv",
+      "dataAsOf": "2026-07-06"
     },
     {
       "id": "richmond-va",
@@ -352,8 +352,8 @@
       "name": "Richmond",
       "state": "VA",
       "primaryCity": "Richmond",
-      "csvFile": "export_20260628152604.csv",
-      "dataAsOf": "2026-06-28"
+      "csvFile": "merged_richmond-va_20260705.csv",
+      "dataAsOf": "2026-07-05"
     },
     {
       "id": "houston-tx",
@@ -363,8 +363,8 @@
       "name": "Houston",
       "state": "TX",
       "primaryCity": "Houston",
-      "csvFile": "export_20260629114404.csv",
-      "dataAsOf": "2026-06-29"
+      "csvFile": "merged_houston-tx_20260706.csv",
+      "dataAsOf": "2026-07-06"
     }
   ]
 }
