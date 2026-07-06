@@ -1,0 +1,202 @@
+{
+  "_comment": "Curated canonical decisions for the v0.6.4 LA add (34th market, MSA 31100). Generated from merge.py --propose-canonicals --new-markets los-angeles-long-beach-santa-ana-ca. Curated by Jonas: all 18 name-based extends approved; new-pairs Lion/Grankol/Aperto/HSR/Related approved, The Management Company/Leap/Red Door/Enclave rejected as generic name collisions.",
+  "version": "v0.6.4-p11-LA",
+  "generated_at": "2026-07-06",
+  "curator": "Jonas",
+  "summary": {
+    "extends_existing": 18,
+    "new_canonicals": 5,
+    "rejected": 4
+  },
+  "extend_existing": [
+    {
+      "canonical_slug": "lighthouse-property-management",
+      "add_pm_slugs": [
+        "lighthouse-property-management-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "tricon-residential",
+      "add_pm_slugs": [
+        "tricon-residential-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "invitation-homes",
+      "add_pm_slugs": [
+        "invitation-homes-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "bridge-property-management",
+      "add_pm_slugs": [
+        "bridge-property-management-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "marshall-reddick-real-estate",
+      "add_pm_slugs": [
+        "marshall-reddick-real-estate-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "udr",
+      "add_pm_slugs": [
+        "udr-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "rowcal-management-co",
+      "add_pm_slugs": [
+        "rowcal-management-co-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "mg-properties-group",
+      "add_pm_slugs": [
+        "mg-properties-group-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "holland-partner-group",
+      "add_pm_slugs": [
+        "holland-partner-group-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "american-capital-realty-group",
+      "add_pm_slugs": [
+        "american-capital-realty-group-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "fusion-property-management-company",
+      "add_pm_slugs": [
+        "fusion-property-management-company-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "management-rental-group",
+      "add_pm_slugs": [
+        "management-rental-group-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "equity-residential",
+      "add_pm_slugs": [
+        "equity-residential-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "trinity-property-consultants",
+      "add_pm_slugs": [
+        "trinity-property-consultants-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "sares-regis-management",
+      "add_pm_slugs": [
+        "sares-regis-management-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "pacific-urban-investors",
+      "add_pm_slugs": [
+        "pacific-urban-investors-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "utopia-management",
+      "add_pm_slugs": [
+        "utopia-management-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "cethron-property-management",
+      "add_pm_slugs": [
+        "cethron-property-management-los-angeles-long-beach-santa-ana-ca"
+      ]
+    }
+  ],
+  "new_canonicals": [
+    {
+      "canonical_slug": "lion-real-estate-group",
+      "canonical_name": "Lion Real Estate Group",
+      "pm_slugs": [
+        "lion-real-estate-group-nashville-davidson-murfreesboro-franklin-tn",
+        "lion-real-estate-group-dallas-fort-worth-arlington-tx",
+        "lion-real-estate-group-charlotte-gastonia-rock-hill-nc-sc",
+        "lion-real-estate-group-houston-tx",
+        "lion-real-estate-group-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "grankol-enterprises",
+      "canonical_name": "Grankol Enterprises, Inc.",
+      "pm_slugs": [
+        "grankol-enterprises-inc-phoenix-az",
+        "grankol-enterprises-inc-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "aperto-property-management",
+      "canonical_name": "Aperto Property Management, Inc.",
+      "pm_slugs": [
+        "aperto-property-management-inc-phoenix-az",
+        "aperto-property-management-inc-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "hsr-management",
+      "canonical_name": "HSR Management Inc.",
+      "pm_slugs": [
+        "hsr-management-inc-denver-co",
+        "hsr-management-inc-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "canonical_slug": "related",
+      "canonical_name": "Related",
+      "pm_slugs": [
+        "related-chicago-joliet-naperville-il-in-wi",
+        "related-los-angeles-long-beach-santa-ana-ca"
+      ]
+    }
+  ],
+  "rejected": [
+    {
+      "normalized_name": "the management company",
+      "reason": "Generic/ambiguous name \u2014 likely coincidental collision between unrelated local operators (curator: Jonas). Keeping separate.",
+      "pm_slugs": [
+        "the-management-company-seattle-wa",
+        "the-management-company-denver-co",
+        "the-management-company-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "normalized_name": "leap property management",
+      "reason": "Generic/ambiguous name \u2014 likely coincidental collision between unrelated local operators (curator: Jonas). Keeping separate.",
+      "pm_slugs": [
+        "leap-property-management-dallas-fort-worth-arlington-tx",
+        "leap-property-management-inc-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "normalized_name": "red door property management",
+      "reason": "Generic/ambiguous name \u2014 likely coincidental collision between unrelated local operators (curator: Jonas). Keeping separate.",
+      "pm_slugs": [
+        "red-door-property-management-indianapolis-carmel-in",
+        "red-door-property-management-indianapolis-carmel-in-2",
+        "red-door-property-management-los-angeles-long-beach-santa-ana-ca"
+      ]
+    },
+    {
+      "normalized_name": "enclave property management",
+      "reason": "Generic/ambiguous name \u2014 likely coincidental collision between unrelated local operators (curator: Jonas). Keeping separate.",
+      "pm_slugs": [
+        "enclave-property-management-minneapolis-st-paul-bloomington-mn-wi",
+        "enclave-property-management-los-angeles-long-beach-santa-ana-ca"
+      ]
+    }
+  ]
+}

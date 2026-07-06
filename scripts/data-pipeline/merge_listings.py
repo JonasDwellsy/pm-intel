@@ -95,30 +95,35 @@ def load_msa_rows(path, msa_code):
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}")
 
 
-def max_event_date(rows):
-    """YYYY-MM-DD of the latest creation/deactivation across rows. Ignores
-    non-date junk that a column-shifted malformed source row can leave in a
-    timestamp column (e.g. an unescaped comma pushing a description fragment
-    into creation_time) — without the guard, 'Natural gas...' sorts above any
-    real date and poisons the computed as-of."""
-    best = ""
-    for r in rows.values():
-        for k in ("creation_time", "deactivation_time"):
-            v = (r.get(k) or "").strip()
-            if _DATE_RE.match(v) and v > best:
-                best = v
-    return best[:10] if best else None
+def _track_date(row, best):
+    """Fold a row's creation/deactivation dates into the running max (date-only,
+    guarded against column-shifted junk)."""
+    for k in ("creation_time", "deactivation_time"):
+        v = (row.get(k) or "").strip()
+        if _DATE_RE.match(v) and v > best:
+            best = v
+    return best
 
 
-def merge_market(mkt, new_paths, data_dir):
-    """Merge one market's existing MSA rows with the new export(s). Returns a
-    dict of stats + the merged rows + fieldnames."""
+def merge_market(mkt, new_paths, data_dir, write):
+    """Merge one market's existing MSA rows with the new export(s).
+
+    STREAMS the existing file (which for a mature market can be multi-GB) rather
+    than loading it into memory: it write-throughs every existing row whose
+    listing_id is NOT superseded by a new-export row, then appends the new rows
+    (new wins on overlap). Only the new rows (small) + the overlap listing_ids
+    are held in memory, so peak RAM is independent of the existing file size.
+
+    write=True streams to a temp file and renames it to
+    merged_<market>_<asof>.csv; write=False (dry-run) streams for stats only.
+    Returns a stats dict (+ out_name when written)."""
     msa = mkt["msaCode"]
     existing_path = os.path.join(data_dir, mkt["csvFile"])
     if not os.path.isfile(existing_path):
         return {"error": f"existing csvFile missing: {existing_path}"}
-    fields, existing = load_msa_rows(existing_path, msa)
 
+    # New export rows for this MSA (small) — dedupe across --new files by
+    # most-recent-info (event_key).
     new = {}
     for np in new_paths:
         _, part = load_msa_rows(np, msa)
@@ -126,44 +131,85 @@ def merge_market(mkt, new_paths, data_dir):
             prev = new.get(lid)
             if prev is None or event_key(row) >= event_key(prev):
                 new[lid] = row
+    new_ids = set(new)
 
-    # Merge: existing, then new wins.
-    merged = dict(existing)
-    merged.update(new)
+    existing_count = existing_open = 0
+    overlap_lids = set()
+    open_in_new = open_now_closed = reopened = rent_changed = 0
+    best = ""
 
-    # Diff accounting.
-    existing_ids, new_ids = set(existing), set(new)
-    overlap = existing_ids & new_ids
-    brand_new = new_ids - existing_ids
-    exist_open = {lid for lid, r in existing.items() if not (r.get("deactivation_time") or "").strip()}
-    open_in_new = exist_open & new_ids
-    open_now_closed = {lid for lid in open_in_new if (new[lid].get("deactivation_time") or "").strip()}
-    reopened = {
-        lid for lid in overlap
-        if (existing[lid].get("deactivation_time") or "").strip()
-        and not (new[lid].get("deactivation_time") or "").strip()
-    }
-    rent_changed = sum(
-        1 for lid in overlap
-        if (existing[lid].get("rent_amount") or "").strip() != (new[lid].get("rent_amount") or "").strip()
-    )
+    tmp_path = os.path.join(data_dir, f".merge_tmp_{mkt['id']}.csv")
+    fout = writer = None
+    with open(existing_path, newline="", encoding="utf-8", errors="replace") as fe:
+        reader = csv.DictReader(fe)
+        fields = reader.fieldnames
+        if write:
+            fout = open(tmp_path, "w", newline="", encoding="utf-8")
+            # extrasaction='ignore' tolerates a column-shifted malformed source
+            # row (overflow under DictReader's None restkey) — consistent with
+            # how the pipeline reads those same rows.
+            writer = csv.DictWriter(fout, fieldnames=fields, extrasaction="ignore", restval="")
+            writer.writeheader()
+        for row in reader:
+            if row.get("msa_code") != msa:
+                continue
+            lid = row.get("listing_id")
+            if not lid:
+                continue
+            existing_count += 1
+            e_deact = (row.get("deactivation_time") or "").strip()
+            e_open = not e_deact
+            if e_open:
+                existing_open += 1
+            best = _track_date(row, best)
+            if lid in new_ids:
+                overlap_lids.add(lid)
+                n = new[lid]
+                n_deact = (n.get("deactivation_time") or "").strip()
+                if e_open:
+                    open_in_new += 1
+                    if n_deact:
+                        open_now_closed += 1
+                if e_deact and not n_deact:
+                    reopened += 1
+                if (row.get("rent_amount") or "").strip() != (n.get("rent_amount") or "").strip():
+                    rent_changed += 1
+                # New row supersedes this existing one; written in the append below.
+            elif write:
+                writer.writerow(row)
+
+    # Append the new-export rows (overlap winners + brand-new).
+    for row in new.values():
+        if write:
+            writer.writerow(row)
+        best = _track_date(row, best)
+    if fout:
+        fout.close()
+
+    as_of = best[:10] if best else None
+    brand_new = len(new_ids - overlap_lids)
+    merged_count = existing_count - len(overlap_lids) + len(new)
+
+    out_name = None
+    if write:
+        out_name = f"merged_{mkt['id']}_{(as_of or 'na').replace('-', '')}.csv"
+        os.replace(tmp_path, os.path.join(data_dir, out_name))
 
     return {
         "market": mkt["id"],
         "msa": msa,
-        "fields": fields,
-        "merged": merged,
-        "existing_count": len(existing),
+        "out_name": out_name,
+        "existing_count": existing_count,
         "new_count": len(new),
-        "overlap": len(overlap),
-        "brand_new": len(brand_new),
-        "existing_open": len(exist_open),
-        "open_in_new": len(open_in_new),
-        "open_now_closed": len(open_now_closed),
-        "reopened": len(reopened),
+        "overlap": len(overlap_lids),
+        "brand_new": brand_new,
+        "existing_open": existing_open,
+        "open_in_new": open_in_new,
+        "open_now_closed": open_now_closed,
+        "reopened": reopened,
         "rent_changed": rent_changed,
-        "merged_count": len(merged),
-        "as_of": max_event_date(merged),
+        "merged_count": merged_count,
+        "as_of": as_of,
     }
 
 
@@ -210,7 +256,7 @@ def main():
 
     results = []
     for mkt in targets:
-        r = merge_market(mkt, args.new, data_dir)
+        r = merge_market(mkt, args.new, data_dir, write=args.apply)
         if "error" in r:
             print(f"  ! {mkt['id']}: {r['error']}")
             continue
@@ -232,25 +278,14 @@ def main():
         print("\n[merge] DRY-RUN — nothing written. Re-run with --apply to write merged CSVs + patch config.")
         return
 
-    # Write merged CSVs + patch config.
+    # merge_market already streamed each merged CSV to disk; just patch the
+    # config (csvFile + dataAsOf) from the returned filenames.
     patched = {m["id"]: m for m in markets}
     for r in results:
-        out_name = f"merged_{r['market']}_{(r['as_of'] or 'na').replace('-', '')}.csv"
-        out_path = os.path.join(data_dir, out_name)
-        with open(out_path, "w", newline="", encoding="utf-8") as f:
-            # extrasaction='ignore' so a column-shifted malformed source row
-            # (whose overflow DictReader parked under the None restkey) writes
-            # its in-header fields without crashing. Such rows are already
-            # corrupted at the source and the pipeline reads them the same
-            # lossy way, so this is consistent, not new data loss.
-            w = csv.DictWriter(f, fieldnames=r["fields"], extrasaction="ignore", restval="")
-            w.writeheader()
-            for row in r["merged"].values():
-                w.writerow(row)
-        patched[r["market"]]["csvFile"] = out_name
+        patched[r["market"]]["csvFile"] = r["out_name"]
         if r["as_of"]:
             patched[r["market"]]["dataAsOf"] = r["as_of"]
-        print(f"  ✓ wrote {out_name} ({r['merged_count']} rows), as-of {r['as_of']}")
+        print(f"  ✓ wrote {r['out_name']} ({r['merged_count']} rows), as-of {r['as_of']}")
 
     config_out = args.config_out or args.config
     json.dump(cfg, open(config_out, "w"), indent=2)
