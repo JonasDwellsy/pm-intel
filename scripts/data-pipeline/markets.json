@@ -365,6 +365,17 @@
       "primaryCity": "Houston",
       "csvFile": "merged_houston-tx_20260706.csv",
       "dataAsOf": "2026-07-06"
+    },
+    {
+      "id": "los-angeles-long-beach-santa-ana-ca",
+      "outputSlug": "los-angeles",
+      "msaCode": "31100",
+      "msaFullName": "Los Angeles-Long Beach-Santa Ana, CA MSA",
+      "name": "Los Angeles",
+      "state": "CA",
+      "primaryCity": "Los Angeles",
+      "csvFile": "merged_los-angeles-long-beach-santa-ana-ca_20260706.csv",
+      "dataAsOf": "2026-07-06"
     }
   ]
 }
