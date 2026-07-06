@@ -55,6 +55,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import sys
 
 csv.field_size_limit(sys.maxsize)
@@ -91,13 +92,20 @@ def load_msa_rows(path, msa_code):
     return fields, out
 
 
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}")
+
+
 def max_event_date(rows):
-    """YYYY-MM-DD of the latest creation/deactivation across rows."""
+    """YYYY-MM-DD of the latest creation/deactivation across rows. Ignores
+    non-date junk that a column-shifted malformed source row can leave in a
+    timestamp column (e.g. an unescaped comma pushing a description fragment
+    into creation_time) — without the guard, 'Natural gas...' sorts above any
+    real date and poisons the computed as-of."""
     best = ""
     for r in rows.values():
         for k in ("creation_time", "deactivation_time"):
             v = (r.get(k) or "").strip()
-            if v > best:
+            if _DATE_RE.match(v) and v > best:
                 best = v
     return best[:10] if best else None
 
@@ -230,7 +238,12 @@ def main():
         out_name = f"merged_{r['market']}_{(r['as_of'] or 'na').replace('-', '')}.csv"
         out_path = os.path.join(data_dir, out_name)
         with open(out_path, "w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=r["fields"])
+            # extrasaction='ignore' so a column-shifted malformed source row
+            # (whose overflow DictReader parked under the None restkey) writes
+            # its in-header fields without crashing. Such rows are already
+            # corrupted at the source and the pipeline reads them the same
+            # lossy way, so this is consistent, not new data loss.
+            w = csv.DictWriter(f, fieldnames=r["fields"], extrasaction="ignore", restval="")
             w.writeheader()
             for row in r["merged"].values():
                 w.writerow(row)
