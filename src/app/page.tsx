@@ -21,6 +21,7 @@ import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { fmtInt, fmtNumber, fmtPct } from "@/lib/format";
 import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
 import { marketingDataSuppressed } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 import type { ScorecardData } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -271,7 +272,7 @@ function buildSampleCard(
   pm: PmForSampleCard,
   extraBadge?: SampleCard["badges"][number]
 ): SampleCard {
-  const sc = JSON.parse(pm.scorecardData) as ScorecardData;
+  const sc = parseScorecard(pm);
   const q7Label = sevenCellLabel(pm.quadrant7Cell, pm.quadrant);
 
   const badges: SampleCard["badges"] = [];

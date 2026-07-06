@@ -29,6 +29,7 @@
 import { prisma } from "@/lib/prisma";
 import type { PoolPm } from "@/lib/msa-pool";
 import type { ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 
 export type TrajectoryEligibility =
   | "continuing"
@@ -221,7 +222,7 @@ export async function getNationalShareTrajectory(): Promise<NationalBenchmark> {
       }>
     >();
     for (const row of rows) {
-      const sc = JSON.parse(row.scorecardData) as ScorecardData;
+      const sc = parseScorecard(row);
       const arr = byMarket.get(row.marketId) ?? [];
       arr.push({
         slug: row.slug,

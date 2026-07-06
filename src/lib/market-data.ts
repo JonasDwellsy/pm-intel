@@ -10,6 +10,7 @@ import {
 } from "@/lib/slugify";
 import { toPmListItem } from "@/lib/slugify";
 import type { MarketSummary, PMListItem, ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 
 export type MarketMapData = {
   mapCenter?: { lat: number; lon: number };
@@ -284,7 +285,7 @@ export async function loadMarketView({
   // first available PM. (Backdrop points are identical across PMs in the same
   // market, so this is cheap and avoids a separate query.)
   const sampleScorecard = marketRow.pms[0]
-    ? (JSON.parse(marketRow.pms[0].scorecardData) as ScorecardData)
+    ? (parseScorecard(marketRow.pms[0]))
     : null;
   const mapData: MarketMapData = {
     mapCenter: sampleScorecard?.geographicCoverage.mapCenter,

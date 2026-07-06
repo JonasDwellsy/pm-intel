@@ -47,6 +47,7 @@ import {
   starableAxisCount,
 } from "@/lib/operators/stars";
 import type { ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 
 /** PR #80 — Load the canonical Dwellsy IQ wordmark from public/
  *  and embed it as a data URL in the OG composition. Module-scope
@@ -164,7 +165,7 @@ export default async function Image({
     const pm = await prisma.pM.findUnique({ where: { slug } });
     if (!pm) return brandedFallback("Property manager intelligence");
 
-    const scorecard = JSON.parse(pm.scorecardData) as ScorecardData;
+    const scorecard = parseScorecard(pm);
     const { goldCount, silverCount } = countOperatorStars(scorecard);
     const axes = starableAxisCount(scorecard);
 

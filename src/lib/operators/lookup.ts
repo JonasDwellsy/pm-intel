@@ -26,6 +26,7 @@ import {
 } from "@/lib/watch-list/aggregate";
 import type { PMRecord } from "@/lib/watch-list/fields";
 import type { ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 import {
   isMarketEntitled,
   type MarketEntitlement,
@@ -124,7 +125,7 @@ export async function loadOperatorScorecard(
   for (const row of rows) {
     let scorecard: ScorecardData;
     try {
-      scorecard = JSON.parse(row.scorecardData) as ScorecardData;
+      scorecard = parseScorecard(row);
     } catch {
       continue;
     }
@@ -148,7 +149,7 @@ export async function loadOperatorScorecard(
   for (const row of rows) {
     let scorecard: ScorecardData;
     try {
-      scorecard = JSON.parse(row.scorecardData) as ScorecardData;
+      scorecard = parseScorecard(row);
     } catch {
       continue;
     }

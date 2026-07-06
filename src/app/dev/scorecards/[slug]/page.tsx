@@ -17,6 +17,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import type { ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 import { loadMarketFootprint } from "@/lib/cross-market";
 import { loadMsaPool } from "@/lib/msa-pool";
 import { loadOperatorTrajectory, loadOperatorAggregateTrajectory } from "@/lib/operators/trajectory";
@@ -73,7 +74,7 @@ export default async function DevRealScorecard({
 
   const pm = await prisma.pM.findUnique({ where: { slug } });
   if (!pm) notFound();
-  const scorecard = JSON.parse(pm.scorecardData) as ScorecardData;
+  const scorecard = parseScorecard(pm);
   const isClaimed = pm.claimed;
 
   // View selection — query param first (headless rendering), then cookie,

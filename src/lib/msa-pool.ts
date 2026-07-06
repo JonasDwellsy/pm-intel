@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import type { ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 
 // Shared parsed MSA pool — used by both peer-comparison (Layer 3) and
 // lending-signals (Layer 4). Loading + parsing the same scorecardData blobs
@@ -34,7 +35,7 @@ export async function loadMsaPool(marketId: string): Promise<PoolPm[]> {
     quadrant7Cell: row.quadrant7Cell,
     // PR #47 — paywall retired; ?unlocked=true no longer required.
     href: `/property-managers/${stateCodeToSlug(row.market.state)}/${citySlug(row.market.city)}/${row.slug}`,
-    scorecard: JSON.parse(row.scorecardData) as ScorecardData,
+    scorecard: parseScorecard(row),
   }));
 }
 

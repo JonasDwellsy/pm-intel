@@ -13,6 +13,7 @@ import { prisma } from "@/lib/prisma";
 import { countOperatorStars } from "@/lib/operators/stars";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import type { ScorecardData } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 
 export interface OperatorMarketCard {
   marketId: string;
@@ -111,7 +112,7 @@ export async function loadOperatorView(
   const stateSet = new Set<string>();
 
   for (const row of pmRows) {
-    const sc = JSON.parse(row.scorecardData) as ScorecardData;
+    const sc = parseScorecard(row);
     const stateSlug = stateCodeToSlug(row.market.state);
     const city = row.market.city;
     const cellLabel = sc.pm.quadrant7Cell ?? sc.pm.quadrant ?? null;

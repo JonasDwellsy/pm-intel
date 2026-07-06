@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import type { ScorecardData, StarLevel } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 import {
   isMarketEntitled,
   type MarketEntitlement,
@@ -72,7 +73,7 @@ export async function loadMarketFootprint({
       // Parse the per-market scorecard for urusT12 + composite star. We're
       // already paying the JSON.parse cost for the focal scorecard upstream;
       // doing it for cross-market rows adds at most ~5 parses (Mission Rock).
-      const sc = JSON.parse(row.scorecardData) as ScorecardData;
+      const sc = parseScorecard(row);
       return {
         marketId: row.marketId,
         city: row.market.city,

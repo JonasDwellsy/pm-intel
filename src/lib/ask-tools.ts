@@ -20,6 +20,7 @@ import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { searchPMs } from "@/lib/pm-search";
 import { loadOperatorView } from "@/lib/operator-data";
 import type { ScorecardData, StarLevel } from "@/lib/types";
+import { parseScorecard } from "@/lib/scorecard/parse";
 import {
   ALL_MARKETS,
   isMarketEntitled,
@@ -242,7 +243,7 @@ export async function getMarket(marketSlug: string): Promise<GetMarketResult> {
   // Score PMs by star count (gold desc, silver desc, rank asc) to mirror
   // the market-landing ordering. Parse scorecardData once per row.
   const scored = pms.map((row) => {
-    const sc = JSON.parse(row.scorecardData) as ScorecardData;
+    const sc = parseScorecard(row);
     const goldStars =
       (sc.performance.domStar === "gold" ? 1 : 0) +
       (sc.rentPerformance?.star === "gold" ? 1 : 0) +
@@ -382,7 +383,7 @@ export async function getOperatorScorecard(
       `getOperatorScorecard: operator "${operatorSlug}" is in market "${row.marketId}", not "${marketSlug}". Try again with the correct marketSlug.`
     );
   }
-  const sc = JSON.parse(row.scorecardData) as ScorecardData;
+  const sc = parseScorecard(row);
   const market = await prisma.market.findUnique({ where: { id: row.marketId } });
   if (!market) throw new Error(`getOperatorScorecard: market row missing for "${row.marketId}".`);
 
@@ -601,7 +602,7 @@ export async function filterOperators(
   const RESULT_CAP = 50;
   const matches: FilterOperatorsResult["results"] = [];
   for (const row of pms) {
-    const sc = JSON.parse(row.scorecardData) as ScorecardData;
+    const sc = parseScorecard(row);
 
     const t12 = sc.coverage.t12Listings;
     if (input.minT12Listings != null && t12 < input.minT12Listings) continue;
@@ -756,7 +757,7 @@ export async function compareOperators(
         `compareOperators: operator "${opSlug}" is in market "${row.marketId}", not "${mktSlug}".`
       );
     }
-    const sc = JSON.parse(row.scorecardData) as ScorecardData;
+    const sc = parseScorecard(row);
     const market = await prisma.market.findUnique({ where: { id: row.marketId } });
     if (!market) continue;
 
