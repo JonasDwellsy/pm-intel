@@ -1047,7 +1047,7 @@ for norm, feats in pm_features.items():
 metric_values = defaultdict(dict)
 for norm, feats in pm_features.items():
     metric_values["dom"][norm] = feats["dom_block"]["domT12"]
-    metric_values["tenancy"][norm] = feats["tenancy_block"]["retention24Pct"]
+    metric_values["tenancy"][norm] = feats["tenancy_block"]["retention18Pct"]
     metric_values["rentPerformance"][norm] = feats["pm_yoy_change"]
     metric_values["marketing"][norm] = feats["marketing_block"]["compositeScore"]
     if feats["cv_block"] and feats["cv_block"].get("qualifies"):

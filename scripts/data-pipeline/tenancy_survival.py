@@ -8,13 +8,13 @@ KM model: each unit's OCCUPIED interval between two listings is a tenancy.
   event (turnover)   = next_creation - prev_deactivation  (>= FLOOR_MONTHS)
   right-censored     = now - last_deactivation            (still occupied)
 Kaplan-Meier over events + censored obs -> S(t) = P(tenancy lasts >= t months).
-Ranked metric = S(24). Qualify only when enough units reached 24 months AND
+Ranked metric = S(18). Qualify only when enough units reached 18 months AND
 there are real turnover events (guards a frozen-inventory snapshot).
 """
 
 MONTH_DAYS = 30.44
 FLOOR_MONTHS = 3.0
-QUALIFY_MIN_ATRISK24 = 25
+QUALIFY_MIN_ATRISK18 = 25
 QUALIFY_MIN_EVENTS = 5
 RECENCY_GATE_DAYS = 60
 
@@ -116,17 +116,17 @@ def compute_tenancy_survival(episodes_by_unit, now):
     obs = build_observations(episodes_by_unit, now)
     curve = km_curve(obs)
     r12 = round(retention_at(curve, 12) * 100, 1)
+    r18 = round(retention_at(curve, 18) * 100, 1)
     r24 = round(retention_at(curve, 24) * 100, 1)
-    r36 = round(retention_at(curve, 36) * 100, 1)
     km_med = km_median(curve)
-    ar24 = at_risk(obs, 24)
+    ar18 = at_risk(obs, 18)
     events = sum(1 for _, e in obs if e == 1)
-    qualified = ar24 >= QUALIFY_MIN_ATRISK24 and events >= QUALIFY_MIN_EVENTS
+    qualified = ar18 >= QUALIFY_MIN_ATRISK18 and events >= QUALIFY_MIN_EVENTS
     return {
-        "retention24Pct": r24 if qualified else None,
-        "retentionCurve": {"m12": r12, "m24": r24, "m36": r36},
+        "retention18Pct": r18 if qualified else None,
+        "retentionCurve": {"m12": r12, "m18": r18, "m24": r24},
         "kmMedianMonths": round(km_med, 1) if km_med is not None else None,
-        "atRisk24": ar24,
+        "atRisk18": ar18,
         "turnoverEvents": events,
         "tenancyQualified": qualified,
         "tenancySuppressed": not qualified,

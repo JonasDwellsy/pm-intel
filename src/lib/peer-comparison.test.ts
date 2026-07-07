@@ -1,5 +1,5 @@
 // Regression coverage for Task 7 of the survival-based tenancy metric:
-// peer-comparison's tenancy ranking must read retention24Pct (24-month
+// peer-comparison's tenancy ranking must read retention18Pct (18-month
 // survival retention), not the retired overallGap field.
 
 import test from "node:test";
@@ -10,7 +10,7 @@ import type { ScorecardData } from "./types";
 
 function mkScorecard(
   slug: string,
-  overrides: { retention24Pct?: number | null; overallGap?: number | null }
+  overrides: { retention18Pct?: number | null; overallGap?: number | null }
 ): ScorecardData {
   return {
     pm: { slug, name: slug, quadrant: "scattered-independent", quadrant7Cell: "SFR Independent", hybrid: false, institutional: false },
@@ -32,7 +32,7 @@ function mkScorecard(
       tenancyPercentile: null,
       apartment: { units: 20, multiEpisodeUnits: 8, gap: null },
       house: { units: 20, multiEpisodeUnits: 8, gap: null },
-      retention24Pct: overrides.retention24Pct ?? null,
+      retention18Pct: overrides.retention18Pct ?? null,
     },
     communityVisibility: null,
     generatedText: undefined,
@@ -52,7 +52,7 @@ function mkScorecard(
   } as unknown as ScorecardData;
 }
 
-function mkPm(slug: string, overrides: { retention24Pct?: number | null; overallGap?: number | null }): PoolPm {
+function mkPm(slug: string, overrides: { retention18Pct?: number | null; overallGap?: number | null }): PoolPm {
   const scorecard = mkScorecard(slug, overrides);
   return {
     slug,
@@ -67,15 +67,15 @@ function mkPm(slug: string, overrides: { retention24Pct?: number | null; overall
 // comparison doesn't fall through to fallback/MSA.
 function fillerPms(count: number): PoolPm[] {
   return Array.from({ length: count }, (_, i) =>
-    mkPm(`filler-${i}`, { retention24Pct: 50 })
+    mkPm(`filler-${i}`, { retention18Pct: 50 })
   );
 }
 
-test("peer comparison ranks tenancy on retention24Pct, not overallGap", () => {
+test("peer comparison ranks tenancy on retention18Pct, not overallGap", () => {
   // "a" has lower overallGap (would rank worse under the old metric)
-  // but higher retention24Pct (should rank better under the new one).
-  const a = mkPm("a", { retention24Pct: 80, overallGap: 5 });
-  const b = mkPm("b", { retention24Pct: 40, overallGap: 20 });
+  // but higher retention18Pct (should rank better under the new one).
+  const a = mkPm("a", { retention18Pct: 80, overallGap: 5 });
+  const b = mkPm("b", { retention18Pct: 40, overallGap: 20 });
   const pool = [a, b, ...fillerPms(9)];
 
   const comparisons = buildPeerComparisons(a.scorecard, pool);
@@ -87,9 +87,9 @@ test("peer comparison ranks tenancy on retention24Pct, not overallGap", () => {
   assert.equal(comparisonsB.tenancy!.focalValue, 40);
 });
 
-test("members with null retention24Pct are skipped from the tenancy cohort", () => {
-  const focal = mkPm("focal", { retention24Pct: 60 });
-  const noRetention = mkPm("no-retention", { retention24Pct: null });
+test("members with null retention18Pct are skipped from the tenancy cohort", () => {
+  const focal = mkPm("focal", { retention18Pct: 60 });
+  const noRetention = mkPm("no-retention", { retention18Pct: null });
   const pool = [focal, noRetention, ...fillerPms(9)];
 
   const comparisons = buildPeerComparisons(focal.scorecard, pool);
@@ -97,6 +97,6 @@ test("members with null retention24Pct are skipped from the tenancy cohort", () 
   assert.ok(tenancy);
   assert.ok(
     !tenancy!.rows.some((r) => r.slug === "no-retention"),
-    "operator with null retention24Pct must not appear in the tenancy cohort"
+    "operator with null retention18Pct must not appear in the tenancy cohort"
   );
 });

@@ -204,14 +204,14 @@ export interface ScorecardData {
     star?: StarLevel;
     cohortUsedForStar?: CohortLevel;
     cohortName?: string;
-    // Survival-based tenancy metric fields. retention24Pct is optional
+    // Survival-based tenancy metric fields. retention18Pct is optional
     // (not required) because existing non-test consumers (prisma/seed.ts
     // normalization, src/app/dev/scorecard-preview/page.tsx fixture) are
     // wired up in later tasks (6-7), not here; this task is types-only.
-    retention24Pct?: number | null;
-    retentionCurve?: { m12: number; m24: number; m36: number };
+    retention18Pct?: number | null;
+    retentionCurve?: { m12: number; m18: number; m24: number };
     kmMedianMonths?: number | null;
-    atRisk24?: number;
+    atRisk18?: number;
     turnoverEvents?: number;
     tenancyQualified?: boolean;
     tenancySuppressed?: boolean;

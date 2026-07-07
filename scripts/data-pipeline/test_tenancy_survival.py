@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from tenancy_survival import (
     is_departed, name_key, group_last_events, RECENCY_GATE_DAYS,
     build_observations, km_curve, retention_at, km_median, at_risk,
-    compute_tenancy_survival, FLOOR_MONTHS, QUALIFY_MIN_ATRISK24, QUALIFY_MIN_EVENTS,
+    compute_tenancy_survival, FLOOR_MONTHS, QUALIFY_MIN_ATRISK18, QUALIFY_MIN_EVENTS,
 )
 
 NOW = datetime(2026, 7, 6)
@@ -104,35 +104,35 @@ class KMEstimator(unittest.TestCase):
 
 class ComputeTenancySurvival(unittest.TestCase):
     def _sticky_units(self, n, occupied_days=800):
-        # n units each closed occupied_days ago, never re-listed -> n censored obs past 24mo
+        # n units each closed occupied_days ago, never re-listed -> n censored obs past 18mo
         return {f"u{i}": [(days_ago(occupied_days + 200), days_ago(occupied_days))] for i in range(n)}
 
     def test_unqualified_when_too_few_at_risk(self):
-        out = compute_tenancy_survival(self._sticky_units(QUALIFY_MIN_ATRISK24 - 1), NOW)
+        out = compute_tenancy_survival(self._sticky_units(QUALIFY_MIN_ATRISK18 - 1), NOW)
         self.assertFalse(out["tenancyQualified"])
-        self.assertIsNone(out["retention24Pct"])
+        self.assertIsNone(out["retention18Pct"])
         self.assertTrue(out["tenancySuppressed"])
 
     def test_unqualified_when_too_few_events(self):
-        # 40 censored units past 24mo (at-risk ok) but 0 turnover events -> min-events gate fails
+        # 40 censored units past 18mo (at-risk ok) but 0 turnover events -> min-events gate fails
         out = compute_tenancy_survival(self._sticky_units(40), NOW)
-        self.assertGreaterEqual(out["atRisk24"], QUALIFY_MIN_ATRISK24)
+        self.assertGreaterEqual(out["atRisk18"], QUALIFY_MIN_ATRISK18)
         self.assertEqual(out["turnoverEvents"], 0)
         self.assertFalse(out["tenancyQualified"])
-        self.assertIsNone(out["retention24Pct"])
+        self.assertIsNone(out["retention18Pct"])
 
     def test_qualified_emits_retention(self):
         units = {}
-        # 30 units that turned over at ~30 months (event), plus 30 still-occupied past 24mo
+        # 30 units that turned over at ~30 months (event), plus 30 still-occupied past 18mo
         for i in range(30):
             units[f"t{i}"] = [(days_ago(1100), days_ago(1000)), (days_ago(90), None)]
         for i in range(30):
             units[f"c{i}"] = [(days_ago(900), days_ago(800))]
         out = compute_tenancy_survival(units, NOW)
         self.assertTrue(out["tenancyQualified"])
-        self.assertIsNotNone(out["retention24Pct"])
+        self.assertIsNotNone(out["retention18Pct"])
         self.assertGreaterEqual(out["turnoverEvents"], QUALIFY_MIN_EVENTS)
-        self.assertEqual(set(out["retentionCurve"]), {"m12", "m24", "m36"})
+        self.assertEqual(set(out["retentionCurve"]), {"m12", "m18", "m24"})
 
 if __name__ == "__main__":
     unittest.main()

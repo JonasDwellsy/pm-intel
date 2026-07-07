@@ -110,9 +110,9 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   tenancy: {
     name: "Tenant Retention",
     definition:
-      "Share of tenancies that reach two years (24-month retention, survival-adjusted). Higher means stickier tenants.",
+      "Share of tenancies that reach 18-month (1.5-year) retention (survival-adjusted). Higher means stickier tenants.",
     formula:
-      "retention24Pct = Kaplan-Meier survival estimate S(24 months) over unit-tenancy episodes in the observation window",
+      "retention18Pct = Kaplan-Meier survival estimate S(18 months) over unit-tenancy episodes in the observation window",
     cohortScope:
       "Same MSA + asset type (apartment / house) cohort. Primary 7-cell cohort applies for star assignment when N≥10.",
     caveats: [

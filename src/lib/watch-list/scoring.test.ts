@@ -29,11 +29,11 @@ function makePm(overrides: Partial<PMRecord["scorecard"]> = {}, top: Partial<PMR
       marketing: { compositeScore: 50, percentile: null, star: null },
       // NOTE: no watch-list field currently reads tenancy (see
       // fields.ts FIELD_REGISTRY — there's no tenancy-backed entry
-      // yet). retention24Pct is the current survival-based metric;
+      // yet). retention18Pct is the current survival-based metric;
       // medianTenancy was never a real ScorecardData.tenancy field
       // (stale from early prototyping) and has been replaced here so
       // the fixture doesn't carry a bogus key.
-      tenancy: { multiEpisodePct: 0.4, retention24Pct: 82, star: null, shortHistoryCaveat: false },
+      tenancy: { multiEpisodePct: 0.4, retention18Pct: 82, star: null, shortHistoryCaveat: false },
       communityVisibility: null,
       generatedText: undefined,
       portfolioEstimate: { status: "estimated", point: 800, low: 550, high: 1050, cohort: "SFR Independent, URUs <100", cohortN: 12, confidence: "Low" },

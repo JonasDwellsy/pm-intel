@@ -139,7 +139,7 @@ function metricStar(sc: ScorecardData, k: MetricKey): "gold" | "silver" | null {
 function metricValueBenchmark(
   sc: ScorecardData,
   k: MetricKey,
-  cohortMedianRetention24: number | null = null
+  cohortMedianRetention18: number | null = null
 ): { value: string; benchmark: string; sub: string[]; interpretation: string } {
   if (k === "dom") {
     const dom = sc.performance?.domT12;
@@ -179,11 +179,11 @@ function metricValueBenchmark(
     };
   }
   if (k === "tenancy") {
-    // Survival-based retention metric: retention24Pct = % of tenancies that
-    // reach 24 months (higher = stickier). Suppressed (or missing) operators
+    // Survival-based retention metric: retention18Pct = % of tenancies that
+    // reach 18 months (higher = stickier). Suppressed (or missing) operators
     // show the caveat reason instead of a value — never overallGap/
     // multiEpisodePct, which are decoys for the old months-based display.
-    const r = sc.tenancy?.retention24Pct;
+    const r = sc.tenancy?.retention18Pct;
     if (sc.tenancy?.tenancySuppressed || r == null) {
       return {
         value: "—",
@@ -193,12 +193,12 @@ function metricValueBenchmark(
       };
     }
     return {
-      value: `${Math.round(r)}% stay 2+ yrs`,
-      benchmark: cohortMedianRetention24 != null ? `cohort ${Math.round(cohortMedianRetention24)}%` : "",
+      value: `${Math.round(r)}% stay 1.5+ years`,
+      benchmark: cohortMedianRetention18 != null ? `cohort ${Math.round(cohortMedianRetention18)}%` : "",
       sub: [],
-      interpretation: cohortMedianRetention24 != null
-        ? `About ${Math.round(r)}% of ${sc.pm.name}'s tenancies reach two years, versus a ${Math.round(cohortMedianRetention24)}% cohort median.`
-        : `About ${Math.round(r)}% of ${sc.pm.name}'s tenancies reach two years.`,
+      interpretation: cohortMedianRetention18 != null
+        ? `About ${Math.round(r)}% of ${sc.pm.name}'s tenancies reach 1.5 years, versus a ${Math.round(cohortMedianRetention18)}% cohort median.`
+        : `About ${Math.round(r)}% of ${sc.pm.name}'s tenancies reach 1.5 years.`,
     };
   }
   return { value: "—", benchmark: "", sub: [], interpretation: "" };
@@ -432,19 +432,19 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const pcts = Object.fromEntries(
     metricKeys.map((k) => [k, metricCohortPercentile(scorecard, k)])
   ) as Record<MetricKey, number | null>;
-  // Cohort-median retention (% reaching 24 months) for the Tenant Retention
-  // comparison — median the primary 7-cell cohort's retention24Pct across
+  // Cohort-median retention (% reaching 18 months) for the Tenant Retention
+  // comparison — median the primary 7-cell cohort's retention18Pct across
   // QUALIFIED peers from the pool. null when the cohort is empty.
   const cohortQ7 = scorecard.pm.quadrant7Cell ?? null;
   const cohortRetention = cohortQ7
     ? pool
         .filter((m) => m.scorecard.pm?.quadrant7Cell === cohortQ7
           && m.scorecard.tenancy?.tenancyQualified === true
-          && m.scorecard.tenancy?.retention24Pct != null)
-        .map((m) => m.scorecard.tenancy!.retention24Pct as number)
+          && m.scorecard.tenancy?.retention18Pct != null)
+        .map((m) => m.scorecard.tenancy!.retention18Pct as number)
         .sort((a, b) => a - b)
     : [];
-  const cohortMedianRetention24 =
+  const cohortMedianRetention18 =
     cohortRetention.length > 0
       ? cohortRetention[Math.floor((cohortRetention.length - 1) / 2)]
       : null;
@@ -452,7 +452,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     .filter((k) => pcts[k] != null || metricStar(scorecard, k) != null
       || (k === "tenancy" && scorecard.tenancy?.tenancySuppressed === true))
     .map((k) => {
-      const vb = metricValueBenchmark(scorecard, k, k === "tenancy" ? cohortMedianRetention24 : null);
+      const vb = metricValueBenchmark(scorecard, k, k === "tenancy" ? cohortMedianRetention18 : null);
       return { key: k, title: METRIC_TITLES[k], label: labels[k], value: vb.value,
         benchmark: vb.benchmark, position: pcts[k] != null ? pcts[k]! / 100 : null,
         star: metricStar(scorecard, k), sub: vb.sub, interpretation: vb.interpretation };
