@@ -122,7 +122,7 @@ export function MethodologyFooter({
             predictive — it doesn&rsquo;t forecast future outcomes.
             Operators with shorter observation history have noisier estimates
             on metrics that depend on multi-episode unit pairs (Tenancy) or
-            multi-year trajectory (Rent Stability). See the methodology page
+            multi-year trajectory (Rent Performance). See the methodology page
             for full caveats.
           </p>
         </div>

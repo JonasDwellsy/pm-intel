@@ -1,5 +1,5 @@
-// Derivation for the re-enriched Operating Performance cards (vacancy, rent
-// stability, concessions). Produces the plain-English interpretation, a
+// Derivation for the re-enriched Operating Performance cards (vacancy,
+// concessions). Produces the plain-English interpretation, a
 // good/watch/neutral tone, and a short "what this measures" definition so the
 // cards reach parity with the scored metric cards. Pure + unit-tested.
 //
@@ -27,8 +27,7 @@ const TOL = 0.1;
 
 /**
  * Tone from a value vs its peer median.
- *  - "lowerBetter" (vacancy, rent-stability volatility): below band → good,
- *    above band → watch.
+ *  - "lowerBetter" (vacancy): below band → good, above band → watch.
  *  - "higherWorse" (concessions): above band → watch; below/în-line → neutral
  *    (low concession use isn't a distinction worth a "good" chip).
  */
@@ -63,26 +62,6 @@ export function vacancyDetail(pct: number, cohortMedianPct: number | null): Oper
       ? `Units sit vacant an estimated ${f(pct)}% of the leasing cycle, versus the ${f(cohortMedianPct)}% cohort median.`
       : `Units sit vacant an estimated ${f(pct)}% of the leasing cycle.`;
   return { interpretation, tone: metricTone(pct, cohortMedianPct, "lowerBetter"), definition };
-}
-
-export function rentStabilityDetail(
-  volatilityPP: number | null,
-  cohortMedianPP: number | null
-): OperatingDetail {
-  const definition =
-    "Year-over-year volatility of mix-adjusted rents, in percentage points. Lower means steadier pricing.";
-  // Suppressed / no computable volatility → the card renders its caveat, not
-  // the interpretation line.
-  if (volatilityPP == null) return { interpretation: "", tone: "neutral", definition };
-  const interpretation =
-    cohortMedianPP != null
-      ? `Year-over-year rents vary by ${f(volatilityPP)} pp, versus the ${f(cohortMedianPP)} pp cohort median.`
-      : `Year-over-year rents vary by ${f(volatilityPP)} pp.`;
-  return {
-    interpretation,
-    tone: metricTone(volatilityPP, cohortMedianPP, "lowerBetter"),
-    definition,
-  };
 }
 
 export function concessionDetail(ratePct: number, marketRatePct: number | null): OperatingDetail {

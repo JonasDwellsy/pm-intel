@@ -23,8 +23,8 @@
 //     a continuation page when content overflows.
 //
 //   Page 3 — Lending signals
-//     The 5 underwriting-relevant synthesis signals from
-//     buildLendingSignals (Vacancy, Rent Stability, Operator
+//     The 4 underwriting-relevant synthesis signals from
+//     buildLendingSignals (Vacancy, Operator
 //     Stability, Geographic Concentration, Pricing Tier).
 //
 //   Page 4 — Geographic Coverage & Rent
@@ -84,7 +84,6 @@ import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import type {
   LendingSignals,
   VacancySignal,
-  RentStabilitySignal,
   OperatorStabilitySignal,
   GeographicConcentrationSignal,
   PricingTierSignal,
@@ -1406,32 +1405,6 @@ function vacancySignalCard(v: VacancySignal): MetricCardData {
   };
 }
 
-function rentStabilitySignalCard(rs: RentStabilitySignal): MetricCardData {
-  if (rs.suppressed) {
-    return {
-      title: "Rent Stability",
-      value: "—",
-      context:
-        rs.reason ?? "Insufficient rent observation history for this operator.",
-      star: rs.star,
-    };
-  }
-  const contextParts: string[] = [];
-  if (rs.cohortMedianVolatility !== null) {
-    contextParts.push(
-      `Cohort median volatility ${fmtNumber(rs.cohortMedianVolatility, 1)}pp`
-    );
-  }
-  contextParts.push(`${fmtNumber(rs.yearsOfHistory, 1)}-year observation window`);
-  return {
-    title: "Rent Stability",
-    value: rs.volatilityPP !== null ? fmtNumber(rs.volatilityPP, 1) : "—",
-    valueUnit: "pp volatility",
-    star: rs.star,
-    context: contextParts.join("  ·  ") + ".",
-  };
-}
-
 function operatorStabilitySignalCard(
   os: OperatorStabilitySignal
 ): MetricCardData {
@@ -1520,20 +1493,6 @@ function lendingSignalCards(
   if (!resolved) {
     const signals: MetricCardData[] = [];
     const ls = scorecard.lendingSignals;
-    if (ls?.rentStability) {
-      signals.push(
-        rentStabilitySignalCard({
-          kind: "rentStability",
-          volatilityPP: ls.rentStability.volatilityPP,
-          cohortMedianVolatility:
-            ls.rentStability.cohortMedianVolatility ?? null,
-          yearsOfHistory: ls.rentStability.yearsOfHistory,
-          suppressed: ls.rentStability.suppressed,
-          reason: ls.rentStability.reason,
-          star: ls.rentStability.star,
-        })
-      );
-    }
     if (ls?.geographicConcentration) {
       signals.push(
         geographicConcentrationSignalCard({
@@ -1549,8 +1508,6 @@ function lendingSignalCards(
   }
   const signals: MetricCardData[] = [];
   if (resolved.vacancy) signals.push(vacancySignalCard(resolved.vacancy));
-  if (resolved.rentStability)
-    signals.push(rentStabilitySignalCard(resolved.rentStability));
   if (resolved.operatorStability)
     signals.push(operatorStabilitySignalCard(resolved.operatorStability));
   if (resolved.geographicConcentration)
@@ -3123,11 +3080,12 @@ function geographicNarrative(scorecard: ScorecardData): string {
       .join(", ");
     parts.push(`Top cities: ${topCitiesStr}`);
   }
-  // Pull observation history from the geographic-concentration lending
-  // signal when available — it carries the trailing-window length.
-  const ls = scorecard.lendingSignals?.rentStability;
-  if (ls && !ls.suppressed) {
-    parts.push(`${fmtNumber(ls.yearsOfHistory, 1)} years of observation history`);
+  // Observation-history length, straight from coverage/tenancy (falls back
+  // to tenancy.yearsVisible for older seed shapes that only populate there).
+  const yearsVisible =
+    scorecard.coverage?.yearsVisible ?? scorecard.tenancy?.yearsVisible ?? null;
+  if (yearsVisible != null) {
+    parts.push(`${fmtNumber(yearsVisible, 1)} years of observation history`);
   }
   if (parts.length === 0) {
     return "Geographic coverage details are not yet computed for this operator.";

@@ -108,16 +108,6 @@ export function buildWatchItems(
     });
   }
 
-  // POSITIVE — steady pricing (rent volatility below cohort median).
-  const rs = scorecard.lendingSignals?.rentStability;
-  if (rs && !rs.suppressed && rs.volatilityPP != null && rs.cohortMedianVolatility != null && rs.volatilityPP < rs.cohortMedianVolatility) {
-    items.push({
-      kind: "positive",
-      headline: "Steady pricing",
-      explanation: "Rent volatility is below the cohort median — pricing has been stable over the observed window.",
-    });
-  }
-
   // RISK (trend) — concessions climbing sharply quarter-over-quarter.
   // Suppressed when the level-based risk already fired above.
   if (trajectory && !concessionLevelFired) {

@@ -3,7 +3,6 @@ import { strict as assert } from "node:assert";
 import {
   metricTone,
   vacancyDetail,
-  rentStabilityDetail,
   concessionDetail,
 } from "./operating-detail";
 
@@ -34,13 +33,6 @@ test("vacancyDetail: factual interpretation vs cohort median, good when below", 
   assert.match(d.interpretation, /8\.2% of the leasing cycle/);
   assert.match(d.interpretation, /23\.6% cohort median/);
   assert.match(d.definition, /Lower is more favorable/);
-});
-
-test("rentStabilityDetail: null volatility → empty interpretation + neutral (card shows caveat)", () => {
-  const d = rentStabilityDetail(null, 5.1);
-  assert.equal(d.interpretation, "");
-  assert.equal(d.tone, "neutral");
-  assert.match(d.definition, /steadier pricing/);
 });
 
 test("concessionDetail: well above market rate → watch", () => {

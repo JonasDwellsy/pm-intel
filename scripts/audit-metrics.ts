@@ -105,9 +105,6 @@ async function main() {
         if (vac.tone === "good" && !(vac.pct < vac.cohortMedianPct * 0.9)) flags.push({ slug: r.slug, check: "C:vacancy", detail: `good but ${vac.pct} !< ${vac.cohortMedianPct}` });
         if (vac.tone === "watch" && !(vac.pct > vac.cohortMedianPct * 1.1)) flags.push({ slug: r.slug, check: "C:vacancy", detail: `watch but ${vac.pct} !> ${vac.cohortMedianPct}` });
       }
-      const rs = v.operating.rentStability;
-      if (rs && !rs.suppressed && rs.volatilityPP != null && rs.cohortMedianPP != null && rs.tone === "good" && !(rs.volatilityPP < rs.cohortMedianPP * 0.9))
-        flags.push({ slug: r.slug, check: "C:rentStab", detail: `good but ${rs.volatilityPP} !< ${rs.cohortMedianPP}` });
       const co = v.operating.concession;
       if (co?.marketRatePct != null && co.tone === "watch" && !(co.ratePct > co.marketRatePct * 1.1))
         flags.push({ slug: r.slug, check: "C:concession", detail: `watch but ${co.ratePct} !> ${co.marketRatePct}` });
@@ -116,7 +113,7 @@ async function main() {
       const strings = [
         v.header.name, v.scaleFit.takeaway, v.operating.takeaway,
         ...v.operating.metrics.flatMap((m) => [m.value, m.interpretation, ...m.sub]),
-        vac?.interpretation ?? "", rs?.interpretation ?? "", co?.interpretation ?? "",
+        vac?.interpretation ?? "", co?.interpretation ?? "",
       ];
       if (strings.some((s) => /\b(NaN|undefined)\b|\bnull\b/.test(s ?? "")))
         flags.push({ slug: r.slug, check: "D:render", detail: strings.find((s) => /\b(NaN|undefined)\b|\bnull\b/.test(s ?? ""))!.slice(0, 60) });

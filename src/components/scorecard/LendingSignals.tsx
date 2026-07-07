@@ -3,7 +3,6 @@ import type {
   LendingSignals as LendingSignalsData,
   OperatorStabilitySignal,
   PricingTierSignal,
-  RentStabilitySignal,
   SignalDistribution,
   VacancySignal,
 } from "@/lib/lending-signals";
@@ -14,14 +13,14 @@ import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
 import type { MetricKey } from "@/lib/metric-definitions";
 
 // Layer 4 — Lending Signals card (Scorecard_Design_Spec_v1.0.md Section 3,
-// Layer 4). 5 signal subcards in a compact 3-2 grid, sized for a 2-minute
+// Layer 4). 4 signal subcards in a compact grid, sized for a 2-minute
 // scan by lender / acquisition teams. Each subcard renders a value, cohort
-// context, and a star (signals 1, 2, 3) or descriptive indicator (signal 4)
-// or tier label (signal 5).
+// context, and a star (signals 1, 2) or descriptive indicator (signal 3)
+// or tier label (signal 4).
 //
-// Per Decision G.4, Signal 4 (Geographic Concentration) uses a linear
+// Per Decision G.4, Signal 3 (Geographic Concentration) uses a linear
 // position indicator with no implicit value judgment — concentration is
-// descriptive, not labeled good/bad. Same for Signal 5 (Pricing Tier) —
+// descriptive, not labeled good/bad. Same for Signal 4 (Pricing Tier) —
 // Premium/Mid-market/Value are positional labels not evaluative ones.
 
 export function LendingSignals({
@@ -31,7 +30,6 @@ export function LendingSignals({
 }) {
   const hasAny =
     signals.vacancy ||
-    signals.rentStability ||
     signals.operatorStability ||
     signals.geographicConcentration ||
     signals.pricingTier;
@@ -52,9 +50,6 @@ export function LendingSignals({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         {signals.vacancy && <VacancySignalCard signal={signals.vacancy} />}
-        {signals.rentStability && (
-          <RentStabilitySignalCard signal={signals.rentStability} />
-        )}
         {signals.operatorStability && (
           <OperatorStabilitySignalCard signal={signals.operatorStability} />
         )}
@@ -148,58 +143,7 @@ function VacancySignalCard({ signal }: { signal: VacancySignal }) {
   );
 }
 
-// --- Signal 2 — Rent Stability ---
-function RentStabilitySignalCard({ signal }: { signal: RentStabilitySignal }) {
-  if (signal.suppressed || signal.volatilityPP === null) {
-    return (
-      <SignalCard
-        title="Rent Stability"
-        metricKey="rentStability"
-        star={null}
-        contextLine={
-          signal.yearsOfHistory
-            ? `Operator visible ${fmtNumber(signal.yearsOfHistory, 1)} years in our data.`
-            : undefined
-        }
-      >
-        <p className="text-[13.5px] italic text-muted-2">
-          {signal.reason || "Insufficient observation history to compute."}
-        </p>
-      </SignalCard>
-    );
-  }
-  return (
-    <SignalCard
-      title="Rent Stability"
-      metricKey="rentStability"
-      star={signal.star}
-      contextLine={
-        signal.cohortMedianVolatility !== null ? (
-          <>
-            Cohort median{" "}
-            <span className="dq-tnum font-semibold text-navy">
-              {fmtNumber(signal.cohortMedianVolatility, 1)}pp
-            </span>{" "}
-            · {fmtNumber(signal.yearsOfHistory, 1)}y observation
-          </>
-        ) : (
-          `${fmtNumber(signal.yearsOfHistory, 1)}y observation`
-        )
-      }
-    >
-      <div className="flex items-baseline gap-1.5">
-        <span className="dq-tnum text-[26px] font-bold leading-none tracking-[-0.02em] text-navy">
-          {fmtNumber(signal.volatilityPP, 1)}
-        </span>
-        <span className="text-[12.5px] font-medium text-muted-foreground">
-          pp YoY stdev
-        </span>
-      </div>
-    </SignalCard>
-  );
-}
-
-// --- Signal 3 — Operator Stability ---
+// --- Signal 2 — Operator Stability ---
 function OperatorStabilitySignalCard({
   signal,
 }: {
@@ -245,7 +189,7 @@ function OperatorStabilitySignalCard({
   );
 }
 
-// --- Signal 4 — Geographic Concentration (linear position, no star) ---
+// --- Signal 3 — Geographic Concentration (linear position, no star) ---
 function GeographicConcentrationSignalCard({
   signal,
 }: {
@@ -306,7 +250,7 @@ function GeographicConcentrationSignalCard({
   );
 }
 
-// --- Signal 5 — Pricing Tier ---
+// --- Signal 4 — Pricing Tier ---
 function PricingTierSignalCard({ signal }: { signal: PricingTierSignal }) {
   if (signal.tier === null || signal.operatorRent === null) {
     return (

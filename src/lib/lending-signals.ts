@@ -7,27 +7,25 @@ import type {
 } from "@/lib/types";
 
 // Layer 4 — Lending Signals (Scorecard_Design_Spec_v1.0.md Section 3, Layer 4).
-// 5 signal cards in a compact 3-2 grid:
+// 4 signal cards in a compact grid:
 //
 //   Signal 1 — Vacancy Signal (computed at render time from DOM + Tenancy)
-//   Signal 2 — Rent Stability (passed through from lendingSignals.rentStability,
-//              v0.6.2 Patch 4)
-//   Signal 3 — Operator Stability (composite surfaced from yearsVisible +
+//   Signal 2 — Operator Stability (composite surfaced from yearsVisible +
 //              cross-market footprint count; persistent eligibility deferred
 //              to v0.7 — not in v0.6.2 seed)
-//   Signal 4 — Geographic Concentration (passed through from
+//   Signal 3 — Geographic Concentration (passed through from
 //              lendingSignals.geographicConcentration, v0.6.2 Patch 7).
 //              Linear position indicator — no star, descriptive only per
 //              Decision G.4.
-//   Signal 5 — Pricing Tier (computed at render time from rent trajectory)
+//   Signal 4 — Pricing Tier (computed at render time from rent trajectory)
 //
-// Each signal carries a value, cohort context, and a star (signals 1, 2, 3)
-// or position indicator (signal 4) or tier label (signal 5). The render-time
-// computations (1, 3, 5) consume the same MSA pool that Layer 3 uses, so the
+// Each signal carries a value, cohort context, and a star (signals 1, 2)
+// or position indicator (signal 3) or tier label (signal 4). The render-time
+// computations (1, 2, 4) consume the same MSA pool that Layer 3 uses, so the
 // page pays for one DB query total.
 
 // Direction semantics: "lower better" or "higher better" determines how
-// percentile maps to stars. Signal 4 has no direction (descriptive only).
+// percentile maps to stars. Signal 3 has no direction (descriptive only).
 export interface SignalDistribution {
   cohortLevel: CohortLevel;
   cohortName: string;
@@ -45,17 +43,6 @@ export interface VacancySignal {
   /** Percent of cycle that is vacancy, 0-100. Null when DOM or Tenancy is. */
   vacancyPct: number | null;
   dist: SignalDistribution;
-  star: StarLevel;
-}
-export interface RentStabilitySignal {
-  kind: "rentStability";
-  /** Standard deviation of trailing-12-quarter YoY rent in pp. Null when
-   *  suppressed. */
-  volatilityPP: number | null;
-  cohortMedianVolatility: number | null;
-  yearsOfHistory: number;
-  suppressed: boolean;
-  reason?: string;
   star: StarLevel;
 }
 export interface OperatorStabilitySignal {
@@ -89,7 +76,6 @@ export interface PricingTierSignal {
 
 export interface LendingSignals {
   vacancy: VacancySignal | null;
-  rentStability: RentStabilitySignal | null;
   operatorStability: OperatorStabilitySignal | null;
   geographicConcentration: GeographicConcentrationSignal | null;
   pricingTier: PricingTierSignal | null;
@@ -104,7 +90,6 @@ export function buildLendingSignals(
   if (!focal) {
     return {
       vacancy: null,
-      rentStability: null,
       operatorStability: null,
       geographicConcentration: null,
       pricingTier: null,
@@ -114,7 +99,6 @@ export function buildLendingSignals(
 
   return {
     vacancy: buildVacancySignal(focal, focalType, pool, scorecard.market.name),
-    rentStability: buildRentStabilitySignal(scorecard),
     operatorStability: buildOperatorStabilitySignal(
       focal,
       focalType,
@@ -217,24 +201,7 @@ function buildVacancySignal(
   };
 }
 
-// --- Signal 2: Rent Stability (pass-through from v0.6.2 seed) ---
-function buildRentStabilitySignal(
-  scorecard: ScorecardData
-): RentStabilitySignal | null {
-  const rs = scorecard.lendingSignals?.rentStability;
-  if (!rs) return null;
-  return {
-    kind: "rentStability",
-    volatilityPP: rs.volatilityPP,
-    cohortMedianVolatility: rs.cohortMedianVolatility ?? null,
-    yearsOfHistory: rs.yearsOfHistory,
-    suppressed: rs.suppressed,
-    reason: rs.reason,
-    star: rs.star,
-  };
-}
-
-// --- Signal 3: Operator Stability ---
+// --- Signal 2: Operator Stability ---
 // Composite of yearsVisible (length of observation in our data) plus
 // marketCount (cross-market footprint). Star derived from yearsVisible
 // percentile within selected cohort. Persistent eligibility is a v0.7
@@ -324,7 +291,7 @@ function buildOperatorStabilitySignal(
   };
 }
 
-// --- Signal 4: Geographic Concentration (pass-through, no star) ---
+// --- Signal 3: Geographic Concentration (pass-through, no star) ---
 function buildGeographicConcentrationSignal(
   scorecard: ScorecardData
 ): GeographicConcentrationSignal | null {
@@ -339,7 +306,7 @@ function buildGeographicConcentrationSignal(
   };
 }
 
-// --- Signal 5: Pricing Tier ---
+// --- Signal 4: Pricing Tier ---
 // Operator's most recent mix-adjusted median rent compared to MSA rent
 // distribution. Latest trajectory quarter is the canonical value (v0.6.2
 // seeds 6 quarters of trajectory).

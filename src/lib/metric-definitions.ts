@@ -8,7 +8,7 @@
 //   - Methodology_v0.6.1_Patches.md (Community Visibility ratio, Rent
 //     Performance YoY delta)
 //   - Methodology_v0.6.2_Patches.md (star system, multi-level percentile,
-//     Rent Stability volatility, Geographic Concentration top-3 share)
+//     Geographic Concentration top-3 share)
 
 export interface MetricDefinition {
   /** Header — large, navy heading at the top of the modal. */
@@ -37,7 +37,6 @@ export type MetricKey =
   | "marketing"
   | "communityVisibility"
   | "vacancySignal"
-  | "rentStability"
   | "operatorStability"
   | "geographicConcentration"
   | "pricingTier"
@@ -191,21 +190,6 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
     methodologyHref: "/methodology#lending-signals",
   },
 
-  rentStability: {
-    name: "Rent Stability",
-    definition:
-      "Standard deviation of trailing 12 quarters' YoY rent change in percentage points. Lower means more consistent rent posture. Suppressed for operators with under 12 quarters of observation history.",
-    formula:
-      "volatility_pp = stdev(YoY_q5..q12) × 100\nrequires 12 quarters of mix-adjusted median data",
-    cohortScope:
-      "Cohort median volatility is computed across operators with qualifying history within the operator's primary cohort.",
-    caveats: [
-      "Currently computed from the 6-quarter rentTrajectory in v0.6.2 seed — this over-suppresses operators with 3-5 years of underlying listings. v0.7 fix: compute from raw listings over 12 quarters per Patch 4.",
-      "Volatility doesn't separate intentional rent strategy from market-driven volatility.",
-    ],
-    methodologyHref: "/methodology#lending-signals",
-  },
-
   operatorStability: {
     name: "Operator Stability",
     definition:
@@ -317,7 +301,7 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   "section-lending-signals": {
     name: "Lending Signals",
     definition:
-      "Five underwriting-relevant synthesis signals. Two are pre-computed (Rent Stability, Geographic Concentration); three are derived at render time (Vacancy Signal, Operator Stability, Pricing Tier).",
+      "Four underwriting-relevant synthesis signals. One is pre-computed (Geographic Concentration); three are derived at render time (Vacancy Signal, Operator Stability, Pricing Tier).",
     cohortScope:
       "Per-signal cohort selection follows the same primary→fallback→MSA waterfall as Layer 3 metrics.",
     caveats: [

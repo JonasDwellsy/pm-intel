@@ -575,28 +575,14 @@ function normalizeRentTrajectory(
 }
 
 // Pass-through for v0.6.2 lendingSignals. The seed-time pipeline only
-// computes rentStability and geographicConcentration; v1.0 design renders
-// three more derived signals (vacancySignal, operatorStability, pricingTier)
-// at runtime.
+// computes geographicConcentration; v1.0 design renders three more derived
+// signals (vacancySignal, operatorStability, pricingTier) at runtime.
 function normalizeLendingSignals(
   pm: AnyRecord
 ): ScorecardData["lendingSignals"] | undefined {
   const ls = getObj(pm, "lendingSignals");
   if (!ls) return undefined;
   const out: NonNullable<ScorecardData["lendingSignals"]> = {};
-
-  const rs = getObj(ls, "rentStability");
-  if (rs) {
-    out.rentStability = {
-      volatilityPP: asNumber(rs.volatilityPP),
-      yearsOfHistory: asNumber(rs.yearsOfHistory) ?? 0,
-      cohortMedianVolatility:
-        asNumber(rs.cohortMedianVolatility) ?? undefined,
-      suppressed: Boolean(rs.suppressed),
-      reason: asString(rs.reason) || undefined,
-      star: asStar(rs.star),
-    };
-  }
 
   const gc = getObj(ls, "geographicConcentration");
   if (gc) {

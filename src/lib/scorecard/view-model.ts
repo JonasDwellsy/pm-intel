@@ -16,7 +16,6 @@ import type { PoolPm } from "@/lib/msa-pool";
 import { buildConcessionContext, uniquePatternLabels, formatConcessionSample } from "@/lib/concession-context";
 import {
   vacancyDetail,
-  rentStabilityDetail,
   concessionDetail,
   type MetricTone,
 } from "./operating-detail";
@@ -59,7 +58,7 @@ export interface MetricRow {
   key: MetricKey; title: string; label: ScoreLabel; value: string; benchmark: string;
   position: number | null; star: "gold" | "silver" | null; sub: string[];
   // Plain-English note shown at the top of the card (parity with the
-  // vacancy/rent-stability/concession cards). "" → fall back to benchmark.
+  // vacancy/concession cards). "" → fall back to benchmark.
   interpretation: string;
 }
 export interface OperatingView {
@@ -67,7 +66,6 @@ export interface OperatingView {
   // `interpretation`/`tone`/`definition` bring these re-enriched cards to parity
   // with the scored metric cards (see operating-detail.ts).
   vacancy: { pct: number; cohortMedianPct: number | null; star: "gold" | "silver" | null; interpretation: string; tone: MetricTone; definition: string } | null;
-  rentStability: { volatilityPP: number | null; cohortMedianPP: number | null; suppressed: boolean; reason: string | null; star: "gold" | "silver" | null; interpretation: string; tone: MetricTone; definition: string } | null;
   concession: { ratePct: number; marketRatePct: number | null; patterns: string[]; samples: string[]; interpretation: string; tone: MetricTone; definition: string } | null;
 }
 
@@ -298,7 +296,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const lendingSignals: ReturnType<typeof buildLendingSignals> =
     lendingPreconditionMet
       ? buildLendingSignals(scorecard, lendingPool, marketCount)
-      : { vacancy: null, rentStability: null, operatorStability: null, geographicConcentration: null, pricingTier: null };
+      : { vacancy: null, operatorStability: null, geographicConcentration: null, pricingTier: null };
 
   const vacancy: OperatingView["vacancy"] = lendingSignals.vacancy?.vacancyPct != null
     ? {
@@ -306,20 +304,6 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
         cohortMedianPct: lendingSignals.vacancy.dist.cohortMedian,
         star: lendingSignals.vacancy.star,
         ...vacancyDetail(lendingSignals.vacancy.vacancyPct, lendingSignals.vacancy.dist.cohortMedian),
-      }
-    : null;
-
-  const rentStability: OperatingView["rentStability"] = lendingSignals.rentStability
-    ? {
-        volatilityPP: lendingSignals.rentStability.volatilityPP,
-        cohortMedianPP: lendingSignals.rentStability.cohortMedianVolatility,
-        suppressed: lendingSignals.rentStability.suppressed,
-        reason: lendingSignals.rentStability.reason ?? null,
-        star: lendingSignals.rentStability.star,
-        ...rentStabilityDetail(
-          lendingSignals.rentStability.volatilityPP,
-          lendingSignals.rentStability.cohortMedianVolatility
-        ),
       }
     : null;
 
@@ -469,7 +453,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     sectionLabel: opLabel, takeaway: operatingTakeaway,
     strongest: sw.strongest.map((k) => METRIC_TITLES[k]),
     watch: sw.watch.map((k) => METRIC_TITLES[k]), metrics,
-    vacancy, rentStability, concession,
+    vacancy, concession,
   };
   readout[1].value = `Above cohort median on ${aboveCount} of ${metrics.length} scored dimensions`;
 

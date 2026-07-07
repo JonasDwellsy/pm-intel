@@ -7,7 +7,6 @@ function sc(overrides: any = {}): any {
     concessionRate: 0.48,
     coverage: { yearsVisible: 2.3 },
     lendingSignals: {
-      rentStability: { volatilityPP: 1.1, cohortMedianVolatility: 3.0, suppressed: false },
       geographicConcentration: { top3CityShare: 0.84, cohortMedianTop3: 0.61 },
     },
     ...overrides,
@@ -21,11 +20,10 @@ test("heavy concession use becomes a risk with an Ask, ordered first", () => {
   assert.ok(items[0].ask && items[0].ask.length > 0);
 });
 
-test("short history is a data limitation; concentration is context; low volatility is positive", () => {
+test("short history is a data limitation; concentration is context; ordered risk before data before context", () => {
   const kinds = buildWatchItems(sc(), 0.01).map((i) => i.kind);
   assert.ok(kinds.includes("data"));
   assert.ok(kinds.includes("context"));
-  assert.ok(kinds.includes("positive"));
   // ordering: risk before data before context before positive
   const order = ["risk", "data", "context", "positive"];
   const idx = kinds.map((k) => order.indexOf(k));
@@ -37,7 +35,6 @@ test("no items when nothing is notable", () => {
     concessionRate: 0.0,
     coverage: { yearsVisible: 6 },
     lendingSignals: {
-      rentStability: { volatilityPP: 3.1, cohortMedianVolatility: 3.0, suppressed: false },
       geographicConcentration: { top3CityShare: 0.55, cohortMedianTop3: 0.61 },
     },
   });
@@ -50,7 +47,6 @@ const quiet = {
   concessionRate: 0.0,
   coverage: { yearsVisible: 6 },
   lendingSignals: {
-    rentStability: { volatilityPP: 3.1, cohortMedianVolatility: 3.0, suppressed: false },
     geographicConcentration: { top3CityShare: 0.4, cohortMedianTop3: 0.6 },
   },
 };
