@@ -97,7 +97,8 @@ test("operating rows carry label/value/position/star and drop null-percentile me
       performance: { domT12: 18, marketDomT12: 31, houseDomT12: 16, aptDomT12: 22, domStar: "silver" },
       rentPerformance: { pmYoyChange: 0.031, cohortMedianYoyChange: 0.028, star: null },
       marketing: { compositeScore: 88, star: "silver" },
-      tenancy: { overallGap: 13.1, multiEpisodeUnits: 168, multiEpisodePct: 31, star: "gold" },
+      tenancy: { overallGap: 13.1, multiEpisodeUnits: 168, multiEpisodePct: 31, retention24Pct: 72.4,
+                 tenancyQualified: true, tenancySuppressed: false, star: "gold" },
     }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01,
   });
@@ -109,13 +110,11 @@ test("operating rows carry label/value/position/star and drop null-percentile me
   assert.equal(dom.position, 0.66);
   assert.equal(dom.star, "silver");
   assert.equal(v.operating.sectionLabel, "good"); // composite 68
-  // Tenant retention renders overallGap (median months, higher = better), NOT
-  // multiEpisodePct (which is only the analysis-pool size). Sub-line carries the
-  // repeat-listed unit count for coverage context.
+  // Tenant retention renders retention24Pct (share reaching 24 months), NOT
+  // overallGap or multiEpisodePct (analysis-pool size decoys).
   const tenancy = v.operating.metrics.find((m) => m.key === "tenancy")!;
-  assert.equal(tenancy.value, "13.1mo");
-  assert.match(tenancy.interpretation, /Median tenancy of about 13\.1 months/);
-  assert.ok(tenancy.sub.some((s) => /168 repeat-listed units/.test(s)));
+  assert.equal(tenancy.value, "72% stay 2+ yrs");
+  assert.match(tenancy.interpretation, /About 72% of Doorby's tenancies reach two years/);
 });
 
 // GUARDRAIL: locks each Operating metric to its correct seed field so a future
@@ -124,8 +123,9 @@ test("operating rows carry label/value/position/star and drop null-percentile me
 test("GUARDRAIL: operating metrics map to the correct seed field (not a decoy)", () => {
   const sc = scFixture({
     performance: { domT12: 40, marketDomT12: 50, domStar: "silver" },
-    // multiEpisodePct/multiEpisodeUnits are DECOYS — the value must be overallGap months.
-    tenancy: { overallGap: 13.0, multiEpisodePct: 88, multiEpisodeUnits: 99, star: "gold" },
+    // overallGap/multiEpisodePct/multiEpisodeUnits are DECOYS — the value must be retention24Pct.
+    tenancy: { overallGap: 13.0, multiEpisodePct: 88, multiEpisodeUnits: 99, retention24Pct: 61,
+               tenancyQualified: true, tenancySuppressed: false, star: "gold" },
     rentPerformance: { pmYoyChange: 0.05, cohortMedianYoyChange: 0.02, star: null },
     marketing: { compositeScore: 77, star: "silver" },
     rank: { percentiles: { dom: 66, tenancy: 82, rentPerformance: 48, marketing: 70, communityVisibility: null } },
@@ -133,17 +133,53 @@ test("GUARDRAIL: operating metrics map to the correct seed field (not a decoy)",
   const v = buildScorecardView({ scorecard: sc, pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01 } as any);
   const by = new Map(v.operating.metrics.map((m) => [m.key, m.value]));
   assert.equal(by.get("dom"), "40d");            // performance.domT12
-  assert.equal(by.get("tenancy"), "13.0mo");     // tenancy.overallGap — NOT the 88% decoy
-  assert.ok(!by.get("tenancy")!.includes("%"), "tenancy must render months, never a %");
+  assert.equal(by.get("tenancy"), "61% stay 2+ yrs"); // tenancy.retention24Pct — NOT overallGap/88% decoys
   assert.equal(by.get("rentPerformance"), "5.0%"); // rentPerformance.pmYoyChange
   assert.equal(by.get("marketing"), "77");         // marketing.compositeScore
+});
+
+test("tenancy renders 24-month retention, not overallGap or multiEpisodePct", () => {
+  const sc = scFixture({
+    pm: { slug: "x", name: "X", quadrant7Cell: "SFR Independent" },
+    // decoys that must NOT be shown as the value:
+    tenancy: { overallGap: 13.0, multiEpisodePct: 88, retention24Pct: 72.4,
+               tenancyQualified: true, tenancySuppressed: false, star: "gold" },
+  });
+  const vm = buildScorecardView({
+    scorecard: sc,
+    pool: [{ slug: "x", name: "X", quadrant7Cell: "SFR Independent", scorecard: sc }],
+    trajectory: { points: [] },
+    marketConcessionMedian: 0.01,
+  } as any);
+  const row = vm.operating.metrics.find((m) => m.key === "tenancy")!;
+  assert.equal(row.value, "72% stay 2+ yrs");     // retention24Pct — NOT 13.0mo / 88%
+});
+
+test("tenancy suppressed shows the caveat, not a value", () => {
+  const sc = scFixture({
+    pm: { slug: "y", name: "Y", quadrant7Cell: "SFR Independent" },
+    tenancy: { overallGap: 9, retention24Pct: null, tenancyQualified: false,
+               tenancySuppressed: true,
+               tenancySuppressedReason: "Too early to assess renewal — this operator has been tracked 1.3 years.",
+               star: null },
+  });
+  const vm = buildScorecardView({
+    scorecard: sc,
+    pool: [{ slug: "y", name: "Y", quadrant7Cell: "SFR Independent", scorecard: sc }],
+    trajectory: { points: [] },
+    marketConcessionMedian: 0.01,
+  } as any);
+  const row = vm.operating.metrics.find((m) => m.key === "tenancy");
+  assert.ok(row, "suppressed tenancy row is still present");
+  assert.equal(row!.value, "—");
+  assert.match(row!.interpretation, /Too early to assess renewal/);
 });
 
 // The position bar + label read the primary 7-cell cohort percentile (where the
 // star lives), not the MSA-wide flat value.
 test("operating position + label use the primary cohort percentile, not MSA flat", () => {
   const sc = scFixture({
-    tenancy: { overallGap: 12, star: "gold" },
+    tenancy: { overallGap: 12, retention24Pct: 65, tenancyQualified: true, tenancySuppressed: false, star: "gold" },
     rank: {
       percentiles: { dom: 40, tenancy: 40, rentPerformance: 40, marketing: 40, communityVisibility: null },
       percentilesMulti: { tenancy: { primary: 90, fallback: 80, msa: 40 } },
