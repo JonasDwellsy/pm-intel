@@ -1047,7 +1047,7 @@ for norm, feats in pm_features.items():
 metric_values = defaultdict(dict)
 for norm, feats in pm_features.items():
     metric_values["dom"][norm] = feats["dom_block"]["domT12"]
-    metric_values["tenancy"][norm] = feats["tenancy_block"]["overallGap"]
+    metric_values["tenancy"][norm] = feats["tenancy_block"]["retention24Pct"]
     metric_values["rentPerformance"][norm] = feats["pm_yoy_change"]
     metric_values["marketing"][norm] = feats["marketing_block"]["compositeScore"]
     if feats["cv_block"] and feats["cv_block"].get("qualifies"):
@@ -1565,6 +1565,21 @@ operators_with_concessions = sum(
 )
 
 
+def _weighting_scheme_label(has_cv, has_tenancy):
+    # v0.6.4 — records which metrics were redistributed when CV and/or
+    # tenancy are suppressed for this operator. compute_composite()
+    # already renormalizes weights dynamically (WEIGHTS_FULL / WEIGHTS_NO_CV
+    # plus the generic w_used reweighting for any missing metric); this is
+    # just the human-readable description of that outcome. Plain descriptive
+    # string only — no rank/composite VALUES belong here.
+    parts = []
+    parts.append("CV15" if has_cv else "CV suppressed")
+    parts.append("Tenancy30" if has_tenancy else "Tenancy suppressed")
+    base = "DOM/RentPerformance/Marketing"
+    suffix = "" if (has_cv and has_tenancy) else " (redistributed)"
+    return f"{base}; {parts[1]}; {parts[0]}{suffix}"
+
+
 pms = []
 validation_failures = []
 # v0.6.4 Patch 3 — track slugs assigned so far in this market so we can
@@ -1806,9 +1821,10 @@ for norm in sorted(eligible_norms):
             "quadrant": within_quad_rank.get(norm),
             "quadrantTotal": within_quad_total.get(norm),
             "composite": composite_values.get(norm),
-            "weightingScheme": ("DOM30 Tenancy30 RentPerformance10 Marketing15 CV15"
-                                if cv is not None else
-                                "DOM35 Tenancy35 RentPerformance12 Marketing18 (CV suppressed; redistributed)"),
+            "weightingScheme": _weighting_scheme_label(
+                cv is not None,
+                (multi_pct[norm].get("tenancy") or {}).get("msa") is not None,
+            ),
             "percentiles": pct_blocks,
             "compositeStar": comp_star.get("star"),
             "compositeCohortUsedForStar": comp_star.get("cohortUsed"),
