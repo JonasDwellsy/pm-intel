@@ -190,10 +190,18 @@ function metricValueBenchmark(
         interpretation: sc.tenancy?.tenancySuppressedReason ?? "",
       };
     }
+    // Big value is a clean percentage ("63%") so it fits the fixed-width
+    // headline slot the other cards use ("23d", "6.3%"); the "stay 1.5+ years"
+    // meaning lives in the interpretation sentence. The sub-line shows the
+    // retention curve (12-/24-month) as context — parity with Lease-up's
+    // house/apartment split.
+    const curve = sc.tenancy?.retentionCurve;
     return {
-      value: `${Math.round(r)}% stay 1.5+ years`,
+      value: `${Math.round(r)}%`,
       benchmark: cohortMedianRetention18 != null ? `cohort ${Math.round(cohortMedianRetention18)}%` : "",
-      sub: [],
+      sub: curve
+        ? [`12-mo ${Math.round(curve.m12)}%`, `24-mo ${Math.round(curve.m24)}%`]
+        : [],
       interpretation: cohortMedianRetention18 != null
         ? `About ${Math.round(r)}% of ${sc.pm.name}'s tenancies reach 1.5 years, versus a ${Math.round(cohortMedianRetention18)}% cohort median.`
         : `About ${Math.round(r)}% of ${sc.pm.name}'s tenancies reach 1.5 years.`,
