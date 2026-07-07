@@ -98,6 +98,7 @@ test("operating rows carry label/value/position/star and drop null-percentile me
       rentPerformance: { pmYoyChange: 0.031, cohortMedianYoyChange: 0.028, star: null },
       marketing: { compositeScore: 88, star: "silver" },
       tenancy: { overallGap: 13.1, multiEpisodeUnits: 168, multiEpisodePct: 31, retention18Pct: 72.4,
+                 retentionCurve: { m12: 85.3, m18: 72.4, m24: 60.2 },
                  tenancyQualified: true, tenancySuppressed: false, star: "gold" },
     }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01,
@@ -111,10 +112,13 @@ test("operating rows carry label/value/position/star and drop null-percentile me
   assert.equal(dom.star, "silver");
   assert.equal(v.operating.sectionLabel, "good"); // composite 68
   // Tenant retention renders retention18Pct (share reaching 18 months), NOT
-  // overallGap or multiEpisodePct (analysis-pool size decoys).
+  // overallGap or multiEpisodePct (analysis-pool size decoys). The big value is
+  // a clean "%" that fits the headline slot; the "stay 1.5+ years" meaning lives
+  // in the interpretation, and the retention curve rides in the sub-line.
   const tenancy = v.operating.metrics.find((m) => m.key === "tenancy")!;
-  assert.equal(tenancy.value, "72% stay 1.5+ years");
+  assert.equal(tenancy.value, "72%");
   assert.match(tenancy.interpretation, /About 72% of Doorby's tenancies reach 1.5 years/);
+  assert.deepEqual(tenancy.sub, ["12-mo 85%", "24-mo 60%"]); // retentionCurve m12/m24, rounded
 });
 
 // GUARDRAIL: locks each Operating metric to its correct seed field so a future
@@ -133,7 +137,7 @@ test("GUARDRAIL: operating metrics map to the correct seed field (not a decoy)",
   const v = buildScorecardView({ scorecard: sc, pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01 } as any);
   const by = new Map(v.operating.metrics.map((m) => [m.key, m.value]));
   assert.equal(by.get("dom"), "40d");            // performance.domT12
-  assert.equal(by.get("tenancy"), "61% stay 1.5+ years"); // tenancy.retention18Pct — NOT overallGap/88% decoys
+  assert.equal(by.get("tenancy"), "61%"); // tenancy.retention18Pct — NOT overallGap/88% decoys
   assert.equal(by.get("rentPerformance"), "5.0%"); // rentPerformance.pmYoyChange
   assert.equal(by.get("marketing"), "77");         // marketing.compositeScore
 });
@@ -152,7 +156,7 @@ test("tenancy renders 18-month retention, not overallGap or multiEpisodePct", ()
     marketConcessionMedian: 0.01,
   } as any);
   const row = vm.operating.metrics.find((m) => m.key === "tenancy")!;
-  assert.equal(row.value, "72% stay 1.5+ years");     // retention18Pct — NOT 13.0mo / 88%
+  assert.equal(row.value, "72%");     // retention18Pct — NOT 13.0mo / 88%
 });
 
 test("tenancy suppressed shows the caveat, not a value", () => {
