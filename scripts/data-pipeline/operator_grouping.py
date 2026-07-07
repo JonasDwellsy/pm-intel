@@ -22,14 +22,17 @@ PLACEHOLDER_NAME_KEYS = frozenset({
 })
 
 
-def within_market_key(parent_id, child_id, name, market_id, do_not_merge):
+def within_market_key(parent_id, child_id, name, market_id, do_not_merge, merge_map=None):
     """Return the within-market grouping key for one operator row.
 
     parent_id present            -> the parent id (parent rules; unchanged).
     no parent, name available    -> f"name:{name_key(name)}" (merge same-name
                                     fragments) UNLESS (market_id, name_key) is
                                     on the do-not-merge list, in which case keep
-                                    the child id (stay fragmented).
+                                    the child id (stay fragmented). If a curated
+                                    merge_map has an entry for (market_id,
+                                    "name:{name_key}"), remap to its survivorKey
+                                    instead.
     no parent, placeholder/blank -> the child id (never merge null-name rows).
     no parent, no usable name    -> the child id (or "" if none)."""
     pid = (parent_id or "").strip()
@@ -41,7 +44,12 @@ def within_market_key(parent_id, child_id, name, market_id, do_not_merge):
         return cid
     if (market_id, nkey) in do_not_merge:
         return cid or f"name:{nkey}"
-    return f"name:{nkey}"
+    base = f"name:{nkey}"
+    if merge_map:
+        info = merge_map.get((market_id, base))
+        if info:
+            return info["survivorKey"]
+    return base
 
 
 def load_do_not_merge(path):
@@ -52,3 +60,30 @@ def load_do_not_merge(path):
     with open(path) as f:
         rows = json.load(f)
     return {(r["marketId"], r["normalizedName"]) for r in rows}
+
+
+def load_merge_decisions(path):
+    """Load merge_decisions.json -> {(marketId, memberKey): {survivorKey, canonicalName,
+    survivorSlug}}. survivorKey is itself a member (maps to itself)."""
+    if not os.path.isfile(path):
+        return {}
+    with open(path) as f:
+        data = json.load(f)
+    out = {}
+    for d in data.get("decisions", []):
+        info = {"survivorKey": d["survivorKey"], "canonicalName": d["canonicalName"],
+                "survivorSlug": d["survivorSlug"]}
+        for mk in d["memberKeys"]:
+            out[(d["marketId"], mk)] = info
+    return out
+
+
+def merged_override(market_id, key, merge_map):
+    """If `key` is a merged SURVIVOR key in this market, return its
+    {canonicalName, survivorSlug}; else None."""
+    if not merge_map:
+        return None
+    info = merge_map.get((market_id, key))
+    if info and info["survivorKey"] == key:
+        return {"canonicalName": info["canonicalName"], "survivorSlug": info["survivorSlug"]}
+    return None
