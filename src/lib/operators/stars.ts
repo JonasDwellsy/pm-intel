@@ -14,7 +14,7 @@
 //   1. performance.domStar         — Lease-up speed
 //   2. rentPerformance.star        — Rent performance vs cohort
 //   3. marketing.star              — Marketing discipline
-//   4. tenancy.star                — Tenant retention
+//   4. tenancy.star                — Tenant retention (24-month survival retention)
 //   5. communityVisibility.star    — Inventory transparency
 //                                    (MF/BTR only; null elsewhere)
 //

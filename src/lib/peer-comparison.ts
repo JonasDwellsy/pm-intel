@@ -42,7 +42,12 @@ function metricValue(
     case "dom":
       return Number.isFinite(sc.performance.domT12) ? sc.performance.domT12 : null;
     case "tenancy":
-      return sc.tenancy.overallGap;
+      // Survival-based 24-month retention (was overallGap). Members
+      // without a qualifying retention estimate return null here and
+      // are filtered out of the cohort by pool()'s c.value !== null
+      // check below — same "skip, don't zero-fill" semantics as the
+      // other suppressed metrics in this switch.
+      return sc.tenancy.retention24Pct ?? null;
     case "rentPerformance":
       return sc.rentPerformance?.delta ?? null;
     case "marketing":
