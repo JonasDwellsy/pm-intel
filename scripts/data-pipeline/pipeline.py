@@ -41,6 +41,9 @@ import time
 from collections import defaultdict, Counter
 from datetime import datetime, timedelta, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from tenancy_survival import is_departed, name_key, group_last_events, RECENCY_GATE_DAYS
+
 csv.field_size_limit(sys.maxsize)
 
 # ---------------------------------------------------------------------------
@@ -424,6 +427,7 @@ def init_rich(norm):
         "br_t12_count": Counter(),
         "quarterly_rents_by_br": defaultdict(lambda: defaultdict(list)),
         "earliest_ct": None, "first_listing_dt": None,
+        "last_event_dt": None,
         "active_listings": 0, "lifetime_listings": 0,
         "t12_listings": 0, "t24t12_listings": 0,
         "dom_t12_house": [], "dom_t12_apt": [],
@@ -553,6 +557,9 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
         if ct and (d["earliest_ct"] is None or ct < d["earliest_ct"]):
             d["earliest_ct"] = ct
             d["first_listing_dt"] = ct
+        for _ev in (ct, dt_):
+            if _ev and (d["last_event_dt"] is None or _ev > d["last_event_dt"]):
+                d["last_event_dt"] = _ev
         if status in ("active", "available"):
             d["active_listings"] += 1
 
@@ -639,8 +646,21 @@ def has_big_community(d):
     return any(len(urus) >= ELIG_BIG_COMM_MIN for urus in d["comm_urus_t12"].values())
 
 
+# Departed-operator recency gate (§4.5). Judge departure at the operator-NAME
+# level, not the per-child-id fragment level: within a market the same operator
+# churns across multiple child_company_id fragments over time, so a stale
+# old-child-id fragment of a still-active operator would be wrongly dropped if
+# each fragment were judged alone. Aggregate the most-recent event across all
+# same-name fragments; a fragment is departed only if its whole name is.
+name_last_event = group_last_events(
+    (name_key(pm_display_name.get(norm, norm)), d["last_event_dt"])
+    for norm, d in pm_rich.items()
+)
+
 eligible_norms = set()
 for norm, d in pm_rich.items():
+    if is_departed(name_last_event.get(name_key(pm_display_name.get(norm, norm))),
+                   NOW, RECENCY_GATE_DAYS): continue
     if d["t12_listings"] < ELIG_T12_MIN: continue
     if len(d["address_t12"]) < ELIG_ADDR_MIN and not has_big_community(d): continue
     if d["active_listings"] < 1 and d["t12_listings"] < 1: continue
