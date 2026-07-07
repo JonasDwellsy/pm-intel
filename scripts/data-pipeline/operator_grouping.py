@@ -12,6 +12,15 @@ import json
 import os
 from tenancy_survival import name_key
 
+# Null/placeholder company names carry no operator identity — the source uses
+# them when a listing has no company. Name-merging them would pool unrelated
+# listings into a fabricated ranked operator (e.g. "Company Name Not Provided"),
+# so we never merge on these; each stays child-id-keyed (sub-eligible).
+PLACEHOLDER_NAME_KEYS = frozenset({
+    "companynamenotprovided", "namenotprovided", "notprovided",
+    "nocompanyname", "notavailable", "unknown",
+})
+
 
 def within_market_key(parent_id, child_id, name, market_id, do_not_merge):
     """Return the within-market grouping key for one operator row.
@@ -21,13 +30,14 @@ def within_market_key(parent_id, child_id, name, market_id, do_not_merge):
                                     fragments) UNLESS (market_id, name_key) is
                                     on the do-not-merge list, in which case keep
                                     the child id (stay fragmented).
+    no parent, placeholder/blank -> the child id (never merge null-name rows).
     no parent, no usable name    -> the child id (or "" if none)."""
     pid = (parent_id or "").strip()
     if pid:
         return pid
     cid = (child_id or "").strip()
     nkey = name_key(name)
-    if not nkey:
+    if not nkey or nkey in PLACEHOLDER_NAME_KEYS:
         return cid
     if (market_id, nkey) in do_not_merge:
         return cid or f"name:{nkey}"

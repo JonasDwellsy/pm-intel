@@ -37,6 +37,20 @@ class WithinMarketKey(unittest.TestCase):
     def test_no_ids_old_schema_falls_back_to_name(self):
         self.assertEqual(within_market_key("", "", "Some Realty", "x", set()), "name:somerealty")
 
+    def test_placeholder_name_never_merges(self):
+        # "Company Name Not Provided" is a null placeholder, not an operator —
+        # two child-ids with it must stay separate (child-id keyed), not pool.
+        k1 = within_market_key("", "915314", "Company Name Not Provided", "chicago", set())
+        k2 = within_market_key("", "545338", "Company Name Not Provided", "chicago", set())
+        self.assertEqual(k1, "915314")
+        self.assertNotEqual(k1, k2)
+        self.assertFalse(k1.startswith("name:"))
+
+    def test_placeholder_variants_and_casing(self):
+        for nm in ("company name not provided", "Not Provided", "Unknown", "No Company Name"):
+            k = within_market_key("", "42", nm, "x", set())
+            self.assertEqual(k, "42", f"{nm!r} should not merge")
+
 class LoadDoNotMerge(unittest.TestCase):
     def test_empty_file(self):
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
