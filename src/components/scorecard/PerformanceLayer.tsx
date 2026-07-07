@@ -20,7 +20,7 @@ const METRIC_KEY_BY_LAYER3: Record<Layer3Metric, MetricKey> = {
 // (Scorecard_Design_Spec_v1.0.md Section 3, Layer 3). One card per metric:
 //
 //   Card 1 — Lease-up Performance (DOM days T12, lower better)
-//   Card 2 — Tenant Retention (median tenancy months, higher better)
+//   Card 2 — Tenant Retention (18-month Kaplan-Meier renewal retention %, higher better)
 //   Card 3 — Rent Performance (YoY delta vs cohort, higher better)
 //   Card 4 — Marketing Discipline (listing marketing composite, higher better)
 //   Card 5 — Inventory Transparency (visibility ratio, higher better; MF/BTR
@@ -53,10 +53,14 @@ const SHARED_CARDS: CardConfig[] = [
   {
     metric: "tenancy",
     title: "Tenant Retention",
-    headlineFormat: (v) => ({ value: fmtNumber(v, 1), unit: "months median tenancy" }),
-    rowFormat: (v) => `${fmtNumber(v, 1)} mo`,
+    // TM — repointed from months-median (overallGap) to 18-month
+    // Kaplan-Meier renewal retention (retention18Pct), matching the New
+    // scorecard and PDF. retention18Pct is already a percentage (e.g.
+    // 72.4), so this rounds rather than applying a *100 scale.
+    headlineFormat: (v) => ({ value: `${Math.round(v)}%`, unit: "stay 1.5+ years" }),
+    rowFormat: (v) => `${Math.round(v)}%`,
     definition:
-      "Tenant Retention measures the median time between successive listings of the same unit — a proxy for how long the average tenant stays.",
+      "Tenant Retention measures the share of an operator's tenancies that reach 1.5 years — 18-month Kaplan-Meier renewal retention (higher is stickier).",
   },
   {
     metric: "rentPerformance",
@@ -140,13 +144,14 @@ function PerformanceCard({
   config: CardConfig;
   comparison: PeerComparison | null;
 }) {
-  // Card-specific caveats (e.g., Tenancy short-history) are merged into the
-  // footnote line below the card header.
+  // Card-specific caveats are merged into the footnote line below the card
+  // header. Tenancy caveat surfaces the pipeline's own suppression reason
+  // (tenancySuppressedReason) — same pattern as the New scorecard's
+  // view-model and the PDF's EnrichedPerformanceCard — rather than the
+  // retired overallGap-era shortHistoryFlag/yearsVisible text.
   const tenancyCaveat =
-    config.metric === "tenancy" &&
-    scorecard.tenancy.shortHistoryFlag === true &&
-    scorecard.tenancy.yearsVisible !== undefined
-      ? `Tenancy estimate may be biased low for operators with shorter observation history. ${scorecard.pm.name} has been observed in our data for ${fmtNumber(scorecard.tenancy.yearsVisible, 1)} years.`
+    config.metric === "tenancy" && scorecard.tenancy.tenancySuppressed === true
+      ? scorecard.tenancy.tenancySuppressedReason ?? null
       : null;
   const footnote = [comparison?.footnote, tenancyCaveat]
     .filter(Boolean)
@@ -507,7 +512,9 @@ function trendArrowFor(
   if (metric === "dom") {
     label = `${fmtNumber(Math.abs(delta), 1)} d vs cohort`;
   } else if (metric === "tenancy") {
-    label = `${fmtNumber(Math.abs(delta), 1)} mo vs cohort`;
+    // retention18Pct is already a percentage — report the delta in
+    // percentage points, matching the PDF's perfTrend equivalent.
+    label = `${fmtNumber(Math.abs(delta), 0)} pp vs cohort`;
   } else if (metric === "rentPerformance") {
     label = `${fmtNumber(Math.abs(delta) * 100, 1)} pp vs cohort`;
   } else if (metric === "marketing") {

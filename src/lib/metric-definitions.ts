@@ -110,15 +110,15 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   tenancy: {
     name: "Tenant Retention",
     definition:
-      "Median months between successive listings of the same unit — proxies for how long the average tenant stays in place. Higher is more favorable.",
+      "Share of tenancies that reach 18-month (1.5-year) retention (survival-adjusted). Higher means stickier tenants.",
     formula:
-      "tenancy_months = median(next_listing_date − prior_close_date) for unit-pairs in T12",
+      "retention18Pct = Kaplan-Meier survival estimate S(18 months) over unit-tenancy episodes in the observation window",
     cohortScope:
       "Same MSA + asset type (apartment / house) cohort. Primary 7-cell cohort applies for star assignment when N≥10.",
     caveats: [
-      "Episode-clustered methodology — multi-episode units (same unit listed 2+ times) are the analysis pool.",
-      "Right-censored for operators with shorter observation history. When yearsVisible < 3 a caveat surfaces; Kaplan-Meier correction is a v0.7 item.",
-      "Operators with low multi-episode units (mostly first-time listings) have noisy estimates.",
+      "Survival-adjusted for right-censoring — tenancies still in progress at the observation cutoff are treated as censored, not as churn, per the Kaplan-Meier estimator.",
+      "Right-censored for operators with shorter observation history. When yearsVisible < 3 a caveat surfaces.",
+      "Operators with too few qualifying tenancy episodes are suppressed (tenancySuppressed) rather than shown a noisy estimate.",
     ],
     methodologyHref: "/methodology#tenancy",
   },

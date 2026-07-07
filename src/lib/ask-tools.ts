@@ -336,6 +336,7 @@ export type GetOperatorScorecardResult = {
     rentPerformanceVsCohortPp: number | null;
     marketingCompositeScore: number;
     tenancyMultiEpisodePct: number;
+    tenancyRetention18Pct: number | null;
   };
   executiveSummary: string | null;
   distinguishingCharacteristics: string[];
@@ -433,6 +434,11 @@ export async function getOperatorScorecard(
           : null,
       marketingCompositeScore: sc.marketing.compositeScore,
       tenancyMultiEpisodePct: sc.tenancy.multiEpisodePct,
+      // Survival-based 18-month retention. No rank/composite alongside
+      // this — the AI payload only ever gets the star (see `stars`
+      // above) for ranking-flavored context, never overallGap-style
+      // ordinals or a composite score for tenancy.
+      tenancyRetention18Pct: sc.tenancy.retention18Pct ?? null,
     },
     executiveSummary: sc.generatedText?.executiveSummary ?? null,
     distinguishingCharacteristics:

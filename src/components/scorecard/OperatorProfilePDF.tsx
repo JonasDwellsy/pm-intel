@@ -1228,21 +1228,27 @@ function tenancyDetail(scorecard: ScorecardData): {
   compare: string;
 } {
   const t = scorecard.tenancy;
-  const cohortMedian = t.apartment.cohortP50 ?? t.house.cohortP50 ?? null;
-  // PR #86 — same Helvetica-glyph fix as leaseUpDetail. Tenant
-  // retention longer than cohort = favorable (▲ in live page);
-  // shorter = unfavorable (▼). Plain text reads cleanly in PDF.
-  const compare =
-    t.overallGap !== null && cohortMedian !== null
-      ? `${fmtNumber(Math.abs(t.overallGap - cohortMedian), 1)}mo ${t.overallGap > cohortMedian ? "longer than" : "shorter than"} cohort (${fmtNumber(cohortMedian, 1)}mo)`
-      : t.overallGap !== null
-        ? `${t.totalUnits} units observed`
-        : "Insufficient data";
+  // TM-T8b — repointed from overallGap (months-median) to retention18Pct
+  // (18-month Kaplan-Meier renewal retention), matching the New scorecard's
+  // view-model tenancy display. Suppressed/unqualified operators show "—"
+  // plus the pipeline's tenancySuppressedReason instead of a fabricated value.
+  const r = t.retention18Pct ?? null;
+  if (t.tenancySuppressed === true || r == null) {
+    return {
+      value: "—",
+      unit: "",
+      star: null,
+      compare: t.tenancySuppressedReason ?? "Insufficient data",
+    };
+  }
+  // The PDF has no cohort-median retention18Pct source (that comparison is
+  // built page-side in view-model.ts from the live pool) — show value +
+  // label only rather than fabricating a benchmark, per task brief.
   return {
-    value: t.overallGap !== null ? fmtNumber(t.overallGap, 1) : "—",
-    unit: "mo median",
+    value: `${fmtNumber(Math.round(r), 0)}%`,
+    unit: "stay 1.5+ years",
     star: t.star ?? null,
-    compare,
+    compare: `${t.totalUnits} units observed`,
   };
 }
 
@@ -1590,12 +1596,17 @@ const PERF_CARDS: PerfCardConfig[] = [
   },
   {
     metric: "tenancy",
+    // TM-T8b — repointed from months-median (overallGap) to 18-month
+    // Kaplan-Meier renewal retention (retention18Pct), matching the New
+    // scorecard. peer-comparison.ts already sources tenancy focalValue /
+    // cohortMedian / rows from retention18Pct; only this display config
+    // (headline/rowFormat/definition) was still describing the old metric.
     title: "Tenant Retention",
-    headline: (v) => ({ value: fmtNumber(v, 1), unit: "months median tenancy" }),
-    rowFormat: (v) => `${fmtNumber(v, 1)} mo`,
-    axisLabel: "tenancy",
+    headline: (v) => ({ value: fmtNumber(Math.round(v), 0), unit: "% stay 1.5+ years" }),
+    rowFormat: (v) => `${fmtNumber(Math.round(v), 0)}%`,
+    axisLabel: "retention",
     definition:
-      "Tenant Retention measures the median time between successive listings of the same unit — a proxy for how long the average tenant stays.",
+      "Tenant Retention measures 18-month (1.5-year) Kaplan-Meier renewal retention — the share of tenancies that reach 1.5 years.",
   },
   {
     metric: "rentPerformance",
@@ -1659,7 +1670,9 @@ function perfTrend(
   } else if (metric === "communityVisibility") {
     magnitude = `${fmtNumber(Math.abs(delta), 2)} vs cohort`;
   } else if (metric === "tenancy") {
-    magnitude = `${fmtNumber(Math.abs(delta), 1)} mo vs cohort`;
+    // retention18Pct is already a percentage (e.g. 72.4), unlike
+    // rentPerformance.delta which is a fraction — no *100 here.
+    magnitude = `${fmtNumber(Math.abs(delta), 0)} pp vs cohort`;
   } else {
     magnitude = `${fmtNumber(Math.abs(delta), 1)} d vs cohort`;
   }
@@ -1852,12 +1865,13 @@ function EnrichedPerformanceCard({
   cfg: PerfCardConfig;
   comparison: PeerComparison | null;
 }) {
-  // Tenancy short-history caveat — mirrors PerformanceLayer's footnote.
+  // TM-T8b — tenancy caveat now surfaces the pipeline's own suppression
+  // reason (tenancySuppressedReason) instead of the old shortHistoryFlag
+  // text, matching the New scorecard's view-model (which shows this string
+  // as the sole "interpretation" for suppressed operators).
   const tenancyCaveat =
-    cfg.metric === "tenancy" &&
-    scorecard.tenancy.shortHistoryFlag === true &&
-    scorecard.tenancy.yearsVisible !== undefined
-      ? `Tenancy estimate may be biased low for operators with shorter observation history. ${scorecard.pm.name} has been observed in our data for ${fmtNumber(scorecard.tenancy.yearsVisible, 1)} years.`
+    cfg.metric === "tenancy" && scorecard.tenancy.tenancySuppressed === true
+      ? scorecard.tenancy.tenancySuppressedReason ?? null
       : null;
   const footnote = [comparison?.footnote, tenancyCaveat]
     .filter(Boolean)

@@ -42,7 +42,7 @@ from collections import defaultdict, Counter
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from tenancy_survival import is_departed, name_key, group_last_events, RECENCY_GATE_DAYS
+from tenancy_survival import is_departed, name_key, group_last_events, RECENCY_GATE_DAYS, compute_tenancy_survival
 from operator_grouping import within_market_key, load_do_not_merge
 
 csv.field_size_limit(sys.maxsize)
@@ -802,7 +802,7 @@ def compute_tenancy(d):
         if not vals: return {"gap": None, "n": 0}
         return {"gap": round(statistics.median(vals), 1), "n": len(vals)}
 
-    return {
+    block = {
         "totalUnits": total_units,
         "multiEpisodeUnits": multi_episode_units,
         "multiEpisodePct": multi_episode_pct,
@@ -810,6 +810,8 @@ def compute_tenancy(d):
         "house": stats_block(gaps_house),
         "apartment": stats_block(gaps_apt),
     }
+    block.update(compute_tenancy_survival(d["tenancy_episodes"], NOW))
+    return block
 
 
 def compute_community_visibility(d, q7):
@@ -1045,7 +1047,7 @@ for norm, feats in pm_features.items():
 metric_values = defaultdict(dict)
 for norm, feats in pm_features.items():
     metric_values["dom"][norm] = feats["dom_block"]["domT12"]
-    metric_values["tenancy"][norm] = feats["tenancy_block"]["overallGap"]
+    metric_values["tenancy"][norm] = feats["tenancy_block"]["retention18Pct"]
     metric_values["rentPerformance"][norm] = feats["pm_yoy_change"]
     metric_values["marketing"][norm] = feats["marketing_block"]["compositeScore"]
     if feats["cv_block"] and feats["cv_block"].get("qualifies"):
@@ -1563,6 +1565,21 @@ operators_with_concessions = sum(
 )
 
 
+def _weighting_scheme_label(has_cv, has_tenancy):
+    # v0.6.4 — records which metrics were redistributed when CV and/or
+    # tenancy are suppressed for this operator. compute_composite()
+    # already renormalizes weights dynamically (WEIGHTS_FULL / WEIGHTS_NO_CV
+    # plus the generic w_used reweighting for any missing metric); this is
+    # just the human-readable description of that outcome. Plain descriptive
+    # string only — no rank/composite VALUES belong here.
+    parts = []
+    parts.append("CV15" if has_cv else "CV suppressed")
+    parts.append("Tenancy30" if has_tenancy else "Tenancy suppressed")
+    base = "DOM/RentPerformance/Marketing"
+    suffix = "" if (has_cv and has_tenancy) else " (redistributed)"
+    return f"{base}; {parts[1]}; {parts[0]}{suffix}"
+
+
 pms = []
 validation_failures = []
 # v0.6.4 Patch 3 — track slugs assigned so far in this market so we can
@@ -1644,6 +1661,13 @@ for norm in sorted(eligible_norms):
     ten["star"] = ten_star.get("star")
     ten["cohortUsedForStar"] = ten_star.get("cohortUsed")
     ten["cohortName"] = ten_star.get("cohortName")
+
+    yv = feats["years_visible"]
+    ten["tenancySuppressedReason"] = (
+        f"Too early to assess renewal — this operator has been tracked "
+        f"{yv:.1f} years." if ten.get("tenancySuppressed") and yv is not None
+        else None
+    )
 
     cv = None
     if feats["cv_block"]:
@@ -1797,9 +1821,10 @@ for norm in sorted(eligible_norms):
             "quadrant": within_quad_rank.get(norm),
             "quadrantTotal": within_quad_total.get(norm),
             "composite": composite_values.get(norm),
-            "weightingScheme": ("DOM30 Tenancy30 RentPerformance10 Marketing15 CV15"
-                                if cv is not None else
-                                "DOM35 Tenancy35 RentPerformance12 Marketing18 (CV suppressed; redistributed)"),
+            "weightingScheme": _weighting_scheme_label(
+                cv is not None,
+                (multi_pct[norm].get("tenancy") or {}).get("msa") is not None,
+            ),
             "percentiles": pct_blocks,
             "compositeStar": comp_star.get("star"),
             "compositeCohortUsedForStar": comp_star.get("cohortUsed"),

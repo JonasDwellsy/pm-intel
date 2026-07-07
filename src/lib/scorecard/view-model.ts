@@ -139,7 +139,7 @@ function metricStar(sc: ScorecardData, k: MetricKey): "gold" | "silver" | null {
 function metricValueBenchmark(
   sc: ScorecardData,
   k: MetricKey,
-  tenancyCohortMedianMonths: number | null = null
+  cohortMedianRetention18: number | null = null
 ): { value: string; benchmark: string; sub: string[]; interpretation: string } {
   if (k === "dom") {
     const dom = sc.performance?.domT12;
@@ -179,21 +179,26 @@ function metricValueBenchmark(
     };
   }
   if (k === "tenancy") {
-    // The retention metric is overallGap = median months between successive
-    // listings of the same unit (longer = stickier); higher is better. NOT
-    // multiEpisodePct, which is only the analysis-pool size (% of units listed
-    // 2+ times) — surfacing that as the headline made strong operators look
-    // weak (e.g. Crye Leike: 13.1mo / 82.7th pctile shown as "44%").
-    const gap = sc.tenancy?.overallGap;
-    const multiUnits = sc.tenancy?.multiEpisodeUnits;
+    // Survival-based retention metric: retention18Pct = % of tenancies that
+    // reach 18 months (higher = stickier). Suppressed (or missing) operators
+    // show the caveat reason instead of a value — never overallGap/
+    // multiEpisodePct, which are decoys for the old months-based display.
+    const r = sc.tenancy?.retention18Pct;
+    if (sc.tenancy?.tenancySuppressed || r == null) {
+      return {
+        value: "—",
+        benchmark: "",
+        sub: [],
+        interpretation: sc.tenancy?.tenancySuppressedReason ?? "",
+      };
+    }
     return {
-      value: gap != null ? `${gap.toFixed(1)}mo` : "—",
-      benchmark: tenancyCohortMedianMonths != null ? `cohort ${tenancyCohortMedianMonths.toFixed(1)} mo` : "",
-      sub: multiUnits != null ? [`based on ${multiUnits.toLocaleString()} repeat-listed units`] : [],
-      interpretation: gap == null ? ""
-        : tenancyCohortMedianMonths != null
-          ? `Median tenancy of about ${gap.toFixed(1)} months, versus a ${tenancyCohortMedianMonths.toFixed(1)}-month cohort median (longer = stickier).`
-          : `Median tenancy of about ${gap.toFixed(1)} months (longer = stickier).`,
+      value: `${Math.round(r)}% stay 1.5+ years`,
+      benchmark: cohortMedianRetention18 != null ? `cohort ${Math.round(cohortMedianRetention18)}%` : "",
+      sub: [],
+      interpretation: cohortMedianRetention18 != null
+        ? `About ${Math.round(r)}% of ${sc.pm.name}'s tenancies reach 1.5 years, versus a ${Math.round(cohortMedianRetention18)}% cohort median.`
+        : `About ${Math.round(r)}% of ${sc.pm.name}'s tenancies reach 1.5 years.`,
     };
   }
   return { value: "—", benchmark: "", sub: [], interpretation: "" };
@@ -427,24 +432,27 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const pcts = Object.fromEntries(
     metricKeys.map((k) => [k, metricCohortPercentile(scorecard, k)])
   ) as Record<MetricKey, number | null>;
-  // Cohort-median tenancy (months) for the Tenant Retention comparison — the
-  // seed carries only a percentile per operator, so median the primary 7-cell
-  // cohort's overallGap from the pool. null when the cohort is empty.
+  // Cohort-median retention (% reaching 18 months) for the Tenant Retention
+  // comparison — median the primary 7-cell cohort's retention18Pct across
+  // QUALIFIED peers from the pool. null when the cohort is empty.
   const cohortQ7 = scorecard.pm.quadrant7Cell ?? null;
-  const cohortGapMonths = cohortQ7
+  const cohortRetention = cohortQ7
     ? pool
-        .filter((m) => m.scorecard.pm?.quadrant7Cell === cohortQ7 && m.scorecard.tenancy?.overallGap != null)
-        .map((m) => m.scorecard.tenancy!.overallGap as number)
+        .filter((m) => m.scorecard.pm?.quadrant7Cell === cohortQ7
+          && m.scorecard.tenancy?.tenancyQualified === true
+          && m.scorecard.tenancy?.retention18Pct != null)
+        .map((m) => m.scorecard.tenancy!.retention18Pct as number)
         .sort((a, b) => a - b)
     : [];
-  const tenancyCohortMedianMonths =
-    cohortGapMonths.length > 0
-      ? cohortGapMonths[Math.floor((cohortGapMonths.length - 1) / 2)]
+  const cohortMedianRetention18 =
+    cohortRetention.length > 0
+      ? cohortRetention[Math.floor((cohortRetention.length - 1) / 2)]
       : null;
   const metrics: MetricRow[] = metricKeys
-    .filter((k) => pcts[k] != null || metricStar(scorecard, k) != null)
+    .filter((k) => pcts[k] != null || metricStar(scorecard, k) != null
+      || (k === "tenancy" && scorecard.tenancy?.tenancySuppressed === true))
     .map((k) => {
-      const vb = metricValueBenchmark(scorecard, k, k === "tenancy" ? tenancyCohortMedianMonths : null);
+      const vb = metricValueBenchmark(scorecard, k, k === "tenancy" ? cohortMedianRetention18 : null);
       return { key: k, title: METRIC_TITLES[k], label: labels[k], value: vb.value,
         benchmark: vb.benchmark, position: pcts[k] != null ? pcts[k]! / 100 : null,
         star: metricStar(scorecard, k), sub: vb.sub, interpretation: vb.interpretation };
