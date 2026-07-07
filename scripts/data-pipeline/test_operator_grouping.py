@@ -1,5 +1,8 @@
 import unittest, json, tempfile, os
-from operator_grouping import within_market_key, load_do_not_merge
+from operator_grouping import (
+    within_market_key, load_do_not_merge, merged_override,  # merged_override new
+)
+import json as _json, tempfile as _tf, os as _os
 
 class WithinMarketKey(unittest.TestCase):
     def test_parent_id_wins_unchanged(self):
@@ -64,6 +67,59 @@ class LoadDoNotMerge(unittest.TestCase):
 
     def test_missing_file_is_empty(self):
         self.assertEqual(load_do_not_merge("/no/such/file.json"), set())
+
+class MergeMap(unittest.TestCase):
+    MAP = {
+        ("phoenix-az", "name:krsholdings"): {"survivorKey": "name:krsholdings",
+            "canonicalName": "KRS Holdings", "survivorSlug": "krs-holdings"},
+        ("phoenix-az", "name:jamiebrightkrsholdings"): {"survivorKey": "name:krsholdings",
+            "canonicalName": "KRS Holdings", "survivorSlug": "krs-holdings"},
+    }
+    def test_member_remaps_to_survivor(self):
+        self.assertEqual(
+            within_market_key("", "1", "Jamie Bright, KRS Holdings", "phoenix-az", set(), self.MAP),
+            "name:krsholdings")
+    def test_survivor_maps_to_itself(self):
+        self.assertEqual(
+            within_market_key("", "2", "KRS Holdings", "phoenix-az", set(), self.MAP),
+            "name:krsholdings")
+    def test_market_scoped(self):
+        self.assertEqual(
+            within_market_key("", "3", "Jamie Bright, KRS Holdings", "denver-co", set(), self.MAP),
+            "name:jamiebrightkrsholdings")   # different market -> normal key
+    def test_unknown_key_untouched(self):
+        self.assertEqual(
+            within_market_key("", "4", "Some Other Realty", "phoenix-az", set(), self.MAP),
+            "name:someotherrealty")
+    def test_no_merge_map_is_noop(self):
+        self.assertEqual(
+            within_market_key("", "5", "KRS Holdings", "phoenix-az", set(), None),
+            "name:krsholdings")
+    def test_do_not_merge_wins_over_merge_map(self):
+        dnm = {("phoenix-az", "krsholdings")}
+        self.assertEqual(
+            within_market_key("", "9", "KRS Holdings", "phoenix-az", dnm, self.MAP), "9")
+    def test_merged_override_returns_survivor_identity(self):
+        ov = merged_override("phoenix-az", "name:krsholdings", self.MAP)
+        self.assertEqual(ov, {"canonicalName": "KRS Holdings", "survivorSlug": "krs-holdings"})
+    def test_merged_override_none_for_non_survivor(self):
+        self.assertIsNone(merged_override("phoenix-az", "name:someotherrealty", self.MAP))
+        self.assertIsNone(merged_override("phoenix-az", "name:krsholdings", None))
+
+class LoadMergeDecisions(unittest.TestCase):
+    def test_loads_and_expands_members(self):
+        from operator_grouping import load_merge_decisions
+        blob = {"decisions": [{"marketId": "phoenix-az", "survivorKey": "name:krsholdings",
+            "canonicalName": "KRS Holdings", "survivorSlug": "krs-holdings",
+            "memberKeys": ["name:krsholdings", "name:jamiebrightkrsholdings"]}]}
+        with _tf.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            _json.dump(blob, f); p = f.name
+        m = load_merge_decisions(p); _os.unlink(p)
+        self.assertEqual(m[("phoenix-az", "name:jamiebrightkrsholdings")]["survivorKey"], "name:krsholdings")
+        self.assertEqual(len(m), 2)
+    def test_missing_file_empty(self):
+        from operator_grouping import load_merge_decisions
+        self.assertEqual(load_merge_decisions("/no/such.json"), {})
 
 if __name__ == "__main__":
     unittest.main()

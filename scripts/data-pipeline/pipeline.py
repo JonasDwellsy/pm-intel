@@ -43,7 +43,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tenancy_survival import is_departed, name_key, group_last_events, RECENCY_GATE_DAYS, compute_tenancy_survival
-from operator_grouping import within_market_key, load_do_not_merge
+from operator_grouping import within_market_key, load_do_not_merge, load_merge_decisions, merged_override
 
 csv.field_size_limit(sys.maxsize)
 
@@ -119,6 +119,11 @@ _mkt = _markets_by_id[_args.market]
 # pairs that must stay fragmented even though they'd otherwise be merged by
 # name. Missing file / empty list -> empty set (launch state).
 DO_NOT_MERGE = load_do_not_merge(os.path.join(_SCRIPT_DIR, "do_not_merge.json"))
+
+# Phase 2 fragment merge — curated merge-map (market, memberKey) -> survivor
+# {survivorKey, canonicalName, survivorSlug}. Missing file / empty decisions
+# -> empty map (no-op; matches launch state until decisions are curated).
+MERGE_MAP = load_merge_decisions(os.path.join(_SCRIPT_DIR, "merge_decisions.json"))
 
 NATIONAL_LOOKUP = os.path.join(
     BASE, _cfg.get("nationalLookup", "Operator_National_Urus_v0.6.2.json")
@@ -499,11 +504,17 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
         eff_id = effective_company_id(row)          # parent-else-child; for eff_id_norms + companyId fallback
         _parent_id_raw = (row.get("parent_company_id") or "").strip()
         _child_id_raw = (row.get("child_company_id") or "").strip()
-        key = within_market_key(_parent_id_raw, _child_id_raw, company, _mkt["id"], DO_NOT_MERGE)
+        key = within_market_key(_parent_id_raw, _child_id_raw, company, _mkt["id"], DO_NOT_MERGE, MERGE_MAP)
         # Display name: PARENT name when parented, else the friendly company_name (col 8).
         disp = (row.get("parent_company_name") or "").strip() if _parent_id_raw else company.strip()
         if not disp:
             disp = company.strip()
+        # Phase 2 fragment merge — a curated merge-map survivor overrides the
+        # display name to the curated canonicalName (takes precedence over
+        # the parent-name/company-name derivation above).
+        _ov = merged_override(_mkt["id"], key, MERGE_MAP)
+        if _ov:
+            disp = _ov["canonicalName"]
         norm = key
         if eff_id:
             eff_id_norms.add(norm)
@@ -1232,6 +1243,16 @@ for _optype in ("pm", "broker"):
             within_quad_rank[n] = i + 1
             within_quad_total[n] = len(lst)
 
+# Phase 2 fragment merge — validation log (guardrail): one line per applied
+# curated merge, so a pipeline run makes it obvious which survivors are
+# pooling merged fragments and what their T12 looks like post-merge.
+_seen_merges = set()
+for _norm in pm_features:
+    _ov = merged_override(_mkt["id"], _norm, MERGE_MAP)
+    if _ov and _norm not in _seen_merges:
+        _seen_merges.add(_norm)
+        _t12 = pm_features[_norm].get("t12_listings")
+        log(f"[merge] applied curated merge → {_ov['canonicalName']!r} (slug {_ov['survivorSlug']}), T12={_t12}")
 
 top3_share_all = {}
 for norm, feats in pm_features.items():
@@ -1580,15 +1601,22 @@ for norm in sorted(eligible_norms):
     # produce identical slugs — but using normalized name keeps any
     # downstream slug-from-name re-derivation consistent).
     name = normalize_pm_name(pm_display_name[norm])
-    base_slug = pm_slug(name)
-    n_seen = seen_slugs_in_market.get(base_slug, 0)
-    if n_seen == 0:
-        slug = base_slug
+    # Phase 2 fragment merge — a merged survivor keeps its curated
+    # survivorSlug instead of the name-derived slug (the curated slug is
+    # picked to survive future re-runs / re-merges without churning URLs).
+    _ov = merged_override(_mkt["id"], norm, MERGE_MAP)
+    if _ov:
+        slug = _ov["survivorSlug"]
     else:
-        # n_seen=1 → next gets "-2", n_seen=2 → "-3", etc.
-        slug = f"{base_slug}-{n_seen + 1}"
-        slug_collisions.append((norm, base_slug, slug))
-    seen_slugs_in_market[base_slug] = n_seen + 1
+        base_slug = pm_slug(name)
+        n_seen = seen_slugs_in_market.get(base_slug, 0)
+        if n_seen == 0:
+            slug = base_slug
+        else:
+            # n_seen=1 → next gets "-2", n_seen=2 → "-3", etc.
+            slug = f"{base_slug}-{n_seen + 1}"
+            slug_collisions.append((norm, base_slug, slug))
+        seen_slugs_in_market[base_slug] = n_seen + 1
 
     dom_star = star_data[norm].get("dom") or {}
     rp_star = star_data[norm].get("rentPerformance") or {}
