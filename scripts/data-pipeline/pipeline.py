@@ -1233,37 +1233,6 @@ for _optype in ("pm", "broker"):
             within_quad_total[n] = len(lst)
 
 
-def compute_rent_stability_block(feats):
-    yv = feats["years_visible"] or 0
-    yoy = feats["yoy_list"]
-    if yv < 3 or len(yoy) < 12:
-        return {"volatilityPP": None, "yearsOfHistory": yv, "suppressed": True,
-                "reason": f"Insufficient observation history to compute (operator visible {yv:.1f} years in our data)."}
-    vals = [v for _, v in yoy]
-    vol = statistics.stdev(vals) * 100
-    return {"volatilityPP": round(vol, 2), "yearsOfHistory": yv, "suppressed": False}
-
-
-rent_stab = {norm: compute_rent_stability_block(feats) for norm, feats in pm_features.items()}
-
-rs_levels = {}
-for norm in pm_features:
-    if rent_stab[norm]["suppressed"]:
-        rs_levels[norm] = None; continue
-    vol = rent_stab[norm]["volatilityPP"]
-    levels = {}
-    for lvl in ("primary", "fallback", "msa"):
-        members = [m for m in cohort_members(lvl, norm) if not rent_stab[m]["suppressed"]]
-        vals = [rent_stab[m]["volatilityPP"] for m in members]
-        if norm not in members:
-            levels[lvl] = {"pct": None, "n": len(vals), "cohortMedian": None}; continue
-        sorted_neg = sorted(-v for v in vals)
-        pct = percentile_rank(-vol, sorted_neg)
-        levels[lvl] = {"pct": pct, "n": len(vals),
-                       "cohortMedian": round(statistics.median(vals), 2) if vals else None}
-    rs_levels[norm] = levels
-
-
 top3_share_all = {}
 for norm, feats in pm_features.items():
     tcs = feats["top_cities"]
@@ -1453,9 +1422,6 @@ def build_distinguishing(name, focal_norm, q7, feats):
     t3 = top3_share_all.get(focal_norm)
     if t3 is not None:
         bullets.append(f"Top-3 city share: {int(round(t3*100))}% of observed units.")
-    rs = rent_stab[focal_norm]
-    if not rs["suppressed"]:
-        bullets.append(f"Rent volatility (trailing 12 quarters): {rs['volatilityPP']}pp standard deviation in YoY change.")
     yv = feats["years_visible"]
     if yv and yv >= 3:
         bullets.append(f"{yv:.1f} years of observation history in our data.")
@@ -1713,28 +1679,6 @@ for norm in sorted(eligible_norms):
     if feats["urus_t12_count"] < 50:
         rationale += " Composite rank computed on thin sample — consider with caution."
 
-    rs = rent_stab[norm]
-    rs_block = {"volatilityPP": rs["volatilityPP"], "yearsOfHistory": rs["yearsOfHistory"], "suppressed": rs["suppressed"]}
-    if rs["suppressed"]: rs_block["reason"] = rs.get("reason")
-    rs_pct = rs_levels.get(norm)
-    if rs_pct:
-        rs_block["percentiles"] = {
-            "primary": rs_pct["primary"]["pct"], "primaryCohortN": rs_pct["primary"]["n"], "primaryCohortMedian": rs_pct["primary"]["cohortMedian"],
-            "fallback": rs_pct["fallback"]["pct"], "fallbackCohortN": rs_pct["fallback"]["n"], "fallbackCohortMedian": rs_pct["fallback"]["cohortMedian"],
-            "msa": rs_pct["msa"]["pct"], "msaCohortN": rs_pct["msa"]["n"], "msaCohortMedian": rs_pct["msa"]["cohortMedian"],
-        }
-        if rs_pct["primary"]["n"] >= 10 and rs_pct["primary"]["pct"] is not None:
-            used, pctv, med = "primary", rs_pct["primary"]["pct"], rs_pct["primary"]["cohortMedian"]
-        elif rs_pct["fallback"]["n"] >= 10 and rs_pct["fallback"]["pct"] is not None:
-            used, pctv, med = "fallback", rs_pct["fallback"]["pct"], rs_pct["fallback"]["cohortMedian"]
-        else:
-            used, pctv, med = "msa", rs_pct["msa"]["pct"], rs_pct["msa"]["cohortMedian"]
-        rs_block["star"] = star_for_pct(pctv)
-        rs_block["cohortUsedForStar"] = used
-        rs_block["cohortMedianVolatility"] = med
-    else:
-        rs_block["star"] = None
-
     t3 = top3_share_all.get(norm)
     gc_levels = {}
     for lvl in ("primary", "fallback", "msa"):
@@ -1843,7 +1787,7 @@ for norm in sorted(eligible_norms):
             "coverageMapPoints": feats["coverage_map_points"],
         },
         "classificationRationale": rationale,
-        "lendingSignals": {"rentStability": rs_block, "geographicConcentration": geo_concentration},
+        "lendingSignals": {"geographicConcentration": geo_concentration},
         "generatedText": {
             "executiveSummary": exec_summary,
             "distinguishingCharacteristics": distinguishing,
@@ -2151,10 +2095,8 @@ lines.append("")
 lines.append("## Anomalies and data quality notes")
 lines.append("")
 short_history = sum(1 for p in pms if p["tenancy"]["shortHistoryFlag"])
-suppressed_rs = sum(1 for n in pm_features if rent_stab[n]["suppressed"])
 ranked_with_null_yoy = sum(1 for p in pms if p["rentPerformance"]["pmYoyChange"] is None)
 lines.append(f"- {short_history} of {len(pms)} ranked PMs flagged shortHistoryFlag (yearsVisible < 3).")
-lines.append(f"- {suppressed_rs} PMs have rent stability suppressed (insufficient observation history).")
 lines.append(f"- {ranked_with_null_yoy} PMs have null pmYoyChange (insufficient prior-quarter rent data).")
 lines.append("")
 lines.append("## Runtime")

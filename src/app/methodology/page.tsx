@@ -160,7 +160,7 @@ const GLOSSARY: GlossaryRow[] = [
   {
     term: "Lending Signals",
     definition:
-      "Five auxiliary signals (Vacancy, Rent Stability, Operator Stability, Geographic Concentration, Pricing Tier) surfaced alongside the composite. Underwriting-relevant synthesis metrics; don't feed the composite ranking.",
+      "Four auxiliary signals (Vacancy, Operator Stability, Geographic Concentration, Pricing Tier) surfaced alongside the composite. Underwriting-relevant synthesis metrics; don't feed the composite ranking.",
     ref: "§09",
   },
   // ── v0.6.3 terms ──────────────────────────────────────────────────
@@ -1399,7 +1399,7 @@ export default async function MethodologyPage() {
                 Lending Signals.
               </h3>
               <p>
-                Five auxiliary signals surface alongside the composite in
+                Four auxiliary signals surface alongside the composite in
                 Layer 4 of the v1.0 design. They&rsquo;re underwriting-relevant
                 synthesis metrics designed for a 30-second scan by
                 lender/acquisition teams; they don&rsquo;t feed the composite
@@ -1414,15 +1414,6 @@ export default async function MethodologyPage() {
                     <sub>days</sub>/30) × 100
                   </span>
                   . Lower = more favorable. Star uses cohort percentile.
-                </li>
-                <li>
-                  <strong>Rent Stability</strong> — standard deviation of
-                  trailing-12-quarter YoY rent change in percentage points.
-                  Lower volatility = more consistent rent posture. Requires
-                  12 quarters of mix-adjusted data; suppressed for operators
-                  with shorter history (display:{" "}
-                  <em>&ldquo;Insufficient observation history to compute&rdquo;</em>
-                  ). Star inverted (lower volatility = top quartile).
                 </li>
                 <li>
                   <strong>Operator Stability</strong> — composite surfacing
@@ -1449,25 +1440,10 @@ export default async function MethodologyPage() {
                 </li>
               </ul>
               <p>
-                Rent Stability and Geographic Concentration are pre-computed
-                at seed time (v0.6.2 Patches 4 + 7). The other three are
-                derived at render time from existing seeded fields.
+                Geographic Concentration is pre-computed at seed time
+                (v0.6.2 Patch 7). The other three are derived at render time
+                from existing seeded fields.
               </p>
-              <div className="dq-callout-soft">
-                <p className="dq-callout-tag">
-                  Rent Stability data-pipeline limitation · v0.7 fix
-                </p>
-                <p>
-                  The v0.6.2 Rent Stability calculation runs against the
-                  pre-computed 6-quarter rent trajectory, which forces
-                  &ldquo;Insufficient observation history&rdquo; suppression
-                  for operators who actually have 3-5 years of underlying
-                  listings. Patch 4 specifies computing volatility from the
-                  raw listings data over a 12-quarter window. The v0.7 data
-                  pipeline will compute from raw listings; until then most
-                  operators surface as suppressed even when they shouldn&apos;t.
-                </p>
-              </div>
             </SectionAnchor>
 
             {/* === SECTION 10 — LIMITATIONS === */}
@@ -1601,11 +1577,6 @@ export default async function MethodologyPage() {
                   <strong>Kaplan-Meier-style tenancy right-censoring
                   correction</strong> — replaces the v0.6.2 short-history
                   caveat with a mathematical adjustment.
-                </li>
-                <li>
-                  <strong>Rent Stability data pipeline</strong> — compute
-                  volatility from raw listings over 12 quarters rather than
-                  from the 6-quarter pre-computed trajectory.
                 </li>
                 <li>
                   <strong>Same-unit-controlled Rent Performance</strong> —

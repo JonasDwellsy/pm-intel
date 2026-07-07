@@ -217,19 +217,11 @@ export interface ScorecardData {
     tenancySuppressed?: boolean;
     tenancySuppressedReason?: string | null;
   };
-  // v0.6.2 Lending Signals (Patches 4 + 7). The seed populates the two
-  // data-pipeline-computed signals; v1.0 design surfaces three more
+  // v0.6.2 Lending Signals (Patch 7). The seed populates the
+  // data-pipeline-computed signal; v1.0 design surfaces three more
   // (vacancySignal, operatorStability, pricingTier) that the renderer
-  // derives from existing fields. Both shapes are optional here.
+  // derives from existing fields. Optional here.
   lendingSignals?: {
-    rentStability?: {
-      volatilityPP: number | null;
-      yearsOfHistory: number;
-      cohortMedianVolatility?: number;
-      suppressed: boolean;
-      reason?: string;
-      star: StarLevel;
-    };
     geographicConcentration?: {
       top3CityShare: number;
       cohortMedianTop3: number;

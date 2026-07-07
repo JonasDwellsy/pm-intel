@@ -204,25 +204,8 @@ const cardShellStyle: React.CSSProperties = {
   marginBottom: "11px",
 };
 
-/** Card header row: title + star + spacer. No label chip (these metrics aren't cohort-scored labels). */
-function CardHeader({ title, star }: { title: string; star: MetricRow["star"] }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        marginBottom: "5px",
-      }}
-    >
-      <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f1f3f" }}>{title}</span>
-      <StarGlyph star={star} />
-    </div>
-  );
-}
-
 /**
- * Full-parity card body for the re-enrichment metrics (vacancy, rent stability,
+ * Full-parity card body for the re-enrichment metrics (vacancy,
  * concessions). Mirrors MetricCard: header with a tone chip, a plain-English
  * interpretation line, an evidence row (big value + ComparisonBar + benchmark
  * label), a "what this measures" definition caption, and optional children
@@ -342,45 +325,6 @@ function VacancyCard({ vacancy }: { vacancy: NonNullable<OperatingView["vacancy"
       compareMedian={vacancy.cohortMedianPct}
       interpretation={vacancy.interpretation}
       definition={vacancy.definition}
-    />
-  );
-}
-
-/** Rent stability card — suppressed/missing volatility → muted caveat; else full parity. */
-function RentStabilityCard({ rentStability }: { rentStability: NonNullable<OperatingView["rentStability"]> }) {
-  if (rentStability.suppressed || rentStability.volatilityPP == null) {
-    return (
-      <div style={cardShellStyle}>
-        <CardHeader title="Rent stability" star={null} />
-        <div style={{ fontSize: "12px", color: "#8894ac", fontStyle: "italic" }}>
-          {rentStability.reason ?? "Rent stability data is not available for this property."}
-        </div>
-        <div
-          style={{
-            marginTop: "9px",
-            paddingTop: "9px",
-            borderTop: "1px solid #f0f2f6",
-            fontSize: "11px",
-            color: "#8894ac",
-          }}
-        >
-          {rentStability.definition}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <DetailCard
-      title="Rent stability"
-      star={rentStability.star}
-      tone={rentStability.tone}
-      value={`${fmt(rentStability.volatilityPP)} pp`}
-      unit="YoY stdev"
-      compareValue={rentStability.volatilityPP}
-      compareMedian={rentStability.cohortMedianPP}
-      interpretation={rentStability.interpretation}
-      definition={rentStability.definition}
     />
   );
 }
@@ -533,9 +477,8 @@ export function OperatingPerformanceSection({ operating }: OperatingPerformanceS
         <MetricCard key={metric.key} metric={metric} />
       ))}
 
-      {/* Restored metrics: vacancy / rent stability / concession detail */}
+      {/* Restored metrics: vacancy / concession detail */}
       {operating.vacancy && <VacancyCard vacancy={operating.vacancy} />}
-      {operating.rentStability && <RentStabilityCard rentStability={operating.rentStability} />}
       {operating.concession && <ConcessionCard concession={operating.concession} />}
     </div>
   );

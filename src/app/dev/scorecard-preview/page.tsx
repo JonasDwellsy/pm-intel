@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import type { ScorecardView } from "@/lib/scorecard/view-model";
 import type { ScorecardData } from "@/lib/types";
-import { vacancyDetail, rentStabilityDetail, concessionDetail } from "@/lib/scorecard/operating-detail";
+import { vacancyDetail, concessionDetail } from "@/lib/scorecard/operating-detail";
 
 export const dynamic = "force-dynamic";
 
@@ -150,13 +150,6 @@ const FIXTURE_SCORECARD: ScorecardData = {
     yearsVisible: 4.75,
   },
   lendingSignals: {
-    rentStability: {
-      volatilityPP: 1.8,
-      yearsOfHistory: 4,
-      cohortMedianVolatility: 3.1,
-      suppressed: false,
-      star: null,
-    },
     geographicConcentration: {
       top3CityShare: 0.91,
       cohortMedianTop3: 0.78,
@@ -259,14 +252,6 @@ const FIXTURE_VIEW: ScorecardView = {
     takeaway: "Above the cohort median on 4 of 4 scored dimensions.",
     strongest: ["Lease-up speed", "Marketing discipline"],
     vacancy: { pct: 12.1, cohortMedianPct: 18.4, star: "gold", ...vacancyDetail(12.1, 18.4) },
-    rentStability: {
-      volatilityPP: 3.2,
-      cohortMedianPP: 5.1,
-      suppressed: false,
-      reason: null,
-      star: "silver",
-      ...rentStabilityDetail(3.2, 5.1),
-    },
     concession: {
       ratePct: 34,
       marketRatePct: 12,
