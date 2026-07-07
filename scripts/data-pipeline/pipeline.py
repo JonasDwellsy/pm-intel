@@ -42,7 +42,7 @@ from collections import defaultdict, Counter
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from tenancy_survival import is_departed, name_key, group_last_events, RECENCY_GATE_DAYS
+from tenancy_survival import is_departed, name_key, group_last_events, RECENCY_GATE_DAYS, compute_tenancy_survival
 from operator_grouping import within_market_key, load_do_not_merge
 
 csv.field_size_limit(sys.maxsize)
@@ -802,7 +802,7 @@ def compute_tenancy(d):
         if not vals: return {"gap": None, "n": 0}
         return {"gap": round(statistics.median(vals), 1), "n": len(vals)}
 
-    return {
+    block = {
         "totalUnits": total_units,
         "multiEpisodeUnits": multi_episode_units,
         "multiEpisodePct": multi_episode_pct,
@@ -810,6 +810,8 @@ def compute_tenancy(d):
         "house": stats_block(gaps_house),
         "apartment": stats_block(gaps_apt),
     }
+    block.update(compute_tenancy_survival(d["tenancy_episodes"], NOW))
+    return block
 
 
 def compute_community_visibility(d, q7):
@@ -1644,6 +1646,13 @@ for norm in sorted(eligible_norms):
     ten["star"] = ten_star.get("star")
     ten["cohortUsedForStar"] = ten_star.get("cohortUsed")
     ten["cohortName"] = ten_star.get("cohortName")
+
+    yv = feats["years_visible"]
+    ten["tenancySuppressedReason"] = (
+        f"Too early to assess renewal — this operator has been tracked "
+        f"{yv:.1f} years." if ten.get("tenancySuppressed") and yv is not None
+        else None
+    )
 
     cv = None
     if feats["cv_block"]:
