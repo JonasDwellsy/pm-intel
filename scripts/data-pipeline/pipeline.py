@@ -43,6 +43,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tenancy_survival import is_departed, name_key, group_last_events, RECENCY_GATE_DAYS
+from operator_grouping import within_market_key, load_do_not_merge
 
 csv.field_size_limit(sys.maxsize)
 
@@ -113,6 +114,11 @@ if _args.market not in _markets_by_id:
         f"  Known markets: {sorted(_markets_by_id)}"
     )
 _mkt = _markets_by_id[_args.market]
+
+# Phase 1 fragment merge — within-market denylist (market, normalized-name)
+# pairs that must stay fragmented even though they'd otherwise be merged by
+# name. Missing file / empty list -> empty set (launch state).
+DO_NOT_MERGE = load_do_not_merge(os.path.join(_SCRIPT_DIR, "do_not_merge.json"))
 
 NATIONAL_LOOKUP = os.path.join(
     BASE, _cfg.get("nationalLookup", "Operator_National_Urus_v0.6.2.json")
@@ -428,6 +434,7 @@ def init_rich(norm):
         "quarterly_rents_by_br": defaultdict(lambda: defaultdict(list)),
         "earliest_ct": None, "first_listing_dt": None,
         "last_event_dt": None,
+        "rep_company_id": None,
         "active_listings": 0, "lifetime_listings": 0,
         "t12_listings": 0, "t24t12_listings": 0,
         "dom_t12_house": [], "dom_t12_apt": [],
@@ -489,18 +496,13 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
         # sites need the operator's actual name, which they recover from
         # pm_display_name. Keying by id splits operators that merely share
         # a name (distinct companies) and unites a parent's child entities.
-        eff_id = effective_company_id(row)
-        if eff_id:
-            key = eff_id
-            # Display name: the PARENT name when parented (the operator IS
-            # the parent — "parent rules"), else the friendly company_name
-            # (col 8). We deliberately do NOT use child_company_name for
-            # standalone operators — it's often a less readable internal
-            # form (e.g. "Equityteam" vs the col-8 "Equity Team").
-            _pname = (row.get("parent_company_name") or "").strip()
-            disp = _pname if _pname else company.strip()
-        else:
-            key = norm  # old-schema fallback: name is the identity
+        eff_id = effective_company_id(row)          # parent-else-child; for eff_id_norms + companyId fallback
+        _parent_id_raw = (row.get("parent_company_id") or "").strip()
+        _child_id_raw = (row.get("child_company_id") or "").strip()
+        key = within_market_key(_parent_id_raw, _child_id_raw, company, _mkt["id"], DO_NOT_MERGE)
+        # Display name: PARENT name when parented, else the friendly company_name (col 8).
+        disp = (row.get("parent_company_name") or "").strip() if _parent_id_raw else company.strip()
+        if not disp:
             disp = company.strip()
         norm = key
         if eff_id:
@@ -560,6 +562,7 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
         for _ev in (ct, dt_):
             if _ev and (d["last_event_dt"] is None or _ev > d["last_event_dt"]):
                 d["last_event_dt"] = _ev
+                d["rep_company_id"] = eff_id or _child_id_raw or None
         if status in ("active", "available"):
             d["active_listings"] += 1
 
@@ -1838,7 +1841,7 @@ for norm in sorted(eligible_norms):
         # (parent_company_id if parented, else child_company_id). Deep-links
         # each operator to dwellsy.com/company/<id>. None only for the rare
         # name-fallback operators on old-schema CSVs (no id columns).
-        "companyId": norm if norm in eff_id_norms else None,
+        "companyId": pm_rich[norm].get("rep_company_id"),
         "concessionListingCount": cons_count,
         "concessionRate": cons_rate,
         "concessionPatterns": cons_patterns_top3,
@@ -1931,7 +1934,7 @@ for (_n, _an, _ts) in _cand:
     _fd = pm_rich[_n]
     merge_fragments.append({
         "marketId": MARKET_ID,
-        "companyId": _n,
+        "companyId": pm_rich[_n].get("rep_company_id"),
         "name": pm_display_name.get(_n, _n),
         "slug": f"frag-{_n}",
         "t12ListingsCount": _fd["t12_listings"],
