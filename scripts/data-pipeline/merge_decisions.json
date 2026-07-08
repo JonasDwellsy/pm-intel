@@ -1,1 +1,15 @@
-{"decisions": []}
+{
+  "generatedAt": "2026-07-08T15:33:27.792Z",
+  "decisions": [
+    {
+      "marketId": "dallas-fort-worth-arlington-tx",
+      "survivorKey": "31871",
+      "canonicalName": "31 Realty Property Management",
+      "survivorSlug": "31-realty-property-management-dallas-fort-worth-arlington-tx",
+      "memberKeys": [
+        "31871",
+        "name:31realtypropertymanagementllc"
+      ]
+    }
+  ]
+}

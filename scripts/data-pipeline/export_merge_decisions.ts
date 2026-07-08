@@ -12,13 +12,26 @@ export function nameKey(name: string): string {
 
 interface DbDecision { marketId: string; decision: string; canonicalName: string | null;
   survivorSlug: string | null; memberSlugs: string; }
-interface SeedPm { slug: string; name: string; marketId: string; }
+interface SeedPm { slug: string; name: string; marketId: string; parentCompanyId?: number | string | null; }
 interface OutDecision { marketId: string; survivorKey: string; canonicalName: string;
   survivorSlug: string; memberKeys: string[]; }
 
+// Reconstruct an operator's within-market grouping key EXACTLY as the Python
+// pipeline's within_market_key does: a parent-linked operator is keyed by its
+// parent id (raw string), a no-parent operator by `name:<namekey>`. The seed's
+// parentCompanyId equals that raw parent id for grouped operators, so this keeps
+// the exported memberKeys aligned with the keys the pipeline will actually see —
+// which is what lets curated merges touch parent-keyed operators (58% of them)
+// and not just no-parent name fragments.
+export function keyForPm(p: SeedPm): string {
+  return p.parentCompanyId != null && String(p.parentCompanyId).trim() !== ""
+    ? String(p.parentCompanyId).trim()
+    : `name:${nameKey(p.name)}`;
+}
+
 export function resolveDecisions(rows: DbDecision[], seedPms: SeedPm[]) {
-  const keyBySlug = new Map<string, string>(); // `${market}::${slug}` -> `name:<k>`
-  for (const p of seedPms) keyBySlug.set(`${p.marketId}::${p.slug}`, `name:${nameKey(p.name)}`);
+  const keyBySlug = new Map<string, string>(); // `${market}::${slug}` -> parent-id | `name:<k>`
+  for (const p of seedPms) keyBySlug.set(`${p.marketId}::${p.slug}`, keyForPm(p));
   const decisions: OutDecision[] = [];
   const skipped: { marketId: string; reason: string }[] = [];
   for (const r of rows) {
