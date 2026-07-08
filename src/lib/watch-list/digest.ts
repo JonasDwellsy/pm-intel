@@ -2,7 +2,7 @@
 // {subject, html, text} email, or null when there is nothing to report.
 // The diff engine (change-detection.ts) is slug-keyed and carries no display
 // strings, so the caller supplies name/market/scorecardUrl per operator.
-import type { OperatorChange, ChangeType } from "./change-detection";
+import { summariseChanges, type OperatorChange, type ChangeType, type ChangeBreakdown } from "./change-detection";
 
 export interface DigestOperatorInput {
   pmSlug: string;
@@ -94,6 +94,25 @@ function sortChanges(changes: OperatorChange[]): OperatorChange[] {
   return [...changes].sort((a, b) => SALIENCE[a.type] - SALIENCE[b.type]);
 }
 
+// One-line per-list roll-up (reuses summariseChanges) that heads each section.
+function summaryLine(b: ChangeBreakdown): string {
+  const parts: string[] = [`${b.operatorCount} operator${b.operatorCount === 1 ? "" : "s"} changed`];
+  const add = (n: number, sing: string) => {
+    if (n > 0) parts.push(`${n} ${sing}${n === 1 ? "" : "s"}`);
+  };
+  add(b.starChanges, "star move");
+  add(b.portfolioChanges, "portfolio shift");
+  add(b.marketEntries + b.marketDrops, "market change");
+  add(b.submarketChanges, "submarket change");
+  add(b.concessionChanges, "concession change");
+  add(b.eligibilityChanges, "eligibility change");
+  return parts.join(" · ");
+}
+
+function listRollUp(operators: DigestOperatorInput[]): string {
+  return summaryLine(summariseChanges(new Map(operators.map((o) => [o.pmSlug, o.changes]))));
+}
+
 function esc(s: string): string {
   return s
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -115,6 +134,7 @@ export function buildDigest(input: DigestInput): DigestEmail | null {
   const textParts: string[] = [greeting, "", lede, ""];
   for (const l of lists) {
     textParts.push(`## ${l.watchListName}`);
+    textParts.push(listRollUp(l.operators));
     for (const o of l.operators) {
       textParts.push(`- ${o.name} (${o.marketLabel}) — ${o.scorecardUrl}`);
       for (const c of sortChanges(o.changes)) textParts.push(`    • ${describeChange(c)}`);
@@ -141,7 +161,8 @@ export function buildDigest(input: DigestInput): DigestEmail | null {
         })
         .join("");
       return `
-        <h2 style="font-size:15px;color:#0f1f3f;margin:20px 0 4px;">${esc(l.watchListName)}</h2>
+        <h2 style="font-size:15px;color:#0f1f3f;margin:20px 0 2px;">${esc(l.watchListName)}</h2>
+        <p style="font-size:12px;color:#6b7688;margin:0 0 4px;">${esc(listRollUp(l.operators))}</p>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>`;
     })
     .join("");

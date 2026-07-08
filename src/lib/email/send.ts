@@ -1,5 +1,11 @@
 // Thin provider boundary — the ONLY file that imports the Resend SDK.
 // Swapping providers touches only this file.
+//
+// FOLLOW-UP (deferred, YAGNI at current tiny recipient counts): the digest
+// sends one email per recipient in a serial loop with no backoff. Resend's
+// default limit is ~2 req/s, so once the audience grows past a handful, add
+// rate-limit / batch handling here (Resend's batch send API) before the loop
+// starts recording 429s as failed sends.
 import { Resend } from "resend";
 
 export interface EmailMessage {

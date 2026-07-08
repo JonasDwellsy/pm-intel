@@ -74,9 +74,19 @@ export async function runDigest(opts: {
     }
   }
 
-  const run = dryRun
+  // Reuse an existing non-completed run for `latest` rather than minting a new
+  // one, so the per-recipient WatchListDigestSend guard spans a cross-day retry
+  // after a mid-run crash (a fresh run.id would re-key the guard and re-email
+  // already-notified recipients). Preview never creates a run — otherwise it
+  // would complete a run for `latest` and the idempotency guard would then
+  // suppress the real send.
+  const run = dryRun || opts.previewEmail
     ? null
-    : await prisma.watchListDigestRun.create({ data: { snapshotDate: latest, status: "running" } });
+    : ((await prisma.watchListDigestRun.findFirst({
+        where: { snapshotDate: latest, status: { not: "completed" } },
+        orderBy: { startedAt: "desc" },
+      })) ??
+      (await prisma.watchListDigestRun.create({ data: { snapshotDate: latest, status: "running" } })));
 
   const monthLabel = latest.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
   const base = appBase();

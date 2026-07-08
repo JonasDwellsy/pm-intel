@@ -50,6 +50,13 @@ test("html + text include operator, market, list name, and scorecard link", () =
   assert.match(email.html, /property-managers\/tn\/chattanooga\/acme-chattanooga-tn/);
 });
 
+test("each list section leads with a summariseChanges roll-up line", () => {
+  const email = buildDigest(input())!;
+  // 1 operator, 1 star move, 1 eligibility change in the fixture.
+  assert.match(email.text, /1 operator changed · 1 star move · 1 eligibility change/);
+  assert.match(email.html, /1 operator changed · 1 star move · 1 eligibility change/);
+});
+
 test("html + text include the unsubscribe link", () => {
   const email = buildDigest(input())!;
   // HTML escapes & → &amp; in the href (valid HTML; clients parse it back).
