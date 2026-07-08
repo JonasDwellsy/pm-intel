@@ -312,23 +312,6 @@ function DetailCard({
   );
 }
 
-/** Vacancy signal card — full parity (interpretation + comparison bar + tone + definition). */
-function VacancyCard({ vacancy }: { vacancy: NonNullable<OperatingView["vacancy"]> }) {
-  return (
-    <DetailCard
-      title="Vacancy signal"
-      star={vacancy.star}
-      tone={vacancy.tone}
-      value={`${fmt(vacancy.pct)}%`}
-      unit="of cycle"
-      compareValue={vacancy.pct}
-      compareMedian={vacancy.cohortMedianPct}
-      interpretation={vacancy.interpretation}
-      definition={vacancy.definition}
-    />
-  );
-}
-
 /** Small pill chip for concession patterns (e.g. "1 month free"). */
 function PatternChip({ label }: { label: string }) {
   return (
@@ -477,8 +460,7 @@ export function OperatingPerformanceSection({ operating }: OperatingPerformanceS
         <MetricCard key={metric.key} metric={metric} />
       ))}
 
-      {/* Restored metrics: vacancy / concession detail */}
-      {operating.vacancy && <VacancyCard vacancy={operating.vacancy} />}
+      {/* Restored metric: concession detail */}
       {operating.concession && <ConcessionCard concession={operating.concession} />}
     </div>
   );
