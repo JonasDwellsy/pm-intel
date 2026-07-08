@@ -355,6 +355,37 @@ model WatchListView {
   @@index([userId, watchListId, viewedAt(sort: Desc)])
 }
 
+model DigestPreference {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  unsubscribed Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+}
+
+model WatchListDigestRun {
+  id             String    @id @default(cuid())
+  snapshotDate   DateTime
+  status         String    @default("running")
+  recipientCount Int       @default(0)
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  sends          WatchListDigestSend[]
+
+  @@index([snapshotDate])
+}
+
+model WatchListDigestSend {
+  id      String   @id @default(cuid())
+  runId   String
+  userId  String
+  email   String
+  status  String
+  sentAt  DateTime @default(now())
+  run     WatchListDigestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, userId])
+}
+
 // v0.18 (PR #65) — Multi-tenancy Phase 1: Clerk Organizations.
 //
 // Mirror table for Clerk's Organization resource. We don't store
