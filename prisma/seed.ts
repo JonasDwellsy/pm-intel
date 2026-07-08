@@ -805,7 +805,7 @@ function estimatePortfolioSize(
   };
 }
 
-function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
+export function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
   const rank = getObj(pm, "rank") ?? {};
   const coverage = getObj(pm, "coverage") ?? {};
   const performance = getObj(pm, "performance") ?? {};
@@ -1790,11 +1790,23 @@ async function captureOperatorSnapshots(
   );
 }
 
-main()
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Only run the seeder when this file is executed directly — `prisma db seed`
+// runs `tsx prisma/seed.ts`, so a `prisma/seed.<ext>` entry appears in argv.
+// When the module is IMPORTED instead (e.g. build-scorecard.test.ts imports
+// `buildScorecard`), no such argv entry exists and main() stays dormant, so a
+// test can never trigger a real seed of the shared database. The top-level
+// consts (data, marketDataAsOf, enrichmentByCompanyId) still initialize on
+// import — they're pure and DB-free; only main() does database work.
+const RUN_DIRECTLY = process.argv.some((a) =>
+  /prisma[/\\]seed\.(ts|js|mjs|cjs)$/.test(a)
+);
+if (RUN_DIRECTLY) {
+  main()
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
