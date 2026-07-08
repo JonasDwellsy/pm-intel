@@ -202,16 +202,11 @@ function metricValueBenchmark(
     }
     // Big value is a clean percentage ("63%") so it fits the fixed-width
     // headline slot the other cards use ("23d", "6.3%"); the "stay 1.5+ years"
-    // meaning lives in the interpretation sentence. The sub-line shows the
-    // retention curve (12-/24-month) as context — parity with Lease-up's
-    // house/apartment split.
-    const curve = sc.tenancy?.retentionCurve;
+    // meaning lives in the interpretation sentence.
     return {
       value: `${Math.round(r)}%`,
       benchmark: cohortMedianRetention18 != null ? `cohort ${Math.round(cohortMedianRetention18)}%` : "",
-      sub: curve
-        ? [`12-mo ${Math.round(curve.m12)}%`, `24-mo ${Math.round(curve.m24)}%`]
-        : [],
+      sub: [],
       interpretation: cohortMedianRetention18 != null
         ? `About ${Math.round(r)}% of ${sc.pm.name}'s tenancies reach 1.5 years, versus a ${Math.round(cohortMedianRetention18)}% cohort median.`
         : `About ${Math.round(r)}% of ${sc.pm.name}'s tenancies reach 1.5 years.`,
@@ -495,11 +490,12 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     .map((p) => p.shareOfMarket)
     .filter((n): n is number => n != null);
   // Cross-market footprint — distinct member markets present per aggregate-
-  // trajectory quarter. Empty for single-market operators (no
-  // aggregateTrajectory passed in) — the component hides an empty series.
-  const footprintSeries = (input.aggregateTrajectory?.points ?? []).map(
-    (p) => p.marketsPresent
-  );
+  // trajectory quarter. Gated on isMultiMarket so a single-market operator
+  // never shows a footprint sparkline even if an aggregateTrajectory is
+  // passed in (matches the ScaleFit cross-market block's gate).
+  const footprintSeries = isMultiMarket
+    ? (input.aggregateTrajectory?.points ?? []).map((p) => p.marketsPresent)
+    : [];
   const portfolioDir = momentumDirection({ values: portfolioSeries });
   const reachDir = momentumDirection({ values: reachSeries });
   const qualityDir = momentumDirection({ values: qualitySeries });

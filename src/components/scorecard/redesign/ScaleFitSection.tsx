@@ -119,7 +119,7 @@ function UnitMixBar({ unitMix }: { unitMix: NonNullable<ScaleFitView["unitMix"]>
           <span style={{ fontWeight: 600, color: "#0f1f3f" }}>
             {houseUrus.toLocaleString()}
           </span>{" "}
-          urus
+          units
         </span>
         <span>
           <span
@@ -137,7 +137,7 @@ function UnitMixBar({ unitMix }: { unitMix: NonNullable<ScaleFitView["unitMix"]>
           <span style={{ fontWeight: 600, color: "#0f1f3f" }}>
             {aptUrus.toLocaleString()}
           </span>{" "}
-          urus
+          units
         </span>
       </div>
     </div>

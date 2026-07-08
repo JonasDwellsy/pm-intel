@@ -119,11 +119,11 @@ test("operating rows carry label/value/position/star and drop null-percentile me
   // Tenant retention renders retention18Pct (share reaching 18 months), NOT
   // overallGap or multiEpisodePct (analysis-pool size decoys). The big value is
   // a clean "%" that fits the headline slot; the "stay 1.5+ years" meaning lives
-  // in the interpretation, and the retention curve rides in the sub-line.
+  // in the interpretation.
   const tenancy = v.operating.metrics.find((m) => m.key === "tenancy")!;
   assert.equal(tenancy.value, "72%");
   assert.match(tenancy.interpretation, /About 72% of Doorby's tenancies reach 1.5 years/);
-  assert.deepEqual(tenancy.sub, ["12-mo 85%", "24-mo 60%"]); // retentionCurve m12/m24, rounded
+  assert.deepEqual(tenancy.sub, []); // 12-/24-mo sub-line removed
 });
 
 // GUARDRAIL: locks each Operating metric to its correct seed field so a future

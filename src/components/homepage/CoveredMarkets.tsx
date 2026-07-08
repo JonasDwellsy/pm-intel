@@ -67,7 +67,7 @@ export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
           </span>
           <Link
             href="mailto:coverage@dwellsy.com?subject=Dwellsy%20IQ%20%E2%80%94%20Coverage%20request"
-            className="not-italic font-semibold text-teal hover:text-teal-700"
+            className="not-italic font-semibold text-teal hover:text-teal-700 whitespace-nowrap"
           >
             Tell us where you operate →
           </Link>
