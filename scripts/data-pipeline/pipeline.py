@@ -46,7 +46,7 @@ from tenancy_survival import is_departed, name_key, group_last_events, RECENCY_G
 from operator_grouping import (
     within_market_key, load_do_not_merge, load_merge_decisions, merged_override,
     compute_auto_merges, auto_merge_map, assert_auto_merge_invariants,
-    format_auto_merge_report, strong_name_key, is_distinctive, GENERIC_TOKENS,
+    format_auto_merge_report, strong_name_key, GENERIC_TOKENS,
 )
 
 csv.field_size_limit(sys.maxsize)
