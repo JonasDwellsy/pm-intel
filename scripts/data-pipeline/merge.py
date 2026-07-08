@@ -57,6 +57,7 @@ See README.md for the full add-a-market runbook.
 """
 
 import argparse
+import glob
 import json
 import os
 import re
@@ -165,14 +166,38 @@ def _canonical_slug(name):
     return re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
 
 
-def link_by_parent_id(pms):
+def load_curated_canon_slugs(decisions_dir=SCRIPT_DIR):
+    """Curated cross-market canonical slugs, read from every
+    canonical_decisions_*.json (`new_canonicals` + `extend_existing`
+    `canonical_slug`). link_by_parent_id must NOT override a
+    canonicalOperatorId whose value is one of these: a human explicitly
+    curated that cross-market grouping, and it outranks the auto parent-id
+    linker (whose parent-name-derived slug can be market-specific)."""
+    slugs = set()
+    for path in glob.glob(os.path.join(decisions_dir, "canonical_decisions_*.json")):
+        with open(path) as f:
+            data = json.load(f)
+        for key in ("new_canonicals", "extend_existing"):
+            for entry in data.get(key, []):
+                slug = entry.get("canonical_slug")
+                if slug:
+                    slugs.add(slug)
+    return slugs
+
+
+def link_by_parent_id(pms, curated_canon_slugs=frozenset()):
     """Group operators across markets by parentCompanyId and assign each
     group a shared canonicalOperatorId (slug of the parent name) +
     canonicalOperatorName, overriding the name-based value already present.
 
     Operators without a parentCompanyId are left untouched (decision-file /
     self canonical remains — the fallback for untyped markets + standalone
-    operators). The source guarantees parentCompanyId→name is 1:1; the rare
+    operators). Operators already carrying a CURATED canonical slug
+    (curated_canon_slugs, from the decision files) are likewise left
+    untouched — human curation wins over this auto-linker, so a market-
+    specific parent name ("PURE Property Management of Arizona") can't yank
+    an operator out of its curated cross-market group ("pure-property-
+    management"). The source guarantees parentCompanyId→name is 1:1; the rare
     two-distinct-parents-same-name case is disambiguated by appending the id
     to the smaller group's slug, leaving the larger group on the bare slug.
 
@@ -206,6 +231,11 @@ def link_by_parent_id(pms):
         slug = pid_slug[pid]
         name = pid_name.get(pid) or group[0].get("canonicalOperatorName") or group[0]["name"]
         for pm in group:
+            # Human-curated cross-market canonicals win over the auto parent-id
+            # linker: a market-specific parent name must not yank an operator
+            # out of its curated group. Leave any PM already on a curated slug.
+            if pm.get("canonicalOperatorId") in curated_canon_slugs:
+                continue
             pm["canonicalOperatorId"] = slug
             pm["canonicalOperatorName"] = name
             assigned += 1
@@ -278,7 +308,7 @@ def merge_markets(per_market_blobs, methodology_version="v0.6.4"):
     # decision-file canonicalOperatorId already on each PM. Operators with
     # no parentCompanyId keep their existing canonicalOperatorId — that's
     # the fallback path covering the untyped market(s) + standalone ops.
-    id_linked = link_by_parent_id(merged["pms"])
+    id_linked = link_by_parent_id(merged["pms"], load_curated_canon_slugs())
     merged["_id_linked_count"] = id_linked
 
     # Roll up canonicalOperators from the merged PM set.
