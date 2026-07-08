@@ -25,7 +25,10 @@ PLACEHOLDER_NAME_KEYS = frozenset({
 def within_market_key(parent_id, child_id, name, market_id, do_not_merge, merge_map=None):
     """Return the within-market grouping key for one operator row.
 
-    parent_id present            -> the parent id (parent rules; unchanged).
+    parent_id present            -> the parent id (parent rules), UNLESS a
+                                    curated merge_map remaps that parent id onto
+                                    a survivor (folding a parent-keyed operator
+                                    into a curated merge).
     no parent, name available    -> f"name:{name_key(name)}" (merge same-name
                                     fragments) UNLESS (market_id, name_key) is
                                     on the do-not-merge list, in which case keep
@@ -37,6 +40,14 @@ def within_market_key(parent_id, child_id, name, market_id, do_not_merge, merge_
     no parent, no usable name    -> the child id (or "" if none)."""
     pid = (parent_id or "").strip()
     if pid:
+        # Parent-linked operators key by parent id, but a curated merge_map may
+        # remap that parent-id key onto a survivor (e.g. folding a no-parent
+        # "X LLC" fragment into a parent-keyed "X"). Consult it here too, not
+        # only in the name-key branch below.
+        if merge_map:
+            info = merge_map.get((market_id, pid))
+            if info:
+                return info["survivorKey"]
         return pid
     cid = (child_id or "").strip()
     nkey = name_key(name)

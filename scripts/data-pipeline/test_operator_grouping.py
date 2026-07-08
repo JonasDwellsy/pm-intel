@@ -106,6 +106,36 @@ class MergeMap(unittest.TestCase):
         self.assertIsNone(merged_override("phoenix-az", "name:someotherrealty", self.MAP))
         self.assertIsNone(merged_override("phoenix-az", "name:krsholdings", None))
 
+class ParentKeyedMerge(unittest.TestCase):
+    # Fold a no-parent "X LLC" fragment into a parent-keyed "X" whose real parent
+    # id is 31871 (mirrors the 31 Realty / DFW case). survivorKey is the parent
+    # id; both the LLC name-key and the parent id map onto it.
+    MAP = {
+        ("dfw", "31871"): {"survivorKey": "31871",
+            "canonicalName": "31 Realty Property Management", "survivorSlug": "31-realty"},
+        ("dfw", "name:31realtypropertymanagementllc"): {"survivorKey": "31871",
+            "canonicalName": "31 Realty Property Management", "survivorSlug": "31-realty"},
+    }
+    def test_no_parent_member_folds_into_parent_keyed_survivor(self):
+        self.assertEqual(
+            within_market_key("", "915314", "31 Realty Property Management LLC", "dfw", set(), self.MAP),
+            "31871")
+    def test_parent_keyed_survivor_rows_keep_parent_id(self):
+        self.assertEqual(
+            within_market_key("31871", "3206", "31 Realty Property Management", "dfw", set(), self.MAP),
+            "31871")
+    def test_parent_id_remaps_when_in_map(self):
+        # a differently-parented fragment can be remapped onto another survivor
+        m = {("dfw", "800221"): {"survivorKey": "31871", "canonicalName": "X", "survivorSlug": "x"}}
+        self.assertEqual(within_market_key("800221", "1", "Whatever", "dfw", set(), m), "31871")
+    def test_parent_id_untouched_when_not_in_map(self):
+        self.assertEqual(within_market_key("999", "1", "Whatever", "dfw", set(), self.MAP), "999")
+    def test_merged_override_on_parent_id_survivor(self):
+        self.assertEqual(
+            merged_override("dfw", "31871", self.MAP),
+            {"canonicalName": "31 Realty Property Management", "survivorSlug": "31-realty"})
+
+
 class LoadMergeDecisions(unittest.TestCase):
     def test_loads_and_expands_members(self):
         from operator_grouping import load_merge_decisions
