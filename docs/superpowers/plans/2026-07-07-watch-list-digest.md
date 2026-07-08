@@ -270,9 +270,11 @@ git commit -m "feat(digest): DigestPreference + WatchListDigestRun/Send models +
 ```ts
 import test from "node:test";
 import { strict as assert } from "node:assert";
+import { signUnsubToken, verifyUnsubToken } from "./digest-unsubscribe";
 
+// Set before any test runs; the module reads the secret lazily at call time,
+// so a static import is fine (this repo's tsx test runner rejects top-level await).
 process.env.DIGEST_UNSUB_SECRET = "test-secret-do-not-use-in-prod";
-const { signUnsubToken, verifyUnsubToken } = await import("./digest-unsubscribe");
 
 test("sign then verify round-trips for the same user", () => {
   const t = signUnsubToken("user_123");
