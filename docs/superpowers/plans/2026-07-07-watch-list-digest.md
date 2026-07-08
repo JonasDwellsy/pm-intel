@@ -236,15 +236,16 @@ Expected: "The schema … is valid" and the client regenerates. (Neither command
 
 - [ ] **Step 3: Generate the migration SQL DB-free**
 
-Run:
+Run (DB-free — diff the committed schema against the working-tree schema; NOTE: `--from-migrations` is NOT usable here because it requires `--shadow-database-url`, i.e. a live DB):
 ```bash
+git show HEAD:prisma/schema.prisma > /tmp/schema_old.prisma   # use the scratchpad dir, not /tmp, if constrained
 mkdir -p prisma/migrations/20260707000000_watch_list_digest
 npx prisma migrate diff \
-  --from-migrations ./prisma/migrations \
-  --to-schema-datamodel ./prisma/schema.prisma \
+  --from-schema-datamodel /tmp/schema_old.prisma \
+  --to-schema-datamodel prisma/schema.prisma \
   --script > prisma/migrations/20260707000000_watch_list_digest/migration.sql
 ```
-Expected: a `migration.sql` containing three `CREATE TABLE` statements plus the unique index on `DigestPreference.userId`, the `WatchListDigestRun.snapshotDate` index, the `@@unique([runId, userId])` index, and the `WatchListDigestSend.runId` foreign key. Open the file and confirm it contains ONLY additive `CREATE TABLE`/`CREATE INDEX`/`ALTER TABLE … ADD CONSTRAINT` for these three tables — no `DROP`, no changes to existing tables. If `migrate diff` reports it needs a database connection (it should not, since `--from-migrations` reads the local migration history), STOP and report BLOCKED rather than pointing it at Neon.
+Expected: a `migration.sql` containing three `CREATE TABLE` statements plus the unique index on `DigestPreference.userId`, the `WatchListDigestRun.snapshotDate` index, the `@@unique([runId, userId])` index, and the `WatchListDigestSend.runId` foreign key. Open the file and confirm it contains ONLY additive `CREATE TABLE`/`CREATE INDEX`/`ALTER TABLE … ADD CONSTRAINT` for these three tables — no `DROP`, no changes to existing tables. If `migrate diff` reports it needs a database connection, STOP and report BLOCKED rather than pointing it at Neon.
 
 - [ ] **Step 4: Commit**
 
