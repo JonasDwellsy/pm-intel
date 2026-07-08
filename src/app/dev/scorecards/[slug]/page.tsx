@@ -3,35 +3,20 @@
 // page, but WITHOUT the Clerk auth / market-entitlement gate. 404s in prod.
 // Lets us eyeball the redesign on real data before merging PR #140.
 //
-// Mirrors production's per-operator A/B branch (view === "new" vs classic
-// fallthrough) in src/app/property-managers/[state]/[city]/[slug]/page.tsx,
-// with two dev-only adaptations:
-//   1. View selection checks a `?view=` query param FIRST (for easy headless
-//      rendering), then the `scorecard_view` cookie, else defaults to classic.
-//   2. This route shows ALL markets (auth-bypassed) — the classic path's
-//      loadMarketFootprint(...) and crossMarketContext pass entitlement:
-//      ALL_MARKETS instead of a resolved per-viewer entitlement. The new
-//      path's cross-market member enumeration already loads all members
-//      with no entitlement filter.
-import { cookies } from "next/headers";
+// Mirrors production's data path in
+// src/app/property-managers/[state]/[city]/[slug]/page.tsx (Classic view
+// retired; New is the only render path), with one dev-only adaptation:
+// this route shows ALL markets (auth-bypassed) — the cross-market member
+// enumeration loads all members with no entitlement filter.
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import type { ScorecardData } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
-import { loadMarketFootprint } from "@/lib/cross-market";
 import { loadMsaPool } from "@/lib/msa-pool";
 import { loadOperatorTrajectory, loadOperatorAggregateTrajectory } from "@/lib/operators/trajectory";
-import { buildPeerComparisons } from "@/lib/peer-comparison";
-import { buildLendingSignals } from "@/lib/lending-signals";
-import { buildCohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
-import { buildShareTrajectoryView } from "@/lib/share-trajectory";
-import { hasComparablePeers } from "@/lib/peer-comparison-view";
 import { buildConcessionContext } from "@/lib/concession-context";
 import { buildScorecardView } from "@/lib/scorecard/view-model";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
-import { ClassicScorecardBody } from "@/components/scorecard/ClassicScorecardBody";
-import { ScorecardViewToggle } from "@/components/scorecard/ScorecardViewToggle";
-import { ALL_MARKETS } from "@/lib/auth/market-entitlements";
 
 export const dynamic = "force-dynamic";
 
@@ -64,10 +49,8 @@ function DevBanner({
 
 export default async function DevRealScorecard({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ view?: string }>;
 }) {
   if (process.env.NODE_ENV === "production") notFound();
   const { slug } = await params;
@@ -77,130 +60,53 @@ export default async function DevRealScorecard({
   const scorecard = parseScorecard(pm);
   const isClaimed = pm.claimed;
 
-  // View selection — query param first (headless rendering), then cookie,
-  // else default to new (matches the production default).
-  const sp = await searchParams;
-  const cookieView = (await cookies()).get("scorecard_view")?.value;
-  const view =
-    sp.view === "classic" || sp.view === "new"
-      ? sp.view
-      : cookieView === "classic"
-        ? "classic"
-        : "new";
+  // Mirror the production page's multi-market loading so the dev preview
+  // shows the cross-market footprint on real operators. Dev-only: NO
+  // entitlement filter here (this route is auth-bypassed and shows all
+  // markets) — keep loading all members.
+  const isMultiMarket =
+    !!scorecard.canonicalOperatorId &&
+    scorecard.canonicalOperatorId !== scorecard.pm.slug;
 
-  if (view === "new") {
-    // Mirror the production page's multi-market loading so the dev preview
-    // shows the cross-market footprint on real operators. Dev-only: NO
-    // entitlement filter here (this route is auth-bypassed and shows all
-    // markets) — keep loading all members.
-    const isMultiMarket =
-      !!scorecard.canonicalOperatorId &&
-      scorecard.canonicalOperatorId !== scorecard.pm.slug;
-
-    const [msaPool, operatorTrajectory, members] = await Promise.all([
-      loadMsaPool(scorecard.market.id),
-      loadOperatorTrajectory(slug),
-      isMultiMarket
-        ? prisma.pM.findMany({
-            where: { canonicalOperatorId: scorecard.canonicalOperatorId },
-            select: { slug: true, marketId: true, market: { select: { fullName: true } } },
-          })
-        : Promise.resolve([]),
-    ]);
-    const memberPmSlugs = members.map((m) => m.slug);
-    const memberMarketNames = Array.from(new Set(members.map((m) => m.market.fullName)));
-    const marketCount = new Set(members.map((m) => m.marketId)).size;
-    const aggregateTrajectory = isMultiMarket
-      ? await loadOperatorAggregateTrajectory(memberPmSlugs)
-      : undefined;
-
-    const concessionContext = buildConcessionContext(scorecard, msaPool);
-
-    const scorecardView = buildScorecardView({
-      scorecard,
-      pool: msaPool,
-      trajectory: operatorTrajectory,
-      marketConcessionMedian: concessionContext.marketRate,
-      ...(isMultiMarket
-        ? { aggregateTrajectory, memberMarketNames, marketCount }
-        : {}),
-    });
-
-    const trajPts = operatorTrajectory?.points?.length ?? 0;
-
-    return (
-      <>
-        <DevBanner scorecard={scorecard} trajPts={trajPts} />
-        <div className="mx-auto max-w-[1440px] px-6 pt-4 sm:px-10">
-          <ScorecardViewToggle currentView={view} />
-        </div>
-        <ScorecardBody
-          view={scorecardView}
-          scorecard={scorecard}
-          isClaimed={isClaimed}
-          geographicCoverage={scorecard.geographicCoverage}
-        />
-      </>
-    );
-  }
-
-  // Classic (A) — mirror production's classic loading exactly, but with
-  // ALL_MARKETS entitlement since this dev route is auth-bypassed and
-  // shows every market.
-  const [marketFootprint, msaPool, operatorTrajectory] = await Promise.all([
-    loadMarketFootprint({
-      name: scorecard.pm.name,
-      currentSlug: slug,
-      entitlement: ALL_MARKETS,
-    }),
+  const [msaPool, operatorTrajectory, members] = await Promise.all([
     loadMsaPool(scorecard.market.id),
     loadOperatorTrajectory(slug),
-  ]);
-  const peerComparisons = buildPeerComparisons(scorecard, msaPool);
-  const lendingSignals = buildLendingSignals(
-    scorecard,
-    msaPool,
-    marketFootprint.length
-  );
-  const cohortRentTrajectory = buildCohortRentTrajectory(scorecard, msaPool);
-  const shareTrajectory = await buildShareTrajectoryView(
-    scorecard,
-    slug,
-    msaPool
-  );
-  const concessionContext = buildConcessionContext(scorecard, msaPool);
-  const compareHref = hasComparablePeers(msaPool, slug)
-    ? `/dev/scorecards/${slug}/compare`
-    : null;
-  const crossMarketContext =
-    scorecard.canonicalOperatorId &&
-    scorecard.canonicalOperatorId !== scorecard.pm.slug
-      ? await prisma.canonicalOperator.findUnique({
-          where: { canonicalSlug: scorecard.canonicalOperatorId },
-          select: { canonicalSlug: true, marketCount: true },
+    isMultiMarket
+      ? prisma.pM.findMany({
+          where: { canonicalOperatorId: scorecard.canonicalOperatorId },
+          select: { slug: true, marketId: true, market: { select: { fullName: true } } },
         })
-      : null;
+      : Promise.resolve([]),
+  ]);
+  const memberPmSlugs = members.map((m) => m.slug);
+  const memberMarketNames = Array.from(new Set(members.map((m) => m.market.fullName)));
+  const marketCount = new Set(members.map((m) => m.marketId)).size;
+  const aggregateTrajectory = isMultiMarket
+    ? await loadOperatorAggregateTrajectory(memberPmSlugs)
+    : undefined;
+
+  const concessionContext = buildConcessionContext(scorecard, msaPool);
+
+  const scorecardView = buildScorecardView({
+    scorecard,
+    pool: msaPool,
+    trajectory: operatorTrajectory,
+    marketConcessionMedian: concessionContext.marketRate,
+    ...(isMultiMarket
+      ? { aggregateTrajectory, memberMarketNames, marketCount }
+      : {}),
+  });
 
   const trajPts = operatorTrajectory?.points?.length ?? 0;
 
   return (
     <>
       <DevBanner scorecard={scorecard} trajPts={trajPts} />
-      <div className="mx-auto max-w-[1440px] px-6 pt-4 sm:px-10">
-        <ScorecardViewToggle currentView={view} />
-      </div>
-      <ClassicScorecardBody
+      <ScorecardBody
+        view={scorecardView}
         scorecard={scorecard}
         isClaimed={isClaimed}
-        marketFootprint={marketFootprint}
-        peerComparisons={peerComparisons}
-        lendingSignals={lendingSignals}
-        cohortRentTrajectory={cohortRentTrajectory}
-        crossMarketOperator={crossMarketContext}
-        shareTrajectory={shareTrajectory}
-        concessionContext={concessionContext}
-        compareHref={compareHref}
-        operatorTrajectory={operatorTrajectory}
+        geographicCoverage={scorecard.geographicCoverage}
       />
     </>
   );

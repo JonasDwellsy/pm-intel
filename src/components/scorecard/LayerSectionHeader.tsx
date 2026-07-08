@@ -1,27 +1,25 @@
-import { InfoIcon } from "@/components/scorecard/InfoIcon";
-import type { MetricKey } from "@/lib/metric-definitions";
-
 // Shared section header for Layers 2-6 on the v1.0 scorecard. Renders a
 // numbered prefix ("01" through "05" matching the right-rail sidebar)
-// followed by the section title at H2 size, with optional InfoIcon and
-// optional lede paragraph below.
+// followed by the section title at H2 size, with an optional lede
+// paragraph below.
 //
 // Visual weight target: clearly larger than subsection titles (20px) and
 // clearly smaller than the IdentityHero operator name (40-48px). Lands at
 // 28-32px so the parent-child hierarchy reads at a glance.
+//
+// The Classic-only per-metric InfoIcon affordance (wired via a `metricKey`
+// prop) was removed when Classic was retired — MethodologyFooter, the only
+// surviving caller, never used it.
 
 export function LayerSectionHeader({
   num,
   title,
-  metricKey,
   lede,
 }: {
   /** Two-digit section number matching the sidebar (e.g. "01", "02"). */
   num: string;
   /** Section title in display case (e.g. "Performance dimensions"). */
   title: string;
-  /** Optional MetricKey to wire an InfoIcon adjacent to the title. */
-  metricKey?: MetricKey;
   /** Optional paragraph rendered under the header. */
   lede?: string;
 }) {
@@ -35,11 +33,6 @@ export function LayerSectionHeader({
           ·
         </span>
         <span>{title}</span>
-        {metricKey && (
-          <span className="self-center">
-            <InfoIcon metricKey={metricKey} />
-          </span>
-        )}
       </h2>
       {lede && (
         <p className="mt-3 max-w-[780px] text-[14.5px] leading-[1.6] text-muted-foreground">

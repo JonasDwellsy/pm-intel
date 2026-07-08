@@ -127,7 +127,6 @@ export type EventName =
   | "scorecard_preview_view"
   | "paywall_view"
   | "paywall_cta_click"
-  | "scorecard_full_view"
   | "scorecard_cta_click"
   | "watch_list_export_click"
   | "pdf_export_click"
