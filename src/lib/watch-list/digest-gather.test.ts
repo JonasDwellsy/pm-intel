@@ -1,6 +1,6 @@
 import test from "node:test";
 import { strict as assert } from "node:assert";
-import { selectSnapshotPair, buildListChanges, filterSubscribed } from "./digest-gather";
+import { selectSnapshotPair, buildListChanges, filterSubscribed, isDigestDue, selectPriorForRecipient, parseCadence } from "./digest-gather";
 import type { SnapshotRow, StarsPerMetric } from "./snapshot";
 
 const noStars: StarsPerMetric = {
@@ -60,4 +60,57 @@ test("filterSubscribed removes unsubscribed users", () => {
     new Set(["u2"]),
   );
   assert.deepEqual(out, [{ userId: "u1", email: "a@x.com" }]);
+});
+
+const LATEST = new Date("2026-07-31");
+function due(over: Partial<Parameters<typeof isDigestDue>[0]> = {}) {
+  return isDigestDue({
+    unsubscribed: false, cadence: "monthly", latest: LATEST,
+    lastNotifiedSnapshotDate: new Date("2026-06-30"),
+    lastDigestAt: new Date("2026-06-30"), now: new Date("2026-07-31"), ...over,
+  });
+}
+
+test("parseCadence accepts the three values, rejects others", () => {
+  assert.equal(parseCadence("daily"), "daily");
+  assert.equal(parseCadence("weekly"), "weekly");
+  assert.equal(parseCadence("monthly"), "monthly");
+  assert.equal(parseCadence("yearly"), null);
+  assert.equal(parseCadence(3), null);
+});
+
+test("isDigestDue false when unsubscribed", () => {
+  assert.equal(due({ unsubscribed: true }), false);
+});
+
+test("isDigestDue false when no new data (latest <= lastNotified)", () => {
+  assert.equal(due({ lastNotifiedSnapshotDate: LATEST }), false);
+  assert.equal(due({ lastNotifiedSnapshotDate: new Date("2026-08-31") }), false);
+});
+
+test("isDigestDue respects the throttle per cadence", () => {
+  assert.equal(due({ cadence: "monthly", lastDigestAt: new Date("2026-07-11"), now: new Date("2026-07-31") }), false);
+  assert.equal(due({ cadence: "monthly", lastDigestAt: new Date("2026-07-01"), now: new Date("2026-07-31") }), true);
+  assert.equal(due({ cadence: "weekly", lastDigestAt: new Date("2026-07-26"), now: new Date("2026-07-31") }), false);
+  assert.equal(due({ cadence: "weekly", lastDigestAt: new Date("2026-07-23"), now: new Date("2026-07-31") }), true);
+});
+
+test("isDigestDue: null watermarks => due (first-ever, subscribed, new data present)", () => {
+  assert.equal(due({ lastNotifiedSnapshotDate: null, lastDigestAt: null }), true);
+});
+
+test("selectPriorForRecipient returns lastNotified when set", () => {
+  const prior = selectPriorForRecipient(LATEST, new Date("2026-05-31"),
+    [LATEST, new Date("2026-06-30"), new Date("2026-05-31")]);
+  assert.deepEqual(prior, new Date("2026-05-31"));
+});
+
+test("selectPriorForRecipient falls back to 2nd-most-recent distinct date when lastNotified null", () => {
+  const prior = selectPriorForRecipient(LATEST, null,
+    [LATEST, new Date("2026-06-30"), new Date("2026-05-31")]);
+  assert.deepEqual(prior, new Date("2026-06-30"));
+});
+
+test("selectPriorForRecipient returns null when only one distinct date and no lastNotified", () => {
+  assert.equal(selectPriorForRecipient(LATEST, null, [LATEST]), null);
 });
