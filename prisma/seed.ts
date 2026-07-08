@@ -1034,6 +1034,35 @@ function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardData {
       star: asStar(tenancy.star),
       cohortUsedForStar: asCohortLevel(tenancy.cohortUsedForStar),
       cohortName: asString(tenancy.cohortName) || undefined,
+      // Survival-based tenancy retention (v0.6.4). Persist these into the
+      // stored scorecardData blob — the view-model's tenancy branch reads
+      // retention18Pct/retentionCurve/tenancySuppressed[Reason]; without them
+      // every tenant-retention card renders as suppressed ("—"). (The prior
+      // tenancy-metric work updated the pipeline + types + view-model but never
+      // wired this seed normalizer, so the fields never reached the DB.)
+      retention18Pct: asNumber(tenancy.retention18Pct) ?? null,
+      retentionCurve: (() => {
+        const c = getObj(tenancy, "retentionCurve");
+        const m12 = asNumber(get(c, "m12"));
+        const m18 = asNumber(get(c, "m18"));
+        const m24 = asNumber(get(c, "m24"));
+        return m12 != null && m18 != null && m24 != null
+          ? { m12, m18, m24 }
+          : undefined;
+      })(),
+      kmMedianMonths: asNumber(tenancy.kmMedianMonths) ?? null,
+      atRisk18: asInt(tenancy.atRisk18) ?? undefined,
+      turnoverEvents: asInt(tenancy.turnoverEvents) ?? undefined,
+      tenancyQualified:
+        typeof tenancy.tenancyQualified === "boolean"
+          ? tenancy.tenancyQualified
+          : undefined,
+      tenancySuppressed:
+        typeof tenancy.tenancySuppressed === "boolean"
+          ? tenancy.tenancySuppressed
+          : undefined,
+      tenancySuppressedReason:
+        asString(tenancy.tenancySuppressedReason) || undefined,
     },
     geographicCoverage: {
       citiesText: asString(geo.citiesText),
