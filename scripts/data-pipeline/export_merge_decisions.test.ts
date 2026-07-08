@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { nameKey, resolveDecisions, keyForPm } from "./export_merge_decisions";
+import { nameKey, resolveDecisions, keyForPm, keyForFragment } from "./export_merge_decisions";
 
 test("nameKey matches Python name_key (lowercase alphanumerics only)", () => {
   assert.equal(nameKey("Jamie Bright, KRS Holdings"), "jamiebrightkrsholdings");
@@ -47,6 +47,32 @@ test("resolveDecisions SKIPS a decision with an unresolvable member slug", () =>
   const decisions = [{ marketId: "phoenix-az", decision: "merge", canonicalName: "KRS Holdings",
     survivorSlug: "krs-holdings", memberSlugs: JSON.stringify(["krs-holdings", "gone-slug"]) }];
   const { decisions: out, skipped } = resolveDecisions(decisions as any, seed);
+  assert.equal(out.length, 0);
+  assert.equal(skipped.length, 1);
+});
+
+test("keyForFragment strips the frag- prefix to recover the grouping key", () => {
+  assert.equal(keyForFragment({ slug: "frag-name:statewidemanagement" }), "name:statewidemanagement");
+  assert.equal(keyForFragment({ slug: "frag-31871" }), "31871");
+});
+
+test("resolveDecisions folds a sub-eligible fragment member (frag- slug)", () => {
+  const seed = [{ slug: "big-op", name: "Big Op Property Management", marketId: "la", parentCompanyId: 700 }];
+  const fragments = [{ marketId: "la", slug: "frag-name:bigoppropertymanagementllc", name: "Big Op Property Management LLC" }];
+  const decisions = [{ marketId: "la", decision: "merge", canonicalName: "Big Op Property Management",
+    survivorSlug: "big-op",
+    memberSlugs: JSON.stringify(["big-op", "frag-name:bigoppropertymanagementllc"]) }];
+  const { decisions: out, skipped } = resolveDecisions(decisions as any, seed, fragments as any);
+  assert.equal(skipped.length, 0);
+  assert.equal(out[0].survivorKey, "700");
+  assert.deepEqual(out[0].memberKeys.sort(), ["700", "name:bigoppropertymanagementllc"]);
+});
+
+test("resolveDecisions still SKIPS a slug in neither pms nor the sidecar", () => {
+  const seed = [{ slug: "big-op", name: "Big Op", marketId: "la" }];
+  const decisions = [{ marketId: "la", decision: "merge", canonicalName: "Big Op",
+    survivorSlug: "big-op", memberSlugs: JSON.stringify(["big-op", "frag-name:ghost"]) }];
+  const { decisions: out, skipped } = resolveDecisions(decisions as any, seed, []);
   assert.equal(out.length, 0);
   assert.equal(skipped.length, 1);
 });
