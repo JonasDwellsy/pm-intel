@@ -38,7 +38,7 @@ import {
   type ChangeBreakdown,
   type OperatorChange,
 } from "./change-detection";
-import type { SnapshotRow, StarsPerMetric } from "./snapshot";
+import { toSnapshotRow, type SnapshotRow } from "./snapshot";
 
 export interface WatchListChanges {
   /** Aggregate breakdown for the banner copy. operatorCount === 0
@@ -211,7 +211,7 @@ async function fetchLatestSnapshots(
   const latestBySlug = new Map<string, SnapshotRow>();
   for (const row of rows) {
     if (latestBySlug.has(row.pmSlug)) continue;
-    latestBySlug.set(row.pmSlug, hydrateRow(row));
+    latestBySlug.set(row.pmSlug, toSnapshotRow(row));
   }
   return latestBySlug;
 }
@@ -233,69 +233,9 @@ async function fetchSnapshotsAtOrBefore(
   const priorBySlug = new Map<string, SnapshotRow>();
   for (const row of rows) {
     if (priorBySlug.has(row.pmSlug)) continue;
-    priorBySlug.set(row.pmSlug, hydrateRow(row));
+    priorBySlug.set(row.pmSlug, toSnapshotRow(row));
   }
   return priorBySlug;
-}
-
-interface RawSnapshotRow {
-  pmSlug: string;
-  snapshotDate: Date;
-  methodologyVersion: string;
-  starsPerMetric: string;
-  starGoldCount: number;
-  starSilverCount: number;
-  estimatedPortfolioPoint: number | null;
-  estimatedPortfolioBand: string | null;
-  topMSAs: string;
-  topSubmarkets: string;
-  concessionRate: number | null;
-  isEligibleForRanking: boolean;
-}
-
-/** Convert a Prisma OperatorSnapshot row (JSON columns as serialised
- *  strings) into the SnapshotRow shape the pure diff library expects. */
-function hydrateRow(row: RawSnapshotRow): SnapshotRow {
-  return {
-    pmSlug: row.pmSlug,
-    snapshotDate: row.snapshotDate,
-    methodologyVersion: row.methodologyVersion,
-    starsPerMetric: safeParseStars(row.starsPerMetric),
-    starGoldCount: row.starGoldCount,
-    starSilverCount: row.starSilverCount,
-    estimatedPortfolioPoint: row.estimatedPortfolioPoint,
-    estimatedPortfolioBand: row.estimatedPortfolioBand,
-    topMSAs: safeParseStringArray(row.topMSAs),
-    topSubmarkets: safeParseStringArray(row.topSubmarkets),
-    concessionRate: row.concessionRate,
-    isEligibleForRanking: row.isEligibleForRanking,
-  };
-}
-
-function safeParseStars(raw: string): StarsPerMetric {
-  const empty: StarsPerMetric = {
-    leaseUp: null,
-    tenancy: null,
-    rentPerformance: null,
-    marketingDiscipline: null,
-    inventoryTransparency: null,
-  };
-  try {
-    const parsed = JSON.parse(raw) as Partial<StarsPerMetric>;
-    return { ...empty, ...parsed };
-  } catch {
-    return empty;
-  }
-}
-
-function safeParseStringArray(raw: string): string[] {
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed.filter((v): v is string => typeof v === "string");
-    return [];
-  } catch {
-    return [];
-  }
 }
 
 function emptyBreakdown(): ChangeBreakdown {
