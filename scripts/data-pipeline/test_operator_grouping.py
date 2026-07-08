@@ -1,6 +1,8 @@
 import unittest, json, tempfile, os
 from operator_grouping import (
     within_market_key, load_do_not_merge, merged_override,  # merged_override new
+    strong_name_key, is_distinctive, _legal_suffix_count,
+    LEGAL_SUFFIXES, GENERIC_TOKENS,
 )
 import json as _json, tempfile as _tf, os as _os
 
@@ -150,6 +152,40 @@ class LoadMergeDecisions(unittest.TestCase):
     def test_missing_file_empty(self):
         from operator_grouping import load_merge_decisions
         self.assertEqual(load_merge_decisions("/no/such.json"), {})
+
+class StrongNameKey(unittest.TestCase):
+    def test_strips_legal_suffix_and_punctuation(self):
+        self.assertEqual(strong_name_key("Spectrum Realty Services, LLC"), "spectrum realty services")
+        self.assertEqual(strong_name_key("Spectrum Realty Services"), "spectrum realty services")
+    def test_inc_corp_company(self):
+        self.assertEqual(strong_name_key("Federated Property Management Group, Inc."),
+                         "federated property management group")
+    def test_ascii_only_drops_accents(self):
+        # accented chars are non-[a-z0-9] -> become separators (ASCII parity with TS)
+        self.assertEqual(strong_name_key("Peña Realty"), "pe a realty")
+    def test_all_suffix_falls_back_to_raw_norm(self):
+        # nothing distinctive left -> join of [] is "" -> fall back to the space-normed s
+        self.assertEqual(strong_name_key("LLC"), "llc")
+    def test_empty(self):
+        self.assertEqual(strong_name_key(""), "")
+
+class IsDistinctive(unittest.TestCase):
+    def test_generic_only_false(self):
+        self.assertFalse(is_distinctive("property management"))
+        self.assertFalse(is_distinctive("real estate group"))
+    def test_has_non_generic_true(self):
+        self.assertTrue(is_distinctive("31 realty property management"))
+        self.assertTrue(is_distinctive("spectrum realty services"))
+    def test_single_token_false(self):
+        self.assertFalse(is_distinctive("redfin"))
+    def test_empty_false(self):
+        self.assertFalse(is_distinctive(""))
+
+class LegalSuffixCount(unittest.TestCase):
+    def test_counts_suffix_tokens(self):
+        self.assertEqual(_legal_suffix_count("31 Realty Property Management LLC"), 1)
+        self.assertEqual(_legal_suffix_count("Acme Co., Inc."), 2)
+        self.assertEqual(_legal_suffix_count("31 Realty Property Management"), 0)
 
 if __name__ == "__main__":
     unittest.main()

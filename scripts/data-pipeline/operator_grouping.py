@@ -10,6 +10,7 @@ See docs/superpowers/specs/2026-07-06-within-market-fragment-merge-design.md.
 
 import json
 import os
+import re
 from tenancy_survival import name_key
 
 # Null/placeholder company names carry no operator identity — the source uses
@@ -20,6 +21,41 @@ PLACEHOLDER_NAME_KEYS = frozenset({
     "companynamenotprovided", "namenotprovided", "notprovided",
     "nocompanyname", "notavailable", "unknown",
 })
+
+# Verbatim from src/lib/operators/merge-candidates.ts so the pipeline auto-merge,
+# the merge tool, and the sub-eligible sidecar all normalize names identically.
+LEGAL_SUFFIXES = frozenset({
+    "inc", "llc", "llp", "lp", "ltd", "co", "corp", "corporation", "company",
+})
+GENERIC_TOKENS = frozenset({
+    "property", "properties", "management", "mgmt", "realty", "real", "estate",
+    "group", "homes", "home", "rentals", "rental", "services", "service",
+    "the", "of", "and",
+})
+
+
+def strong_name_key(name):
+    """Lowercase, non-alnum -> space, drop legal-suffix tokens, join with space.
+    ASCII-only ([^a-z0-9]+) — matches TS normalizeOperatorName, and closes the
+    latent accented-char name_key parity gap on the auto-merge path. Falls back
+    to the space-normed string if every token is a legal suffix."""
+    s = re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip()
+    toks = [t for t in s.split(" ") if t and t not in LEGAL_SUFFIXES]
+    return " ".join(toks) or s
+
+
+def is_distinctive(strong_norm):
+    """>=2 tokens AND >=1 token outside GENERIC_TOKENS (the merge tool's
+    _distinctive_set). Purely-generic or single-token names never auto-merge."""
+    toks = [t for t in strong_norm.split(" ") if t]
+    return len(toks) >= 2 and any(t not in GENERIC_TOKENS for t in toks)
+
+
+def _legal_suffix_count(name):
+    """Number of legal-suffix tokens in a raw name (used to pick the cleanest
+    display variant — 'X' beats 'X LLC')."""
+    toks = re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).split()
+    return sum(1 for t in toks if t in LEGAL_SUFFIXES)
 
 
 def within_market_key(parent_id, child_id, name, market_id, do_not_merge, merge_map=None):
