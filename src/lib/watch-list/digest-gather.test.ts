@@ -1,6 +1,6 @@
 import test from "node:test";
 import { strict as assert } from "node:assert";
-import { selectSnapshotPair, buildListChanges, filterSubscribed } from "./digest-run";
+import { selectSnapshotPair, buildListChanges, filterSubscribed } from "./digest-gather";
 import type { SnapshotRow, StarsPerMetric } from "./snapshot";
 
 const noStars: StarsPerMetric = {
