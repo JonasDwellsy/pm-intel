@@ -15,6 +15,7 @@ interface DbDecision { marketId: string; decision: string; canonicalName: string
 interface SeedPm { slug: string; name: string; marketId: string; parentCompanyId?: number | string | null; }
 interface OutDecision { marketId: string; survivorKey: string; canonicalName: string;
   survivorSlug: string; memberKeys: string[]; }
+interface FragmentRow { marketId: string; slug: string; name?: string; }
 
 // Reconstruct an operator's within-market grouping key EXACTLY as the Python
 // pipeline's within_market_key does: a parent-linked operator is keyed by its
@@ -29,9 +30,18 @@ export function keyForPm(p: SeedPm): string {
     : `name:${nameKey(p.name)}`;
 }
 
-export function resolveDecisions(rows: DbDecision[], seedPms: SeedPm[]) {
+// A sub-eligible fragment's slug is literally `frag-<within_market_key>` (see
+// pipeline.py merge_fragments emission), so the grouping key is the suffix.
+// Typed as `{slug}` (not the full FragmentRow) so it also accepts the bare
+// slug-only fixtures the unit tests pass in.
+export function keyForFragment(f: { slug: string }): string {
+  return f.slug.replace(/^frag-/, "");
+}
+
+export function resolveDecisions(rows: DbDecision[], seedPms: SeedPm[], fragments: FragmentRow[] = []) {
   const keyBySlug = new Map<string, string>(); // `${market}::${slug}` -> parent-id | `name:<k>`
   for (const p of seedPms) keyBySlug.set(`${p.marketId}::${p.slug}`, keyForPm(p));
+  for (const f of fragments) keyBySlug.set(`${f.marketId}::${f.slug}`, keyForFragment(f));
   const decisions: OutDecision[] = [];
   const skipped: { marketId: string; reason: string }[] = [];
   for (const r of rows) {
@@ -60,7 +70,11 @@ async function main() {
   const { prisma } = await import("../../src/lib/prisma");
   const rows = await prisma.operatorMergeDecision.findMany({ where: { decision: "merge" } });
   const seed = JSON.parse(fs.readFileSync(path.join(__dirname, "../../src/data/scorecard_data.json"), "utf8"));
-  const { decisions, skipped } = resolveDecisions(rows as any, seed.pms);
+  const fragmentsPath = path.join(__dirname, "../../src/data/merge_fragments.json");
+  const fragments = fs.existsSync(fragmentsPath)
+    ? (JSON.parse(fs.readFileSync(fragmentsPath, "utf8")).fragments ?? [])
+    : [];
+  const { decisions, skipped } = resolveDecisions(rows as any, seed.pms, fragments);
   for (const s of skipped) console.warn(`[export] SKIPPED ${s.marketId}: ${s.reason}`);
   const out = { generatedAt: new Date().toISOString(), decisions };
   fs.writeFileSync(path.join(__dirname, "merge_decisions.json"), JSON.stringify(out, null, 2) + "\n");
