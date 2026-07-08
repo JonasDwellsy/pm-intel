@@ -42,7 +42,6 @@ function fixturePm(): Record<string, unknown> {
       totalUnits: 100,
       multiEpisodeUnits: 40,
       multiEpisodePct: 40,
-      overallGap: 12,
       tenancyPercentile: 60,
       retention18Pct: 75.3,
       retentionCurve: { m12: 83.9, m18: 75.3, m24: 63.6 },

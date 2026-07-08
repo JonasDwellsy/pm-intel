@@ -206,51 +206,27 @@ test("scorecard_link_copied is registered in the EventName union", () => {
   );
 });
 
-test("CopyLinkButton is wired into IdentityHero's right rail", () => {
-  // The component does nothing if it's not rendered. Verify the
-  // import + the JSX usage are both present in IdentityHero.
-  const heroSrc = readFileSync(
-    join(process.cwd(), "src/components/scorecard/IdentityHero.tsx"),
+test("CopyLinkButton is wired into the New scorecard header", () => {
+  // The Classic view (IdentityHero) was retired; CopyLinkButton was
+  // re-homed into the redesign's ScorecardHeader (PR2 — Classic
+  // retirement). Verify the import + the JSX usage are both present.
+  const headerSrc = readFileSync(
+    join(
+      process.cwd(),
+      "src/components/scorecard/redesign/ScorecardHeader.tsx"
+    ),
     "utf8"
   );
   assert.ok(
-    heroSrc.includes('import { CopyLinkButton }'),
-    "IdentityHero must import CopyLinkButton"
+    headerSrc.includes('import { CopyLinkButton }'),
+    "ScorecardHeader must import CopyLinkButton"
   );
   assert.ok(
-    heroSrc.includes("<CopyLinkButton"),
-    "IdentityHero must render <CopyLinkButton ... />"
+    headerSrc.includes("<CopyLinkButton"),
+    "ScorecardHeader must render <CopyLinkButton ... />"
   );
   assert.ok(
-    heroSrc.includes("operatorSlug={scorecard.pm.slug}"),
-    "IdentityHero must pass operatorSlug={scorecard.pm.slug} to CopyLinkButton"
-  );
-});
-
-test("SynthesisLayer renders the cohort framing line above the Executive summary", () => {
-  // Order check: the cohort framing must precede the Executive
-  // summary in the source so the rendered DOM matches the spec
-  // ("TL;DR first, then narrative"). Anchored on JSX-only markers
-  // (data-testid + the {executiveSummary && (...)} guard) so
-  // comments mentioning "Executive summary" don't fool the
-  // ordering check.
-  const synthesisSrc = readFileSync(
-    join(process.cwd(), "src/components/scorecard/SynthesisLayer.tsx"),
-    "utf8"
-  );
-  assert.ok(
-    synthesisSrc.includes("buildCohortFramingSentence"),
-    "SynthesisLayer must import + call buildCohortFramingSentence"
-  );
-  const framingIdx = synthesisSrc.indexOf('data-testid="cohort-framing"');
-  const executiveJsxIdx = synthesisSrc.indexOf("{executiveSummary && (");
-  assert.ok(framingIdx > 0, "cohort framing line must be rendered");
-  assert.ok(
-    executiveJsxIdx > 0,
-    "Executive summary conditional render must still be present"
-  );
-  assert.ok(
-    framingIdx < executiveJsxIdx,
-    "cohort framing JSX must come BEFORE the Executive summary JSX in source order"
+    headerSrc.includes("operatorSlug={slug}"),
+    "ScorecardHeader must pass operatorSlug={slug} to CopyLinkButton"
   );
 });

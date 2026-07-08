@@ -10,7 +10,7 @@ import type { ScorecardData } from "./types";
 
 function mkScorecard(
   slug: string,
-  overrides: { retention18Pct?: number | null; overallGap?: number | null }
+  overrides: { retention18Pct?: number | null }
 ): ScorecardData {
   return {
     pm: { slug, name: slug, quadrant: "scattered-independent", quadrant7Cell: "SFR Independent", hybrid: false, institutional: false },
@@ -28,7 +28,6 @@ function mkScorecard(
       totalUnits: 40,
       multiEpisodeUnits: 16,
       multiEpisodePct: 0.4,
-      overallGap: overrides.overallGap ?? null,
       tenancyPercentile: null,
       apartment: { units: 20, multiEpisodeUnits: 8, gap: null },
       house: { units: 20, multiEpisodeUnits: 8, gap: null },
@@ -52,7 +51,7 @@ function mkScorecard(
   } as unknown as ScorecardData;
 }
 
-function mkPm(slug: string, overrides: { retention18Pct?: number | null; overallGap?: number | null }): PoolPm {
+function mkPm(slug: string, overrides: { retention18Pct?: number | null }): PoolPm {
   const scorecard = mkScorecard(slug, overrides);
   return {
     slug,
@@ -71,11 +70,9 @@ function fillerPms(count: number): PoolPm[] {
   );
 }
 
-test("peer comparison ranks tenancy on retention18Pct, not overallGap", () => {
-  // "a" has lower overallGap (would rank worse under the old metric)
-  // but higher retention18Pct (should rank better under the new one).
-  const a = mkPm("a", { retention18Pct: 80, overallGap: 5 });
-  const b = mkPm("b", { retention18Pct: 40, overallGap: 20 });
+test("peer comparison ranks tenancy on retention18Pct", () => {
+  const a = mkPm("a", { retention18Pct: 80 });
+  const b = mkPm("b", { retention18Pct: 40 });
   const pool = [a, b, ...fillerPms(9)];
 
   const comparisons = buildPeerComparisons(a.scorecard, pool);

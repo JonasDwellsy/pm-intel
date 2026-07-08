@@ -97,7 +97,7 @@ test("operating rows carry label/value/position/star and drop null-percentile me
       performance: { domT12: 18, marketDomT12: 31, peerQuadrantDomT12: 25, houseDomT12: 16, aptDomT12: 22, domStar: "silver" },
       rentPerformance: { pmYoyChange: 0.031, cohortMedianYoyChange: 0.028, star: null },
       marketing: { compositeScore: 88, star: "silver" },
-      tenancy: { overallGap: 13.1, multiEpisodeUnits: 168, multiEpisodePct: 31, retention18Pct: 72.4,
+      tenancy: { multiEpisodeUnits: 168, multiEpisodePct: 31, retention18Pct: 72.4,
                  retentionCurve: { m12: 85.3, m18: 72.4, m24: 60.2 },
                  tenancyQualified: true, tenancySuppressed: false, star: "gold" },
     }),
@@ -132,8 +132,8 @@ test("operating rows carry label/value/position/star and drop null-percentile me
 test("GUARDRAIL: operating metrics map to the correct seed field (not a decoy)", () => {
   const sc = scFixture({
     performance: { domT12: 40, marketDomT12: 50, domStar: "silver" },
-    // overallGap/multiEpisodePct/multiEpisodeUnits are DECOYS — the value must be retention18Pct.
-    tenancy: { overallGap: 13.0, multiEpisodePct: 88, multiEpisodeUnits: 99, retention18Pct: 61,
+    // multiEpisodePct/multiEpisodeUnits are DECOYS — the value must be retention18Pct.
+    tenancy: { multiEpisodePct: 88, multiEpisodeUnits: 99, retention18Pct: 61,
                tenancyQualified: true, tenancySuppressed: false, star: "gold" },
     rentPerformance: { pmYoyChange: 0.05, cohortMedianYoyChange: 0.02, star: null },
     marketing: { compositeScore: 77, star: "silver" },
@@ -142,16 +142,16 @@ test("GUARDRAIL: operating metrics map to the correct seed field (not a decoy)",
   const v = buildScorecardView({ scorecard: sc, pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01 } as any);
   const by = new Map(v.operating.metrics.map((m) => [m.key, m.value]));
   assert.equal(by.get("dom"), "40d");            // performance.domT12
-  assert.equal(by.get("tenancy"), "61%"); // tenancy.retention18Pct — NOT overallGap/88% decoys
+  assert.equal(by.get("tenancy"), "61%"); // tenancy.retention18Pct — NOT the 88% multiEpisodePct decoy
   assert.equal(by.get("rentPerformance"), "5.0%"); // rentPerformance.pmYoyChange
   assert.equal(by.get("marketing"), "77");         // marketing.compositeScore
 });
 
-test("tenancy renders 18-month retention, not overallGap or multiEpisodePct", () => {
+test("tenancy renders 18-month retention, not multiEpisodePct", () => {
   const sc = scFixture({
     pm: { slug: "x", name: "X", quadrant7Cell: "SFR Independent" },
-    // decoys that must NOT be shown as the value:
-    tenancy: { overallGap: 13.0, multiEpisodePct: 88, retention18Pct: 72.4,
+    // decoy that must NOT be shown as the value:
+    tenancy: { multiEpisodePct: 88, retention18Pct: 72.4,
                tenancyQualified: true, tenancySuppressed: false, star: "gold" },
   });
   const vm = buildScorecardView({
@@ -161,13 +161,13 @@ test("tenancy renders 18-month retention, not overallGap or multiEpisodePct", ()
     marketConcessionMedian: 0.01,
   } as any);
   const row = vm.operating.metrics.find((m) => m.key === "tenancy")!;
-  assert.equal(row.value, "72%");     // retention18Pct — NOT 13.0mo / 88%
+  assert.equal(row.value, "72%");     // retention18Pct — NOT the 88% decoy
 });
 
 test("tenancy suppressed shows the caveat, not a value", () => {
   const sc = scFixture({
     pm: { slug: "y", name: "Y", quadrant7Cell: "SFR Independent" },
-    tenancy: { overallGap: 9, retention18Pct: null, tenancyQualified: false,
+    tenancy: { retention18Pct: null, tenancyQualified: false,
                tenancySuppressed: true,
                tenancySuppressedReason: "Too early to assess renewal — this operator has been tracked 1.3 years.",
                star: null },
@@ -188,7 +188,7 @@ test("tenancy suppressed shows the caveat, not a value", () => {
 // star lives), not the MSA-wide flat value.
 test("operating position + label use the primary cohort percentile, not MSA flat", () => {
   const sc = scFixture({
-    tenancy: { overallGap: 12, retention18Pct: 65, tenancyQualified: true, tenancySuppressed: false, star: "gold" },
+    tenancy: { retention18Pct: 65, tenancyQualified: true, tenancySuppressed: false, star: "gold" },
     rank: {
       percentiles: { dom: 40, tenancy: 40, rentPerformance: 40, marketing: 40, communityVisibility: null },
       percentilesMulti: { tenancy: { primary: 90, fallback: 80, msa: 40 } },
@@ -462,28 +462,9 @@ test("readout[3] Watch Items lists item headlines and chip reads 'N to review'",
   assert.ok(row.label != null && /\d+ to review/i.test(String(row.label))); // "N to review" chip
 });
 
-// --- Task 1: vacancy / operator tenure ---
-
-test("operating view surfaces vacancy from lending-signal builders", () => {
-  const focalScorecard = scFixture({
-    pm: { slug: "doorby-chattanooga-tn", name: "Doorby", quadrant7Cell: "SFR Independent", companyId: "1" },
-    performance: { domT12: 18 },
-    tenancy: { overallGap: 2 },
-    coverage: { yearsVisible: 4 },
-  });
-  const pool = makePool([
-    { slug: "doorby-chattanooga-tn", quadrant7Cell: "SFR Independent", scorecard: focalScorecard },
-    { slug: "member-a", quadrant7Cell: "SFR Independent", scorecard: scFixture({ pm: { slug: "member-a", name: "A", quadrant7Cell: "SFR Independent" }, performance: { domT12: 30 }, tenancy: { overallGap: 3 }, coverage: { yearsVisible: 3 } }) },
-    { slug: "member-b", quadrant7Cell: "SFR Independent", scorecard: scFixture({ pm: { slug: "member-b", name: "B", quadrant7Cell: "SFR Independent" }, performance: { domT12: 25 }, tenancy: { overallGap: 4 }, coverage: { yearsVisible: 5 } }) },
-  ]);
-  const v = buildScorecardView({
-    scorecard: focalScorecard,
-    pool,
-    trajectory: { points: [] },
-    marketConcessionMedian: 0.01,
-  });
-  assert.ok(v.operating.vacancy != null && typeof v.operating.vacancy.pct === "number");
-});
+// --- Task 1: operator tenure ---
+// (The vacancy-signal test that used to live here was removed alongside
+// the vacancy-signal machinery — see the Classic-retirement cleanup.)
 
 test("scaleFit tenure surfaces yearsVisible + marketCount", () => {
   const focalScorecard = scFixture({
@@ -500,16 +481,6 @@ test("scaleFit tenure surfaces yearsVisible + marketCount", () => {
   assert.equal(v.scaleFit.tenure!.marketCount, 1);
   assert.ok(v.scaleFit.tenure!.yearsVisible > 0);
   assert.equal(v.scaleFit.tenure!.yearsVisible, 4.77);
-});
-
-test("operating.vacancy is null when focal is absent from pool", () => {
-  const v = buildScorecardView({
-    scorecard: scFixture(),
-    pool: [],
-    trajectory: { points: [] },
-    marketConcessionMedian: null,
-  });
-  assert.equal(v.operating.vacancy, null);
 });
 
 test("scaleFit.tenure defaults marketCount to 1 when input.marketCount is omitted", () => {

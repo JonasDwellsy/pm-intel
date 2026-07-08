@@ -153,7 +153,6 @@ function makePm(overrides: {
         totalUnits: 0,
         multiEpisodeUnits: 0,
         multiEpisodePct: 0,
-        overallGap: null,
         tenancyPercentile: null,
         apartment: { gap: null, n: 0, cohortP25: null, cohortP50: null, cohortP75: null, cohortN: 0 },
         house: { gap: null, n: 0, cohortP25: null, cohortP50: null, cohortP75: null, cohortN: 0 },
