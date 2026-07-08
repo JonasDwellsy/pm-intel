@@ -186,7 +186,19 @@ export async function SiteHeader() {
                       avatarBox: "h-[30px] w-[30px]",
                     },
                   }}
-                />
+                >
+                  <UserButton.MenuItems>
+                    <UserButton.Link
+                      label="Notification settings"
+                      labelIcon={
+                        <span aria-hidden style={{ fontSize: 14 }}>
+                          🔔
+                        </span>
+                      }
+                      href="/settings/notifications"
+                    />
+                  </UserButton.MenuItems>
+                </UserButton>
               </div>
             </>
           )}
