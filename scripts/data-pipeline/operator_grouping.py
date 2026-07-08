@@ -74,6 +74,11 @@ def compute_auto_merges(rows, market_id, do_not_merge):
         nm = r.get("name") or ""
         base = within_market_key(pid, cid, nm, market_id, do_not_merge, None)
         had_parent = bool(pid)
+        # Respect the Phase-1 name_key denylist directly — do NOT rely on
+        # within_market_key's bare-child-id signal, which leaks a mergeable
+        # name-key for childless (old-schema) denylisted rows.
+        if (market_id, name_key(nm)) in do_not_merge:
+            continue
         if not had_parent and not base.startswith("name:"):
             continue  # placeholder / denylisted -> not a merge candidate
         strong = strong_name_key(nm)

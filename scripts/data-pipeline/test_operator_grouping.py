@@ -267,6 +267,14 @@ class ComputeAutoMerges(unittest.TestCase):
         self.assertEqual(c["canonicalName"], "Zeta Realty Partners")   # 0 suffix tokens
         self.assertEqual(c["survivorKey"], "5")                        # parent id, decoupled from display
 
+    def test_childless_denylisted_row_never_merges(self):
+        # old-schema (no ids) + name_key denylist: within_market_key returns a
+        # mergeable name-key, so the explicit denylist check must exclude it.
+        dnm = {("x", "omegarealtygroup")}
+        rows = [_row("Omega Realty Group"),                    # both ids empty
+                _row("Omega Realty Group, LLC", child_id="2")]
+        self.assertEqual(compute_auto_merges(rows, "x", dnm), [])
+
 class AutoMergeMap(unittest.TestCase):
     def test_map_shape_survivor_maps_to_itself(self):
         rows = [_row("31 Realty Property Management", parent_id="31871", child_id="3206"),
@@ -291,6 +299,24 @@ class AutoMergeInvariants(unittest.TestCase):
         rpt = format_auto_merge_report(cl, "atlanta-ga")
         self.assertIn("spectrum realty services", rpt)
         self.assertIn("do_not_merge.json", rpt)
+
+
+class AutoMergeInvariantsNegative(unittest.TestCase):
+    def test_non_distinctive_cluster_raises(self):
+        bad = [{"strong": "property management", "survivorKey": "name:a",
+                "canonicalName": "A", "survivorSlug": "a-x",
+                "members": [{"key": "name:a", "name": "A", "had_parent": False},
+                            {"key": "name:b", "name": "B", "had_parent": False}]}]
+        with self.assertRaises(AssertionError):
+            assert_auto_merge_invariants(bad, "x", set())
+
+    def test_survivor_not_member_raises(self):
+        bad = [{"strong": "acme realty", "survivorKey": "name:ghost",
+                "canonicalName": "Acme Realty", "survivorSlug": "acme-realty-x",
+                "members": [{"key": "name:a", "name": "Acme Realty", "had_parent": False},
+                            {"key": "name:b", "name": "Acme Realty LLC", "had_parent": False}]}]
+        with self.assertRaises(AssertionError):
+            assert_auto_merge_invariants(bad, "x", set())
 
 
 if __name__ == "__main__":
