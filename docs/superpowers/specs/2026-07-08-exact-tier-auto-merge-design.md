@@ -65,14 +65,21 @@ Values are copied verbatim from `merge-candidates.ts`. The sidecar block in `pip
 ### Component 2 — Auto-merge computation (`operator_grouping.py`)
 
 ```python
-def compute_auto_merge_map(rows, market_id, do_not_merge):
-    """rows: iterable of dicts with keys parent_id, child_id, name, slug —
-    the market's post-exclusion operator rows. Returns a merge_map fragment
-    {(market_id, member_key): {survivorKey, canonicalName, survivorSlug}}
-    for every EXACT-tier auto-merge, in the same shape load_merge_decisions
-    produces (so within_market_key / merged_override consume it unchanged).
+def compute_auto_merges(rows, market_id, do_not_merge):
+    """rows: iterable of dicts with keys parent_id, child_id, name — the
+    market's post-exclusion operator rows. Returns a deterministic list of
+    cluster dicts {strong, survivorKey, canonicalName, survivorSlug,
+    members:[{key,name,had_parent}]} for every EXACT-tier auto-merge.
     No metrics/listings required."""
+
+def auto_merge_map(clusters, market_id):
+    """clusters -> {(market_id, member_key): {survivorKey, canonicalName,
+    survivorSlug}}, survivor mapping to itself — the exact shape
+    load_merge_decisions produces, so within_market_key / merged_override
+    consume it unchanged."""
 ```
+
+(Split into two functions so the same `clusters` feed the map, the invariant assertion, and the sign-off report.)
 
 Algorithm:
 1. For each row, compute `base_key = within_market_key(parent_id, child_id, name, market_id, do_not_merge, None)` (map-free — so `within_market_key`'s own logic is the mergeability oracle) and `strong = strong_name_key(name)`.
@@ -84,37 +91,39 @@ Algorithm:
 Survivor / canonical rules (deterministic, no listing counts) — decoupled exactly as #176 did (grouping identity vs display):
 - **survivorKey** (durable grouping identity) — a parent-id base_key if any candidate had a parent (most durable across refreshes); if several, the numerically lowest; otherwise the canonical member's `name:` key. Generalizes the 31 Realty choice (`survivorKey="31871"`).
 - **canonicalName** (display) — the member display name with the **fewest legal-suffix tokens** (so `"31 Realty Property Management"` beats `"…LLC"`); tiebreak: lexicographically smallest display name. Independent of survivorKey (mirrors #176, where `survivorKey="31871"` but `canonicalName` was the non-LLC form).
-- **survivorSlug** — `pm_slug(canonicalName)` using `pipeline.py`'s existing `pm_slug`, so the merged operator's URL is the natural slug for its canonical name. (Within-market slug-collision disambiguation continues in the pipeline's existing slug loop.)
+- **survivorSlug** — computed inline in the pure function as `re.sub(r"[^a-z0-9]+","-", canonicalName.lower()).strip("-") + f"-{market_id}"`, which is byte-for-byte what `pipeline.py`'s `pm_slug` would produce (`pm_slug` lowercases, so display-casing differences vanish). Kept inline so `operator_grouping.py` stays pure (no dependency on the pipeline's `MARKET_ID` global). The pipeline's slug loop now routes this survivorSlug through collision disambiguation too (a small refinement that also hardens curated overrides).
 
 **`do_not_merge` (the sign-off veto) — two normalization forms in one file, non-interfering.** `within_market_key`'s Phase-1 check matches `(market, name_key(name))` — space-free, suffix-*kept*. The auto-merge veto here matches `(market, strong_name_key(name))` — space-separated, suffix-*stripped*. A multi-token strong-norm (e.g. `"spectrum realty services"`) contains spaces and therefore can **never** equal a space-free `name_key`, so a veto entry added for an auto-merge affects only the auto-merge path and is a no-op for `within_market_key`. Single-token strong-norms are never distinctive (see below) so are never emitted as auto-merges — no veto entry for one is ever needed. The audit report prints the exact `normalizedName` string to paste, removing any ambiguity about which form to write.
 
 ### Component 3 — Pipeline integration (`pipeline.py`)
 
-The grouping loop currently streams the CSV once via `csv.DictReader` (line ~467). Change: collect the market's post-exclusion rows (the rows that today reach the `within_market_key` call at line ~507, carrying `parent_company_id`, `child_company_id`, `company_name`) into a list during a first pass, compute the auto-map, combine with the curated map, then run the existing grouping logic over that same list:
+A self-contained pre-pass is inserted immediately BEFORE the grouping loop's `with open(CSV_PATH …)` (line ~467). It opens the CSV itself (a cheap second read — the main loop is left byte-for-byte unchanged, avoiding any re-indent of the hot loop), applies the *same* exclusion filters the loop uses (`msa_code`, non-empty `company_name`, `_DENYLIST_NORMS`, `EXCLUDED_COMPANY_TYPES`), builds the row dicts, and computes + applies the map:
 
 ```python
-# after CURATED_MAP = load_merge_decisions(...) is available and the market's
-# rows have been collected as `market_rows`:
-AUTO_MAP  = compute_auto_merge_map(market_rows, MARKET_ID, DO_NOT_MERGE)
+# (module-level, just before the grouping loop; CURATED_MAP was renamed from
+#  the old MERGE_MAP load at line ~126)
+_auto_clusters = compute_auto_merges(_auto_rows, MARKET_ID, DO_NOT_MERGE)
+assert_auto_merge_invariants(_auto_clusters, MARKET_ID, DO_NOT_MERGE)
+AUTO_MAP  = auto_merge_map(_auto_clusters, MARKET_ID)
 MERGE_MAP = {**AUTO_MAP, **CURATED_MAP}   # curated human decision wins on conflict
 ```
 
-`MERGE_MAP` then flows unchanged into `within_market_key(...)` (line ~507) and `merged_override(...)` (lines ~515, ~1251, ~1607). Log one line per applied auto-merge: `[auto-merge] <survivorKey> <- [member, member, ...]`, and a summary count. Conflict (an auto key overridden by a curated key) logs `[auto-merge] curated override on <key>`.
+`MERGE_MAP` then flows unchanged into `within_market_key(...)` (line ~507) and `merged_override(...)` (lines ~515, ~1251, ~1607). Log one line per applied auto-merge: `[auto-merge] <survivorKey> <- [members]`, a summary count, and `[auto-merge] curated override on <key>` for any key present in both maps.
 
-Materializing one market's rows is memory-safe (single market). The `name` field passed to `compute_auto_merge_map` is `company_name` (col 8) — the same string `within_market_key` normalizes — so base_keys computed in the pre-pass exactly match the loop's keys.
+The `name` passed to `compute_auto_merges` is `company_name` (col 8) — the same string `within_market_key` normalizes at line ~507 — so base_keys computed in the pre-pass exactly match the loop's keys.
 
-### Component 4 — Audit + sign-off (`audit_fragment_merge.py`)
+### Component 4 — Invariant audit + sign-off report (in the pipeline)
 
-Add a dry-run mode that runs `compute_auto_merge_map` across **all markets' source CSVs** (the same inputs the refresh will use) and:
-- **Writes a review report** (`auto_merge_report.txt` under the pipeline scratch/out dir) listing, per market, each `canonicalName  ⟵  member1, member2 …` with the raw member names, sorted by market then canonical name, plus totals (clusters, operators folded).
-- **Asserts invariants**, failing loudly if any break:
-  - every emitted member key maps to a survivor that is itself a member of the same cluster;
-  - no member key appears under two different strong-norms (no cross-norm bleed);
+Rather than a separate all-markets differ (which would duplicate the pipeline's row-filtering and risk drift), the audit is realized *inside* the pipeline's per-market run — the refresh already iterates every market, so its reports collectively are the all-markets sign-off list. It:
+- **Asserts invariants on every invocation** (`assert_auto_merge_invariants`, pure, in `operator_grouping.py`), failing the run loudly if any break:
   - `is_distinctive(strong)` holds for every emitted cluster;
   - no `(market, strong)` in `do_not_merge` is emitted;
-  - survivorKey is one of the cluster's member base_keys.
+  - every cluster has ≥2 distinct member keys and survivorKey is one of them;
+  - no member key appears under two different strong-norms (no cross-norm bleed);
+  - no two distinct survivors in a market share a `survivorSlug`.
+- **Writes a per-market review report** (`auto_merge_report_<market>.txt` in the pipeline out-dir, via `format_auto_merge_report`) listing each `canonicalName  <-  member1[key], member2[key] …` with raw member names, plus the exact `do_not_merge.json` veto string to paste to reject it.
 
-Sign-off loop: Jonas reads the report; any merge he rejects → add `{marketId, normalizedName: <strong_norm>, note}` to `do_not_merge.json` → re-run the audit. When the report reads clean, the full refresh applies exactly that list.
+Sign-off loop: the full refresh writes one report per market; Jonas reads them before `merge.py --apply` commits the seed. Any merge he rejects → add the printed `{marketId, normalizedName: <strong_norm>}` to `do_not_merge.json` → re-run that market. When the reports read clean, `merge.py --apply` lands exactly that list. (The existing `audit_fragment_merge.py` before/after seed differ stays available as a complementary post-refresh check and is not modified.)
 
 ### Component 5 — Exporter sub-eligible-fragment fix (`export_merge_decisions.ts`, independent)
 
@@ -129,8 +138,11 @@ This lets a curated possible-tier decision fold a sub-eligible fragment into a r
 
 ```
 source CSV (per market)
-  ├─ pre-pass:  rows → compute_auto_merge_map → AUTO_MAP
+  ├─ pre-pass:  rows → compute_auto_merges → clusters
   │                     (strong_name_key + is_distinctive + survivor rules)
+  │                     → auto_merge_map(clusters) → AUTO_MAP
+  │                     → assert_auto_merge_invariants(clusters)   (raises on violation)
+  │                     → format_auto_merge_report(clusters) → auto_merge_report_<market>.txt
   ├─ MERGE_MAP = {**AUTO_MAP, **CURATED_MAP}         (curated wins)
   └─ grouping loop:  within_market_key(row, …, MERGE_MAP)  → pooled operators
                      merged_override(…, MERGE_MAP)         → canonical name + slug
@@ -139,8 +151,8 @@ source CSV (per market)
                           ↓
                      seed scorecard_data.json  →  db seed on deploy
 
-audit (all markets):  compute_auto_merge_map → report + invariants → Jonas sign-off
-                      rejections → do_not_merge.json → re-run
+sign-off (per market, from the refresh):  read auto_merge_report_<market>.txt
+                      rejections → do_not_merge.json → re-run that market → merge.py --apply
 
 curated tool path (independent):
   OperatorMergeDecision → export_merge_decisions.ts (now resolves frag-* slugs)
@@ -152,7 +164,7 @@ curated tool path (independent):
 **Python unit (`test_operator_grouping.py`):**
 - `strong_name_key`: suffix stripping (`"X, LLC"` → `"x"`), punctuation, multi-token, accented char yields ASCII-only, empty/placeholder → falls through to `s`.
 - `is_distinctive`: `"property management"` → False; `"31 realty property management"` → True; single token → False.
-- `compute_auto_merge_map`:
+- `compute_auto_merges` (+ `auto_merge_map` shape):
   - name↔name (both no-parent, suffix-only diff) → entries for both member keys + survivor→itself; survivor = canonical member's `name:` key, canonical = suffix-free.
   - name↔parent (the 31 Realty shape) → survivor = parent-id, both member keys (and the parent id itself) map to it, canonical = suffix-free.
   - parent↔parent (two parent-ids, same strong-norm) → survivor = lowest parent-id.
@@ -162,7 +174,7 @@ curated tool path (independent):
   - single-token shared strong-norm (`"redfin"`) → no entry (not distinctive).
   - `(market, strong_norm)` in `do_not_merge` (space-separated form) → no entry (the sign-off veto).
   - single base_key for a strong-norm → no entry.
-  - canonicalName tiebreak (two suffix-free variants) → lexicographically smallest display name.
+  - canonical display prefers the fewest legal-suffix tokens, decoupled from survivorKey (survivor may be a parent-id while canonical is a suffix-free no-parent name).
 
 **TS unit (`export_merge_decisions.test.ts`):**
 - a member slug `frag-name:foo` (present in the fragments fixture) resolves to `name:foo`; the decision is emitted.
@@ -170,7 +182,7 @@ curated tool path (independent):
 
 **e2e (scratch pipeline run, real DFW data):**
 - the 31 Realty pair and its exact-tier siblings fold to one operator each; ranked operator count drops; no residual dupes; `[auto-merge]` log lines present.
-- `audit_fragment_merge.py` dry-run over all markets exits clean (invariants pass) and writes a non-empty report.
+- the run's inline invariants pass (no `AssertionError`) and a non-empty `auto_merge_report_dallas-fort-worth-arlington-tx.txt` is written to the out-dir.
 
 ## Risks & mitigations
 
