@@ -356,10 +356,13 @@ model WatchListView {
 }
 
 model DigestPreference {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  unsubscribed Boolean  @default(false)
-  updatedAt    DateTime @updatedAt
+  id                       String    @id @default(cuid())
+  userId                   String    @unique
+  unsubscribed             Boolean   @default(false)
+  cadence                  String    @default("monthly")
+  lastNotifiedSnapshotDate DateTime?
+  lastDigestAt             DateTime?
+  updatedAt                DateTime  @updatedAt
 }
 
 model WatchListDigestRun {
