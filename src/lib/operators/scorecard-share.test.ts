@@ -230,3 +230,27 @@ test("CopyLinkButton is wired into the New scorecard header", () => {
     "ScorecardHeader must pass operatorSlug={slug} to CopyLinkButton"
   );
 });
+
+test("PrintScorecardButton is wired into the New scorecard header", () => {
+  // The PDF-download affordance was re-homed from Classic (ScorecardSidebar)
+  // into the redesign's ScorecardHeader (PR2 — Classic retirement).
+  const headerSrc = readFileSync(
+    join(
+      process.cwd(),
+      "src/components/scorecard/redesign/ScorecardHeader.tsx"
+    ),
+    "utf8"
+  );
+  assert.ok(
+    headerSrc.includes("import { PrintScorecardButton }"),
+    "ScorecardHeader must import PrintScorecardButton"
+  );
+  assert.ok(
+    headerSrc.includes("<PrintScorecardButton"),
+    "ScorecardHeader must render <PrintScorecardButton ... />"
+  );
+  assert.ok(
+    headerSrc.includes("pmSlug={slug}"),
+    "ScorecardHeader must pass pmSlug={slug} to PrintScorecardButton"
+  );
+});

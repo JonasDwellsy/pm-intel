@@ -49,7 +49,7 @@ export function PrintScorecardButton({
       download
       onClick={handleClick}
       className={
-        "dq-no-print inline-flex h-9 w-full items-center justify-center rounded-md border border-grid bg-white px-4 text-[13px] font-semibold text-navy transition-colors hover:bg-navy-soft" +
+        "dq-no-print inline-flex h-9 items-center justify-center rounded-md border border-grid bg-white px-4 text-[13px] font-semibold text-navy transition-colors hover:bg-navy-soft" +
         (className ? ` ${className}` : "")
       }
     >
