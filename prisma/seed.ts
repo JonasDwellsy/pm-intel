@@ -1012,7 +1012,6 @@ export function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardDat
       totalUnits: asInt(tenancy.totalUnits) ?? 0,
       multiEpisodeUnits: asInt(tenancy.multiEpisodeUnits) ?? 0,
       multiEpisodePct: asInt(tenancy.multiEpisodePct) ?? 0,
-      overallGap: asNumber(tenancy.overallGap),
       tenancyPercentile: asNumber(tenancy.tenancyPercentile),
       apartment: normalizeTenancyAsset(getObj(tenancy, "apartment"), {
         p25: null,

@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import type { ScorecardView } from "@/lib/scorecard/view-model";
 import type { ScorecardData } from "@/lib/types";
-import { vacancyDetail, concessionDetail } from "@/lib/scorecard/operating-detail";
+import { concessionDetail } from "@/lib/scorecard/operating-detail";
 
 export const dynamic = "force-dynamic";
 
@@ -127,7 +127,6 @@ const FIXTURE_SCORECARD: ScorecardData = {
     totalUnits: 481,
     multiEpisodeUnits: 128,
     multiEpisodePct: 26.6,
-    overallGap: 18,
     tenancyPercentile: 64,
     apartment: {
       gap: 21,
@@ -251,7 +250,6 @@ const FIXTURE_VIEW: ScorecardView = {
     sectionLabel: "good",
     takeaway: "Above the cohort median on 4 of 4 scored dimensions.",
     strongest: ["Lease-up speed", "Marketing discipline"],
-    vacancy: { pct: 12.1, cohortMedianPct: 18.4, star: "gold", ...vacancyDetail(12.1, 18.4) },
     concession: {
       ratePct: 34,
       marketRatePct: 12,

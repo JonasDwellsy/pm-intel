@@ -176,32 +176,23 @@ function buildLeaseUpCell(
   };
 }
 
-/** Tenant Retention cell: median tenancy months + cohort delta when
- *  available (operators in some cohorts don't have apt / house p50
- *  populated; we fall back to "N units observed"). */
+/** Tenant Retention cell: survival-based 18-month retention rate
+ *  (mirrors how src/lib/scorecard/view-model.ts renders the same
+ *  metric on the live scorecard — headline is a clean percentage,
+ *  suppressed/missing operators fall back to "—"). */
 function buildRetentionCell(
   tenancy: ScorecardData["tenancy"]
 ): MetricCell {
   const star = tenancy.star ?? null;
-  const value = tenancy.overallGap;
-  const cohortMedian =
-    tenancy.apartment?.cohortP50 ?? tenancy.house?.cohortP50 ?? null;
-  let context = `${fmtInt(tenancy.totalUnits)} units observed`;
-  if (value !== null && cohortMedian !== null && cohortMedian > 0) {
-    const delta = value - cohortMedian;
-    if (Math.abs(delta) < 0.05) {
-      context = `vs cohort median ${fmtNumber(cohortMedian, 1)}mo`;
-    } else {
-      // Longer tenancy is better, so a positive delta is favorable (▲).
-      const arrow = delta > 0 ? "▲" : "▼";
-      context = `${arrow} ${fmtNumber(Math.abs(delta), 1)}mo vs cohort ${fmtNumber(cohortMedian, 1)}mo`;
-    }
-  }
+  const r = tenancy.retention18Pct;
+  const suppressed = tenancy.tenancySuppressed || r == null;
   return {
     star,
-    headline: value !== null ? fmtNumber(value, 1) : "—",
-    unit: "mo median",
-    context,
+    headline: suppressed ? "—" : `${Math.round(r as number)}%`,
+    unit: "",
+    context: suppressed
+      ? tenancy.tenancySuppressedReason ?? "Insufficient tenancy data"
+      : `${fmtInt(tenancy.totalUnits)} units observed`,
   };
 }
 

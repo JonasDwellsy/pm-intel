@@ -36,7 +36,6 @@ export type MetricKey =
   | "rentPerformance"
   | "marketing"
   | "communityVisibility"
-  | "vacancySignal"
   | "operatorStability"
   | "geographicConcentration"
   | "pricingTier"
@@ -174,20 +173,6 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
       "Comprehensive doesn't mean complete — it means observable listings are consistent with industry-default turnover at the known community size.",
     ],
     methodologyHref: "/methodology#community-visibility",
-  },
-
-  vacancySignal: {
-    name: "Vacancy Signal",
-    definition:
-      "Fraction of the average leasing cycle spent vacant. Composite of DOM (vacancy duration) and tenancy (occupancy duration). Lower is more favorable.",
-    formula: "vacancy_pct = (DOM_days / 30) / (Tenancy_months + DOM_days / 30) × 100",
-    cohortScope:
-      "Same primary→fallback→MSA waterfall as DOM and Tenancy individually.",
-    caveats: [
-      "Combines two metrics with their own caveats. Operators with short observation history will have noisy Tenancy → noisy vacancy.",
-      "Doesn't account for intentional vacancy (renovation, hold-for-sale).",
-    ],
-    methodologyHref: "/methodology#lending-signals",
   },
 
   operatorStability: {
