@@ -94,7 +94,7 @@ test("scaleFit surfaces estimate band + confidence + observed units, and fills t
 test("operating rows carry label/value/position/star and drop null-percentile metrics", () => {
   const v = buildScorecardView({
     scorecard: scFixture({
-      performance: { domT12: 18, marketDomT12: 31, houseDomT12: 16, aptDomT12: 22, domStar: "silver" },
+      performance: { domT12: 18, marketDomT12: 31, peerQuadrantDomT12: 25, houseDomT12: 16, aptDomT12: 22, domStar: "silver" },
       rentPerformance: { pmYoyChange: 0.031, cohortMedianYoyChange: 0.028, star: null },
       marketing: { compositeScore: 88, star: "silver" },
       tenancy: { overallGap: 13.1, multiEpisodeUnits: 168, multiEpisodePct: 31, retention18Pct: 72.4,
@@ -110,6 +110,11 @@ test("operating rows carry label/value/position/star and drop null-percentile me
   assert.equal(dom.label, "good");        // 66th
   assert.equal(dom.position, 0.66);
   assert.equal(dom.star, "silver");
+  // Lease-up benchmarks against the same-quadrant peer (cohort) median
+  // (peerQuadrantDomT12), NOT the whole-MSA median (marketDomT12) — consistent
+  // with the other cards. "average" wording retired in favor of "cohort median".
+  assert.equal(dom.benchmark, "cohort 25d");
+  assert.match(dom.interpretation, /Leases in about 18 days, versus a 25-day cohort median\./);
   assert.equal(v.operating.sectionLabel, "good"); // composite 68
   // Tenant retention renders retention18Pct (share reaching 18 months), NOT
   // overallGap or multiEpisodePct (analysis-pool size decoys). The big value is

@@ -266,11 +266,11 @@ const FIXTURE_VIEW: ScorecardView = {
         title: "Lease-up speed",
         label: "strong",
         value: "21d",
-        benchmark: "market avg 28d",
+        benchmark: "cohort 28d",
         position: 0.82,
         star: "gold",
         sub: ["Houses 19d", "Apartments 28d"],
-        interpretation: "Leases in about 21 days, versus a 28-day market average.",
+        interpretation: "Leases in about 21 days, versus a 28-day cohort median.",
       },
       {
         key: "tenancy",

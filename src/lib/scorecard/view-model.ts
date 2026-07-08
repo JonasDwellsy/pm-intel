@@ -141,15 +141,25 @@ function metricValueBenchmark(
 ): { value: string; benchmark: string; sub: string[]; interpretation: string } {
   if (k === "dom") {
     const dom = sc.performance?.domT12;
+    // Benchmark against the same-quadrant peer (cohort) median — the population
+    // the position bar + star are scored against — NOT the whole-MSA median.
+    // The MSA-wide figure mixes in fast-leasing large MF/BTR and makes a
+    // scattered-SFR operator look like a laggard against operators that aren't
+    // its peers; every other Operating Performance card benchmarks against the
+    // cohort median, so this makes Lease-up consistent. Fall back to the
+    // MSA-wide median (labeled as such) only when the peer median is missing.
+    const cohort = sc.performance?.peerQuadrantDomT12;
     const mkt = sc.performance?.marketDomT12;
+    const benchN = cohort != null ? cohort : mkt ?? null;
+    const benchIsCohort = cohort != null;
     return {
       value: dom != null ? `${Math.round(dom)}d` : "—",
-      benchmark: mkt != null ? `market avg ${Math.round(mkt)}d` : "",
+      benchmark: benchN != null ? `${benchIsCohort ? "cohort" : "market"} ${Math.round(benchN)}d` : "",
       sub: [sc.performance?.houseDomT12 != null ? `Houses ${Math.round(sc.performance.houseDomT12)}d` : "",
             sc.performance?.aptDomT12 != null ? `Apartments ${Math.round(sc.performance.aptDomT12)}d` : ""].filter(Boolean),
       interpretation: dom == null ? ""
-        : mkt != null
-          ? `Leases in about ${Math.round(dom)} days, versus a ${Math.round(mkt)}-day market average.`
+        : benchN != null
+          ? `Leases in about ${Math.round(dom)} days, versus a ${Math.round(benchN)}-day ${benchIsCohort ? "cohort median" : "market-wide median"}.`
           : `Leases in about ${Math.round(dom)} days.`,
     };
   }
