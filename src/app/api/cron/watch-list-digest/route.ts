@@ -1,9 +1,12 @@
-// GET /api/cron/watch-list-digest — daily Vercel Cron entrypoint. No-ops
-// unless a new OperatorSnapshot date has appeared since the last completed
-// run. Gated by CRON_SECRET (Vercel Cron attaches it as a Bearer token).
+// GET /api/cron/watch-list-digest — daily Vercel Cron entrypoint. Gating is
+// PER-RECIPIENT (see runDigest): each org member is emailed only when there is
+// new snapshot data since they were last notified AND their chosen cadence
+// (daily/weekly/monthly) throttle has elapsed AND the digest is non-empty — so
+// a faster cadence is an upper bound, never a stale or empty send. Gated by
+// CRON_SECRET (Vercel Cron attaches it as a Bearer token).
 // Modes: default = send; ?dryRun=1 = compose+count, send nothing, record
-// nothing; ?preview=<email> = send one fully-rendered digest to <email>,
-// bypassing the idempotency guard.
+// nothing; ?preview=<email> = send one fully-rendered digest to <email>
+// (bypasses gating + bookkeeping).
 import { runDigest } from "@/lib/watch-list/digest-run";
 
 export const dynamic = "force-dynamic";
