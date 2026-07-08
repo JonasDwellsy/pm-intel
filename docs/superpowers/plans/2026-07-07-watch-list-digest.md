@@ -423,8 +423,9 @@ test("html + text include operator, market, list name, and scorecard link", () =
 
 test("html + text include the unsubscribe link", () => {
   const email = buildDigest(input())!;
-  assert.match(email.html, /api\/digest\/unsubscribe\?u=user_1&t=abc/);
-  assert.match(email.text, /api\/digest\/unsubscribe/);
+  // HTML escapes & → &amp; in the href (valid HTML; clients parse it back).
+  assert.match(email.html, /api\/digest\/unsubscribe\?u=user_1&amp;t=abc/);
+  assert.match(email.text, /api\/digest\/unsubscribe\?u=user_1&t=abc/);
 });
 
 test("describeChange renders each variant as human copy", () => {
