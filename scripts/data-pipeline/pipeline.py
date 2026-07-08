@@ -43,7 +43,11 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tenancy_survival import is_departed, name_key, group_last_events, RECENCY_GATE_DAYS, compute_tenancy_survival
-from operator_grouping import within_market_key, load_do_not_merge, load_merge_decisions, merged_override
+from operator_grouping import (
+    within_market_key, load_do_not_merge, load_merge_decisions, merged_override,
+    compute_auto_merges, auto_merge_map, assert_auto_merge_invariants,
+    format_auto_merge_report, strong_name_key, is_distinctive, GENERIC_TOKENS,
+)
 
 csv.field_size_limit(sys.maxsize)
 
@@ -123,7 +127,7 @@ DO_NOT_MERGE = load_do_not_merge(os.path.join(_SCRIPT_DIR, "do_not_merge.json"))
 # Phase 2 fragment merge — curated merge-map (market, memberKey) -> survivor
 # {survivorKey, canonicalName, survivorSlug}. Missing file / empty decisions
 # -> empty map (no-op; matches launch state until decisions are curated).
-MERGE_MAP = load_merge_decisions(os.path.join(_SCRIPT_DIR, "merge_decisions.json"))
+CURATED_MAP = load_merge_decisions(os.path.join(_SCRIPT_DIR, "merge_decisions.json"))
 
 NATIONAL_LOOKUP = os.path.join(
     BASE, _cfg.get("nationalLookup", "Operator_National_Urus_v0.6.2.json")
@@ -464,6 +468,41 @@ rows_total = 0
 rows_market = 0
 rows_excluded_type = 0  # v0.6.4 Patch 9 — software/syndication rows dropped
 rows_excluded_denylist = 0  # v0.6.4 Patch 9 — curated denylist rows dropped
+
+# v0.25 Phase 1.5 — exact-tier auto-merge. A cheap pre-pass over the same
+# post-exclusion rows the grouping loop sees (below) computes a merge_map for
+# operators whose names are identical after stripping legal suffixes + punctuation
+# (distinctive names only). Curated decisions overlay on top and win on any key
+# conflict. The combined map flows through within_market_key + merged_override
+# unchanged. The filter checks here MUST mirror the grouping loop's skips.
+_auto_rows = []
+with open(CSV_PATH, newline="", encoding="utf-8") as _amf:
+    for _r in csv.DictReader(_amf):
+        if _r.get("msa_code") != MSA_CODE:
+            continue
+        _company = _r.get("company_name", "")
+        if not _company:
+            continue
+        _n = normalize_name(_company)
+        if not _n or _n in _DENYLIST_NORMS:
+            continue
+        if effective_company_type(_r) in EXCLUDED_COMPANY_TYPES:
+            continue
+        _auto_rows.append({"parent_id": (_r.get("parent_company_id") or "").strip(),
+                           "child_id": (_r.get("child_company_id") or "").strip(),
+                           "name": _company})
+_auto_clusters = compute_auto_merges(_auto_rows, MARKET_ID, DO_NOT_MERGE)
+assert_auto_merge_invariants(_auto_clusters, MARKET_ID, DO_NOT_MERGE)
+AUTO_MAP = auto_merge_map(_auto_clusters, MARKET_ID)
+MERGE_MAP = {**AUTO_MAP, **CURATED_MAP}   # curated human decision wins on conflict
+for _dupe_key in sorted(set(AUTO_MAP) & set(CURATED_MAP)):
+    log(f"[auto-merge] curated override on {_dupe_key}")
+for _c in _auto_clusters:
+    log(f"[auto-merge] {_c['survivorKey']} <- {[m['key'] for m in _c['members']]}")
+log(f"[auto-merge] {len(_auto_clusters)} exact-tier cluster(s) auto-merged this market")
+with open(os.path.join(OUT_DIR, f"auto_merge_report_{MARKET_ID}.txt"), "w") as _rf:
+    _rf.write(format_auto_merge_report(_auto_clusters, MARKET_ID))
+
 with open(CSV_PATH, newline="", encoding="utf-8") as f:
     reader = csv.DictReader(f)
     for row in reader:
@@ -1605,18 +1644,18 @@ for norm in sorted(eligible_norms):
     # survivorSlug instead of the name-derived slug (the curated slug is
     # picked to survive future re-runs / re-merges without churning URLs).
     _ov = merged_override(_mkt["id"], norm, MERGE_MAP)
-    if _ov:
-        slug = _ov["survivorSlug"]
+    # A merged survivor (curated or auto) keeps its survivorSlug as the base, but
+    # still passes through collision disambiguation so two survivors (or a survivor
+    # and a normal op) can never share a slug.
+    base_slug = _ov["survivorSlug"] if _ov else pm_slug(name)
+    n_seen = seen_slugs_in_market.get(base_slug, 0)
+    if n_seen == 0:
+        slug = base_slug
     else:
-        base_slug = pm_slug(name)
-        n_seen = seen_slugs_in_market.get(base_slug, 0)
-        if n_seen == 0:
-            slug = base_slug
-        else:
-            # n_seen=1 → next gets "-2", n_seen=2 → "-3", etc.
-            slug = f"{base_slug}-{n_seen + 1}"
-            slug_collisions.append((norm, base_slug, slug))
-        seen_slugs_in_market[base_slug] = n_seen + 1
+        # n_seen=1 → next gets "-2", n_seen=2 → "-3", etc.
+        slug = f"{base_slug}-{n_seen + 1}"
+        slug_collisions.append((norm, base_slug, slug))
+    seen_slugs_in_market[base_slug] = n_seen + 1
 
     dom_star = star_data[norm].get("dom") or {}
     rp_star = star_data[norm].get("rentPerformance") or {}
@@ -1878,21 +1917,16 @@ for norm, subs in pm_t12_by_sub.items():
 # clustering + the combined-T12 >= cutoff filter, so we deliberately do NOT
 # pre-filter on name-sharing here (that would miss near-match satellites like
 # "Auben Realty - DFW" <- "Auben Realty").
-_APP_LEGAL_SUFFIXES = {"inc", "llc", "llp", "lp", "ltd", "co", "corp",
-                       "corporation", "company"}
-_APP_GENERIC_TOKENS = {"property", "properties", "management", "mgmt", "realty",
-                       "real", "estate", "group", "homes", "home", "rentals",
-                       "rental", "services", "service", "the", "of", "and"}
+# v0.25 — one shared normalization for the merge tool, the auto-merge, and this
+# sidecar (see operator_grouping.strong_name_key / is_distinctive / GENERIC_TOKENS).
 _PLACEHOLDER_NORMS = {"name not provided", "not provided", "unknown", "none",
                       "n a", "na", "tbd", "test"}
 def _app_norm(name):
-    s = re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip()
-    toks = [t for t in s.split(" ") if t and t not in _APP_LEGAL_SUFFIXES]
-    return " ".join(toks) or s
+    return strong_name_key(name)
 def _tokset(an):
     return {t for t in an.split(" ") if t}
 def _distinctive_set(s):
-    return len(s) >= 2 and any(t not in _APP_GENERIC_TOKENS for t in s)
+    return len(s) >= 2 and any(t not in GENERIC_TOKENS for t in s)
 def _distinctive_subset(small, big):
     # small ⊊ big and the shared core is distinctive — the tool's near-match rule.
     return 0 < len(small) < len(big) and small <= big and _distinctive_set(small)
