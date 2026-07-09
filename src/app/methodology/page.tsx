@@ -19,7 +19,7 @@ import { TrackEvent } from "@/components/analytics/TrackEvent";
 export const metadata: Metadata = {
   title: "Methodology",
   description:
-    "How Dwellsy IQ scores property managers (v0.6.4 + design v1.0): inclusion criteria, URU resolution, 7-cell operator classification, community visibility, tenancy with short-history caveat, rent trajectory, rent performance, marketing, composite ranking with star system, market rent growth aggregate, canonical operator identity, Lending Signals overview, and honest limitations.",
+    "How Dwellsy IQ scores property managers (methodology v0.7): inclusion and category exclusions, URU resolution, the 7-cell operator taxonomy with the apartment-dominant override, community visibility, days-on-market and Kaplan-Meier tenant retention, rent trajectory and performance, marketing discipline, the internal composite and per-metric star system, canonical and within-market operator identity, portfolio-size estimation, and honest limitations.",
 };
 
 async function loadVersion() {
@@ -27,9 +27,10 @@ async function loadVersion() {
     select: { methodologyVersion: true, dataAsOf: true },
     orderBy: { dataAsOf: "desc" },
   });
-  // Design version isn't stored as a column; v1.0 ships alongside v0.6.2
-  // methodology and the pair is referenced together in every modal.
-  const designVersion = "v1.0";
+  // Design version isn't stored as a column; v2.0 is the redesigned
+  // scorecard (the earlier Classic layout has been retired), and it is
+  // referenced together with methodology v0.7 in every modal.
+  const designVersion = "v2.0";
   const markets = await prisma.market.findMany({
     select: { city: true },
     orderBy: { city: "asc" },
@@ -45,9 +46,9 @@ async function loadVersion() {
         marketList,
       }
     : {
-        version: "v0.6.4",
+        version: "v0.7",
         designVersion,
-        dataAsOf: "2026-05-19",
+        dataAsOf: "2026-07-06",
         marketCount,
         marketList,
       };
@@ -66,7 +67,7 @@ const TOC: TocItem[] = [
   { id: "rent-trajectory", num: "06", label: "Rent trajectory" },
   { id: "rent-performance", num: "07", label: "Rent performance" },
   { id: "marketing", num: "08", label: "Marketing scores" },
-  { id: "composite", num: "09", label: "Composite ranking" },
+  { id: "composite", num: "09", label: "Composite & stars" },
   { id: "limitations", num: "10", label: "Honest limitations" },
   { id: "glossary", num: "11", label: "Glossary" },
   { id: "versioning", num: "12", label: "Version history" },
@@ -106,7 +107,7 @@ const GLOSSARY: GlossaryRow[] = [
   {
     term: "Composite",
     definition:
-      "The weighted percentile-rank average across DOM, Tenancy, Rent Performance, Marketing Quality, and (when applicable) Community Visibility.",
+      "The weighted percentile-rank average across DOM, Tenant Retention, Rent Performance, Marketing, and (when applicable) Community Visibility. Computed internally and versioned, but never surfaced as a score or a rank on scorecards — its only visible effect is as the final tie-break in star-ordered market lists.",
     ref: "§09",
   },
   {
@@ -124,7 +125,7 @@ const GLOSSARY: GlossaryRow[] = [
   {
     term: "Concentrated share",
     definition:
-      "Fraction of an operator's observed urus that sit in communities where they manage 10 or more units. Drives the SFR / MF/BTR / Hybrid classification (< 30%, ≥ 70%, in between).",
+      "Fraction of an operator's observed urus that sit in communities where they manage 10 or more units. Drives the SFR / MF/BTR / Hybrid split (< 30% / ≥ 70% / in between) — but only for operators that are not apartment-dominant; the apartment-dominant override (house share ≤ 10%) is applied first.",
     ref: "§03",
   },
   {
@@ -142,7 +143,7 @@ const GLOSSARY: GlossaryRow[] = [
   {
     term: "Years visible",
     definition:
-      "Length of operator observation history in Dwellsy IQ data, measured from the first observed listing. Drives the short-observation caveat on Tenancy (yearsVisible < 3) and the Operator Stability lending signal.",
+      "Length of operator observation history in Dwellsy IQ data, measured from the first observed listing. Surfaced as operator-tenure context; it no longer gates the retention metric, which now uses a Kaplan-Meier survival estimate with its own qualification test.",
     ref: "§05",
   },
   {
@@ -160,7 +161,7 @@ const GLOSSARY: GlossaryRow[] = [
   {
     term: "Lending Signals",
     definition:
-      "Four auxiliary signals (Vacancy, Operator Stability, Geographic Concentration, Pricing Tier) surfaced alongside the composite. Underwriting-relevant synthesis metrics; don't feed the composite ranking.",
+      "Underwriting-relevant context signals. Vacancy has been retired. The three survivors — Operator Stability, Geographic Concentration, Pricing Tier — are folded into the scorecard's Scale & Fit section on the web (no longer a standalone section) and still render as a dedicated page in the PDF export. None feed the composite.",
     ref: "§09",
   },
   // ── v0.6.3 terms ──────────────────────────────────────────────────
@@ -191,7 +192,7 @@ const GLOSSARY: GlossaryRow[] = [
   {
     term: "Star summary chip",
     definition:
-      "★N ☆M chip showing an operator's gold + silver per-metric star counts. Used on market list rows and scorecard Layer 1. Counts roll up across DOM, Rent Performance, Marketing, Tenancy, and (when applicable) Community Visibility. Composite star is excluded from the rollup to avoid double-counting.",
+      "★N ☆M chip showing an operator's gold + silver per-metric star counts. Used on market list rows and the scorecard header. Counts roll up across DOM, Rent Performance, Marketing, Tenant Retention, and (when applicable) Community Visibility. Composite star is excluded from the rollup to avoid double-counting.",
     ref: "§09",
   },
   {
@@ -222,26 +223,75 @@ const GLOSSARY: GlossaryRow[] = [
   {
     term: "Canonical operator identity",
     definition:
-      "v0.6.4 Patch 1 — operators that appear in multiple markets resolve to a single canonical entity via name normalization (strip LLC/Inc/Ltd/Co/Corp suffixes, lowercase, collapse whitespace; substantive tokens like Property Management / Realty are preserved). Powers the /operators/[canonicalSlug] operator scorecard route and state-level count dedup.",
+      "Operators that appear in multiple markets resolve to a single canonical entity — primarily by Dwellsy's parent-company id (parentCompanyId), which is authoritative, with a human-curated name mapping as the fallback for operators that carry no parent id. Powers the /operators/[canonicalSlug] operator route and state-level count dedup.",
     ref: "§07",
   },
   {
     term: "Cross-market operator",
     definition:
-      "An operator whose canonical entity spans ≥2 covered markets (e.g. Invitation Homes operates in 4 of the 10 covered MSAs). Surfaced via a chip in scorecard Layer 1 linking to the cross-market profile. 34 multi-market canonical entities cover ~104 of 694 PM records in the current footprint.",
+      "An operator whose canonical entity spans ≥2 covered markets. Surfaced via a chip in the scorecard header linking to the cross-market profile. In the current 34-market footprint, 134 multi-market canonical entities cover 413 of 3,649 PM records.",
     ref: "§07",
   },
   {
     term: "Concession activity / concession rate",
     definition:
-      "v0.6.4 Patch 2 — share of an operator's T12 listings that mention concession language (regex-based classifier on listing descriptions). Surfaced on scorecard Layer 5 with a market median for cohort context. Context only — not star-bearing, not in composite ranking. Operators absent from the classifier input show no section.",
+      "Share of an operator's T12 listings that mention concession language (regex-based classifier on listing descriptions). Surfaced on the scorecard with a listing-weighted market concession rate for cohort context. Context only — not star-bearing, not in the composite. Operators absent from the classifier input show no section.",
     ref: "§07",
   },
   {
     term: "Concession patterns",
     definition:
-      "v1 dictionary of ~12 stereotyped pattern families the classifier matches: free month(s), % off, $ off, no/reduced deposit, move-in special, explicit concession, rent reduction, lease special, limited offer, waived fee, free rent, plus an explicit_concession catch-all. Indirect/paraphrased language is missed by design — a v2 LLM-grader pass is a v0.7 candidate.",
+      "v1 dictionary of ~14 stereotyped pattern families the classifier matches: free month(s), % off, $ off, no/reduced deposit, move-in special, explicit concession, rent reduction, lease special, limited offer, waived fee, free rent, plus an explicit_concession catch-all. Indirect/paraphrased language is missed by design — a v2 LLM-grader pass is a future candidate.",
     ref: "§07",
+  },
+  // ── v0.7 terms ────────────────────────────────────────────────────
+  {
+    term: "Apartment-dominant override",
+    definition:
+      "Classification rule applied before the concentrated-share bands: when an operator's house share (house units ÷ (house + apartment units)) is 10% or less, they are classified MF/BTR regardless of concentrated share, so scattered-apartment operators are no longer mislabeled SFR or Hybrid. Small vs Large still follows median concentrated community size.",
+    ref: "§03",
+  },
+  {
+    term: "Tenant retention — S(18)",
+    definition:
+      "The ranked retention metric: a Kaplan-Meier survival estimate of the share of an operator's tenancies that reach 18 months (\"about X% reach 1.5 years\"). A tenancy is the occupied interval between a listing's deactivation and the same unit's next listing (≥ 3 months); still-occupied units are right-censored. Reported as a percentage, not a duration.",
+    ref: "§05",
+  },
+  {
+    term: "Retention qualification / suppression",
+    definition:
+      "A survival estimate is surfaced only when an operator has ≥ 25 observations reaching 18 months and ≥ 5 turnover events. Below either threshold the metric is suppressed — no value, no star — and the composite is re-normalized across the operator's remaining metrics (the retention weight is redistributed, not scored zero).",
+    ref: "§05",
+  },
+  {
+    term: "Departed-operator gate",
+    definition:
+      "Operators whose most recent listing event (creation or deactivation) is more than 60 days old are treated as departed and dropped from the ranked set entirely, so a wound-down operator's stale data can't distort cohort statistics. Departure is judged at the operator-name level, across a name's id fragments.",
+    ref: "§01, §05",
+  },
+  {
+    term: "Category exclusion",
+    definition:
+      "Two filters that remove non-operators before an operator is formed: a type-based filter (data-platform artifacts — property-management marketing software, listing-syndication services) and a small curated denylist for source-misclassified artifacts. Surfaced read-only in admin tooling.",
+    ref: "§01",
+  },
+  {
+    term: "Broker vs. property manager",
+    definition:
+      "Each operator is typed as a property manager or a broker from the source company-type signal (majority vote, parent type taking precedence). The two are scored in separate cohorts and never pooled; brokers are hidden from the default ranked lists. A small curated override reassigns source-mislabeled operators (e.g. license-holding franchise offices).",
+    ref: "§01, §09",
+  },
+  {
+    term: "Within-market fragment merge",
+    definition:
+      "The data source periodically re-issues an operator new internal ids, splitting one operator into several records in a single market. An exact-tier auto-merge re-pools no-parent records with identical distinctive names (≥2 tokens, ≥1 non-generic, after stripping legal suffixes); placeholder names and a do-not-merge denylist are excluded, invariants are asserted, and a curated merge list wins on conflict.",
+    ref: "§07",
+  },
+  {
+    term: "Estimated managed units",
+    definition:
+      "A portfolio-size estimate from observed on-market turnover, split by unit type: house URUs (T12) × 3.3 + apartment URUs (T12) × 2.6, with the two turnover multipliers admin-tunable. A low–high band brackets it using plausible per-type turnover ranges. Context only — not in the composite. See the portfolio-estimator methodology page.",
+    ref: "§10",
   },
 ];
 
@@ -341,8 +391,9 @@ export default async function MethodologyPage() {
                 </li>
                 <li>
                   <strong>At least three distinct addresses</strong>{" "}
-                  <em>or</em> <strong>at least one community with thirty or
-                  more listings</strong>.
+                  <em>or</em> <strong>at least one community where we observe
+                  thirty or more distinct units</strong> in the trailing 12
+                  months.
                 </li>
               </ol>
               <p>
@@ -350,6 +401,17 @@ export default async function MethodologyPage() {
                 operators (who hit the diversity threshold through breadth) and
                 single-asset multifamily operators (who hit it through depth at
                 a single community).
+              </p>
+              <p>
+                <strong>Departed-operator gate.</strong> An operator whose most
+                recent listing activity — creation or deactivation — predates a{" "}
+                <span className="dq-chip dq-tnum">60-day</span> recency cutoff
+                is excluded even if it clears the listing and diversity tests,
+                so a scorecard never reflects an operator that has wound down or
+                left the market. Departure is judged at the operator-name level,
+                aggregating the newest event across the id fragments an operator
+                churns through over time (see §07), so a still-active operator
+                is never dropped on a single stale fragment.
               </p>
               <p className="text-[13.5px] italic text-muted-foreground">
                 Earlier methodology versions labeled this window
@@ -359,11 +421,53 @@ export default async function MethodologyPage() {
                 label so it matches the underlying computation. No operator
                 gains or loses eligibility from the relabel.
               </p>
+              <h3
+                id="category-exclusions"
+                className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
+              >
+                Category exclusions.
+              </h3>
               <p>
-                We do not maintain category exclusion lists. The thresholds
-                above filter out non-operator listings naturally. If future
-                markets surface edge cases that slip through, we document the
-                exclusion rule then and version the methodology accordingly.
+                Two filters remove non-operators before any operator is formed.
+                First, listings whose source company type is a data-platform
+                artifact — property-management marketing software or
+                listing-syndication services — are dropped at the row level;
+                they never become an operator, a scorecard, a search result, or
+                a market count. Second, a small{" "}
+                <strong>curated denylist</strong> catches source-misclassified
+                artifacts that slip past the type filter — for example, a
+                listing-syndication platform mislabeled as an &ldquo;Owner&rdquo;
+                in the source data that would otherwise top a market. The
+                denylist is deliberately narrow, reviewed as a code change, and
+                surfaced read-only in our admin tooling. These are the exclusion
+                rules the earlier methodology promised to document once they
+                existed.
+              </p>
+              <h3
+                id="operator-type"
+                className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
+              >
+                Broker vs. property manager.
+              </h3>
+              <p>
+                We type each operator as a <strong>property manager</strong> or
+                a <strong>broker</strong> from the source company-type signal —
+                a majority vote across the operator&apos;s listings, with the
+                parent company&apos;s type taking precedence. Brokers are
+                tracked and scored, but within their own cohort: a property
+                manager is only ever ranked against other property managers, and
+                a broker only against other brokers (the rent-performance
+                baseline is likewise split), and brokers are hidden from the
+                default ranked lists behind a &ldquo;show brokers&rdquo; toggle.
+              </p>
+              <p>
+                Because some franchise operators — notably Real Property
+                Management offices — hold brokerage licenses and are tagged
+                &ldquo;Brokerage&rdquo; at the source despite operating as
+                property managers, a small curated override reassigns those
+                specific operators to the property-manager cohort. The override
+                is keyed on the operator&apos;s name, so it survives the source
+                re-issuing new internal ids.
               </p>
             </SectionAnchor>
 
@@ -437,6 +541,30 @@ export default async function MethodologyPage() {
                 <Op>=</Op> Σ urus in ≥10-unit communities <Op>/</Op> total urus
               </FormulaBlock>
               <p>
+                <strong>Unit-type override (applied first).</strong> Concentrated
+                share alone conflates &ldquo;scattered&rdquo; with
+                &ldquo;single-family.&rdquo; An operator running apartments
+                spread across many small buildings can look Scattered by
+                concentration even though they are plainly a multifamily
+                operator. To correct this we compute each operator&apos;s{" "}
+                <strong>house share</strong> — observed house-type units divided
+                by house-plus-apartment units — and when it is{" "}
+                <span className="dq-chip dq-tnum">≤ 10%</span> (essentially all
+                apartments) we classify the operator as MF/BTR{" "}
+                <em>regardless of concentrated share</em>. The Small-vs-Large
+                split then follows the same median concentrated community-size
+                rule (<span className="dq-chip dq-tnum">≥ 50 units</span> →
+                Large, otherwise Small). This override runs <em>before</em> the
+                concentrated-share bands above; only operators that are not
+                apartment-dominant are classified by concentrated share. About a
+                third of eligible operators carry the override.
+              </p>
+              <FormulaBlock label="Formula · apartment-dominant override">
+                <span className="text-navy">house_share</span> <Op>=</Op>{" "}
+                house urus <Op>/</Op> (house urus <Op>+</Op> apartment urus)
+                {" "}<Op>·</Op> if <Op>≤</Op> 0.10 <Op>→</Op> MF/BTR
+              </FormulaBlock>
+              <p>
                 <strong>Why the Small vs Large MF/BTR split.</strong> Lender
                 and acquirer prospects care about MF/BTR community size as a
                 structural distinction. A 200-unit Class A operator has a
@@ -473,9 +601,10 @@ export default async function MethodologyPage() {
 
               <QuadrantGrid quadrant="" variant="conceptual" />
               <p className="mt-3 text-[13px] italic text-muted-foreground">
-                Figure 1. The v0.6.2 seven-cell taxonomy. The type axis (rows)
+                Figure 1. The seven-cell taxonomy. The type axis (rows)
                 splits operators into SFR, Small MF/BTR, and Large MF/BTR by
-                concentrated share and median community size. The scale axis
+                the apartment-dominant override, concentrated share, and median
+                community size. The scale axis
                 (columns) splits each type into Independent and Institutional
                 by cross-market urus. Hybrid carries no scale split — it is
                 its own classification. Cell colors match the quadrant badges
@@ -490,14 +619,17 @@ export default async function MethodologyPage() {
                 <em>&ldquo;how well do they operate?&rdquo;</em>
               </p>
               <div className="dq-callout-soft">
-                <p className="dq-callout-tag">7-cell distribution · v0.6.2</p>
+                <p className="dq-callout-tag">7-cell distribution · v0.7</p>
                 <p>
-                  Across {marketCount} covered markets and 572 eligible PMs:
-                  SFR Independent dominates at 72%, reflecting the SFR-heavy
-                  Southeast + Phoenix footprint. MF/BTR Institutional totals
-                  3.1% of operators but holds the largest absolute urus per
-                  operator. Small MF/BTR Independent (7.0%) and Hybrid (6.1%)
-                  are where smaller local operators concentrate.
+                  Across {marketCount} covered markets and 3,649 eligible
+                  operators: SFR Independent leads at 57.6%, reflecting the
+                  SFR-heavy Southeast + Sun Belt footprint. Small MF/BTR
+                  Independent is now the second-largest cell at 25.8% — the
+                  apartment-dominant override moved most scattered-apartment
+                  operators here, which also shrank Hybrid to 3.3%. MF/BTR
+                  Institutional (Small + Large) totals 3.9% of operators but
+                  holds the largest absolute urus per operator; Large MF/BTR
+                  Independent is 6.5%. (Distribution as of the current snapshot.)
                 </p>
               </div>
             </SectionAnchor>
@@ -676,50 +808,66 @@ export default async function MethodologyPage() {
                 in the scorecard.
               </p>
               <p>
-                We measure retention at the unit level from re-lease cadence.
-                For each unit we observe listing two or more times, we sort its
-                listings by creation date and measure the spacing between{" "}
-                <strong>consecutive listing creations</strong> — the interval
-                from when a unit is listed to when the same unit is listed
-                again. That spacing is a proxy for how long the unit held a
-                tenant between marketings: a longer gap between successive
-                listings implies a longer tenure.
+                We measure retention with a{" "}
+                <strong>Kaplan-Meier survival estimate</strong> of how long
+                units hold a tenant. For every unit an operator has listed two
+                or more times, each occupied interval — from a listing&apos;s
+                deactivation to the same unit&apos;s next listing creation — is
+                a completed <strong>tenancy</strong>, provided it lasts at least{" "}
+                <span className="dq-chip dq-tnum">3 months</span> (shorter
+                re-posts are re-listing noise and are dropped). A unit whose most
+                recent listing has closed but not yet re-listed contributes a{" "}
+                <strong>right-censored</strong> observation: the tenant may still
+                be in place, so we know only that tenure is <em>at least</em> the
+                time since deactivation.
               </p>
-              <FormulaBlock label="Formula · re-lease gap">
-                <span className="text-navy">gap_uru</span> <Op>=</Op>{" "}
-                <Op>(</Op>creation<Op>[</Op>k<Op>]</Op> <Op>−</Op> creation
-                <Op>[</Op>k<Op>−</Op>1<Op>]</Op><Op>)</Op> <Op>÷</Op> 30.44{" "}
-                <span className="text-muted-foreground">(months)</span>
+              <FormulaBlock label="Formula · tenancy event & censoring">
+                <span className="text-navy">event</span> <Op>=</Op>{" "}
+                next_creation <Op>−</Op> prev_deactivation{" "}
+                <span className="text-muted-foreground">(months, ≥ 3)</span>
+                <br />
+                <span className="text-navy">censored</span> <Op>=</Op> now{" "}
+                <Op>−</Op> last_deactivation
               </FormulaBlock>
               <p>
-                Only gaps between{" "}
-                <span className="dq-chip dq-tnum">1 and 60 months</span> are
-                counted — shorter spacings reflect churn or re-listing noise
-                rather than a completed tenancy, and longer ones reflect gaps in
-                coverage rather than a single stay. Per-operator retention is
-                the <strong>median</strong> of those qualifying gaps across the
-                operator&apos;s units. We use median rather than mean because
-                tenure distributions are right-skewed (a small number of
-                very-long stays would otherwise inflate averages). Units seen
-                only once contribute no gap and are excluded — we don&apos;t
-                infer tenure without a measurable interval.
+                Pooling every unit&apos;s events and censored observations, the
+                Kaplan-Meier product-limit estimator yields{" "}
+                <span className="dq-mono">S(t)</span> — the probability a tenancy
+                lasts at least <em>t</em> months. The ranked metric is{" "}
+                <strong>
+                  <span className="dq-mono">S(18)</span>
+                </strong>
+                , the share of tenancies that reach 18 months, shown as a
+                percentage and phrased &ldquo;about X% of tenancies reach 1.5
+                years.&rdquo; Higher is stickier, so a top-quartile operator
+                earns a gold star; we also report the full curve at 12, 18, and
+                24 months. Because censoring is handled natively by the
+                estimator, an operator with a short observation window is no
+                longer biased downward the way a raw gap-median would be — the
+                censoring correction the earlier methodology deferred is now the
+                metric itself.
               </p>
-              <p>Reported in months, rounded to one decimal.</p>
               <div className="dq-callout-important">
                 <p className="dq-callout-tag">
-                  Short-observation caveat · v0.6.2
+                  Qualification, suppression &amp; recency · v0.7
                 </p>
                 <p>
-                  Re-lease-cadence tenure is right-censored for operators
-                  with short observation history. A tenant who occupied a unit
-                  for 24+ months when the operator has only been observed for
-                  2.3 years can never produce a 24+ month gap in our data —
-                  this biases retention estimates downward. v0.6.2 surfaces a
-                  short-observation caveat on every PM where{" "}
-                  <span className="dq-chip dq-tnum">yearsVisible &lt; 3</span>;
-                  the per-PM caveat string renders on the Tenant Retention
-                  card in the scorecard. The Kaplan-Meier-style censoring
-                  correction is deferred to v0.7+.
+                  A survival estimate is only trustworthy with enough long-lived
+                  units and real turnover, so we surface{" "}
+                  <span className="dq-mono">S(18)</span> only when an operator
+                  has at least{" "}
+                  <span className="dq-chip dq-tnum">25 observations</span>{" "}
+                  reaching 18 months and at least{" "}
+                  <span className="dq-chip dq-tnum">5 turnover events</span>.
+                  Below either threshold the metric is{" "}
+                  <strong>suppressed</strong>: the Tenant Retention card shows no
+                  value and no star, and the operator&apos;s composite is
+                  re-normalized across its remaining metrics (the retention
+                  weight is redistributed, not scored as zero). The card instead
+                  reads &ldquo;Too early to assess renewal — this operator has
+                  been tracked N years.&rdquo; Separately, operators whose most
+                  recent listing event is more than 60 days old are treated as
+                  departed and dropped from the ranked set entirely (see §01).
                 </p>
               </div>
             </SectionAnchor>
@@ -784,6 +932,14 @@ export default async function MethodologyPage() {
                 <Op>−</Op> cohort_median_yoy
               </FormulaBlock>
               <p>
+                The delta shown on a scorecard uses the market-wide
+                property-manager median as its baseline. For <em>ranking</em> —
+                the percentile, star, and composite contribution — each operator
+                is compared only within its own operator type: property managers
+                against the PM median, brokers against the broker median, never
+                pooled.
+              </p>
+              <p>
                 This isolates operator pricing capability from inherited
                 portfolio quality. Every operator in the cohort is compared to
                 the same peer-group baseline during the same period. Class A
@@ -846,34 +1002,39 @@ export default async function MethodologyPage() {
                 does not vary by market.
               </p>
               <p>
-                <strong>Computation.</strong> Per ranked operator, the YoY
-                rent change is computed as the median listing-rent change
-                year-over-year across that operator&rsquo;s portfolio. The
-                market aggregate is the median of those per-operator values,
-                equal-weighted. Operator-equal weighting was chosen over
-                unit-weighting for v0.6.3 to keep the metric interpretable —
-                &ldquo;the typical ranked operator in this market.&rdquo;
-                Unit-weighted alternatives are under consideration for v0.7.
+                <strong>Computation.</strong> Each operator&rsquo;s value is its
+                own mix-adjusted YoY rent change (the four-quarter-over-
+                four-quarter figure from §06) — <em>not</em> the cohort-relative
+                delta. The market aggregate is the equal-weighted median of
+                those per-operator values across the market&rsquo;s{" "}
+                <strong>eligible property managers</strong> (brokers are
+                excluded). Operator-equal weighting keeps the metric
+                interpretable — &ldquo;the typical property manager in this
+                market&rdquo; — rather than letting a few large portfolios
+                dominate; a unit-weighted alternative is a possible future
+                refinement.
               </p>
               <FormulaBlock label="Formula · market rent growth T12">
                 <span className="text-navy">market_rent_growth_t12</span>{" "}
-                <Op>=</Op> median<sub>i ∈ ranked operators in market</sub>
-                {" "}(operator<sub>i</sub>.rent_performance.delta_yoy)
+                <Op>=</Op> median<sub>i ∈ eligible PMs in market</sub>
+                {" "}(operator<sub>i</sub>.pmYoyChange)
               </FormulaBlock>
               <FormulaBlock label="Formula · national benchmark">
                 <span className="text-navy">national_rent_growth_t12</span>{" "}
-                <Op>=</Op> median<sub>i ∈ ranked operators (all markets)</sub>
-                {" "}(operator<sub>i</sub>.rent_performance.delta_yoy)
+                <Op>=</Op> median<sub>i ∈ eligible PMs (all markets)</sub>
+                {" "}(operator<sub>i</sub>.pmYoyChange)
               </FormulaBlock>
               <p>
-                The market-vs-national delta is pre-computed at seed time in
-                percentage points and surfaced as a tile benchmark line
-                (green if &gt;+0.2 pp, orange if &lt;−0.2 pp, neutral
-                within the band). Submarket-level rent growth is not
-                computed in v0.6.3 — listing-level geographic aggregation
-                with minimum-N controls is a v0.7 candidate. Under a
-                submarket filter the headline tile retains the MSA-wide
-                value with an explicit scope annotation.
+                The market-vs-national delta is surfaced as a tile benchmark
+                line (green if &gt; +0.2 pp, orange if &lt; −0.2 pp, neutral
+                within the band). The national reference is a single value
+                computed across every covered market; where a snapshot does not
+                yet carry it, the tile shows the market value without a national
+                comparison. Submarket-level rent growth is not computed —
+                listing-level geographic aggregation with minimum-N controls
+                remains a future candidate; under a submarket filter the
+                headline tile retains the MSA-wide value with an explicit scope
+                annotation.
               </p>
 
               {/* v0.6.3 Patch 5 — state-level aggregates sub-anchor. Sits
@@ -890,16 +1051,16 @@ export default async function MethodologyPage() {
                 State-level aggregates.
               </h3>
               <p>
-                State-level aggregates pool ranked operators across all MSAs
-                in a state and compute medians across the pooled set. Each
-                ranked operator contributes one value to the state median,
-                regardless of which MSA they appear in. Operators who appear
-                in multiple MSAs (e.g., institutional operators with
-                footprint across several markets) are currently counted{" "}
-                <strong>once per MSA they appear in</strong>. Cross-market
-                operator-identity dedup is on the v0.7 roadmap. State-level
-                active operator counts are similarly a raw sum across MSAs
-                and may double-count multi-market operators.
+                State-level aggregates pool operators across all MSAs in a
+                state. The <strong>counts</strong> — active operators and
+                operators eligible for ranking — deduplicate by{" "}
+                <span className="dq-mono">canonicalOperatorId</span>, so a
+                multi-market operator counts once per state rather than once per
+                MSA. The state-level <strong>medians</strong> (DOM, rent growth)
+                still pool one value per operator per MSA, so an operator that
+                appears in several in-state MSAs contributes once for each;
+                pushing canonical dedup down to the medians is a future
+                candidate.
               </p>
               <p>
                 The state landing pages at{" "}
@@ -919,10 +1080,8 @@ export default async function MethodologyPage() {
                 its DOM analogue computed at runtime.
               </p>
               <p>
-                State pages are an additive feature on top of v0.6.3 base —
-                no methodology version bump. Single-MSA states (Florida,
-                Arizona in the v0.6.3 footprint) get the same UX as
-                multi-MSA states; the state page renders one MSA card. As
+                Single-MSA states get the same UX as multi-MSA states; the
+                state page renders one MSA card. As
                 coverage expands and adds new MSAs in already-covered
                 states, the state page auto-updates without any data-layer
                 changes: state membership is derived from each market&rsquo;s{" "}
@@ -1036,57 +1195,82 @@ export default async function MethodologyPage() {
                 id="canonical-operator-identity"
                 className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
               >
-                Canonical operator identity.
+                Operator identity.
               </h3>
               <p>
-                Operators that appear in multiple markets in our coverage
-                are identified via name normalization — stripping common
-                business entity suffixes (LLC, Inc., Ltd., Co., Corp.) and
-                trailing punctuation, lowercasing, and collapsing
-                whitespace. When two or more PM records match the same
-                normalized name across distinct markets, they&rsquo;re
-                grouped into a single canonical operator entity. This
-                enables cross-market operator profiles at{" "}
-                <span className="dq-mono">/operators/[canonical-slug]</span>{" "}
-                and dedup&rsquo;d state-level operator counts.
+                Two problems complicate &ldquo;who is this operator?&rdquo;: the
+                same operator can appear in several markets, and the source data
+                periodically re-issues an operator new internal ids, splitting
+                one operator into several records within a single market. We
+                resolve both into a single canonical operator entity, which
+                powers the cross-market profile at{" "}
+                <span className="dq-mono">/operators/[canonical-slug]</span> and
+                dedup&rsquo;d state-level counts.
               </p>
               <p>
-                <strong>Conservative normalization.</strong> The
-                normalization is intentionally conservative — operating-
-                brand modifiers like &ldquo;Property Management&rdquo; or
-                &ldquo;Realty&rdquo; are not stripped, so distinct
-                operating brands under a common parent (e.g. &ldquo;JWB
-                Rental Homes&rdquo; vs &ldquo;JWB Real Estate
-                Capital&rdquo;) remain separate canonical entities. Manual
-                parent-subsidiary mapping for true roll-up acquirers is a
-                v0.7 candidate.
+                <strong>Cross-market identity is ID-based.</strong> Operators
+                appearing in multiple markets are linked primarily by
+                Dwellsy&rsquo;s own parent-company id (
+                <span className="dq-mono">parentCompanyId</span>), taken per
+                operator as the modal parent id across its listings. At merge
+                time, operators sharing a parent id are grouped into one
+                canonical entity with a shared id slugged from the parent-company
+                name. This id-based grouping is <strong>authoritative</strong> —
+                it overrides any name-based assignment. It unites a parent&rsquo;s
+                differently-branded entities and keeps same-named-but-
+                differently-owned operators apart, which is exactly the
+                roll-up-acquirer mapping earlier methodology had deferred.
               </p>
               <p>
-                <strong>Manual review of false positives.</strong> Before
-                the auto-detected matches are baked into the seed, the
-                canonical mapping is reviewed for false positives — generic
-                names that happen to match across markets but represent
-                different operators (e.g. &ldquo;Trinity Management
-                Company&rdquo; in two markets refers to two unrelated
-                companies, manually excluded from canonical mapping).
-                Excluded operators stay as separate per-market entries.
+                <strong>Curated name mapping is the fallback.</strong> Operators
+                that carry no parent id fall back to a human-curated cross-market
+                mapping held in versioned decision files. These are reviewed for
+                same-name false positives — generic names that collide across
+                markets but represent unrelated companies (e.g. two distinct
+                &ldquo;Trinity Management Company&rdquo; operators) are excluded
+                and stay separate. Curated groupings are protected: the id linker
+                never overrides them. A conservative name normalization —
+                lowercase, strip legal suffixes and punctuation, collapse
+                whitespace — is used to propose candidate matches for that review
+                and to normalize parent-company names so corrected casing
+                survives the merge.
               </p>
-              <FormulaBlock label="Normalization steps">
-                <span className="text-navy">name</span> <Op>=</Op> lowercase →
-                trim → strip suffix (LLC / Inc / Ltd / Co / Corp) → strip
-                trailing punctuation → collapse internal whitespace
-              </FormulaBlock>
+              <h3
+                id="fragment-merge"
+                className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
+              >
+                Within-market fragment merge.
+              </h3>
               <p>
-                <strong>State-level count dedup.</strong> v0.6.3 Patch 5
-                state-level operator counts summed per-MSA values, which
-                double-counted multi-market operators. v0.6.4 dedups by
+                When the source re-issues an operator new internal ids, one
+                operator fragments into several no-parent records in the same
+                market. Two mechanisms re-pool them. An{" "}
+                <strong>exact-tier auto-merge</strong> groups no-parent records
+                whose names are identical after stripping legal suffixes and
+                punctuation — but only when the shared name is{" "}
+                <em>distinctive</em> (at least two tokens, at least one not a
+                generic word like &ldquo;property&rdquo; or
+                &ldquo;management&rdquo;), so purely-generic or single-token
+                names never auto-merge. A <strong>curated merge list</strong>{" "}
+                handles the remainder, and curated decisions win over auto-merges
+                on any conflict.
+              </p>
+              <p>
+                <strong>Guards.</strong> Placeholder names (&ldquo;Company Name
+                Not Provided&rdquo; and similar) and any pair on an explicit
+                do-not-merge denylist are never merged; structural invariants —
+                every survivor is a real member, no record spans two distinct
+                names, no slug collisions — are asserted on every pipeline run,
+                and a sign-off report is emitted for review. Below-threshold
+                id-bearing fragments are surfaced only to an internal merge tool,
+                never to the seed, the operator table, or search.
+              </p>
+              <p>
+                <strong>State-level count dedup.</strong> State-level operator
+                counts deduplicate by{" "}
                 <span className="dq-mono">canonicalOperatorId</span> — a
-                multi-market institutional operator that appeared in
-                Nashville + Memphis + Clarksville counts once in
-                Tennessee&rsquo;s state-level total. The dedup applies to
-                the ranked cohort we carry full data for; unranked
-                operators in the broader ≥3-T12 universe don&rsquo;t
-                receive canonical mapping in v0.6.4.
+                multi-market operator that appears in Nashville, Memphis, and
+                Clarksville counts once in Tennessee&rsquo;s state-level total.
               </p>
 
               {/* v0.6.4 Patch 2 — concession activity sub-anchor.
@@ -1100,15 +1284,14 @@ export default async function MethodologyPage() {
                 Concession activity.
               </h3>
               <p>
-                For every PM in coverage, the v0.6.4 Patch 2 classifier
-                scans the T12 listing descriptions for stereotyped
-                concession language — &ldquo;one month free&rdquo;,
-                &ldquo;move-in special&rdquo;, &ldquo;no deposit&rdquo;,
-                percent-off promotions, and similar patterns — and
-                computes the share of T12 listings that mention at least
-                one. The result is surfaced on scorecard Layer 5 as
-                operator concession rate, with the market median across
-                ranked operators as cohort context.
+                For every operator in coverage, the classifier scans T12
+                listing descriptions for stereotyped concession language —
+                &ldquo;one month free&rdquo;, &ldquo;move-in special&rdquo;,
+                &ldquo;no deposit&rdquo;, percent-off promotions, and similar
+                patterns — and computes the share of T12 listings that mention
+                at least one. The result is surfaced on the scorecard as the
+                operator&rsquo;s concession rate, with a listing-weighted market
+                concession rate as cohort context.
               </p>
               <p>
                 <strong>Regex-based, v1 catches stereotyped language.</strong>{" "}
@@ -1132,15 +1315,17 @@ export default async function MethodologyPage() {
                 than in isolation.
               </p>
               <p>
-                <strong>Cohort comparison.</strong> The market median is
-                computed across ranked operators with a non-null
-                concession rate (operators absent from the classifier
-                input — typically no T12 description data — are excluded
-                from the median so they don&rsquo;t pull it toward zero).
-                Operators more than 20 percentage points above the median
-                receive an orange accent on Layer 5 (signaling elevated
-                concession activity vs the cohort); operators more than
-                20pp below get a green accent (low concession activity).
+                <strong>Cohort comparison.</strong> The market reference is a{" "}
+                <strong>listing-weighted concession rate</strong> — total
+                concession-mentioning T12 listings divided by total T12 listings
+                across the ranked cohort (operators with no T12 listings are
+                excluded). Listing-weighting is used instead of a per-operator
+                median because the per-operator distribution is heavily
+                zero-inflated, so its median is often just 0. Operators more
+                than 20 percentage points above the market rate receive an
+                orange accent (elevated concession activity vs the cohort);
+                operators more than 20 pp below get a green accent (low
+                concession activity).
               </p>
             </SectionAnchor>
 
@@ -1223,9 +1408,24 @@ export default async function MethodologyPage() {
             <SectionAnchor
               id="composite"
               num="09"
-              title="Composite ranking."
-              lede="The composite combines the metrics above into a single score that orders operators within the MSA cohort."
+              title="Composite & the star system."
+              lede="How the per-metric signals combine — a versioned internal composite that never appears on a scorecard, and the per-metric stars that do."
             >
+              <p>
+                The composite is a single weighted score computed from the
+                metrics above. It is versioned and load-bearing internally, but
+                it is{" "}
+                <strong>
+                  never surfaced on a scorecard as a score or an ordinal rank
+                </strong>{" "}
+                — per our standing rule, scorecards show only stars, values
+                against a cohort benchmark, and positions. The composite&rsquo;s
+                only visible effect is as the final tie-break in market-list
+                ordering, which leads with gold- then silver-star counts and
+                falls back to the composite only to break ties within an
+                equal-star bucket. The weights still set that ordering and drive
+                the PDF export, so we document them here.
+              </p>
               <p>
                 <strong>
                   Weights for operators with Community Visibility computed:
@@ -1244,7 +1444,7 @@ export default async function MethodologyPage() {
                     <td className="num dq-tnum">30%</td>
                   </tr>
                   <tr>
-                    <td>Tenancy</td>
+                    <td>Tenant Retention</td>
                     <td className="num dq-tnum">30%</td>
                   </tr>
                   <tr>
@@ -1283,7 +1483,7 @@ export default async function MethodologyPage() {
                     <td className="num dq-tnum">35.3%</td>
                   </tr>
                   <tr>
-                    <td>Tenancy</td>
+                    <td>Tenant Retention</td>
                     <td className="num dq-tnum">35.3%</td>
                   </tr>
                   <tr>
@@ -1346,14 +1546,13 @@ export default async function MethodologyPage() {
                 id="star-system"
                 className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
               >
-                Star system (v0.6.2).
+                Star system.
               </h3>
               <p>
-                v0.6.2 replaces percentile-rank tier labels (top decile,
-                lagging quartile) with a binary star system. Per-metric stars
-                surface across the v1.0 design — Layer 1 cohort qualifier,
-                Layer 2 headline tiles, Layer 3 card headers, Layer 4 signal
-                subcards.
+                In place of a rank, each metric earns a binary star. Per-metric
+                stars are what the scorecard actually leads with — they appear in
+                the header star summary, on each operating-metric card, and in
+                the market-list row chips.
               </p>
               <ul>
                 <li>
@@ -1412,59 +1611,50 @@ export default async function MethodologyPage() {
                 waterfall.
               </p>
 
-              {/* Lending Signals sub-anchor — modal "Read full methodology"
-                  links from Layer 4 signal cards land here. */}
+              {/* Lending signals sub-anchor — kept as a stable anchor so
+                  existing "read full methodology" deep links still resolve. */}
               <h3
                 id="lending-signals"
                 className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
               >
-                Lending Signals.
+                Lending signals.
               </h3>
               <p>
-                Four auxiliary signals surface alongside the composite in
-                Layer 4 of the v1.0 design. They&rsquo;re underwriting-relevant
-                synthesis metrics designed for a 30-second scan by
-                lender/acquisition teams; they don&rsquo;t feed the composite
-                ranking.
+                Earlier versions surfaced a dedicated block of four
+                underwriting-oriented signals. That standalone block has been
+                retired on the web scorecard, and one signal — the old Vacancy
+                Signal — has been removed entirely. The three survivors are now
+                folded into the scorecard&rsquo;s{" "}
+                <strong>Scale &amp; Fit</strong> section as position context
+                rather than a separately scored section:
               </p>
               <ul>
                 <li>
-                  <strong>Vacancy Signal</strong> — fraction of the average
-                  leasing cycle spent vacant, computed from DOM and tenancy:{" "}
-                  <span className="dq-mono">
-                    (DOM<sub>days</sub>/30) / (Tenancy<sub>months</sub> + DOM
-                    <sub>days</sub>/30) × 100
-                  </span>
-                  . Lower = more favorable. Star uses cohort percentile.
+                  <strong>Operator Stability</strong> — the operator&rsquo;s
+                  observation history (years visible) shown against a cohort
+                  median. Context only; no star.
                 </li>
                 <li>
-                  <strong>Operator Stability</strong> — composite surfacing
-                  yearsVisible (length of observation in Dwellsy IQ data) and
-                  market count (cross-market footprint). Persistent
-                  eligibility per window is a v0.7 component.
+                  <strong>Geographic Concentration</strong> — top-3 city share
+                  of observed urus, with a cohort median. Descriptive — no star;
+                  concentration is neither inherently favorable nor unfavorable.
                 </li>
                 <li>
-                  <strong>Geographic Concentration</strong> — top-3 city
-                  share of observed urus, with cohort median for context.
-                  Linear position indicator — no star, descriptive only.
-                  Concentration is neither inherently favorable nor
-                  unfavorable.
-                </li>
-                <li>
-                  <strong>Pricing Tier</strong> — operator&apos;s latest
+                  <strong>Pricing Tier</strong> — the operator&rsquo;s latest
                   mix-adjusted median rent positioned within the MSA rent
-                  distribution. Premium (
-                  <span className="dq-mono">≥75th percentile</span>) /
-                  Mid-market (
+                  distribution: Premium (
+                  <span className="dq-mono">≥75th pct</span>) / Mid-market (
                   <span className="dq-mono">25–75th</span>) / Value (
-                  <span className="dq-mono">&lt;25th</span>). Positional
-                  label, not evaluative.
+                  <span className="dq-mono">&lt;25th</span>). A positional label,
+                  not evaluative.
                 </li>
               </ul>
               <p>
-                Geographic Concentration is pre-computed at seed time
-                (v0.6.2 Patch 7). The other three are derived at render time
-                from existing seeded fields.
+                For lender and acquisition teams who want the original
+                at-a-glance panel, the <strong>PDF export</strong> still renders
+                a dedicated three-signal &ldquo;Lending Signals&rdquo; page
+                (Operator Stability, Geographic Concentration, Pricing Tier).
+                None of these feed the composite.
               </p>
             </SectionAnchor>
 
@@ -1483,10 +1673,10 @@ export default async function MethodologyPage() {
               <p>
                 <strong>Things we measure with caveats.</strong> Rent
                 Performance carries known confounders (submarket exposure, mix
-                shift, capital events). Composite rankings for operators with
-                very thin data may favor small-sample outliers — we flag these
-                in the rationale text but don&apos;t yet mathematically
-                discount them.
+                shift, capital events). Ordering within thin-data buckets may
+                favor small-sample outliers; per-metric qualification gates
+                suppress the least-supported values, but we don&apos;t yet apply
+                a graded confidence discount.
               </p>
               <p>
                 <strong>Things we don&apos;t yet measure.</strong>
@@ -1527,7 +1717,7 @@ export default async function MethodologyPage() {
                 id="observation-precision"
                 className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
               >
-                Observation precision (v0.6.2).
+                Observation precision.
               </h3>
               <p>
                 Every figure on a scorecard is qualified as{" "}
@@ -1564,6 +1754,22 @@ export default async function MethodologyPage() {
                 &ldquo;operates 2,400 units&rdquo; — both would imply we know
                 the operator&apos;s full portfolio.
               </p>
+              <p>
+                <strong>Estimated managed units.</strong> Because observed urus
+                undercount an operator&rsquo;s book — a unit only surfaces when
+                it lists, on turnover — we also publish a portfolio-size estimate
+                that scales observed urus back up by unit-type turnover (house
+                urus × 3.3 + apartment urus × 2.6), shown with a low–high band.
+                It is an explicit estimate, labeled as such, never fed into the
+                composite, and documented in full on the{" "}
+                <Link
+                  href="/methodology/portfolio-estimator"
+                  className="text-teal hover:underline"
+                >
+                  portfolio-estimator methodology page
+                </Link>
+                .
+              </p>
 
               <h3
                 id="operator-dignity"
@@ -1591,59 +1797,44 @@ export default async function MethodologyPage() {
                 id="deferred-work"
                 className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
               >
-                Deferred to v0.7+.
+                Deferred to future versions.
               </h3>
               <p>The following improvements are tracked for future releases:</p>
               <ul>
                 <li>
-                  <strong>Kaplan-Meier-style tenancy right-censoring
-                  correction</strong> — replaces the v0.6.2 short-history
-                  caveat with a mathematical adjustment.
-                </li>
-                <li>
                   <strong>Same-unit-controlled Rent Performance</strong> —
-                  eliminates the mix-shift confound; likely justifies a
-                  heavier composite weight.
+                  compares only units present in both periods, eliminating the
+                  mix-shift confound; likely justifies a heavier composite
+                  weight.
                 </li>
                 <li>
-                  <strong>Minimum-N confidence multiplier</strong> on
-                  composite — mathematically discounts thin-data operators
-                  (currently surfaced via rationale text only).
+                  <strong>Minimum-N confidence multiplier</strong> on the
+                  composite — a graded discount for thin-data operators, beyond
+                  the current per-metric qualification gates and rationale text.
                 </li>
                 <li>
-                  <strong>SFR Credibility instrument</strong> — currently a
-                  placeholder; unblocks when claim-flow portfolio attestation
-                  provides external scope data.
+                  <strong>SFR Credibility instrument</strong> — deferred until
+                  claim-flow portfolio attestation provides external scope data
+                  for scattered operators.
                 </li>
                 <li>
-                  <strong>Submarket-aware peer cohorts</strong> — geographic
-                  compatibility threshold activates when major-metro markets
-                  with submarket data are added.
+                  <strong>Submarket-aware peer cohorts</strong> and{" "}
+                  <strong>submarket-level rent growth</strong> — activate when
+                  listing-level geography with minimum-N controls is added.
                 </li>
                 <li>
-                  <strong>Cross-market national institutional
-                  classification</strong> — when 8-10 markets are covered, the
-                  multi-market aggregation gets accurate enough for national
-                  operators with thin per-MSA presence.
+                  <strong>Persistent eligibility per window</strong> — a
+                  stability component (consistent eligibility across refreshes)
+                  not yet computed.
                 </li>
                 <li>
-                  <strong>Operator-identity reconciliation</strong> — replaces
-                  the v0.6.2 name-equality cross-market join with a proper
-                  identity table.
+                  <strong>Canonical dedup on state-level medians</strong> —
+                  state counts already dedup by canonical identity; the medians
+                  still pool one value per operator per MSA.
                 </li>
                 <li>
-                  <strong>Persistent eligibility per window</strong> — the
-                  third component of Operator Stability not yet seeded.
-                </li>
-                <li>
-                  <strong>Bedroom-mix portfolio composition</strong> and{" "}
-                  <strong>BR-bucketed pricing data</strong> — needed for
-                  Layer 5D composition and Layer 5F pricing per-bucket.
-                </li>
-                <li>
-                  <strong>Operator dispute / appeal process</strong> — once
-                  operators see scorecards publicly, the dispute process
-                  needs definition and execution.
+                  <strong>Operator dispute / appeal process</strong> — as
+                  scorecards reach operators, a defined correction path.
                 </li>
               </ul>
             </SectionAnchor>
@@ -1682,6 +1873,50 @@ export default async function MethodologyPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  <tr>
+                    <td className="dq-mono whitespace-nowrap">v0.7</td>
+                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                      July 2026
+                    </td>
+                    <td>
+                      <strong>
+                        Methodology overhaul across metrics, identity, and
+                        surface.
+                      </strong>{" "}
+                      34 covered markets; 3,649 eligible operators.{" "}
+                      <strong>Tenant Retention</strong> replaced the
+                      re-lease-gap median with a Kaplan-Meier survival estimate —
+                      S(18), the share of tenancies reaching 18 months — with a
+                      qualification gate (≥25 observations reaching 18 months, ≥5
+                      turnover events), suppress-and-reweight when unqualified,
+                      and a 60-day departed-operator exclusion.{" "}
+                      <strong>Rent Stability</strong> was removed entirely.{" "}
+                      <strong>Operator classification</strong> gained an
+                      apartment-dominant override (house share ≤ 10% → MF/BTR,
+                      applied before the concentrated-share bands), reshaping the
+                      distribution (Hybrid 342 → 119; Small MF/BTR Independent is
+                      now the second-largest cell). <strong>Marketing
+                      Discipline</strong> was recalibrated (p90 rescale, a new
+                      photos sub-score, and a length-plus-content-richness
+                      description sub-score). <strong>Portfolio size</strong>{" "}
+                      moved to a unit-type turnover model (house urus × 3.3 +
+                      apartment urus × 2.6, admin-tunable, with a low–high band),
+                      superseding the earlier cohort-banded estimator.{" "}
+                      <strong>Operator identity</strong> is now ID-based across
+                      markets (parentCompanyId authoritative, curated name
+                      mapping as fallback) plus a within-market fragment-merge
+                      system for id-churned operators; category exclusions
+                      (data-platform company types and a curated denylist) and
+                      broker-vs-property-manager cohort partitioning were
+                      documented. On the surface, the redesigned scorecard
+                      (design v2.0) became the default and the earlier Classic
+                      layout was retired: rank and composite are never surfaced
+                      (the composite stays internal, breaking ties in star-tied
+                      lists), and the standalone Lending Signals block was folded
+                      into Scale &amp; Fit on the web (kept as a three-signal PDF
+                      page; the Vacancy Signal was retired).
+                    </td>
+                  </tr>
                   <tr>
                     <td className="dq-mono whitespace-nowrap">v0.6.4</td>
                     <td className="dq-mono whitespace-nowrap text-muted-foreground">
@@ -1742,7 +1977,11 @@ export default async function MethodologyPage() {
                       pretending to a number. Methodology version
                       unchanged (still v0.6.4) — no cohort or ranking
                       changes; estimator is context only and does not
-                      feed the composite.
+                      feed the composite.{" "}
+                      <em>
+                        (Superseded in v0.7 by the unit-type turnover model —
+                        see §10 and the portfolio-estimator page.)
+                      </em>
                     </td>
                   </tr>
                   <tr>
@@ -1931,7 +2170,7 @@ export default async function MethodologyPage() {
             <span className="mx-2 text-muted-2">·</span>
             Last reviewed <b className="text-navy">{dataAsOfLabel}</b>
             <span className="mx-2 text-muted-2">·</span>
-            Next scheduled review <b className="text-navy">July 2026</b>
+            Next scheduled review <b className="text-navy">October 2026</b>
           </p>
           <a
             href="mailto:operatoriq@dwellsy.com"

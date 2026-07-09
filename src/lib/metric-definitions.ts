@@ -75,10 +75,11 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   quadrant7Cell: {
     name: "7-Cell Operator Classification",
     definition:
-      "Taxonomy combining asset scope (SFR / Small MF/BTR / Large MF/BTR / Hybrid) with scale (Independent / Institutional). Refines the v0.6.1 5-cell taxonomy by splitting MF/BTR by median community size.",
+      "Taxonomy combining asset scope (SFR / Small MF/BTR / Large MF/BTR / Hybrid) with scale (Independent / Institutional). Asset scope is set first by an apartment-dominant override (house share ≤ 10% → MF/BTR), then by concentrated share; MF/BTR splits Small vs Large by median community size.",
     formula:
-      "concentrated_share = Σ urus in 10+ unit communities / total urus\nif < 30% → SFR\nif ≥ 70% AND median community ≥ 50 → Large MF/BTR\nif ≥ 70% AND median community 10-49 → Small MF/BTR\nelse → Hybrid",
+      "house_share = house urus / (house + apartment urus)\nif house_share ≤ 0.10 → MF/BTR (Large if median community ≥ 50, else Small)\nelse concentrated_share = Σ urus in 10+ unit communities / total urus:\n  if < 30% → SFR\n  if ≥ 70% AND median community ≥ 50 → Large MF/BTR\n  if ≥ 70% AND median community 10-49 → Small MF/BTR\n  else → Hybrid",
     variableDefs: [
+      { symbol: "house_share", meaning: "observed house units / (house + apartment units); ≤ 0.10 forces MF/BTR ahead of the concentration bands" },
       { symbol: "concentrated_share", meaning: "fraction of observed units in communities with ≥10 PM-managed units" },
       { symbol: "median community size", meaning: "median of PM-managed unit counts across concentrated communities" },
     ],
@@ -128,11 +129,11 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
     formula:
       "delta (pp) = pm_YoY − cohort_median_YoY\nstate: positive if delta > 0.5 pp; negative if delta < −0.5 pp; neutral otherwise",
     variableDefs: [
-      { symbol: "pm_YoY", meaning: "operator's mix-adjusted median rent, latest quarter / same quarter prior year" },
-      { symbol: "cohort_median_YoY", meaning: "MSA cohort's median YoY mix-adjusted rent change" },
+      { symbol: "pm_YoY", meaning: "operator's mix-adjusted YoY rent change — mean of the most recent four quarters vs the prior four quarters" },
+      { symbol: "cohort_median_YoY", meaning: "cohort's median YoY mix-adjusted rent change" },
     ],
     cohortScope:
-      "MSA-wide for cohort median (uniform across operator types in v0.6.1). Star uses cohort selection per Patch 3.",
+      "The displayed delta uses the market-wide property-manager median. For ranking (percentile, star, composite), each operator is compared only within its own operator type — property managers vs the PM median, brokers vs the broker median.",
     caveats: [
       "Mix-adjusted — controls for changes in bedroom-mix between periods, not for changes in tier, vintage, or geographic mix.",
       "Operators with limited rent history default to lower percentiles regardless of true posture.",
@@ -212,18 +213,19 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   portfolioEstimate: {
     name: "Estimated portfolio",
     definition:
-      "Total managed units derived from observed listing volume, calibrated against verified operator data via the v0.7 size-banded estimator. Point estimate paired with a low–high confidence band (P25 / P75) and a tier label (High / Medium / Low) that reflects the calibration sample size for the operator's segment.",
+      "Total managed units estimated from observed on-market turnover, split by unit type: house URUs turn over more slowly than apartment URUs, so each is scaled by its own multiplier. A low–high confidence band brackets the point estimate using plausible per-type turnover ranges. Applied uniformly to every operator — no cohort banding.",
     formula:
-      "point = urusT12 × multiplier_median(cohort)\nlow  = urusT12 × multiplier_P25(cohort)\nhigh = urusT12 × multiplier_P75(cohort)",
+      "point = houseUrusT12 × 3.3 + aptUrusT12 × 2.6\nlow   = houseUrusT12 × 2.5 + aptUrusT12 × 2.0\nhigh  = houseUrusT12 × 4.2 + aptUrusT12 × 3.3",
     variableDefs: [
-      { symbol: "urusT12", meaning: "distinct units the operator listed at least once in the trailing 12 months" },
-      { symbol: "cohort", meaning: "size-banded calibration cohort matching the operator's URU range" },
+      { symbol: "houseUrusT12", meaning: "distinct house units the operator listed at least once in the trailing 12 months" },
+      { symbol: "aptUrusT12", meaning: "distinct apartment units the operator listed at least once in the trailing 12 months" },
     ],
     cohortScope:
-      "Size-banded cohort (SFR Independent / Institutional / Hybrid / Small / Large MF/BTR × URU band) determines the multiplier distribution.",
+      "No cohort — the two turnover multipliers (admin-tunable) are applied uniformly to every operator, keyed on each unit's own type.",
     caveats: [
-      "Large MF/BTR cohorts with insufficient calibration data return status=insufficient_data; the headline tile renders the message instead of a number.",
-      "Estimates are outside-in: a portfolio of units the operator listed publicly, not their privately-held inventory.",
+      "Estimated only when the operator has typed units and at least three months of history; otherwise the tile shows the observed count without an estimate.",
+      "Estimates are outside-in: a projection from units the operator listed publicly, not a count of their privately-held inventory.",
+      "Context only — never feeds the composite or star assignments.",
     ],
     methodologyHref: "/methodology/portfolio-estimator",
   },
@@ -286,13 +288,13 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   "section-lending-signals": {
     name: "Lending Signals",
     definition:
-      "Four underwriting-relevant synthesis signals. One is pre-computed (Geographic Concentration); three are derived at render time (Vacancy Signal, Operator Stability, Pricing Tier).",
+      "Three underwriting-relevant context signals — Operator Stability, Geographic Concentration, and Pricing Tier. On the web scorecard they are folded into the Scale & Fit section; the PDF export renders them as a dedicated page. (The former Vacancy Signal has been retired.)",
     cohortScope:
-      "Per-signal cohort selection follows the same primary→fallback→MSA waterfall as Layer 3 metrics.",
+      "Per-signal cohort context follows the same primary→fallback→MSA waterfall as the operating metrics.",
     caveats: [
-      "Geographic Concentration is descriptive only (no star) per Decision G.4 — concentration is neither inherently favorable nor unfavorable.",
+      "Geographic Concentration is descriptive only (no star) — concentration is neither inherently favorable nor unfavorable.",
       "Pricing Tier (Premium / Mid-market / Value) is a positional label, not an evaluative one.",
-      "Operator Stability surfaces yearsVisible + market count; persistent-eligibility-per-window component is deferred to v0.7.",
+      "None of these feed the composite.",
     ],
     methodologyHref: "/methodology#lending-signals",
   },
@@ -331,7 +333,7 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
     cohortScope:
       "Each row's cohort is the focal operator's selected cohort within that specific MSA — primary 7-cell if N≥10, else fallback, else MSA.",
     caveats: [
-      "Cross-market join is by exact operator name match. Two unrelated operators sharing a name could erroneously merge; operator-identity reconciliation is a v0.7 pipeline item.",
+      "Cross-market join is primarily by Dwellsy parent-company id (authoritative), with a human-curated, false-positive-reviewed name mapping as the fallback for operators that carry no parent id.",
       "Suppressed for single-market operators.",
     ],
     methodologyHref: "/methodology#classification",
