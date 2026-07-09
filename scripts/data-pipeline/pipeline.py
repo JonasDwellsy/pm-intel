@@ -48,7 +48,7 @@ from operator_grouping import (
     compute_auto_merges, auto_merge_map, assert_auto_merge_invariants,
     format_auto_merge_report, strong_name_key, GENERIC_TOKENS,
 )
-from marketing import compute_marketing
+from marketing import compute_marketing, count_distinct_words, count_content_categories
 
 csv.field_size_limit(sys.maxsize)
 
@@ -682,6 +682,8 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
             d["marketing_listings_t12"].append({
                 "amenities_n": len([x for x in amen.split(";") if x.strip()]) if amen else 0,
                 "desc_len": len(desc),
+                "distinct_words": count_distinct_words(desc),
+                "content_cats": count_content_categories(desc),
                 "photos_n": len([x for x in photos.split(";") if x.strip()]) if photos else 0,
             })
             if uru:
