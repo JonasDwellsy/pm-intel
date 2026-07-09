@@ -211,6 +211,10 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     rankQuadrantTotal: sc.rank.quadrantTotal ?? null,
     domT12: sc.performance.domT12,
     totalObservedUnits: sc.coverage.totalObservedUnits,
+    // v0.6.5 — declared community-units size signal, carried so loadMarketView
+    // can compute estManagedUnits (estManagedUnits itself is set there, where
+    // the tunable turnover multiplier is available).
+    observedCommunityTotalUnits: sc.coverage.observedCommunityTotalUnits ?? null,
     primaryCity: sc.market.name,
     primaryCityShare,
     claimed: row.claimed,

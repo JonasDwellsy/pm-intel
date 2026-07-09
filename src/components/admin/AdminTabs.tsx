@@ -14,6 +14,7 @@ const TABS = [
   { href: "/admin/organizations", label: "Organizations" },
   { href: "/admin/merges", label: "Merges" },
   { href: "/admin/exclusions", label: "Exclusions" },
+  { href: "/admin/settings", label: "Settings" },
 ] as const;
 
 export function AdminTabs() {

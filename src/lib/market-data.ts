@@ -15,6 +15,8 @@ import {
   deriveQuadrantSummary,
   deriveQuadrant7CellSummary,
 } from "@/lib/quadrant-summary";
+import { estimatedManagedUnits } from "@/lib/operator-size";
+import { getSfrTurnoverMultiplier } from "@/lib/app-settings";
 
 export type MarketMapData = {
   mapCenter?: { lat: number; lon: number };
@@ -134,6 +136,24 @@ export async function loadMarketView({
     .sort(comparePmsByStarCount);
   const allPms = mappedPms.filter((p) => p.operatorType !== "broker");
   const brokerPms = mappedPms.filter((p) => p.operatorType === "broker");
+
+  // v0.6.5 — estimated managed units per operator (the size headline). Uses
+  // the admin-tunable SFR turnover multiplier; MF/community operators use
+  // their declared community units instead. Computed here rather than in
+  // toPmListItem because the multiplier is a DB-backed setting. Mutating in
+  // place (allPms/brokerPms are filtered views over the same objects) so the
+  // cohort summary and the list rows read one consistent value.
+  const sfrMultiplier = await getSfrTurnoverMultiplier();
+  for (const pm of mappedPms) {
+    pm.estManagedUnits = estimatedManagedUnits(
+      {
+        quadrant7Cell: pm.quadrant7Cell,
+        urusT12: pm.totalObservedUnits,
+        observedCommunityTotalUnits: pm.observedCommunityTotalUnits ?? null,
+      },
+      sfrMultiplier
+    );
+  }
 
   // v0.6.2: the 4 newer markets (Memphis/Knoxville/Clarksville/Phoenix)
   // emit only the 7-cell quadrant summary at seed time; their 5-cell

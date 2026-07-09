@@ -91,7 +91,11 @@ export function deriveQuadrant7CellSummary(
     if (pm.rentVsComp !== null && Number.isFinite(pm.rentVsComp)) {
       b.rents.push(pm.rentVsComp);
     }
-    if (Number.isFinite(pm.totalObservedUnits)) b.units += pm.totalObservedUnits;
+    // v0.6.5 — cohort "units" now sums the estimated managed-units size
+    // (turnover-adjusted for SFR, declared units for MF), falling back to the
+    // raw observed count if the estimate is absent.
+    const size = pm.estManagedUnits ?? pm.totalObservedUnits;
+    if (Number.isFinite(size)) b.units += size;
     const ms = pm.metricStars;
     if (ms) {
       if (ms.leaseUp === "gold") b.goldByMetric.leaseUp += 1;
