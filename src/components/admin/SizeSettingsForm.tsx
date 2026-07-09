@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   updatePortfolioMultipliers,
   type UpdateMultipliersState,
@@ -27,6 +27,17 @@ export function SizeSettingsForm({
   >(updatePortfolioMultipliers, { ok: false });
   const [kHouse, setKHouse] = useState<number>(state.saved?.kHouse ?? currentKHouse);
   const [kApt, setKApt] = useState<number>(state.saved?.kApt ?? currentKApt);
+  // Two-step confirm: Save arms the confirmation; a second click applies.
+  const [confirming, setConfirming] = useState(false);
+
+  // Drop out of the armed state once a save lands, so the confirm UI doesn't
+  // linger after success.
+  useEffect(() => {
+    if (state.ok) setConfirming(false);
+  }, [state.ok]);
+
+  const inRange = (v: number) => Number.isFinite(v) && v >= 0.1 && v <= 20;
+  const valid = inRange(kHouse) && inRange(kApt);
 
   const mult = {
     kHouse: Number.isFinite(kHouse) && kHouse > 0 ? kHouse : 1,
@@ -42,57 +53,111 @@ export function SizeSettingsForm({
         deploy (re-seed).
       </p>
 
-      <div className="flex flex-wrap gap-6">
-        <label className="block">
-          <span className="block text-[13px] font-semibold text-navy">
-            k_house <span className="font-normal text-muted-foreground">(SFR turnover)</span>
-          </span>
-          <input
-            name="kHouse"
-            type="number"
-            step="0.1"
-            min="0.1"
-            max="20"
-            required
-            value={kHouse}
-            onChange={(e) => setKHouse(Number(e.target.value))}
-            className="mt-1 h-9 w-28 rounded-md border border-grid bg-white px-3 text-[14px] text-navy tabular-nums focus:border-navy focus:outline-none"
-          />
-        </label>
-        <label className="block">
-          <span className="block text-[13px] font-semibold text-navy">
-            k_apt <span className="font-normal text-muted-foreground">(apartment turnover)</span>
-          </span>
-          <input
-            name="kApt"
-            type="number"
-            step="0.1"
-            min="0.1"
-            max="20"
-            required
-            value={kApt}
-            onChange={(e) => setKApt(Number(e.target.value))}
-            className="mt-1 h-9 w-28 rounded-md border border-grid bg-white px-3 text-[14px] text-navy tabular-nums focus:border-navy focus:outline-none"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={pending}
-          className="mt-[26px] h-9 self-start rounded-md bg-navy px-4 text-[13px] font-semibold text-white disabled:opacity-50"
-        >
-          {pending ? "Saving…" : "Save"}
-        </button>
-      </div>
-
-      {state.ok && state.saved && (
-        <p className="mt-2 text-[12.5px] font-medium text-good">
-          Saved — k_house = {state.saved.kHouse}, k_apt = {state.saved.kApt}.
-          Takes effect on the next deploy (re-seed).
+      {/* Danger zone — this multiplier re-scales EVERY operator's size. */}
+      <div className="rounded-lg border border-[#e0b4b4] bg-[#fdf5f5] p-4">
+        <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[#b23b3b]">
+          <span aria-hidden>⚠</span> Danger zone
         </p>
-      )}
-      {state.error && (
-        <p className="mt-2 text-[12.5px] font-medium text-orange">{state.error}</p>
-      )}
+        <p className="mt-1 text-[12px] leading-[1.5] text-[#8a4b4b]">
+          Changing these re-scales <strong>every operator&rsquo;s</strong>{" "}
+          estimated size. It moves the size shown on public scorecards, market
+          rankings, watch-list thresholds, and AI answers. Not instant — it
+          applies on the next deploy (re-seed).
+        </p>
+
+        <div className="mt-3 flex flex-wrap items-end gap-6">
+          <label className="block">
+            <span className="block text-[13px] font-semibold text-navy">
+              k_house <span className="font-normal text-muted-foreground">(SFR turnover)</span>
+            </span>
+            <input
+              name="kHouse"
+              type="number"
+              step="0.1"
+              min="0.1"
+              max="20"
+              required
+              value={kHouse}
+              onChange={(e) => {
+                setKHouse(Number(e.target.value));
+                setConfirming(false); // editing a value invalidates a pending confirm
+              }}
+              className="mt-1 h-9 w-28 rounded-md border border-grid bg-white px-3 text-[14px] text-navy tabular-nums focus:border-navy focus:outline-none"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-[13px] font-semibold text-navy">
+              k_apt <span className="font-normal text-muted-foreground">(apartment turnover)</span>
+            </span>
+            <input
+              name="kApt"
+              type="number"
+              step="0.1"
+              min="0.1"
+              max="20"
+              required
+              value={kApt}
+              onChange={(e) => {
+                setKApt(Number(e.target.value));
+                setConfirming(false);
+              }}
+              className="mt-1 h-9 w-28 rounded-md border border-grid bg-white px-3 text-[14px] text-navy tabular-nums focus:border-navy focus:outline-none"
+            />
+          </label>
+
+          {!confirming && (
+            <button
+              type="button"
+              disabled={!valid}
+              onClick={() => setConfirming(true)}
+              className="h-9 self-end rounded-md bg-navy px-4 text-[13px] font-semibold text-white disabled:opacity-50"
+            >
+              Save changes
+            </button>
+          )}
+        </div>
+
+        {/* Second step: explicit confirmation of the re-scale. */}
+        {confirming && (
+          <div className="mt-3 rounded-md border border-[#d64545] bg-white p-3">
+            <p className="text-[12.5px] leading-[1.5] text-[#8a4b4b]">
+              Re-scale <strong>every operator</strong> to{" "}
+              <span className="tabular-nums font-semibold text-navy">
+                k_house = {kHouse}, k_apt = {kApt}
+              </span>
+              ? This changes the estimated size across the platform on the next
+              deploy.
+            </p>
+            <div className="mt-2 flex items-center gap-3">
+              <button
+                type="submit"
+                disabled={pending}
+                className="h-9 rounded-md bg-[#c0392b] px-4 text-[13px] font-semibold text-white disabled:opacity-50"
+              >
+                {pending ? "Saving…" : "Confirm re-scale"}
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setConfirming(false)}
+                className="h-9 rounded-md border border-grid bg-white px-4 text-[13px] font-semibold text-navy disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {state.ok && state.saved && (
+          <p className="mt-2 text-[12.5px] font-medium text-good">
+            Saved — k_house = {state.saved.kHouse}, k_apt = {state.saved.kApt}.
+            Takes effect on the next deploy (re-seed).
+          </p>
+        )}
+        {state.error && (
+          <p className="mt-2 text-[12.5px] font-medium text-orange">{state.error}</p>
+        )}
+      </div>
 
       {/* Live preview */}
       <div className="mt-5 rounded-lg border border-grid bg-[#FAFAF8] p-4">
