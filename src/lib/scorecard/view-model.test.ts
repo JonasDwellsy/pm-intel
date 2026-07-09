@@ -69,24 +69,26 @@ test("readout has the four areas with the Operating Performance label", () => {
   assert.equal(op!.label, "good"); // composite primary 68 -> good
 });
 
-test("scaleFit surfaces estimate band + confidence + observed units, and fills the readout", () => {
+test("scaleFit estimate = house/apt turnover (seeded portfolioEstimate ignored), fills readout", () => {
   const v = buildScorecardView({
     scorecard: scFixture({
-      portfolioEstimate: { status: "estimated", point: 644, low: 410, high: 870, confidence: "Medium" },
+      // Seeded v0.7 estimate is deliberately ignored now — size is computed
+      // read-time from the observed house/apt split.
+      portfolioEstimate: { status: "estimated", point: 999, low: 410, high: 1200, confidence: "Medium" },
+      performance: { domStar: "silver", houseUrusT12: 195, aptUrusT12: 0 },
       coverage: { urusT12: 318, citiesObserved: 3 },
       geographicCoverage: { topCities: [{ name: "Chattanooga", pct: 0.52 }], coverageMapPoints: [] },
       lendingSignals: { geographicConcentration: { top3CityShare: 0.84, cohortMedianTop3: 0.61 } },
     }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01,
   });
-  assert.equal(v.scaleFit.estimate.point, 644);
-  assert.equal(v.scaleFit.estimate.confidence, "Medium");
+  assert.equal(v.scaleFit.estimate.point, 644); // 195 × 3.3, NOT the seeded 999
+  assert.equal(v.scaleFit.estimate.confidence, null);
   assert.equal(v.scaleFit.observedUnits, 318);
   assert.equal(v.scaleFit.top3Share, 0.84);
   const row = v.readout.find((r) => r.area === "Scale & Fit")!;
   assert.match(row.value, /644/);
   assert.match(row.value, /managed units \(est\.\)/i);
-  assert.doesNotMatch(row.value, /confidence/i); // confidence dropped from headline (still in scaleFit.estimate)
   assert.match(row.value, /SFR Independent/i); // type label included
   assert.match(row.value, /Chattanooga/i); // market name included
 });
@@ -427,14 +429,14 @@ test("watch items + peers assembled; readout shows non-positive count", () => {
 test("readout[0] Scale & Fit includes type label and market name", () => {
   const v = buildScorecardView({
     scorecard: scFixture({
-      portfolioEstimate: { status: "estimated", point: 200, low: null, high: null, confidence: "High" },
+      performance: { domStar: "silver", houseUrusT12: 100, aptUrusT12: 0 },
     }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
   });
   const row = v.readout.find((r) => r.area === "Scale & Fit")!;
   assert.match(row.value, /SFR Independent/i); // typeLabel from quadrant7Cell
   assert.match(row.value, /Chattanooga/i);      // mktShort from market.name
-  assert.match(row.value, /200/);               // point estimate
+  assert.match(row.value, /330/);               // 100 × 3.3 house estimate
 });
 
 test("readout[2] Momentum gives nuanced phrase for growing trajectory", () => {
@@ -604,63 +606,66 @@ test("unit mix null for SFR when house+apt urus total is zero", () => {
   assert.equal(v.scaleFit.unitMix, null);
 });
 
-// --- v0.6.5: estimated managed units fallback (when pipeline portfolioEstimate absent) ---
+// --- v0.6.5: estimated managed units (read-time house/apt turnover) ---
 
-test("SFR with no pipeline estimate gets turnover-adjusted estimate (default k)", () => {
+test("estimate = houseURUs × k_house (default)", () => {
   const v = buildScorecardView({
-    scorecard: scFixture({ pm: { quadrant7Cell: "SFR Independent" }, coverage: { urusT12: 100 } }),
+    scorecard: scFixture({ performance: { domStar: "silver", houseUrusT12: 100, aptUrusT12: 0 } }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
   });
-  assert.equal(v.scaleFit.estimate.point, 300); // 100 × default 3.0
+  assert.equal(v.scaleFit.estimate.point, 330); // 100 × 3.3
   assert.equal(v.scaleFit.estimate.status, "estimated");
   const scaleRow = v.readout.find((r) => r.area === "Scale & Fit")!;
   assert.match(scaleRow.value, /managed units \(est\.\)/i);
 });
 
-test("SFR estimate honors an explicit sfrMultiplier", () => {
+test("estimate honors explicit portfolioMultipliers", () => {
   const v = buildScorecardView({
-    scorecard: scFixture({ pm: { quadrant7Cell: "SFR Independent" }, coverage: { urusT12: 100 } }),
-    pool: [], trajectory: { points: [] }, marketConcessionMedian: null, sfrMultiplier: 2,
+    scorecard: scFixture({ performance: { domStar: "silver", houseUrusT12: 100, aptUrusT12: 100 } }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
+    portfolioMultipliers: { kHouse: 2, kApt: 4 },
   });
-  assert.equal(v.scaleFit.estimate.point, 200);
+  assert.equal(v.scaleFit.estimate.point, 600); // 100×2 + 100×4
 });
 
-test("MF (not thin) uses declared community units, no band", () => {
+test("apartment operator uses k_apt (recovers MF safely), point-only", () => {
   const v = buildScorecardView({
     scorecard: scFixture({
       pm: { quadrant7Cell: "Large MF/BTR Independent" },
-      coverage: { urusT12: 120, observedCommunities: 5, observedCommunityTotalUnits: 500 },
+      performance: { domStar: null, houseUrusT12: 0, aptUrusT12: 3340 },
     }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
   });
-  assert.equal(v.scaleFit.estimate.point, 500);
-  assert.equal(v.scaleFit.estimate.low, null);
+  assert.equal(v.scaleFit.estimate.point, 8684); // 3340 × 2.6
+  assert.equal(v.scaleFit.estimate.low, null); // no band
 });
 
-test("thin MF (≤2 communities) keeps 'self-report', no estimate", () => {
+test("mixed operator sums house + apt", () => {
   const v = buildScorecardView({
-    scorecard: scFixture({
-      pm: { quadrant7Cell: "Small MF/BTR Independent" },
-      coverage: { urusT12: 40, observedCommunities: 1, observedCommunityTotalUnits: 300 },
-    }),
+    scorecard: scFixture({ performance: { domStar: "silver", houseUrusT12: 179, aptUrusT12: 151 } }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
+  });
+  assert.equal(v.scaleFit.estimate.point, Math.round(179 * 3.3 + 151 * 2.6)); // 984
+});
+
+test("no observed units → no estimate point", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({ performance: { domStar: null, houseUrusT12: 0, aptUrusT12: 0 } }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
   });
   assert.equal(v.scaleFit.estimate.point, null);
-  const scaleRow = v.readout.find((r) => r.area === "Scale & Fit")!;
-  assert.match(scaleRow.value, /self-report/i);
 });
 
-test("pipeline portfolioEstimate wins over the read-time fallback", () => {
+test("seeded v0.7 portfolioEstimate is ignored (read-time house/apt wins)", () => {
   const v = buildScorecardView({
     scorecard: scFixture({
-      pm: { quadrant7Cell: "SFR Independent" },
-      coverage: { urusT12: 100 },
+      performance: { domStar: "silver", houseUrusT12: 100, aptUrusT12: 0 },
       portfolioEstimate: { status: "estimated", point: 640, low: 400, high: 900, confidence: "High" },
     }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
   });
-  assert.equal(v.scaleFit.estimate.point, 640); // not 300
-  assert.equal(v.scaleFit.estimate.confidence, "High");
+  assert.equal(v.scaleFit.estimate.point, 330); // 100×3.3, NOT the seeded 640
+  assert.equal(v.scaleFit.estimate.confidence, null);
 });
 
 // --- Task 3: cross-market aggregate (footprint sparkline + member markets) ---

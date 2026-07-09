@@ -16,7 +16,7 @@ import {
   deriveQuadrant7CellSummary,
 } from "@/lib/quadrant-summary";
 import { estimatedManagedUnits } from "@/lib/operator-size";
-import { getSfrTurnoverMultiplier } from "@/lib/app-settings";
+import { getPortfolioMultipliers } from "@/lib/app-settings";
 
 export type MarketMapData = {
   mapCenter?: { lat: number; lon: number };
@@ -143,15 +143,11 @@ export async function loadMarketView({
   // toPmListItem because the multiplier is a DB-backed setting. Mutating in
   // place (allPms/brokerPms are filtered views over the same objects) so the
   // cohort summary and the list rows read one consistent value.
-  const sfrMultiplier = await getSfrTurnoverMultiplier();
+  const multipliers = await getPortfolioMultipliers();
   for (const pm of mappedPms) {
     pm.estManagedUnits = estimatedManagedUnits(
-      {
-        quadrant7Cell: pm.quadrant7Cell,
-        urusT12: pm.totalObservedUnits,
-        observedCommunityTotalUnits: pm.observedCommunityTotalUnits ?? null,
-      },
-      sfrMultiplier
+      { houseUrusT12: pm.houseUrusT12 ?? null, aptUrusT12: pm.aptUrusT12 ?? null },
+      multipliers
     );
   }
 
