@@ -1710,6 +1710,7 @@ async function captureOperatorSnapshots(
     concessionRate: number | null;
     isEligibleForRanking: boolean;
     t12ListingsCount: number | null;
+    quadrant7Cell: string | null;
   }> = [];
 
   for (const pm of pms) {
@@ -1725,6 +1726,7 @@ async function captureOperatorSnapshots(
         confidence?: string;
       };
       coverage?: { t12Listings?: number };
+      quadrant7Cell?: string;
     };
     let sc: ScorecardShape;
     try {
@@ -1801,6 +1803,7 @@ async function captureOperatorSnapshots(
       concessionRate: pm.concessionRate,
       isEligibleForRanking: t12Listings >= 30,
       t12ListingsCount: t12Listings,
+      quadrant7Cell: sc.quadrant7Cell ?? null,
     });
   }
 

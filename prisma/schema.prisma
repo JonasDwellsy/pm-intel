@@ -317,6 +317,11 @@ model OperatorSnapshot {
   // re-run populates them. Feeds the Momentum "Listing share" sparkline —
   // share per date = this ÷ the market's summed t12ListingsCount that date.
   t12ListingsCount     Int?
+  // 7-cell classification (quadrant7Cell) at this snapshot. Nullable: rows
+  // written before this column lack it. Lets the market brief's "since last
+  // period" change block detect cohort moves (e.g. Hybrid → Small MF/BTR)
+  // from two consecutive snapshots that both carry it.
+  quadrant7Cell        String?
   createdAt            DateTime @default(now())
 
   // One snapshot per operator per data-cutoff date.
