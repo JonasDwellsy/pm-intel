@@ -3,33 +3,35 @@
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { isAdminUser } from "@/lib/auth/is-admin";
-import { setSfrTurnoverMultiplier } from "@/lib/app-settings";
+import { setPortfolioMultipliers } from "@/lib/app-settings";
 
-export interface UpdateMultiplierState {
+export interface UpdateMultipliersState {
   ok: boolean;
   error?: string;
-  savedValue?: number;
+  saved?: { kHouse: number; kApt: number };
 }
 
 // Server action (useActionState signature). Admin-gated defensively even
 // though src/app/admin/layout.tsx already gates the route.
-export async function updateSfrMultiplier(
-  _prev: UpdateMultiplierState,
+export async function updatePortfolioMultipliers(
+  _prev: UpdateMultipliersState,
   formData: FormData
-): Promise<UpdateMultiplierState> {
+): Promise<UpdateMultipliersState> {
   const { userId } = await auth();
   if (!userId || !isAdminUser(userId)) {
     return { ok: false, error: "Not authorized." };
   }
-  const value = Number(formData.get("multiplier"));
-  if (!Number.isFinite(value) || value <= 0 || value > 20) {
-    return { ok: false, error: "Enter a multiplier between 0 and 20." };
+  const kHouse = Number(formData.get("kHouse"));
+  const kApt = Number(formData.get("kApt"));
+  const valid = (n: number) => Number.isFinite(n) && n > 0 && n <= 20;
+  if (!valid(kHouse) || !valid(kApt)) {
+    return { ok: false, error: "Enter multipliers between 0 and 20." };
   }
-  await setSfrTurnoverMultiplier(value, userId);
+  await setPortfolioMultipliers({ kHouse, kApt }, userId);
   // Size renders across the market + operator surfaces; bust their caches so
-  // the new multiplier shows immediately.
+  // the new multipliers show immediately.
   revalidatePath("/admin/settings");
   revalidatePath("/property-managers", "layout");
   revalidatePath("/operators", "layout");
-  return { ok: true, savedValue: value };
+  return { ok: true, saved: { kHouse, kApt } };
 }

@@ -1,14 +1,15 @@
 // Admin → Settings. Methodology knobs editable at runtime (backed by the
-// AppSetting table). First knob: the SFR turnover multiplier used by
-// estimatedManagedUnits(). Changing it takes effect on next page load across
-// the market + operator surfaces — no pipeline refresh needed, because size is
-// computed at read time from the raw observed counts already in the seed.
+// AppSetting table). Portfolio-size multipliers: k_house / k_apt used by
+// estimatedManagedUnits(). Changing them takes effect on next page load across
+// the market + operator surfaces — no pipeline refresh, because size is
+// computed at read time from the observed house/apt URU counts already in the
+// seed.
 //
 // Auth: gated by src/app/admin/layout.tsx.
 
 import type { Metadata } from "next";
-import { getSfrTurnoverMultiplier } from "@/lib/app-settings";
-import { DEFAULT_SFR_TURNOVER_MULTIPLIER } from "@/lib/operator-size";
+import { getPortfolioMultipliers } from "@/lib/app-settings";
+import { DEFAULT_K_HOUSE, DEFAULT_K_APT } from "@/lib/operator-size";
 import { SizeSettingsForm } from "@/components/admin/SizeSettingsForm";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminSettingsPage() {
-  const currentMultiplier = await getSfrTurnoverMultiplier();
+  const { kHouse, kApt } = await getPortfolioMultipliers();
 
   return (
     <div className="mx-auto max-w-[1100px] px-6 pb-12">
@@ -36,19 +37,18 @@ export default async function AdminSettingsPage() {
           Portfolio-size estimation
         </h2>
         <p className="mt-1 mb-4 text-[12.5px] leading-[1.55] text-muted-foreground">
-          Operator size is shown as an estimated managed-unit count. Multi-unit
-          (MF/BTR, Hybrid) operators use their declared community unit totals.
-          Scattered SFR operators use a turnover-adjusted estimate:{" "}
+          Operator size is an estimated managed-unit count, built from on-market
+          turnover split by unit type:{" "}
           <span className="font-medium text-navy">
-            observed units (T12) × k
+            houses (T12) × k_house + apartments (T12) × k_apt
           </span>
-          . The default k is{" "}
-          <span className="dq-mono font-medium text-navy">
-            {DEFAULT_SFR_TURNOVER_MULTIPLIER}
-          </span>
-          , derived from the observed ~3.3-year SFR turnover cycle.
+          . Defaults: k_house{" "}
+          <span className="dq-mono font-medium text-navy">{DEFAULT_K_HOUSE}</span>{" "}
+          (scattered SFR re-lists ~every 3.3y), k_apt{" "}
+          <span className="dq-mono font-medium text-navy">{DEFAULT_K_APT}</span>{" "}
+          (apartments turn over faster). Applied uniformly to every operator.
         </p>
-        <SizeSettingsForm currentMultiplier={currentMultiplier} />
+        <SizeSettingsForm currentKHouse={kHouse} currentKApt={kApt} />
       </section>
     </div>
   );

@@ -12,7 +12,7 @@ import { getActiveOrgId } from "@/lib/auth/active-org";
 import { resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
 import { MarketLockedUpsell } from "@/components/entitlements/MarketLockedUpsell";
 import { STATE_CODE_TO_NAME } from "@/lib/slugify";
-import { getSfrTurnoverMultiplier } from "@/lib/app-settings";
+import { getPortfolioMultipliers } from "@/lib/app-settings";
 import { estimatedManagedUnits } from "@/lib/operator-size";
 
 // v0.11 — Operator-level scorecard.
@@ -116,27 +116,20 @@ export default async function OperatorScorecardPage({
 
   // Aggregate stats (sourced from the aggregated scorecard).
   const totalUrus = sc.coverage?.urusT12 ?? null;
-  // v0.6.5 — estimated managed units (size headline). Pipeline estimate wins
-  // when present; else the read-time estimate: turnover-adjusted urusT12 for
-  // SFR, summed declared community units for MF. k is admin-tunable.
-  const sfrK = await getSfrTurnoverMultiplier();
-  const aggCommunityUnits = view.members.reduce(
-    (s, m) => s + (m.observedCommunityTotalUnits ?? 0),
-    0
+  // v0.6.5 — estimated managed units (size headline), read-time from the
+  // operator's observed units by type: houses × k_house + apartments × k_apt.
+  // Aggregate sums the members' house/apt counts so multi-market rollups are
+  // consistent with the per-market rows. k's are admin-tunable.
+  const multipliers = await getPortfolioMultipliers();
+  const aggHouse = view.members.reduce((s, m) => s + (m.houseUrusT12 ?? 0), 0);
+  const aggApt = view.members.reduce((s, m) => s + (m.aptUrusT12 ?? 0), 0);
+  const portfolioPoint = estimatedManagedUnits(
+    { houseUrusT12: aggHouse, aptUrusT12: aggApt },
+    multipliers
   );
-  const portfolioPoint =
-    sc.portfolioEstimate?.point ??
-    estimatedManagedUnits(
-      {
-        quadrant7Cell: q7Modal,
-        urusT12: totalUrus,
-        observedCommunityTotalUnits: aggCommunityUnits || null,
-      },
-      sfrK
-    );
-  const portfolioLow = sc.portfolioEstimate?.low ?? null;
-  const portfolioHigh = sc.portfolioEstimate?.high ?? null;
-  const portfolioConfidence = sc.portfolioEstimate?.confidence ?? null;
+  const portfolioLow = null;
+  const portfolioHigh = null;
+  const portfolioConfidence = null;
   const monthsOnPlatform = sc.coverage?.monthsOnPlatform ?? null;
 
   // Listing trajectory YoY — recomputed from the SUMMED t12/t24
@@ -437,16 +430,13 @@ export default async function OperatorScorecardPage({
                     <td className="text-right">
                       <span className="dq-mono tabular-nums text-navy">
                         {fmtInt(
-                          m.portfolioPoint ??
-                            estimatedManagedUnits(
-                              {
-                                quadrant7Cell: m.quadrant7Cell,
-                                urusT12: m.urusT12,
-                                observedCommunityTotalUnits:
-                                  m.observedCommunityTotalUnits,
-                              },
-                              sfrK
-                            )
+                          estimatedManagedUnits(
+                            {
+                              houseUrusT12: m.houseUrusT12,
+                              aptUrusT12: m.aptUrusT12,
+                            },
+                            multipliers
+                          )
                         )}
                       </span>
                       {m.portfolioLow !== null && m.portfolioHigh !== null && (

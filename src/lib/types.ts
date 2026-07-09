@@ -442,10 +442,11 @@ export interface PMListItem {
   domT12: number;
   totalObservedUnits: number;
   // v0.6.5 — inputs + result for the "estimated managed units" size headline.
-  // observedCommunityTotalUnits is the declared-units signal for MF/community
-  // operators; estManagedUnits is computed in loadMarketView (needs the
-  // admin-tunable turnover multiplier) via estimatedManagedUnits().
-  observedCommunityTotalUnits?: number | null;
+  // House/apt observed-URU counts feed estimatedManagedUnits() (house × k_house
+  // + apt × k_apt); estManagedUnits is computed in loadMarketView, where the
+  // admin-tunable multipliers are available.
+  houseUrusT12?: number | null;
+  aptUrusT12?: number | null;
   estManagedUnits?: number | null;
   primaryCity: string;
   primaryCityShare: number | null;

@@ -2,67 +2,60 @@ import test from "node:test";
 import { strict as assert } from "node:assert";
 import {
   estimatedManagedUnits,
-  usesCommunityUnits,
-  DEFAULT_SFR_TURNOVER_MULTIPLIER,
+  DEFAULT_K_HOUSE,
+  DEFAULT_K_APT,
 } from "@/lib/operator-size";
 
-test("SFR uses the turnover multiplier on urusT12", () => {
+test("house + apartment units each get their own turnover multiplier", () => {
   const n = estimatedManagedUnits(
-    { quadrant7Cell: "SFR Independent", urusT12: 51, observedCommunityTotalUnits: 0 },
-    3
+    { houseUrusT12: 100, aptUrusT12: 50 },
+    { kHouse: 3.3, kApt: 2.6 }
   );
-  assert.equal(n, 153); // 51 * 3
+  assert.equal(n, Math.round(100 * 3.3 + 50 * 2.6)); // 330 + 130 = 460
 });
 
-test("SFR default multiplier applies when none passed", () => {
-  const n = estimatedManagedUnits({
-    quadrant7Cell: "SFR Independent",
-    urusT12: 100,
-    observedCommunityTotalUnits: null,
-  });
-  assert.equal(n, Math.round(100 * DEFAULT_SFR_TURNOVER_MULTIPLIER));
+test("defaults apply when no multipliers passed", () => {
+  const n = estimatedManagedUnits({ houseUrusT12: 100, aptUrusT12: 0 });
+  assert.equal(n, Math.round(100 * DEFAULT_K_HOUSE));
+  const a = estimatedManagedUnits({ houseUrusT12: 0, aptUrusT12: 100 });
+  assert.equal(a, Math.round(100 * DEFAULT_K_APT));
 });
 
-test("MF uses declared community units, NOT the multiplier", () => {
+test("pure apartment operator ≈ declared building count (recovers MF safely)", () => {
+  // Equity Seattle: 3340 apt URUs × 2.6 ≈ 8684 (declared 8653).
   const n = estimatedManagedUnits(
-    { quadrant7Cell: "Large MF/BTR Institutional", urusT12: 6010, observedCommunityTotalUnits: 15593 },
-    3
+    { houseUrusT12: 0, aptUrusT12: 3340 },
+    { kHouse: 3.3, kApt: 2.6 }
   );
-  assert.equal(n, 15593);
+  assert.equal(n, 8684);
 });
 
-test("MF with no community data falls back to the turnover method", () => {
+test("pure scattered-SFR operator uses the house multiplier", () => {
   const n = estimatedManagedUnits(
-    { quadrant7Cell: "Small MF/BTR Independent", urusT12: 40, observedCommunityTotalUnits: 0 },
-    3
+    { houseUrusT12: 1089, aptUrusT12: 0 },
+    { kHouse: 3.3, kApt: 2.6 }
   );
-  assert.equal(n, 120); // 40 * 3
+  assert.equal(n, Math.round(1089 * 3.3)); // 3594
 });
 
-test("Hybrid is treated as a community cohort", () => {
-  assert.equal(usesCommunityUnits("Hybrid"), true);
+test("mixed operator sums both parts (Fox Boulder shape)", () => {
   const n = estimatedManagedUnits(
-    { quadrant7Cell: "Hybrid", urusT12: 100, observedCommunityTotalUnits: 500 },
-    3
+    { houseUrusT12: 179, aptUrusT12: 151 },
+    { kHouse: 3.3, kApt: 2.6 }
   );
-  assert.equal(n, 500);
+  assert.equal(n, Math.round(179 * 3.3 + 151 * 2.6)); // 591 + 393 = 984
 });
 
-test("no size signal returns null", () => {
-  assert.equal(
-    estimatedManagedUnits({ quadrant7Cell: "SFR Independent", urusT12: 0, observedCommunityTotalUnits: 0 }, 3),
-    null
-  );
-  assert.equal(
-    estimatedManagedUnits({ quadrant7Cell: null, urusT12: null, observedCommunityTotalUnits: null }, 3),
-    null
-  );
+test("no observed units returns null", () => {
+  assert.equal(estimatedManagedUnits({ houseUrusT12: 0, aptUrusT12: 0 }), null);
+  assert.equal(estimatedManagedUnits({ houseUrusT12: null, aptUrusT12: null }), null);
 });
 
-test("rounds to a whole unit count", () => {
-  const n = estimatedManagedUnits(
-    { quadrant7Cell: "SFR Independent", urusT12: 51, observedCommunityTotalUnits: null },
-    3.3
-  );
-  assert.equal(n, 168); // round(51 * 3.3 = 168.3)
+test("tuning the multipliers scales the estimate", () => {
+  const base = estimatedManagedUnits({ houseUrusT12: 100, aptUrusT12: 100 }, { kHouse: 3, kApt: 3 });
+  assert.equal(base, 600);
+  const tuned = estimatedManagedUnits({ houseUrusT12: 100, aptUrusT12: 100 }, { kHouse: 4, kApt: 2 });
+  assert.equal(tuned, 600); // 400 + 200
+  const up = estimatedManagedUnits({ houseUrusT12: 100, aptUrusT12: 0 }, { kHouse: 5, kApt: 2.6 });
+  assert.equal(up, 500);
 });
