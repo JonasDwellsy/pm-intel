@@ -534,14 +534,15 @@
       "status": "available"
     },
     {
-      "slug": "los-angeles-ca",
-      "name": "Los Angeles-Long Beach-Anaheim, CA MSA",
+      "slug": "los-angeles-long-beach-santa-ana-ca",
+      "name": "Los Angeles-Long Beach-Santa Ana, CA MSA",
       "shortName": "Los Angeles",
       "centroid": {
         "lat": 34.0522,
         "lng": -118.2437
       },
-      "status": "available"
+      "status": "live",
+      "marketPageHref": "/property-managers/california/los-angeles"
     },
     {
       "slug": "manchester-nh",
