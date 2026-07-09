@@ -10,6 +10,16 @@
         "31871",
         "name:31realtypropertymanagementllc"
       ]
+    },
+    {
+      "marketId": "memphis-tn-ms-ar",
+      "survivorKey": "629374",
+      "canonicalName": "Reedy & Company",
+      "survivorSlug": "reedy-company-memphis-tn-ms-ar",
+      "memberKeys": [
+        "629374",
+        "name:reedycompany"
+      ]
     }
   ]
 }
