@@ -2,6 +2,7 @@ import test from "node:test";
 import { strict as assert } from "node:assert";
 import {
   estimatedManagedUnits,
+  estimatedManagedUnitsBand,
   DEFAULT_K_HOUSE,
   DEFAULT_K_APT,
 } from "@/lib/operator-size";
@@ -49,6 +50,24 @@ test("mixed operator sums both parts (Fox Boulder shape)", () => {
 test("no observed units returns null", () => {
   assert.equal(estimatedManagedUnits({ houseUrusT12: 0, aptUrusT12: 0 }), null);
   assert.equal(estimatedManagedUnits({ houseUrusT12: null, aptUrusT12: null }), null);
+});
+
+test("turnover band brackets the point, type-aware", () => {
+  // Hawk-Eyed shape: 0 houses / 74 apt. point = 74×2.6 = 192.
+  const band = estimatedManagedUnitsBand({ houseUrusT12: 0, aptUrusT12: 74 });
+  assert.deepEqual(band, { low: Math.round(74 * 2.0), high: Math.round(74 * 3.3) }); // 148 / 244
+  const point = estimatedManagedUnits({ houseUrusT12: 0, aptUrusT12: 74 })!;
+  assert.ok(band!.low <= point && point <= band!.high); // 148 ≤ 192 ≤ 244
+});
+
+test("house-heavy operator's band uses house turnover range", () => {
+  const band = estimatedManagedUnitsBand({ houseUrusT12: 100, aptUrusT12: 0 });
+  assert.deepEqual(band, { low: 250, high: 420 }); // 100×2.5 / 100×4.2
+});
+
+test("band is null when there is no observed-unit signal", () => {
+  assert.equal(estimatedManagedUnitsBand({ houseUrusT12: 0, aptUrusT12: 0 }), null);
+  assert.equal(estimatedManagedUnitsBand({ houseUrusT12: null, aptUrusT12: null }), null);
 });
 
 test("tuning the multipliers scales the estimate", () => {

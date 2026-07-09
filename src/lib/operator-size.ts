@@ -55,3 +55,30 @@ export function estimatedManagedUnits(
   if (house <= 0 && apt <= 0) return null;
   return Math.round(house * kHouse + apt * kApt);
 }
+
+// Turnover-uncertainty band around the point estimate. Turnover rates aren't
+// exact, so the size is a range, not a number. The band applies plausible
+// low/high turnover multipliers per unit type — bracketing the defaults
+// (k_house 3.3 → [2.5, 4.2]; k_apt 2.6 → [2.0, 3.3], ≈ ±25% / +27%). Type-aware:
+// an apartment-heavy operator's band reflects apartment-turnover uncertainty.
+export const K_HOUSE_BAND: readonly [number, number] = [2.5, 4.2];
+export const K_APT_BAND: readonly [number, number] = [2.0, 3.3];
+
+/**
+ * Low/high estimated-managed-units band from the turnover range. Null when
+ * there is no observed-unit signal (matches estimatedManagedUnits). Callers
+ * that also have the point estimate should clamp it inside [low, high] in case
+ * admin-tuned multipliers fall outside the band.
+ */
+export function estimatedManagedUnitsBand({
+  houseUrusT12,
+  aptUrusT12,
+}: OperatorSizeInputs): { low: number; high: number } | null {
+  const house = houseUrusT12 ?? 0;
+  const apt = aptUrusT12 ?? 0;
+  if (house <= 0 && apt <= 0) return null;
+  return {
+    low: Math.round(house * K_HOUSE_BAND[0] + apt * K_APT_BAND[0]),
+    high: Math.round(house * K_HOUSE_BAND[1] + apt * K_APT_BAND[1]),
+  };
+}
