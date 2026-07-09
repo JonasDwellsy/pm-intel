@@ -763,6 +763,12 @@ export interface PortfolioEstimate {
 // home, sparkline) sees one consistent value via scorecard.portfolioEstimate.
 // Kept in sync with the src/lib/operators/portfolio-estimate.ts copy the
 // trajectory backfill uses; both delegate the arithmetic to estimatedManagedUnits.
+//
+// Bumped whenever the size methodology changes. isDataCurrent() compares the
+// DB's stored portfolioEstimate.methodologyVersion to this, so a code-only
+// methodology change re-seeds on the next deploy without needing FORCE_SEED.
+const SIZE_METHODOLOGY_VERSION = "v0.8-house-apt-turnover";
+
 function estimatePortfolioSize(
   coverage: AnyRecord,
   performance: AnyRecord,
@@ -786,7 +792,7 @@ function estimatePortfolioSize(
     return {
       status: "insufficient_data",
       message: "No observed units to estimate portfolio size.",
-      methodologyVersion: "v0.8-house-apt-turnover",
+      methodologyVersion: SIZE_METHODOLOGY_VERSION,
     };
   }
 
@@ -794,7 +800,7 @@ function estimatePortfolioSize(
     status: "estimated",
     point,
     cohort: "house/apt turnover",
-    methodologyVersion: "v0.8-house-apt-turnover",
+    methodologyVersion: SIZE_METHODOLOGY_VERSION,
   };
 }
 
@@ -1164,6 +1170,7 @@ async function isDataCurrent(): Promise<boolean> {
     select: {
       concessionListingCount: true,
       concessionSamples: true,
+      scorecardData: true,
     },
   });
   if (!dbPm) {
@@ -1171,6 +1178,23 @@ async function isDataCurrent(): Promise<boolean> {
       `[seed] Spot-check operator "${SPOT_SLUG}" missing from DB. Re-seeding.`
     );
     return false;
+  }
+
+  // v0.8 — re-seed when the size methodology drifts. portfolioEstimate is
+  // computed at seed time (not carried in the committed JSON), so a code-only
+  // methodology change can't be caught by the field spot-checks below; compare
+  // the stored version tag instead. Self-heals every future methodology bump.
+  try {
+    const dbEst = (JSON.parse(dbPm.scorecardData) as ScorecardData)
+      .portfolioEstimate;
+    if (dbEst?.methodologyVersion !== SIZE_METHODOLOGY_VERSION) {
+      console.log(
+        `[seed] Portfolio methodology drift for "${SPOT_SLUG}": DB ${dbEst?.methodologyVersion ?? "none"}, code ${SIZE_METHODOLOGY_VERSION}. Re-seeding.`
+      );
+      return false;
+    }
+  } catch {
+    return false; // unparseable blob → re-seed
   }
 
   const expectedCount = asInt(expectedPm.concessionListingCount) ?? 0;
