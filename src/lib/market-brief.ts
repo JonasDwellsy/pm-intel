@@ -1,4 +1,4 @@
-// Pure aggregation layer for auto-generated weekly market briefs.
+// Pure aggregation layer for auto-generated monthly market briefs.
 // buildMarketBriefData reads the existing v0.6.4 seed (Market rows +
 // PM scorecards + canonical operators) and produces the structured
 // shape the LLM prose generator consumes.

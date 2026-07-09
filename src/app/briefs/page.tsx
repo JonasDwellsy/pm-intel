@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Market briefs",
   description:
-    "Weekly analyst-style market briefs across Dwellsy IQ's covered markets — share movement, operator landscape, and notable signals.",
+    "Monthly analyst-style market briefs across Dwellsy IQ's covered markets — share movement, operator landscape, and notable signals.",
 };
 
 interface BriefCardData {
