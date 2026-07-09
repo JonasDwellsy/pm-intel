@@ -84,7 +84,7 @@ export function ScorecardBody({
       {/* Main content column */}
       <div style={{ flex: 1, minWidth: 0, paddingTop: "28px", paddingBottom: "48px" }}>
         {/* Header */}
-        <ScorecardHeader header={view.header} />
+        <ScorecardHeader header={view.header} slug={scorecard.pm.slug} />
 
         {/* 30-second exec readout */}
         <ExecReadout readout={view.readout} maturityNote={view.maturityNote} />

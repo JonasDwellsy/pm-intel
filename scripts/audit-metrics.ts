@@ -13,7 +13,7 @@
  *   A  scored-metric value == the correct seed field (dom/tenancy/rentPerf/marketing)
  *   B  each value correlates with its percentile in the right direction
  *      (generic wrong-field detector — a wrong field shows near-zero/flipped corr)
- *   C  vacancy/rent-stability/concession tone agrees with value-vs-median
+ *   C  concession tone agrees with value-vs-median
  *   D  no NaN/undefined/"null" leaking into any displayed string
  *   INV  seed self-consistency (tenancy unit math, percentile ranges, bounds)
  *   XSURF  market-list DOM matches the scorecard blob
@@ -83,9 +83,6 @@ async function main() {
       const dom = by.get("dom");
       if (dom && sc.performance?.domT12 != null && dom.value !== `${Math.round(sc.performance.domT12)}d`)
         flags.push({ slug: r.slug, check: "A:dom", detail: `${dom.value} != ${Math.round(sc.performance.domT12)}d` });
-      const ten = by.get("tenancy");
-      if (ten && sc.tenancy?.overallGap != null && ten.value !== `${sc.tenancy.overallGap.toFixed(1)}mo`)
-        flags.push({ slug: r.slug, check: "A:tenancy", detail: `${ten.value} != ${sc.tenancy.overallGap.toFixed(1)}mo` });
       const rp = by.get("rentPerformance");
       if (rp && sc.rentPerformance?.pmYoyChange != null && rp.value !== `${(sc.rentPerformance.pmYoyChange * 100).toFixed(1)}%`)
         flags.push({ slug: r.slug, check: "A:rentPerf", detail: `${rp.value} != ${(sc.rentPerformance.pmYoyChange * 100).toFixed(1)}%` });
@@ -100,11 +97,6 @@ async function main() {
       }
 
       // C: re-enrichment tone consistency
-      const vac = v.operating.vacancy;
-      if (vac?.cohortMedianPct != null) {
-        if (vac.tone === "good" && !(vac.pct < vac.cohortMedianPct * 0.9)) flags.push({ slug: r.slug, check: "C:vacancy", detail: `good but ${vac.pct} !< ${vac.cohortMedianPct}` });
-        if (vac.tone === "watch" && !(vac.pct > vac.cohortMedianPct * 1.1)) flags.push({ slug: r.slug, check: "C:vacancy", detail: `watch but ${vac.pct} !> ${vac.cohortMedianPct}` });
-      }
       const co = v.operating.concession;
       if (co?.marketRatePct != null && co.tone === "watch" && !(co.ratePct > co.marketRatePct * 1.1))
         flags.push({ slug: r.slug, check: "C:concession", detail: `watch but ${co.ratePct} !> ${co.marketRatePct}` });
@@ -113,7 +105,7 @@ async function main() {
       const strings = [
         v.header.name, v.scaleFit.takeaway, v.operating.takeaway,
         ...v.operating.metrics.flatMap((m) => [m.value, m.interpretation, ...m.sub]),
-        vac?.interpretation ?? "", co?.interpretation ?? "",
+        co?.interpretation ?? "",
       ];
       if (strings.some((s) => /\b(NaN|undefined)\b|\bnull\b/.test(s ?? "")))
         flags.push({ slug: r.slug, check: "D:render", detail: strings.find((s) => /\b(NaN|undefined)\b|\bnull\b/.test(s ?? ""))!.slice(0, 60) });

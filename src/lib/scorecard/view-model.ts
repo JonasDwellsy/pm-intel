@@ -15,7 +15,6 @@ import { buildLendingSignals } from "@/lib/lending-signals";
 import type { PoolPm } from "@/lib/msa-pool";
 import { buildConcessionContext, uniquePatternLabels, formatConcessionSample } from "@/lib/concession-context";
 import {
-  vacancyDetail,
   concessionDetail,
   type MetricTone,
 } from "./operating-detail";
@@ -58,14 +57,13 @@ export interface MetricRow {
   key: MetricKey; title: string; label: ScoreLabel; value: string; benchmark: string;
   position: number | null; star: "gold" | "silver" | null; sub: string[];
   // Plain-English note shown at the top of the card (parity with the
-  // vacancy/concession cards). "" → fall back to benchmark.
+  // concession card). "" → fall back to benchmark.
   interpretation: string;
 }
 export interface OperatingView {
   sectionLabel: ScoreLabel; takeaway: string; strongest: string[]; watch: string[]; metrics: MetricRow[];
-  // `interpretation`/`tone`/`definition` bring these re-enriched cards to parity
+  // `interpretation`/`tone`/`definition` bring this re-enriched card to parity
   // with the scored metric cards (see operating-detail.ts).
-  vacancy: { pct: number; cohortMedianPct: number | null; star: "gold" | "silver" | null; interpretation: string; tone: MetricTone; definition: string } | null;
   concession: { ratePct: number; marketRatePct: number | null; patterns: string[]; samples: string[]; interpretation: string; tone: MetricTone; definition: string } | null;
 }
 
@@ -283,24 +281,24 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const focalRentInput = { pm: { slug: scorecard.pm.slug }, rentTrajectory: scorecard.rentTrajectory };
   const poolRentInputs = pool.map((m) => ({ pm: { slug: m.slug }, rentTrajectory: m.scorecard.rentTrajectory }));
 
-  // Vacancy / rent-stability / operator-tenure — reuse the Layer-4
-  // lending-signal builders (src/lib/lending-signals.ts) rather than
-  // recomputing. buildLendingSignals finds its own focal by slug match
-  // inside `pool`, so the focal's own scorecard must be present in the
-  // pool passed here (the msaPool loaders used elsewhere already include
-  // it; test fixtures must too, or these signals come back null).
+  // Rent-stability / operator-tenure — reuse the Layer-4 lending-signal
+  // builders (src/lib/lending-signals.ts) rather than recomputing.
+  // buildLendingSignals finds its own focal by slug match inside `pool`,
+  // so the focal's own scorecard must be present in the pool passed here
+  // (the msaPool loaders used elsewhere already include it; test fixtures
+  // must too, or these signals come back null).
   const focal = { slug: scorecard.pm.slug, scorecard };
   const lendingPool = pool.some((m) => m.slug === scorecard.pm.slug)
     ? (pool as unknown as PoolPm[])
     : ([focal, ...pool] as unknown as PoolPm[]);
   const marketCount = input.marketCount ?? 1;
-  // buildLendingSignals's vacancy/operatorStability builders dereference
+  // buildLendingSignals's operatorStability builder dereferences
   // scorecard.performance/tenancy/coverage directly (no optional chaining)
   // on the focal AND on every pool member (cohort-median computation), so
-  // they throw on partial ScorecardData anywhere in lendingPool. The real
+  // it throws on partial ScorecardData anywhere in lendingPool. The real
   // precondition is that coverage + tenancy are present on every member;
   // guard on that instead of a blanket try/catch so genuine future
-  // exceptions inside the builders aren't silently swallowed. True for
+  // exceptions inside the builder aren't silently swallowed. True for
   // real seeded ScorecardData — only ad hoc/partial fixtures hit this.
   const lendingPreconditionMet =
     !!scorecard.coverage &&
@@ -309,16 +307,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const lendingSignals: ReturnType<typeof buildLendingSignals> =
     lendingPreconditionMet
       ? buildLendingSignals(scorecard, lendingPool, marketCount)
-      : { vacancy: null, operatorStability: null, geographicConcentration: null, pricingTier: null };
-
-  const vacancy: OperatingView["vacancy"] = lendingSignals.vacancy?.vacancyPct != null
-    ? {
-        pct: lendingSignals.vacancy.vacancyPct,
-        cohortMedianPct: lendingSignals.vacancy.dist.cohortMedian,
-        star: lendingSignals.vacancy.star,
-        ...vacancyDetail(lendingSignals.vacancy.vacancyPct, lendingSignals.vacancy.dist.cohortMedian),
-      }
-    : null;
+      : { operatorStability: null, geographicConcentration: null, pricingTier: null };
 
   const yearsVisible = scorecard.coverage?.yearsVisible ?? scorecard.tenancy?.yearsVisible ?? null;
   const tenure: ScaleFitView["tenure"] = yearsVisible != null
@@ -466,7 +455,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     sectionLabel: opLabel, takeaway: operatingTakeaway,
     strongest: sw.strongest.map((k) => METRIC_TITLES[k]),
     watch: sw.watch.map((k) => METRIC_TITLES[k]), metrics,
-    vacancy, concession,
+    concession,
   };
   readout[1].value = `Above cohort median on ${aboveCount} of ${metrics.length} scored dimensions`;
 

@@ -1,14 +1,19 @@
 // Scorecard redesign — header block.
-// Pure server component; no client hooks.
+// Mostly a server component; the copy-link + PDF-download buttons below
+// are client islands (CopyLinkButton, PrintScorecardButton) dropped in.
 
 import type { HeaderView } from "@/lib/scorecard/view-model";
+import { CopyLinkButton } from "@/components/scorecard/CopyLinkButton";
+import { PrintScorecardButton } from "@/components/scorecard/PrintScorecardButton";
 
 interface ScorecardHeaderProps {
   header: HeaderView;
+  /** Operator slug — used for the copy-link + PDF-download buttons. */
+  slug: string;
 }
 
 /** Top header: eyebrow, operator name, badge row, star chip, and link buttons. */
-export function ScorecardHeader({ header }: ScorecardHeaderProps) {
+export function ScorecardHeader({ header, slug }: ScorecardHeaderProps) {
   const goldStars = "★".repeat(Math.max(0, header.goldCount));
   const silverStars = "★".repeat(Math.max(0, header.silverCount));
 
@@ -142,15 +147,22 @@ export function ScorecardHeader({ header }: ScorecardHeaderProps) {
         </div>
       </div>
 
-      {/* Link-button row — only rendered when at least one link is non-null */}
-      {hasAnyLink && (
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            margin: "14px 0 20px",
-          }}
-        >
+      {/* Link-button row — dwellsy/website links only render when present;
+          the copy-link + PDF-download buttons always render. */}
+      <div
+        style={{
+          display: "flex",
+          gap: "10px",
+          margin: "14px 0 20px",
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <CopyLinkButton operatorSlug={slug} />
+        <PrintScorecardButton pmSlug={slug} />
+
+        {hasAnyLink && (
+          <>
           {hasDwellsyLink && (
             <a
               href={header.dwellsyCompanyUrl!}
@@ -196,8 +208,9 @@ export function ScorecardHeader({ header }: ScorecardHeaderProps) {
               <span>🌐</span> Operator website <span>↗</span>
             </a>
           )}
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

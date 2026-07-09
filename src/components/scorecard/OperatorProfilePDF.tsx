@@ -23,8 +23,8 @@
 //     a continuation page when content overflows.
 //
 //   Page 3 — Lending signals
-//     The 4 underwriting-relevant synthesis signals from
-//     buildLendingSignals (Vacancy, Operator
+//     The underwriting-relevant synthesis signals from
+//     buildLendingSignals (Operator
 //     Stability, Geographic Concentration, Pricing Tier).
 //
 //   Page 4 — Geographic Coverage & Rent
@@ -83,7 +83,6 @@ import {
 import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
 import type {
   LendingSignals,
-  VacancySignal,
   OperatorStabilitySignal,
   GeographicConcentrationSignal,
   PricingTierSignal,
@@ -1385,26 +1384,6 @@ interface MetricCardData {
   star?: StarLevel;
 }
 
-function vacancySignalCard(v: VacancySignal): MetricCardData {
-  if (v.vacancyPct === null) {
-    return {
-      title: "Vacancy Signal",
-      value: "—",
-      context:
-        "Insufficient DOM or tenancy data to compute vacancy ratio for this operator.",
-      star: null,
-    };
-  }
-  return {
-    title: "Vacancy Signal",
-    value: fmtNumber(v.vacancyPct, 1),
-    valueUnit: "%",
-    star: v.star,
-    context:
-      "Estimated cycle vacancy. Derived from lease-up speed and tenant retention. Lower indicates less downtime between tenancies.",
-  };
-}
-
 function operatorStabilitySignalCard(
   os: OperatorStabilitySignal
 ): MetricCardData {
@@ -1507,7 +1486,6 @@ function lendingSignalCards(
     return signals;
   }
   const signals: MetricCardData[] = [];
-  if (resolved.vacancy) signals.push(vacancySignalCard(resolved.vacancy));
   if (resolved.operatorStability)
     signals.push(operatorStabilitySignalCard(resolved.operatorStability));
   if (resolved.geographicConcentration)

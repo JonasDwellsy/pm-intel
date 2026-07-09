@@ -7,9 +7,8 @@ import type {
 } from "@/lib/types";
 
 // Layer 4 — Lending Signals (Scorecard_Design_Spec_v1.0.md Section 3, Layer 4).
-// 4 signal cards in a compact grid:
+// Signal cards in a compact grid:
 //
-//   Signal 1 — Vacancy Signal (computed at render time from DOM + Tenancy)
 //   Signal 2 — Operator Stability (composite surfaced from yearsVisible +
 //              cross-market footprint count; persistent eligibility deferred
 //              to v0.7 — not in v0.6.2 seed)
@@ -19,9 +18,13 @@ import type {
 //              Decision G.4.
 //   Signal 4 — Pricing Tier (computed at render time from rent trajectory)
 //
-// Each signal carries a value, cohort context, and a star (signals 1, 2)
+// (Signal 1 — Vacancy Signal — was retired alongside the orphaned
+// `overallGap` tenancy field it derived from; see the Classic-retirement
+// cleanup.)
+//
+// Each signal carries a value, cohort context, and a star (signal 2)
 // or position indicator (signal 3) or tier label (signal 4). The render-time
-// computations (1, 2, 4) consume the same MSA pool that Layer 3 uses, so the
+// computations (2, 4) consume the same MSA pool that Layer 3 uses, so the
 // page pays for one DB query total.
 
 // Direction semantics: "lower better" or "higher better" determines how
@@ -38,13 +41,6 @@ export interface SignalDistribution {
 
 // Per-signal output shapes — each signal carries its own dimension-specific
 // fields plus a shared cohort distribution.
-export interface VacancySignal {
-  kind: "vacancy";
-  /** Percent of cycle that is vacancy, 0-100. Null when DOM or Tenancy is. */
-  vacancyPct: number | null;
-  dist: SignalDistribution;
-  star: StarLevel;
-}
 export interface OperatorStabilitySignal {
   kind: "operatorStability";
   yearsVisible: number | null;
@@ -75,7 +71,6 @@ export interface PricingTierSignal {
 }
 
 export interface LendingSignals {
-  vacancy: VacancySignal | null;
   operatorStability: OperatorStabilitySignal | null;
   geographicConcentration: GeographicConcentrationSignal | null;
   pricingTier: PricingTierSignal | null;
@@ -89,7 +84,6 @@ export function buildLendingSignals(
   const focal = pool.find((p) => p.slug === scorecard.pm.slug);
   if (!focal) {
     return {
-      vacancy: null,
       operatorStability: null,
       geographicConcentration: null,
       pricingTier: null,
@@ -98,7 +92,6 @@ export function buildLendingSignals(
   const focalType = operatorType(focal.quadrant7Cell);
 
   return {
-    vacancy: buildVacancySignal(focal, focalType, pool, scorecard.market.name),
     operatorStability: buildOperatorStabilitySignal(
       focal,
       focalType,
@@ -108,96 +101,6 @@ export function buildLendingSignals(
     ),
     geographicConcentration: buildGeographicConcentrationSignal(scorecard),
     pricingTier: buildPricingTierSignal(focal, pool),
-  };
-}
-
-// --- Signal 1: Vacancy Signal ---
-// vacancy_pct = (DOM_days / 30) / (Tenancy_months + DOM_days / 30) × 100
-// Lower vacancy = more favorable.
-function computeVacancyPct(sc: ScorecardData): number | null {
-  const dom = sc.performance.domT12;
-  const tenancy = sc.tenancy.overallGap;
-  if (!Number.isFinite(dom) || tenancy === null || !Number.isFinite(tenancy)) {
-    return null;
-  }
-  const domMonths = dom / 30;
-  const cycle = tenancy + domMonths;
-  if (cycle <= 0) return null;
-  return (domMonths / cycle) * 100;
-}
-
-function buildVacancySignal(
-  focal: PoolPm,
-  focalType: ReturnType<typeof operatorType>,
-  pool: PoolPm[],
-  marketName: string
-): VacancySignal | null {
-  const focalValue = computeVacancyPct(focal.scorecard);
-
-  const valuesIn = (filter: (p: PoolPm) => boolean) =>
-    pool
-      .filter((p) => p.slug !== focal.slug && filter(p))
-      .map((p) => computeVacancyPct(p.scorecard))
-      .filter((v): v is number => v !== null);
-
-  const primary = valuesIn((p) => p.quadrant7Cell === focal.quadrant7Cell);
-  const fallback = valuesIn((p) => operatorType(p.quadrant7Cell) === focalType);
-  const msa = valuesIn(() => true);
-
-  const focalContrib = focalValue !== null ? 1 : 0;
-  let cohortLevel: CohortLevel;
-  let cohortValues: number[];
-  let cohortName: string;
-
-  if (primary.length + focalContrib >= 10) {
-    cohortLevel = "primary";
-    cohortValues = primary;
-    cohortName = `${marketName} ${focal.quadrant7Cell ?? ""} cohort`.trim();
-  } else if (fallback.length + focalContrib >= 10) {
-    cohortLevel = "fallback";
-    cohortValues = fallback;
-    cohortName = `${marketName} ${operatorTypeLabel(focalType)} cohort`;
-  } else {
-    cohortLevel = "msa";
-    cohortValues = msa;
-    cohortName = `${marketName} MSA cohort`;
-  }
-
-  if (focalValue === null || cohortValues.length === 0) {
-    return {
-      kind: "vacancy",
-      vacancyPct: focalValue,
-      dist: {
-        cohortLevel,
-        cohortName,
-        cohortN: cohortValues.length + focalContrib,
-        cohortMedian: median(cohortValues),
-        focalPercentile: null,
-      },
-      star: null,
-    };
-  }
-
-  // Lower-better: focal's percentile is the share of cohort with HIGHER
-  // values than focal.
-  const allValues = [...cohortValues, focalValue].sort((a, b) => a - b);
-  const focalIdx = allValues.indexOf(focalValue);
-  const pct =
-    allValues.length > 1
-      ? ((allValues.length - 1 - focalIdx) / (allValues.length - 1)) * 100
-      : 50;
-
-  return {
-    kind: "vacancy",
-    vacancyPct: focalValue,
-    dist: {
-      cohortLevel,
-      cohortName,
-      cohortN: allValues.length,
-      cohortMedian: median(allValues),
-      focalPercentile: pct,
-    },
-    star: percentileToStar(pct),
   };
 }
 

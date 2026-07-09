@@ -826,7 +826,7 @@ def compute_marketing(d):
 
 
 def compute_tenancy(d):
-    gaps_all = []; gaps_house = []; gaps_apt = []
+    gaps_house = []; gaps_apt = []
     multi_episode_units = 0
     for uru, episodes in d["tenancy_episodes"].items():
         if len(episodes) < 2: continue
@@ -838,7 +838,6 @@ def compute_tenancy(d):
             if curr_ct and prev_ct and curr_ct > prev_ct:
                 gap_months = (curr_ct - prev_ct).days / 30.44
                 if 1.0 <= gap_months <= 60.0:
-                    gaps_all.append(gap_months)
                     addr_t = d["uru_addr_type"].get(uru)
                     if addr_t == "house": gaps_house.append(gap_months)
                     elif addr_t == "apartment": gaps_apt.append(gap_months)
@@ -856,7 +855,6 @@ def compute_tenancy(d):
         "totalUnits": total_units,
         "multiEpisodeUnits": multi_episode_units,
         "multiEpisodePct": multi_episode_pct,
-        "overallGap": round(statistics.median(gaps_all), 1) if gaps_all else None,
         "house": stats_block(gaps_house),
         "apartment": stats_block(gaps_apt),
     }

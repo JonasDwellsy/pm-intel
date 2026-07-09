@@ -194,7 +194,6 @@ export interface ScorecardData {
     totalUnits: number;
     multiEpisodeUnits: number;
     multiEpisodePct: number;
-    overallGap: number | null;
     tenancyPercentile: number | null;
     apartment: TenancyAssetBlock;
     house: TenancyAssetBlock;
