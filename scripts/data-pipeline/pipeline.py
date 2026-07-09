@@ -928,7 +928,24 @@ for norm in sorted(eligible_norms):
     concentrated_share = concentrated_units / total_units if total_units else 0.0
     median_conc = statistics.median(n for _, n in concentrated) if concentrated else 0
 
-    if concentrated_share < 0.30: op_type = "SFR"
+    # House/apt unit-type split (from observed URU types). A ~pure-apartment
+    # operator is multifamily regardless of how scattered its inventory is, so
+    # unit type overrides the concentration proxy for that extreme — otherwise
+    # scattered apartments get mislabeled SFR/Hybrid (the concentration axis
+    # conflates "scattered" with "SFR"). Surgical: only the ~all-apartment case
+    # (house share <= 10%) is overridden; mixed / house-dominant operators keep
+    # the concentration-based split below.
+    house_urus = sum(1 for t in d["uru_addr_type"].values() if t == "house")
+    apt_urus = sum(1 for t in d["uru_addr_type"].values() if t == "apartment")
+    typed_urus = house_urus + apt_urus
+    house_share = (house_urus / typed_urus) if typed_urus else None
+    apartment_dominant = house_share is not None and house_share <= 0.10
+
+    if apartment_dominant:
+        # Predominantly apartments → multifamily. Small vs Large by concentrated
+        # community size (same size axis as the concentration branch).
+        op_type = "Large_MF_BTR" if median_conc >= 50 else "Small_MF_BTR"
+    elif concentrated_share < 0.30: op_type = "SFR"
     elif concentrated_share >= 0.70:
         op_type = "Large_MF_BTR" if median_conc >= 50 else "Small_MF_BTR"
     else: op_type = "Hybrid"
@@ -1008,6 +1025,8 @@ for norm in sorted(eligible_norms):
         "comm_total_size": dict(d["comm_tdc"]),
         "concentrated_share": concentrated_share,
         "median_concentrated_size": median_conc,
+        "house_share": house_share,
+        "apartment_dominant": apartment_dominant,
         "op_type": op_type,
         "observed_community_total_units": sum(d["comm_tdc"].get(cid, 0) for cid in d["comm_urus_t12"].keys()),
         "observed_communities": len(d["comm_urus_t12"]),
@@ -1746,6 +1765,14 @@ for norm in sorted(eligible_norms):
     elif q7.startswith("SFR"):
         rationale = (f"{name} operates predominantly scattered single-family inventory. "
                      f"{cs_pct}% of observed inventory sits in concentrated communities. "
+                     f"Total observed managed units in {MARKET_NAME} MSA: {feats['urus_t12_count']}, "
+                     f"classified as {legacy_q} at the {scale} scale.")
+    elif feats.get("apartment_dominant"):
+        # Reclassified to multifamily on unit type, not concentration: nearly
+        # all observed units are apartments, however scattered.
+        ap_pct = int(round((1 - (feats.get("house_share") or 0)) * 100))
+        rationale = (f"{name} operates predominantly apartment inventory "
+                     f"({ap_pct}% of observed units are apartments), across both community and scattered holdings. "
                      f"Total observed managed units in {MARKET_NAME} MSA: {feats['urus_t12_count']}, "
                      f"classified as {legacy_q} at the {scale} scale.")
     else:
