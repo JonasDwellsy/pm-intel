@@ -176,7 +176,7 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
     id: "estimatedPortfolioPoint",
     label: "Estimated portfolio (median)",
     description:
-      "Estimated total managed units (median estimate). Derived from URUs T12 via the size-banded conversion model.",
+      "Estimated total managed units (point estimate). Derived from observed URUs T12 via the unit-type turnover model (house URUs × 3.3 + apartment URUs × 2.6).",
     category: "scale",
     type: "number",
     validOperators: ["gte", "lte", "between"],

@@ -246,7 +246,7 @@ def link_by_parent_id(pms, curated_canon_slugs=frozenset()):
 # Merge
 # ---------------------------------------------------------------------------
 
-def merge_markets(per_market_blobs, methodology_version="v0.6.4"):
+def merge_markets(per_market_blobs, methodology_version="v0.7"):
     """Combine per-market JSONs into a single merged blob.
 
     The canonical-operator IDs on each PM are preserved verbatim from
@@ -257,7 +257,7 @@ def merge_markets(per_market_blobs, methodology_version="v0.6.4"):
     merged = {
         "$schema": "v0.6.4",
         "methodologyVersion": methodology_version,
-        "designVersion": "v1.0",
+        "designVersion": "v2.0",
         "dataAsOf": None,  # set below to max of per-market dataAsOf
         "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "marketCount": len(per_market_blobs),
@@ -712,7 +712,7 @@ def main():
         print(f"  ✓ {m['id']:50s} {os.path.basename(path)} ({len(blob.get('pms', []))} pms)")
 
     print(f"\n[merge] merging...")
-    merged = merge_markets(per_market, registry.get("methodologyVersion", "v0.6.4"))
+    merged = merge_markets(per_market, registry.get("methodologyVersion", "v0.7"))
 
     errors = validate(merged)
     if errors:
