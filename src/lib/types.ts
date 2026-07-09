@@ -184,6 +184,10 @@ export interface ScorecardData {
     descScore: number;
     medianPhotosT12: number | null;
     zeroPhotoT12: number | null;
+    // Photo-depth sub-score (median photos/listing vs saturation). Added with
+    // the Sharp marketing recalibration; optional for pre-recalibration
+    // fixtures that predate the field.
+    photosScore?: number;
     compositeScore: number;
     // v0.6.2 star fields (Patch 3).
     star?: StarLevel;
