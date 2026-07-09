@@ -5,6 +5,7 @@
 import type { OperatingView, MetricRow } from "@/lib/scorecard/view-model";
 import type { MetricTone } from "@/lib/scorecard/operating-detail";
 import { LabelChip } from "./LabelChip";
+import { MetricInfoModal } from "./MetricInfoModal";
 import { PositionBar } from "./PositionBar";
 import { ComparisonBar } from "./ComparisonBar";
 
@@ -108,6 +109,7 @@ function MetricCard({ metric }: { metric: MetricRow }) {
         >
           {metric.title}
         </span>
+        <MetricInfoModal metricKey={metric.key} />
         <StarGlyph star={metric.star} />
         {/* spacer */}
         <span style={{ flex: 1 }} />

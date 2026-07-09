@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { StarGlyph } from "@/components/scorecard/StarSummaryChip";
+import { MetricInfoModal } from "@/components/scorecard/redesign/MetricInfoModal";
+import type { MetricKey } from "@/lib/metric-definitions";
 import { HomepageSectionHead } from "./SectionHead";
 import { buttonVariants } from "@/components/ui/button";
 import type { StarLevel } from "@/lib/types";
@@ -162,11 +164,12 @@ function CellStar({ level }: { level: StarLevel }) {
   );
 }
 
-function Cell({ title, cell }: { title: string; cell: MetricCell }) {
+function Cell({ title, cell, metricKey }: { title: string; cell: MetricCell; metricKey?: MetricKey }) {
   return (
     <div>
-      <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+      <p className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         {title}
+        {metricKey && <MetricInfoModal metricKey={metricKey} />}
       </p>
       <p className="mt-1 flex items-baseline gap-1.5 leading-none">
         <span className="dq-tnum text-[20px] font-bold tracking-[-0.012em] text-navy">
@@ -267,14 +270,14 @@ export function ScorecardCard({
       {/* 2×2 cohort-metric grid. Collapses to a single column at sm
           per the v0.14 mobile rule. */}
       <div className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-        <Cell title="Lease-up Speed" cell={card.leaseUp} />
-        <Cell title="Tenant Retention" cell={card.tenantRetention} />
-        <Cell title="Rent Performance" cell={card.rentPerformance} />
+        <Cell title="Lease-up Speed" cell={card.leaseUp} metricKey="dom" />
+        <Cell title="Tenant Retention" cell={card.tenantRetention} metricKey="tenancy" />
+        <Cell title="Rent Performance" cell={card.rentPerformance} metricKey="rentPerformance" />
         {/* "Mktg Discipline" abbreviation keeps the title on a single
             line at the lg breakpoint where the card is at its
             narrowest (3-col grid). "Marketing Discipline" wrapped to
             two lines, which threw the cell's vertical rhythm off. */}
-        <Cell title="Mktg Discipline" cell={card.marketingDiscipline} />
+        <Cell title="Mktg Discipline" cell={card.marketingDiscipline} metricKey="marketing" />
       </div>
     </TrackedLink>
   );
