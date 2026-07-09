@@ -85,7 +85,7 @@ test("scaleFit surfaces estimate band + confidence + observed units, and fills t
   assert.equal(v.scaleFit.top3Share, 0.84);
   const row = v.readout.find((r) => r.area === "Scale & Fit")!;
   assert.match(row.value, /644/);
-  assert.match(row.value, /est\. units/i);
+  assert.match(row.value, /managed units \(est\.\)/i);
   assert.doesNotMatch(row.value, /confidence/i); // confidence dropped from headline (still in scaleFit.estimate)
   assert.match(row.value, /SFR Independent/i); // type label included
   assert.match(row.value, /Chattanooga/i); // market name included
@@ -602,6 +602,65 @@ test("unit mix null for SFR when house+apt urus total is zero", () => {
     pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
   });
   assert.equal(v.scaleFit.unitMix, null);
+});
+
+// --- v0.6.5: estimated managed units fallback (when pipeline portfolioEstimate absent) ---
+
+test("SFR with no pipeline estimate gets turnover-adjusted estimate (default k)", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({ pm: { quadrant7Cell: "SFR Independent" }, coverage: { urusT12: 100 } }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
+  });
+  assert.equal(v.scaleFit.estimate.point, 300); // 100 × default 3.0
+  assert.equal(v.scaleFit.estimate.status, "estimated");
+  const scaleRow = v.readout.find((r) => r.area === "Scale & Fit")!;
+  assert.match(scaleRow.value, /managed units \(est\.\)/i);
+});
+
+test("SFR estimate honors an explicit sfrMultiplier", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({ pm: { quadrant7Cell: "SFR Independent" }, coverage: { urusT12: 100 } }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: null, sfrMultiplier: 2,
+  });
+  assert.equal(v.scaleFit.estimate.point, 200);
+});
+
+test("MF (not thin) uses declared community units, no band", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      pm: { quadrant7Cell: "Large MF/BTR Independent" },
+      coverage: { urusT12: 120, observedCommunities: 5, observedCommunityTotalUnits: 500 },
+    }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
+  });
+  assert.equal(v.scaleFit.estimate.point, 500);
+  assert.equal(v.scaleFit.estimate.low, null);
+});
+
+test("thin MF (≤2 communities) keeps 'self-report', no estimate", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      pm: { quadrant7Cell: "Small MF/BTR Independent" },
+      coverage: { urusT12: 40, observedCommunities: 1, observedCommunityTotalUnits: 300 },
+    }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
+  });
+  assert.equal(v.scaleFit.estimate.point, null);
+  const scaleRow = v.readout.find((r) => r.area === "Scale & Fit")!;
+  assert.match(scaleRow.value, /self-report/i);
+});
+
+test("pipeline portfolioEstimate wins over the read-time fallback", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      pm: { quadrant7Cell: "SFR Independent" },
+      coverage: { urusT12: 100 },
+      portfolioEstimate: { status: "estimated", point: 640, low: 400, high: 900, confidence: "High" },
+    }),
+    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
+  });
+  assert.equal(v.scaleFit.estimate.point, 640); // not 300
+  assert.equal(v.scaleFit.estimate.confidence, "High");
 });
 
 // --- Task 3: cross-market aggregate (footprint sparkline + member markets) ---

@@ -47,6 +47,9 @@ export interface OperatorMember {
    *  aggregated view holds the rolled-up versions). */
   quadrant7Cell: string | null;
   urusT12: number | null;
+  /** Declared community-units size signal for MF/community members — feeds
+   *  the read-time estimatedManagedUnits() size on the operator page. */
+  observedCommunityTotalUnits: number | null;
   portfolioPoint: number | null;
   portfolioLow: number | null;
   portfolioHigh: number | null;
@@ -166,6 +169,8 @@ export async function loadOperatorScorecard(
       scorecardHref: `/property-managers/${stateCodeToSlug(stateCode)}/${citySlug(cityName)}/${row.slug}`,
       quadrant7Cell: scorecard.pm?.quadrant7Cell ?? null,
       urusT12: scorecard.coverage?.urusT12 ?? null,
+      observedCommunityTotalUnits:
+        scorecard.coverage?.observedCommunityTotalUnits ?? null,
       portfolioPoint: scorecard.portfolioEstimate?.point ?? null,
       portfolioLow: scorecard.portfolioEstimate?.low ?? null,
       portfolioHigh: scorecard.portfolioEstimate?.high ?? null,

@@ -14,6 +14,7 @@ import type { RentTierDetail } from "./rent-tier";
 import { buildLendingSignals } from "@/lib/lending-signals";
 import type { PoolPm } from "@/lib/msa-pool";
 import { buildConcessionContext, uniquePatternLabels, formatConcessionSample } from "@/lib/concession-context";
+import { estimatedManagedUnits, DEFAULT_SFR_TURNOVER_MULTIPLIER } from "@/lib/operator-size";
 import {
   concessionDetail,
   type MetricTone,
@@ -114,6 +115,10 @@ export interface BuildViewInput {
   aggregateTrajectory?: { points: Array<{ portfolioPoint: number | null; marketsPresent: number }> };
   /** Distinct member-market display names (multi-market operators only). */
   memberMarketNames?: string[];
+  /** SFR turnover multiplier (k) for the estimated-managed-units size, from
+   *  the admin-tunable app setting. Defaults to DEFAULT_SFR_TURNOVER_MULTIPLIER
+   *  so existing callers (and tests) that don't pass it keep working. */
+  sfrMultiplier?: number;
 }
 
 interface PoolMember { slug: string; name: string; quadrant7Cell: string | null; scorecard: ScorecardData }
@@ -373,13 +378,45 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
       }
     : null;
 
+  // v0.6.5 — the pipeline's portfolioEstimate wins when it carries a point
+  // (with its P25–P75 band + confidence). Otherwise fall back to the read-time
+  // "estimated managed units": turnover-adjusted urusT12 for SFR, declared
+  // community units for MF. Gated on !thin so a thin MF operator (≤2
+  // communities) keeps the "self-report needed" framing rather than showing a
+  // noisy estimate off almost no data.
+  const sfrMultiplier = input.sfrMultiplier ?? DEFAULT_SFR_TURNOVER_MULTIPLIER;
+  const fallbackEstPoint = thin
+    ? null
+    : estimatedManagedUnits(
+        {
+          quadrant7Cell: scorecard.pm.quadrant7Cell ?? null,
+          urusT12: scorecard.coverage?.urusT12 ?? null,
+          observedCommunityTotalUnits:
+            scorecard.coverage?.observedCommunityTotalUnits ?? null,
+        },
+        sfrMultiplier
+      );
+  const estimate: ScaleFitView["estimate"] =
+    pe?.point != null
+      ? {
+          point: pe.point, low: pe.low ?? null, high: pe.high ?? null,
+          confidence: pe.confidence ?? null, status: pe.status ?? "estimated", message: pe.message ?? null,
+        }
+      : fallbackEstPoint != null
+        ? {
+            point: fallbackEstPoint, low: null, high: null, confidence: null,
+            status: "estimated",
+            message: "Turnover-adjusted estimate from units observed on-market (T12).",
+          }
+        : {
+            point: null, low: pe?.low ?? null, high: pe?.high ?? null,
+            confidence: pe?.confidence ?? null, status: pe?.status ?? "insufficient_data", message: pe?.message ?? null,
+          };
+
   const scaleFit: ScaleFitView = {
     takeaway: buildScaleFitTakeaway(scorecard),
     observedUnits: scorecard.coverage?.urusT12 ?? null,
-    estimate: {
-      point: pe?.point ?? null, low: pe?.low ?? null, high: pe?.high ?? null,
-      confidence: pe?.confidence ?? null, status: pe?.status ?? "insufficient_data", message: pe?.message ?? null,
-    },
+    estimate,
     topCities: geo?.topCities ?? [],
     top3Share: conc?.top3CityShare ?? null,
     cohortTop3: conc?.cohortMedianTop3 ?? null,
@@ -401,8 +438,8 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const typeLabel = scorecard.pm.quadrant7Cell ?? "operator";
   const mktShort = scorecard.market.name ?? scorecard.market.fullName;
   const units = scorecard.coverage?.totalObservedUnits ?? scorecard.coverage?.urusT12 ?? "—";
-  if (pe?.point != null) {
-    readout[0].value = `${typeLabel} in ${mktShort} · ~${pe.point} est. units`;
+  if (estimate.point != null) {
+    readout[0].value = `${typeLabel} in ${mktShort} · ~${estimate.point.toLocaleString()} managed units (est.)`;
   } else if (communitiesObserved != null) {
     readout[0].value = `${typeLabel} in ${mktShort} · ${communitiesObserved} ${communitiesObserved === 1 ? "community" : "communities"} · ${units} units observed — self-report needed for a portfolio estimate`;
   } else {
@@ -546,7 +583,19 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   );
   const candidates: PeerCandidate[] = pool.map((m) => ({
     slug: m.slug, name: m.name, quadrant7Cell: m.quadrant7Cell,
-    estimatedUnits: m.scorecard.portfolioEstimate?.point ?? null,
+    // Same size basis as the focal operator so peer matching compares like
+    // with like: pipeline estimate when present, else read-time estimate.
+    estimatedUnits:
+      m.scorecard.portfolioEstimate?.point ??
+      estimatedManagedUnits(
+        {
+          quadrant7Cell: m.quadrant7Cell,
+          urusT12: m.scorecard.coverage?.urusT12 ?? null,
+          observedCommunityTotalUnits:
+            m.scorecard.coverage?.observedCommunityTotalUnits ?? null,
+        },
+        sfrMultiplier
+      ),
     operatingLabel: operatingPerformanceLabel(m.scorecard),
   }));
   const peers = selectSimilarLocalPlayers(scorecard.pm.slug, candidates, { limit: 4 });
