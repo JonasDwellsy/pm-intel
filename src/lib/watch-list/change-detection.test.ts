@@ -39,6 +39,7 @@ function makeSnapshot(overrides: Partial<SnapshotRow> = {}): SnapshotRow {
     topSubmarkets: [],
     concessionRate: null,
     isEligibleForRanking: false,
+    quadrant7Cell: null,
     ...overrides,
   };
 }

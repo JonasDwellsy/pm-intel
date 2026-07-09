@@ -13,6 +13,7 @@ function snap(pmSlug: string, date: string, over: Partial<SnapshotRow> = {}): Sn
     starsPerMetric: noStars, starGoldCount: 0, starSilverCount: 0,
     estimatedPortfolioPoint: 100, estimatedPortfolioBand: "Low",
     topMSAs: [], topSubmarkets: [], concessionRate: null, isEligibleForRanking: true,
+    quadrant7Cell: null,
     ...over,
   };
 }
