@@ -12,6 +12,7 @@ import { selectSimilarLocalPlayers, type PeerCandidate, type SelectedPeer } from
 import { rentTierDetail } from "./rent-tier";
 import type { RentTierDetail } from "./rent-tier";
 import { buildLendingSignals } from "@/lib/lending-signals";
+import { estimatedManagedUnitsBand } from "@/lib/operator-size";
 import type { PoolPm } from "@/lib/msa-pool";
 import { buildConcessionContext, uniquePatternLabels, formatConcessionSample } from "@/lib/concession-context";
 import {
@@ -374,13 +375,20 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     : null;
 
   // v0.8 — portfolio size is a single seeded value (scorecard.portfolioEstimate,
-  // computed in seed.ts as houseUrusT12 × k_house + aptUrusT12 × k_apt). Read it
-  // straight through so this surface matches watch-lists / AI / briefs / home,
-  // which all read the same field. Point-only (no band/confidence under v0.8).
+  // computed in seed.ts as houseUrusT12 × k_house + aptUrusT12 × k_apt). Read the
+  // point straight through so this surface matches watch-lists / AI / briefs /
+  // home. The low/high band is derived read-time from the same observed house/apt
+  // counts via the turnover-range multipliers (estimatedManagedUnitsBand), then
+  // clamped to bracket the point in case admin-tuned multipliers fall outside it.
+  const sizeBand =
+    pe?.point != null ? estimatedManagedUnitsBand({ houseUrusT12, aptUrusT12 }) : null;
   const estimate: ScaleFitView["estimate"] =
     pe?.point != null
       ? {
-          point: pe.point, low: null, high: null, confidence: null,
+          point: pe.point,
+          low: sizeBand ? Math.min(sizeBand.low, pe.point) : null,
+          high: sizeBand ? Math.max(sizeBand.high, pe.point) : null,
+          confidence: null,
           status: pe.status ?? "estimated", message: pe.message ?? null,
         }
       : {

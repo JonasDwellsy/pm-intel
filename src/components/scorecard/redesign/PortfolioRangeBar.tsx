@@ -259,7 +259,7 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
         }}
       >
         {hasBand
-          ? "Green = directly observed units (T12). Shaded band = estimated portfolio range (P25–P75). Point = best estimate."
+          ? "Green = directly observed units (T12). Shaded band = plausible range from unit-turnover uncertainty. Point = best estimate (turnover-adjusted)."
           : "Green = directly observed units (T12). Point = estimated managed units (turnover-adjusted for SFR; declared units for multifamily)."}
       </p>
     </div>
