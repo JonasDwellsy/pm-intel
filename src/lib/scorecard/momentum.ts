@@ -9,7 +9,7 @@ export interface MomentumSeries {
 }
 
 export type MomentumDirection =
-  | "growing" | "stable" | "declining" | "volatile" | "insufficient";
+  | "growing" | "stable" | "declining" | "volatile" | "mixed" | "insufficient";
 
 export function momentumDirection(
   series: MomentumSeries,
@@ -34,6 +34,26 @@ export function momentumDirection(
   }
   if (netChange > flatBandPct) return "growing";
   if (netChange < -flatBandPct) return "declining";
+  return "stable";
+}
+
+/**
+ * Section-level momentum badge from the per-sparkline directions the user sees.
+ * Diverging arrows (at least one up AND one down) → "mixed"; otherwise the
+ * consensus direction. Volatile only decides the badge when nothing else has a
+ * clean direction. "insufficient" inputs are ignored; all-insufficient →
+ * "insufficient".
+ */
+export function aggregateSectionDirection(dirs: MomentumDirection[]): MomentumDirection {
+  const shown = dirs.filter((d) => d !== "insufficient");
+  if (shown.length === 0) return "insufficient";
+  const up = shown.filter((d) => d === "growing").length;
+  const down = shown.filter((d) => d === "declining").length;
+  const vol = shown.filter((d) => d === "volatile").length;
+  if (up > 0 && down > 0) return "mixed";
+  if (up > 0) return "growing";
+  if (down > 0) return "declining";
+  if (vol > 0) return "volatile";
   return "stable";
 }
 

@@ -6,7 +6,7 @@
 import type { ScorecardData } from "@/lib/types";
 import { countOperatorStars } from "@/lib/operators/stars";
 import { operatingPerformanceLabel, type ScoreLabel, metricLabels, metricCohortPercentile, strongestAndWatch, type MetricKey } from "./labels";
-import { momentumDirection, momentumProfile, type MomentumDirection } from "./momentum";
+import { momentumDirection, momentumProfile, aggregateSectionDirection, type MomentumDirection } from "./momentum";
 import {
   buildMomentumNarrative,
   type NarrativeSignal,
@@ -515,11 +515,19 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     : qualityDir !== "insufficient" ? "quality"
     : reachDir !== "insufficient" ? "reach"
     : "none";
-  const sectionDirection: MomentumDirection =
-    driver === "portfolio" ? portfolioDir
-    : driver === "quality" ? qualityDir
-    : driver === "reach" ? reachDir
-    : "insufficient";
+  // Section badge reflects the CROSS-SIGNAL picture the sparkline arrows show —
+  // not just the driver. An operator whose portfolio is down but whose reach,
+  // quality, and listing share are up reads "mixed", not "declining". Volatile
+  // sparklines aren't a clean up/down, so they only set the badge when no other
+  // signal has a direction.
+  const shareDir = momentumDirection({ values: shareSeries });
+  const footprintDir = momentumDirection({ values: footprintSeries });
+  const shownDirs = [portfolioDir, shareDir, reachDir, qualityDir, footprintDir].filter(
+    (d) => d !== "insufficient"
+  );
+  const upN = shownDirs.filter((d) => d === "growing").length;
+  const downN = shownDirs.filter((d) => d === "declining").length;
+  const sectionDirection = aggregateSectionDirection(shownDirs);
 
   // Narrative profiles: net (first→latest) + recent (last window) per signal,
   // so the takeaway can convey texture the single "direction" label hides
@@ -555,7 +563,9 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   // with the sidebar nav + the Momentum section header). Omit "insufficient"
   // so a "building history" operator shows no chip, matching the nav.
   readout[2].label = sectionDirection === "insufficient" ? undefined : sectionDirection;
-  if (driver === "portfolio") {
+  if (sectionDirection === "mixed") {
+    readout[2].value = `Mixed — ${upN} signal${upN === 1 ? "" : "s"} up, ${downN} down`;
+  } else if (driver === "portfolio") {
     if (portfolioDir === "growing") {
       readout[2].value = "Portfolio larger than when first observed";
     } else if (portfolioDir === "declining") {

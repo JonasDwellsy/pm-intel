@@ -1,6 +1,6 @@
 import test from "node:test";
 import { strict as assert } from "node:assert";
-import { momentumDirection, momentumProfile } from "./momentum";
+import { momentumDirection, momentumProfile, aggregateSectionDirection } from "./momentum";
 
 test("insufficient when fewer than minPoints non-null values", () => {
   assert.equal(momentumDirection({ values: [null, 10] }), "insufficient"); // 1 real point
@@ -58,4 +58,34 @@ test("momentumProfile: fell then recovered = declining net, growing recent", () 
   const p = momentumProfile({ values: [200, 180, 150, 120, 100, 110, 120] });
   assert.equal(p.net, "declining");
   assert.equal(p.recent, "growing");
+});
+
+// --- aggregateSectionDirection: cross-signal section badge ---
+
+test("diverging signals (some up, some down) → mixed", () => {
+  // Hawk-Eyed shape: portfolio down, share/reach/quality up.
+  assert.equal(
+    aggregateSectionDirection(["declining", "growing", "growing", "growing"]),
+    "mixed"
+  );
+});
+
+test("consensus directions pass through", () => {
+  assert.equal(aggregateSectionDirection(["growing", "growing", "stable"]), "growing");
+  assert.equal(aggregateSectionDirection(["declining", "declining"]), "declining");
+  assert.equal(aggregateSectionDirection(["stable", "stable"]), "stable");
+});
+
+test("a lone up signal wins over volatile (no down present)", () => {
+  assert.equal(aggregateSectionDirection(["growing", "volatile"]), "growing");
+});
+
+test("volatile only decides when nothing else has a direction", () => {
+  assert.equal(aggregateSectionDirection(["volatile", "stable"]), "volatile");
+});
+
+test("insufficient inputs are ignored; all-insufficient → insufficient", () => {
+  assert.equal(aggregateSectionDirection(["insufficient", "growing"]), "growing");
+  assert.equal(aggregateSectionDirection(["insufficient", "insufficient"]), "insufficient");
+  assert.equal(aggregateSectionDirection([]), "insufficient");
 });
