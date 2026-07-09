@@ -18,6 +18,7 @@
 //   npx prisma db seed                       # skip if current
 //   FORCE_SEED=true npx prisma db seed       # always re-seed
 
+import crypto from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import seedData from "../src/data/scorecard_data.json";
 // v0.24 — operator website enrichment (companyId → {website,phone,name}),
@@ -769,6 +770,23 @@ export interface PortfolioEstimate {
 // methodology change re-seeds on the next deploy without needing FORCE_SEED.
 const SIZE_METHODOLOGY_VERSION = "v0.8-house-apt-turnover";
 
+// Content fingerprint of the committed seed inputs (scorecard_data.json +
+// company_enrichment.json). isDataCurrent() compares this to the value stored
+// in AppSetting after the last successful seed; ANY change to either file
+// yields a new hash → automatic re-seed on the next deploy, no FORCE_SEED
+// needed. This is the general guard the narrow spot-checks (concession fields,
+// size version, PM count, market cities) missed — a reclassification, marketing
+// rescale, or recovered-website change trips it where those don't. Stable for
+// unchanged content (parse order is deterministic per file); reformatting the
+// JSON without a content change keeps the same hash.
+const SEED_CONTENT_VERSION_KEY = "seed_content_version";
+const SEED_CONTENT_VERSION = crypto
+  .createHash("sha256")
+  .update(JSON.stringify(data))
+  .update(JSON.stringify(companyEnrichment))
+  .digest("hex")
+  .slice(0, 16);
+
 function estimatePortfolioSize(
   coverage: AnyRecord,
   performance: AnyRecord,
@@ -1137,6 +1155,20 @@ export function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardDat
 // Three cheap reads (count + findFirst + findUnique) vs 600+ writes
 // in the full seed. Worth it for the deploy-time savings.
 async function isDataCurrent(): Promise<boolean> {
+  // Seed-content fingerprint — the comprehensive guard. If either committed
+  // input file changed since the last successful seed, the hash differs and we
+  // re-seed. Catches everything the field-level spot-checks below can't (7-cell
+  // reclassification, marketing scores, recovered websites, etc.).
+  const dbSeedVer = await prisma.appSetting.findUnique({
+    where: { key: SEED_CONTENT_VERSION_KEY },
+  });
+  if (dbSeedVer?.value !== SEED_CONTENT_VERSION) {
+    console.log(
+      `[seed] Seed content drift: DB ${dbSeedVer?.value ?? "none"}, code ${SEED_CONTENT_VERSION}. Re-seeding.`
+    );
+    return false;
+  }
+
   const pmCount = await prisma.pM.count();
   if (pmCount !== data.pms.length) {
     console.log(
@@ -1650,6 +1682,22 @@ async function main() {
   // re-derive star fields from the JSON; the scorecardData column
   // is the canonical source.
   await captureOperatorSnapshots(data.dataAsOf, data.methodologyVersion);
+
+  // Stamp the content fingerprint LAST, so it only advances after a fully
+  // successful seed. A run that throws partway leaves the old (or no) value,
+  // and the next deploy re-seeds. Read back by isDataCurrent().
+  await prisma.appSetting.upsert({
+    where: { key: SEED_CONTENT_VERSION_KEY },
+    create: {
+      key: SEED_CONTENT_VERSION_KEY,
+      value: SEED_CONTENT_VERSION,
+      type: "string",
+      description:
+        "sha256 fingerprint of the committed seed inputs (scorecard_data.json + company_enrichment.json). Drives the isDataCurrent() auto-reseed guard.",
+    },
+    update: { value: SEED_CONTENT_VERSION },
+  });
+  console.log(`[seed] ✓ Stamped ${SEED_CONTENT_VERSION_KEY}=${SEED_CONTENT_VERSION}`);
 }
 
 /**
