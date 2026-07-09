@@ -12,6 +12,12 @@ import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { titleCaseSlug } from "@/lib/format";
 import type { ScorecardData } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
+import { toSnapshotRow } from "@/lib/watch-list/snapshot";
+import { selectSnapshotPair } from "@/lib/watch-list/digest-gather";
+import {
+  buildMarketChangeSummary,
+  type MarketChangeSummary,
+} from "@/lib/market-brief-changes";
 
 // ─── shapes ─────────────────────────────────────────────────────────
 
@@ -29,6 +35,10 @@ export interface MarketBriefData {
   // ranking cohort make the cut). Capped at 5 for brevity; brief
   // prose can reference these by name.
   portfolioSizeLeaders: PortfolioSizeLeader[];
+  // Briefs V2 — market-level change vs the prior snapshot date (new entrants,
+  // rating/size swings, cohort moves). null when there's no prior snapshot to
+  // compare against (first period). Drives the "since last period" lede.
+  sinceLastPeriod: MarketChangeSummary | null;
 }
 
 export interface MarketHeader {
@@ -125,6 +135,29 @@ const TOP_N = 5;
  *  this we're probably looking at a small operator that just barely
  *  shows up in the data and doesn't merit naming in a brief. */
 const NEW_ENTRANT_MIN_T12 = 20;
+
+/** Load the two most recent OperatorSnapshot dates for this market's operators
+ *  and roll up the market-level "since last period" change block. Returns null
+ *  when there's fewer than two snapshot dates (no prior period yet). */
+async function loadMarketChangeSummary(
+  pmSlugs: string[],
+  names: Map<string, string>,
+): Promise<MarketChangeSummary | null> {
+  if (pmSlugs.length === 0) return null;
+  const snaps = await prisma.operatorSnapshot.findMany({
+    where: { pmSlug: { in: pmSlugs } },
+    orderBy: { snapshotDate: "desc" },
+  });
+  const pair = selectSnapshotPair(snaps.map((s) => s.snapshotDate));
+  if (!pair) return null;
+  const current = snaps
+    .filter((s) => s.snapshotDate.getTime() === pair.latest.getTime())
+    .map(toSnapshotRow);
+  const prior = snaps
+    .filter((s) => s.snapshotDate.getTime() === pair.prior.getTime())
+    .map(toSnapshotRow);
+  return buildMarketChangeSummary(prior, current, names);
+}
 
 export async function buildMarketBriefData(
   marketSlug: string
@@ -371,6 +404,11 @@ export async function buildMarketBriefData(
     continuingCohortSize: continuing.length,
   };
 
+  const sinceLastPeriod = await loadMarketChangeSummary(
+    pms.map((p) => p.slug),
+    new Map(pms.map((p) => [p.slug, p.name])),
+  );
+
   return {
     market: header,
     shareGainers,
@@ -379,6 +417,7 @@ export async function buildMarketBriefData(
     quadrantBreakdown,
     crossMarketOperators,
     portfolioSizeLeaders,
+    sinceLastPeriod,
   };
 }
 
