@@ -1,6 +1,17 @@
 import unittest
 
-from marketing import compute_marketing
+from marketing import (
+    compute_marketing,
+    count_content_categories,
+    count_distinct_words,
+)
+
+
+def _L(amenities_n, desc_len, distinct_words, content_cats, photos_n):
+    """Build one marketing_listings_t12 listing dict."""
+    return {"amenities_n": amenities_n, "desc_len": desc_len,
+            "distinct_words": distinct_words, "content_cats": content_cats,
+            "photos_n": photos_n}
 
 
 def _d(listings):
@@ -14,22 +25,25 @@ class MarketingComposite(unittest.TestCase):
         composite = 0.35*completeness + 0.20*amenities + 0.20*description
                     + 0.25*photos
           amenities:   min(100, 100 * mean_amenities / 18)
-          description: min(100, 100 * mean_desc_chars / 1200)
-          photos:      min(100, 100 * median_photos   / 30)   # NEW sub-score
+          description: 0.5*length + 0.5*richness (over NON-BLANK listings)
+            length:   min(100, 100 * mean_distinct_words / 195)
+            richness: 100 * min(1, mean_content_categories / 6)
+          photos:      min(100, 100 * median_photos   / 30)
           completeness: % of listings that have desc AND photos AND amenities
     """
 
     def test_fully_rich_listing_scores_100(self):
-        m = compute_marketing(_d([{"amenities_n": 18, "desc_len": 1200, "photos_n": 30}]))
+        m = compute_marketing(_d([_L(18, 1200, 195, 6, 30)]))
         self.assertEqual(m["amenitiesScore"], 100.0)
         self.assertEqual(m["descScore"], 100.0)
         self.assertEqual(m["photosScore"], 100.0)
         self.assertEqual(m["completenessScore"], 100.0)
         self.assertEqual(m["compositeScore"], 100.0)
 
-    def test_photos_are_scored_and_capped_at_saturation(self):
-        # 60 photos is 2x the saturation point of 30 -> capped at 100, not 200.
-        m = compute_marketing(_d([{"amenities_n": 40, "desc_len": 3000, "photos_n": 60}]))
+    def test_description_components_are_capped_at_saturation(self):
+        # 390 distinct words = 2x the 195 saturation -> length capped at 100;
+        # 7 categories > the 6 cap -> richness capped at 100. desc = 100.
+        m = compute_marketing(_d([_L(40, 3000, 390, 7, 60)]))
         self.assertEqual(m["photosScore"], 100.0)
         self.assertEqual(m["amenitiesScore"], 100.0)
         self.assertEqual(m["descScore"], 100.0)
@@ -37,30 +51,77 @@ class MarketingComposite(unittest.TestCase):
 
     def test_complete_but_thin_operator_scores_mid_low(self):
         # All three elements present (completeness 100) but each is thin:
-        # amen 3/18=16.7, desc 300/1200=25, photos 6/30=20.
-        # 0.35*100 + 0.20*16.667 + 0.20*25 + 0.25*20 = 48.3
-        m = compute_marketing(_d([{"amenities_n": 3, "desc_len": 300, "photos_n": 6}]))
+        # amen 3/18=16.7; desc = 0.5*(78/195*100) + 0.5*(3/6*100) = 0.5*40+0.5*50 = 45;
+        # photos 6/30=20.
+        # 0.35*100 + 0.20*16.667 + 0.20*45 + 0.25*20 = 52.3
+        m = compute_marketing(_d([_L(3, 300, 78, 3, 6)]))
         self.assertEqual(m["completenessScore"], 100.0)
+        self.assertEqual(m["descScore"], 45.0)
         self.assertEqual(m["photosScore"], 20.0)
-        self.assertEqual(m["compositeScore"], 48.3)
+        self.assertEqual(m["compositeScore"], 52.3)
 
-    def test_incomplete_listing_drops_completeness_and_photo_depth(self):
-        # One full listing + one with no photos.
-        # completeness: 1/2 = 50. photos median = median(30, 0) = 15 -> 50.
-        # amen mean 18 -> 100. desc mean 1200 -> 100.
-        # 0.35*50 + 0.20*100 + 0.20*100 + 0.25*50 = 70.0
-        m = compute_marketing(_d([
-            {"amenities_n": 18, "desc_len": 1200, "photos_n": 30},
-            {"amenities_n": 18, "desc_len": 1200, "photos_n": 0},
-        ]))
-        self.assertEqual(m["completenessScore"], 50.0)
-        self.assertEqual(m["photosScore"], 50.0)
-        self.assertEqual(m["compositeScore"], 70.0)
+    def test_blank_descriptions_excluded_when_sample_reliable(self):
+        # 5 rich listings (meets the >=5 non-blank reliability bar) + 1 blank.
+        # description means are taken over the 5 NON-BLANK listings, so descScore
+        # stays 100 (words 195, cats 6) -- the blank is NOT double-penalized
+        # here (completeness already docks it: 5/6 have all three).
+        m = compute_marketing(_d([_L(18, 1200, 195, 6, 30)] * 5 + [_L(18, 0, 0, 0, 30)]))
+        self.assertAlmostEqual(m["completenessScore"], 83.3, places=1)
+        self.assertEqual(m["descWords"], 195)
+        self.assertEqual(m["descContentCats"], 6.0)
+        self.assertEqual(m["descScore"], 100.0)
 
-    def test_empty_listings_returns_zeroed_dict_with_photo_score(self):
+    def test_small_nonblank_sample_counts_blanks(self):
+        # Only 1 rich description among 5 listings (< the 5-non-blank bar) ->
+        # blanks count (blank-inclusive means), so a tiny rich sample cannot max
+        # the sub-score. words_mean = 390/5 = 78 -> length 40; cats 7/5 = 1.4 ->
+        # richness 23.33; desc = 0.5*40 + 0.5*23.33 = 31.7.
+        m = compute_marketing(_d([_L(18, 3000, 390, 7, 30)] + [_L(18, 0, 0, 0, 30)] * 4))
+        self.assertEqual(m["descWords"], 78)       # blank-inclusive mean
+        self.assertEqual(m["descContentCats"], 1.4)
+        self.assertEqual(m["descScore"], 31.7)
+
+    def test_all_blank_descriptions_score_zero(self):
+        # No non-blank descriptions -> blank-inclusive means are 0 -> desc 0.
+        m = compute_marketing(_d([_L(5, 0, 0, 0, 10)]))
+        self.assertEqual(m["descWords"], 0)
+        self.assertEqual(m["descContentCats"], 0.0)
+        self.assertEqual(m["descScore"], 0.0)
+
+    def test_empty_listings_returns_zeroed_dict_with_new_keys(self):
         m = compute_marketing(_d([]))
         self.assertEqual(m["compositeScore"], 0.0)
         self.assertEqual(m["photosScore"], 0.0)
+        self.assertEqual(m["descWords"], 0)
+        self.assertEqual(m["descContentCats"], 0.0)
+        self.assertEqual(m["descScore"], 0.0)
+
+
+class DescriptionHelpers(unittest.TestCase):
+    def test_distinct_words_dedupes_and_lowercases(self):
+        # the, cozy, home -> 3 distinct despite repeats / case / punctuation.
+        self.assertEqual(count_distinct_words("The cozy home, the COZY home!"), 3)
+
+    def test_distinct_words_blank_and_none(self):
+        self.assertEqual(count_distinct_words(""), 0)
+        self.assertEqual(count_distinct_words(None), 0)
+
+    def test_content_categories_counts_distinct_categories(self):
+        desc = ("Renovated kitchen with a dishwasher. Walk to downtown shops "
+                "and the park. Garage parking available. Pets welcome. "
+                "Security deposit required. Month-to-month lease available.")
+        # amenities, location, transit, parking, pet, fees, lease -> all 7.
+        self.assertEqual(count_content_categories(desc), 7)
+
+    def test_content_categories_word_boundary_does_not_overcount(self):
+        # "parking" must NOT trip the transit "park" marker; only the parking
+        # category should fire here.
+        self.assertEqual(count_content_categories("Covered parking included."), 1)
+
+    def test_content_categories_none_present(self):
+        self.assertEqual(count_content_categories("Nice unit."), 0)
+        self.assertEqual(count_content_categories(""), 0)
+        self.assertEqual(count_content_categories(None), 0)
 
 
 if __name__ == "__main__":

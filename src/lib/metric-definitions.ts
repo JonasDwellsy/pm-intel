@@ -143,14 +143,14 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   marketing: {
     name: "Marketing Discipline",
     definition:
-      "Composite of listing completeness, amenity disclosure, description depth, and photo coverage. A proxy for marketing rigor on the listing side. Higher is more favorable.",
+      "Composite of listing completeness, amenity disclosure, description quality, and photo coverage. A proxy for marketing rigor on the listing side. Higher is more favorable.",
     formula:
-      "marketing = 0.35·completeness + 0.25·amenities + 0.20·description + 0.20·photos\n(each subscore 0-100, composite 0-100)",
+      "marketing = 0.35·completeness + 0.20·amenities + 0.20·description + 0.25·photos\ndescription = 0.5·length + 0.5·content-richness (each subscore 0-100, composite 0-100)",
     cohortScope:
       "Primary 7-cell cohort if N≥10; else fallback operator type; else MSA.",
     caveats: [
       "Measures listing-side discipline only. Operators with a stronger brand may invest less in listing marketing on platforms like Dwellsy and still operate well.",
-      "Photo coverage and description length are dimension-floor checks, not quality assessments.",
+      "Description quality blends text length with how many content areas the prose covers (amenities, location, transit, parking, pet/fee/lease terms); these content markers are keyword heuristics, so the signal is directional, not exact.",
     ],
     methodologyHref: "/methodology#marketing",
   },

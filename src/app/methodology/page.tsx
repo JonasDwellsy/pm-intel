@@ -1152,9 +1152,12 @@ export default async function MethodologyPage() {
               lede="Marketing discipline — whether the operator presents their listings with complete data, consistent quality, and care."
             >
               <p>
-                Three subscores, each on a{" "}
+                Four subscores, each on a{" "}
                 <span className="dq-chip dq-tnum">0–100</span> scale, are
-                computed from trailing-12-month listings:
+                computed from trailing-12-month listings. Each richness
+                subscore saturates near the p90 of the cross-market operator
+                distribution, so the top decile earns 100 and the rest spread
+                across the range:
               </p>
               <ul>
                 <li>
@@ -1166,34 +1169,53 @@ export default async function MethodologyPage() {
                 </li>
                 <li>
                   <strong>Amenities</strong> — the mean number of amenities per
-                  listing, scaled so that an average of 10 amenities reaches
-                  100:{" "}
-                  <span className="dq-mono">min(100, 10 × mean_amenities)</span>.
+                  listing, scaled so that an average of 18 reaches 100:{" "}
+                  <span className="dq-mono">
+                    min(100, 100 × mean_amenities ÷ 18)
+                  </span>
+                  .
                 </li>
                 <li>
-                  <strong>Description Length</strong> — the mean description
-                  character count, scaled so that an average of 500 characters
-                  reaches 100:{" "}
+                  <strong>Description</strong> — a 0.5 / 0.5 blend of text
+                  length and content richness, assessed over listings that have
+                  a description:{" "}
                   <span className="dq-mono">
-                    min(100, 100 × mean_length ÷ 500)
+                    0.5 × min(100, 100 × mean_distinct_words ÷ 195) + 0.5 × 100
+                    × min(1, mean_content_categories ÷ 6)
+                  </span>
+                  . Length uses distinct words (robust to whitespace or
+                  boilerplate padding); content richness counts how many of
+                  seven content areas — amenities, location, transit, parking,
+                  and pet / fee / lease terms — the prose touches, so an
+                  informative listing outscores a long but repetitive one. An
+                  operator needs at least five non-blank descriptions to be
+                  assessed on the non-blank subset; below that, blanks count
+                  (their absence is already reflected in Completeness).
+                </li>
+                <li>
+                  <strong>Photos</strong> — the median number of photos per
+                  listing, scaled so that a median of 30 reaches 100:{" "}
+                  <span className="dq-mono">
+                    min(100, 100 × median_photos ÷ 30)
                   </span>
                   .
                 </li>
               </ul>
               <p>
-                The reported Marketing Quality score is a{" "}
-                <strong>weighted blend</strong> of the three subscores, not a
+                The reported Marketing Discipline score is a{" "}
+                <strong>weighted blend</strong> of the four subscores, not a
                 simple average:
               </p>
-              <FormulaBlock label="Formula · marketing quality">
-                <span className="text-navy">marketing_quality</span> <Op>=</Op>{" "}
-                0.40 <Op>×</Op> completeness <Op>+</Op> 0.30 <Op>×</Op>{" "}
-                amenities <Op>+</Op> 0.30 <Op>×</Op> description
+              <FormulaBlock label="Formula · marketing discipline">
+                <span className="text-navy">marketing</span> <Op>=</Op> 0.35{" "}
+                <Op>×</Op> completeness <Op>+</Op> 0.20 <Op>×</Op> amenities{" "}
+                <Op>+</Op> 0.20 <Op>×</Op> description <Op>+</Op> 0.25 <Op>×</Op>{" "}
+                photos
               </FormulaBlock>
               <p>
-                Operators with consistently well-prepared listings score in the
-                80s and 90s. Operators with sparse data, missing photos, or
-                threadbare descriptions score lower.
+                Operators with consistently well-prepared, informative listings
+                score in the 80s and 90s. Operators with sparse data, missing
+                photos, or threadbare descriptions score lower.
               </p>
             </SectionAnchor>
 
