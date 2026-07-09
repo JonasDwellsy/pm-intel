@@ -40,6 +40,26 @@ export interface MarketBriefData {
   // rating/size swings, cohort moves). null when there's no prior snapshot to
   // compare against (first period). Drives the "since last period" lede.
   sinceLastPeriod: MarketChangeSummary | null;
+  // Briefs V2 (1c) — deeper standing signals the brief ignored before. Woven
+  // into the operator-landscape / notable-signals prose, no new sections.
+  retentionLeaders: RetentionLeader[];
+  concessionContext: {
+    operatorsWithConcessions: number;
+    topOperators: ConcessionOperator[];
+  };
+}
+
+export interface RetentionLeader {
+  name: string;
+  scorecardUrl: string;
+  quadrant7Cell: string | null;
+  retention18Pct: number;
+}
+
+export interface ConcessionOperator {
+  name: string;
+  scorecardUrl: string;
+  ratePct: number;
 }
 
 export interface MarketHeader {
@@ -405,6 +425,44 @@ export async function buildMarketBriefData(
     continuingCohortSize: continuing.length,
   };
 
+  // ── 1c: retention leaders + concession context (ranked operators) ──
+  const urlFor = (slug: string) =>
+    `/property-managers/${stateCodeToSlug(market.state)}/${citySlug(market.city)}/${slug}`;
+  const rankedParsed = parsed.filter(({ row }) => row.rankOverall !== null);
+
+  const retentionLeaders: RetentionLeader[] = rankedParsed
+    .map(({ row, sc }): RetentionLeader | null => {
+      const ten = sc.tenancy;
+      const r = ten?.retention18Pct;
+      if (
+        !ten ||
+        ten.tenancyQualified !== true ||
+        ten.tenancySuppressed === true ||
+        typeof r !== "number"
+      ) {
+        return null;
+      }
+      return {
+        name: row.name,
+        scorecardUrl: urlFor(row.slug),
+        quadrant7Cell: row.quadrant7Cell ?? null,
+        retention18Pct: r,
+      };
+    })
+    .filter((x): x is RetentionLeader => x !== null)
+    .sort((a, b) => b.retention18Pct - a.retention18Pct)
+    .slice(0, TOP_N);
+
+  const topConcessionOperators: ConcessionOperator[] = rankedParsed
+    .filter(({ row }) => typeof row.concessionRate === "number" && row.concessionRate > 0)
+    .map(({ row }) => ({
+      name: row.name,
+      scorecardUrl: urlFor(row.slug),
+      ratePct: Math.round((row.concessionRate as number) * 1000) / 10,
+    }))
+    .sort((a, b) => b.ratePct - a.ratePct)
+    .slice(0, TOP_N);
+
   const sinceLastPeriod = await loadMarketChangeSummary(
     pms.map((p) => p.slug),
     new Map<string, OperatorMeta>(
@@ -427,6 +485,11 @@ export async function buildMarketBriefData(
     crossMarketOperators,
     portfolioSizeLeaders,
     sinceLastPeriod,
+    retentionLeaders,
+    concessionContext: {
+      operatorsWithConcessions: market.operatorsWithConcessions,
+      topOperators: topConcessionOperators,
+    },
   };
 }
 

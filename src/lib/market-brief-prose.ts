@@ -53,8 +53,8 @@ Rules:
   "sinceLastPeriod": "1 short paragraph on what moved since the prior snapshot — new entrants, operators that gained/lost stars, notable estimated-size swings, and cohort reclassifications. Lead with the most significant move. Name operators with markdown links [Name](scorecardUrl). If the input says there is no prior-period change data, return an empty string \"\".",
   "headlineRead": "2-3 sentences. Structural takeaway for this market right now.",
   "shareMovement": "1 paragraph. Who's gaining share, who's losing, what's the pattern (consolidation, fragmentation, new entrants displacing incumbents).",
-  "operatorLandscape": "1 paragraph. Describe the operator mix using the 7-cell quadrant data. SFR dominant? MF/BTR institutional? Mixed? Reference specific cell counts where they tell the story.",
-  "notableSignals": "1 paragraph. Name 2-4 specific operators worth knowing about — gainers, losers, or new entrants. Use markdown link syntax with the provided scorecardUrl: [Operator Name](url). For canonical multi-market operators, mention their cross-market footprint briefly."
+  "operatorLandscape": "1 paragraph. Describe the operator mix using the 7-cell quadrant data. SFR dominant? MF/BTR institutional? Mixed? Reference specific cell counts where they tell the story. Where it adds texture, note tenant-retention leaders or the market's concession prevalence.",
+  "notableSignals": "1 paragraph. Name 2-4 specific operators worth knowing about — gainers, losers, new entrants, retention leaders, or heavy concession users. Use markdown link syntax with the provided scorecardUrl: [Operator Name](url). For canonical multi-market operators, mention their cross-market footprint briefly."
 }
 
 4. **Word budget**: headlineRead ≤ 60 words, each other section ≤ 130 words. Be tight.
@@ -153,6 +153,28 @@ function makeUserMessage(data: MarketBriefData): string {
     }
     lines.push("");
   }
+
+  lines.push("## Tenant-retention leaders (18-mo retention, ranked cohort)");
+  if (data.retentionLeaders.length === 0) {
+    lines.push("(none qualified for retention scoring)");
+  } else {
+    for (const r of data.retentionLeaders) {
+      lines.push(
+        `- ${r.name} [${r.scorecardUrl}] — ${r.quadrant7Cell ?? "—"} — ${r.retention18Pct.toFixed(1)}% stay 18+ months`
+      );
+    }
+  }
+  lines.push("");
+
+  lines.push("## Concessions");
+  lines.push(`- Operators offering concessions in this market: ${data.concessionContext.operatorsWithConcessions}`);
+  if (data.concessionContext.topOperators.length > 0) {
+    lines.push("- Highest concession rates:");
+    for (const co of data.concessionContext.topOperators) {
+      lines.push(`  - ${co.name} [${co.scorecardUrl}] — ${co.ratePct.toFixed(1)}% of listings`);
+    }
+  }
+  lines.push("");
 
   lines.push("## Since last period (change vs prior snapshot)");
   const c = data.sinceLastPeriod;
