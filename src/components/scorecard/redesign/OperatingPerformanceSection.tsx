@@ -181,17 +181,6 @@ function MetricCard({ metric }: { metric: MetricRow }) {
         </div>
       )}
 
-      {/* Static "▸ Peer comparison" disclose affordance */}
-      <div
-        style={{
-          color: "#8894ac",
-          fontSize: "11px",
-          marginTop: "10px",
-          marginBottom: "2px",
-        }}
-      >
-        ▸ Peer comparison
-      </div>
     </div>
   );
 }

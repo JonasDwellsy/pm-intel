@@ -15,6 +15,7 @@ export function LayerSectionHeader({
   num,
   title,
   lede,
+  ledeMaxWidthClass = "max-w-[780px]",
 }: {
   /** Two-digit section number matching the sidebar (e.g. "01", "02"). */
   num: string;
@@ -22,6 +23,10 @@ export function LayerSectionHeader({
   title: string;
   /** Optional paragraph rendered under the header. */
   lede?: string;
+  /** Tailwind max-width class for the lede. Defaults to the standard reading
+   *  width; a section whose content spans wider (e.g. Methodology's 2-col
+   *  grid) can widen it so the lede doesn't read as conspicuously narrow. */
+  ledeMaxWidthClass?: string;
 }) {
   return (
     <header className="dq-section-header">
@@ -35,7 +40,7 @@ export function LayerSectionHeader({
         <span>{title}</span>
       </h2>
       {lede && (
-        <p className="mt-3 max-w-[780px] text-[14.5px] leading-[1.6] text-muted-foreground">
+        <p className={`mt-3 ${ledeMaxWidthClass} text-[14.5px] leading-[1.6] text-muted-foreground`}>
           {lede}
         </p>
       )}
