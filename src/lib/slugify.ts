@@ -256,6 +256,15 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     // → green, null → neutral) instead of by quadrant. See PMListItem
     // type docstring for the rationale.
     domStar: sc.performance?.domStar ?? null,
+    // v0.6.5 — per-metric star tiers for the cohort-tile gold-by-metric
+    // breakdown. Same four stars the ranked list folds into goldCount, kept
+    // individually here so deriveQuadrant7CellSummary can bucket by metric.
+    metricStars: {
+      leaseUp: sc.performance?.domStar ?? null,
+      retention: sc.tenancy?.star ?? null,
+      rent: sc.rentPerformance?.star ?? null,
+      marketing: sc.marketing?.star ?? null,
+    },
     // v0.6.4 Patch 3 — DBA display-name override. When the PM is part of
     // a canonical entity whose canonicalName differs from the PM's raw
     // CSV name (the Haven Residential → 29th Street Property Management

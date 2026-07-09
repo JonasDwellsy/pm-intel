@@ -395,6 +395,17 @@ export interface MarketSummary {
       count: number;
       medianDomT12: number | null;
       medianRentVsComp: number | null;
+      // v0.6.5 — cohort scale (sum of observed units) + gold-star counts by
+      // metric, driving the redesigned cohort tile. The medians above are
+      // retained because the "Operator landscape" intro paragraph still reads
+      // them, but the tile itself now renders units + goldByMetric.
+      units: number;
+      goldByMetric: {
+        leaseUp: number;
+        retention: number;
+        rent: number;
+        marketing: number;
+      };
     };
   };
   // v0.6.3 — Patch 1: active operator count (≥3 listings T12) replaces the
@@ -464,6 +475,17 @@ export interface PMListItem {
    *  constructs PMListItem manually. */
   goldCount?: number;
   silverCount?: number;
+  /** v0.6.5 — per-metric star tiers for the four ranked-list metrics, so the
+   *  market-landing cohort tiles can tally gold stars by metric. Mirrors the
+   *  five stars folded into goldCount/silverCount but excludes
+   *  communityVisibility (MF-only, null for SFR/Hybrid) since the cohort
+   *  tiles show a four-metric breakdown. Optional for back-compat. */
+  metricStars?: {
+    leaseUp: StarLevel;
+    retention: StarLevel;
+    rent: StarLevel;
+    marketing: StarLevel;
+  };
   /** v0.6.4 Patch 3 — DOM star tier for this operator, cohort-relative.
    *  Surfaced on the ranked-operators list so the DOM number can be
    *  colored by *performance* (gold/silver → green, null → neutral),
