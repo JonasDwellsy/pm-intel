@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { listMarketHeaders, type MarketHeader } from "@/lib/market-brief";
 import { readLatestCachedProse } from "@/lib/market-brief-prose";
+import { readCachedNationalHeadline } from "@/lib/national-brief-prose";
 import { fmtDate, fmtInt } from "@/lib/format";
 
 // /briefs — index of all market briefs. Lists each market with its
@@ -44,6 +45,7 @@ async function loadIndex(): Promise<BriefCardData[]> {
 
 export default async function BriefsIndex() {
   const cards = await loadIndex();
+  const nationalHeadline = await readCachedNationalHeadline();
 
   return (
     <div className="bg-background">
@@ -62,7 +64,29 @@ export default async function BriefsIndex() {
           worth knowing by name.
         </p>
 
-        <div className="mt-10 grid gap-5 md:grid-cols-2">
+        {/* Featured national brief */}
+        <Link
+          href="/briefs/national"
+          className="group mt-10 block rounded-lg border border-navy/30 bg-navy/[0.03] p-6 transition-colors hover:border-navy"
+        >
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-[20px] font-semibold leading-[1.2] text-navy">
+              National brief
+            </h2>
+            <span className="dq-eyebrow-muted text-[10.5px] tracking-[0.12em]">
+              ALL {cards.length} MARKETS
+            </span>
+          </div>
+          <p className="mt-3 line-clamp-3 text-[14.5px] leading-[1.55] text-foreground/80">
+            {nationalHeadline ??
+              "A cross-market state of the union — what moved this period, standout markets, and the national operator landscape. Generates on first visit."}
+          </p>
+          <span className="mt-4 inline-block text-[12px] font-semibold text-teal transition-transform group-hover:translate-x-0.5">
+            Read the national brief →
+          </span>
+        </Link>
+
+        <div className="mt-8 grid gap-5 md:grid-cols-2">
           {cards.map((card) => (
             <BriefCard key={card.header.marketSlug} card={card} />
           ))}
