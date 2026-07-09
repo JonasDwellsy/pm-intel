@@ -374,6 +374,20 @@ model DigestPreference {
   updatedAt                DateTime  @updatedAt
 }
 
+// Briefs V2 Phase 3 — per-user prefs for the scheduled MARKET-BRIEF email.
+// Deliberately separate from DigestPreference (the watch-list digest): the two
+// emails have different audiences and cadences, and sharing one row would
+// conflate unsubscribes and the "already notified for this snapshot" guard.
+model BriefDigestPreference {
+  id                       String    @id @default(cuid())
+  userId                   String    @unique
+  unsubscribed             Boolean   @default(false)
+  cadence                  String    @default("monthly")
+  lastNotifiedSnapshotDate DateTime?
+  lastDigestAt             DateTime?
+  updatedAt                DateTime  @updatedAt
+}
+
 model WatchListDigestRun {
   id             String    @id @default(cuid())
   snapshotDate   DateTime
