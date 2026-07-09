@@ -70,6 +70,7 @@ export function MethodologyFooter({
         num="05"
         title="Methodology & limits"
         lede="What backs this scorecard — classification rationale, coverage universe, per-metric sample sizes, version stamp, and the v0.7 follow-up tracker."
+        ledeMaxWidthClass="max-w-none"
       />
 
       {/* Classification rationale (subsumes WhyThisQuadrantSection prose). */}
@@ -229,7 +230,7 @@ function CoverageParameters({ scorecard }: { scorecard: ScorecardData }) {
           <tr>
             <td>Data tier</td>
             <td className="num">
-              <span className="dq-pill dq-pill-navy-soft">{c.dataTier}</span>
+              <span className="font-medium text-navy">{c.dataTier}</span>
             </td>
           </tr>
         </tbody>
@@ -295,7 +296,7 @@ function PortfolioComposition({ scorecard }: { scorecard: ScorecardData }) {
           <tr>
             <td>7-cell classification</td>
             <td className="num">
-              <span className="dq-pill dq-pill-navy-soft">
+              <span className="font-medium text-navy">
                 {scorecard.pm.quadrant7Cell ?? scorecard.pm.quadrant}
               </span>
             </td>

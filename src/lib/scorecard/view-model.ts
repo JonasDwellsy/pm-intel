@@ -517,6 +517,10 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
       mkSpark("footprint", "Cross-market footprint", footprintSeries), // [] for single-market operators
     ],
   };
+  // Surface the momentum direction as a chip in the 30-second readout (parity
+  // with the sidebar nav + the Momentum section header). Omit "insufficient"
+  // so a "building history" operator shows no chip, matching the nav.
+  readout[2].label = sectionDirection === "insufficient" ? undefined : sectionDirection;
   if (driver === "portfolio") {
     if (portfolioDir === "growing") {
       readout[2].value = "Portfolio larger than when first observed";
