@@ -44,7 +44,16 @@ export function MetricInfoModal({ metricKey }: { metricKey: MetricKey }) {
         type="button"
         aria-label={`About ${def.name}`}
         aria-haspopup="dialog"
-        onClick={() => setOpen(true)}
+        onClick={(e) => {
+          // These cards are often wrapped in a <Link> (home-page samples,
+          // market rows). Without this, the click bubbles to the anchor and
+          // navigates to the scorecard — the modal flashes then disappears.
+          // stopPropagation kills the Link's onClick nav; preventDefault kills
+          // the native anchor default nav. Both are needed.
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen(true);
+        }}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -74,7 +83,13 @@ export function MetricInfoModal({ metricKey }: { metricKey: MetricKey }) {
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            onClick={() => setOpen(false)}
+            onClick={(e) => {
+              // React portals bubble synthetic events through the React tree
+              // (not the DOM tree), so a backdrop click still reaches a wrapping
+              // <Link>'s onClick and would navigate. Stop it before closing.
+              e.stopPropagation();
+              setOpen(false);
+            }}
             style={{
               position: "fixed",
               inset: 0,
