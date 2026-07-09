@@ -1,0 +1,243 @@
+{
+  "_comment": "Curated operator company-type overrides. The source parent/child company_type columns sometimes tag an operator against its real business model. The motivating case: Real Property Management (RPM) is a national property-management FRANCHISE whose offices hold brokerage licenses, so the source tags them \"Brokerage\" and the pipeline would bucket them as brokers (hidden from ranked lists + PM cohort math). Each entry forces an operator to a fixed operatorType, matched on the normalized display name (normalize_name of the scorecard name), applied in pipeline.py classify step (overriding the source majority-vote). Keyed by name (not company id) because child ids churn across refreshes. Single source of truth for the pipeline.",
+  "overrides": [
+    {
+      "normalizedName": "rpm - victory",
+      "forceType": "pm",
+      "displayName": "RPM - Victory",
+      "market": "birmingham-al",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - charlotte metro",
+      "forceType": "pm",
+      "displayName": "RPM - Charlotte Metro",
+      "market": "charlotte-gastonia-rock-hill-nc-sc",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - northwest indiana",
+      "forceType": "pm",
+      "displayName": "RPM - Northwest Indiana",
+      "market": "chicago-joliet-naperville-il-in-wi",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - suburban chicago",
+      "forceType": "pm",
+      "displayName": "RPM - Suburban Chicago",
+      "market": "chicago-joliet-naperville-il-in-wi",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - one source",
+      "forceType": "pm",
+      "displayName": "RPM - One Source",
+      "market": "dallas-fort-worth-arlington-tx",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm engage",
+      "forceType": "pm",
+      "displayName": "RPM Engage",
+      "market": "dallas-fort-worth-arlington-tx",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - advantage",
+      "forceType": "pm",
+      "displayName": "RPM - Advantage",
+      "market": "detroit-warren-livonia-mi",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - metro detroit",
+      "forceType": "pm",
+      "displayName": "RPM - Metro Detroit",
+      "market": "detroit-warren-livonia-mi",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - fort collins loveland",
+      "forceType": "pm",
+      "displayName": "RPM - Fort Collins Loveland",
+      "market": "fort-collins-co",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - avitus",
+      "forceType": "pm",
+      "displayName": "RPM - Avitus",
+      "market": "houston-tx",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - houston",
+      "forceType": "pm",
+      "displayName": "RPM - Houston",
+      "market": "houston-tx",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - preferred",
+      "forceType": "pm",
+      "displayName": "RPM - Preferred",
+      "market": "houston-tx",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm sugarland",
+      "forceType": "pm",
+      "displayName": "RPM Sugarland",
+      "market": "houston-tx",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - consultants",
+      "forceType": "pm",
+      "displayName": "RPM - Consultants",
+      "market": "kansas-city-mo-ks",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - agile",
+      "forceType": "pm",
+      "displayName": "RPM - Agile",
+      "market": "los-angeles-long-beach-santa-ana-ca",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - california coast",
+      "forceType": "pm",
+      "displayName": "RPM - California Coast",
+      "market": "los-angeles-long-beach-santa-ana-ca",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - fairmate",
+      "forceType": "pm",
+      "displayName": "RPM - Fairmate",
+      "market": "los-angeles-long-beach-santa-ana-ca",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - paramount",
+      "forceType": "pm",
+      "displayName": "RPM - Paramount",
+      "market": "los-angeles-long-beach-santa-ana-ca",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - southland",
+      "forceType": "pm",
+      "displayName": "RPM - Southland",
+      "market": "los-angeles-long-beach-santa-ana-ca",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - west san fernando valley",
+      "forceType": "pm",
+      "displayName": "RPM - West San Fernando Valley",
+      "market": "los-angeles-long-beach-santa-ana-ca",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm executives",
+      "forceType": "pm",
+      "displayName": "RPM Executives",
+      "market": "los-angeles-long-beach-santa-ana-ca",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm management",
+      "forceType": "pm",
+      "displayName": "RPM Management",
+      "market": "los-angeles-long-beach-santa-ana-ca",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm rental solutions",
+      "forceType": "pm",
+      "displayName": "RPM Rental Solutions",
+      "market": "nashville-davidson-murfreesboro-franklin-tn",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - south orlando",
+      "forceType": "pm",
+      "displayName": "RPM - South Orlando",
+      "market": "orlando-kissimmee-sanford-fl",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - verita",
+      "forceType": "pm",
+      "displayName": "RPM - Verita",
+      "market": "orlando-kissimmee-sanford-fl",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm phoenix valley",
+      "forceType": "pm",
+      "displayName": "RPM Phoenix Valley",
+      "market": "phoenix-az",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - richmond metro",
+      "forceType": "pm",
+      "displayName": "RPM - Richmond Metro",
+      "market": "richmond-va",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - alamo",
+      "forceType": "pm",
+      "displayName": "RPM - Alamo",
+      "market": "san-antonio-tx",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - campanas",
+      "forceType": "pm",
+      "displayName": "RPM - Campanas",
+      "market": "san-antonio-tx",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - eclipse",
+      "forceType": "pm",
+      "displayName": "RPM - Eclipse",
+      "market": "seattle-wa",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - north puget sound",
+      "forceType": "pm",
+      "displayName": "RPM - North Puget Sound",
+      "market": "seattle-wa",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - today",
+      "forceType": "pm",
+      "displayName": "RPM - Today",
+      "market": "seattle-wa",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm excelled",
+      "forceType": "pm",
+      "displayName": "RPM Excelled",
+      "market": "seattle-wa",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    },
+    {
+      "normalizedName": "rpm - endeavor",
+      "forceType": "pm",
+      "displayName": "RPM - Endeavor",
+      "market": "st-louis-mo-il",
+      "note": "Real Property Management franchise office; source company_type tags it Brokerage"
+    }
+  ]
+}
