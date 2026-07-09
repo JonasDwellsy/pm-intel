@@ -12,6 +12,13 @@ import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { titleCaseSlug } from "@/lib/format";
 import type { ScorecardData } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
+import { toSnapshotRow } from "@/lib/watch-list/snapshot";
+import { selectSnapshotPair } from "@/lib/watch-list/digest-gather";
+import {
+  buildMarketChangeSummary,
+  type MarketChangeSummary,
+  type OperatorMeta,
+} from "@/lib/market-brief-changes";
 
 // ─── shapes ─────────────────────────────────────────────────────────
 
@@ -29,6 +36,30 @@ export interface MarketBriefData {
   // ranking cohort make the cut). Capped at 5 for brevity; brief
   // prose can reference these by name.
   portfolioSizeLeaders: PortfolioSizeLeader[];
+  // Briefs V2 — market-level change vs the prior snapshot date (new entrants,
+  // rating/size swings, cohort moves). null when there's no prior snapshot to
+  // compare against (first period). Drives the "since last period" lede.
+  sinceLastPeriod: MarketChangeSummary | null;
+  // Briefs V2 (1c) — deeper standing signals the brief ignored before. Woven
+  // into the operator-landscape / notable-signals prose, no new sections.
+  retentionLeaders: RetentionLeader[];
+  concessionContext: {
+    operatorsWithConcessions: number;
+    topOperators: ConcessionOperator[];
+  };
+}
+
+export interface RetentionLeader {
+  name: string;
+  scorecardUrl: string;
+  quadrant7Cell: string | null;
+  retention18Pct: number;
+}
+
+export interface ConcessionOperator {
+  name: string;
+  scorecardUrl: string;
+  ratePct: number;
 }
 
 export interface MarketHeader {
@@ -125,6 +156,29 @@ const TOP_N = 5;
  *  this we're probably looking at a small operator that just barely
  *  shows up in the data and doesn't merit naming in a brief. */
 const NEW_ENTRANT_MIN_T12 = 20;
+
+/** Load the two most recent OperatorSnapshot dates for this market's operators
+ *  and roll up the market-level "since last period" change block. Returns null
+ *  when there's fewer than two snapshot dates (no prior period yet). */
+async function loadMarketChangeSummary(
+  pmSlugs: string[],
+  meta: Map<string, OperatorMeta>,
+): Promise<MarketChangeSummary | null> {
+  if (pmSlugs.length === 0) return null;
+  const snaps = await prisma.operatorSnapshot.findMany({
+    where: { pmSlug: { in: pmSlugs } },
+    orderBy: { snapshotDate: "desc" },
+  });
+  const pair = selectSnapshotPair(snaps.map((s) => s.snapshotDate));
+  if (!pair) return null;
+  const current = snaps
+    .filter((s) => s.snapshotDate.getTime() === pair.latest.getTime())
+    .map(toSnapshotRow);
+  const prior = snaps
+    .filter((s) => s.snapshotDate.getTime() === pair.prior.getTime())
+    .map(toSnapshotRow);
+  return buildMarketChangeSummary(prior, current, meta);
+}
 
 export async function buildMarketBriefData(
   marketSlug: string
@@ -371,6 +425,57 @@ export async function buildMarketBriefData(
     continuingCohortSize: continuing.length,
   };
 
+  // ── 1c: retention leaders + concession context (ranked operators) ──
+  const urlFor = (slug: string) =>
+    `/property-managers/${stateCodeToSlug(market.state)}/${citySlug(market.city)}/${slug}`;
+  const rankedParsed = parsed.filter(({ row }) => row.rankOverall !== null);
+
+  const retentionLeaders: RetentionLeader[] = rankedParsed
+    .map(({ row, sc }): RetentionLeader | null => {
+      const ten = sc.tenancy;
+      const r = ten?.retention18Pct;
+      if (
+        !ten ||
+        ten.tenancyQualified !== true ||
+        ten.tenancySuppressed === true ||
+        typeof r !== "number"
+      ) {
+        return null;
+      }
+      return {
+        name: row.name,
+        scorecardUrl: urlFor(row.slug),
+        quadrant7Cell: row.quadrant7Cell ?? null,
+        retention18Pct: r,
+      };
+    })
+    .filter((x): x is RetentionLeader => x !== null)
+    .sort((a, b) => b.retention18Pct - a.retention18Pct)
+    .slice(0, TOP_N);
+
+  const topConcessionOperators: ConcessionOperator[] = rankedParsed
+    .filter(({ row }) => typeof row.concessionRate === "number" && row.concessionRate > 0)
+    .map(({ row }) => ({
+      name: row.name,
+      scorecardUrl: urlFor(row.slug),
+      ratePct: Math.round((row.concessionRate as number) * 1000) / 10,
+    }))
+    .sort((a, b) => b.ratePct - a.ratePct)
+    .slice(0, TOP_N);
+
+  const sinceLastPeriod = await loadMarketChangeSummary(
+    pms.map((p) => p.slug),
+    new Map<string, OperatorMeta>(
+      pms.map((p) => [
+        p.slug,
+        {
+          name: p.name,
+          scorecardUrl: `/property-managers/${stateCodeToSlug(market.state)}/${citySlug(market.city)}/${p.slug}`,
+        },
+      ]),
+    ),
+  );
+
   return {
     market: header,
     shareGainers,
@@ -379,6 +484,12 @@ export async function buildMarketBriefData(
     quadrantBreakdown,
     crossMarketOperators,
     portfolioSizeLeaders,
+    sinceLastPeriod,
+    retentionLeaders,
+    concessionContext: {
+      operatorsWithConcessions: market.operatorsWithConcessions,
+      topOperators: topConcessionOperators,
+    },
   };
 }
 

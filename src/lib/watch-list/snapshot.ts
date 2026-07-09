@@ -51,6 +51,10 @@ export interface SnapshotRow {
   topSubmarkets: string[];
   concessionRate: number | null;
   isEligibleForRanking: boolean;
+  /** 7-cell classification at this snapshot. null on rows written before the
+   *  column existed. Read by the market-brief change block for cohort moves;
+   *  the watch-list diff ignores it. */
+  quadrant7Cell: string | null;
 }
 
 /** The five star fields on a ScorecardData blob, normalised into the
@@ -162,6 +166,7 @@ export interface RawSnapshotRow {
   topSubmarkets: string;
   concessionRate: number | null;
   isEligibleForRanking: boolean;
+  quadrant7Cell?: string | null;
 }
 
 /** Convert a Prisma OperatorSnapshot row into the SnapshotRow shape the pure
@@ -180,6 +185,7 @@ export function toSnapshotRow(row: RawSnapshotRow): SnapshotRow {
     topSubmarkets: safeParseStringArray(row.topSubmarkets),
     concessionRate: row.concessionRate,
     isEligibleForRanking: row.isEligibleForRanking,
+    quadrant7Cell: row.quadrant7Cell ?? null,
   };
 }
 
