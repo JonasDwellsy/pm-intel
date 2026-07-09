@@ -48,6 +48,7 @@ from operator_grouping import (
     compute_auto_merges, auto_merge_map, assert_auto_merge_invariants,
     format_auto_merge_report, strong_name_key, GENERIC_TOKENS,
 )
+from marketing import compute_marketing
 
 csv.field_size_limit(sys.maxsize)
 
@@ -798,33 +799,6 @@ def compute_dom_t12(d):
         "aptDomT12": round(statistics.median(apt), 1) if apt else None,
         "aptUrusT12": len({u for u, t in d["uru_addr_type"].items() if t == "apartment"}),
         "aptEligible": len(apt) >= 10,
-    }
-
-
-def compute_marketing(d):
-    listings = d["marketing_listings_t12"]
-    if not listings:
-        return {"completeness": 0.0, "completenessScore": 0.0,
-                "amenitiesMentioned": 0.0, "amenitiesScore": 0.0,
-                "descLen": 0, "descScore": 0.0,
-                "zeroPhotoT12": 0.0, "amenitiesT12": 0.0,
-                "medianPhotosT12": 0, "compositeScore": 0.0}
-    n = len(listings)
-    amen_mean = statistics.mean(l["amenities_n"] for l in listings)
-    desc_mean = statistics.mean(l["desc_len"] for l in listings)
-    photos_med = statistics.median(l["photos_n"] for l in listings)
-    zero_photo_pct = 100.0 * sum(1 for l in listings if l["photos_n"] == 0) / n
-    has_all = sum(1 for l in listings if l["desc_len"] > 0 and l["photos_n"] > 0 and l["amenities_n"] > 0)
-    completeness_score = 100.0 * has_all / n
-    amen_score = min(100.0, 10.0 * amen_mean)
-    desc_score = min(100.0, 100.0 * desc_mean / 500.0)
-    composite = round(0.40 * completeness_score + 0.30 * amen_score + 0.30 * desc_score, 1)
-    return {
-        "completeness": round(amen_mean, 1), "completenessScore": round(completeness_score, 1),
-        "amenitiesMentioned": round(amen_mean, 1), "amenitiesScore": round(amen_score, 1),
-        "descLen": int(round(desc_mean)), "descScore": round(desc_score, 1),
-        "zeroPhotoT12": round(zero_photo_pct, 1), "amenitiesT12": round(amen_mean, 1),
-        "medianPhotosT12": int(photos_med), "compositeScore": composite,
     }
 
 
