@@ -3,8 +3,9 @@
 extract the PM's own website (+ phone) from the page's __NEXT_DATA__ JSON.
 
 Dwellsy company pages are server-rendered Next.js: the company record is inline
-in <script id="__NEXT_DATA__"> at props.pageProps.company.{website,phone,name}.
-So this is a clean JSON parse, not brittle HTML scraping.
+in <script id="__NEXT_DATA__"> at props.pageProps.company (fields: `website`,
+`phone`, `company_name_displayed`). So this is a clean JSON parse, not brittle
+HTML scraping.
 
 Input:  src/data/scorecard_data.json (operators + their companyId)
 Output: src/data/company_enrichment.json
@@ -129,7 +130,10 @@ def fetch_company(company_id, delay):
         return company_id, {
             "website": (c.get("website") or "").strip() or None,
             "phone": (c.get("phone") or "").strip() or None,
-            "name": (c.get("name") or "").strip() or None,
+            # Dwellsy's company object names this field `company_name_displayed`,
+            # not `name` — reading `name` left the provenance blank on every
+            # record (provenance-only; the app reads website/phone, not name).
+            "name": (c.get("company_name_displayed") or "").strip() or None,
             "checkedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "nextData": True,
         }
