@@ -15,6 +15,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { InviteUserForm } from "@/components/admin/InviteUserForm";
 import { DeleteOrgButton } from "@/components/admin/DeleteOrgButton";
@@ -34,6 +35,8 @@ export const metadata: Metadata = {
 interface MemberRow {
   id: string;
   userId: string;
+  name: string;
+  email: string;
   role: string;
   createdAt: Date;
 }
@@ -107,9 +110,37 @@ export default async function AdminOrganizationDetailPage({
   const marketGroups = buildMarketGroups(allMarketRows);
   const grantedIds = org.marketAccess.map((m) => m.marketId);
 
+  // Resolve each membership's Clerk user → name + email. Memberships store only
+  // the Clerk user ID; the person's identity lives in Clerk. Batch-fetch in one
+  // call. If the lookup fails (Clerk API error) or a user can't be resolved
+  // (e.g. deleted account), we fall back to showing just the ID.
+  const memberUserIds = org.memberships.map((m) => m.userId);
+  const identityByUserId = new Map<string, { name: string; email: string }>();
+  if (memberUserIds.length > 0) {
+    try {
+      const client = await clerkClient();
+      const { data } = await client.users.getUserList({
+        userId: memberUserIds,
+        limit: memberUserIds.length,
+      });
+      for (const u of data) {
+        const name = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
+        const email =
+          u.emailAddresses.find((e) => e.id === u.primaryEmailAddressId)?.emailAddress ??
+          u.emailAddresses[0]?.emailAddress ??
+          "";
+        identityByUserId.set(u.id, { name, email });
+      }
+    } catch {
+      // Leave the map empty — rows render with the user ID only.
+    }
+  }
+
   const members: MemberRow[] = org.memberships.map((m) => ({
     id: m.id,
     userId: m.userId,
+    name: identityByUserId.get(m.userId)?.name ?? "",
+    email: identityByUserId.get(m.userId)?.email ?? "",
     role: m.role,
     createdAt: m.createdAt,
   }));
@@ -178,7 +209,7 @@ export default async function AdminOrganizationDetailPage({
               <thead>
                 <tr className="border-b border-grid">
                   <th className="text-left px-3 py-2 font-semibold text-grey-600 text-[12px] uppercase tracking-wider">
-                    Clerk user ID
+                    Member
                   </th>
                   <th className="text-left px-3 py-2 font-semibold text-grey-600 text-[12px] uppercase tracking-wider">
                     Role
@@ -191,13 +222,19 @@ export default async function AdminOrganizationDetailPage({
               <tbody>
                 {members.map((m) => (
                   <tr key={m.id} className="border-b border-grid">
-                    <td className="px-3 py-3 font-mono text-[12px] text-navy">
-                      {m.userId}
+                    <td className="px-3 py-3">
+                      <div className="font-medium text-navy">
+                        {m.name || <span className="text-grey-500">— (name not set)</span>}
+                      </div>
+                      {m.email && (
+                        <div className="text-[13px] text-grey-600">{m.email}</div>
+                      )}
+                      <div className="font-mono text-[11px] text-grey-500">{m.userId}</div>
                     </td>
-                    <td className="px-3 py-3 text-navy">
+                    <td className="px-3 py-3 align-top text-navy">
                       {roleLabel(m.role)}
                     </td>
-                    <td className="px-3 py-3 text-grey-600">
+                    <td className="px-3 py-3 align-top text-grey-600">
                       {formatDate(m.createdAt)}
                     </td>
                   </tr>
