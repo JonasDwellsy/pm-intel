@@ -652,10 +652,13 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
                     d["dom_t12_apt"].append(dom_days)
             amen = row.get("amenities") or ""
             photos = row.get("photos") or ""
+            # amenities + photos are ';'-delimited in the source (a '|' split
+            # collapsed every listing to a count of 1 — capping the marketing
+            # composite at ~73 via amen_score and pinning medianPhotosT12 to 1).
             d["marketing_listings_t12"].append({
-                "amenities_n": len([x for x in amen.split("|") if x.strip()]) if amen else 0,
+                "amenities_n": len([x for x in amen.split(";") if x.strip()]) if amen else 0,
                 "desc_len": len(desc),
-                "photos_n": len([x for x in photos.split("|") if x.strip()]) if photos else 0,
+                "photos_n": len([x for x in photos.split(";") if x.strip()]) if photos else 0,
             })
             if uru:
                 if addr_type in ("house", "single-family", "single_family", "sf"):
