@@ -14,7 +14,6 @@ import type { RentTierDetail } from "./rent-tier";
 import { buildLendingSignals } from "@/lib/lending-signals";
 import type { PoolPm } from "@/lib/msa-pool";
 import { buildConcessionContext, uniquePatternLabels, formatConcessionSample } from "@/lib/concession-context";
-import { estimatedManagedUnits, DEFAULT_MULTIPLIERS, type PortfolioMultipliers } from "@/lib/operator-size";
 import {
   concessionDetail,
   type MetricTone,
@@ -115,10 +114,6 @@ export interface BuildViewInput {
   aggregateTrajectory?: { points: Array<{ portfolioPoint: number | null; marketsPresent: number }> };
   /** Distinct member-market display names (multi-market operators only). */
   memberMarketNames?: string[];
-  /** Portfolio-size turnover multipliers (k_house, k_apt) from the admin-
-   *  tunable app settings. Defaults to DEFAULT_MULTIPLIERS so existing callers
-   *  (and tests) that don't pass them keep working. */
-  portfolioMultipliers?: PortfolioMultipliers;
 }
 
 interface PoolMember { slug: string; name: string; quadrant7Cell: string | null; scorecard: ScorecardData }
@@ -378,31 +373,20 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
       }
     : null;
 
-  // v0.6.5 — estimated managed units, computed at read time from the operator's
-  // observed units split by type (houses × k_house + apartments × k_apt). This
-  // supersedes the seeded v0.7 cohort-banded portfolioEstimate as the display
-  // source; it's uniform across every operator and the multipliers are
-  // admin-tunable. (thin still drives the provisional maturityNote below.)
-  const portfolioMultipliers = input.portfolioMultipliers ?? DEFAULT_MULTIPLIERS;
-  const estPoint = estimatedManagedUnits(
-    {
-      houseUrusT12: scorecard.performance?.houseUrusT12 ?? null,
-      aptUrusT12: scorecard.performance?.aptUrusT12 ?? null,
-    },
-    portfolioMultipliers
-  );
+  // v0.8 — portfolio size is a single seeded value (scorecard.portfolioEstimate,
+  // computed in seed.ts as houseUrusT12 × k_house + aptUrusT12 × k_apt). Read it
+  // straight through so this surface matches watch-lists / AI / briefs / home,
+  // which all read the same field. Point-only (no band/confidence under v0.8).
   const estimate: ScaleFitView["estimate"] =
-    estPoint != null
+    pe?.point != null
       ? {
-          point: estPoint, low: null, high: null, confidence: null,
-          status: "estimated",
-          message:
-            "Turnover-adjusted from units observed on-market (T12): houses × k_house + apartments × k_apt.",
+          point: pe.point, low: null, high: null, confidence: null,
+          status: pe.status ?? "estimated", message: pe.message ?? null,
         }
       : {
           point: null, low: null, high: null, confidence: null,
-          status: "insufficient_data",
-          message: "Not enough observed units to estimate portfolio size.",
+          status: pe?.status ?? "insufficient_data",
+          message: pe?.message ?? "Not enough observed units to estimate portfolio size.",
         };
 
   const scaleFit: ScaleFitView = {
@@ -576,14 +560,8 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const candidates: PeerCandidate[] = pool.map((m) => ({
     slug: m.slug, name: m.name, quadrant7Cell: m.quadrant7Cell,
     // Same size basis as the focal operator so peer matching compares like
-    // with like: house/apt turnover estimate.
-    estimatedUnits: estimatedManagedUnits(
-      {
-        houseUrusT12: m.scorecard.performance?.houseUrusT12 ?? null,
-        aptUrusT12: m.scorecard.performance?.aptUrusT12 ?? null,
-      },
-      portfolioMultipliers
-    ),
+    // with like: the seeded portfolioEstimate point (house/apt turnover).
+    estimatedUnits: m.scorecard.portfolioEstimate?.point ?? null,
     operatingLabel: operatingPerformanceLabel(m.scorecard),
   }));
   const peers = selectSimilarLocalPlayers(scorecard.pm.slug, candidates, { limit: 4 });

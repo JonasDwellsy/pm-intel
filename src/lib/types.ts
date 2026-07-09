@@ -441,12 +441,9 @@ export interface PMListItem {
   rankQuadrantTotal: number | null;
   domT12: number;
   totalObservedUnits: number;
-  // v0.6.5 — inputs + result for the "estimated managed units" size headline.
-  // House/apt observed-URU counts feed estimatedManagedUnits() (house × k_house
-  // + apt × k_apt); estManagedUnits is computed in loadMarketView, where the
-  // admin-tunable multipliers are available.
-  houseUrusT12?: number | null;
-  aptUrusT12?: number | null;
+  // v0.8 — estimated managed-units size headline, read from the single seeded
+  // portfolioEstimate point (set in toPmListItem). Drives the list-row size +
+  // the cohort-tile unit sums.
   estManagedUnits?: number | null;
   primaryCity: string;
   primaryCityShare: number | null;
