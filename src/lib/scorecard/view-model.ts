@@ -6,7 +6,12 @@
 import type { ScorecardData } from "@/lib/types";
 import { countOperatorStars } from "@/lib/operators/stars";
 import { operatingPerformanceLabel, type ScoreLabel, metricLabels, metricCohortPercentile, strongestAndWatch, type MetricKey } from "./labels";
-import { momentumDirection, type MomentumDirection } from "./momentum";
+import { momentumDirection, momentumProfile, type MomentumDirection } from "./momentum";
+import {
+  buildMomentumNarrative,
+  type NarrativeSignal,
+  type SignalKey,
+} from "./momentum-narrative";
 import { buildWatchItems, type WatchItem, type WatchTrajectory } from "./watch-items";
 import { selectSimilarLocalPlayers, type PeerCandidate, type SelectedPeer } from "./peers";
 import { rentTierDetail } from "./rent-tier";
@@ -219,17 +224,6 @@ function buildScaleFitTakeaway(sc: ScorecardData): string {
   return `${sc.pm.name} operates in ${sc.market.fullName} as a ${type}.`;
 }
 
-function momentumTakeaway(name: string, driver: "portfolio" | "quality" | "reach" | "none", dir: MomentumDirection): string {
-  if (driver === "none" || dir === "insufficient") return `Not enough history yet to read ${name}'s trajectory.`;
-  if (dir === "volatile") return `${name}'s recent estimates are volatile — interpret recent moves cautiously.`;
-  if (driver === "portfolio") {
-    return `${name} appears ${dir === "growing" ? "larger" : dir === "declining" ? "smaller" : "steady"} versus when first observed.`;
-  }
-  if (driver === "quality") {
-    return `Operating quality has been trending ${dir === "growing" ? "up" : dir === "declining" ? "down" : "steady"} for ${name}.`;
-  }
-  return `Geographic footprint has been ${dir === "growing" ? "expanding" : dir === "declining" ? "contracting" : "steady"} for ${name}.`;
-}
 
 export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const { scorecard } = input;
@@ -527,9 +521,28 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     : driver === "reach" ? reachDir
     : "insufficient";
 
+  // Narrative profiles: net (first→latest) + recent (last window) per signal,
+  // so the takeaway can convey texture the single "direction" label hides
+  // (e.g. "grown overall but pulled back over recent quarters"). Order here is
+  // the reading order in the takeaway; the driver leads regardless.
+  const narrativeSignals: NarrativeSignal[] = [];
+  const addSignal = (key: SignalKey, series: number[]) => {
+    const p = momentumProfile({ values: series });
+    if (p.hasEnough) narrativeSignals.push({ key, net: p.net, recent: p.recent, volatile: p.volatile });
+  };
+  addSignal("portfolio", portfolioSeries);
+  addSignal("reach", reachSeries);
+  addSignal("quality", qualitySeries);
+  addSignal("share", shareSeries);
+  addSignal("footprint", footprintSeries);
+
   const momentum: MomentumView = {
     direction: sectionDirection,
-    takeaway: momentumTakeaway(scorecard.pm.name, driver, sectionDirection),
+    takeaway: buildMomentumNarrative(
+      scorecard.pm.name,
+      narrativeSignals,
+      driver === "none" ? null : driver
+    ),
     sparklines: [
       mkSpark("portfolio", "Portfolio", portfolioSeries),
       mkSpark("share", "Listing share", shareSeries),

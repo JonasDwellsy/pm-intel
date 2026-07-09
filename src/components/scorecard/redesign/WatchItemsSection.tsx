@@ -142,8 +142,7 @@ export function WatchItemsSection({ items }: WatchItemsSectionProps) {
         }}
       >
         Signals that need a human read before you hire, monitor, or acquire — some are risks
-        worth a follow-up, some are neutral context, some are positives. Not everything here
-        is bad.
+        worth a follow-up, some are neutral context, some are positives.
       </p>
 
       {/* Item rows */}
