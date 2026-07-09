@@ -45,7 +45,7 @@ export function MarketMap({ view }: { view: LoadedMarket }) {
         legendCounts={legendCounts}
       />
 
-      <p className="mt-3.5 max-w-[920px] text-[13px] italic leading-[1.6] text-muted-foreground">
+      <p className="mt-3.5 text-[13px] italic leading-[1.6] text-muted-foreground">
         Each dot represents one observed listing address across all eligible
         operators in {market.fullName} over the trailing 12 months. Color
         indicates the operator&rsquo;s quadrant classification.{" "}

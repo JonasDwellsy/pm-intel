@@ -11,6 +11,10 @@ import {
 import { toPmListItem } from "@/lib/slugify";
 import type { MarketSummary, PMListItem, ScorecardData } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
+import {
+  deriveQuadrantSummary,
+  deriveQuadrant7CellSummary,
+} from "@/lib/quadrant-summary";
 
 export type MarketMapData = {
   mapCenter?: { lat: number; lon: number };
@@ -261,21 +265,15 @@ export async function loadMarketView({
     );
   }
 
-  // Pool size precedes the slice so the "Showing X of Y" line reflects
-  // the full filtered cohort, not just the displayed page.
   const rankedPoolSize = filteredPms.length;
 
-  // Top-10 cap on the market landing (where the list is a teaser /
-  // highlight surface). On drill-down views — segment-filtered (e.g.
-  // /sfr-independent) or submarket-filtered (?submarket=foo) — the
-  // user explicitly asked for the cohort, so we render all of it.
-  // For a B2B intelligence product the exhaustive list is the point;
-  // a "Top 10 with a Show More button" pattern would just add friction
-  // to the action the user is actively trying to take.
-  const isDrilledIn = segment !== null || Boolean(submarketParam);
-  if (!isDrilledIn) {
-    filteredPms = filteredPms.slice(0, 10);
-  }
+  // v0.6.5 — the "All operators" view renders the full ranked pool, matching
+  // the segment/submarket drill-downs (which have always rendered their whole
+  // cohort). The prior top-10 cap treated the landing list as a teaser, but
+  // for a B2B intelligence product the exhaustive, sortable, filterable list
+  // is the point — capping it left operators past #10 reachable only by
+  // changing the sort, which is not a discovery mechanism. Filters + sort
+  // narrow the list when the reader wants a subset.
 
   const methodologyVersion = marketRow.pms[0]?.methodologyVersion ?? "unknown";
   const dataAsOf =
@@ -355,63 +353,6 @@ export async function listSegmentRouteParams() {
 // landing always has something to render. Single source of truth across
 // the 7-market footprint.
 
-function deriveQuadrantSummary(
-  pms: PMListItem[]
-): Record<string, { count: number; medianDomT12: number | null }> {
-  const buckets: Record<string, number[]> = {};
-  for (const pm of pms) {
-    const key = pm.quadrant; // normalized at seed: "Scattered / Independent" etc.
-    if (!buckets[key]) buckets[key] = [];
-    if (Number.isFinite(pm.domT12)) buckets[key].push(pm.domT12);
-  }
-  const out: Record<string, { count: number; medianDomT12: number | null }> = {};
-  for (const [quadrant, doms] of Object.entries(buckets)) {
-    out[quadrant] = {
-      count: doms.length,
-      medianDomT12: doms.length > 0 ? median(doms) : null,
-    };
-  }
-  return out;
-}
-
-// v0.6.3 polish — 7-cell summary now mirrors the 5-cell shape (count +
-// median DOM) and adds median rent-vs-comp as a third metric. The new
-// QuadrantSummaryCard renders all three. rentVsComp is in percentage units
-// (toPmListItem multiplies the decimal delta by 100) — keep it in that
-// unit space here so the renderer can fmtSignedPct(value) directly.
-function deriveQuadrant7CellSummary(
-  pms: PMListItem[]
-): Record<
-  string,
-  { count: number; medianDomT12: number | null; medianRentVsComp: number | null }
-> {
-  const buckets: Record<
-    string,
-    { doms: number[]; rents: number[] }
-  > = {};
-  for (const pm of pms) {
-    const key = pm.quadrant7Cell ?? pm.quadrant;
-    if (!buckets[key]) buckets[key] = { doms: [], rents: [] };
-    if (Number.isFinite(pm.domT12)) buckets[key].doms.push(pm.domT12);
-    if (pm.rentVsComp !== null && Number.isFinite(pm.rentVsComp)) {
-      buckets[key].rents.push(pm.rentVsComp);
-    }
-  }
-  const out: Record<
-    string,
-    { count: number; medianDomT12: number | null; medianRentVsComp: number | null }
-  > = {};
-  for (const [quadrant, bucket] of Object.entries(buckets)) {
-    out[quadrant] = {
-      count: bucket.doms.length,
-      medianDomT12: bucket.doms.length > 0 ? median(bucket.doms) : null,
-      medianRentVsComp:
-        bucket.rents.length > 0 ? median(bucket.rents) : null,
-    };
-  }
-  return out;
-}
-
 // v0.6.3 Patch 4 sort comparator: (-gold, -silver, composite rank asc).
 // Pulled out as a named helper because the same ordering applies to the
 // universe sort (allPms) and is preserved through Array.filter into the
@@ -429,12 +370,4 @@ function comparePmsByStarCount(a: PMListItem, b: PMListItem): number {
   const aRank = a.rankOverall ?? Number.MAX_SAFE_INTEGER;
   const bRank = b.rankOverall ?? Number.MAX_SAFE_INTEGER;
   return aRank - bRank;
-}
-
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid];
 }

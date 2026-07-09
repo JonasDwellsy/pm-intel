@@ -274,7 +274,7 @@ export function MarketView({
                 that's where the hierarchy carries real meaning. */}
             <h2 className="dq-h2">Operator landscape</h2>
             <div className="dq-section-rule" />
-            <p className="mt-4 max-w-[720px] text-[15px] leading-[1.55] text-muted-foreground">
+            <p className="mt-4 text-[15px] leading-[1.55] text-muted-foreground">
               {buildLandscapeIntro({
                 marketCity: market.city,
                 marketMedianDomT12: market.medianDomT12,
@@ -298,7 +298,7 @@ export function MarketView({
             {/* v0.6.3 Patch 4 — "so what" stars-intro paragraph between the
                 section header and the filter chips. Explains the new
                 ★N ☆M chips + the gold-then-silver list ordering. */}
-            <p className="mt-4 max-w-[720px] text-[15px] leading-[1.55] text-muted-foreground">
+            <p className="mt-4 text-[15px] leading-[1.55] text-muted-foreground">
               Stars indicate top-percentile performance against same-cohort
               peers. Gold stars are earned for top-tier performance on a
               metric; silver stars mark the next tier. Operators are ordered

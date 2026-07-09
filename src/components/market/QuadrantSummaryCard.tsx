@@ -4,19 +4,41 @@ import {
   quadrant7Key,
   type Quadrant7CellKey,
 } from "@/lib/quadrant7-colors";
-import { fmtDays, fmtInt } from "@/lib/format";
+import { fmtInt } from "@/lib/format";
 
-// v0.6.3 polish — operator-landscape Section 01 grid moved from v0.6.1
-// 5-cell to v0.6.2 7-cell (SFR / Small MF/BTR / Large MF/BTR × Independent
-// / Institutional + Hybrid). Each tile renders three metrics: count,
-// median DOM T12, median rent-vs-comp. Same Link affordance pattern as
-// before — each populated cell navigates to its filtered segment URL.
+// v0.6.5 — operator-landscape cohort tiles. Each tile is a gateway into its
+// 7-cell segment (SFR / Small MF/BTR / Large MF/BTR × Independent /
+// Institutional + Hybrid). The tile now answers "how big is this cohort and
+// where are its standouts": operator count + summed observed units, then a
+// gold-star-by-metric breakdown (Lease-up / Retention / Rent / Marketing).
+// It replaces the prior cohort-median DOM + rent-vs-comp strip, which read as
+// abstract now that the product leads with stars. Same Link affordance —
+// each populated cell navigates to its filtered segment URL.
 
 type Quadrant7CellStats = {
   count: number;
   medianDomT12: number | null;
   medianRentVsComp: number | null;
+  units: number;
+  goldByMetric: {
+    leaseUp: number;
+    retention: number;
+    rent: number;
+    marketing: number;
+  };
 };
+
+// Display order + labels for the gold-star-by-metric grid, keyed to
+// goldByMetric. Short labels keep the 2×2 grid on a single line per cell.
+const METRIC_ROWS: Array<{
+  key: keyof Quadrant7CellStats["goldByMetric"];
+  label: string;
+}> = [
+  { key: "leaseUp", label: "Lease-up" },
+  { key: "retention", label: "Retention" },
+  { key: "rent", label: "Rent" },
+  { key: "marketing", label: "Marketing" },
+];
 
 // Canonical quadrant7Cell label → 7-cell color key. Mirrors the lookup in
 // quadrant7-colors.ts (quadrant7Key) but keeps the map inline so the order
@@ -90,15 +112,6 @@ function QuadrantTile({
   const empty = stats.count === 0;
   const filterHref = `${marketHref}/${segment}`;
 
-  const rentTone =
-    stats.medianRentVsComp === null
-      ? "text-muted-foreground"
-      : stats.medianRentVsComp > 0
-        ? "text-good"
-        : stats.medianRentVsComp < 0
-          ? "text-orange"
-          : "text-navy";
-
   const card = (
     <div
       className={
@@ -124,34 +137,57 @@ function QuadrantTile({
           {fmtInt(stats.count)}
         </p>
         <p className="mt-1 text-[12.5px] text-muted-foreground">
-          operator{stats.count === 1 ? "" : "s"}
+          {empty ? (
+            "operators"
+          ) : (
+            <>
+              operator{stats.count === 1 ? "" : "s"} ·{" "}
+              <span className="dq-mono not-italic">{fmtInt(stats.units)}</span>{" "}
+              unit{stats.units === 1 ? "" : "s"} observed
+            </>
+          )}
         </p>
         {empty ? (
           <p className="mt-4 text-[13px] italic text-muted-foreground">
             No operators in this segment yet.
           </p>
         ) : (
-          // Two-row metric strip — DOM + rent vs comp. Each row shows the
-          // metric value in a tnum-aligned dq-mono number with the metric
-          // label in muted text below, matching the existing single-metric
-          // pattern but stacked.
-          <div className="mt-4 space-y-2.5">
-            <div>
-              <p className="dq-mono text-[14px] text-navy">
-                {fmtDays(stats.medianDomT12)}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                median DOM, T12
-              </p>
-            </div>
-            <div>
-              <p className={"dq-mono text-[14px] " + rentTone}>
-                {fmtSignedPct(stats.medianRentVsComp)}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                median rent vs comp
-              </p>
-            </div>
+          // Gold-star-by-metric breakdown — how many operators in this cohort
+          // earned a gold star on each of the four ranked-list metrics. A 2×2
+          // grid keeps it compact; the star renders gold when the count is
+          // non-zero, muted grey when zero, so a scan reads "where are the
+          // standouts" at a glance.
+          <div className="mt-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-2">
+              Gold stars by metric
+            </p>
+            <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5">
+              {METRIC_ROWS.map(({ key, label }) => {
+                const n = stats.goldByMetric[key];
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <dt className="text-[12px] text-muted-foreground">
+                      {label}
+                    </dt>
+                    <dd className="dq-mono flex items-center gap-1 text-[12.5px] font-medium text-navy">
+                      <span
+                        aria-hidden
+                        style={{
+                          color: n > 0 ? "#d4a017" : "#c3cad6",
+                          fontSize: "11px",
+                        }}
+                      >
+                        ★
+                      </span>
+                      {n}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
           </div>
         )}
       </div>
@@ -200,6 +236,8 @@ export function QuadrantSummaryCard({
             count: 0,
             medianDomT12: null,
             medianRentVsComp: null,
+            units: 0,
+            goldByMetric: { leaseUp: 0, retention: 0, rent: 0, marketing: 0 },
           };
         return (
           <QuadrantTile
