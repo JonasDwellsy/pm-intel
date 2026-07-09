@@ -19,6 +19,11 @@ const TOP_N = 5;
 export interface OperatorRef {
   pmSlug: string;
   name: string;
+  scorecardUrl: string;
+}
+export interface OperatorMeta {
+  name: string;
+  scorecardUrl: string;
 }
 export interface RatingMove extends OperatorRef {
   goldBefore: number;
@@ -63,12 +68,16 @@ function isoDate(d: Date): string {
 export function buildMarketChangeSummary(
   prior: SnapshotRow[],
   current: SnapshotRow[],
-  names: Map<string, string>,
+  meta: Map<string, OperatorMeta>,
 ): MarketChangeSummary | null {
   if (prior.length === 0 || current.length === 0) return null;
 
   const priorBySlug = new Map(prior.map((r) => [r.pmSlug, r]));
-  const nameOf = (slug: string) => names.get(slug) ?? slug;
+  const refOf = (slug: string): OperatorRef => ({
+    pmSlug: slug,
+    name: meta.get(slug)?.name ?? slug,
+    scorecardUrl: meta.get(slug)?.scorecardUrl ?? "",
+  });
 
   const newEntrants: OperatorRef[] = [];
   const ratingUp: RatingMove[] = [];
@@ -78,7 +87,7 @@ export function buildMarketChangeSummary(
 
   for (const cur of current) {
     const prev = priorBySlug.get(cur.pmSlug);
-    const ref: OperatorRef = { pmSlug: cur.pmSlug, name: nameOf(cur.pmSlug) };
+    const ref = refOf(cur.pmSlug);
 
     // New entrant: eligible now, and either absent before or not-yet-eligible.
     if (cur.isEligibleForRanking && (!prev || !prev.isEligibleForRanking)) {

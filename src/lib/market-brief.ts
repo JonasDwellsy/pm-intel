@@ -17,6 +17,7 @@ import { selectSnapshotPair } from "@/lib/watch-list/digest-gather";
 import {
   buildMarketChangeSummary,
   type MarketChangeSummary,
+  type OperatorMeta,
 } from "@/lib/market-brief-changes";
 
 // ─── shapes ─────────────────────────────────────────────────────────
@@ -141,7 +142,7 @@ const NEW_ENTRANT_MIN_T12 = 20;
  *  when there's fewer than two snapshot dates (no prior period yet). */
 async function loadMarketChangeSummary(
   pmSlugs: string[],
-  names: Map<string, string>,
+  meta: Map<string, OperatorMeta>,
 ): Promise<MarketChangeSummary | null> {
   if (pmSlugs.length === 0) return null;
   const snaps = await prisma.operatorSnapshot.findMany({
@@ -156,7 +157,7 @@ async function loadMarketChangeSummary(
   const prior = snaps
     .filter((s) => s.snapshotDate.getTime() === pair.prior.getTime())
     .map(toSnapshotRow);
-  return buildMarketChangeSummary(prior, current, names);
+  return buildMarketChangeSummary(prior, current, meta);
 }
 
 export async function buildMarketBriefData(
@@ -406,7 +407,15 @@ export async function buildMarketBriefData(
 
   const sinceLastPeriod = await loadMarketChangeSummary(
     pms.map((p) => p.slug),
-    new Map(pms.map((p) => [p.slug, p.name])),
+    new Map<string, OperatorMeta>(
+      pms.map((p) => [
+        p.slug,
+        {
+          name: p.name,
+          scorecardUrl: `/property-managers/${stateCodeToSlug(market.state)}/${citySlug(market.city)}/${p.slug}`,
+        },
+      ]),
+    ),
   );
 
   return {

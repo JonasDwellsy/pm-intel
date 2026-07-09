@@ -194,6 +194,12 @@ export default async function MarketBriefPage({
         {/* Prose sections */}
         {prose && (
           <div className="mt-10 space-y-10">
+            {prose.sinceLastPeriod ? (
+              <BriefSection
+                title="Since last period"
+                body={prose.sinceLastPeriod}
+              />
+            ) : null}
             <BriefSection title="Share movement" body={prose.shareMovement} />
             <BriefSection
               title="Operator landscape"

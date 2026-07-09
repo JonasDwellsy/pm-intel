@@ -31,7 +31,10 @@ function snap(
     ...o,
   };
 }
-const names = new Map([["acme", "Acme PM"], ["beta", "Beta Homes"]]);
+const names = new Map([
+  ["acme", { name: "Acme PM", scorecardUrl: "/u/acme" }],
+  ["beta", { name: "Beta Homes", scorecardUrl: "/u/beta" }],
+]);
 
 test("no prior snapshot → null (first period, no change block)", () => {
   assert.equal(buildMarketChangeSummary([], [snap("acme", D_CUR)], names), null);
@@ -41,7 +44,7 @@ test("new entrant = became eligible this period", () => {
   const prior = [snap("acme", D_PRIOR, { isEligibleForRanking: false })];
   const cur = [snap("acme", D_CUR, { isEligibleForRanking: true })];
   const s = buildMarketChangeSummary(prior, cur, names)!;
-  assert.deepEqual(s.newEntrants, [{ pmSlug: "acme", name: "Acme PM" }]);
+  assert.deepEqual(s.newEntrants, [{ pmSlug: "acme", name: "Acme PM", scorecardUrl: "/u/acme" }]);
   assert.equal(s.isQuiet, false);
 });
 
@@ -70,7 +73,7 @@ test("cohort move needs both snapshots to carry quadrant7Cell", () => {
     names,
   )!;
   assert.deepEqual(withCell.cohortMoves, [
-    { pmSlug: "acme", name: "Acme PM", before: "Hybrid", after: "Small MF/BTR Independent" },
+    { pmSlug: "acme", name: "Acme PM", scorecardUrl: "/u/acme", before: "Hybrid", after: "Small MF/BTR Independent" },
   ]);
   // Prior lacks the field (older row) → no cohort move detected.
   const priorNull = buildMarketChangeSummary(

@@ -20,9 +20,12 @@ const MAX_TOKENS = 2000;
 // Bump when the system prompt or brief structure changes. Folded into the
 // input digest below, so every cached brief regenerates on its next visit
 // (readCache treats a digest mismatch as a cache miss).
-const PROMPT_VERSION = "v2-2026-07";
+const PROMPT_VERSION = "v3-2026-07-sincelast";
 
 export interface BriefProse {
+  /** "Since last period" change lede. Empty string when there's no prior
+   *  snapshot to compare against (first period) or nothing material moved. */
+  sinceLastPeriod: string;
   headlineRead: string;
   shareMovement: string;
   operatorLandscape: string;
@@ -47,6 +50,7 @@ Rules:
 
 3. **Output format**: Respond with valid JSON exactly matching this shape:
 {
+  "sinceLastPeriod": "1 short paragraph on what moved since the prior snapshot — new entrants, operators that gained/lost stars, notable estimated-size swings, and cohort reclassifications. Lead with the most significant move. Name operators with markdown links [Name](scorecardUrl). If the input says there is no prior-period change data, return an empty string \"\".",
   "headlineRead": "2-3 sentences. Structural takeaway for this market right now.",
   "shareMovement": "1 paragraph. Who's gaining share, who's losing, what's the pattern (consolidation, fragmentation, new entrants displacing incumbents).",
   "operatorLandscape": "1 paragraph. Describe the operator mix using the 7-cell quadrant data. SFR dominant? MF/BTR institutional? Mixed? Reference specific cell counts where they tell the story.",
@@ -150,6 +154,37 @@ function makeUserMessage(data: MarketBriefData): string {
     lines.push("");
   }
 
+  lines.push("## Since last period (change vs prior snapshot)");
+  const c = data.sinceLastPeriod;
+  if (!c || c.isQuiet) {
+    lines.push(
+      c
+        ? `(prior snapshot ${c.priorDate} → ${c.currentDate}: no material moves — return empty sinceLastPeriod)`
+        : "(no prior snapshot to compare — first period; return empty sinceLastPeriod)"
+    );
+  } else {
+    lines.push(`Comparison window: ${c.priorDate} → ${c.currentDate}.`);
+    if (c.newEntrants.length)
+      lines.push(`- New entrants: ${c.newEntrants.map((o) => `${o.name} [${o.scorecardUrl}]`).join(", ")}`);
+    if (c.ratingUp.length)
+      lines.push(
+        `- Rating gains: ${c.ratingUp.map((o) => `${o.name} [${o.scorecardUrl}] (${o.goldBefore}→${o.goldAfter} gold)`).join(", ")}`
+      );
+    if (c.ratingDown.length)
+      lines.push(
+        `- Rating losses: ${c.ratingDown.map((o) => `${o.name} [${o.scorecardUrl}] (${o.goldBefore}→${o.goldAfter} gold)`).join(", ")}`
+      );
+    if (c.sizeSwings.length)
+      lines.push(
+        `- Est. size swings: ${c.sizeSwings.map((o) => `${o.name} [${o.scorecardUrl}] (${o.pctChange >= 0 ? "+" : ""}${Math.round(o.pctChange * 100)}%, ${o.before}→${o.after})`).join(", ")}`
+      );
+    if (c.cohortMoves.length)
+      lines.push(
+        `- Cohort reclassifications: ${c.cohortMoves.map((o) => `${o.name} [${o.scorecardUrl}] (${o.before} → ${o.after})`).join(", ")}`
+      );
+  }
+  lines.push("");
+
   lines.push("---");
   lines.push("Produce the brief JSON now. Output ONLY the JSON.");
   return lines.join("\n");
@@ -189,6 +224,7 @@ async function readCache(
   // what auto-repairs briefs generated against an earlier data state.
   if (row.inputDigest !== inputDigest(data)) return null;
   return {
+    sinceLastPeriod: row.sinceLastPeriod ?? "",
     headlineRead: row.headlineRead,
     shareMovement: row.shareMovement,
     operatorLandscape: row.operatorLandscape,
@@ -215,6 +251,7 @@ async function writeCache(
       marketSlug: data.market.marketSlug,
       methodologyVersion: data.market.methodologyVersion,
       dataAsOf: new Date(data.market.dataAsOf),
+      sinceLastPeriod: prose.sinceLastPeriod,
       headlineRead: prose.headlineRead,
       shareMovement: prose.shareMovement,
       operatorLandscape: prose.operatorLandscape,
@@ -222,6 +259,7 @@ async function writeCache(
       inputDigest: digest,
     },
     update: {
+      sinceLastPeriod: prose.sinceLastPeriod,
       headlineRead: prose.headlineRead,
       shareMovement: prose.shareMovement,
       operatorLandscape: prose.operatorLandscape,
@@ -275,6 +313,7 @@ export async function generateBriefProse(
     .trim();
 
   let parsed: {
+    sinceLastPeriod?: unknown;
     headlineRead?: unknown;
     shareMovement?: unknown;
     operatorLandscape?: unknown;
@@ -301,7 +340,11 @@ export async function generateBriefProse(
     }
   }
 
+  // sinceLastPeriod is optional — empty string when there's no prior period
+  // or nothing material moved (the prompt returns "" in that case).
   const prose = {
+    sinceLastPeriod:
+      typeof parsed.sinceLastPeriod === "string" ? parsed.sinceLastPeriod : "",
     headlineRead: parsed.headlineRead as string,
     shareMovement: parsed.shareMovement as string,
     operatorLandscape: parsed.operatorLandscape as string,
@@ -325,6 +368,7 @@ export async function readLatestCachedProse(
   });
   if (!row) return null;
   return {
+    sinceLastPeriod: row.sinceLastPeriod ?? "",
     headlineRead: row.headlineRead,
     shareMovement: row.shareMovement,
     operatorLandscape: row.operatorLandscape,
