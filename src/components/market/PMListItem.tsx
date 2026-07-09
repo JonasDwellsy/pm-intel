@@ -157,11 +157,11 @@ export function PMListItem({
                 ? `${displayShare}% `
                 : ""}
               {displayCity}
-              <span className="mx-1.5 text-muted-2">·</span>
+              <span className="mx-1.5 text-muted-2">·</span>~
               <span className="dq-mono font-medium text-navy/90">
-                {fmtInt(pm.totalObservedUnits)}
+                {fmtInt(pm.estManagedUnits ?? pm.totalObservedUnits)}
               </span>{" "}
-              units observed
+              managed units (est.)
             </p>
           </div>
 

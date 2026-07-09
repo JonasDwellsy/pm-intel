@@ -141,9 +141,9 @@ function QuadrantTile({
             "operators"
           ) : (
             <>
-              operator{stats.count === 1 ? "" : "s"} ·{" "}
+              operator{stats.count === 1 ? "" : "s"} · ~
               <span className="dq-mono not-italic">{fmtInt(stats.units)}</span>{" "}
-              unit{stats.units === 1 ? "" : "s"} observed
+              managed units (est.)
             </>
           )}
         </p>

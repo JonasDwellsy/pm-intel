@@ -558,3 +558,18 @@ model OperatorMergeDecision {
   @@unique([marketId, clusterKey])
   @@index([marketId])
 }
+
+// v0.6.5 — generic key/value app settings, editable from the admin panel.
+// First use: `sfr_turnover_multiplier` — the SFR portfolio-size multiplier
+// applied to urusT12 (see src/lib/operator-size.ts). Values are stored as
+// strings and parsed per `type`; consumers fall back to a hardcoded default
+// when a key has no row yet, so the table can be empty on a fresh deploy
+// without breaking reads (the row is created on first admin edit).
+model AppSetting {
+  key         String   @id
+  value       String
+  type        String   @default("string") // "string" | "number" | "boolean"
+  description String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+}
