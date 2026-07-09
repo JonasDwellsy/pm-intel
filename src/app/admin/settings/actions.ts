@@ -28,10 +28,8 @@ export async function updatePortfolioMultipliers(
     return { ok: false, error: "Enter multipliers between 0 and 20." };
   }
   await setPortfolioMultipliers({ kHouse, kApt }, userId);
-  // Size renders across the market + operator surfaces; bust their caches so
-  // the new multipliers show immediately.
+  // Size is applied at seed time, so the new multipliers take effect on the
+  // next deploy (re-seed) — not live. Just refresh this page's displayed values.
   revalidatePath("/admin/settings");
-  revalidatePath("/property-managers", "layout");
-  revalidatePath("/operators", "layout");
   return { ok: true, saved: { kHouse, kApt } };
 }

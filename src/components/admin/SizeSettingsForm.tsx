@@ -38,7 +38,8 @@ export function SizeSettingsForm({
       <p className="mb-4 text-[12.5px] leading-[1.55] text-muted-foreground">
         Estimated managed units = houses observed (T12) × k_house + apartments
         observed (T12) × k_apt. Each unit uses its own type&rsquo;s turnover
-        multiplier. Changes take effect across the site on next page load.
+        multiplier. Applied at seed time — changes take effect on the next
+        deploy (re-seed).
       </p>
 
       <div className="flex flex-wrap gap-6">
@@ -86,7 +87,7 @@ export function SizeSettingsForm({
       {state.ok && state.saved && (
         <p className="mt-2 text-[12.5px] font-medium text-good">
           Saved — k_house = {state.saved.kHouse}, k_apt = {state.saved.kApt}.
-          Size updates across the site on next load.
+          Takes effect on the next deploy (re-seed).
         </p>
       )}
       {state.error && (

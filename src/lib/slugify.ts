@@ -211,11 +211,10 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     rankQuadrantTotal: sc.rank.quadrantTotal ?? null,
     domT12: sc.performance.domT12,
     totalObservedUnits: sc.coverage.totalObservedUnits,
-    // v0.6.5 — house/apt observed-URU counts, carried so loadMarketView can
-    // compute estManagedUnits (house × k_house + apt × k_apt) where the tunable
-    // multipliers are available.
-    houseUrusT12: sc.performance?.houseUrusT12 ?? null,
-    aptUrusT12: sc.performance?.aptUrusT12 ?? null,
+    // v0.8 — estimated managed units, read straight from the single seeded
+    // portfolioEstimate (house/apt turnover, computed in seed.ts) so the list
+    // rows + cohort tiles match every other surface.
+    estManagedUnits: sc.portfolioEstimate?.point ?? null,
     primaryCity: sc.market.name,
     primaryCityShare,
     claimed: row.claimed,

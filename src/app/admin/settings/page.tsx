@@ -1,9 +1,8 @@
-// Admin → Settings. Methodology knobs editable at runtime (backed by the
-// AppSetting table). Portfolio-size multipliers: k_house / k_apt used by
-// estimatedManagedUnits(). Changing them takes effect on next page load across
-// the market + operator surfaces — no pipeline refresh, because size is
-// computed at read time from the observed house/apt URU counts already in the
-// seed.
+// Admin → Settings. Methodology knobs backed by the AppSetting table.
+// Portfolio-size multipliers k_house / k_apt feed estimatePortfolioSize(),
+// which runs in seed.ts — so a change takes effect on the NEXT DEPLOY (re-seed
+// with FORCE_SEED), not live. The size is a single seeded value read by every
+// surface (scorecard, market pages, watch-lists, AI, briefs, home).
 //
 // Auth: gated by src/app/admin/layout.tsx.
 
@@ -27,8 +26,9 @@ export default async function AdminSettingsPage() {
       <header className="mb-6 mt-6">
         <h1 className="text-[22px] font-semibold text-navy">Settings</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Methodology parameters. Changes are stored in the database and take
-          effect on the next page load — no data refresh required.
+          Methodology parameters, stored in the database. Portfolio-size
+          multipliers are applied at seed time, so a change takes effect on the
+          next deploy (re-seed).
         </p>
       </header>
 

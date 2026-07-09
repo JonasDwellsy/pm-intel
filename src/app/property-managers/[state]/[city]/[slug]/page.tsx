@@ -16,7 +16,6 @@ import {
   loadMarketView,
 } from "@/lib/market-data";
 import { loadMsaPool } from "@/lib/msa-pool";
-import { getPortfolioMultipliers } from "@/lib/app-settings";
 import { loadOperatorTrajectory, loadOperatorAggregateTrajectory } from "@/lib/operators/trajectory";
 import { buildConcessionContext } from "@/lib/concession-context";
 import { buildScorecardView } from "@/lib/scorecard/view-model";
@@ -217,7 +216,6 @@ export default async function MarketChildPage({
     pool: msaPool,
     trajectory: operatorTrajectory,
     marketConcessionMedian: concessionContext.marketRate,
-    portfolioMultipliers: await getPortfolioMultipliers(),
     ...(isMultiMarket
       ? { aggregateTrajectory, memberMarketNames, marketCount }
       : {}),

@@ -12,8 +12,6 @@ import { getActiveOrgId } from "@/lib/auth/active-org";
 import { resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
 import { MarketLockedUpsell } from "@/components/entitlements/MarketLockedUpsell";
 import { STATE_CODE_TO_NAME } from "@/lib/slugify";
-import { getPortfolioMultipliers } from "@/lib/app-settings";
-import { estimatedManagedUnits } from "@/lib/operator-size";
 
 // v0.11 — Operator-level scorecard.
 //
@@ -116,17 +114,13 @@ export default async function OperatorScorecardPage({
 
   // Aggregate stats (sourced from the aggregated scorecard).
   const totalUrus = sc.coverage?.urusT12 ?? null;
-  // v0.6.5 — estimated managed units (size headline), read-time from the
-  // operator's observed units by type: houses × k_house + apartments × k_apt.
-  // Aggregate sums the members' house/apt counts so multi-market rollups are
-  // consistent with the per-market rows. k's are admin-tunable.
-  const multipliers = await getPortfolioMultipliers();
-  const aggHouse = view.members.reduce((s, m) => s + (m.houseUrusT12 ?? 0), 0);
-  const aggApt = view.members.reduce((s, m) => s + (m.aptUrusT12 ?? 0), 0);
-  const portfolioPoint = estimatedManagedUnits(
-    { houseUrusT12: aggHouse, aptUrusT12: aggApt },
-    multipliers
-  );
+  // v0.8 — estimated managed units (size headline). Single seeded value
+  // (house/apt turnover); the aggregate sums the members' seeded points so
+  // multi-market rollups match the per-market rows + every other surface.
+  const portfolioPoint = view.members.reduce(
+    (s, m) => s + (m.portfolioPoint ?? 0),
+    0
+  ) || null;
   const portfolioLow = null;
   const portfolioHigh = null;
   const portfolioConfidence = null;
@@ -429,15 +423,7 @@ export default async function OperatorScorecardPage({
                     </td>
                     <td className="text-right">
                       <span className="dq-mono tabular-nums text-navy">
-                        {fmtInt(
-                          estimatedManagedUnits(
-                            {
-                              houseUrusT12: m.houseUrusT12,
-                              aptUrusT12: m.aptUrusT12,
-                            },
-                            multipliers
-                          )
-                        )}
+                        {fmtInt(m.portfolioPoint)}
                       </span>
                       {m.portfolioLow !== null && m.portfolioHigh !== null && (
                         <div className="dq-mono text-[10.5px] text-muted-foreground tabular-nums">

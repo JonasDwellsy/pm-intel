@@ -69,20 +69,19 @@ test("readout has the four areas with the Operating Performance label", () => {
   assert.equal(op!.label, "good"); // composite primary 68 -> good
 });
 
-test("scaleFit estimate = house/apt turnover (seeded portfolioEstimate ignored), fills readout", () => {
+test("scaleFit reads the single seeded portfolioEstimate point, fills readout", () => {
   const v = buildScorecardView({
     scorecard: scFixture({
-      // Seeded v0.7 estimate is deliberately ignored now — size is computed
-      // read-time from the observed house/apt split.
-      portfolioEstimate: { status: "estimated", point: 999, low: 410, high: 1200, confidence: "Medium" },
-      performance: { domStar: "silver", houseUrusT12: 195, aptUrusT12: 0 },
+      // v0.8: one seeded value (house/apt turnover, computed in seed.ts), read
+      // straight through — point-only, no band/confidence.
+      portfolioEstimate: { status: "estimated", point: 644 },
       coverage: { urusT12: 318, citiesObserved: 3 },
       geographicCoverage: { topCities: [{ name: "Chattanooga", pct: 0.52 }], coverageMapPoints: [] },
       lendingSignals: { geographicConcentration: { top3CityShare: 0.84, cohortMedianTop3: 0.61 } },
     }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01,
   });
-  assert.equal(v.scaleFit.estimate.point, 644); // 195 × 3.3, NOT the seeded 999
+  assert.equal(v.scaleFit.estimate.point, 644);
   assert.equal(v.scaleFit.estimate.confidence, null);
   assert.equal(v.scaleFit.observedUnits, 318);
   assert.equal(v.scaleFit.top3Share, 0.84);
@@ -429,14 +428,14 @@ test("watch items + peers assembled; readout shows non-positive count", () => {
 test("readout[0] Scale & Fit includes type label and market name", () => {
   const v = buildScorecardView({
     scorecard: scFixture({
-      performance: { domStar: "silver", houseUrusT12: 100, aptUrusT12: 0 },
+      portfolioEstimate: { status: "estimated", point: 330 },
     }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
   });
   const row = v.readout.find((r) => r.area === "Scale & Fit")!;
   assert.match(row.value, /SFR Independent/i); // typeLabel from quadrant7Cell
   assert.match(row.value, /Chattanooga/i);      // mktShort from market.name
-  assert.match(row.value, /330/);               // 100 × 3.3 house estimate
+  assert.match(row.value, /330/);               // seeded portfolioEstimate point
 });
 
 test("readout[2] Momentum gives nuanced phrase for growing trajectory", () => {
@@ -606,66 +605,29 @@ test("unit mix null for SFR when house+apt urus total is zero", () => {
   assert.equal(v.scaleFit.unitMix, null);
 });
 
-// --- v0.6.5: estimated managed units (read-time house/apt turnover) ---
+// --- v0.8: estimated managed units read from the single seeded point ---
 
-test("estimate = houseURUs × k_house (default)", () => {
+test("scaleFit reads the seeded portfolioEstimate point (point-only)", () => {
   const v = buildScorecardView({
-    scorecard: scFixture({ performance: { domStar: "silver", houseUrusT12: 100, aptUrusT12: 0 } }),
+    scorecard: scFixture({ portfolioEstimate: { status: "estimated", point: 984 } }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
   });
-  assert.equal(v.scaleFit.estimate.point, 330); // 100 × 3.3
+  assert.equal(v.scaleFit.estimate.point, 984);
   assert.equal(v.scaleFit.estimate.status, "estimated");
+  assert.equal(v.scaleFit.estimate.low, null); // no band under v0.8
+  assert.equal(v.scaleFit.estimate.confidence, null);
   const scaleRow = v.readout.find((r) => r.area === "Scale & Fit")!;
   assert.match(scaleRow.value, /managed units \(est\.\)/i);
 });
 
-test("estimate honors explicit portfolioMultipliers", () => {
-  const v = buildScorecardView({
-    scorecard: scFixture({ performance: { domStar: "silver", houseUrusT12: 100, aptUrusT12: 100 } }),
-    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
-    portfolioMultipliers: { kHouse: 2, kApt: 4 },
-  });
-  assert.equal(v.scaleFit.estimate.point, 600); // 100×2 + 100×4
-});
-
-test("apartment operator uses k_apt (recovers MF safely), point-only", () => {
+test("no seeded point → no estimate point", () => {
   const v = buildScorecardView({
     scorecard: scFixture({
-      pm: { quadrant7Cell: "Large MF/BTR Independent" },
-      performance: { domStar: null, houseUrusT12: 0, aptUrusT12: 3340 },
+      portfolioEstimate: { status: "insufficient_data", point: undefined },
     }),
-    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
-  });
-  assert.equal(v.scaleFit.estimate.point, 8684); // 3340 × 2.6
-  assert.equal(v.scaleFit.estimate.low, null); // no band
-});
-
-test("mixed operator sums house + apt", () => {
-  const v = buildScorecardView({
-    scorecard: scFixture({ performance: { domStar: "silver", houseUrusT12: 179, aptUrusT12: 151 } }),
-    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
-  });
-  assert.equal(v.scaleFit.estimate.point, Math.round(179 * 3.3 + 151 * 2.6)); // 984
-});
-
-test("no observed units → no estimate point", () => {
-  const v = buildScorecardView({
-    scorecard: scFixture({ performance: { domStar: null, houseUrusT12: 0, aptUrusT12: 0 } }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
   });
   assert.equal(v.scaleFit.estimate.point, null);
-});
-
-test("seeded v0.7 portfolioEstimate is ignored (read-time house/apt wins)", () => {
-  const v = buildScorecardView({
-    scorecard: scFixture({
-      performance: { domStar: "silver", houseUrusT12: 100, aptUrusT12: 0 },
-      portfolioEstimate: { status: "estimated", point: 640, low: 400, high: 900, confidence: "High" },
-    }),
-    pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
-  });
-  assert.equal(v.scaleFit.estimate.point, 330); // 100×3.3, NOT the seeded 640
-  assert.equal(v.scaleFit.estimate.confidence, null);
 });
 
 // --- Task 3: cross-market aggregate (footprint sparkline + member markets) ---

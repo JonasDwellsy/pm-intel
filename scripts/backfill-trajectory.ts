@@ -114,10 +114,12 @@ async function main() {
         const slug = pm.slug as string;
         if (!todaySlugs.has(slug)) continue;
         const coverage = (pm.coverage as Record<string, unknown>) ?? {};
-        const q7 = (pm.quadrant7Cell as string | null) ?? null;
+        const performance = (pm.performance as Record<string, unknown>) ?? {};
+        // Historical snapshots use the default multipliers (the admin-tunable
+        // k's apply to the live seed; a re-tune re-aligns on the next backfill).
         const sc = {
           ...pm,
-          portfolioEstimate: estimatePortfolioSize(coverage, q7),
+          portfolioEstimate: estimatePortfolioSize(coverage, performance),
         } as unknown as ScorecardData;
         const stars = extractStarsPerMetric(sc);
         const totals = countStarTotals(stars);
