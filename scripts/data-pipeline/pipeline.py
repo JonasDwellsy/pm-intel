@@ -312,6 +312,29 @@ try:
 except FileNotFoundError:
     _DENYLIST_NORMS = set()
 
+# v0.6.5 — curated operator company-type overrides. Same src/data home as the
+# denylist (single source of truth; the app can surface it read-only later).
+# Forces a named operator to a fixed operatorType, overriding the source
+# company_type majority vote. Motivating case: Real Property Management
+# franchise offices hold brokerage licenses, so the source tags them
+# "Brokerage" and the pipeline would bucket them as brokers (hidden from
+# ranked lists + PM cohort math) even though they are property managers.
+# Matched on normalize_name(display name) rather than a company id, because
+# child ids churn across refreshes while the operator's name is stable.
+_TYPE_OVERRIDES_PATH = os.path.join(
+    _SCRIPT_DIR, "..", "..", "src", "data", "operator_type_overrides.json"
+)
+try:
+    with open(_TYPE_OVERRIDES_PATH) as _f:
+        _type_override_cfg = json.load(_f)
+    _TYPE_OVERRIDE_MAP = {
+        normalize_name(e["normalizedName"]): e["forceType"]
+        for e in _type_override_cfg.get("overrides", [])
+        if e.get("normalizedName") and e.get("forceType")
+    }
+except FileNotFoundError:
+    _TYPE_OVERRIDE_MAP = {}
+
 
 def normalize_pm_name(name):
     if not name:
@@ -1053,7 +1076,17 @@ for norm, feats in pm_features.items():
     feats["quadrant7Cell"] = quadrant_7cell(feats["op_type"], inst)
     # v0.6.4 Patch 9 — company-type bucket (pm|broker). NOTE this is a
     # distinct axis from op_type (SFR/MF-BTR size class) and quadrant7Cell.
-    feats["operator_type"] = classify_operator_type(pm_rich[norm]["type_votes"])
+    # v0.6.5 — a curated override (operator_type_overrides.json), matched on
+    # the normalized display name, wins over the source majority vote so
+    # mis-tagged operators (Real Property Management franchise offices tagged
+    # "Brokerage") land in the right bucket.
+    _disp_norm = normalize_name(pm_display_name.get(norm, norm))
+    _forced_type = _TYPE_OVERRIDE_MAP.get(_disp_norm)
+    feats["operator_type"] = (
+        _forced_type
+        if _forced_type
+        else classify_operator_type(pm_rich[norm]["type_votes"])
+    )
 
 # v0.6.4 Patch 9 — operator-type partition. Every cohort statistic and
 # market-headline count below is PM-only; brokers are scored within their
