@@ -565,11 +565,10 @@ export default async function MethodologyPage() {
                 {" "}<Op>·</Op> if <Op>≤</Op> 0.10 <Op>→</Op> MF/BTR
               </FormulaBlock>
               <p>
-                <strong>Why the Small vs Large MF/BTR split.</strong> Lender
-                and acquirer prospects care about MF/BTR community size as a
-                structural distinction. A 200-unit Class A operator has a
-                different risk profile and different acquisition profile than
-                an operator running 8-unit walk-up small MF. The v0.6.1
+                <strong>Why the Small vs Large MF/BTR split.</strong> MF/BTR
+                community size is a structural distinction. A 200-unit Class A
+                operator has a different risk profile and different operating
+                profile than an operator running 8-unit walk-up small MF. The v0.6.1
                 five-cell taxonomy collapsed these into one MF/BTR bucket;
                 v0.6.2 makes the distinction visible.
               </p>
@@ -1219,7 +1218,7 @@ export default async function MethodologyPage() {
                 it overrides any name-based assignment. It unites a parent&rsquo;s
                 differently-branded entities and keeps same-named-but-
                 differently-owned operators apart, which is exactly the
-                roll-up-acquirer mapping earlier methodology had deferred.
+                roll-up / parent-entity mapping earlier methodology had deferred.
               </p>
               <p>
                 <strong>Curated name mapping is the fallback.</strong> Operators
@@ -1650,8 +1649,8 @@ export default async function MethodologyPage() {
                 </li>
               </ul>
               <p>
-                For lender and acquisition teams who want the original
-                at-a-glance panel, the <strong>PDF export</strong> still renders
+                For anyone who wants the original at-a-glance panel, the{" "}
+                <strong>PDF export</strong> still renders
                 a dedicated three-signal &ldquo;Lending Signals&rdquo; page
                 (Operator Stability, Geographic Concentration, Pricing Tier).
                 None of these feed the composite.
@@ -1925,7 +1924,7 @@ export default async function MethodologyPage() {
                     <td>
                       <strong>Watch List foundation (PR 1 of ~5).</strong> Data
                       layer + filter evaluator + fit-scoring engine + CRUD
-                      API for acquirer-defined target lists. Saved buy
+                      API for user-defined target lists. Saved buy
                       boxes hold three layers of criteria — required
                       (deal-breakers), preferred (weighted preferences
                       that drive a 0-100 fit score), excluded (negative

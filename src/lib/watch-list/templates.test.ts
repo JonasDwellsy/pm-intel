@@ -21,9 +21,9 @@ import {
 const EXPECTED_SLUGS = [
   "scale-density-rollup",
   "integrated-services-platform",
-  // v0.16 — renamed from "mid-market-acquirer" when the acquirer-only
-  // framing was dropped from the templates UI. The slug describes
-  // the operator type the criteria capture, not the user's role.
+  // v0.16 — renamed from a buyer-role slug when the role-based framing
+  // was dropped from the templates UI. The slug describes the operator
+  // type the criteria capture, not the user's role.
   "mid-market-independent",
   "distressed-operator",
   "institutional-platform",

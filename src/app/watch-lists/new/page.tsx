@@ -6,7 +6,7 @@ import { getTemplateBySlug } from "@/lib/watch-list/templates";
 
 // /watch-lists/new
 //
-// v0.10 — Default is the template picker (5 acquisition-thesis
+// v0.10 — Default is the template picker (5 named-thesis
 // templates + "Start from Scratch"). Each picker card navigates
 // back to this same route with ?template=<slug>; the page reads
 // the param and either:

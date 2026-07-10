@@ -3,7 +3,7 @@
 // The per-market scorecard has OperatorTrajectorySection (single
 // operator). This is its aggregate sibling: it rolls the operator's
 // member markets up per quarter — total estimated portfolio (summed) and
-// footprint (markets present) over time — so an acquirer sees whether the
+// footprint (markets present) over time — so a reader sees whether the
 // operator is both growing and expanding. Reuses the shared pure helpers
 // (summarizeTrajectory / buildSparkline) so it stays consistent with the
 // per-market view.
