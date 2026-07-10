@@ -10,11 +10,11 @@
 
 // v0.6.3 polish — the operator badge + coverage-map dot colors still key
 // off the v0.6.1 5-cell quadrant string (which every PM carries via
-// pm.quadrant). The MARKET-LEVEL QuadrantSummaryCard, however, moved to
-// the v0.6.2 7-cell taxonomy and renders via quadrant7-colors.ts. The
+// pm.quadrant). The MARKET-LEVEL Operator landscape section, however, moved
+// to the v0.6.2 7-cell taxonomy and colors via quadrant7-colors.ts. The
 // SEGMENT_TO_COLOR / colorKeyToSegment plumbing that used to bridge color
 // keys → URL segment slugs was removed because URL segments are now 7-cell
-// and the new QuadrantSummaryCard handles its own segment lookup.
+// and the MarketCompositionStrip handles its own segment lookup.
 
 export type QuadrantColorKey =
   | "mfbtr-inst"

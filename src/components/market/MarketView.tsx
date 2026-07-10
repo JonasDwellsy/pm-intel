@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { MarketHero } from "./MarketHero";
-import { QuadrantSummaryCard } from "./QuadrantSummaryCard";
+import {
+  MarketCompositionStrip,
+  type LandscapeStandout,
+} from "./MarketCompositionStrip";
 import { FilterChips } from "./FilterChips";
 import { RankedOperatorList } from "./RankedOperatorList";
 import { BrokerToggleSection } from "./BrokerToggleSection";
@@ -212,6 +215,7 @@ export function MarketView({
     market,
     methodologyVersion,
     dataAsOf,
+    allPms,
     filteredPms,
     brokerPms,
     countsBySegment,
@@ -222,6 +226,21 @@ export function MarketView({
   } = view;
 
   const marketHref = `/property-managers/${stateSlug}/${citySlug}`;
+
+  // Market standouts for the Operator landscape section — the top-starred
+  // operators market-wide (allPms is already gold-then-silver ordered), not
+  // the segment-filtered list. Only operators with at least one star qualify;
+  // capped at 3. Empty on thin markets → the standouts block self-hides.
+  const standouts: LandscapeStandout[] = allPms
+    .filter((p) => (p.goldCount ?? 0) + (p.silverCount ?? 0) > 0)
+    .slice(0, 3)
+    .map((p) => ({
+      slug: p.slug,
+      name: p.name,
+      quadrant7Cell: p.quadrant7Cell,
+      goldCount: p.goldCount ?? 0,
+      silverCount: p.silverCount ?? 0,
+    }));
 
   return (
     <>
@@ -282,8 +301,9 @@ export function MarketView({
               })}
             </p>
           </header>
-          <QuadrantSummaryCard
+          <MarketCompositionStrip
             summary={market.quadrant7CellSummary ?? {}}
+            standouts={standouts}
             marketHref={marketHref}
           />
         </div>

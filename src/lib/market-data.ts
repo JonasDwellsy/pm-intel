@@ -143,7 +143,7 @@ export async function loadMarketView({
   // from the PMs themselves. Single source of truth; works for both
   // populated and empty seed cases. v0.6.3 polish adds the 7-cell summary
   // with the same shape (count + median DOM + median rent-vs-comp); the
-  // 7-cell variant is what the redesigned QuadrantSummaryCard renders.
+  // 7-cell variant feeds the Operator landscape MarketCompositionStrip.
   const quadrantSummary = deriveQuadrantSummary(allPms);
   const quadrant7CellSummary = deriveQuadrant7CellSummary(allPms);
 
