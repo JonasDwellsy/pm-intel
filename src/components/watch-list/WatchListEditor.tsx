@@ -767,8 +767,17 @@ function Section({
         <div>
           <div className="flex items-center gap-2">
             <span className={`inline-block size-2 rounded-full ${dotColor}`} />
-            <h2 className={`dq-eyebrow ${eyebrowColor}`}>{title}</h2>
-            <span className="dq-mono text-[11px] text-muted-foreground">
+            {/* Inline eyebrow: replicate .dq-eyebrow WITHOUT its stacked
+                margin-bottom (unlayered → a Tailwind mb-0 here is a no-op),
+                which otherwise skews items-center and drops the dot + count
+                below the label. leading-none on both text items keeps them
+                aligned with the dot. */}
+            <h2
+              className={`text-[11px] font-bold uppercase leading-none tracking-[0.14em] ${eyebrowColor}`}
+            >
+              {title}
+            </h2>
+            <span className="dq-mono text-[11px] leading-none text-muted-foreground">
               ({count})
             </span>
           </div>
