@@ -1,6 +1,6 @@
 {
   "_comment": "Registry of v0.6.4 markets. To add a new market, append an entry below and run `python pipeline.py --market <id>`. See README.md for the full add-a-market runbook. Methodology constants (eligibility thresholds, institutional cutoff) live in pipeline.py \u2014 vary them only as a methodology version bump.",
-  "methodologyVersion": "v0.6.4",
+  "methodologyVersion": "v0.7",
   "nationalLookup": "Operator_National_Urus_v0.6.2.json",
   "markets": [
     {

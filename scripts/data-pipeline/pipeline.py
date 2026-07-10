@@ -1350,9 +1350,15 @@ MANAGES_PATTERN = re.compile(r"\bmanages\s+\d", re.IGNORECASE)
 OPERATES_PATTERN = re.compile(r"\boperates\s+\d", re.IGNORECASE)
 
 
-def operator_dignity_check(text):
+def operator_dignity_check(text, name=None):
     found = []
     lower = (text or "").lower()
+    # The operator's own name is a proper noun, not evaluative language — strip
+    # it before scanning so a real name like "Strong Tower Management" or
+    # "Strong Management" doesn't trip the "strong" token (substring matching is
+    # intentional for the prose itself).
+    if name:
+        lower = lower.replace(name.lower(), " ")
     for tok in FORBIDDEN_TOKENS:
         if tok in lower: found.append(tok)
     if MANAGES_PATTERN.search(text or ""): found.append("manages <N>")
@@ -1809,11 +1815,11 @@ for norm in sorted(eligible_norms):
     map_narrative = build_map_narrative(norm, q7, feats)
 
     for label, txt in (("executiveSummary", exec_summary), ("mapNarrativeAnnotation", map_narrative)):
-        fails = operator_dignity_check(txt)
+        fails = operator_dignity_check(txt, name)
         if fails:
             validation_failures.append({"pm": name, "field": label, "tokens": fails, "text": txt})
     for i, b in enumerate(distinguishing):
-        fails = operator_dignity_check(b)
+        fails = operator_dignity_check(b, name)
         if fails:
             validation_failures.append({"pm": name, "field": f"distinguishingCharacteristics[{i}]", "tokens": fails, "text": b})
 
