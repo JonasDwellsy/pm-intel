@@ -132,13 +132,10 @@ function buildPortfolioBand(
       typeof portfolio.low === "number" && typeof portfolio.high === "number"
         ? `${fmtInt(portfolio.low)}–${fmtInt(portfolio.high)} units`
         : null;
-    const confidence = portfolio.confidence
-      ? `${portfolio.confidence} confidence`
-      : "Point estimate";
     return {
       point: fmtInt(portfolio.point),
       range,
-      caveat: confidence,
+      caveat: range ? "Estimated range" : "Point estimate",
     };
   }
   return {

@@ -175,7 +175,6 @@ const FIXTURE_SCORECARD: ScorecardData = {
     point: 644,
     low: 410,
     high: 870,
-    confidence: "Medium",
   },
   concessionRate: 0.04,
   concessionListingCount: 25,
@@ -199,7 +198,7 @@ const FIXTURE_VIEW: ScorecardView = {
   readout: [
     {
       area: "Scale & Fit",
-      value: "~644 est. units · Medium confidence",
+      value: "~644 est. units · range 410–870",
     },
     {
       area: "Operating Performance",
@@ -223,7 +222,6 @@ const FIXTURE_VIEW: ScorecardView = {
       point: 644,
       low: 410,
       high: 870,
-      confidence: "Medium",
       status: "estimated",
       message: null,
     },
@@ -363,7 +361,7 @@ const FIXTURE_VIEW: ScorecardView = {
       kind: "data",
       headline: "Portfolio estimate is model-derived",
       explanation:
-        "The 644-unit estimate carries medium confidence. Direct disclosure of total units would sharpen this figure.",
+        "The 644-unit estimate (range 410–870) is derived from observed turnover. Direct disclosure of total units would sharpen this figure.",
     },
     {
       kind: "positive",

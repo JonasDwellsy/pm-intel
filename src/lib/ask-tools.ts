@@ -357,8 +357,6 @@ export type GetOperatorScorecardResult = {
     low: number | null;
     high: number | null;
     cohort: string | null;
-    cohortN: number | null;
-    confidence: "Low" | "Medium" | "High" | null;
     message: string | null;
   } | null;
 };
@@ -454,8 +452,6 @@ export async function getOperatorScorecard(
           low: sc.portfolioEstimate.low ?? null,
           high: sc.portfolioEstimate.high ?? null,
           cohort: sc.portfolioEstimate.cohort ?? null,
-          cohortN: sc.portfolioEstimate.cohortN ?? null,
-          confidence: sc.portfolioEstimate.confidence ?? null,
           message: sc.portfolioEstimate.message ?? null,
         }
       : null,

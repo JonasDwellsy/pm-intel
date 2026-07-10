@@ -16,7 +16,7 @@ interface PortfolioRangeBarProps {
  *  - Shows estimate.status message when point is null.
  */
 export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBarProps) {
-  const { point, low, high, confidence, status, message } = estimate;
+  const { point, low, high, status, message } = estimate;
   const hasBand = low != null && high != null;
 
   // We need a reference scale to convert unit counts to track positions.
@@ -82,7 +82,7 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
         marginBottom: "14px",
       }}
     >
-      {/* Header row: label + confidence chip */}
+      {/* Header row: label */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <span
           style={{
@@ -95,20 +95,6 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
         >
           Portfolio size
         </span>
-        {confidence != null && (
-          <span
-            style={{
-              fontSize: "10.5px",
-              fontWeight: 700,
-              padding: "2px 8px",
-              borderRadius: "5px",
-              background: "#eef0f4",
-              color: "#5b6577",
-            }}
-          >
-            {confidence} confidence
-          </span>
-        )}
       </div>
 
       {/* The track */}

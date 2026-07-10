@@ -45,7 +45,7 @@ export interface ReadoutRow {
 export interface ScaleFitView {
   takeaway: string;
   observedUnits: number | null;
-  estimate: { point: number | null; low: number | null; high: number | null; confidence: string | null; status: string; message: string | null };
+  estimate: { point: number | null; low: number | null; high: number | null; status: string; message: string | null };
   topCities: Array<{ name: string; pct: number }>;
   top3Share: number | null;
   cohortTop3: number | null;
@@ -382,11 +382,10 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
           point: pe.point,
           low: sizeBand ? Math.min(sizeBand.low, pe.point) : null,
           high: sizeBand ? Math.max(sizeBand.high, pe.point) : null,
-          confidence: null,
           status: pe.status ?? "estimated", message: pe.message ?? null,
         }
       : {
-          point: null, low: null, high: null, confidence: null,
+          point: null, low: null, high: null,
           status: pe?.status ?? "insufficient_data",
           message: pe?.message ?? "Not enough observed units to estimate portfolio size.",
         };
