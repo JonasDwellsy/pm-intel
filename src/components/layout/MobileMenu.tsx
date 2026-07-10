@@ -34,7 +34,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
+import { OrganizationSwitcher, UserButton, SignInButton } from "@clerk/nextjs";
 import { NAV_ITEMS } from "@/lib/nav";
 
 export function MobileMenu({ isSignedIn }: { isSignedIn: boolean }) {
@@ -120,13 +120,15 @@ export function MobileMenu({ isSignedIn }: { isSignedIn: boolean }) {
                   popovers/dropdowns so they coexist with our
                   drawer's open state without conflict. */}
               {!isSignedIn ? (
-                <Link
-                  href="/sign-in"
-                  onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 rounded-md px-3 py-3 text-[15px] font-medium text-navy transition-colors hover:bg-surface-soft"
-                >
-                  Sign in
-                </Link>
+                <SignInButton mode="modal">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-3 text-left text-[15px] font-medium text-navy transition-colors hover:bg-surface-soft"
+                  >
+                    Sign in
+                  </button>
+                </SignInButton>
               ) : (
                 <div className="flex flex-col gap-3 px-3 py-2">
                   <OrganizationSwitcher
