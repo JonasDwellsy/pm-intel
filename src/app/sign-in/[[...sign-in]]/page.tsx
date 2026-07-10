@@ -42,7 +42,51 @@ const clerkAppearance = {
   },
 } as const;
 
-export default function SignInPage() {
+// Contextual heading based on where the middleware bounced the visitor FROM
+// (Clerk preserves it as ?redirect_url). Turns a generic "Sign in" dead-end
+// into "sign in to see the specific thing you clicked", and Clerk still routes
+// them back there after auth. Order matters: /brief is a 4-segment path that
+// also matches the scorecard pattern, so test it first.
+function signInContext(redirectUrl: string | undefined): {
+  title: string;
+  sub: string;
+} {
+  const url = redirectUrl ?? "";
+  if (/\/property-managers\/[^/]+\/[^/]+\/brief/.test(url))
+    return {
+      title: "Sign in to read this brief",
+      sub: "Market briefs are available to signed-in members.",
+    };
+  if (/\/property-managers\/[^/]+\/[^/]+\/[^/]+/.test(url))
+    return {
+      title: "Sign in to view this scorecard",
+      sub: "Full operator scorecards are available to signed-in members.",
+    };
+  if (url.includes("/operators/"))
+    return {
+      title: "Sign in to view this operator",
+      sub: "Operator profiles are available to signed-in members.",
+    };
+  if (url.includes("/ask"))
+    return {
+      title: "Sign in to use Ask Dwellsy IQ",
+      sub: "The AI research tool is available to signed-in members.",
+    };
+  if (url.includes("/watch-lists"))
+    return {
+      title: "Sign in to open your watch lists",
+      sub: "Your saved watch lists are waiting.",
+    };
+  return { title: "Sign in", sub: "Welcome back — continue to Operator IQ." };
+}
+
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirect_url?: string }>;
+}) {
+  const { redirect_url } = await searchParams;
+  const ctx = signInContext(redirect_url);
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-soft px-6 py-12">
       <div className="flex w-full max-w-[400px] flex-col items-center gap-7">
@@ -69,11 +113,9 @@ export default function SignInPage() {
             "Sign in to Operator IQ from Dwellsy IQ" title. */}
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-[22px] font-semibold tracking-[-0.01em] text-navy">
-            Sign in
+            {ctx.title}
           </h1>
-          <p className="text-[14px] text-muted-foreground">
-            Welcome back — continue to Operator IQ.
-          </p>
+          <p className="text-[14px] text-muted-foreground">{ctx.sub}</p>
         </div>
         <SignIn
           fallbackRedirectUrl="/watch-lists"
