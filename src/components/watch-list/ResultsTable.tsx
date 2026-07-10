@@ -73,6 +73,12 @@ interface ColumnDef {
   sortKey: string | null;
   /** Right-aligned (numeric / score). */
   alignRight?: boolean;
+  /** CSS class that freezes this column during horizontal scroll
+   *  (wl-col-rank / wl-col-name — see globals.css). */
+  stickyClass?: string;
+  /** Fixed column width in px. Required on sticky columns so the
+   *  `left` offsets in globals.css line up. */
+  width?: number;
   render: (row: ResultRowVM) => React.ReactNode;
 }
 
@@ -156,11 +162,45 @@ export function ResultsTable({
     setPage(0);
   }
 
+  // Horizontal-scroll plumbing: a synced scrollbar strip ABOVE the table so
+  // the wide metric grid can be scrolled right without hunting for the
+  // scrollbar at the bottom of a tall table. topScrollRef ↔ bodyScrollRef
+  // mirror each other's scrollLeft; scrollW sizes the top strip's spacer to
+  // the table's full width so its scrollbar tracks the body's.
+  const bodyScrollRef = React.useRef<HTMLDivElement>(null);
+  const topScrollRef = React.useRef<HTMLDivElement>(null);
+  const [scrollW, setScrollW] = React.useState(0);
+  React.useEffect(() => {
+    const el = bodyScrollRef.current;
+    if (!el) return;
+    const measure = () => setScrollW(el.scrollWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [visible, columns, view]);
+  function syncScroll(from: "top" | "body") {
+    const top = topScrollRef.current;
+    const body = bodyScrollRef.current;
+    if (!top || !body) return;
+    if (from === "top") body.scrollLeft = top.scrollLeft;
+    else top.scrollLeft = body.scrollLeft;
+  }
+
   return (
     <div className="mt-6">
-      {/* Toggle */}
-      <div className="flex items-center justify-between">
-        <ViewToggle value={view} onChange={changeView} />
+      {/* Toggle + a caption that spells out what each view does (the
+          operator↔market difference is otherwise easy to miss when most
+          operators are single-market). */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <ViewToggle value={view} onChange={changeView} />
+          <span className="text-[12px] text-muted-foreground">
+            {view === "operator"
+              ? "One row per operator — multi-market operators rolled up."
+              : "One row per operator × market — multi-market operators split out."}
+          </span>
+        </div>
         <span className="text-[12px] text-muted-foreground">
           {view === "operator"
             ? `${operatorRows.length} operator${operatorRows.length === 1 ? "" : "s"}`
@@ -168,7 +208,22 @@ export function ResultsTable({
         </span>
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-grid bg-white">
+      {/* Top horizontal scrollbar, synced with the table body so the wide
+          grid is scrollable from the top of a tall table. */}
+      <div
+        ref={topScrollRef}
+        onScroll={() => syncScroll("top")}
+        className="mt-4 overflow-x-auto"
+        aria-hidden
+      >
+        <div style={{ width: scrollW, height: 1 }} />
+      </div>
+
+      <div
+        ref={bodyScrollRef}
+        onScroll={() => syncScroll("body")}
+        className="mt-1 overflow-x-auto rounded-lg border border-grid bg-white"
+      >
         <table className="dq-table w-full min-w-[1100px]">
           <thead>
             <tr>
@@ -189,7 +244,16 @@ export function ResultsTable({
                 {columns.map((col) => (
                   <td
                     key={col.id}
-                    className={col.alignRight ? "text-right" : undefined}
+                    className={
+                      [col.alignRight ? "text-right" : "", col.stickyClass ?? ""]
+                        .filter(Boolean)
+                        .join(" ") || undefined
+                    }
+                    style={
+                      col.width
+                        ? { width: col.width, minWidth: col.width }
+                        : undefined
+                    }
                   >
                     {col.render(row)}
                   </td>
@@ -297,6 +361,8 @@ function buildColumns({
       tooltip: "Rank within the watch list. 1 = highest fit score.",
       sortKey: "rank",
       alignRight: true,
+      stickyClass: "wl-col-rank",
+      width: 60,
       render: (row) => (
         <span className="dq-mono text-muted-foreground tabular-nums">
           {row.rank}
@@ -308,6 +374,8 @@ function buildColumns({
       label: "Operator",
       fieldId: "name",
       sortKey: "name",
+      stickyClass: "wl-col-name",
+      width: 240,
       render: (row) => (
         <div>
           <div className="font-semibold text-navy">{row.name}</div>
@@ -612,7 +680,12 @@ function SortableTh({
       aria-sort={
         active ? (sortDir === "asc" ? "ascending" : "descending") : "none"
       }
-      className={col.alignRight ? "text-right" : undefined}
+      className={
+        [col.alignRight ? "text-right" : "", col.stickyClass ?? ""]
+          .filter(Boolean)
+          .join(" ") || undefined
+      }
+      style={col.width ? { width: col.width, minWidth: col.width } : undefined}
     >
       <span className="inline-flex items-center gap-1.5">
         {sortable ? (
