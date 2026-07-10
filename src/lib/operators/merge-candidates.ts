@@ -96,16 +96,6 @@ function distinctiveCore(core: Set<string>): boolean {
   return false;
 }
 
-/** Cleanest display name: most word boundaries, then longest — mirrors the
- *  pipeline's display-variant picker (prefers "Equity Team" over
- *  "Equityteam"). */
-function pickCanonical(names: string[]): string {
-  return [...names].sort((a, b) => {
-    const boundaries = b.split(/\s+/).length - a.split(/\s+/).length;
-    return boundaries !== 0 ? boundaries : b.length - a.length;
-  })[0];
-}
-
 export function findMergeCandidates(
   ops: MergeOperator[],
   decidedKeys: Set<string> = new Set()
@@ -191,7 +181,13 @@ export function findMergeCandidates(
     clusters.push({
       clusterKey,
       tier,
-      canonicalNameSuggestion: pickCanonical(members.map((m) => m.name)),
+      // Default the canonical name to the SURVIVOR's name (the largest record
+      // by T12 listings, sorted[0]) so it matches the default survivor radio.
+      // Previously this ran a "cleanest name" heuristic that preferred the
+      // most-words / longest name — often a smaller record's fuller name
+      // (e.g. "Michigan Management Specialist" over the larger "Michigan
+      // Management"), forcing a manual edit on nearly every merge.
+      canonicalNameSuggestion: sorted[0].name,
       survivorSlugSuggestion: sorted[0].slug,
       members: sorted,
       combinedListings,
