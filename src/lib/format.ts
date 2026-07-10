@@ -11,6 +11,20 @@ export function fmtInt(n: number | null | undefined): string {
   return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 
+/** Round an estimated portfolio-size figure for display: to the nearest 5
+ *  below 100, and the nearest 10 at/above 100. Portfolio size is an estimate,
+ *  not an exact count — rounding keeps small operators legible while signalling
+ *  that larger figures aren't precise. Pass-through for null/undefined and
+ *  non-finite input. Apply at every surface that shows a portfolio-size figure
+ *  so the number is consistent site-wide. */
+export function roundPortfolioUnits(
+  n: number | null | undefined
+): number | null {
+  if (n === null || n === undefined || !Number.isFinite(n)) return null;
+  const step = Math.abs(n) < 100 ? 5 : 10;
+  return Math.round(n / step) * step;
+}
+
 export function fmtPct(n: number | null | undefined, digits = 1, signed = false): string {
   if (n === null || n === undefined) return "—";
   const v = n.toFixed(digits);

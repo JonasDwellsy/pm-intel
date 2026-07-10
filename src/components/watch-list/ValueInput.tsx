@@ -297,6 +297,16 @@ function EnumChipsValue({
       : []
   );
 
+  // Long option lists (markets — 34 and growing) get a type-to-filter
+  // box plus bulk controls so the picker stays navigable. Short enum
+  // lists keep the bare chip wall.
+  const [query, setQuery] = React.useState("");
+  const searchable = dynamicOptions === "markets" || opts.length > 12;
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? opts.filter((o) => o.label.toLowerCase().includes(q))
+    : opts;
+
   function toggle(id: string) {
     if (allowMulti) {
       const next = new Set(selected);
@@ -308,31 +318,77 @@ function EnumChipsValue({
     }
   }
 
+  function selectVisible() {
+    const next = new Set(selected);
+    for (const o of visible) next.add(o.id);
+    onChange(Array.from(next) as FilterValue);
+  }
+
+  function clearAll() {
+    onChange([] as unknown as FilterValue);
+  }
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {opts.map((opt) => {
-        const active = selected.has(opt.id);
-        return (
-          <button
-            key={opt.id}
-            type="button"
-            onClick={() => toggle(opt.id)}
-            className={
-              "rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors " +
-              (active
-                ? "border-navy bg-navy text-white"
-                : "border-grid bg-white text-navy hover:border-navy/60")
+    <div>
+      {searchable && (
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={
+              dynamicOptions === "markets" ? "Search markets…" : "Search…"
             }
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-      {opts.length === 0 && (
-        <span className="text-[12px] text-muted-foreground italic">
-          No options available
-        </span>
+            className="h-8 w-full max-w-[220px] rounded-md border border-grid bg-white px-3 text-[12.5px] text-navy outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
+          />
+          {allowMulti && (
+            <>
+              <button
+                type="button"
+                onClick={selectVisible}
+                className="h-8 rounded-md border border-grid bg-white px-2.5 text-[12px] font-medium text-teal hover:border-teal hover:bg-teal-soft"
+              >
+                {q ? `Select ${visible.length}` : "Select all"}
+              </button>
+              <button
+                type="button"
+                onClick={clearAll}
+                className="h-8 rounded-md border border-grid bg-white px-2.5 text-[12px] font-medium text-muted-foreground hover:border-navy/60 hover:text-navy"
+              >
+                Clear
+              </button>
+              <span className="dq-mono text-[11.5px] text-muted-foreground">
+                {selected.size} selected
+              </span>
+            </>
+          )}
+        </div>
       )}
+      <div className="flex flex-wrap gap-1.5">
+        {visible.map((opt) => {
+          const active = selected.has(opt.id);
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => toggle(opt.id)}
+              className={
+                "rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors " +
+                (active
+                  ? "border-navy bg-navy text-white"
+                  : "border-grid bg-white text-navy hover:border-navy/60")
+              }
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+        {visible.length === 0 && (
+          <span className="text-[12px] text-muted-foreground italic">
+            {opts.length === 0 ? "No options available" : "No matches"}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

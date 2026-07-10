@@ -410,8 +410,8 @@ export function WatchListEditor({
         {/* REQUIRED — hard filter, red */}
         <Section
           title="Required"
-          eyebrowColor="text-bad"
-          dotColor="bg-bad"
+          badgeClass="bg-bad/10 text-bad"
+          accentClass="border-l-bad"
           description="Hard filters. Operators that miss any required criterion are excluded entirely."
           onAdd={addRequired}
           count={required.length}
@@ -434,8 +434,8 @@ export function WatchListEditor({
         {/* PREFERRED — weighted, gold */}
         <Section
           title="Preferred"
-          eyebrowColor="text-orange-700"
-          dotColor="bg-orange"
+          badgeClass="bg-orange-soft text-orange-700"
+          accentClass="border-l-orange"
           description="Weighted preferences. Each contributes to the 0–100 fit score; weights normalize automatically."
           onAdd={addPreferred}
           count={preferred.length}
@@ -460,8 +460,8 @@ export function WatchListEditor({
         {/* EXCLUDED — veto, gray */}
         <Section
           title="Excluded"
-          eyebrowColor="text-muted-foreground"
-          dotColor="bg-muted-2"
+          badgeClass="bg-muted text-muted-foreground"
+          accentClass="border-l-muted-2"
           description="Veto rules. Any match here removes the operator entirely, regardless of fit elsewhere."
           onAdd={addExcluded}
           count={excluded.length}
@@ -746,42 +746,44 @@ function CheckIcon() {
 
 function Section({
   title,
-  eyebrowColor,
-  dotColor,
+  badgeClass,
+  accentClass,
   description,
   onAdd,
   count,
   children,
 }: {
   title: string;
-  eyebrowColor: string;
-  dotColor: string;
+  /** Tinted background + text color for the tier badge. */
+  badgeClass: string;
+  /** Left-edge accent border color for the section card. */
+  accentClass: string;
   description: string;
   onAdd: () => void;
   count: number;
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-8 rounded-lg border border-grid bg-white p-5">
+    <section
+      className={`mt-8 rounded-lg border border-grid border-l-4 ${accentClass} bg-white p-5`}
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className={`inline-block size-2 rounded-full ${dotColor}`} />
-            {/* Inline eyebrow: replicate .dq-eyebrow WITHOUT its stacked
-                margin-bottom (unlayered → a Tailwind mb-0 here is a no-op),
-                which otherwise skews items-center and drops the dot + count
-                below the label. leading-none on both text items keeps them
-                aligned with the dot. */}
-            <h2
-              className={`text-[11px] font-bold uppercase leading-none tracking-[0.14em] ${eyebrowColor}`}
+          <div className="flex items-center gap-2.5">
+            {/* Tier badge — a tinted, bordered pill reads far more
+                distinctly than the old 2px dot + faint label, so the
+                Required / Preferred / Excluded roles are legible at a
+                glance. leading-none keeps the count aligned with it. */}
+            <span
+              className={`inline-flex items-center rounded-md px-2.5 py-1 text-[11.5px] font-bold uppercase leading-none tracking-[0.12em] ${badgeClass}`}
             >
               {title}
-            </h2>
+            </span>
             <span className="dq-mono text-[11px] leading-none text-muted-foreground">
-              ({count})
+              {count} {count === 1 ? "criterion" : "criteria"}
             </span>
           </div>
-          <p className="mt-2 max-w-[60ch] text-[13px] text-foreground/70">
+          <p className="mt-2.5 max-w-[60ch] text-[13px] text-foreground/70">
             {description}
           </p>
         </div>

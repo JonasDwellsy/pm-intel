@@ -20,6 +20,7 @@ import { buildLendingSignals } from "@/lib/lending-signals";
 import { estimatedManagedUnitsBand } from "@/lib/operator-size";
 import type { PoolPm } from "@/lib/msa-pool";
 import { buildConcessionContext, uniquePatternLabels, formatConcessionSample } from "@/lib/concession-context";
+import { roundPortfolioUnits } from "@/lib/format";
 import {
   concessionDetail,
   type MetricTone,
@@ -379,9 +380,10 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const estimate: ScaleFitView["estimate"] =
     pe?.point != null
       ? {
-          point: pe.point,
-          low: sizeBand ? Math.min(sizeBand.low, pe.point) : null,
-          high: sizeBand ? Math.max(sizeBand.high, pe.point) : null,
+          // Round for display — portfolio size is an estimate, not a count.
+          point: roundPortfolioUnits(pe.point),
+          low: sizeBand ? roundPortfolioUnits(Math.min(sizeBand.low, pe.point)) : null,
+          high: sizeBand ? roundPortfolioUnits(Math.max(sizeBand.high, pe.point)) : null,
           status: pe.status ?? "estimated", message: pe.message ?? null,
         }
       : {

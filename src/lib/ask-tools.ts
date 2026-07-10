@@ -21,6 +21,7 @@ import { searchPMs } from "@/lib/pm-search";
 import { loadOperatorView } from "@/lib/operator-data";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
+import { roundPortfolioUnits } from "@/lib/format";
 import {
   ALL_MARKETS,
   isMarketEntitled,
@@ -448,9 +449,11 @@ export async function getOperatorScorecard(
     portfolioEstimate: sc.portfolioEstimate
       ? {
           status: sc.portfolioEstimate.status,
-          point: sc.portfolioEstimate.point ?? null,
-          low: sc.portfolioEstimate.low ?? null,
-          high: sc.portfolioEstimate.high ?? null,
+          // Rounded (nearest 5/10) to match every displayed surface, so the
+          // assistant never cites a more precise figure than the UI shows.
+          point: roundPortfolioUnits(sc.portfolioEstimate.point),
+          low: roundPortfolioUnits(sc.portfolioEstimate.low),
+          high: roundPortfolioUnits(sc.portfolioEstimate.high),
           cohort: sc.portfolioEstimate.cohort ?? null,
           message: sc.portfolioEstimate.message ?? null,
         }

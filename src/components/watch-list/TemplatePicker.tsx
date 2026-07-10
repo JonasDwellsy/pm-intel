@@ -23,7 +23,7 @@ export function TemplatePicker() {
 
         <header className="mt-4 max-w-[68ch]">
           <p className="dq-eyebrow tracking-[0.14em] text-[11px]">
-            Watch List · v0.10 templates
+            Watch List
           </p>
           <h1 className="mt-2 text-[30px] font-semibold leading-[1.15] tracking-[-0.012em] text-navy sm:text-[36px]">
             Start a new watch list

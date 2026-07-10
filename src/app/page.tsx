@@ -13,12 +13,10 @@ import {
   type MetricCell,
   type PortfolioBand,
 } from "@/components/homepage/SampleScorecards";
-import { OperatorCTA } from "@/components/homepage/OperatorCTA";
-import { InstitutionCTA } from "@/components/homepage/InstitutionCTA";
 import { MethodologyFooter } from "@/components/homepage/MethodologyFooter";
 import { countOperatorStars } from "@/lib/operators/stars";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
-import { fmtInt, fmtNumber, fmtPct } from "@/lib/format";
+import { fmtInt, fmtNumber, fmtPct, roundPortfolioUnits } from "@/lib/format";
 import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
 import { marketingDataSuppressed } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
@@ -27,11 +25,11 @@ import type { ScorecardData } from "@/lib/types";
 export const metadata: Metadata = {
   title: "Dwellsy IQ — Property Manager Intelligence",
   description:
-    "Outside-in scorecards on every property manager in the country. Portfolio scale, operator type, operating signals, market footprint. Built for institutional acquisition diligence.",
+    "Outside-in scorecards on property managers nationwide — covering over 20,000 property managers. Portfolio scale, operator type, operating signals, and market footprint, every figure observed and reproducible.",
   openGraph: {
     title: "Dwellsy IQ — Property Manager Intelligence",
     description:
-      "Outside-in scorecards on property managers. Portfolio scale, operator type, operating signals, market footprint. Built for institutional acquisition diligence.",
+      "Outside-in scorecards on property managers nationwide — covering over 20,000 property managers. Portfolio scale, operator type, operating signals, and market footprint, every figure observed and reproducible.",
     type: "website",
   },
 };
@@ -130,10 +128,10 @@ function buildPortfolioBand(
   ) {
     const range =
       typeof portfolio.low === "number" && typeof portfolio.high === "number"
-        ? `${fmtInt(portfolio.low)}–${fmtInt(portfolio.high)} units`
+        ? `${fmtInt(roundPortfolioUnits(portfolio.low))}–${fmtInt(roundPortfolioUnits(portfolio.high))} units`
         : null;
     return {
-      point: fmtInt(portfolio.point),
+      point: fmtInt(roundPortfolioUnits(portfolio.point)),
       range,
       caveat: range ? "Estimated range" : "Point estimate",
     };
@@ -381,13 +379,6 @@ export default async function HomePage() {
       m.pms[0]?.dataAsOf.toISOString().split("T")[0] ?? "2026-05-17",
   }));
 
-  // Sample slug for the operator-claim callout (first live PM).
-  const samplePm = await prisma.pM.findFirst({
-    where: { rankOverall: 1 },
-    select: { slug: true },
-  });
-  const claimSlug = samplePm?.slug ?? "brookside-properties-chattanooga-tn";
-
   const dataAsOf = liveMarkets[0]?.dataAsOf ?? "2026-05-17";
   const [sampleCards, heroCard] = await Promise.all([
     loadSampleCards(),
@@ -404,8 +395,6 @@ export default async function HomePage() {
       <MethodologyPillars />
       <CoveredMarkets markets={liveMarkets} />
       <SampleScorecards cards={sampleCards} />
-      <OperatorCTA samplePmSlug={claimSlug} />
-      <InstitutionCTA />
       <MethodologyFooter
         version={METHODOLOGY_VERSION.replace(/^v/, "")}
         designVersion={DESIGN_VERSION}

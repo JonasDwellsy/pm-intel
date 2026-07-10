@@ -8,7 +8,7 @@ import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
 // (Doorby Property Management in Chattanooga) instead of the v0.12
 // operator-type quadrant SVG. The quadrant chart was the right
 // messaging hook when the methodology page focused on classification;
-// now that the audience is acquirers, leading with a concrete
+// now that the homepage leads with the product itself, a concrete
 // "this is what one of our scorecards looks like" card lands closer
 // to the discovery path the rest of the homepage rewards. The card
 // renders via the shared ScorecardCard component so the styling
@@ -43,18 +43,18 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
               now keeps the markup honest about where the spacing
               comes from. */}
           <h1 className="dq-h1 max-w-[14ch] text-balance text-[44px] leading-[1.04] tracking-[-0.018em] sm:text-[52px] lg:text-[60px]">
-            Outside-in intelligence on every property manager in the country.
+            Outside-in intelligence on property managers nationwide.
           </h1>
           <p className="mt-6 max-w-[60ch] text-[17px] leading-[1.55] text-foreground/85 sm:text-[19px]">
             Methodology-driven scorecards on portfolio scale, operator type,
-            operating signals, and market footprint. Built for institutional
-            acquisition diligence — not promotional comparison.
+            operating signals, and market footprint — covering over 20,000
+            property managers. Every figure is observed and reproducible, not
+            self-reported.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            {/* Primary CTA — acquirer positioning. Sends visitors
-                straight into the template picker so they can clone a
-                named acquisition thesis with one click. No auth gate
-                until save. */}
+            {/* Primary CTA. Sends visitors straight into the template
+                picker so they can clone a named watch-list thesis with
+                one click. No auth gate until save. */}
             <TrackedLink
               event="pm_card_click"
               properties={{ source: "homepage_hero", cta: "build_watch_list" }}
