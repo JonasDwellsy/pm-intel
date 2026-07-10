@@ -387,9 +387,10 @@ export interface MarketSummary {
     };
   };
   // v0.6.2 7-cell summary per market — count + median DOM + median rent
-  // vs comp (rent metric added in v0.6.3 polish). Drives the redesigned
-  // QuadrantSummaryCard which renders three metrics per cell. Optional for
-  // back-compat with v0.6.2 callers that constructed a plain count map.
+  // vs comp (rent metric added in v0.6.3 polish). Feeds the Operator
+  // landscape section (MarketCompositionStrip: cohort counts + est. units)
+  // and its intro lede. Optional for back-compat with v0.6.2 callers that
+  // constructed a plain count map.
   quadrant7CellSummary?: {
     [quadrant7Cell: string]: {
       count: number;
