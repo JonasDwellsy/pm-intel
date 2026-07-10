@@ -244,6 +244,39 @@
   border-bottom: 1px solid var(--color-grid) !important;
 }
 
+/* Watch-list results — frozen leading columns (# + Operator) so the
+   operator identity stays visible while the wide metric grid scrolls
+   horizontally. Sticky cells need opaque, parity-matched backgrounds or
+   scrolling content bleeds through; the header cells keep the navy fill.
+   `left` offsets assume the fixed column widths set inline in ResultsTable
+   (# = 60px). A hairline shadow marks the frozen block's right edge. */
+.wl-col-rank {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+.wl-col-name {
+  position: sticky;
+  left: 60px;
+  z-index: 1;
+}
+.dq-table tbody td.wl-col-rank,
+.dq-table tbody td.wl-col-name {
+  background: #fff;
+}
+.dq-table tbody tr:nth-child(even) td.wl-col-rank,
+.dq-table tbody tr:nth-child(even) td.wl-col-name {
+  background: var(--color-surface-soft);
+}
+.dq-table thead th.wl-col-rank,
+.dq-table thead th.wl-col-name {
+  z-index: 3;
+}
+.dq-table td.wl-col-name,
+.dq-table th.wl-col-name {
+  box-shadow: 1px 0 0 var(--color-grid);
+}
+
 /* Methodology body prose: paragraph + list rhythm at editorial reading
    measure. Scoped via .methodology-prose. */
 .methodology-prose p {
