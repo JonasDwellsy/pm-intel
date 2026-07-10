@@ -1,24 +1,718 @@
 {
-  "generatedAt": "2026-07-08T15:33:27.792Z",
+  "generatedAt": "2026-07-10T19:12:54.149Z",
   "decisions": [
     {
-      "marketId": "dallas-fort-worth-arlington-tx",
-      "survivorKey": "31871",
-      "canonicalName": "31 Realty Property Management",
-      "survivorSlug": "31-realty-property-management-dallas-fort-worth-arlington-tx",
+      "marketId": "baltimore-towson-md",
+      "survivorKey": "name:peaceofmindpropertymanagement",
+      "canonicalName": "Peace of Mind Property Management",
+      "survivorSlug": "peace-of-mind-property-management-baltimore-towson-md",
       "memberKeys": [
-        "31871",
-        "name:31realtypropertymanagementllc"
+        "name:bridgespeaceofmindpropertymanagement",
+        "name:peaceofmindpropertymanagement"
       ]
     },
     {
-      "marketId": "memphis-tn-ms-ar",
-      "survivorKey": "629374",
-      "canonicalName": "Reedy & Company",
-      "survivorSlug": "reedy-company-memphis-tn-ms-ar",
+      "marketId": "birmingham-al",
+      "survivorKey": "name:purepropertymanagementofalabamabirminghamoffice",
+      "canonicalName": "PURE Property Management of Alabama - Birmingham Office",
+      "survivorSlug": "pure-property-management-of-alabama-birmingham-office-birmingham-al",
       "memberKeys": [
-        "629374",
-        "name:reedycompany"
+        "503194",
+        "name:purepropertymanagementofalabamabirminghamoffice"
+      ]
+    },
+    {
+      "marketId": "boulder-co",
+      "survivorKey": "35494",
+      "canonicalName": "Fox Property Management",
+      "survivorSlug": "fox-property-management-boulder-co",
+      "memberKeys": [
+        "35494",
+        "35497"
+      ]
+    },
+    {
+      "marketId": "charlotte-gastonia-rock-hill-nc-sc",
+      "survivorKey": "35362",
+      "canonicalName": "First Properties Of The Carolinas",
+      "survivorSlug": "first-properties-of-the-carolinas-charlotte-gastonia-rock-hill-nc-sc",
+      "memberKeys": [
+        "35362",
+        "name:firstproperties"
+      ]
+    },
+    {
+      "marketId": "charlotte-gastonia-rock-hill-nc-sc",
+      "survivorKey": "name:pmicharlotte",
+      "canonicalName": "PMI Charlotte",
+      "survivorSlug": "pmi-charlotte-charlotte-gastonia-rock-hill-nc-sc",
+      "memberKeys": [
+        "name:pmicharlotte",
+        "name:pmicharlottemetro",
+        "name:pmicharlottemgt"
+      ]
+    },
+    {
+      "marketId": "chicago-joliet-naperville-il-in-wi",
+      "survivorKey": "name:apartmentsource",
+      "canonicalName": "The Apartment Source",
+      "survivorSlug": "apartment-source-chicago-joliet-naperville-il-in-wi",
+      "memberKeys": [
+        "name:apartmentsource",
+        "name:theapartmentsource",
+        "name:theapartmentsourcemigueltineo",
+        "name:theapartmentsourcepaulsatula"
+      ]
+    },
+    {
+      "marketId": "chicago-joliet-naperville-il-in-wi",
+      "survivorKey": "name:fultongrace",
+      "canonicalName": "Fulton Grace",
+      "survivorSlug": "fulton-grace-chicago-joliet-naperville-il-in-wi",
+      "memberKeys": [
+        "337026",
+        "name:fultongrace"
+      ]
+    },
+    {
+      "marketId": "chicago-joliet-naperville-il-in-wi",
+      "survivorKey": "name:greaterpropertysolutionsindiana",
+      "canonicalName": "Greater Property Solutions Indiana",
+      "survivorSlug": "greater-property-solutions-indiana-chicago-joliet-naperville-il-in-wi",
+      "memberKeys": [
+        "502718",
+        "name:greaterpropertysolutionsindiana"
+      ]
+    },
+    {
+      "marketId": "chicago-joliet-naperville-il-in-wi",
+      "survivorKey": "name:kettleandoak",
+      "canonicalName": "Kettle And Oak",
+      "survivorSlug": "kettle-and-oak-chicago-joliet-naperville-il-in-wi",
+      "memberKeys": [
+        "name:kettleandoak",
+        "name:kettleoak"
+      ]
+    },
+    {
+      "marketId": "chicago-joliet-naperville-il-in-wi",
+      "survivorKey": "name:northclybourngroup",
+      "canonicalName": "North Clybourn Group",
+      "survivorSlug": "north-clybourn-group-chicago-joliet-naperville-il-in-wi",
+      "memberKeys": [
+        "name:andyfriernorthclybourngroup",
+        "name:northclybourngroup"
+      ]
+    },
+    {
+      "marketId": "chicago-joliet-naperville-il-in-wi",
+      "survivorKey": "name:samchasendwellchicago",
+      "canonicalName": "Dwell Chicago",
+      "survivorSlug": "sam-chasen-dwell-chicago-chicago-joliet-naperville-il-in-wi",
+      "memberKeys": [
+        "name:dwellchicago",
+        "name:samchasendwellchicago"
+      ]
+    },
+    {
+      "marketId": "cincinnati-middletown-oh-ky-in",
+      "survivorKey": "533205",
+      "canonicalName": "Realiant Property Management",
+      "survivorSlug": "realiant-property-management-cincinnati-middletown-oh-ky-in",
+      "memberKeys": [
+        "533205",
+        "748913"
+      ]
+    },
+    {
+      "marketId": "cleveland-elyria-mentor-oh",
+      "survivorKey": "name:allstarmanagementoh",
+      "canonicalName": "Allstar Management",
+      "survivorSlug": "allstar-management-oh-cleveland-elyria-mentor-oh",
+      "memberKeys": [
+        "32290",
+        "name:allstarmanagementoh"
+      ]
+    },
+    {
+      "marketId": "columbus-oh",
+      "survivorKey": "37204",
+      "canonicalName": "KP Real Estate Group",
+      "survivorSlug": "kp-real-estate-group-columbus-oh",
+      "memberKeys": [
+        "37204",
+        "name:kprealestate"
+      ]
+    },
+    {
+      "marketId": "columbus-oh",
+      "survivorKey": "663259",
+      "canonicalName": "Mfp Rentals / Red 1 Realty",
+      "survivorSlug": "mfp-rentals-red-1-realty-columbus-oh",
+      "memberKeys": [
+        "663259",
+        "801072"
+      ]
+    },
+    {
+      "marketId": "columbus-oh",
+      "survivorKey": "882389",
+      "canonicalName": "Threshold Property Group",
+      "survivorSlug": "threshold-property-group-of-kw-consultants-realty-columbus-oh",
+      "memberKeys": [
+        "882389",
+        "name:thresholdpropertygroupllc"
+      ]
+    },
+    {
+      "marketId": "columbus-oh",
+      "survivorKey": "name:erarealsolutionspropertymanagement",
+      "canonicalName": "ERA Real Solutions Property Management",
+      "survivorSlug": "era-real-solutions-property-management-columbus-oh",
+      "memberKeys": [
+        "35150",
+        "name:erarealsolutionspropertymanagement"
+      ]
+    },
+    {
+      "marketId": "columbus-oh",
+      "survivorKey": "name:intempusrealtyohio",
+      "canonicalName": "Intempus Realty - Ohio",
+      "survivorSlug": "intempus-realty-ohio-columbus-oh",
+      "memberKeys": [
+        "name:intempusohio",
+        "name:intempusrealtyohio"
+      ]
+    },
+    {
+      "marketId": "dallas-fort-worth-arlington-tx",
+      "survivorKey": "name:purepropertymanagementoftexasdallasfortworthoffice",
+      "canonicalName": "Pure Property Management of Texas",
+      "survivorSlug": "pure-property-management-of-texas-dallas-fort-worth-office-dallas-fort-worth-arlington-tx",
+      "memberKeys": [
+        "503211",
+        "name:purepropertymanagementoftexasdallasfortworthoffice"
+      ]
+    },
+    {
+      "marketId": "dallas-fort-worth-arlington-tx",
+      "survivorKey": "name:thebryantscompanypropertymanagement",
+      "canonicalName": "The Bryants Company Property Management",
+      "survivorSlug": "the-bryants-company-property-management-dallas-fort-worth-arlington-tx",
+      "memberKeys": [
+        "name:thebryantscompany",
+        "name:thebryantscompanypropertymanagement"
+      ]
+    },
+    {
+      "marketId": "denver-co",
+      "survivorKey": "35494",
+      "canonicalName": "Fox Property Management",
+      "survivorSlug": "fox-property-management-denver-co",
+      "memberKeys": [
+        "35494",
+        "35497"
+      ]
+    },
+    {
+      "marketId": "denver-co",
+      "survivorKey": "name:arahogroup",
+      "canonicalName": "The Araho Group",
+      "survivorSlug": "araho-group-denver-co",
+      "memberKeys": [
+        "name:arahogroup",
+        "name:thearahogroup"
+      ]
+    },
+    {
+      "marketId": "denver-co",
+      "survivorKey": "name:gatehousepropertiescolorado",
+      "canonicalName": "Gatehouse Properties Colorado",
+      "survivorSlug": "gatehouse-properties-colorado-denver-co",
+      "memberKeys": [
+        "1143816",
+        "name:gatehousepropertiescolorado"
+      ]
+    },
+    {
+      "marketId": "denver-co",
+      "survivorKey": "name:jameshesemeyer",
+      "canonicalName": "James Hesemeyer",
+      "survivorSlug": "james-hesemeyer-denver-co",
+      "memberKeys": [
+        "name:jameshesemeyer",
+        "name:jamesjosephhesemeyer"
+      ]
+    },
+    {
+      "marketId": "denver-co",
+      "survivorKey": "name:leveluppropertymanagement",
+      "canonicalName": "Level UP Property Management",
+      "survivorSlug": "frag-name:leveluppropertymanagement",
+      "memberKeys": [
+        "name:aleveluppropertymanagementllc",
+        "name:leveluppropertymanagement"
+      ]
+    },
+    {
+      "marketId": "denver-co",
+      "survivorKey": "name:parkrealtypropertymanagement",
+      "canonicalName": "Park Realty And Property Management",
+      "survivorSlug": "park-realty-property-management-denver-co",
+      "memberKeys": [
+        "39018",
+        "name:parkrealtypropertymanagement"
+      ]
+    },
+    {
+      "marketId": "denver-co",
+      "survivorKey": "name:purepropertymanagementofcoloradodenveroffice",
+      "canonicalName": "Pure Property Management Of Colorado - Denver Office",
+      "survivorSlug": "pure-property-management-of-colorado-denver-office-denver-co",
+      "memberKeys": [
+        "902683",
+        "name:purepropertymanagementofcoloradodenveroffice"
+      ]
+    },
+    {
+      "marketId": "denver-co",
+      "survivorKey": "name:starsandstripeshomesinc",
+      "canonicalName": "Stars And Stripes Homes",
+      "survivorSlug": "stars-and-stripes-homes-inc-denver-co",
+      "memberKeys": [
+        "41577",
+        "name:starsandstripeshomesinc"
+      ]
+    },
+    {
+      "marketId": "huntsville-al",
+      "survivorKey": "name:purepropertymanagementofalabamahuntsvilleoffice",
+      "canonicalName": "Pure Property Management of Alabama",
+      "survivorSlug": "pure-property-management-of-alabama-huntsville-office-huntsville-al",
+      "memberKeys": [
+        "503196",
+        "name:purepropertymanagementofalabamahuntsvilleoffice"
+      ]
+    },
+    {
+      "marketId": "indianapolis-carmel-in",
+      "survivorKey": "34700",
+      "canonicalName": "Discover Properties Property Management",
+      "survivorSlug": "discover-properties-property-management-indianapolis-carmel-in",
+      "memberKeys": [
+        "34700",
+        "name:discoverproperties"
+      ]
+    },
+    {
+      "marketId": "indianapolis-carmel-in",
+      "survivorKey": "name:fshousespropertymanagement",
+      "canonicalName": "FS Houses Property Management",
+      "survivorSlug": "frag-name:fshousespropertymanagement",
+      "memberKeys": [
+        "930746",
+        "name:fshousespropertymanagement"
+      ]
+    },
+    {
+      "marketId": "jacksonville-fl",
+      "survivorKey": "701708",
+      "canonicalName": "Northpoint Asset Management",
+      "survivorSlug": "northpoint-asset-management-jacksonville-fl",
+      "memberKeys": [
+        "701708",
+        "name:northpointassetmanagementflorida"
+      ]
+    },
+    {
+      "marketId": "jacksonville-fl",
+      "survivorKey": "name:rentalguyslegacyrealtygroup",
+      "canonicalName": "Rental Guys-Legacy Realty Group",
+      "survivorSlug": "rental-guys-legacy-realty-group-jacksonville-fl",
+      "memberKeys": [
+        "name:legacyrealtygroup",
+        "name:rentalguyslegacyrealtygroup"
+      ]
+    },
+    {
+      "marketId": "kansas-city-mo-ks",
+      "survivorKey": "503205",
+      "canonicalName": "Pure Property Management of Kansas",
+      "survivorSlug": "pure-property-management-of-kansas-kansas-city-mo-ks",
+      "memberKeys": [
+        "503205",
+        "name:purepropertymanagementofkansastopekaoffice"
+      ]
+    },
+    {
+      "marketId": "kansas-city-mo-ks",
+      "survivorKey": "701708",
+      "canonicalName": "Northpoint Asset Management",
+      "survivorSlug": "northpoint-asset-management-kansas-city-mo-ks",
+      "memberKeys": [
+        "701708",
+        "name:northpointassetmanagementkansascity"
+      ]
+    },
+    {
+      "marketId": "kansas-city-mo-ks",
+      "survivorKey": "name:locationpropertiespropertymanagement",
+      "canonicalName": "Location Properties Property Management",
+      "survivorSlug": "location-properties-property-management-kansas-city-mo-ks",
+      "memberKeys": [
+        "name:locationproperties",
+        "name:locationpropertiespropertymanagement"
+      ]
+    },
+    {
+      "marketId": "kansas-city-mo-ks",
+      "survivorKey": "name:pmidestination",
+      "canonicalName": "PMI Destination Properties",
+      "survivorSlug": "pmi-destination-kansas-city-mo-ks",
+      "memberKeys": [
+        "name:pmidestination",
+        "name:pmidestinationproperties"
+      ]
+    },
+    {
+      "marketId": "los-angeles-long-beach-santa-ana-ca",
+      "survivorKey": "258097",
+      "canonicalName": "Spectrum Commercial Real Estate",
+      "survivorSlug": "spectrum-commercial-real-estate-inc-los-angeles-long-beach-santa-ana-ca",
+      "memberKeys": [
+        "258097",
+        "41485"
+      ]
+    },
+    {
+      "marketId": "los-angeles-long-beach-santa-ana-ca",
+      "survivorKey": "34225",
+      "canonicalName": "Connected Management",
+      "survivorSlug": "connected-management-los-angeles-long-beach-santa-ana-ca",
+      "memberKeys": [
+        "318317",
+        "34225"
+      ]
+    },
+    {
+      "marketId": "los-angeles-long-beach-santa-ana-ca",
+      "survivorKey": "685417",
+      "canonicalName": "ISM Management Company, LLC",
+      "survivorSlug": "ism-property-management-llc-los-angeles-long-beach-santa-ana-ca",
+      "memberKeys": [
+        "685417",
+        "name:ismmanagementcompanyllc"
+      ]
+    },
+    {
+      "marketId": "los-angeles-long-beach-santa-ana-ca",
+      "survivorKey": "name:christinakim",
+      "canonicalName": "KW Larchmont - Christina Kim Realty",
+      "survivorSlug": "christina-kim-los-angeles-long-beach-santa-ana-ca",
+      "memberKeys": [
+        "name:christinakim",
+        "name:kwlarchmontchristinakimrealty"
+      ]
+    },
+    {
+      "marketId": "los-angeles-long-beach-santa-ana-ca",
+      "survivorKey": "name:dijanaharker",
+      "canonicalName": "Dijana Harker",
+      "survivorSlug": "dijana-harker-los-angeles-long-beach-santa-ana-ca",
+      "memberKeys": [
+        "name:dijanaharker",
+        "name:dijanaharkerbrokerdre01967226"
+      ]
+    },
+    {
+      "marketId": "los-angeles-long-beach-santa-ana-ca",
+      "survivorKey": "name:purepropertymanagementofcalifornialosangelesoffice",
+      "canonicalName": "Pure Property Management Of California",
+      "survivorSlug": "pure-property-management-of-california-los-angeles-office-los-angeles-long-beach-santa-ana-ca",
+      "memberKeys": [
+        "503199",
+        "name:purepropertymanagementofcalifornialosangelesoffice",
+        "name:purepropertymanagementofcalifornialosangelesofficecadre02124826",
+        "name:purepropertymanagementofcaliforniaorangecountyoffice",
+        "name:purepropertymanagementofcaliforniaorangecountyofficecadre02124826"
+      ]
+    },
+    {
+      "marketId": "los-angeles-long-beach-santa-ana-ca",
+      "survivorKey": "name:vfdevelopmentsmarketing",
+      "canonicalName": "VF Developments",
+      "survivorSlug": "vf-developments-marketing-los-angeles-long-beach-santa-ana-ca",
+      "memberKeys": [
+        "name:vfdevelopmentsllc",
+        "name:vfdevelopmentsmarketing"
+      ]
+    },
+    {
+      "marketId": "minneapolis-st-paul-bloomington-mn-wi",
+      "survivorKey": "38440",
+      "canonicalName": "National Realty Guild",
+      "survivorSlug": "national-realty-guild-minneapolis-st-paul-bloomington-mn-wi",
+      "memberKeys": [
+        "38440",
+        "name:kelliecardinalnationalrealtyguild"
+      ]
+    },
+    {
+      "marketId": "minneapolis-st-paul-bloomington-mn-wi",
+      "survivorKey": "name:purepropertymanagementofminnesotatwincitiesoffice",
+      "canonicalName": "PURE Property Management of Minnesota",
+      "survivorSlug": "pure-property-management-of-minnesota-twin-cities-office-minneapolis-st-paul-bloomington-mn-wi",
+      "memberKeys": [
+        "760348",
+        "name:purepropertymanagementofminnesotatwincitiesoffice"
+      ]
+    },
+    {
+      "marketId": "minneapolis-st-paul-bloomington-mn-wi",
+      "survivorKey": "name:reirealestatepropertymanagement",
+      "canonicalName": "REI Real Estate and Property Management",
+      "survivorSlug": "rei-real-estate-property-management-minneapolis-st-paul-bloomington-mn-wi",
+      "memberKeys": [
+        "name:reirealestateandpropertymanagement",
+        "name:reirealestatepropertymanagement"
+      ]
+    },
+    {
+      "marketId": "minneapolis-st-paul-bloomington-mn-wi",
+      "survivorKey": "name:revolutionrentingllc",
+      "canonicalName": "Revolution Renting",
+      "survivorSlug": "revolution-renting-l-l-c-minneapolis-st-paul-bloomington-mn-wi",
+      "memberKeys": [
+        "1067311",
+        "name:revolutionrentingllc"
+      ]
+    },
+    {
+      "marketId": "montgomery-al",
+      "survivorKey": "name:sherrithomasmorgan",
+      "canonicalName": "Sherri Morgan",
+      "survivorSlug": "sherri-thomas-morgan-montgomery-al",
+      "memberKeys": [
+        "name:sherrimorgan",
+        "name:sherrithomasmorgan"
+      ]
+    },
+    {
+      "marketId": "nashville-davidson-murfreesboro-franklin-tn",
+      "survivorKey": "name:exitrealtypropertymanagement",
+      "canonicalName": "Exit Realty Property Management",
+      "survivorSlug": "exit-realty-property-management-nashville-davidson-murfreesboro-franklin-tn",
+      "memberKeys": [
+        "name:exitrealtymusiccitypropertymanagement",
+        "name:exitrealtypropertymanagement"
+      ]
+    },
+    {
+      "marketId": "nashville-davidson-murfreesboro-franklin-tn",
+      "survivorKey": "name:pmigreaternashvillepmigreaterdickson",
+      "canonicalName": "PMI Greater Nashville & PMI Greater Dickson",
+      "survivorSlug": "pmi-greater-nashville-pmi-greater-dickson-nashville-davidson-murfreesboro-franklin-tn",
+      "memberKeys": [
+        "name:pmigreaterdickson",
+        "name:pmigreaternashville",
+        "name:pmigreaternashvillepmigreaterdickson"
+      ]
+    },
+    {
+      "marketId": "nashville-davidson-murfreesboro-franklin-tn",
+      "survivorKey": "name:purepropertymanagementoftennesseenashvilleoffice",
+      "canonicalName": "Pure Property Management Of Tennessee",
+      "survivorSlug": "pure-property-management-of-tennessee-nashville-office-nashville-davidson-murfreesboro-franklin-tn",
+      "memberKeys": [
+        "503209",
+        "name:purepropertymanagementoftennesseenashvilleoffice"
+      ]
+    },
+    {
+      "marketId": "orlando-kissimmee-sanford-fl",
+      "survivorKey": "258868",
+      "canonicalName": "SIM REI Property Management",
+      "survivorSlug": "sim-rei-orlando-kissimmee-sanford-fl",
+      "memberKeys": [
+        "1072801",
+        "258868"
+      ]
+    },
+    {
+      "marketId": "orlando-kissimmee-sanford-fl",
+      "survivorKey": "32675",
+      "canonicalName": "Atrium Property Management",
+      "survivorSlug": "atrium-management-company-orlando-kissimmee-sanford-fl",
+      "memberKeys": [
+        "32675",
+        "name:atriumpropertymanagement"
+      ]
+    },
+    {
+      "marketId": "orlando-kissimmee-sanford-fl",
+      "survivorKey": "name:clearbluesky",
+      "canonicalName": "Clear Blue Sky",
+      "survivorSlug": "clear-blue-sky-orlando-kissimmee-sanford-fl",
+      "memberKeys": [
+        "name:clearbluesky",
+        "name:clearblueskygroup"
+      ]
+    },
+    {
+      "marketId": "phoenix-az",
+      "survivorKey": "33306",
+      "canonicalName": "Brickleys Property Solutions",
+      "survivorSlug": "brickleys-property-solutions-phoenix-az",
+      "memberKeys": [
+        "33306",
+        "name:brickleyspropertysolutionswestvalleyphoenix"
+      ]
+    },
+    {
+      "marketId": "phoenix-az",
+      "survivorKey": "519787",
+      "canonicalName": "Balboa Property Services",
+      "survivorSlug": "balboa-property-services-phoenix-az",
+      "memberKeys": [
+        "519787",
+        "name:balboarealtyandpropertyservices"
+      ]
+    },
+    {
+      "marketId": "phoenix-az",
+      "survivorKey": "name:pmiphxgateway",
+      "canonicalName": "PMI PHX Gateway",
+      "survivorSlug": "pmi-phx-gateway-phoenix-az",
+      "memberKeys": [
+        "name:pmiphxgateway",
+        "name:pmiphxgateway2"
+      ]
+    },
+    {
+      "marketId": "phoenix-az",
+      "survivorKey": "name:propertyplus",
+      "canonicalName": "Property Plus USA Realty",
+      "survivorSlug": "property-plus-phoenix-az",
+      "memberKeys": [
+        "name:propertyplus",
+        "name:propertyplususa",
+        "name:propertyplususarealty"
+      ]
+    },
+    {
+      "marketId": "phoenix-az",
+      "survivorKey": "name:sheltonpropertiesteam",
+      "canonicalName": "Shelton Properties",
+      "survivorSlug": "shelton-properties-team-phoenix-az",
+      "memberKeys": [
+        "name:sheltonproperties",
+        "name:sheltonpropertiesteam"
+      ]
+    },
+    {
+      "marketId": "pittsburgh-pa",
+      "survivorKey": "name:franklinwest",
+      "canonicalName": "Franklin West",
+      "survivorSlug": "franklin-west-pittsburgh-pa",
+      "memberKeys": [
+        "name:franklinwest",
+        "name:franklinwestincrentalsfranklinwestcom"
+      ]
+    },
+    {
+      "marketId": "pittsburgh-pa",
+      "survivorKey": "name:remaxselectrealty",
+      "canonicalName": "Re/Max Select Realty",
+      "survivorSlug": "re-max-select-realty-pittsburgh-pa",
+      "memberKeys": [
+        "name:remaxselectrealty",
+        "name:remaxselectrealtyeddalessandro"
+      ]
+    },
+    {
+      "marketId": "richmond-va",
+      "survivorKey": "32675",
+      "canonicalName": "Atrium Property Management",
+      "survivorSlug": "atrium-management-company-richmond-va",
+      "memberKeys": [
+        "32675",
+        "name:atriumpropertymanagement"
+      ]
+    },
+    {
+      "marketId": "richmond-va",
+      "survivorKey": "name:keyrenterrichmondpropertymanagement",
+      "canonicalName": "Keyrenter Richmond Property Management",
+      "survivorSlug": "keyrenter-richmond-property-management-richmond-va",
+      "memberKeys": [
+        "37095",
+        "name:keyrenterrichmondpropertymanagement"
+      ]
+    },
+    {
+      "marketId": "richmond-va",
+      "survivorKey": "name:krsholdings",
+      "canonicalName": "KRS Holdings",
+      "survivorSlug": "krs-holdings-richmond-va",
+      "memberKeys": [
+        "name:jamesbristol",
+        "name:jamiebrightkrsholdings",
+        "name:krsholdings",
+        "name:krsholdingsincclachan",
+        "name:krsholdingsjamesbristol"
+      ]
+    },
+    {
+      "marketId": "san-antonio-tx",
+      "survivorKey": "name:freedompropertymanagement",
+      "canonicalName": "Freedom Property Management",
+      "survivorSlug": "freedom-property-management-san-antonio-tx",
+      "memberKeys": [
+        "name:freedompropertymanagement",
+        "name:freedompropertymanagementtxllc"
+      ]
+    },
+    {
+      "marketId": "seattle-wa",
+      "survivorKey": "name:foundationgroup",
+      "canonicalName": "The Foundation Group",
+      "survivorSlug": "foundation-group-seattle-wa",
+      "memberKeys": [
+        "42027",
+        "name:foundationgroup"
+      ]
+    },
+    {
+      "marketId": "seattle-wa",
+      "survivorKey": "name:purepropertymanagementofwashingtonseattletacomaoffice",
+      "canonicalName": "PURE Property Management of Washington",
+      "survivorSlug": "pure-property-management-of-washington-seattle-tacoma-office-seattle-wa",
+      "memberKeys": [
+        "503212",
+        "name:purepropertymanagementofwashingtonseattletacomaoffice"
+      ]
+    },
+    {
+      "marketId": "seattle-wa",
+      "survivorKey": "name:windermerepropertymanagement",
+      "canonicalName": "Windermere Property Management | Lori Gill & Associates",
+      "survivorSlug": "windermere-property-management-seattle-wa",
+      "memberKeys": [
+        "name:jmwgroupwindermerepropertymanagement",
+        "name:windermerepropertymanagement"
+      ]
+    },
+    {
+      "marketId": "st-louis-mo-il",
+      "survivorKey": "name:hermannlondon",
+      "canonicalName": "Hermann London",
+      "survivorSlug": "hermann-london-st-louis-mo-il",
+      "memberKeys": [
+        "518323",
+        "name:hermannlondon",
+        "name:hermannlondonamygordon",
+        "name:hermannlondoncayliacollins",
+        "name:thehermannlondongroup"
       ]
     }
   ]
