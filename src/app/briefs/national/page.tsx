@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { buildNationalBriefData } from "@/lib/national-brief";
 import {
   generateNationalBriefProse,
@@ -36,6 +37,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function NationalBriefPage() {
   const data = await buildNationalBriefData();
   if (!data) notFound();
+
+  // Public sample: this national brief stays open to anonymous readers; the
+  // per-market briefs are gated. Show a conversion CTA to signed-out visitors.
+  const { userId } = await auth();
+  const isSignedIn = !!userId;
 
   let prose: NationalBriefProse | null = null;
   let generationError: string | null = null;
@@ -113,6 +119,24 @@ export default async function NationalBriefPage() {
             <BriefSection title="Standout markets" body={prose.shareMovement} />
             <BriefSection title="National operator landscape" body={prose.operatorLandscape} />
             <BriefSection title="Standout operators" body={prose.notableSignals} />
+          </div>
+        )}
+
+        {!isSignedIn && (
+          <div className="mt-12 rounded-lg border border-navy/30 bg-navy/[0.03] p-6">
+            <p className="text-[15px] font-semibold text-navy">
+              This is the free national brief.
+            </p>
+            <p className="mt-1.5 text-[14px] leading-[1.55] text-foreground/80">
+              Sign in to open the per-market briefs — operator landscape, share
+              movement, and notable signals for each covered market.
+            </p>
+            <Link
+              href="/sign-in?redirect_url=/briefs"
+              className="mt-4 inline-block text-[13px] font-semibold text-teal transition-transform hover:translate-x-0.5"
+            >
+              Sign in to read market briefs →
+            </Link>
           </div>
         )}
 
