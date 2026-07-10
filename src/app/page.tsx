@@ -261,13 +261,11 @@ function buildSampleCard(
   const sc = parseScorecard(pm);
   const q7Label = sevenCellLabel(pm.quadrant7Cell, pm.quadrant);
 
-  const badges: SampleCard["badges"] = [];
-  const isInst = /Institutional/i.test(q7Label);
-  badges.push({
-    kind: isInst ? "green" : "orange",
-    label: isInst ? "Institutional" : "Independent",
-  });
-  badges.push({ kind: "ink", label: q7Label });
+  // The 7-cell label already carries the scale axis ("SFR Independent"), so we
+  // don't prepend a standalone Independent/Institutional pill — it duplicated
+  // the word on the card and diverged from every live surface (scorecard
+  // header, market list, watch-list results) that shows the cell label once.
+  const badges: SampleCard["badges"] = [{ kind: "ink", label: q7Label }];
   if (extraBadge) badges.push(extraBadge);
 
   const stateSlug = stateCodeToSlug(pm.market.state);
