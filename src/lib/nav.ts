@@ -30,10 +30,9 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { href: "/ask", label: "Ask", badge: "AI" },
 ];
 
-/** Primary action button. Acquirer-positioning: clicking takes the
- *  visitor straight into the template picker so they can clone a
- *  named acquisition thesis without any auth gate. The actual save
- *  action on the editor still requires auth. */
+/** Primary action button. Clicking takes the visitor straight into the
+ *  template picker so they can clone a named watch-list thesis without any
+ *  auth gate. The actual save action on the editor still requires auth. */
 export const PRIMARY_CTA = {
   href: "/watch-lists/new",
   label: "Build a watch list →",

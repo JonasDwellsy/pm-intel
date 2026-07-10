@@ -81,11 +81,12 @@ test("scaleFit reads the single seeded portfolioEstimate point, fills readout", 
     }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01,
   });
-  assert.equal(v.scaleFit.estimate.point, 644);
+  // Displayed size is rounded to the nearest 10 at/above 100 (644 → 640).
+  assert.equal(v.scaleFit.estimate.point, 640);
   assert.equal(v.scaleFit.observedUnits, 318);
   assert.equal(v.scaleFit.top3Share, 0.84);
   const row = v.readout.find((r) => r.area === "Scale & Fit")!;
-  assert.match(row.value, /644/);
+  assert.match(row.value, /640/);
   assert.match(row.value, /managed units \(est\.\)/i);
   assert.match(row.value, /SFR Independent/i); // type label included
   assert.match(row.value, /Chattanooga/i); // market name included
@@ -611,7 +612,8 @@ test("scaleFit reads the seeded portfolioEstimate point (point-only)", () => {
     scorecard: scFixture({ portfolioEstimate: { status: "estimated", point: 984 } }),
     pool: [], trajectory: { points: [] }, marketConcessionMedian: null,
   });
-  assert.equal(v.scaleFit.estimate.point, 984);
+  // Displayed size is rounded to the nearest 10 at/above 100 (984 → 980).
+  assert.equal(v.scaleFit.estimate.point, 980);
   assert.equal(v.scaleFit.estimate.status, "estimated");
   assert.equal(v.scaleFit.estimate.low, null); // no band inputs in this fixture
   const scaleRow = v.readout.find((r) => r.area === "Scale & Fit")!;

@@ -75,6 +75,7 @@ import {
 } from "@react-pdf/renderer";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { marketingDataSuppressed } from "@/lib/types";
+import { roundPortfolioUnits } from "@/lib/format";
 import {
   buildCohortFramingSentence,
   countOperatorStars,
@@ -1332,11 +1333,11 @@ function portfolioTile(scorecard: ScorecardData): {
   if (est.status === "estimated" && typeof est.point === "number") {
     const range =
       typeof est.low === "number" && typeof est.high === "number"
-        ? `${fmtInt(est.low)}–${fmtInt(est.high)} units`
+        ? `${fmtInt(roundPortfolioUnits(est.low)!)}–${fmtInt(roundPortfolioUnits(est.high)!)} units`
         : "Point estimate";
     const cohortNote = est.cohort ? `  ·  ${est.cohort}` : "";
     return {
-      value: fmtInt(est.point),
+      value: fmtInt(roundPortfolioUnits(est.point)!),
       unit: "units",
       star: null,
       compare: `${range}${cohortNote}`,
@@ -2892,7 +2893,7 @@ function portfolioEstimateCard(scorecard: ScorecardData): MetricCardData {
   const contextParts: string[] = [];
   if (typeof est.low === "number" && typeof est.high === "number") {
     contextParts.push(
-      `Range: ${fmtInt(est.low)}–${fmtInt(est.high)} units`
+      `Range: ${fmtInt(roundPortfolioUnits(est.low)!)}–${fmtInt(roundPortfolioUnits(est.high)!)} units`
     );
   }
   if (est.cohort) {
@@ -2903,7 +2904,7 @@ function portfolioEstimateCard(scorecard: ScorecardData): MetricCardData {
   );
   return {
     title: "Portfolio Size Estimate",
-    value: fmtInt(est.point),
+    value: fmtInt(roundPortfolioUnits(est.point)!),
     valueUnit: "units",
     context: contextParts.join("  ·  "),
   };
@@ -3002,10 +3003,10 @@ function portfolioNarrative(scorecard: ScorecardData): string {
   if (est.status === "estimated" && typeof est.point === "number") {
     const range =
       typeof est.low === "number" && typeof est.high === "number"
-        ? ` (range: ${fmtInt(est.low)}–${fmtInt(est.high)} units)`
+        ? ` (range: ${fmtInt(roundPortfolioUnits(est.low)!)}–${fmtInt(roundPortfolioUnits(est.high)!)} units)`
         : "";
     const cohort = est.cohort ? ` (${est.cohort})` : "";
-    return `Estimated portfolio: ${fmtInt(est.point)} units${range}${cohort}. Estimates scale observed trailing 12-month units up by unit-type turnover — house and apartment units re-list at different rates.`;
+    return `Estimated portfolio: ${fmtInt(roundPortfolioUnits(est.point)!)} units${range}${cohort}. Estimates scale observed trailing 12-month units up by unit-type turnover — house and apartment units re-list at different rates.`;
   }
   return est.message ?? "Insufficient data for a portfolio estimate.";
 }

@@ -1,5 +1,6 @@
 import type { PMListItem, ScorecardData } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
+import { roundPortfolioUnits } from "@/lib/format";
 
 // --- State (2-letter code <-> URL slug) ---
 
@@ -211,10 +212,11 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     rankQuadrantTotal: sc.rank.quadrantTotal ?? null,
     domT12: sc.performance.domT12,
     totalObservedUnits: sc.coverage.totalObservedUnits,
-    // v0.8 — estimated managed units, read straight from the single seeded
+    // v0.8 — estimated managed units, read from the single seeded
     // portfolioEstimate (house/apt turnover, computed in seed.ts) so the list
-    // rows + cohort tiles match every other surface.
-    estManagedUnits: sc.portfolioEstimate?.point ?? null,
+    // rows + cohort tiles match every other surface. Rounded for display
+    // (nearest 5/10) — it's an estimate, not an exact count.
+    estManagedUnits: roundPortfolioUnits(sc.portfolioEstimate?.point),
     primaryCity: sc.market.name,
     primaryCityShare,
     claimed: row.claimed,

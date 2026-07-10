@@ -94,7 +94,7 @@ export async function SiteHeader() {
           {/* Nav items render in the order declared by NAV_ITEMS
               (src/lib/nav.ts) — single source of truth shared with
               the footer. Watch Lists leads the order to surface the
-              acquirer workflow without an extra click.
+              watch-list workflow without an extra click.
               PR #81: Raised the show-breakpoint from `sm` (640px)
               to `lg` (1024px). The previous `sm` boundary tried to
               fit the full nav + search + auth cluster + CTA on

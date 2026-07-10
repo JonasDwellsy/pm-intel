@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { HomepageSectionHead } from "./SectionHead";
 
-// PR #46 — pillars rewritten for the acquirer audience. Old pillars
-// (Classification / Lease Velocity / Pricing Posture / Tenancy
-// Position) framed the methodology in operational-analyst language.
-// The acquirer reads through a different lens:
+// PR #46 — pillars framed around the questions a reader actually asks
+// of an operator, rather than operational-analyst labels (the old
+// Classification / Lease Velocity / Pricing Posture / Tenancy Position):
 //   01 SCALE              — how big is the operator?
 //   02 TYPE               — what kind of business?
 //   03 OPERATING SIGNALS  — stressed or growing?
@@ -61,7 +60,7 @@ export function MethodologyPillars() {
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
           eyebrow="What we measure"
-          title="Four lenses on every operator, mapped to the acquirer's questions."
+          title="Four lenses on every operator, mapped to the questions that actually matter."
           context="Scale, type, operating signals, and footprint — applied identically across every market we cover. Each metric is observed, cohort-relative, and reproducible from the underlying Dwellsy listing record. No operator self-reporting."
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
