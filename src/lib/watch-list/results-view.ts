@@ -75,7 +75,6 @@ export interface ResultRowVM {
   estimatedPortfolioPoint: number | null;
   estimatedPortfolioLow: number | null;
   estimatedPortfolioHigh: number | null;
-  estimatedPortfolioConfidence: string | null;
   urusT12: number | null;
   listingTrajectoryYoY: number | null;
   concessionRate: number | null;
@@ -174,7 +173,6 @@ function projectMarketRow(
     estimatedPortfolioPoint: sc.portfolioEstimate?.point ?? null,
     estimatedPortfolioLow: sc.portfolioEstimate?.low ?? null,
     estimatedPortfolioHigh: sc.portfolioEstimate?.high ?? null,
-    estimatedPortfolioConfidence: sc.portfolioEstimate?.confidence ?? null,
     urusT12: sc.coverage?.urusT12 ?? null,
     listingTrajectoryYoY: computeYoY(
       sc.t12ListingsCount,
@@ -249,7 +247,6 @@ function projectOperatorRow(
     estimatedPortfolioPoint: sc.portfolioEstimate?.point ?? null,
     estimatedPortfolioLow: sc.portfolioEstimate?.low ?? null,
     estimatedPortfolioHigh: sc.portfolioEstimate?.high ?? null,
-    estimatedPortfolioConfidence: sc.portfolioEstimate?.confidence ?? null,
     urusT12: sc.coverage?.urusT12 ?? null,
     listingTrajectoryYoY: computeYoY(
       sc.t12ListingsCount,

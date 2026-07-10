@@ -315,6 +315,9 @@ export interface ScorecardData {
     high?: number;
     cohort?: string;
     cohortN?: number;
+    // Retired with the v0.8 size model (turnover point/band, no tier). Kept
+    // declared-but-unpopulated for back-compat with readers not yet cleaned up;
+    // do not build new features on it.
     confidence?: "Low" | "Medium" | "High";
     multiplierMedian?: number;
     message?: string;

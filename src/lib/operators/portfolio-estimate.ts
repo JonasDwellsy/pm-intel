@@ -13,6 +13,7 @@
 import type { ScorecardData } from "@/lib/types";
 import {
   estimatedManagedUnits,
+  estimatedManagedUnitsBand,
   DEFAULT_MULTIPLIERS,
   type PortfolioMultipliers,
 } from "@/lib/operator-size";
@@ -47,14 +48,20 @@ export function estimatePortfolioSize(
     return {
       status: "insufficient_data",
       message: "No observed units to estimate portfolio size.",
-      methodologyVersion: "v0.8-house-apt-turnover",
+      methodologyVersion: "v0.8.1-house-apt-turnover-band",
     };
   }
 
+  const band = estimatedManagedUnitsBand({
+    houseUrusT12: asInt(performance.houseUrusT12),
+    aptUrusT12: asInt(performance.aptUrusT12),
+  });
   return {
     status: "estimated",
     point,
+    low: band ? Math.min(band.low, point) : point,
+    high: band ? Math.max(band.high, point) : point,
     cohort: "house/apt turnover",
-    methodologyVersion: "v0.8-house-apt-turnover",
+    methodologyVersion: "v0.8.1-house-apt-turnover-band",
   };
 }

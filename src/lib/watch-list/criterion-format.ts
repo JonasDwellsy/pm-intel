@@ -28,7 +28,6 @@ import { OPERATOR_LABELS } from "./editor-options";
  *  module just for one consumer. */
 const DECIMAL_PERCENT_FIELDS = new Set<string>([
   "concessionRate",
-  "concessionTrajectory",
   "listingTrajectoryYoY",
   "rentPerformanceYoY",
 ]);

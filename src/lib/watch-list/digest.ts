@@ -70,7 +70,7 @@ export function describeChange(c: OperatorChange): string {
     case "market_dropped":
       return `Left a market (${c.marketId})`;
     case "portfolio_band":
-      return `Portfolio confidence band: ${c.before ?? "—"} → ${c.after ?? "—"}`;
+      return `Portfolio size range: ${c.before ?? "—"} → ${c.after ?? "—"}`;
     case "portfolio_size": {
       const dir = c.pctChange >= 0 ? "up" : "down";
       return `Estimated portfolio ${dir} ${pct(Math.abs(c.pctChange))} (${c.before ?? "—"} → ${c.after ?? "—"})`;

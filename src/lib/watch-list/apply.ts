@@ -96,7 +96,11 @@ export async function applyWatchList(
   // unscoped evaluation.
   entitlement?: MarketEntitlement
 ): Promise<TargetListResult> {
+  // PM-only universe. Brokers are scored in their own cohort and hidden from
+  // the platform's ranked lists by default; a watch list is a ranked target
+  // list, so brokers don't belong here (and there's no field to exclude them).
   const allRows = await prisma.pM.findMany({
+    where: { operatorType: "pm" },
     select: {
       slug: true,
       name: true,
@@ -133,6 +137,12 @@ export async function applyWatchList(
     } catch {
       continue; // skip malformed rows defensively
     }
+    // Never surface platform rank/composite through the watch list. The whole
+    // scorecard blob rides along on each result row (results API + client
+    // bundle), so scrub the rank block at this single choke point. The
+    // watch-list fit score / fit ordinal are the list's own ranking and stay;
+    // nothing in the evaluator or scoring reads scorecard.rank.
+    delete (scorecard as { rank?: ScorecardData["rank"] }).rank;
     const canonId = row.canonicalOperatorId ?? null;
     const marketCount = canonId
       ? marketCountByCanonical.get(canonId) ?? 1

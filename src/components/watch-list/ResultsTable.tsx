@@ -456,8 +456,7 @@ function renderCriterionCell(row: ResultRowVM, fieldId: string): React.ReactNode
     if (
       fieldId === "concessionRate" ||
       fieldId === "listingTrajectoryYoY" ||
-      fieldId === "rentPerformanceYoY" ||
-      fieldId === "concessionTrajectory"
+      fieldId === "rentPerformanceYoY"
     ) {
       const cls =
         fieldId === "listingTrajectoryYoY" || fieldId === "rentPerformanceYoY"

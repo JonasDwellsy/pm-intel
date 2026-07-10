@@ -85,7 +85,6 @@ export interface InputDescriptor {
  *  and displayed as a percentage. */
 const DECIMAL_PERCENT_FIELDS = new Set<string>([
   "concessionRate",
-  "concessionTrajectory",
   "listingTrajectoryYoY",
   "rentPerformanceYoY",
 ]);
@@ -100,6 +99,8 @@ const SUFFIX_BY_FIELD: Record<string, string | undefined> = {
   urusT12: "URUs",
   monthsOnPlatform: "months",
   daysOnMarketT12: "days",
+  retention18Pct: "%",
+  marketingScore: "/ 100",
 };
 
 export function inputDescriptorFor(

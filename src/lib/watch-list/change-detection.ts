@@ -114,19 +114,35 @@ export function diffSnapshots(
 ): OperatorChange[] {
   const changes: OperatorChange[] = [];
 
+  // Methodology-boundary guard. Stars, the portfolio point, and the size band
+  // are all RE-DERIVED under the current methodology — so when the methodology
+  // version changes between two snapshots (e.g. a cohort reclassification or a
+  // size-model recalibration), those fields move for the whole cohort at once
+  // without any operator behaviour changing. Suppress those change types across
+  // that boundary so a methodology refresh doesn't fire a wave of spurious
+  // alerts; genuinely behavioural signals (market/submarket coverage,
+  // concession activity, eligibility) still fire below.
+  const methodologyChanged =
+    prior.methodologyVersion !== current.methodologyVersion;
+
   // Star changes — one per metric that flipped tier (including
   // gold→silver, gold→null, null→silver, etc.).
-  for (const metric of METRIC_KEYS) {
-    const before = prior.starsPerMetric[metric];
-    const after = current.starsPerMetric[metric];
-    if (before !== after) {
-      changes.push({ type: "star", metric, before, after });
+  if (!methodologyChanged) {
+    for (const metric of METRIC_KEYS) {
+      const before = prior.starsPerMetric[metric];
+      const after = current.starsPerMetric[metric];
+      if (before !== after) {
+        changes.push({ type: "star", metric, before, after });
+      }
     }
   }
 
-  // Portfolio band — confidence tier change OR transition in/out of
+  // Portfolio band — the low–high size range, OR a transition in/out of
   // 'estimated' mode (both surface as a band change here).
-  if (prior.estimatedPortfolioBand !== current.estimatedPortfolioBand) {
+  if (
+    !methodologyChanged &&
+    prior.estimatedPortfolioBand !== current.estimatedPortfolioBand
+  ) {
     changes.push({
       type: "portfolio_band",
       before: prior.estimatedPortfolioBand,
@@ -138,6 +154,7 @@ export function diffSnapshots(
   // snapshots carry an estimate (transitions in/out of estimated
   // already surface as a band change above, no need to double-count).
   if (
+    !methodologyChanged &&
     typeof prior.estimatedPortfolioPoint === "number" &&
     typeof current.estimatedPortfolioPoint === "number" &&
     prior.estimatedPortfolioPoint > 0

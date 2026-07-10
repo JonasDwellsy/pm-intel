@@ -28,7 +28,7 @@ function makePm(overrides: Partial<PMRecord["scorecard"]> = {}, top: Partial<PMR
       classificationRationale: "",
       rank: { overall: 5, overallTotal: 50, quadrant: 2, quadrantTotal: 20, compositeStar: null, compositeCohortName: null },
       performance: { domT12: 42, domLifetime: 45, domStar: null, percentile: null },
-      rentPerformance: { pmYoyChange: 0.03, cohortYoyChange: 0.025, vsComp: 0.005, star: null },
+      rentPerformance: { pmYoyChange: 0.03, cohortYoyChange: 0.025, vsComp: 0.005, delta: 0.02, star: null },
       marketing: { compositeScore: 50, percentile: null, star: null },
       // NOTE: no watch-list field currently reads tenancy (see
       // fields.ts FIELD_REGISTRY — there's no tenancy-backed entry
@@ -146,10 +146,31 @@ test("boolean fields — claimed / hybrid / institutional", () => {
   assert.equal(evaluateCriterion(pm, { field: "hybrid", operator: "eq", value: false }), true);
 });
 
-test("portfolioEstimateConfidence enum filter", () => {
+test("rentPerformanceYoY reads the market-relative delta, not raw YoY", () => {
+  // fixture: rentPerformance.delta = 0.02, pmYoyChange = 0.03. The field must
+  // evaluate against delta (market-relative), so a >= 0.03 filter fails even
+  // though the raw YoY would clear it.
   const pm = makePm();
-  assert.equal(evaluateCriterion(pm, { field: "portfolioEstimateConfidence", operator: "in", value: ["Medium", "High"] }), false);
-  assert.equal(evaluateCriterion(pm, { field: "portfolioEstimateConfidence", operator: "in", value: ["Low", "Medium", "High"] }), true);
+  assert.equal(evaluateCriterion(pm, { field: "rentPerformanceYoY", operator: "gte", value: 0.02 }), true);
+  assert.equal(evaluateCriterion(pm, { field: "rentPerformanceYoY", operator: "gte", value: 0.03 }), false);
+});
+
+test("retention18Pct filter reads tenancy.retention18Pct", () => {
+  const pm = makePm(); // fixture retention18Pct = 82
+  assert.equal(evaluateCriterion(pm, { field: "retention18Pct", operator: "gte", value: 80 }), true);
+  assert.equal(evaluateCriterion(pm, { field: "retention18Pct", operator: "gte", value: 90 }), false);
+});
+
+test("retention18Pct fails-by-default when suppressed (null)", () => {
+  const pm = makePm();
+  pm.scorecard.tenancy.retention18Pct = null; // suppressed operator
+  assert.equal(evaluateCriterion(pm, { field: "retention18Pct", operator: "gte", value: 0 }), false);
+});
+
+test("marketingScore filter reads marketing.compositeScore", () => {
+  const pm = makePm(); // fixture compositeScore = 50
+  assert.equal(evaluateCriterion(pm, { field: "marketingScore", operator: "gte", value: 50 }), true);
+  assert.equal(evaluateCriterion(pm, { field: "marketingScore", operator: "gte", value: 60 }), false);
 });
 
 test("type coercion: numeric string compares correctly with gte", () => {

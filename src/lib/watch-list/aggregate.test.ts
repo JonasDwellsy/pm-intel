@@ -48,13 +48,14 @@ function makePm(overrides: {
   quadrant7Cell?: string;
   institutional?: boolean;
   hybrid?: boolean;
+  marketCount?: number;
 }): PMRecord {
   return {
     slug: overrides.slug,
     name: overrides.name ?? "Test Operator",
     marketId: overrides.marketId,
     claimed: overrides.claimed ?? false,
-    marketCount: 1,
+    marketCount: overrides.marketCount ?? 1,
     scorecard: {
       pm: {
         slug: overrides.slug,
@@ -226,12 +227,16 @@ test("aggregateRecords — singleton wraps with isRollup=false", () => {
 // ─── SUM rules ────────────────────────────────────────────────────
 
 test("aggregateRecords — sums urusT12 / portfolio point/low/high / t12 / t24 counts", () => {
-  const a = makePm({ slug: "a", marketId: "birmingham-al", urusT12: 100, t12ListingsCount: 150, t24t12ListingsCount: 130, portfolioPoint: 800, portfolioLow: 600, portfolioHigh: 1000 });
-  const b = makePm({ slug: "b", marketId: "jacksonville-fl", urusT12: 80, t12ListingsCount: 110, t24t12ListingsCount: 100, portfolioPoint: 700, portfolioLow: 550, portfolioHigh: 900 });
-  const c = makePm({ slug: "c", marketId: "knoxville-tn", urusT12: 75, t12ListingsCount: 90, t24t12ListingsCount: 85, portfolioPoint: 500, portfolioLow: 400, portfolioHigh: 650 });
+  // marketCount 5 on every member = the operator's GLOBAL distinct-market
+  // count (from the canonical entity), even though only 3 members are in this
+  // (entitlement-filtered) bucket. The rollup must report the global 5, not
+  // the bucket size 3 — otherwise a marketCount filter keys off entitlements.
+  const a = makePm({ slug: "a", marketId: "birmingham-al", marketCount: 5, urusT12: 100, t12ListingsCount: 150, t24t12ListingsCount: 130, portfolioPoint: 800, portfolioLow: 600, portfolioHigh: 1000 });
+  const b = makePm({ slug: "b", marketId: "jacksonville-fl", marketCount: 5, urusT12: 80, t12ListingsCount: 110, t24t12ListingsCount: 100, portfolioPoint: 700, portfolioLow: 550, portfolioHigh: 900 });
+  const c = makePm({ slug: "c", marketId: "knoxville-tn", marketCount: 5, urusT12: 75, t12ListingsCount: 90, t24t12ListingsCount: 85, portfolioPoint: 500, portfolioLow: 400, portfolioHigh: 650 });
   const agg = aggregateRecords([a, b, c]);
   assert.equal(agg.isRollup, true);
-  assert.equal(agg.marketCount, 3);
+  assert.equal(agg.marketCount, 5);
   assert.equal(agg.scorecard.coverage.urusT12, 255);
   assert.equal(agg.scorecard.portfolioEstimate?.point, 2000);
   assert.equal(agg.scorecard.portfolioEstimate?.low, 1550);

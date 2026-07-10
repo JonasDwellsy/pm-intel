@@ -204,7 +204,7 @@ function describeChangeType(change: OperatorChange): string {
     case "star":
       return `Star · ${metricLabel(change.metric)}`;
     case "portfolio_band":
-      return "Portfolio · confidence tier";
+      return "Portfolio · size range";
     case "portfolio_size":
       return "Portfolio · size";
     case "market_added":
