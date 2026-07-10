@@ -116,7 +116,6 @@ export interface PortfolioSizeLeader {
   lowEstimate: number;
   highEstimate: number;
   cohort: string;
-  confidence: "Low" | "Medium" | "High";
 }
 
 export interface QuadrantBreakdownEntry {
@@ -307,7 +306,6 @@ export async function buildMarketBriefData(
         lowEstimate: est.low ?? 0,
         highEstimate: est.high ?? 0,
         cohort: est.cohort ?? "—",
-        confidence: est.confidence ?? "Low",
       };
     })
     .filter((x): x is PortfolioSizeLeader => x !== null)

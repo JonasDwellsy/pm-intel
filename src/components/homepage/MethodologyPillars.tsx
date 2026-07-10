@@ -26,7 +26,7 @@ const PILLARS: Pillar[] = [
     eyebrow: "Scale",
     title: "How big is this operator really?",
     description:
-      "Portfolio size estimates derived from listing volume, calibrated against verified operator data. Size-banded confidence model reduces uncertainty for the operators most relevant to acquisition diligence.",
+      "Portfolio size estimated from observed on-market turnover, split by unit type — house and apartment units re-list at different rates — with a low–high range that brackets the estimate. Applied uniformly to every operator; no self-reported counts.",
     anchor: "/methodology/portfolio-estimator",
   },
   {
@@ -34,7 +34,7 @@ const PILLARS: Pillar[] = [
     eyebrow: "Type",
     title: "What kind of business is this?",
     description:
-      "Every PM mapped to one of seven cells based on observed unit composition and operating signals — not corporate self-description. SFR Independent, SFR Institutional, Hybrid, Small/Large MF/BTR Independent/Institutional.",
+      "Every PM mapped to one of seven cells from observed unit mix and community concentration — not corporate self-description. SFR Independent, SFR Institutional, Hybrid, Small/Large MF/BTR Independent/Institutional.",
     anchor: "/methodology#classification",
   },
   {
@@ -42,8 +42,8 @@ const PILLARS: Pillar[] = [
     eyebrow: "Operating signals",
     title: "Are they stressed or growing?",
     description:
-      "Days on market, concession use, and listing trajectory — leading indicators that signal whether an operator is positioned for growth, holding steady, or under stress. All metrics cohort-relative and reproducible from the underlying Dwellsy listing record.",
-    anchor: "/methodology#dom",
+      "Days on market, tenant retention, rent trajectory, and concession use — leading indicators that signal whether an operator is positioned for growth, holding steady, or under stress. All metrics cohort-relative and reproducible from the underlying Dwellsy listing record.",
+    anchor: "/methodology#tenancy",
   },
   {
     num: "04",

@@ -1334,14 +1334,12 @@ function portfolioTile(scorecard: ScorecardData): {
       typeof est.low === "number" && typeof est.high === "number"
         ? `${fmtInt(est.low)}–${fmtInt(est.high)} units`
         : "Point estimate";
-    const confidence = est.confidence
-      ? `${est.confidence} confidence${est.cohort ? ` · ${est.cohort}` : ""}`
-      : "";
+    const cohortNote = est.cohort ? `  ·  ${est.cohort}` : "";
     return {
       value: fmtInt(est.point),
       unit: "units",
       star: null,
-      compare: confidence ? `${range}  ·  ${confidence}` : range,
+      compare: `${range}${cohortNote}`,
     };
   }
   return {
@@ -2897,14 +2895,11 @@ function portfolioEstimateCard(scorecard: ScorecardData): MetricCardData {
       `Range: ${fmtInt(est.low)}–${fmtInt(est.high)} units`
     );
   }
-  if (est.confidence) {
-    contextParts.push(`${est.confidence} confidence`);
-  }
   if (est.cohort) {
     contextParts.push(est.cohort);
   }
   contextParts.push(
-    "Blends trailing 12-month listing volume with observed turnover ratios for the operator's cohort."
+    "Scales observed trailing-12-month units up by unit-type turnover — house and apartment units re-list at different rates."
   );
   return {
     title: "Portfolio Size Estimate",
@@ -3009,9 +3004,8 @@ function portfolioNarrative(scorecard: ScorecardData): string {
       typeof est.low === "number" && typeof est.high === "number"
         ? ` (range: ${fmtInt(est.low)}–${fmtInt(est.high)} units)`
         : "";
-    const confidence = est.confidence ? `${est.confidence} confidence` : "";
-    const cohort = est.cohort ? `, ${est.cohort}` : "";
-    return `Estimated portfolio: ${fmtInt(est.point)} units${range}. ${confidence}${cohort}. Estimates blend trailing 12-month listing volume with observed turnover ratios for the operator's cohort.`;
+    const cohort = est.cohort ? ` (${est.cohort})` : "";
+    return `Estimated portfolio: ${fmtInt(est.point)} units${range}${cohort}. Estimates scale observed trailing 12-month units up by unit-type turnover — house and apartment units re-list at different rates.`;
   }
   return est.message ?? "Insufficient data for a portfolio estimate.";
 }

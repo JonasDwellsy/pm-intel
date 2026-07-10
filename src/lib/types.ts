@@ -296,14 +296,16 @@ export interface ScorecardData {
   // earlier single `concessionSampleText` field stays for back-compat
   // with any pre-array reader; the array is authoritative for the UI.
   concessionSamples?: string[];
-  // v0.7 — portfolio size estimator. Pre-computed at seed time and
+  // v0.8 — portfolio size estimator. Pre-computed at seed time and
   // baked into the stored scorecard blob so the Layer 5 widget, Ask
   // tools, and brief generator all read identical numbers without
   // touching the algorithm. status discriminates:
-  //   "estimated"             — point/low/high/cohort/cohortN/confidence populated
-  //   "insufficient_data"     — Large MF/BTR cohort; message populated
+  //   "estimated"             — point/low/high/cohort populated
+  //   "insufficient_data"     — no observed house/apt units; message populated
   //   "insufficient_history"  — <3 months on platform; widget hides
   //   "no_listings"           — urusT12 = 0; widget hides
+  // (The v0.7 confidence tier + cohortN/multiplierMedian were retired with the
+  // v0.8 turnover model; low/high is the range now.)
   portfolioEstimate?: {
     status:
       | "estimated"
@@ -314,12 +316,6 @@ export interface ScorecardData {
     low?: number;
     high?: number;
     cohort?: string;
-    cohortN?: number;
-    // Retired with the v0.8 size model (turnover point/band, no tier). Kept
-    // declared-but-unpopulated for back-compat with readers not yet cleaned up;
-    // do not build new features on it.
-    confidence?: "Low" | "Medium" | "High";
-    multiplierMedian?: number;
     message?: string;
     methodologyVersion?: string;
   };

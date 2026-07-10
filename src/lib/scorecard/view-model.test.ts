@@ -82,7 +82,6 @@ test("scaleFit reads the single seeded portfolioEstimate point, fills readout", 
     pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01,
   });
   assert.equal(v.scaleFit.estimate.point, 644);
-  assert.equal(v.scaleFit.estimate.confidence, null);
   assert.equal(v.scaleFit.observedUnits, 318);
   assert.equal(v.scaleFit.top3Share, 0.84);
   const row = v.readout.find((r) => r.area === "Scale & Fit")!;
@@ -614,8 +613,7 @@ test("scaleFit reads the seeded portfolioEstimate point (point-only)", () => {
   });
   assert.equal(v.scaleFit.estimate.point, 984);
   assert.equal(v.scaleFit.estimate.status, "estimated");
-  assert.equal(v.scaleFit.estimate.low, null); // no band under v0.8
-  assert.equal(v.scaleFit.estimate.confidence, null);
+  assert.equal(v.scaleFit.estimate.low, null); // no band inputs in this fixture
   const scaleRow = v.readout.find((r) => r.area === "Scale & Fit")!;
   assert.match(scaleRow.value, /managed units \(est\.\)/i);
 });

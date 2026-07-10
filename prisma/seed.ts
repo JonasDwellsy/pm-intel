@@ -752,9 +752,6 @@ export interface PortfolioEstimate {
   low?: number;
   high?: number;
   cohort?: string;
-  cohortN?: number;
-  confidence?: "Low" | "Medium" | "High";
-  multiplierMedian?: number;
   message?: string;
   methodologyVersion?: string;
 }
