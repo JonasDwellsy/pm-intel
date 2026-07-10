@@ -1,0 +1,17 @@
+# Machine-generated data. Produced by the data pipeline
+# (scripts/data-pipeline/merge.py + build-operator-universe.ts) and the
+# enrichment scraper — never hand-edited. Marking them `linguist-generated`
+# collapses their diffs in GitHub PR review (expandable on demand) and keeps
+# them out of language stats, so a data refresh no longer buries a review in
+# tens of thousands of unreadable JSON lines. Regenerate via the pipeline, not
+# by editing these files.
+#
+# NOTE: the curated/config JSON in src/data (operator_type_overrides.json,
+# excluded_operators.json, markets-with-coverage.json, watch-list-templates.json)
+# is intentionally NOT listed here — those are hand-maintained and should stay
+# fully reviewable.
+src/data/scorecard_data.json linguist-generated=true
+src/data/search_index.json linguist-generated=true
+src/data/markets-summary.json linguist-generated=true
+src/data/merge_fragments.json linguist-generated=true
+src/data/company_enrichment.json linguist-generated=true
