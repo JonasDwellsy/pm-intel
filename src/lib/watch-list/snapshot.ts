@@ -135,11 +135,12 @@ export function readActiveSubmarkets(
   return result.sort();
 }
 
-/** Read the portfolio estimate point + confidence tier off the
- *  scorecard. Non-estimated rows (status = 'insufficient_data',
- *  'insufficient_history', 'no_listings') return null point + the
- *  status string as the band so the diff can detect transitions
- *  in/out of estimated mode. */
+/** Read the portfolio estimate point + range band off the scorecard.
+ *  v0.8.1: `band` is the low–high turnover range string (the old
+ *  confidence tier was retired with v0.8). Non-estimated rows
+ *  (status = 'insufficient_data', 'insufficient_history',
+ *  'no_listings') return null point + the status string as the band so
+ *  the diff can detect transitions in/out of estimated mode. */
 export function readPortfolioBand(sc: ScorecardData): {
   point: number | null;
   band: string | null;
@@ -147,7 +148,11 @@ export function readPortfolioBand(sc: ScorecardData): {
   const est = sc.portfolioEstimate;
   if (!est) return { point: null, band: null };
   if (est.status === "estimated" && typeof est.point === "number") {
-    return { point: Math.round(est.point), band: est.confidence ?? null };
+    const band =
+      typeof est.low === "number" && typeof est.high === "number"
+        ? `${Math.round(est.low)}–${Math.round(est.high)}`
+        : null;
+    return { point: Math.round(est.point), band };
   }
   return { point: null, band: est.status ?? null };
 }

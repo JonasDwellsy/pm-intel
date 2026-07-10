@@ -127,6 +127,13 @@ export function aggregateRecords(records: PMRecord[]): AggregatedPMRecord {
     (r) => r.scorecard.rentPerformance?.pmYoyChange,
     weights
   );
+  // delta = market-relative YoY; the watch-list rentPerformanceYoY field reads
+  // this, so aggregate it too (not just the raw pmYoyChange) for rollups.
+  const rentDelta = weightedAvg(
+    sorted,
+    (r) => r.scorecard.rentPerformance?.delta,
+    weights
+  );
   const topCityPct = weightedAvg(
     sorted,
     (r) => r.scorecard.geographicCoverage?.topCities?.[0]?.pct,
@@ -137,10 +144,6 @@ export function aggregateRecords(records: PMRecord[]): AggregatedPMRecord {
   const q7Modal = modeOf(sorted, (r) => r.scorecard.pm?.quadrant7Cell);
   const institutionalModal = modeOf(sorted, (r) => r.scorecard.pm?.institutional);
   const hybridModal = modeOf(sorted, (r) => r.scorecard.pm?.hybrid);
-  const confidenceModal = modeOf(
-    sorted,
-    (r) => r.scorecard.portfolioEstimate?.confidence
-  );
 
   // ── Max / any ──
   const monthsOnPlatform = maxOf(sorted, (r) => r.scorecard.coverage?.monthsOnPlatform);
@@ -187,6 +190,7 @@ export function aggregateRecords(records: PMRecord[]): AggregatedPMRecord {
           ...first.scorecard.rentPerformance,
           pmYoyChange:
             rentYoY ?? first.scorecard.rentPerformance.pmYoyChange ?? 0,
+          delta: rentDelta ?? first.scorecard.rentPerformance.delta ?? 0,
         }
       : null,
     geographicCoverage: first.scorecard.geographicCoverage
@@ -214,12 +218,6 @@ export function aggregateRecords(records: PMRecord[]): AggregatedPMRecord {
           point: portfolioPoint ?? first.scorecard.portfolioEstimate.point,
           low: portfolioLow ?? first.scorecard.portfolioEstimate.low,
           high: portfolioHigh ?? first.scorecard.portfolioEstimate.high,
-          confidence:
-            (confidenceModal.value as
-              | "Low"
-              | "Medium"
-              | "High"
-              | undefined) ?? first.scorecard.portfolioEstimate.confidence,
         }
       : first.scorecard.portfolioEstimate,
     concessionRate:
@@ -235,7 +233,11 @@ export function aggregateRecords(records: PMRecord[]): AggregatedPMRecord {
     name: first.name,
     marketId: first.marketId, // placeholder; market-criteria use member set
     claimed: claimedAny,
-    marketCount: sorted.length,
+    // marketCount is the operator's GLOBAL distinct-market count (from the
+    // canonical entity, injected on every member by apply.ts), NOT the size of
+    // this post-entitlement-filter bucket — otherwise a `marketCount` filter
+    // would key off how many markets the org happens to be entitled to see.
+    marketCount: first.marketCount,
     scorecard: aggregatedScorecard,
     isRollup: true,
     memberMarketIds: sorted.map((r) => r.marketId),

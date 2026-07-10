@@ -352,3 +352,74 @@ test("summariseChanges rolls up multi-operator counts by category", () => {
   assert.equal(summary.marketEntries, 1);
   assert.equal(summary.marketDrops, 0);
 });
+
+// ─── methodology-version guard ────────────────────────────────────
+
+test("methodology-version change suppresses re-derived star / portfolio changes", () => {
+  // Stars, portfolio point, and the size band are all RE-DERIVED under the
+  // current methodology. When the version bumps between snapshots (e.g. a
+  // cohort reclassification or size recalibration), those move for the whole
+  // cohort without any operator behaviour changing — so the diff must NOT
+  // emit star / portfolio_size / portfolio_band across that boundary.
+  const prior = makeSnapshot({
+    methodologyVersion: "v0.7",
+    starsPerMetric: {
+      leaseUp: "gold",
+      tenancy: null,
+      rentPerformance: null,
+      marketingDiscipline: null,
+      inventoryTransparency: null,
+    },
+    estimatedPortfolioPoint: 1000,
+    estimatedPortfolioBand: "800–1200",
+    topMSAs: ["chattanooga-tn"],
+  });
+  const current = makeSnapshot({
+    methodologyVersion: "v0.8",
+    starsPerMetric: {
+      leaseUp: null, // flipped
+      tenancy: null,
+      rentPerformance: null,
+      marketingDiscipline: null,
+      inventoryTransparency: null,
+    },
+    estimatedPortfolioPoint: 500, // −50%
+    estimatedPortfolioBand: "400–600",
+    topMSAs: ["chattanooga-tn", "nashville-tn"], // genuine coverage change
+  });
+  const changes = diffSnapshots(prior, current);
+  const types = changes.map((c) => c.type);
+  assert.equal(types.includes("star"), false);
+  assert.equal(types.includes("portfolio_size"), false);
+  assert.equal(types.includes("portfolio_band"), false);
+  // ...but a genuinely behavioural change (new market coverage) still fires.
+  assert.equal(types.includes("market_added"), true);
+});
+
+test("same methodology version still fires star + portfolio changes", () => {
+  const prior = makeSnapshot({
+    methodologyVersion: "v0.8",
+    starsPerMetric: {
+      leaseUp: "gold",
+      tenancy: null,
+      rentPerformance: null,
+      marketingDiscipline: null,
+      inventoryTransparency: null,
+    },
+    estimatedPortfolioPoint: 1000,
+  });
+  const current = makeSnapshot({
+    methodologyVersion: "v0.8",
+    starsPerMetric: {
+      leaseUp: null,
+      tenancy: null,
+      rentPerformance: null,
+      marketingDiscipline: null,
+      inventoryTransparency: null,
+    },
+    estimatedPortfolioPoint: 500,
+  });
+  const types = diffSnapshots(prior, current).map((c) => c.type);
+  assert.equal(types.includes("star"), true);
+  assert.equal(types.includes("portfolio_size"), true);
+});

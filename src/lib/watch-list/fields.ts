@@ -18,9 +18,10 @@
 //
 // Field paths verified against the live seed JSON shape — every
 // getValueFromPM below pulls from a path that exists on a real PM
-// record in src/data/scorecard_data.json. The v0.7 portfolio
-// estimator's output lives at scorecard.portfolioEstimate (baked
-// at seed time per buildScorecard in prisma/seed.ts).
+// record. The v0.8 portfolio estimator's output lives at
+// scorecard.portfolioEstimate = {status, point, low, high, cohort,
+// methodologyVersion} (baked at seed time in prisma/seed.ts; the
+// low/high turnover band is seeded as of v0.8.1).
 
 import type { ScorecardData } from "@/lib/types";
 
@@ -127,14 +128,6 @@ function listingTrajectoryYoY(pm: PMRecord): number | null {
   return (t12 - t24) / t24;
 }
 
-/** Concession trajectory — placeholder until the data layer carries a
- *  pre-computed delta. v0.6.4 Patch 2 only shipped the spot-rate; the
- *  trajectory comparison waits on a second data window. Returns null
- *  so the criterion fails-by-default until the upstream field lands. */
-function concessionTrajectory(_pm: PMRecord): number | null {
-  return null;
-}
-
 // ─── the registry ──────────────────────────────────────────────────
 
 export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
@@ -186,7 +179,7 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
     id: "estimatedPortfolioLow",
     label: "Portfolio estimate (low end)",
     description:
-      "Conservative estimate of total managed units (25th percentile of the model's confidence band).",
+      "Conservative estimate of total managed units — the low end of the turnover-range band (slower-turnover multipliers).",
     category: "scale",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -196,7 +189,7 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
     id: "estimatedPortfolioHigh",
     label: "Portfolio estimate (high end)",
     description:
-      "Optimistic estimate of total managed units (75th percentile of the model's confidence band).",
+      "Optimistic estimate of total managed units — the high end of the turnover-range band (faster-turnover multipliers).",
     category: "scale",
     type: "number",
     validOperators: ["gte", "lte", "between"],
@@ -211,17 +204,6 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
     type: "number",
     validOperators: ["gte", "lte", "between"],
     getValueFromPM: (pm) => pm.scorecard.coverage?.urusT12 ?? null,
-  },
-  portfolioEstimateConfidence: {
-    id: "portfolioEstimateConfidence",
-    label: "Portfolio estimate confidence",
-    description:
-      "How confident we are in the portfolio estimate (High / Medium / Low / Insufficient). Reflects the calibration sample size for the operator's segment.",
-    category: "scale",
-    type: "enum",
-    validOperators: ["eq", "ne", "in", "notIn"],
-    getValueFromPM: (pm) => pm.scorecard.portfolioEstimate?.confidence ?? null,
-    enumOptions: ["Low", "Medium", "High"],
   },
 
   // ── Asset ─────────────────────────────────────────────────────
@@ -286,16 +268,6 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
     validOperators: ["gte", "lte", "between"],
     getValueFromPM: (pm) => pm.scorecard.concessionRate ?? null,
   },
-  concessionTrajectory: {
-    id: "concessionTrajectory",
-    label: "Concession trend",
-    description:
-      "Whether the operator's concession rate is improving (declining), stable, or worsening (rising) vs prior year.",
-    category: "trajectory",
-    type: "number",
-    validOperators: ["gte", "lte", "between"],
-    getValueFromPM: (pm) => concessionTrajectory(pm),
-  },
   daysOnMarketT12: {
     id: "daysOnMarketT12",
     label: "Lease-up speed (median DOM)",
@@ -308,13 +280,33 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
   rentPerformanceYoY: {
     id: "rentPerformanceYoY",
-    label: "Rent growth (year-over-year)",
+    label: "Rent performance vs market (YoY)",
     description:
-      "Operator's rent growth year-over-year relative to market median (positive = beating market; negative = lagging).",
+      "Operator's year-over-year rent growth minus the same-type cohort median, as a decimal (e.g. 0.02 = +2 pp; positive = beating the market, negative = lagging).",
     category: "trajectory",
     type: "number",
     validOperators: ["gte", "lte", "between"],
-    getValueFromPM: (pm) => pm.scorecard.rentPerformance?.pmYoyChange ?? null,
+    getValueFromPM: (pm) => pm.scorecard.rentPerformance?.delta ?? null,
+  },
+  retention18Pct: {
+    id: "retention18Pct",
+    label: "Tenant retention (% reaching 1.5 yrs)",
+    description:
+      "Share of the operator's tenancies that reach 18 months (Kaplan-Meier survival). Higher = stickier tenants. No value for operators whose retention is suppressed for insufficient turnover data.",
+    category: "trajectory",
+    type: "number",
+    validOperators: ["gte", "lte", "between"],
+    getValueFromPM: (pm) => pm.scorecard.tenancy?.retention18Pct ?? null,
+  },
+  marketingScore: {
+    id: "marketingScore",
+    label: "Marketing score",
+    description:
+      "Listing-quality / marketing-discipline score (0–100): a weighted blend of completeness, amenities, description richness, and photos.",
+    category: "trajectory",
+    type: "number",
+    validOperators: ["gte", "lte", "between"],
+    getValueFromPM: (pm) => pm.scorecard.marketing?.compositeScore ?? null,
   },
 
   // ── Operator characteristics ──────────────────────────────────

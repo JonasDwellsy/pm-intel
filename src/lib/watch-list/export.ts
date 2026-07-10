@@ -297,7 +297,6 @@ function formatAdaptiveValue(
   if (value === null || value === undefined) return null;
   const decimalPercent =
     fieldId === "concessionRate" ||
-    fieldId === "concessionTrajectory" ||
     fieldId === "listingTrajectoryYoY" ||
     fieldId === "rentPerformanceYoY";
   if (typeof value === "number" && decimalPercent) {

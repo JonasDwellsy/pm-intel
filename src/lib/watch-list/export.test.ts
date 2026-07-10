@@ -166,7 +166,6 @@ function makeRow(opts: {
     estimatedPortfolioPoint: opts.portfolioPoint ?? 250,
     estimatedPortfolioLow: opts.portfolioLow ?? 200,
     estimatedPortfolioHigh: opts.portfolioHigh ?? 300,
-    estimatedPortfolioConfidence: "Medium",
     urusT12: opts.urusT12,
     listingTrajectoryYoY: opts.listingYoY ?? null,
     concessionRate: opts.concessionRate ?? null,

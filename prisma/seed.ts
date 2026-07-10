@@ -36,6 +36,7 @@ import type {
 } from "../src/lib/types";
 import {
   estimatedManagedUnits,
+  estimatedManagedUnitsBand,
   DEFAULT_MULTIPLIERS,
   type PortfolioMultipliers,
 } from "../src/lib/operator-size";
@@ -768,7 +769,7 @@ export interface PortfolioEstimate {
 // Bumped whenever the size methodology changes. isDataCurrent() compares the
 // DB's stored portfolioEstimate.methodologyVersion to this, so a code-only
 // methodology change re-seeds on the next deploy without needing FORCE_SEED.
-const SIZE_METHODOLOGY_VERSION = "v0.8-house-apt-turnover";
+const SIZE_METHODOLOGY_VERSION = "v0.8.1-house-apt-turnover-band";
 
 // Content fingerprint of the committed seed inputs (scorecard_data.json +
 // company_enrichment.json). isDataCurrent() compares this to the value stored
@@ -814,9 +815,20 @@ function estimatePortfolioSize(
     };
   }
 
+  // v0.8.1 — seed the low/high turnover band alongside the point so every
+  // seed-blob reader (watch-list range filter, CSV, canonical-operator
+  // aggregate) sees the same range the scorecard computes read-time. Clamp so
+  // the point always sits inside [low, high] even if admin-tuned multipliers
+  // fall outside the band.
+  const band = estimatedManagedUnitsBand({
+    houseUrusT12: asInt(performance.houseUrusT12),
+    aptUrusT12: asInt(performance.aptUrusT12),
+  });
   return {
     status: "estimated",
     point,
+    low: band ? Math.min(band.low, point) : point,
+    high: band ? Math.max(band.high, point) : point,
     cohort: "house/apt turnover",
     methodologyVersion: SIZE_METHODOLOGY_VERSION,
   };
@@ -1771,7 +1783,8 @@ async function captureOperatorSnapshots(
       portfolioEstimate?: {
         status?: string;
         point?: number;
-        confidence?: string;
+        low?: number;
+        high?: number;
       };
       coverage?: { t12Listings?: number };
       quadrant7Cell?: string;
@@ -1802,14 +1815,18 @@ async function captureOperatorSnapshots(
       else if (s === "silver") silver++;
     }
 
-    // Portfolio band: confidence tier when estimated, status string
-    // otherwise (so the diff can detect estimated↔not transitions).
+    // Portfolio band: low–high turnover range when estimated (the v0.8
+    // confidence tier was retired), status string otherwise (so the diff
+    // can detect estimated↔not transitions).
     let point: number | null = null;
     let band: string | null = null;
     const est = sc.portfolioEstimate;
     if (est?.status === "estimated" && typeof est.point === "number") {
       point = Math.round(est.point);
-      band = est.confidence ?? null;
+      band =
+        typeof est.low === "number" && typeof est.high === "number"
+          ? `${Math.round(est.low)}–${Math.round(est.high)}`
+          : null;
     } else if (est) {
       band = est.status ?? null;
     }
