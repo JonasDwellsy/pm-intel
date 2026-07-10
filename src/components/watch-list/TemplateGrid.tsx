@@ -2,7 +2,7 @@
 //
 // Both the full-page picker at /watch-lists/new and the empty-state
 // of /watch-lists (anonymous user or logged-in user with no saved
-// watch lists) render the same six cards: five named acquisition
+// watch lists) render the same six cards: five named starter
 // templates plus a "Start from Scratch" card. Lives here as a
 // standalone server component so the surrounding page chrome
 // (breadcrumb, header copy) can differ without duplicating the

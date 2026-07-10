@@ -68,7 +68,7 @@ test("next.config redirect — slug parameter pattern uses :slug* (catch-all) so
 // PR #46 — /get-matched (renter/owner-to-PM matching) deprecation.
 // The form + confirmation pages are deleted; the redirect catches
 // inbound traffic and lands users on the watch-list template picker
-// (the acquirer workflow that replaces it).
+// (the watch-list workflow that replaces it).
 test("next.config redirect — /get-matched permanently redirects to /watch-lists/new", async () => {
   const rules = await nextConfig.redirects!();
   const root = rules.find((r) => r.source === "/get-matched");

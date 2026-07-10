@@ -4,8 +4,8 @@
 // lands in one place and ripples consistently.
 //
 // Item order on the desktop nav matches the array order: Watch Lists
-// first (acquirer-positioning primary entry point), then the
-// existing Markets / Briefs / Methodology / Ask sequence.
+// first (primary entry point), then the existing Markets / Briefs /
+// Methodology / Ask sequence.
 
 export interface NavItem {
   /** Route or full URL. Internal links use Next's <Link>; the

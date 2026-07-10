@@ -144,10 +144,10 @@ function MarketCtaStrip({ marketName }: { marketName: string }) {
             className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em]"
             style={{ color: "#7FB6CC" }}
           >
-            Acquisition workflow
+            Watch lists
           </p>
           <h3 className="max-w-[680px] text-[28px] font-semibold leading-[1.2] tracking-[-0.012em]">
-            Looking for acquisition targets in {marketName}? Build a watch list.
+            Tracking operators in {marketName}? Build a watch list.
           </h3>
         </div>
         <Link
