@@ -13,10 +13,15 @@
 //     - /api/watch-lists/preview is PUBLIC; CRUD is PROTECTED
 //
 //   - v0.21 premium-content boundary:
-//     - Market-level pages (state, market landing, market brief)
-//       are PUBLIC — the marketing wedge
+//     - Marketing wedge — home, state + market LANDING pages,
+//       /methodology, the /briefs index, and the national brief
+//       (/briefs/national) — stays PUBLIC
 //     - Per-operator scorecards + operator profiles + /ask + the
 //       data APIs that back them are PROTECTED
+//     - Per-market briefs (/property-managers/:state/:city/brief)
+//       are PROTECTED too, as of the brief-gating change (commit
+//       7f8291d): they fall through to the :slug pattern; the
+//       national brief is the free public sample
 //
 // We compile the path patterns with path-to-regexp directly — same
 // library Clerk's createRouteMatcher uses internally — so the test
@@ -96,8 +101,8 @@ test("v0.21: marketing surface pages stay public", () => {
     "/property-managers",
     "/property-managers/texas",
     "/property-managers/texas/dallas-fort-worth",
-    "/property-managers/texas/dallas-fort-worth/brief",
     "/briefs",
+    "/briefs/national",
     "/claim",
     "/claim/mayflower",
     "/sign-in",
@@ -153,13 +158,17 @@ test("v0.21: data APIs backing premium UI are gated", () => {
   assert.equal(isGated("/api/scorecard/mayflower/pdf"), true);
 });
 
-test("v0.21 carve-out: /property-managers/:state/:city/brief stays public", () => {
-  // The brief route has the same path shape as the gated scorecard
-  // (4 segments under /property-managers), but is whitelisted in
-  // PUBLIC_BUYBOX_PATTERNS so the public market-brief surface keeps
-  // working.
+test("per-market briefs are GATED; national brief is the free sample", () => {
+  // Brief-gating change (commit 7f8291d): a per-market brief has the
+  // same 4-segment shape as a scorecard and now falls through to the
+  // protected :slug pattern — the old PUBLIC_BUYBOX carve-out was
+  // removed — so it requires sign-in. The /briefs index (teaser) and
+  // the national brief (/briefs/national, the free sample) stay
+  // public.
   assert.equal(
     isGated("/property-managers/tennessee/chattanooga/brief"),
-    false
+    true
   );
+  assert.equal(isGated("/briefs"), false);
+  assert.equal(isGated("/briefs/national"), false);
 });
