@@ -1,0 +1,55 @@
+name: CI
+
+# Runs the type-check + node:test suite on every PR and on pushes to main.
+#
+# Why this exists: the node:test suite (`npm run test:watch-list`, 455 tests)
+# was not part of any automatic path — only `tsc`/`eslint` were ever run by
+# hand. That let an intentional behavior change (gating market briefs) silently
+# orphan its tests, which sat red on main for weeks. This workflow makes the
+# tests a gate so that class of drift can't recur.
+#
+# Scope note: repo-wide `eslint .` is intentionally NOT run here yet — it
+# currently reports ~40 pre-existing errors (mostly in /dev pages + `any`
+# types) that predate this workflow. Adding lint to CI is a separate cleanup:
+# fix those first, then add an `npm run lint -- .` step.
+#
+# No secrets/DB needed: the tests are pure/source-level (they read source and
+# assert on it, or exercise pure logic), and both `prisma generate` and `tsc`
+# run offline. If a future test needs a database, add a Postgres service +
+# DATABASE_URL here.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR branch).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Type check + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # tsc imports @prisma/client types, which are code-generated from the
+      # schema. Generate reads prisma/schema.prisma only — no DB connection.
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Unit tests (node:test)
+        run: npm run test:watch-list
