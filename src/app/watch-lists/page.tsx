@@ -8,6 +8,8 @@ import { TemplateGrid } from "@/components/watch-list/TemplateGrid";
 import { WrongOrgFlash } from "@/components/watch-list/WrongOrgFlash";
 import { WelcomeFlash } from "@/components/watch-list/WelcomeFlash";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
+import { viewerHasAnyMarketAccess } from "@/lib/auth/market-entitlements.server";
+import { NoMarketsNotice } from "@/components/entitlements/NoMarketsNotice";
 import { prisma } from "@/lib/prisma";
 
 // /watch-lists — landing for the watch-list workspace.
@@ -40,6 +42,17 @@ export default async function WatchListesPage() {
   const { organizationId } = await getActiveOrgContext();
   if (!organizationId) {
     redirect("/setup-workspace?from=/watch-lists");
+  }
+
+  // Entitlement gate: an org with zero market grants (a client member
+  // invited before markets are provisioned, or a stray personal
+  // workspace) can technically reach this auth-protected page, but the
+  // builder + saved lists are useless — everything scopes to entitled
+  // markets and comes back empty. Show a clear "no market access" state
+  // instead of a functional-looking-but-empty shell. Admins / allMarkets
+  // orgs bypass (resolveViewerEntitlement → ALL_MARKETS).
+  if (!(await viewerHasAnyMarketAccess())) {
+    return <NoMarketsNotice />;
   }
 
   // Pull the org row to determine whether it's the user's personal
