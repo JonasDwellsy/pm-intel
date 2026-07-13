@@ -5,7 +5,7 @@
 // report. Gated by CRON_SECRET (Vercel Cron attaches it as a Bearer token).
 // Modes: default = send; ?dryRun=1 = compose+count, send/record nothing;
 // ?preview=<email> = one fully-rendered digest to <email> (bypasses gating).
-// INERT until RESEND_API_KEY + DIGEST_FROM_EMAIL + CRON_SECRET +
+// INERT until SENDGRID_API_KEY + DIGEST_FROM_EMAIL + CRON_SECRET +
 // DIGEST_UNSUB_SECRET are set in Vercel — same dependency as the watch-list digest.
 import { runBriefDigest } from "@/lib/briefs-digest/run";
 

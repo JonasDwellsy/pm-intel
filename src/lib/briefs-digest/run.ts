@@ -1,4 +1,4 @@
-// Market-brief digest orchestration (impure: Prisma + Clerk + Resend). Mirrors
+// Market-brief digest orchestration (impure: Prisma + Clerk + SendGrid). Mirrors
 // the watch-list digest-run, but:
 //   - its own per-user prefs (BriefDigestPreference) — independent opt-out/cadence,
 //   - deterministic content (change counts + links, no LLM in the cron path),

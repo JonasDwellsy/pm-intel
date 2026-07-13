@@ -109,8 +109,8 @@ The crons are already scheduled in `vercel.json` (`watch-list-digest` 13:00 UTC,
 `snapshotDate`. They stay **inert until these env vars are set in Vercel**
 (Jonas — Vercel dashboard, Production):
 
-- `RESEND_API_KEY` — Resend API key
-- `DIGEST_FROM_EMAIL` — a Resend-verified sender address
+- `SENDGRID_API_KEY` — SendGrid API key (Dwellsy's SendGrid account)
+- `DIGEST_FROM_EMAIL` — a SendGrid-verified sender / authenticated domain
 - `CRON_SECRET` — shared secret the cron routes check (also set on the cron)
 - `DIGEST_UNSUB_SECRET` — HMAC secret for one-click unsubscribe links
 - `APP_BASE_URL` (or `NEXT_PUBLIC_APP_URL`) — absolute base for links in emails
