@@ -1,4 +1,4 @@
-// Digest orchestration (impure: Prisma + Clerk + Resend). Pure gate/diff
+// Digest orchestration (impure: Prisma + Clerk + SendGrid). Pure gate/diff
 // helpers live in digest-gather.ts (server-only-free, unit-tested). Per-recipient
 // cadence gating: send only when there is new data since the recipient was last
 // notified AND their cadence throttle has elapsed; diff against the snapshot they
