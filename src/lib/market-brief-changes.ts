@@ -64,6 +64,12 @@ function isoDate(d: Date): string {
  * Rating / size / cohort moves are considered only for operators eligible in
  * the CURRENT snapshot (the ranked set the brief covers). New entrants are
  * operators that became eligible this period.
+ *
+ * Rating / size / cohort moves for an operator whose two snapshots span
+ * different methodology versions are suppressed: those fields are re-derived
+ * under the methodology, so a version change moves them cohort-wide without any
+ * behaviour change (see the inline methodology-boundary guard). New entrants
+ * still count across that boundary.
  */
 export function buildMarketChangeSummary(
   prior: SnapshotRow[],
@@ -97,7 +103,19 @@ export function buildMarketChangeSummary(
     // The remaining signals compare two eligible-ranked observations.
     if (!prev || !cur.isEligibleForRanking || !prev.isEligibleForRanking) continue;
 
-    if (cur.starGoldCount !== prev.starGoldCount) {
+    // Methodology-boundary guard (mirrors change-detection.ts diffSnapshots).
+    // Stars, the portfolio point, and the 7-cell cohort are all RE-DERIVED
+    // under the current methodology — so when an operator's two snapshots span
+    // a methodology version change (a cohort reclassification or a size-model
+    // recalibration), those fields move for the whole cohort at once without
+    // any operator behaviour changing. Suppress those move types across that
+    // boundary so a methodology refresh doesn't fire a spurious market-wide
+    // "everything moved" wave in the brief + digest. New entrants (an operator
+    // appearing / becoming eligible) is behavioural and still counts above.
+    const methodologyChanged =
+      prev.methodologyVersion !== cur.methodologyVersion;
+
+    if (!methodologyChanged && cur.starGoldCount !== prev.starGoldCount) {
       const move: RatingMove = {
         ...ref,
         goldBefore: prev.starGoldCount,
@@ -107,6 +125,7 @@ export function buildMarketChangeSummary(
     }
 
     if (
+      !methodologyChanged &&
       typeof prev.estimatedPortfolioPoint === "number" &&
       typeof cur.estimatedPortfolioPoint === "number" &&
       prev.estimatedPortfolioPoint > 0
@@ -125,6 +144,7 @@ export function buildMarketChangeSummary(
     }
 
     if (
+      !methodologyChanged &&
       prev.quadrant7Cell &&
       cur.quadrant7Cell &&
       prev.quadrant7Cell !== cur.quadrant7Cell
