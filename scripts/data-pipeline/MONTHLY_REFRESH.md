@@ -23,9 +23,27 @@ automatically.
 - One refresh = one new `snapshotDate` for every market = one new period in
   every change block and digest.
 
+## Data source & `IQ_DATA_DIR`
+
+The canonical source data lives in the company Google Shared Drive:
+**Shared drives → Dwellsy Enterprise → Products → Operator IQ → Data Files**
+(34 `merged_<market>_<date>.csv` + `markets.json` + `CHECKSUMS.sha256` +
+`MIGRATION_MANIFEST.md`). New monthly exports go here.
+
+The pipeline reads a local filesystem path, so mount that folder with **Google
+Drive for Desktop** and point `IQ_DATA_DIR` at the mount (tip: mark the folder
+"Available offline" first so a run doesn't stall streaming ~15 GB on demand):
+
+```
+export IQ_DATA_DIR="$HOME/Library/CloudStorage/GoogleDrive-<you>@dwellsy.com/Shared drives/Dwellsy Enterprise/Products/Operator IQ/Data Files"
+```
+
+(The pipeline scripts still fall back to `~/Documents/Claude/Projects/Product
+Support` when `IQ_DATA_DIR` is unset — the old laptop location — but the Shared
+Drive is now the source of truth; set `IQ_DATA_DIR` so runs read from it.)
+
 ## Steps
 
-Data dir: `~/Documents/Claude/Projects/Product Support` (or `$IQ_DATA_DIR`).
 Run everything with `PYTHONHASHSEED=0` for reproducible ranks. All commands
 from `scripts/data-pipeline/`.
 
