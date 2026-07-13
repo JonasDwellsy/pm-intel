@@ -100,3 +100,46 @@ test("isQuiet when nothing surfaced", () => {
   )!;
   assert.equal(s.isQuiet, true);
 });
+
+test("methodology-version change suppresses re-derived moves (stars/size/cohort)", () => {
+  // Same operator, but the two snapshots were computed under DIFFERENT
+  // methodology versions — so gold-count, portfolio point, and cohort all move
+  // as re-derivation artifacts, not behaviour. All three must be suppressed so
+  // a methodology refresh doesn't fire a spurious market-wide wave.
+  const prior = [
+    snap("acme", D_PRIOR, {
+      methodologyVersion: "v0.6.4",
+      starGoldCount: 1,
+      estimatedPortfolioPoint: 100,
+      quadrant7Cell: "Hybrid",
+    }),
+  ];
+  const cur = [
+    snap("acme", D_CUR, {
+      methodologyVersion: "v0.7",
+      starGoldCount: 4,
+      estimatedPortfolioPoint: 200,
+      quadrant7Cell: "Small MF/BTR Independent",
+    }),
+  ];
+  const s = buildMarketChangeSummary(prior, cur, names)!;
+  assert.equal(s.ratingUp.length, 0);
+  assert.equal(s.ratingDown.length, 0);
+  assert.equal(s.sizeSwings.length, 0);
+  assert.equal(s.cohortMoves.length, 0);
+  assert.equal(s.isQuiet, true);
+});
+
+test("new entrant still counts across a methodology-version change", () => {
+  // Behavioural signals (an operator becoming eligible) are NOT re-derivation
+  // artifacts, so they still fire across a methodology boundary.
+  const prior = [
+    snap("acme", D_PRIOR, { methodologyVersion: "v0.6.4", isEligibleForRanking: false }),
+  ];
+  const cur = [
+    snap("acme", D_CUR, { methodologyVersion: "v0.7", isEligibleForRanking: true }),
+  ];
+  const s = buildMarketChangeSummary(prior, cur, names)!;
+  assert.equal(s.newEntrants.length, 1);
+  assert.equal(s.newEntrants[0].pmSlug, "acme");
+});
