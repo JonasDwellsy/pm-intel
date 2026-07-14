@@ -42,6 +42,7 @@ import {
   Link,
   Svg,
   Polyline,
+  Font,
 } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/types";
 import type { ScorecardData } from "@/lib/types";
@@ -58,7 +59,13 @@ import type { WatchItem, WatchItemKind } from "@/lib/scorecard/watch-items";
 import type { SelectedPeer } from "@/lib/scorecard/peers";
 import type { RentTierDetail } from "@/lib/scorecard/rent-tier";
 
-import { styles, COLOR_TEAL } from "./OperatorProfilePDF.theme";
+import { styles, COLOR_TEAL, COLOR_GRID } from "./OperatorProfilePDF.theme";
+
+// Disable automatic mid-word hyphenation globally. @react-pdf otherwise breaks
+// long words with a hyphen to fit narrow columns (e.g. the momentum sparkline
+// label rendered as "OPERATING QUALI-TY"); returning the whole word forces
+// clean whole-word wrapping instead. Layout-only — no content changes.
+Font.registerHyphenationCallback((word) => [word]);
 
 // Redesign-specific accent colors that don't have a brand-token equivalent —
 // copied verbatim from the web redesign components so the PDF reads the same.
@@ -761,6 +768,7 @@ function ExecReadout({
           borderRadius: 8,
           overflow: "hidden",
         }}
+        wrap={false}
       >
         {readout.map((row, i) => (
           <View
@@ -822,7 +830,7 @@ function PortfolioRangeBar({
         ? "Not enough observed data to estimate portfolio size yet."
         : status);
     return (
-      <View style={cardBox}>
+      <View style={cardBox} wrap={false}>
         <Eyebrow>Portfolio size</Eyebrow>
         <Text style={{ fontSize: 10, color: C.label, marginTop: 6 }}>{friendly}</Text>
       </View>
@@ -837,7 +845,7 @@ function PortfolioRangeBar({
   const obsLeft = observedUnits != null ? toPct(observedUnits) : null;
 
   return (
-    <View style={cardBox}>
+    <View style={cardBox} wrap={false}>
       <Eyebrow>Portfolio size</Eyebrow>
       {/* Track */}
       <View
@@ -1066,7 +1074,7 @@ function RentTierMarker({ detail }: { detail: RentTierDetail | null }) {
         />
       </View>
       <Text style={{ fontSize: 8.5, color: C.label }}>
-        {`≈ $${fmtInt(detail.rentMedian)}/mo median${detail.sampleSize != null ? ` (from ${detail.sampleSize} recent listing${detail.sampleSize === 1 ? "" : "s"})` : ""} · ${tierWord} end`}
+        {`~$${fmtInt(detail.rentMedian)}/mo median${detail.sampleSize != null ? ` (from ${detail.sampleSize} recent listing${detail.sampleSize === 1 ? "" : "s"})` : ""} · ${tierWord} end`}
       </Text>
       {line2 != null ? (
         <Text style={{ fontSize: 8, color: C.label, marginTop: 2 }}>{line2}</Text>
@@ -1083,7 +1091,7 @@ function UnitMixBar({ unitMix }: { unitMix: NonNullable<ScaleFitView["unitMix"]>
   const housePct = Math.round((houseUrus / total) * 100);
   const aptPct = Math.round((aptUrus / total) * 100);
   return (
-    <View style={cardBox}>
+    <View style={cardBox} wrap={false}>
       <Eyebrow style={{ marginBottom: 6 }}>House vs apartment split</Eyebrow>
       <View
         style={{
@@ -1163,7 +1171,7 @@ function PeersTable({
 }) {
   if (peers.length === 0) return null;
   return (
-    <View style={{ marginTop: 14 }}>
+    <View style={{ marginTop: 14 }} wrap={false}>
       <Eyebrow style={{ marginBottom: 6 }}>Similar local players</Eyebrow>
       {/* Header */}
       <View
@@ -1245,13 +1253,15 @@ function ScaleFitSection({
 
   return (
     <View>
-      <SectionHeader num="01" title="Scale & Fit" />
-      <Takeaway>{scaleFit.takeaway}</Takeaway>
+      <View wrap={false} minPresenceAhead={60}>
+        <SectionHeader num="01" title="Scale & Fit" />
+        <Takeaway>{scaleFit.takeaway}</Takeaway>
+      </View>
 
       <PortfolioRangeBar estimate={scaleFit.estimate} observedUnits={scaleFit.observedUnits} />
 
       {/* At a glance */}
-      <View style={cardBox}>
+      <View style={cardBox} wrap={false}>
         <Eyebrow style={{ marginBottom: 6 }}>At a glance</Eyebrow>
         <View style={{ display: "flex", flexDirection: "row", flexWrap: "wrap" }}>
           {facts.map((f) => (
@@ -1261,7 +1271,7 @@ function ScaleFitSection({
       </View>
 
       {/* Geographic concentration */}
-      <View style={cardBox}>
+      <View style={cardBox} wrap={false}>
         <Eyebrow style={{ marginBottom: 4 }}>Geographic concentration</Eyebrow>
         <ConcentrationBar
           topCities={scaleFit.topCities}
@@ -1271,7 +1281,7 @@ function ScaleFitSection({
       </View>
 
       {/* Rent tier */}
-      <View style={cardBox}>
+      <View style={cardBox} wrap={false}>
         <Eyebrow>Rent tier</Eyebrow>
         <RentTierMarker detail={scaleFit.rentTier} />
       </View>
@@ -1279,7 +1289,7 @@ function ScaleFitSection({
       {scaleFit.unitMix != null ? <UnitMixBar unitMix={scaleFit.unitMix} /> : null}
 
       {scaleFit.crossMarket != null ? (
-        <View style={cardBox}>
+        <View style={cardBox} wrap={false}>
           <Eyebrow style={{ marginBottom: 4 }}>Also operates in</Eyebrow>
           <Text style={{ fontSize: 10.5, color: COLOR_TEAL, fontFamily: "Helvetica-Bold" }}>
             {scaleFit.crossMarket.marketNames.slice(0, 4).join(" · ")}
@@ -1498,8 +1508,10 @@ function ConcessionCard({
 function OperatingSection({ operating }: { operating: OperatingView }) {
   return (
     <View>
-      <SectionHeader num="02" title="Operating Performance" chip={operating.sectionLabel} />
-      <Takeaway>{operating.takeaway}</Takeaway>
+      <View wrap={false} minPresenceAhead={60}>
+        <SectionHeader num="02" title="Operating Performance" chip={operating.sectionLabel} />
+        <Takeaway>{operating.takeaway}</Takeaway>
+      </View>
       <SwChips strongest={operating.strongest} watch={operating.watch} />
       {operating.metrics.map((m) => (
         <MetricCard key={m.key} metric={m} />
@@ -1537,9 +1549,13 @@ function SparkCell({
         style={{
           display: "flex",
           flexDirection: "row",
-          alignItems: "center",
+          alignItems: "flex-start",
           gap: 4,
           marginBottom: 6,
+          // Reserve two label lines so the sparklines below line up across the
+          // row even when a label wraps ("Operating quality", "Geographic
+          // reach"). Hyphenation is disabled globally, so labels wrap on spaces.
+          minHeight: 20,
         }}
       >
         <Text
@@ -1549,6 +1565,7 @@ function SparkCell({
             color: C.slate,
             textTransform: "uppercase",
             letterSpacing: 0.3,
+            lineHeight: 1.2,
             fontFamily: "Helvetica-Bold",
           }}
         >
@@ -1575,12 +1592,14 @@ function MomentumSection({ momentum }: { momentum: ScorecardView["momentum"] }) 
   );
   return (
     <View>
-      <SectionHeader
-        num="03"
-        title="Momentum"
-        chip={momentum.direction === "insufficient" ? undefined : momentum.direction}
-      />
-      <Takeaway>{momentum.takeaway}</Takeaway>
+      <View wrap={false} minPresenceAhead={60}>
+        <SectionHeader
+          num="03"
+          title="Momentum"
+          chip={momentum.direction === "insufficient" ? undefined : momentum.direction}
+        />
+        <Takeaway>{momentum.takeaway}</Takeaway>
+      </View>
       <View style={{ display: "flex", flexDirection: "row", flexWrap: "wrap" }}>
         {cells.map((s) => (
           <SparkCell key={s.key} spark={s} />
@@ -1666,36 +1685,38 @@ function WatchItemsSection({ items }: { items: WatchItem[] }) {
   const reviewCount = items.filter((i) => i.kind !== "positive").length;
   return (
     <View>
-      <View
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 6,
-        }}
-      >
-        <Text style={{ fontSize: 10, color: "#aab3c6", fontFamily: "Helvetica-Bold" }}>04</Text>
-        <Text style={{ fontSize: 15, color: C.ink, fontFamily: "Helvetica-Bold" }}>
-          Watch Items
-        </Text>
+      <View wrap={false} minPresenceAhead={60}>
         <View
           style={{
-            backgroundColor: C.neutralChip,
-            borderRadius: 20,
-            paddingHorizontal: 8,
-            paddingVertical: 2,
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 6,
           }}
         >
-          <Text style={{ fontSize: 8.5, color: C.slate, fontFamily: "Helvetica-Bold" }}>
-            {reviewCount} to review
+          <Text style={{ fontSize: 10, color: "#aab3c6", fontFamily: "Helvetica-Bold" }}>04</Text>
+          <Text style={{ fontSize: 15, color: C.ink, fontFamily: "Helvetica-Bold" }}>
+            Watch Items
           </Text>
+          <View
+            style={{
+              backgroundColor: C.neutralChip,
+              borderRadius: 20,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+            }}
+          >
+            <Text style={{ fontSize: 8.5, color: C.slate, fontFamily: "Helvetica-Bold" }}>
+              {reviewCount} to review
+            </Text>
+          </View>
         </View>
+        <Text style={{ fontSize: 10, color: C.slate, marginBottom: 12, lineHeight: 1.45 }}>
+          Signals that need a human read before you hire, monitor, or acquire — some are risks
+          worth a follow-up, some are neutral context, some are positives.
+        </Text>
       </View>
-      <Text style={{ fontSize: 10, color: C.slate, marginBottom: 12, lineHeight: 1.45 }}>
-        Signals that need a human read before you hire, monitor, or acquire — some are risks
-        worth a follow-up, some are neutral context, some are positives.
-      </Text>
       {items.map((item, i) => (
         <WatchRow key={`${item.kind}-${i}`} item={item} />
       ))}
@@ -1727,24 +1748,64 @@ function PageFooter({ scorecard }: { scorecard: ScorecardData }) {
   );
 }
 
-function PageHeader({
-  scorecard,
-  sectionTitle,
-}: {
-  scorecard: ScorecardData;
-  sectionTitle: string;
-}) {
+/**
+ * Compact running header, `fixed` so it repeats on every physical page. The
+ * content is emitted only on pages 2+ (via the `render` callback) — page 1
+ * carries the full branded masthead instead. It's absolutely positioned in the
+ * page's top margin (above the flowing content, which starts at the page's
+ * paddingTop), matching how the footer sits in the bottom margin.
+ */
+function RunningHeader({ scorecard }: { scorecard: ScorecardData }) {
+  const market =
+    scorecard.market.fullName ??
+    `${scorecard.market.name}, ${scorecard.market.state}`;
   return (
-    <View style={styles.pageHeader}>
-      <View>
-        <Text style={styles.pageHeaderTitle}>{scorecard.pm.name}</Text>
-        <Text style={styles.pageHeaderMeta}>
-          {scorecard.market.fullName ??
-            `${scorecard.market.name}, ${scorecard.market.state}`}
-        </Text>
-      </View>
-      <Text style={styles.pageHeaderMeta}>{sectionTitle}</Text>
-    </View>
+    <View
+      fixed
+      style={{ position: "absolute", top: 20, left: 48, right: 48 }}
+      render={({ pageNumber }) =>
+        pageNumber === 1 ? null : (
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingBottom: 5,
+              borderBottomWidth: 1,
+              borderBottomStyle: "solid",
+              borderBottomColor: COLOR_GRID,
+            }}
+          >
+            <View
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <Text style={{ fontSize: 9.5, color: C.ink, fontFamily: "Helvetica-Bold" }}>
+                {scorecard.pm.name}
+              </Text>
+              <Text style={{ fontSize: 8, color: C.faint }}>·</Text>
+              <Text style={{ fontSize: 8, color: C.label }}>{market}</Text>
+            </View>
+            <Text
+              style={{
+                fontSize: 7.5,
+                color: C.label,
+                letterSpacing: 0.4,
+                textTransform: "uppercase",
+                fontFamily: "Helvetica-Bold",
+              }}
+            >
+              Property Manager Scorecard
+            </Text>
+          </View>
+        )
+      }
+    />
   );
 }
 
@@ -1800,7 +1861,7 @@ function MethodologyPortfolioTable({ scorecard }: { scorecard: ScorecardData }) 
   rows.push({ label: "Cities observed", value: fmtInt(c.citiesObserved) });
   if (c.concentratedShare !== null) {
     rows.push({
-      label: "Share in concentrated communities (≥10 units)",
+      label: "Share in concentrated communities (10+ units)",
       value: fmtPct(c.concentratedShare * 100, 0),
     });
   }
@@ -1864,17 +1925,17 @@ function MethodologySampleSizeTable({ scorecard }: { scorecard: ScorecardData })
     });
   }
   return (
-    <View style={{ marginTop: 12 }}>
+    <View style={{ marginTop: 12 }} wrap={false}>
       <Text style={styles.perfEyebrowMuted}>Sample sizes per metric</Text>
       <View style={styles.tableHeaderRow}>
-        <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Metric</Text>
-        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: "right" }]}>N</Text>
+        <Text style={[styles.tableHeaderCell, { flex: 2, paddingRight: 8 }]}>Metric</Text>
+        <Text style={[styles.tableHeaderCell, { width: 44, textAlign: "right", paddingRight: 16 }]}>N</Text>
         <Text style={[styles.tableHeaderCell, { flex: 3 }]}>Backing</Text>
       </View>
       {rows.map((r) => (
         <View key={r.metric} style={styles.tableRow}>
-          <Text style={[styles.tableCell, { flex: 2 }]}>{r.metric}</Text>
-          <Text style={[styles.tableCell, { flex: 1, textAlign: "right" }]}>{r.n}</Text>
+          <Text style={[styles.tableCell, { flex: 2, paddingRight: 8 }]}>{r.metric}</Text>
+          <Text style={[styles.tableCell, { width: 44, textAlign: "right", paddingRight: 16 }]}>{r.n}</Text>
           <Text style={[styles.tableCellMuted, { flex: 3 }]}>{r.note}</Text>
         </View>
       ))}
@@ -1885,51 +1946,61 @@ function MethodologySampleSizeTable({ scorecard }: { scorecard: ScorecardData })
 function MethodologySection({ scorecard }: { scorecard: ScorecardData }) {
   return (
     <View>
-      <SectionHeader num="05" title="Methodology & limits" />
-      <Text style={[styles.paragraph, { marginTop: 4 }]}>
-        {`What backs this scorecard — classification rationale, coverage universe, per-metric sample sizes, and the version stamp. Rendered against methodology ${scorecard.methodologyVersion}`}
-        {scorecard.designVersion ? `, design ${scorecard.designVersion}` : ""}
-        {`. Underlying data is current as of ${fmtDate(scorecard.dataAsOf)}.`}
-      </Text>
+      <View wrap={false} minPresenceAhead={60}>
+        <SectionHeader num="05" title="Methodology & limits" />
+        <Text style={[styles.paragraph, { marginTop: 4 }]}>
+          {`What backs this scorecard — classification rationale, coverage universe, per-metric sample sizes, and the version stamp. Rendered against methodology ${scorecard.methodologyVersion}`}
+          {scorecard.designVersion ? `, design ${scorecard.designVersion}` : ""}
+          {`. Underlying data is current as of ${fmtDate(scorecard.dataAsOf)}.`}
+        </Text>
+      </View>
 
       {scorecard.classificationRationale ? (
-        <>
+        <View wrap={false} minPresenceAhead={40}>
           <Text style={styles.sectionHeader}>Classification rationale</Text>
           <Text style={styles.paragraph}>{scorecard.classificationRationale}</Text>
-        </>
+        </View>
       ) : null}
 
-      <Text style={styles.sectionHeader}>Coverage universe</Text>
-      <View style={{ display: "flex", flexDirection: "row", gap: 24, marginTop: 2 }}>
-        <MethodologyCoverageTable scorecard={scorecard} />
-        <MethodologyPortfolioTable scorecard={scorecard} />
+      {/* Keep the "Coverage universe" heading with its two tables so the
+          sub-heading never strands at the bottom of a page. */}
+      <View wrap={false} minPresenceAhead={40}>
+        <Text style={styles.sectionHeader}>Coverage universe</Text>
+        <View style={{ display: "flex", flexDirection: "row", gap: 24, marginTop: 2 }}>
+          <MethodologyCoverageTable scorecard={scorecard} />
+          <MethodologyPortfolioTable scorecard={scorecard} />
+        </View>
       </View>
 
       <MethodologySampleSizeTable scorecard={scorecard} />
 
-      <Text style={styles.sectionHeader}>Disclaimer</Text>
-      <Text style={styles.paragraph}>
-        Dwellsy IQ scorecards reflect operator behavior observable in our first-party
-        listings data. Figures are not portfolio totals; they&rsquo;re what we see.
-        Operators with shorter observation history have noisier estimates on metrics that
-        depend on multi-episode unit pairs (Tenancy) or multi-year trajectory (Rent
-        Performance). See the methodology page for full caveats.
-      </Text>
+      <View wrap={false} minPresenceAhead={40}>
+        <Text style={styles.sectionHeader}>Disclaimer</Text>
+        <Text style={styles.paragraph}>
+          Dwellsy IQ scorecards reflect operator behavior observable in our first-party
+          listings data. Figures are not portfolio totals; they&rsquo;re what we see.
+          Operators with shorter observation history have noisier estimates on metrics that
+          depend on multi-episode unit pairs (Tenancy) or multi-year trajectory (Rent
+          Performance). See the methodology page for full caveats.
+        </Text>
+      </View>
 
-      <Text style={styles.sectionHeader}>Suggested citation</Text>
-      <Text style={styles.paragraph}>
-        {`Dwellsy IQ, 2026. Operator IQ Scorecard for ${scorecard.pm.name} (${scorecard.market.name}). Methodology ${scorecard.methodologyVersion}`}
-        {scorecard.designVersion ? ` · Design ${scorecard.designVersion}` : ""}
-        {`. iq.dwellsy.com/property-managers/${scorecard.pm.slug}`}
-      </Text>
+      <View wrap={false} minPresenceAhead={20}>
+        <Text style={styles.sectionHeader}>Suggested citation</Text>
+        <Text style={styles.paragraph}>
+          {`Dwellsy IQ, 2026. Operator IQ Scorecard for ${scorecard.pm.name} (${scorecard.market.name}). Methodology ${scorecard.methodologyVersion}`}
+          {scorecard.designVersion ? ` · Design ${scorecard.designVersion}` : ""}
+          {`. iq.dwellsy.com/property-managers/${scorecard.pm.slug}`}
+        </Text>
 
-      <View style={{ marginTop: 8 }}>
-        <Link
-          src="https://iq.dwellsy.com/methodology"
-          style={{ fontSize: 10, color: COLOR_TEAL, fontFamily: "Helvetica-Bold" }}
-        >
-          Full methodology » iq.dwellsy.com/methodology
-        </Link>
+        <View style={{ marginTop: 8 }}>
+          <Link
+            src="https://iq.dwellsy.com/methodology"
+            style={{ fontSize: 10, color: COLOR_TEAL, fontFamily: "Helvetica-Bold" }}
+          >
+            Full methodology » iq.dwellsy.com/methodology
+          </Link>
+        </View>
       </View>
     </View>
   );
@@ -2005,37 +2076,38 @@ export function OperatorProfilePDF({
       subject={`Property manager scorecard for ${view.header.name}`}
       creator="Dwellsy IQ"
     >
-      {/* Page 1 — Header · 30-second readout · 01 Scale & Fit */}
-      <Page size="LETTER" style={styles.page}>
+      {/*
+        Single continuous page. Content flows across as many physical LETTER
+        pages as it needs and fills each one; @react-pdf paginates
+        automatically. Atomic (`wrap={false}`) cards keep individual blocks
+        from splitting across a page boundary, and each section's heading +
+        takeaway are kept together (`minPresenceAhead`) so a heading never
+        strands at the bottom of a page. The masthead below is page-1 only;
+        the fixed RunningHeader supplies the compact header on pages 2+, and
+        the fixed PageFooter repeats on every page.
+      */}
+      <Page size="LETTER" style={styles.page} wrap>
+        <RunningHeader scorecard={scorecard} />
+
         <ScorecardHeaderBlock header={view.header} logoDataUrl={logoDataUrl} />
         <ExecReadout readout={view.readout} maturityNote={view.maturityNote} />
+
         <View style={{ marginTop: 12 }}>
           <ScaleFitSection scaleFit={view.scaleFit} peers={view.peers} />
         </View>
-        <PageFooter scorecard={scorecard} />
-      </Page>
-
-      {/* Page 2 — 02 Operating Performance */}
-      <Page size="LETTER" style={styles.page}>
-        <PageHeader scorecard={scorecard} sectionTitle="Operating Performance" />
-        <OperatingSection operating={view.operating} />
-        <PageFooter scorecard={scorecard} />
-      </Page>
-
-      {/* Page 3 — 03 Momentum · 04 Watch Items */}
-      <Page size="LETTER" style={styles.page}>
-        <PageHeader scorecard={scorecard} sectionTitle="Momentum & Watch Items" />
-        <MomentumSection momentum={view.momentum} />
-        <View style={{ marginTop: 16 }}>
+        <View style={{ marginTop: 20 }}>
+          <OperatingSection operating={view.operating} />
+        </View>
+        <View style={{ marginTop: 20 }}>
+          <MomentumSection momentum={view.momentum} />
+        </View>
+        <View style={{ marginTop: 20 }}>
           <WatchItemsSection items={view.watchItems} />
         </View>
-        <PageFooter scorecard={scorecard} />
-      </Page>
+        <View style={{ marginTop: 20 }}>
+          <MethodologySection scorecard={scorecard} />
+        </View>
 
-      {/* Page 4 — 05 Methodology & limits */}
-      <Page size="LETTER" style={styles.page}>
-        <PageHeader scorecard={scorecard} sectionTitle="Methodology & Limits" />
-        <MethodologySection scorecard={scorecard} />
         <PageFooter scorecard={scorecard} />
       </Page>
     </Document>
