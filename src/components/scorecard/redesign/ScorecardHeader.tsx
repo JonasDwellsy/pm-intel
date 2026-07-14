@@ -10,10 +10,21 @@ interface ScorecardHeaderProps {
   header: HeaderView;
   /** Operator slug — used for the copy-link + PDF-download buttons. */
   slug: string;
+  /** When true (the public /sample marketing page), hide the Copy-link and
+   *  Download-PDF affordances. Both dead-end for a logged-out visitor — the
+   *  PDF route (/api/scorecard/[slug]/pdf) is auth-gated, and Copy-link would
+   *  copy the gated per-operator scorecard URL. External Dwellsy / operator
+   *  website links are unaffected (they're public). Defaults to false, so the
+   *  real scorecard page is unchanged. */
+  publicSample?: boolean;
 }
 
 /** Top header: eyebrow, operator name, badge row, star chip, and link buttons. */
-export function ScorecardHeader({ header, slug }: ScorecardHeaderProps) {
+export function ScorecardHeader({
+  header,
+  slug,
+  publicSample = false,
+}: ScorecardHeaderProps) {
   const goldStars = "★".repeat(Math.max(0, header.goldCount));
   const silverStars = "★".repeat(Math.max(0, header.silverCount));
 
@@ -147,8 +158,13 @@ export function ScorecardHeader({ header, slug }: ScorecardHeaderProps) {
         </div>
       </div>
 
-      {/* Link-button row — dwellsy/website links only render when present;
-          the copy-link + PDF-download buttons always render. */}
+      {/* Link-button row — dwellsy/website links only render when present.
+          The copy-link + PDF-download buttons render on the real scorecard
+          but are suppressed on the public /sample page (publicSample), where
+          both would dead-end a logged-out visitor. When neither the action
+          buttons nor any external link would render, skip the row (and its
+          margin) entirely. */}
+      {(!publicSample || hasAnyLink) && (
       <div
         style={{
           display: "flex",
@@ -158,8 +174,8 @@ export function ScorecardHeader({ header, slug }: ScorecardHeaderProps) {
           alignItems: "center",
         }}
       >
-        <CopyLinkButton operatorSlug={slug} />
-        <PrintScorecardButton pmSlug={slug} />
+        {!publicSample && <CopyLinkButton operatorSlug={slug} />}
+        {!publicSample && <PrintScorecardButton pmSlug={slug} />}
 
         {hasAnyLink && (
           <>
@@ -211,6 +227,7 @@ export function ScorecardHeader({ header, slug }: ScorecardHeaderProps) {
           </>
         )}
       </div>
+      )}
     </div>
   );
 }

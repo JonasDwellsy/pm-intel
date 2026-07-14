@@ -34,52 +34,45 @@ export const metadata: Metadata = {
   },
 };
 
-// PR #53 — Sample cards reselected for the multi-star scorecard
-// rebuild. Selection rules (full audit in the PR body):
+// Homepage "Inside a scorecard" trio — the finalized geographically +
+// type-diverse selection (this section previously showed three Alabama
+// operators). One operator per scale archetype across three distinct MSAs
+// so a visitor sees the range of what the same methodology produces:
 //
-//   - T12 URUs < 300
-//   - All five headline metrics fully populated (portfolio estimate
-//     present, all four cohort-relative metric values + stars
-//     derivable, marketing.compositeScore not suppressed)
-//   - At least one earned per-metric star
-//   - 3 distinct non-Chattanooga MSAs (Doorby is the Chattanooga
-//     hero card)
-//   - No Institutional / REIT operators
+//   - Nomad Labs (Denver, CO)                    — SFR Independent
+//   - Trinity Property Consultants (Seattle, WA) — Large MF/BTR Independent
+//   - Birgo Realty (Pittsburgh, PA)              — Small MF/BTR Independent
 //
-// Bias was meant to be 2 SFR/MF Independents + 1 Hybrid Independent.
-// In practice no Hybrid operator passes the strict-no-nulls filter
-// — the v0.7 marketing-fix suppressed marketing subscores across
-// several cohorts including every Hybrid one. The substitute is a
-// Small MF/BTR Independent so the cell-mix stays diverse: 2 SFR
-// Independents + 1 Small MF/BTR Independent.
-//
-// PR #53 follow-up — synthesis quotes removed. The metric grid +
-// portfolio band + cohort label carry the full story in the
-// homepage card format; the extra prose was repetitive and
-// dropped readability rather than adding it. The full per-operator
-// narrative still lives on the scorecard page.
+// Each is a real operator pulled straight from the seed; every figure on
+// the card (per-metric stars, portfolio band, cohort-relative cells) is
+// produced by the live scorecard layer via buildSampleCard, so the cards
+// stay in lock-step with the methodology — no curation of the numbers.
+// These three link to their gated per-operator scorecards (teasers); the
+// public /sample route renders the full Doorby profile that a logged-out
+// visitor can actually open.
 const SAMPLE_MANIFEST: Array<{
   marketId: string;
   slug: string;
   extraBadge?: { kind: "green" | "orange" | "teal" | "ink"; label: string };
 }> = [
   {
-    // Montgomery SFR Independent — 3 gold + 1 silver, 61 URUs.
-    // Gold composite, 88 cohort score.
-    marketId: "montgomery-al",
-    slug: "hwb-properties-montgomery-al",
+    // Denver SFR Independent — scattered single-family operator.
+    marketId: "denver-co",
+    slug: "nomad-labs-denver-co",
   },
   {
-    // Huntsville SFR Independent — 3 gold + 0 silver, 146 URUs.
-    // Gold composite, 79.4 cohort score.
-    marketId: "huntsville-al",
-    slug: "newton-property-management-huntsville-al",
+    // Seattle Large MF/BTR Independent — institutional-scale apartment
+    // archetype. The operator's primaryCity is the "North Bend" submarket,
+    // but the card eyebrow uses the MSA market name (pm.market.city →
+    // "Seattle, WA MSA"), so the tiny submarket never surfaces on the card.
+    marketId: "seattle-wa",
+    slug: "trinity-property-consultants-seattle-wa",
   },
   {
-    // Birmingham Small MF/BTR Independent — 3 gold + 1 silver,
-    // 40 URUs. Gold composite, 68.4 MSA cohort score.
-    marketId: "birmingham-al",
-    slug: "chateau-orleans-realty-company-birmingham-al",
+    // Pittsburgh Small MF/BTR Independent — smaller multifamily operator
+    // that rounds out the scale mix (SFR / Large MF / Small MF).
+    marketId: "pittsburgh-pa",
+    slug: "birgo-realty-pittsburgh-pa",
   },
 ];
 
@@ -383,13 +376,20 @@ export default async function HomePage() {
     loadHeroCard(),
   ]);
 
+  // The hero card is the one full scorecard a logged-out visitor can
+  // actually open. Point it at the PUBLIC /sample route (the ungated
+  // Doorby profile) instead of Doorby's own gated per-operator scorecard
+  // URL, so the click doesn't dead-end at the sign-in upsell.
+  const heroSampleCard =
+    heroCard != null ? { ...heroCard, href: "/sample" } : null;
+
   return (
     <main className="bg-[#FBFAF6]">
       <TrackEvent
         event="market_page_view"
         properties={{ source: "homepage", page: "home" }}
       />
-      <Hero heroCard={heroCard} marketCount={liveMarkets.length} />
+      <Hero heroCard={heroSampleCard} marketCount={liveMarkets.length} />
       <MethodologyPillars />
       <CoveredMarkets markets={liveMarkets} />
       <SampleScorecards cards={sampleCards} />
