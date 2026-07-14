@@ -1,15 +1,23 @@
-// PR #84 — Operator profile PDF route.
+// Operator profile PDF route — redesigned scorecard.
 //
 // GET /api/scorecard/[slug]/pdf
-//   → 200 application/pdf  (7-page branded operator profile;
-//     6 pages when the operator has no trajectory snapshots)
-//   → 404 if the PM slug doesn't exist
-//   → 500 + branded error PDF on render failure (Sentry-instrumented)
+//   → 200 application/pdf  (branded operator profile that mirrors the
+//     redesigned web scorecard: Header · 30-second readout · 01 Scale &
+//     Fit · 02 Operating Performance · 03 Momentum · 04 Watch Items ·
+//     05 Methodology)
+//   → 404 if the PM slug doesn't exist, or the market isn't in the
+//     caller's entitlement (404 not 403 so we don't confirm existence
+//     of an operator in an unpurchased market)
+//   → 500 + Sentry on render failure
 //
-// Replaces the prior PrintScorecardButton's window.print() pipeline.
-// The button now navigates here directly via <a download>, so the
-// browser triggers a real file save instead of the system print
-// dialog. Files are named `dwellsy-iq-<slug>.pdf`.
+// Single-source principle: this route assembles the SAME ScorecardView the
+// live scorecard page builds (src/app/property-managers/[state]/[city]/[slug]/
+// page.tsx) via buildScorecardView(), then hands it to OperatorProfilePDF, so
+// web + PDF can never drift on data. The inputs assembled here mirror page.tsx
+// exactly: the msaPool, the operator trajectory (via its loader), the
+// market-wide concession rate (buildConcessionContext(...).marketRate fed as
+// marketConcessionMedian), and the multi-market extras (aggregateTrajectory,
+// memberMarketNames, marketCount) when the operator is multi-market.
 
 import { renderToBuffer } from "@react-pdf/renderer";
 import * as Sentry from "@sentry/nextjs";
@@ -20,128 +28,19 @@ import {
 } from "@/lib/auth/market-entitlements.server";
 import { OperatorProfilePDF } from "@/components/scorecard/OperatorProfilePDF";
 import { loadMsaPool } from "@/lib/msa-pool";
-import { buildCohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
-import { buildLendingSignals } from "@/lib/lending-signals";
-import { loadMarketFootprint } from "@/lib/cross-market";
-import { buildShareTrajectoryView } from "@/lib/share-trajectory";
-import { buildPeerComparisons } from "@/lib/peer-comparison";
-import { loadOperatorTrajectory } from "@/lib/operators/trajectory";
-import type { ScorecardData } from "@/lib/types";
+import {
+  loadOperatorTrajectory,
+  loadOperatorAggregateTrajectory,
+} from "@/lib/operators/trajectory";
+import { buildConcessionContext } from "@/lib/concession-context";
+import { buildScorecardView } from "@/lib/scorecard/view-model";
 import { parseScorecard } from "@/lib/scorecard/parse";
-import type { LendingSignals } from "@/lib/lending-signals";
-import type { ShareTrajectoryView } from "@/lib/share-trajectory";
-import type { CohortRentTrajectory } from "@/lib/cohort-rent-trajectory";
-import type { Layer3Metric, PeerComparison } from "@/lib/peer-comparison";
-import type { OperatorTrajectory } from "@/lib/operators/trajectory";
 
-// PR #88 — Mapbox Static Images API integration. The previous SVG
-// dot-map (PRs #85-#87) gave us positioning + city labels but had
-// no actual geographic reference (no streets, no water, no state
-// boundaries) — readers saw "dots on a gray rectangle", not a map
-// of the Chattanooga area. Mapbox's Static Images API returns a
-// real map PNG that we can embed as <Image> in the PDF. Same
-// access token the live page already uses (NEXT_PUBLIC_MAPBOX_TOKEN).
-//
-// We sample down to PIN_LIMIT operator points to keep the URL
-// under Mapbox's 8KB limit AND to keep the visual readable (64
-// pin teardrops would overlap into a blob). The sampled pins
-// still convey "operator covers this geographic area" without
-// any one cluster dominating.
-const PIN_LIMIT = 35;
-const MAP_W = 500;
-const MAP_H = 240;
-
-async function fetchScorecardMap(
-  scorecard: ScorecardData
-): Promise<string | null> {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  if (!token) {
-    console.warn(
-      "[scorecard-pdf] NEXT_PUBLIC_MAPBOX_TOKEN missing — skipping map render"
-    );
-    return null;
-  }
-  const points = scorecard.geographicCoverage?.coverageMapPoints ?? [];
-  if (points.length === 0) return null;
-
-  // Sample down to PIN_LIMIT points with even-stride sampling so
-  // the visual still represents the full footprint shape rather
-  // than just the first N listings.
-  const stride = Math.max(1, Math.ceil(points.length / PIN_LIMIT));
-  const sampled = points.filter((_, i) => i % stride === 0).slice(0, PIN_LIMIT);
-
-  // pin-s is the smallest Mapbox pin style (15×30 px). Teal fill
-  // matches our brand palette (#1b6e8c). The auto-position fits
-  // all pins in the image with reasonable padding.
-  const pinOverlay = sampled
-    .map((p) => `pin-s+1b6e8c(${p.lon.toFixed(4)},${p.lat.toFixed(4)})`)
-    .join(",");
-
-  // light-v11 is Mapbox's clean light style — subtle gray streets,
-  // light water, no heavy decoration. Matches our brand aesthetic
-  // and stays readable next to the brand-colored operator pins.
-  // padding=30 keeps the outermost pins ~30px from the image edge.
-  const url =
-    `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/` +
-    `${pinOverlay}/auto/${MAP_W}x${MAP_H}@2x` +
-    `?access_token=${token}&padding=30&attribution=false&logo=false`;
-
-  // PR #89 — Set the Referer header to match the production
-  // hostname. The NEXT_PUBLIC_MAPBOX_TOKEN is URL-restricted in
-  // the Mapbox console (allowed for intel.iq.dwellsy.com /
-  // iq.dwellsy.com only — same restriction the live page's
-  // browser-side use relies on). Mapbox validates URL
-  // restrictions via the Referer header on each request.
-  //
-  // Browser fetches send Referer automatically. Server-side
-  // fetches from the lambda don't, so the token gets rejected
-  // with 403 even though it's valid. Setting Referer to the
-  // production hostname tells Mapbox "this request is from the
-  // allowed origin" and the token passes the check.
-  //
-  // Resolution order matches src/app/layout.tsx's metadataBase:
-  // explicit override > VERCEL_PROJECT_PRODUCTION_URL > VERCEL_URL
-  // > the current production hostname intel.iq.dwellsy.com as a
-  // hardcoded fallback (already allowlisted in Mapbox post-domain
-  // cutover; the old pm-intel-chi.vercel.app host is retired).
-  const refererHost =
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, "") ??
-    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
-    process.env.VERCEL_URL ??
-    "intel.iq.dwellsy.com";
-  const referer = `https://${refererHost}/`;
-
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Referer: referer,
-      },
-    });
-    if (!response.ok) {
-      console.error(
-        "[scorecard-pdf] Mapbox Static API non-OK response",
-        { status: response.status, slug: scorecard.pm.slug, referer }
-      );
-      return null;
-    }
-    const buf = Buffer.from(await response.arrayBuffer());
-    return `data:image/png;base64,${buf.toString("base64")}`;
-  } catch (err) {
-    console.error(
-      "[scorecard-pdf] Mapbox Static API fetch failed",
-      err,
-      { slug: scorecard.pm.slug }
-    );
-    return null;
-  }
-}
-
-// nodejs runtime — Prisma + @react-pdf/renderer both need Node. The
-// PDF generation is CPU + memory heavier than the OG image route
-// (multi-page composition + fonts), so we don't run on edge.
+// nodejs runtime — Prisma + @react-pdf/renderer both need Node. PDF generation
+// is CPU + memory heavier than the OG image route, so it doesn't run on edge.
 export const runtime = "nodejs";
-// PDF generation can take ~1-3s for a cold lambda. Keep the route
-// dynamic so we don't try to statically pre-generate at build time.
+// PDF generation can take ~1-3s on a cold lambda. Keep the route dynamic so we
+// don't try to statically pre-generate at build time.
 export const dynamic = "force-dynamic";
 
 export async function GET(
@@ -156,9 +55,9 @@ export async function GET(
       return new Response("Operator not found", { status: 404 });
     }
 
-    // Entitlement gate — the PDF is the full premium scorecard. 404
-    // (not 403) so we don't confirm the operator exists in a market the
-    // caller's org hasn't purchased.
+    // Entitlement gate — the PDF is the full premium scorecard. 404 (not
+    // 403) so we don't confirm the operator exists in a market the caller's
+    // org hasn't purchased.
     const entitlement = await resolveViewerEntitlement();
     if (!isMarketEntitled(entitlement, pm.marketId)) {
       return new Response("Operator not found", { status: 404 });
@@ -166,127 +65,93 @@ export async function GET(
 
     const scorecard = parseScorecard(pm);
 
-    // PR #85 — Load MSA pool for the cohort overlay on Page 4.
-    // PR #86 — Extended to also compute the full LendingSignals
-    // (Page 3) + ShareTrajectoryView (Page 5) since both depend on
-    // msaPool. Same pattern + same queries the live scorecard page
-    // already runs. All three are wrapped in try/catch so a partial
-    // failure (e.g., share trajectory cohort empty) doesn't take
-    // down the whole PDF — the failing section just renders without
-    // its enriched data.
-    let cohortTrajectory: CohortRentTrajectory | null = null;
-    let lendingSignals: LendingSignals | null = null;
-    let shareTrajectory: ShareTrajectoryView | null = null;
-    // PR — full parity: the Page-2 Performance page now mirrors the
-    // live PerformanceLayer, which needs per-metric peer comparisons
-    // (cohort quartiles + nearest neighbors). Default to an all-null
-    // map — the component treats each null card as "Insufficient
-    // data", identical to the live page's fallback.
-    const EMPTY_PEER_COMPARISONS: Record<Layer3Metric, PeerComparison | null> = {
-      dom: null,
-      tenancy: null,
-      rentPerformance: null,
-      marketing: null,
-      communityVisibility: null,
-    };
-    let peerComparisons: Record<Layer3Metric, PeerComparison | null> =
-      EMPTY_PEER_COMPARISONS;
-    try {
-      const msaPool = await loadMsaPool(scorecard.market.id);
-      cohortTrajectory = buildCohortRentTrajectory(scorecard, msaPool);
-      peerComparisons = buildPeerComparisons(scorecard, msaPool);
-      // marketFootprint is the operator's cross-market footprint
-      // (one row per MSA they appear in). buildLendingSignals
-      // uses the length to compute the operatorStability signal
-      // (multi-market presence indicator).
-      const marketFootprint = await loadMarketFootprint({
-        name: scorecard.pm.name,
-        currentSlug: slug,
-      });
-      lendingSignals = buildLendingSignals(
-        scorecard,
-        msaPool,
-        marketFootprint.length
-      );
-      shareTrajectory = await buildShareTrajectoryView(
-        scorecard,
-        slug,
-        msaPool
-      );
-    } catch (poolErr) {
-      console.error(
-        "[scorecard-pdf] msaPool / lending signals / share trajectory / peer comparisons load failed; rendering PDF with reduced enrichment",
-        poolErr,
-        { slug }
-      );
-    }
+    // Multi-market detection — mirrors page.tsx: a canonicalOperatorId that
+    // differs from this member's own slug (v0.6.4 seed convention).
+    const isMultiMarket =
+      !!scorecard.canonicalOperatorId &&
+      scorecard.canonicalOperatorId !== scorecard.pm.slug;
 
-    // PR — full parity: operator trajectory (OperatorSnapshot
-    // time-series) for the new Trajectory page. Loaded in its own
-    // try/catch so a failure here (e.g., snapshot table unavailable)
-    // degrades to an empty-points default — the Trajectory page then
-    // renders nothing rather than taking down the whole PDF.
-    let operatorTrajectory: OperatorTrajectory = { pmSlug: slug, points: [] };
-    try {
-      operatorTrajectory = await loadOperatorTrajectory(slug);
-    } catch (trajErr) {
-      console.error(
-        "[scorecard-pdf] operator trajectory load failed; rendering PDF without the Trajectory page",
-        trajErr,
-        { slug }
-      );
-    }
+    // Load MSA pool (feeds view-model peer selection + concession cohort),
+    // operator trajectory (feeds momentum sparklines), and — for multi-market
+    // operators — the member PM enumeration needed for the cross-market
+    // aggregate trajectory. Same three parallel loads page.tsx runs.
+    const [msaPool, operatorTrajectory, members] = await Promise.all([
+      loadMsaPool(scorecard.market.id),
+      loadOperatorTrajectory(slug),
+      isMultiMarket
+        ? prisma.pM.findMany({
+            where: { canonicalOperatorId: scorecard.canonicalOperatorId },
+            select: {
+              slug: true,
+              marketId: true,
+              market: { select: { fullName: true } },
+            },
+          })
+        : Promise.resolve([]),
+    ]);
 
-    // PR #88 — Fetch the Mapbox static map for the geographic
-    // coverage section. Wrapped in its own try inside fetchScorecardMap
-    // — failure returns null and the PDF falls back to the SVG-based
-    // dot map (PRs #85-#87).
-    const mapImageDataUrl = await fetchScorecardMap(scorecard);
+    // Scope the cross-market member enumeration to the viewer's entitled
+    // markets BEFORE deriving anything from it — mirrors page.tsx (and
+    // loadOperatorScorecard). Without this, a viewer entitled to only some of
+    // the operator's markets would see non-entitled markets leak into the
+    // aggregate trajectory + member-market list.
+    const entitledMembers = members.filter((m) =>
+      isMarketEntitled(entitlement, m.marketId)
+    );
+    const memberPmSlugs = entitledMembers.map((m) => m.slug);
+    const memberMarketNames = Array.from(
+      new Set(entitledMembers.map((m) => m.market.fullName))
+    );
+    const marketCount = new Set(entitledMembers.map((m) => m.marketId)).size;
+    const aggregateTrajectory = isMultiMarket
+      ? await loadOperatorAggregateTrajectory(memberPmSlugs)
+      : undefined;
+
+    // Market-wide concession rate for the watch-items detector (fed as
+    // marketConcessionMedian — see BuildViewInput doc comment on the retained
+    // field name).
+    const concessionContext = buildConcessionContext(scorecard, msaPool);
+
+    // Build the redesigned view model (pure, in-memory) — the single source
+    // both web + PDF read from.
+    const view = buildScorecardView({
+      scorecard,
+      pool: msaPool,
+      trajectory: operatorTrajectory,
+      marketConcessionMedian: concessionContext.marketRate,
+      ...(isMultiMarket
+        ? { aggregateTrajectory, memberMarketNames, marketCount }
+        : {}),
+    });
 
     const buffer = await renderToBuffer(
-      <OperatorProfilePDF
-        scorecard={scorecard}
-        cohortTrajectory={cohortTrajectory}
-        lendingSignals={lendingSignals}
-        shareTrajectory={shareTrajectory}
-        mapImageDataUrl={mapImageDataUrl}
-        peerComparisons={peerComparisons}
-        operatorTrajectory={operatorTrajectory}
-      />
+      <OperatorProfilePDF view={view} scorecard={scorecard} />
     );
 
-    // Trigger a download with a stable filename. The dwellsy-iq-
-    // prefix makes the file recognizable in deal-room folders where
-    // it'll sit alongside other operator artifacts.
+    // Trigger a download with a stable filename. The dwellsy-iq- prefix makes
+    // the file recognizable in deal-room folders alongside other artifacts.
     return new Response(new Uint8Array(buffer), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="dwellsy-iq-${slug}.pdf"`,
-        // Cache for an hour at the edge so re-downloads in the same
-        // session don't re-render. The PDF content is deterministic
-        // for a given seed version + slug, so longer caching is
-        // safe in principle; an hour is conservative and aligns
-        // with how often someone might want a re-rendered artifact.
+        // Cache for an hour at the edge so re-downloads in the same session
+        // don't re-render. Content is deterministic for a given seed version +
+        // slug; an hour is conservative.
         "Cache-Control": "public, max-age=3600, s-maxage=3600",
       },
     });
   } catch (err) {
-    // Always surface to Vercel logs first (PR #77 pattern — Sentry
-    // can fail to load and we still want diagnostic ground truth).
-    console.error(
-      "[scorecard-pdf] render error",
-      err,
-      { slug }
-    );
+    // Surface to Vercel logs first (Sentry can fail to load; we still want
+    // diagnostic ground truth).
+    console.error("[scorecard-pdf] render error", err, { slug });
     try {
       Sentry.captureException(err, {
         tags: { component: "scorecard-pdf" },
         extra: { slug },
       });
     } catch {
-      // Sentry capture itself failed — already logged the real error
-      // above, nothing useful to do here.
+      // Sentry capture itself failed — already logged the real error above.
     }
     return new Response("Failed to render scorecard PDF", { status: 500 });
   }
