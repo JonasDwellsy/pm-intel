@@ -22,8 +22,14 @@ import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
 
 export function MethodologyFooter({
   scorecard,
+  publicSample = false,
 }: {
   scorecard: ScorecardData;
+  /** When true (the public /sample page), the suggested-citation URL points
+   *  at the public /sample route instead of the gated per-operator scorecard
+   *  URL, so a logged-out reader who copies it doesn't land on the auth gate.
+   *  Defaults to false — the real scorecard cites its own canonical URL. */
+  publicSample?: boolean;
 }) {
   const c = scorecard.coverage;
   const t = scorecard.tenancy;
@@ -173,7 +179,10 @@ export function MethodologyFooter({
           </em>{" "}
           Methodology v{scorecard.methodologyVersion.replace(/^v/, "")}
           {scorecard.designVersion ? ` · Design ${scorecard.designVersion}` : ""}
-          . iq.dwellsy.com/property-managers/{scorecard.pm.slug}
+          .{" "}
+          {publicSample
+            ? "iq.dwellsy.com/sample"
+            : `iq.dwellsy.com/property-managers/${scorecard.pm.slug}`}
         </p>
       </div>
     </section>

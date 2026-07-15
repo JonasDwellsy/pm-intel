@@ -297,19 +297,21 @@ export function SampleScorecards({ cards }: { cards: SampleCard[] }) {
             <ScorecardCard key={c.slug} card={c} />
           ))}
         </div>
-        {cards[0] && (
-          <div className="mt-9">
-            <Link
-              href={cards[0].href}
-              className={
-                buttonVariants() +
-                " h-11 bg-navy px-6 text-[14.5px] font-semibold text-white hover:bg-navy-700"
-              }
-            >
-              View a sample scorecard →
-            </Link>
-          </div>
-        )}
+        {/* Links to the PUBLIC /sample route (the full Doorby profile),
+            not one of the three teaser cards' gated per-operator URLs —
+            those dead-end a logged-out visitor at the sign-in upsell,
+            whereas /sample is the one complete scorecard they can open. */}
+        <div className="mt-9">
+          <Link
+            href="/sample"
+            className={
+              buttonVariants() +
+              " h-11 bg-navy px-6 text-[14.5px] font-semibold text-white hover:bg-navy-700"
+            }
+          >
+            View a sample scorecard →
+          </Link>
+        </div>
       </div>
     </section>
   );

@@ -25,6 +25,7 @@ export function ScorecardBody({
   scorecard,
   isClaimed,
   geographicCoverage,
+  publicSample = false,
 }: {
   /** Pre-built view model from buildScorecardView(). */
   view: ScorecardView;
@@ -33,6 +34,11 @@ export function ScorecardBody({
   isClaimed: boolean;
   /** Geographic coverage data for the map in ScaleFitSection. */
   geographicCoverage: ScorecardData["geographicCoverage"];
+  /** Public marketing sample (the /sample route). When true, the header hides
+   *  its Copy-link + Download-PDF buttons and the methodology footer cites the
+   *  public /sample URL — both otherwise dead-end a logged-out visitor at the
+   *  auth gate. Defaults to false, so the real scorecard page is unchanged. */
+  publicSample?: boolean;
 }) {
   void isClaimed; // reserved for future claimed-operator badge rendering
 
@@ -84,7 +90,11 @@ export function ScorecardBody({
       {/* Main content column */}
       <div style={{ flex: 1, minWidth: 0, paddingTop: "28px", paddingBottom: "48px" }}>
         {/* Header */}
-        <ScorecardHeader header={view.header} slug={scorecard.pm.slug} />
+        <ScorecardHeader
+          header={view.header}
+          slug={scorecard.pm.slug}
+          publicSample={publicSample}
+        />
 
         {/* 30-second exec readout */}
         <ExecReadout readout={view.readout} maturityNote={view.maturityNote} />
@@ -109,7 +119,7 @@ export function ScorecardBody({
         <WatchItemsSection items={view.watchItems} />
 
         {/* 05 Methodology */}
-        <MethodologyFooter scorecard={scorecard} />
+        <MethodologyFooter scorecard={scorecard} publicSample={publicSample} />
       </div>
 
       {/* Right-rail nav (client component). Visibility is controlled by the

@@ -79,6 +79,23 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
               Browse markets →
             </TrackedLink>
           </div>
+          {/* Tertiary CTA — the one full scorecard a logged-out visitor
+              can open. Points at the public /sample route (Doorby) so the
+              hero has an explicit "here's a complete example" path beyond
+              the clickable card on the right. */}
+          <p className="mt-4">
+            <TrackedLink
+              event="pm_card_click"
+              properties={{
+                source: "homepage_hero",
+                cta: "view_sample_scorecard",
+              }}
+              href="/sample"
+              className="inline-flex items-center gap-1 text-[14.5px] font-semibold text-navy underline-offset-4 hover:underline"
+            >
+              See a full sample scorecard →
+            </TrackedLink>
+          </p>
           <p className="mt-6 text-[14.5px] italic text-muted-foreground">
             Methodology {METHODOLOGY_VERSION} · Design {DESIGN_VERSION} ·{" "}
             {marketCount} markets live · Any top-200 US market on request.
