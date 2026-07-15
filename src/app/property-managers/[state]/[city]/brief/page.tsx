@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { recordUsageEvent } from "@/lib/usage/record";
 import { slugToStateCode, citySlug } from "@/lib/slugify";
 import {
   buildMarketBriefData,
@@ -95,6 +97,20 @@ export default async function MarketBriefPage({
 
   const data = await buildMarketBriefData(marketSlug);
   if (!data) notFound();
+
+  // v0.24 — first-party usage capture (authed-only, non-blocking).
+  // targetSlug is the market slug so "which briefs get read" rolls up
+  // by market. auth() hits no DB. Anonymous readers are skipped.
+  const { userId: viewerId, orgId: viewerOrgId } = await auth();
+  if (viewerId) {
+    recordUsageEvent({
+      userId: viewerId,
+      orgId: viewerOrgId,
+      eventName: "brief_view",
+      targetKind: "brief",
+      targetSlug: marketSlug,
+    });
+  }
 
   // Cache-or-generate. If generation fails (API key missing, model
   // error, malformed JSON) we surface a graceful unavailable state

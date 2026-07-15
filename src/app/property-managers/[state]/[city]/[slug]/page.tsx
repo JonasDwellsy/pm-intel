@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cache } from "react";
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import type { ScorecardData } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
@@ -19,6 +20,7 @@ import { loadMsaPool } from "@/lib/msa-pool";
 import { loadOperatorTrajectory, loadOperatorAggregateTrajectory } from "@/lib/operators/trajectory";
 import { buildConcessionContext } from "@/lib/concession-context";
 import { buildScorecardView } from "@/lib/scorecard/view-model";
+import { recordUsageEvent } from "@/lib/usage/record";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 import { MarketView } from "@/components/market/MarketView";
 import { TrackEvent } from "@/components/analytics/TrackEvent";
@@ -220,6 +222,20 @@ export default async function MarketChildPage({
       ? { aggregateTrajectory, memberMarketNames, marketCount }
       : {}),
   });
+
+  // v0.24 — first-party usage capture (authed-only, non-blocking). auth()
+  // is request-cached (already resolved via resolveViewerEntitlement
+  // above), so this adds no DB round-trip. Anonymous viewers are skipped.
+  const { userId: viewerId, orgId: viewerOrgId } = await auth();
+  if (viewerId) {
+    recordUsageEvent({
+      userId: viewerId,
+      orgId: viewerOrgId,
+      eventName: "scorecard_view",
+      targetKind: "operator",
+      targetSlug: scorecard.pm.slug,
+    });
+  }
 
   return (
     <>

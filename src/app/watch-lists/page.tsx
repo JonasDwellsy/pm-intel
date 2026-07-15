@@ -10,6 +10,7 @@ import { WelcomeFlash } from "@/components/watch-list/WelcomeFlash";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { viewerHasAnyMarketAccess } from "@/lib/auth/market-entitlements.server";
 import { NoMarketsNotice } from "@/components/entitlements/NoMarketsNotice";
+import { recordUsageEvent } from "@/lib/usage/record";
 import { prisma } from "@/lib/prisma";
 
 // /watch-lists — landing for the watch-list workspace.
@@ -37,12 +38,17 @@ export const metadata: Metadata = {
 };
 
 export default async function WatchListesPage() {
-  const { userId } = await auth();
+  const { userId, orgId } = await auth();
   if (!userId) redirect("/sign-in");
   const { organizationId } = await getActiveOrgContext();
   if (!organizationId) {
     redirect("/setup-workspace?from=/watch-lists");
   }
+
+  // v0.24 — first-party usage capture (non-blocking). userId is
+  // guaranteed here (anonymous redirected above). orgId is the Clerk org
+  // id, consistent with every other capture site.
+  recordUsageEvent({ userId, orgId, eventName: "watch_list_view" });
 
   // Entitlement gate: an org with zero market grants (a client member
   // invited before markets are provisioned, or a stray personal
