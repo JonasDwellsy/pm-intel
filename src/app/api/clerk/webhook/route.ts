@@ -52,6 +52,7 @@ import * as Sentry from "@sentry/nextjs";
 import { captureServerEvent, flushAnalyticsServer } from "@/lib/analytics-server";
 import { prisma } from "@/lib/prisma";
 import { extractEmailDomain } from "@/lib/auth/email-domain";
+import { recordUsageEventAwait } from "@/lib/usage/record";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -299,6 +300,11 @@ async function handleUserCreated(event: ClerkWebhookEvent): Promise<void> {
     userId,
     event: "signup_completed",
   });
+  // v0.24 — parallel first-party sink (see src/lib/usage/record.ts).
+  // Awaited: the webhook lambda can freeze right after responding, so a
+  // floating write could be lost — logins/signups are the headline signal.
+  // No org context on user.created (orgId stays null).
+  await recordUsageEventAwait({ userId, eventName: "signup" });
 }
 
 async function handleSessionCreated(event: ClerkWebhookEvent): Promise<void> {
@@ -314,6 +320,12 @@ async function handleSessionCreated(event: ClerkWebhookEvent): Promise<void> {
     userId,
     event: "login_completed",
   });
+  // v0.24 — parallel first-party sink. Placed AFTER the post-signup
+  // dedup guard so "login" mirrors login_completed's non-double-fire
+  // behavior (the auto-login right after signup records "signup", not a
+  // second "login"). session.created carries no org, so orgId stays null.
+  // Awaited so the headline login signal can't be lost to lambda freeze.
+  await recordUsageEventAwait({ userId, eventName: "login" });
 }
 
 async function isWithinSignupWindow(args: {

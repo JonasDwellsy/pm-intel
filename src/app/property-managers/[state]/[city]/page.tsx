@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { MarketView } from "@/components/market/MarketView";
 import { listMarketRouteParams, loadMarketView } from "@/lib/market-data";
 import { findTrackedInMarket } from "@/lib/pm-search";
+import { recordUsageEvent } from "@/lib/usage/record";
 import { TrackEvent } from "@/components/analytics/TrackEvent";
 
 type RouteParams = { state: string; city: string };
@@ -70,6 +72,22 @@ export default async function MarketLandingPage({
     highlightParam && highlightParam.length > 0
       ? findTrackedInMarket(view.market.id, highlightParam)
       : null;
+
+  // v0.24 — first-party usage capture (authed-only, non-blocking). This
+  // page already renders dynamically (it reads searchParams), so the
+  // request-cached auth() adds no DB round-trip and doesn't change the
+  // page's rendering mode. Anonymous visitors are skipped.
+  const { userId: viewerId, orgId: viewerOrgId } = await auth();
+  if (viewerId) {
+    recordUsageEvent({
+      userId: viewerId,
+      orgId: viewerOrgId,
+      eventName: "market_view",
+      targetKind: "market",
+      targetSlug: view.market.id,
+    });
+  }
+
   return (
     <>
       {/* v0.17 — markets_page_viewed. Only the market_slug is captured;

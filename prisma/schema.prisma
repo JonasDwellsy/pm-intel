@@ -596,3 +596,46 @@ model AppSetting {
   updatedAt   DateTime @updatedAt
   updatedBy   String?
 }
+
+// v0.24 — First-party, internal usage analytics. An append-only event
+// log written SERVER-SIDE and fire-and-forget from key authenticated
+// surfaces (logins, scorecard/operator/market/brief views, AI queries,
+// watch-list activity). Read only from /admin/usage; never client-facing.
+//
+// This is an ADDITIVE parallel sink alongside PostHog (captureServerEvent)
+// — it lets a Dwellsy admin answer "who logged in, per-client active
+// users, which operators/markets get viewed" straight from our own Neon
+// DB with no third-party dependency.
+//
+// PRIVACY: store Clerk IDs ONLY — never names or emails. Display names
+// are resolved at READ TIME (userId → Clerk getUserList; orgId → the
+// Organization mirror table). This keeps PII out of the event log, the
+// same guardrail the PostHog sinks follow.
+//
+//   userId     — Clerk userId (opaque; no FK to a user table)
+//   orgId      — Clerk org id (auth().orgId). Nullable: session.created
+//                logins carry no org, and a session without an active
+//                org resolves to null. Consistent source everywhere.
+//   eventName  — "login" | "signup" | "scorecard_view" | "operator_view"
+//                | "market_view" | "brief_view" | "ask_query"
+//                | "watch_list_view" | "watch_list_create"
+//   targetKind — "operator" | "market" | "brief" | "watch_list" (nullable)
+//   targetSlug — pm slug / market id / etc (nullable)
+//
+// Indexed on the four columns every /admin/usage query filters or groups
+// by (occurredAt for the time window, userId/orgId for rollups, eventName
+// for per-event breakdowns).
+model UsageEvent {
+  id         String   @id @default(cuid())
+  occurredAt DateTime @default(now())
+  userId     String
+  orgId      String?
+  eventName  String
+  targetKind String?
+  targetSlug String?
+
+  @@index([occurredAt])
+  @@index([userId])
+  @@index([orgId])
+  @@index([eventName])
+}
