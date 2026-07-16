@@ -40,6 +40,7 @@ import {
   DEFAULT_MULTIPLIERS,
   type PortfolioMultipliers,
 } from "../src/lib/operator-size";
+import { applyCorrectionsToSeedData } from "../src/lib/operators/name-correction";
 
 const prisma = new PrismaClient();
 
@@ -1385,6 +1386,38 @@ async function main() {
   await prisma.marketBrief.deleteMany();
   await prisma.pM.deleteMany();
   await prisma.market.deleteMany();
+
+  // Re-apply admin name corrections (durable applier). The corrections
+  // table is never wiped by this seed, so read it now and stamp the
+  // in-memory data before rows are (re)created — mirrors how
+  // applyCanonicalOverrides stamps identity. Live edits made via
+  // /admin/names are thus reproduced on every reseed.
+  const corrections = await prisma.operatorNameCorrection.findMany({
+    select: {
+      targetKind: true,
+      targetKey: true,
+      correctedName: true,
+      originalName: true,
+    },
+  });
+  if (corrections.length > 0) {
+    const { applied, stale, drifted } = applyCorrectionsToSeedData(
+      data.pms as never,
+      (data.canonicalOperators ?? {}) as never,
+      corrections
+    );
+    console.log(`[seed] applied ${applied} operator name correction(s).`);
+    if (stale.length > 0) {
+      console.warn(
+        `[seed] ${stale.length} name correction(s) had no matching operator (stale): ${stale.join(", ")}`
+      );
+    }
+    if (drifted.length > 0) {
+      console.warn(
+        `[seed] ${drifted.length} name correction(s) had a source-name drift (recorded originalName no longer matches): ${drifted.join(", ")}`
+      );
+    }
+  }
 
   for (const m of data.markets) {
     await prisma.market.create({
