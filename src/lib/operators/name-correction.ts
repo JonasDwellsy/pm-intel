@@ -108,18 +108,14 @@ export function applyCorrectionsToSeedData(
       applied += 1;
     } else if (c.targetKind === "canonical") {
       const canon = canonicalOperators[c.targetKey];
-      // Members are linked either by canonicalOperatorId (structural link,
-      // when present in seed data) or — as a fallback, mirroring the
-      // case-insensitive alias matching used elsewhere in this module — by
-      // a canonicalOperatorName that still carries the pre-correction name.
-      const idMembers = membersByCanonical.get(c.targetKey) ?? [];
-      const nameMembers = pms.filter(
-        (pm) =>
-          typeof pm.canonicalOperatorName === "string" &&
-          pm.canonicalOperatorName.toLowerCase() === c.originalName.toLowerCase()
-      );
-      const members = new Set<SeedPm>([...idMembers, ...nameMembers]);
-      if (!canon && members.size === 0) {
+      // Members are linked SOLELY by canonicalOperatorId — the same
+      // structural link the live server action uses (prisma.pM.findMany({
+      // where: { canonicalOperatorId: targetKey } })) — so the seed applier
+      // touches the same member set. No name-based fallback: matching by
+      // canonicalOperatorName could over-match unrelated PMs that merely
+      // share a display name, and would let the two appliers diverge.
+      const members = membersByCanonical.get(c.targetKey) ?? [];
+      if (!canon && members.length === 0) {
         stale.push(c.targetKey);
         continue;
       }

@@ -63,7 +63,12 @@ test("computeCanonicalMemberPatch sets member alias column + blob", () => {
 test("applyCorrectionsToSeedData stamps pm + canonical in-memory and reports staleness", () => {
   const pms = [
     { slug: "a-denver-co", name: "Pmi Mile High", canonicalOperatorName: null },
-    { slug: "er-milwaukee", name: "Edward Rose", canonicalOperatorName: "Edward Rose" },
+    {
+      slug: "er-milwaukee",
+      name: "Edward Rose",
+      canonicalOperatorId: "edward-rose-sons",
+      canonicalOperatorName: "Edward Rose",
+    },
   ];
   const canon = { "edward-rose-sons": { canonicalName: "Edward Rose" } };
   const corrections = [
