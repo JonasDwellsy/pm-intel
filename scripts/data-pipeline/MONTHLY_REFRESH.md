@@ -89,6 +89,12 @@ from `scripts/data-pipeline/`.
 
 8. **Rebuild the operator universe:**
    `PYTHONHASHSEED=0 npx tsx scripts/build-operator-universe.ts`
+   Reads each market's per-market source JSON from `$IQ_DATA_DIR` (same as the
+   pipeline) to build the tracked/search tier — **keep `IQ_DATA_DIR` exported**
+   (step 2) or the tracked tier silently empties to 0 and search loses every
+   sub-ranked operator. Also: this script's `MARKETS` array is hand-maintained
+   — **add each new market to it** (id + slugs), or the market's ranked +
+   tracked operators won't appear in search even though the seed has them.
 
 9. **Verify the seed** (`src/data/scorecard_data.json`): `marketCount` 34,
    `methodologyVersion` v0.7 / `designVersion` v2.0 unchanged, and **`dataAsOf`

@@ -376,6 +376,17 @@
       "primaryCity": "Los Angeles",
       "csvFile": "merged_los-angeles-long-beach-santa-ana-ca_20260706.csv",
       "dataAsOf": "2026-07-06"
+    },
+    {
+      "id": "milwaukee-waukesha-west-allis-wi",
+      "outputSlug": "milwaukee",
+      "msaCode": "33340",
+      "msaFullName": "Milwaukee-Waukesha-West Allis, WI MSA",
+      "name": "Milwaukee",
+      "state": "WI",
+      "primaryCity": "Milwaukee",
+      "csvFile": "merged_milwaukee-waukesha-west-allis-wi_20260715.csv",
+      "dataAsOf": "2026-07-15"
     }
   ]
 }

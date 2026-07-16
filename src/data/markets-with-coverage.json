@@ -565,14 +565,15 @@
       "status": "available"
     },
     {
-      "slug": "milwaukee-wi",
+      "slug": "milwaukee-waukesha-west-allis-wi",
       "name": "Milwaukee-Waukesha-West Allis, WI MSA",
       "shortName": "Milwaukee",
       "centroid": {
         "lat": 43.0389,
         "lng": -87.9065
       },
-      "status": "available"
+      "status": "live",
+      "marketPageHref": "/property-managers/wisconsin/milwaukee"
     },
     {
       "slug": "new-orleans-la",
