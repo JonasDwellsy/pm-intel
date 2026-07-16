@@ -1401,7 +1401,7 @@ async function main() {
     },
   });
   if (corrections.length > 0) {
-    const { applied, stale } = applyCorrectionsToSeedData(
+    const { applied, stale, drifted } = applyCorrectionsToSeedData(
       data.pms as never,
       (data.canonicalOperators ?? {}) as never,
       corrections
@@ -1410,6 +1410,11 @@ async function main() {
     if (stale.length > 0) {
       console.warn(
         `[seed] ${stale.length} name correction(s) had no matching operator (stale): ${stale.join(", ")}`
+      );
+    }
+    if (drifted.length > 0) {
+      console.warn(
+        `[seed] ${drifted.length} name correction(s) had a source-name drift (recorded originalName no longer matches): ${drifted.join(", ")}`
       );
     }
   }

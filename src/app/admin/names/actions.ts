@@ -134,11 +134,24 @@ export async function undoCorrection(
   const row = await prisma.operatorNameCorrection.findUnique({ where: { id } });
   if (!row) return { ok: false, error: "Already removed." };
 
-  // Restore the original name to the live rows, then drop the row.
-  await prisma.$transaction(async (tx) => {
-    await patchLiveName(tx, row.targetKind, row.targetKey, row.originalName);
-    await tx.operatorNameCorrection.delete({ where: { id } });
-  });
+  // Restore the original name to the live rows, then drop the row. A
+  // concurrent double-undo can still race between the findUnique above and
+  // this delete — Prisma throws P2025 (record to delete not found) in that
+  // case, which we turn into the same friendly message rather than a 500.
+  try {
+    await prisma.$transaction(async (tx) => {
+      await patchLiveName(tx, row.targetKind, row.targetKey, row.originalName);
+      await tx.operatorNameCorrection.delete({ where: { id } });
+    });
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2025"
+    ) {
+      return { ok: false, error: "Already removed." };
+    }
+    throw err;
+  }
 
   revalidatePath("/admin/names");
   revalidatePath("/", "layout");

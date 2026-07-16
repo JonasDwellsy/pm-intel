@@ -35,12 +35,16 @@ function editBlob(
 /** Live patch for a standalone PM: set the `name` column and the blob's
  *  `pm.name`. If the blob's canonicalOperatorName equalled the OLD name
  *  case-insensitively (stale-casing alias, not a real DBA), move it with
- *  the correction so toPmListItem stays consistent. */
+ *  the correction so toPmListItem stays consistent — and return the new
+ *  value so the caller also updates the `PM.canonicalOperatorName` column
+ *  (parity with the seed applier). Left `undefined` when the alias didn't
+ *  move, so the caller leaves the column untouched. */
 export function computePmNamePatch(
   current: { name: string; scorecardData: string },
   correctedName: string
-): { name: string; scorecardData: string } {
+): { name: string; scorecardData: string; canonicalOperatorName?: string } {
   const oldName = current.name;
+  let canonicalOperatorName: string | undefined;
   const scorecardData = editBlob(current.scorecardData, (blob) => {
     if (blob.pm) blob.pm.name = correctedName;
     if (
@@ -48,9 +52,10 @@ export function computePmNamePatch(
       blob.canonicalOperatorName.toLowerCase() === oldName.toLowerCase()
     ) {
       blob.canonicalOperatorName = correctedName;
+      canonicalOperatorName = correctedName;
     }
   });
-  return { name: correctedName, scorecardData };
+  return { name: correctedName, scorecardData, canonicalOperatorName };
 }
 
 /** Live patch for a member of a corrected canonical group: set the member's
@@ -70,12 +75,16 @@ export function computeCanonicalMemberPatch(
  *  the blob is built + rows are created. seed.ts sets `pm.name` (which
  *  flows into both the column and the freshly-built blob) so no blob-string
  *  surgery is needed here. Returns counts + a list of targetKeys that
- *  didn't resolve (unknown / stale) for logging. */
+ *  didn't resolve (unknown / stale), plus a list of targetKeys whose current
+ *  source name no longer matches the correction's recorded `originalName`
+ *  (a full refresh renamed the operator out from under the correction) —
+ *  the correction is still applied (correctedName wins), this is a warning
+ *  for the seed log, not a skip. */
 export function applyCorrectionsToSeedData(
   pms: SeedPm[],
   canonicalOperators: Record<string, SeedCanonical>,
   corrections: SeedCorrection[]
-): { applied: number; stale: string[] } {
+): { applied: number; stale: string[]; drifted: string[] } {
   const pmBySlug = new Map<string, SeedPm>();
   for (const pm of pms) pmBySlug.set(pm.slug, pm);
   const membersByCanonical = new Map<string, SeedPm[]>();
@@ -91,12 +100,16 @@ export function applyCorrectionsToSeedData(
 
   let applied = 0;
   const stale: string[] = [];
+  const drifted: string[] = [];
   for (const c of corrections) {
     if (c.targetKind === "pm") {
       const pm = pmBySlug.get(c.targetKey);
       if (!pm) {
         stale.push(c.targetKey);
         continue;
+      }
+      if (pm.name.toLowerCase() !== c.originalName.toLowerCase()) {
+        drifted.push(c.targetKey);
       }
       pm.name = c.correctedName;
       if (
@@ -119,6 +132,13 @@ export function applyCorrectionsToSeedData(
         stale.push(c.targetKey);
         continue;
       }
+      if (
+        canon &&
+        typeof canon.canonicalName === "string" &&
+        canon.canonicalName.toLowerCase() !== c.originalName.toLowerCase()
+      ) {
+        drifted.push(c.targetKey);
+      }
       if (canon) canon.canonicalName = c.correctedName;
       for (const m of members) m.canonicalOperatorName = c.correctedName;
       applied += 1;
@@ -126,5 +146,5 @@ export function applyCorrectionsToSeedData(
       stale.push(c.targetKey);
     }
   }
-  return { applied, stale };
+  return { applied, stale, drifted };
 }
