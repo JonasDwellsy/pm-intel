@@ -582,6 +582,28 @@ model OperatorMergeDecision {
   @@index([marketId])
 }
 
+// Admin-curated display-name corrections. Single source of truth for a
+// renamed operator. Applied TWICE: live (the /admin/names server action
+// patches the operator's DB rows on save) and durably (prisma/seed.ts
+// re-applies every row in-memory before recreating PMs, since a reseed
+// hard-deletes + recreates PM/CanonicalOperator from the JSON). This
+// table is deliberately NOT in seed.ts's deleteMany set, so corrections
+// survive reseeds — same trick as OperatorMergeDecision / AppSetting.
+//   targetKind "pm"        — targetKey is a PM slug (one market).
+//   targetKind "canonical" — targetKey is a canonicalSlug (the group).
+model OperatorNameCorrection {
+  id              String   @id @default(cuid())
+  targetKind      String   // "pm" | "canonical"
+  targetKey       String   // PM slug, or canonicalSlug/canonicalOperatorId
+  correctedName   String
+  originalName    String   // name at first correction — powers Undo + staleness
+  decidedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([targetKind, targetKey])
+}
+
 // v0.6.5 — generic key/value app settings, editable from the admin panel.
 // First use: `sfr_turnover_multiplier` — the SFR portfolio-size multiplier
 // applied to urusT12 (see src/lib/operator-size.ts). Values are stored as
