@@ -9,6 +9,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@clerk/nextjs/server";
+import { Prisma } from "@prisma/client";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { prisma } from "@/lib/prisma";
 import {
@@ -22,46 +23,51 @@ export interface NameCorrectionResult {
   error?: string;
 }
 
+const NOT_FOUND = "NOT_FOUND";
+
 function str(v: FormDataEntryValue | null): string {
   return typeof v === "string" ? v : "";
 }
 
 /** Patch the live DB rows for a target to `name`. Returns the pre-patch
- *  display name (for capturing originalName). */
+ *  display name (for capturing originalName). All queries run against the
+ *  passed transaction client so callers can compose this with other writes
+ *  atomically. */
 async function patchLiveName(
+  tx: Prisma.TransactionClient,
   targetKind: string,
   targetKey: string,
   name: string
 ): Promise<string | null> {
   if (targetKind === "pm") {
-    const pm = await prisma.pM.findUnique({
+    const pm = await tx.pM.findUnique({
       where: { slug: targetKey },
       select: { name: true, scorecardData: true },
     });
     if (!pm) return null;
     const patch = computePmNamePatch(pm, name);
-    await prisma.pM.update({ where: { slug: targetKey }, data: patch });
+    await tx.pM.update({ where: { slug: targetKey }, data: patch });
     return pm.name;
   }
   // canonical: the group row + every member's alias.
-  const canon = await prisma.canonicalOperator.findUnique({
+  const canon = await tx.canonicalOperator.findUnique({
     where: { canonicalSlug: targetKey },
     select: { canonicalName: true },
   });
-  const members = await prisma.pM.findMany({
+  const members = await tx.pM.findMany({
     where: { canonicalOperatorId: targetKey },
     select: { slug: true, scorecardData: true },
   });
   if (!canon && members.length === 0) return null;
   if (canon) {
-    await prisma.canonicalOperator.update({
+    await tx.canonicalOperator.update({
       where: { canonicalSlug: targetKey },
       data: { canonicalName: name },
     });
   }
   for (const m of members) {
     const patch = computeCanonicalMemberPatch(m, name);
-    await prisma.pM.update({ where: { slug: m.slug }, data: patch });
+    await tx.pM.update({ where: { slug: m.slug }, data: patch });
   }
   return canon?.canonicalName ?? null;
 }
@@ -82,24 +88,33 @@ export async function saveCorrection(
   if (!targetKey) return { ok: false, error: "Missing operator." };
   if (!correctedName) return { ok: false, error: "Corrected name is required." };
 
-  const priorName = await patchLiveName(targetKind, targetKey, correctedName);
-  if (priorName === null) {
-    return { ok: false, error: "Operator not found." };
-  }
+  try {
+    await prisma.$transaction(async (tx) => {
+      const priorName = await patchLiveName(tx, targetKind, targetKey, correctedName);
+      if (priorName === null) {
+        throw new Error(NOT_FOUND);
+      }
 
-  // Upsert the source-of-truth row. On UPDATE, keep the first originalName
-  // (don't overwrite with the already-corrected value).
-  await prisma.operatorNameCorrection.upsert({
-    where: { targetKind_targetKey: { targetKind, targetKey } },
-    create: {
-      targetKind,
-      targetKey,
-      correctedName,
-      originalName: priorName,
-      decidedByUserId: userId,
-    },
-    update: { correctedName, decidedByUserId: userId },
-  });
+      // Upsert the source-of-truth row. On UPDATE, keep the first originalName
+      // (don't overwrite with the already-corrected value).
+      await tx.operatorNameCorrection.upsert({
+        where: { targetKind_targetKey: { targetKind, targetKey } },
+        create: {
+          targetKind,
+          targetKey,
+          correctedName,
+          originalName: priorName,
+          decidedByUserId: userId,
+        },
+        update: { correctedName, decidedByUserId: userId },
+      });
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === NOT_FOUND) {
+      return { ok: false, error: "Operator not found." };
+    }
+    throw err;
+  }
 
   revalidatePath("/admin/names");
   revalidatePath("/", "layout"); // operator/market/scorecard pages
@@ -120,8 +135,10 @@ export async function undoCorrection(
   if (!row) return { ok: false, error: "Already removed." };
 
   // Restore the original name to the live rows, then drop the row.
-  await patchLiveName(row.targetKind, row.targetKey, row.originalName);
-  await prisma.operatorNameCorrection.delete({ where: { id } });
+  await prisma.$transaction(async (tx) => {
+    await patchLiveName(tx, row.targetKind, row.targetKey, row.originalName);
+    await tx.operatorNameCorrection.delete({ where: { id } });
+  });
 
   revalidatePath("/admin/names");
   revalidatePath("/", "layout");
