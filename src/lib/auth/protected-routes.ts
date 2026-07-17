@@ -44,7 +44,6 @@ export const PROTECTED_ROUTE_PATTERNS = [
   "/watch-lists/:id/changes",
   "/api/watch-lists",
   "/api/watch-lists/:id",
-  "/api/watch-lists/:id/apply",
 
   // v0.21 — premium content. Per-operator scorecards, operator
   // profiles, and the AI /ask tool are the paid surface. State/market

@@ -87,10 +87,6 @@ test("anonymous users are gated off /api/watch-lists/:id (CRUD by id)", () => {
   assert.equal(isGated("/api/watch-lists/cuid_abc123"), true);
 });
 
-test("anonymous users are gated off /api/watch-lists/:id/apply", () => {
-  assert.equal(isGated("/api/watch-lists/cuid_abc123/apply"), true);
-});
-
 // --- v0.21 premium-content boundary ---
 
 test("v0.21: marketing surface pages stay public", () => {
