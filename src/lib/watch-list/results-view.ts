@@ -79,6 +79,11 @@ export interface ResultRowVM {
   listingTrajectoryYoY: number | null;
   concessionRate: number | null;
   fitScore: number;
+  /** True when this row is present because it was manually pinned to
+   *  the watch list, not (or not only) because it matched the
+   *  criteria. Threaded straight from RankedTarget/RolledUpTarget's
+   *  `pinned` flag — display-only (Task 7 badges it in the table). */
+  pinned: boolean;
   /** PMRecord the adaptive-column cells read from. */
   pm: PMRecord;
   preferredBreakdown: BreakdownEntryVM[];
@@ -180,6 +185,7 @@ function projectMarketRow(
     ),
     concessionRate: sc.concessionRate ?? null,
     fitScore: r.fitScore,
+    pinned: r.pinned ?? false,
     pm: r.pm,
     preferredBreakdown: projectBreakdown(r.breakdown.preferred, true),
     requiredBreakdown: projectBreakdown(r.breakdown.required, false),
@@ -254,6 +260,7 @@ function projectOperatorRow(
     ),
     concessionRate: sc.concessionRate ?? null,
     fitScore: r.fitScore,
+    pinned: r.pinned ?? false,
     pm: r.pm,
     preferredBreakdown: projectBreakdown(r.breakdown.preferred, true),
     requiredBreakdown: projectBreakdown(r.breakdown.required, false),

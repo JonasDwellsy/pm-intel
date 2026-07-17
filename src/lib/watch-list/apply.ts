@@ -44,6 +44,11 @@ export interface RankedTarget {
   breakdown: ScoreBreakdown;
   /** Full PM payload for drill-down rendering. */
   pm: PMRecord;
+  /** True when this row is present only because it was manually
+   *  pinned to the watch list (kind: "pinned" membership), not
+   *  because it matched the criteria. Display-only — never affects
+   *  sorting or entitlement scoping. See unionPinnedRecords below. */
+  pinned?: boolean;
 }
 
 export interface RolledUpTarget {
@@ -66,6 +71,10 @@ export interface RolledUpTarget {
   /** Already-aggregated PM payload — every field the results-view
    *  projector reads is the rolled-up value. */
   pm: AggregatedPMRecord;
+  /** True when this operator is present only because it (or one of
+   *  its member PMs) was manually pinned, not because the rollup
+   *  matched the criteria. Display-only. See unionPinnedOperators. */
+  pinned?: boolean;
 }
 
 export interface TargetListResult {
@@ -94,7 +103,17 @@ export async function applyWatchList(
   // are evaluated, so results (per-market and per-operator rollups)
   // never surface operators in markets the org didn't buy. Omit for the
   // unscoped evaluation.
-  entitlement?: MarketEntitlement
+  entitlement?: MarketEntitlement,
+  // v0.27 (Task 5) — manually-pinned company keys (canonicalOperatorId
+  // ?? pmSlug) for this watch list's "pinned" membership. When
+  // provided, a pinned company is unioned into `results`/
+  // `operatorResults` even if it didn't match the criteria. ENTITLEMENT
+  // SAFETY: the union reads only from `allRecords`/`byCanonical` below,
+  // which are built from `rows` — the array already filtered by
+  // isMarketEntitled. A pinned key for a company with zero entitled-
+  // market rows is simply never encountered by the union step, so it
+  // can never surface. See unionPinnedRecords/unionPinnedOperators.
+  pinnedKeys?: ReadonlySet<string>
 ): Promise<TargetListResult> {
   // PM-only universe. Brokers are scored in their own cohort and hidden from
   // the platform's ranked lists by default; a watch list is a ranked target
@@ -161,11 +180,11 @@ export async function applyWatchList(
   const marketNameBySlug = new Map<string, string>();
   for (const row of rows) marketNameBySlug.set(row.slug, row.market.fullName);
 
-  const matched: RankedTarget[] = [];
+  const matchedRaw: RankedTarget[] = [];
   for (const pmRecord of allRecords) {
     const evaluation = evaluateWatchList(pmRecord, watchList);
     if (!evaluation.passed || evaluation.fitScore === null) continue;
-    matched.push({
+    matchedRaw.push({
       pmSlug: pmRecord.slug,
       name: pmRecord.name,
       marketId: pmRecord.marketId,
@@ -176,6 +195,12 @@ export async function applyWatchList(
       pm: pmRecord,
     });
   }
+  // Union pinned companies in BEFORE the sort so pinned rows take
+  // their natural position by score, same as everything else — the
+  // `pinned` flag is purely a display hint (badge), never a sort key.
+  const matched = pinnedKeys
+    ? unionPinnedRecords(matchedRaw, allRecords, pinnedKeys, watchList, marketNameBySlug)
+    : matchedRaw;
   matched.sort((a, b) => {
     if (b.fitScore !== a.fitScore) return b.fitScore - a.fitScore;
     return a.pmSlug.localeCompare(b.pmSlug);
@@ -188,40 +213,36 @@ export async function applyWatchList(
   // operator whose summed URUs clear 100 even when no single market
   // does on its own.
   const byCanonical = groupByCanonical(allRecords);
-  const matchedOperators: RolledUpTarget[] = [];
+  const matchedOperatorsRaw: RolledUpTarget[] = [];
   for (const [canonId, bucket] of byCanonical.entries()) {
-    // Use the per-market marketName lookup we built above so the
-    // aggregated record carries human-readable market labels.
-    const enrichedBucket: PMRecord[] = bucket.map((b) => ({
-      ...b,
-      scorecard: {
-        ...b.scorecard,
-        market: {
-          ...b.scorecard.market,
-          fullName:
-            marketNameBySlug.get(b.slug) ??
-            b.scorecard.market?.fullName ??
-            b.marketId,
-        },
-      },
-    }));
-    const aggregated = aggregateRecords(enrichedBucket);
-    const evaluation = evaluateRollup(aggregated, watchList);
+    const { evaluation, target } = buildRolledUpTarget(
+      canonId,
+      bucket,
+      marketNameBySlug,
+      canonicalNameById,
+      watchList
+    );
     if (!evaluation.passed || evaluation.fitScore === null) continue;
-    matchedOperators.push({
-      canonicalOperatorId: canonId,
-      canonicalOperatorName:
-        canonicalNameById.get(canonId) ?? aggregated.name,
-      memberMarketIds: aggregated.memberMarketIds,
-      memberMarketNames: aggregated.memberMarketNames,
-      memberPmSlugs: aggregated.memberPmSlugs,
-      isRollup: aggregated.isRollup,
-      quadrant7CellIsMixed: aggregated.quadrant7CellIsMixed,
+    matchedOperatorsRaw.push({
+      ...target,
       fitScore: evaluation.fitScore,
       breakdown: evaluation.breakdown,
-      pm: aggregated,
     });
   }
+  // Union pinned operators in — only keys present in `byCanonical`
+  // (built strictly from the entitlement-filtered `allRecords` above)
+  // are ever reachable here, so a pinned operator with zero entitled
+  // markets is correctly absent.
+  const matchedOperators = pinnedKeys
+    ? unionPinnedOperators(
+        matchedOperatorsRaw,
+        byCanonical,
+        pinnedKeys,
+        watchList,
+        marketNameBySlug,
+        canonicalNameById
+      )
+    : matchedOperatorsRaw;
   matchedOperators.sort((a, b) => {
     if (b.fitScore !== a.fitScore) return b.fitScore - a.fitScore;
     return a.canonicalOperatorId.localeCompare(b.canonicalOperatorId);
@@ -238,4 +259,156 @@ export async function applyWatchList(
     results: matched,
     operatorResults: matchedOperators,
   };
+}
+
+// ─── pin union (pure — no I/O) ───────────────────────────────────────
+//
+// Task 5 (v0.27): a watch list of kind "pinned" lets a user manually
+// add companies regardless of whether they match the watch list's
+// criteria. These helpers union those pins into the criteria-matched
+// results applyWatchList already computed.
+//
+// ENTITLEMENT SAFETY: every helper below reads exclusively from the
+// caller-supplied `allRecords` / `byCanonical`, which applyWatchList
+// builds from `rows` — the PM rows already filtered by
+// isMarketEntitled (see the `rows = entitlement === undefined ? ... :
+// allRows.filter(...)` line above). A pinned key never bypasses that
+// filter because these functions have no path to the unfiltered
+// `allRows` at all — a pinned company with zero entitled-market rows
+// simply never appears in `allRecords`/`byCanonical`, so the loops
+// below never encounter it and it is correctly, silently absent.
+//
+// Extracted as standalone exports (rather than inlined in
+// applyWatchList) specifically so they can be unit-tested without a
+// database: applyWatchList itself is DB-bound (prisma.pM.findMany),
+// but everything past that DB read — evaluation, aggregation, union —
+// is pure and deterministic given the same inputs.
+
+/** Union pinned companies into the per-market (Market view) results.
+ *  For every record in `allRecords` whose company key
+ *  (canonicalOperatorId ?? slug) is pinned and isn't already present
+ *  in `matched` (by pmSlug), score it against the watch list and push
+ *  it in, flagged `pinned: true`. A pinned multi-market operator
+ *  contributes one row per member PM record present in `allRecords` —
+ *  i.e. per entitled market only. */
+export function unionPinnedRecords(
+  matched: RankedTarget[],
+  allRecords: PMRecord[],
+  pinnedKeys: ReadonlySet<string>,
+  watchList: WatchListDefinition,
+  marketNameBySlug: ReadonlyMap<string, string>
+): RankedTarget[] {
+  if (pinnedKeys.size === 0) return matched;
+  const alreadyMatched = new Set(matched.map((m) => m.pmSlug));
+  const additions: RankedTarget[] = [];
+  for (const pmRecord of allRecords) {
+    const key = pmRecord.scorecard.canonicalOperatorId ?? pmRecord.slug;
+    if (!pinnedKeys.has(key)) continue;
+    if (alreadyMatched.has(pmRecord.slug)) continue;
+    const evaluation = evaluateWatchList(pmRecord, watchList);
+    additions.push({
+      pmSlug: pmRecord.slug,
+      name: pmRecord.name,
+      marketId: pmRecord.marketId,
+      marketName: marketNameBySlug.get(pmRecord.slug) ?? pmRecord.marketId,
+      canonicalOperatorId: pmRecord.scorecard.canonicalOperatorId ?? null,
+      // Sentinel 0 when the record didn't pass — it has no meaningful
+      // fit score, but the row still needs a sortable number.
+      fitScore: evaluation.fitScore ?? 0,
+      breakdown: evaluation.breakdown,
+      pm: pmRecord,
+      pinned: true,
+    });
+  }
+  return additions.length === 0 ? matched : matched.concat(additions);
+}
+
+/** Aggregate one canonical bucket and evaluate it against the watch
+ *  list, returning both the evaluation and the non-score fields of a
+ *  RolledUpTarget. Shared by the main per-operator loop in
+ *  applyWatchList and unionPinnedOperators below so a pinned operator
+ *  is scored identically to a naturally-matched one. */
+function buildRolledUpTarget(
+  canonId: string,
+  bucket: PMRecord[],
+  marketNameBySlug: ReadonlyMap<string, string>,
+  canonicalNameById: ReadonlyMap<string, string>,
+  watchList: WatchListDefinition
+): {
+  evaluation: ReturnType<typeof evaluateRollup>;
+  target: Omit<RolledUpTarget, "fitScore" | "breakdown" | "pinned">;
+} {
+  // Use the per-market marketName lookup so the aggregated record
+  // carries human-readable market labels.
+  const enrichedBucket: PMRecord[] = bucket.map((b) => ({
+    ...b,
+    scorecard: {
+      ...b.scorecard,
+      market: {
+        ...b.scorecard.market,
+        fullName:
+          marketNameBySlug.get(b.slug) ??
+          b.scorecard.market?.fullName ??
+          b.marketId,
+      },
+    },
+  }));
+  const aggregated = aggregateRecords(enrichedBucket);
+  const evaluation = evaluateRollup(aggregated, watchList);
+  return {
+    evaluation,
+    target: {
+      canonicalOperatorId: canonId,
+      canonicalOperatorName: canonicalNameById.get(canonId) ?? aggregated.name,
+      memberMarketIds: aggregated.memberMarketIds,
+      memberMarketNames: aggregated.memberMarketNames,
+      memberPmSlugs: aggregated.memberPmSlugs,
+      isRollup: aggregated.isRollup,
+      quadrant7CellIsMixed: aggregated.quadrant7CellIsMixed,
+      pm: aggregated,
+    },
+  };
+}
+
+/** Union pinned companies into the per-operator (Operator view, v0.9
+ *  default) results. For every pinned key present as a bucket key in
+ *  `byCanonical` but not already in `matchedOperators`, aggregate the
+ *  bucket, evaluate it, and push a RolledUpTarget flagged
+ *  `pinned: true`. A pinned key with no bucket in `byCanonical` (i.e.
+ *  no entitled-market record contributed to it) is correctly skipped —
+ *  it never had a chance to be aggregated in the first place. */
+export function unionPinnedOperators(
+  matchedOperators: RolledUpTarget[],
+  byCanonical: ReadonlyMap<string, PMRecord[]>,
+  pinnedKeys: ReadonlySet<string>,
+  watchList: WatchListDefinition,
+  marketNameBySlug: ReadonlyMap<string, string>,
+  canonicalNameById: ReadonlyMap<string, string>
+): RolledUpTarget[] {
+  if (pinnedKeys.size === 0) return matchedOperators;
+  const alreadyMatched = new Set(
+    matchedOperators.map((m) => m.canonicalOperatorId)
+  );
+  const additions: RolledUpTarget[] = [];
+  for (const key of pinnedKeys) {
+    if (alreadyMatched.has(key)) continue;
+    const bucket = byCanonical.get(key);
+    if (!bucket || bucket.length === 0) continue;
+    const { evaluation, target } = buildRolledUpTarget(
+      key,
+      bucket,
+      marketNameBySlug,
+      canonicalNameById,
+      watchList
+    );
+    additions.push({
+      ...target,
+      fitScore: evaluation.fitScore ?? 0,
+      breakdown: evaluation.breakdown,
+      pinned: true,
+    });
+  }
+  return additions.length === 0
+    ? matchedOperators
+    : matchedOperators.concat(additions);
 }

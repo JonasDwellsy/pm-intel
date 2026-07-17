@@ -170,6 +170,7 @@ function makeRow(opts: {
     listingTrajectoryYoY: opts.listingYoY ?? null,
     concessionRate: opts.concessionRate ?? null,
     fitScore: opts.fitScore,
+    pinned: false,
     pm,
     preferredBreakdown: [],
     requiredBreakdown: [],

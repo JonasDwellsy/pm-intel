@@ -12,7 +12,7 @@ import { applyWatchList } from "@/lib/watch-list/apply";
 import { projectResultsForView } from "@/lib/watch-list/results-view";
 import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
 import { signUnsubToken } from "./digest-unsubscribe";
-import { listSharedForOrg } from "./store";
+import { listSharedForOrg, listMembers } from "./store";
 import { sendEmail } from "@/lib/email/send";
 
 /** Newest snapshot per slug AT a specific date (equality on snapshotDate). */
@@ -104,11 +104,16 @@ async function buildOrgListContext(orgId: string, base: string): Promise<OrgList
   const lists: OrgListContext["lists"] = [];
   const allSlugs = new Set<string>();
   for (const wl of watchLists) {
+    // v0.27 (Task 5) — pinned members union into each list's digest
+    // context the same way they do on /results, still bounded by the
+    // entitlement filter inside applyWatchList.
+    const pins = new Set((await listMembers(wl.id)).map((m) => m.memberKey));
     const applied = await applyWatchList(
       { id: wl.id, name: wl.name, description: wl.description,
         requiredCriteria: wl.requiredCriteria, preferredCriteria: wl.preferredCriteria,
         excludedCriteria: wl.excludedCriteria },
       entitlement,
+      pins,
     );
     const matchedPmSlugs = applied.results.map((r) => r.pmSlug);
     if (matchedPmSlugs.length === 0) continue;

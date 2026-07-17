@@ -4,7 +4,10 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { applyWatchList } from "@/lib/watch-list/apply";
 import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
-import { getWatchListWithCrossOrgCheck } from "@/lib/watch-list/store";
+import {
+  getWatchListWithCrossOrgCheck,
+  listMembers,
+} from "@/lib/watch-list/store";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 import { projectResultsForView } from "@/lib/watch-list/results-view";
 import { computeAndRecordChanges } from "@/lib/watch-list/changes";
@@ -59,6 +62,11 @@ export default async function WatchListResultsPage({ params }: PageProps) {
 
   // v0.22 — scope results to the owning org's entitled markets.
   const entitlement = await getEntitledMarketIds(organizationId);
+  // v0.27 (Task 5) — manually-pinned members union into the results
+  // below, still bounded by the entitlement filter inside applyWatchList.
+  const pins = new Set(
+    (await listMembers(watchList.id)).map((m) => m.memberKey)
+  );
   const applied = await applyWatchList(
     {
       id: watchList.id,
@@ -68,7 +76,8 @@ export default async function WatchListResultsPage({ params }: PageProps) {
       preferredCriteria: watchList.preferredCriteria,
       excludedCriteria: watchList.excludedCriteria,
     },
-    entitlement
+    entitlement,
+    pins
   );
 
   const { marketRows, operatorRows, summary } = projectResultsForView({
