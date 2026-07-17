@@ -3,6 +3,8 @@ import { WatchListEditor, type StarterDraft } from "@/components/watch-list/Watc
 import { TemplatePicker } from "@/components/watch-list/TemplatePicker";
 import { listMarketOptions } from "@/lib/watch-list/editor-options";
 import { getTemplateBySlug } from "@/lib/watch-list/templates";
+import { viewerHasAnyMarketAccess } from "@/lib/auth/market-entitlements.server";
+import { NoMarketsNotice } from "@/components/entitlements/NoMarketsNotice";
 
 // /watch-lists/new
 //
@@ -33,6 +35,13 @@ interface PageProps {
 }
 
 export default async function NewWatchListPage({ searchParams }: PageProps) {
+  // Entitlement gate: same as /watch-lists — no market access means the
+  // builder can't produce any matches, so show the "no market access"
+  // state rather than a picker/editor that silently yields nothing.
+  if (!(await viewerHasAnyMarketAccess())) {
+    return <NoMarketsNotice />;
+  }
+
   const params = await searchParams;
   const templateSlug = params.template;
 

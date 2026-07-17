@@ -9,6 +9,7 @@ import { loadOperatorAggregateTrajectory } from "@/lib/operators/trajectory";
 import { OperatorAggregateTrajectorySection } from "@/components/scorecard/OperatorAggregateTrajectorySection";
 import { getWatchList } from "@/lib/watch-list/store";
 import { getActiveOrgId } from "@/lib/auth/active-org";
+import { recordUsageEvent } from "@/lib/usage/record";
 import { resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
 import { MarketLockedUpsell } from "@/components/entitlements/MarketLockedUpsell";
 import { STATE_CODE_TO_NAME } from "@/lib/slugify";
@@ -54,6 +55,10 @@ export default async function OperatorScorecardPage({
   const { canonicalSlug } = await params;
   const { fromWatchList } = await searchParams;
 
+  // Resolve the viewer once (request-cached) — reused for the optional
+  // watch-list breadcrumb below AND the usage capture. auth() hits no DB.
+  const { userId: viewerId, orgId: viewerOrgId } = await auth();
+
   // Scope the operator to the viewer's entitled markets — members in
   // non-entitled markets are dropped before aggregation, so the header
   // stats + breakdown never reveal the operator's presence in markets
@@ -73,6 +78,17 @@ export default async function OperatorScorecardPage({
     notFound();
   }
 
+  // v0.24 — first-party usage capture (authed-only, non-blocking).
+  if (viewerId) {
+    recordUsageEvent({
+      userId: viewerId,
+      orgId: viewerOrgId,
+      eventName: "operator_view",
+      targetKind: "operator",
+      targetSlug: canonicalSlug,
+    });
+  }
+
   // v0.22 — cross-market trajectory: roll up the (entitlement-scoped)
   // member markets' snapshot history into a per-quarter aggregate.
   const aggregateTrajectory = await loadOperatorAggregateTrajectory(
@@ -88,8 +104,7 @@ export default async function OperatorScorecardPage({
   // from leaking another user's watch-list name.
   let watchListBreadcrumb: { id: string; name: string } | null = null;
   if (fromWatchList) {
-    const { userId } = await auth();
-    if (userId) {
+    if (viewerId) {
       // v0.18 — org-scoped breadcrumb. If the user's personal org
       // isn't provisioned yet OR the watch list isn't in their
       // active org, we silently drop the breadcrumb (same

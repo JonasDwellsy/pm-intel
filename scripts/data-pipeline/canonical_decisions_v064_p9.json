@@ -1,0 +1,31 @@
+{
+  "_comment": "Milwaukee (35th market) cross-market canonicals the parent-id linker missed because parentCompanyId is null on both sides. Both confirmed to be the SAME operator via an identical Dwellsy companyId across markets (the strongest same-operator signal; stronger than parentCompanyName). Curated 2026-07-15 during the Milwaukee market addition. The other 7 same-name pairs the proposal surfaced were already auto-linked by the parentCompanyId linker and need no decision here.",
+  "version": "v0.6.4",
+  "generated_at": "2026-07-15",
+  "curator": "Claude (Milwaukee addition) — companyId-confirmed",
+  "summary": {
+    "extensions_to_existing_canonicals": 1,
+    "new_canonical_entity_candidates": 1
+  },
+  "extend_existing": [
+    {
+      "canonical_slug": "edward-rose-sons",
+      "add_pm_slugs": [
+        "edward-rose-sons-milwaukee-waukesha-west-allis-wi"
+      ],
+      "notes": "Edward Rose & Sons — large Midwest MF operator (existing canonical spans Chicago/Fort Wayne/Huntsville/Indianapolis). Milwaukee shares Dwellsy companyId 30949 with those; parentCompanyId is null on both, so the ID linker didn't fold it in."
+    }
+  ],
+  "new_canonicals": [
+    {
+      "canonical_slug": "brookview-realty-management",
+      "canonical_name": "Brookview Realty Management",
+      "pm_slugs": [
+        "brookview-realty-management-louisville-jefferson-county-ky-in",
+        "brookview-realty-management-milwaukee-waukesha-west-allis-wi"
+      ],
+      "notes": "Louisville + Milwaukee share Dwellsy companyId 1062329 (same operator); parentCompanyId is null on both, so the ID linker didn't group them."
+    }
+  ],
+  "rejected": []
+}

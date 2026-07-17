@@ -54,6 +54,19 @@ export async function resolveViewerEntitlement(): Promise<MarketEntitlement> {
   return getEntitledMarketIds(organizationId);
 }
 
+/** True iff the current viewer can reach ANY premium market (admin,
+ *  allMarkets, or ≥1 explicit grant). False = fully locked (no session,
+ *  no resolvable org, or an org with zero grants — e.g. an
+ *  auto-provisioned personal workspace, or a client member invited
+ *  before their markets are provisioned). Login-protected pages that
+ *  are useless without market data (the watch-list builder) call this
+ *  to render a "no market access" state instead of an empty, broken-
+ *  looking shell. */
+export async function viewerHasAnyMarketAccess(): Promise<boolean> {
+  const entitlement = await resolveViewerEntitlement();
+  return entitlement === ALL_MARKETS || entitlement.size > 0;
+}
+
 /** Variant for PUBLIC surfaces that anonymous visitors can reach (the
  *  coverage map, the watch-list preview). Returns `undefined` for
  *  anonymous (no session) so the caller leaves the view UNSCOPED — the

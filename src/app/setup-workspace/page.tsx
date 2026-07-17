@@ -1,37 +1,31 @@
-// v0.18 (PR #65) — Soft-fallback workspace setup.
+// Workspace access holding page.
 //
-// Routed to when getActiveOrgId() returns null — typically right
-// after signup if the user.created webhook's personal-org
-// provisioning hit a transient failure. This page:
+// Routed to when getActiveOrgId() returns null for a signed-in user
+// — they are not a member of any organization we can resolve. Under
+// the invite-only model this is an edge/transient state: every real
+// user is invited into a client org and added to it on acceptance.
 //
-//   1. Server-side: re-runs the provisioning. If it succeeds (or
-//      detects the org already exists), redirects to ?from= or
-//      /watch-lists.
-//   2. Otherwise: renders a friendly "we're setting up your
-//      workspace" UI with auto-refresh + a manual retry button.
+// Personal-org auto-provisioning was removed (see
+// src/app/api/clerk/webhook/route.ts and provision-personal-org.ts),
+// so this page no longer creates anything. It:
 //
-// Why retry on every page visit instead of background polling?
-// Simpler. The user is already on the page; running the retry
-// server-side once per render is cheap and the page is hidden
-// from anyone whose org is already provisioned. If the retry
-// succeeds, the immediate redirect means the user never sees
-// this page at all.
-//
-// Sentry: every failed retry from this page captures with
-// userId tag — so we can correlate user complaints to
-// provisioning failures.
+//   1. Fast path: if an org resolves now (e.g. the membership webhook
+//      landed between the original redirect and this render), bounce
+//      to ?from= / /watch-lists.
+//   2. Otherwise: render a "you're not in an organization yet — an
+//      administrator needs to add you" holding page with a manual
+//      refresh + a contact link.
 
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import * as Sentry from "@sentry/nextjs";
 import { getActiveOrgId } from "@/lib/auth/active-org";
-import { provisionPersonalOrgForUser } from "@/lib/auth/provision-personal-org";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Setting up your workspace",
+  title: "Workspace access",
   robots: { index: false, follow: false },
 };
 
@@ -60,84 +54,48 @@ export default async function SetupWorkspacePage({ searchParams }: PageProps) {
     redirect(`/sign-in?redirect_url=${encodeURIComponent(`/setup-workspace?from=${encodeURIComponent(returnTo)}`)}`);
   }
 
-  // Fast path: did provisioning already complete (e.g., webhook
-  // arrived between the original 404 and this re-fetch)?
+  // Fast path: an org resolves now. This covers the brief race where
+  // an invited user's user.created fires before their
+  // organizationMembership.created lands — by the time they reach
+  // here (or refresh), the membership row exists and we bounce them
+  // straight to where they were headed.
   const existingOrgId = await getActiveOrgId();
   if (existingOrgId) {
     redirect(returnTo);
   }
 
-  // Retry path: attempt to provision. The function is idempotent —
-  // safe to call on every render.
-  const result = await provisionPersonalOrgForUser(userId);
-
-  if (result.status === "created" || result.status === "already_exists") {
-    // Clerk side is good. The organization.created +
-    // organizationMembership.created webhooks should land within ~1s
-    // and write our DB rows. Refresh-redirect via meta — when the
-    // page reloads, getActiveOrgId() will find the row and bounce
-    // to returnTo.
-    return (
-      <main className="bg-white">
-        <div className="mx-auto max-w-[520px] px-6 py-24 text-center">
-          {/* Auto-refresh after 1500ms — gives the webhook handler
-              time to write our DB row. */}
-          <meta httpEquiv="refresh" content="2" />
-          <h1 className="text-[24px] font-semibold text-navy">
-            Setting up your workspace…
-          </h1>
-          <p className="mt-3 text-[14.5px] text-foreground/75">
-            One moment. We&rsquo;re creating your personal workspace and
-            will redirect you to the watch list page automatically.
-          </p>
-          <p className="mt-6 text-[12.5px] text-muted-foreground">
-            If this page doesn&rsquo;t refresh in a few seconds,{" "}
-            <a href="/setup-workspace" className="text-teal hover:text-teal-700 hover:underline">
-              click here to retry
-            </a>
-            .
-          </p>
-        </div>
-      </main>
-    );
-  }
-
-  // Hard failure — Clerk's org-create API rejected. Most likely
-  // cause: the Clerk plan doesn't include Organizations (Hobby
-  // plan in production). Log to Sentry with the error so we can
-  // diagnose, and surface a manual-retry UI.
-  Sentry.captureException(
-    new Error(`Personal org provisioning failed: ${result.error}`),
-    {
-      tags: {
-        provisioning: "personal_org",
-        provisioning_path: "setup_workspace_page",
-      },
-      extra: { userId, error: result.error },
-    }
-  );
-
+  // No resolvable org, and we no longer auto-create one — an
+  // administrator must add this user to an organization.
   return (
     <main className="bg-white">
       <div className="mx-auto max-w-[520px] px-6 py-24 text-center">
-        <h1 className="text-[24px] font-semibold text-navy">
-          Workspace setup needs another try
+        <p className="dq-eyebrow text-teal">Workspace access</p>
+        <h1 className="mt-3 text-[24px] font-semibold text-navy">
+          You&rsquo;re not part of an organization yet
         </h1>
-        <p className="mt-3 text-[14.5px] text-foreground/75">
-          We weren&rsquo;t able to provision your personal workspace just
-          now. This is usually a transient hiccup — try again in a
-          moment.
+        <p className="mt-3 text-[14.5px] leading-relaxed text-foreground/75">
+          Dwellsy IQ is provisioned per organization. An administrator
+          needs to add you to your team&rsquo;s workspace before you can
+          view markets and build watch lists.
         </p>
-        <a
-          href="/setup-workspace"
-          className="mt-6 inline-flex h-9 items-center rounded-md bg-teal px-4 text-[13.5px] font-semibold text-white hover:bg-teal-700"
-        >
-          Try again
-        </a>
-        <p className="mt-6 text-[11.5px] text-muted-foreground">
-          If this keeps happening, contact support — we have logs and
-          can resolve it on our end.
+        <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground">
+          Just accepted an invitation? Give it a moment and refresh —
+          your access appears as soon as the invite is processed.
         </p>
+        <div className="mt-7 flex items-center justify-center gap-3">
+          <Link
+            href="/setup-workspace"
+            className="inline-flex h-11 items-center rounded-md bg-navy px-6 text-[14px] font-semibold text-white transition-colors hover:bg-navy-700"
+          >
+            Refresh
+          </Link>
+          <a
+            href="mailto:sales@dwellsy.com?subject=Dwellsy%20IQ%20%E2%80%94%20workspace%20access"
+            className="inline-flex h-11 items-center rounded-md border border-navy bg-white px-6 text-[14px] font-semibold text-navy transition-colors hover:bg-navy-soft"
+          >
+            Contact us
+          </a>
+        </div>
       </div>
     </main>
   );

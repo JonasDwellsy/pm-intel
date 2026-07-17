@@ -16,6 +16,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { applyNameCorrectionsToSearchIndex } from "../src/lib/operators/search-index-corrections";
 
 // Per-market source operator entry from allOperatorsT12BySubmarket.
 interface RawUniverseOp {
@@ -123,7 +124,16 @@ type SearchIndex = {
   canonical: OutputCanonicalEntry[];
 };
 
-const SOURCE_DIR = "/Users/jonasbordo/Documents/Claude/Projects/Product Support";
+// Per-market source JSONs (the tracked/Tier-2 tier reads these). The
+// company-owned Google Shared Drive is now the source of truth (the pipeline
+// data moved off the laptop), so honor $IQ_DATA_DIR exactly like the Python
+// pipeline scripts do; fall back to the old Product Support laptop path only
+// when it's unset. Set IQ_DATA_DIR to the Drive mount when running a refresh
+// (see scripts/data-pipeline/MONTHLY_REFRESH.md) or the tracked tier silently
+// empties out.
+const SOURCE_DIR =
+  process.env.IQ_DATA_DIR ||
+  "/Users/jonasbordo/Documents/Claude/Projects/Product Support";
 const MARKETS: Array<{
   slug: string;
   id: string;
@@ -197,6 +207,14 @@ const MARKETS: Array<{
   // v0.6.4 Patch 12 — Houston added (33rd market; completes the Adamas
   // client's 17-market set). Houston-Sugar Land-Baytown, TX MSA (26420).
   { slug: "houston", id: "houston-tx", city: "Houston", state: "TX", stateSlug: "texas", citySlug: "houston" },
+  // v0.6.4 Patch 13 — Los Angeles added (34th market). This entry was
+  // missed when the market shipped, so LA operators were absent from the
+  // search index until now; adding it here backfills LA into the tracked +
+  // ranked tiers. Los Angeles-Long Beach-Santa Ana, CA MSA (31100).
+  { slug: "los-angeles", id: "los-angeles-long-beach-santa-ana-ca", city: "Los Angeles", state: "CA", stateSlug: "california", citySlug: "los-angeles" },
+  // v0.6.4 Patch 14 — Milwaukee added (35th market). First WI-anchored
+  // market. Milwaukee-Waukesha-West Allis, WI MSA (33340).
+  { slug: "milwaukee", id: "milwaukee-waukesha-west-allis-wi", city: "Milwaukee", state: "WI", stateSlug: "wisconsin", citySlug: "milwaukee" },
 ];
 const MIN_T12 = 3;
 
@@ -393,6 +411,24 @@ for (const m of MARKETS) {
 tracked.sort((a, b) => b.t12Listings - a.t12Listings);
 
 const out: SearchIndex = { ranked, tracked, canonical };
+
+// Phase 2 — overlay admin name corrections so a corrected operator is shown
+// + searchable by its new name. Reads the committed export (build stays
+// DB-free); an empty file is a no-op. A `pm` correction on a grouped member
+// matches no ranked row and is reported as unmatched (expected).
+const ncPath = path.resolve(__dirname, "../src/data/name_corrections.json");
+if (fs.existsSync(ncPath)) {
+  const nc = JSON.parse(fs.readFileSync(ncPath, "utf8"));
+  const { matched, unmatched } = applyNameCorrectionsToSearchIndex(
+    out,
+    nc.corrections ?? []
+  );
+  console.log(
+    `  name corrections: ${matched} applied, ${unmatched.length} unmatched (grouped/absent)`
+  );
+  if (unmatched.length) console.log(`    unmatched: ${unmatched.join(", ")}`);
+}
+
 const outPath = path.resolve(
   __dirname,
   "../src/data/search_index.json"

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
+import { OrganizationSwitcher, UserButton, SignInButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { MobileMenu } from "@/components/layout/MobileMenu";
@@ -130,17 +130,20 @@ export async function SiteHeader() {
             <SearchInput />
           </div>
           {/* Auth control. Signed-in → Clerk's UserButton avatar
-              + OrganizationSwitcher. Signed-out → plain "Sign in"
-              text link to the Clerk-managed page. The primary CTA
-              below stays visible in both states so the discovery
-              path keeps working for anonymous visitors. */}
+              + OrganizationSwitcher. Signed-out → a "Sign in" button
+              that opens the Clerk sign-in in a modal over the current
+              page (no navigation away). The primary CTA below stays
+              visible in both states so the discovery path keeps working
+              for anonymous visitors. */}
           {!isSignedIn && (
-            <Link
-              href="/sign-in"
-              className="hidden whitespace-nowrap text-sm font-medium text-navy transition-colors hover:text-teal lg:inline-block"
-            >
-              Sign in
-            </Link>
+            <SignInButton mode="modal">
+              <button
+                type="button"
+                className="hidden whitespace-nowrap text-sm font-medium text-navy transition-colors hover:text-teal lg:inline-block"
+              >
+                Sign in
+              </button>
+            </SignInButton>
           )}
           {isSignedIn && (
             <>

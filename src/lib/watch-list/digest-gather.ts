@@ -1,5 +1,5 @@
 // Pure digest-gathering helpers — NO I/O, NO server-only imports, so they stay
-// unit-testable. The impure orchestration (Prisma + Clerk + Resend) lives in
+// unit-testable. The impure orchestration (Prisma + Clerk + SendGrid) lives in
 // digest-run.ts and imports these.
 import { diffSnapshots } from "./change-detection";
 import type { SnapshotRow } from "./snapshot";

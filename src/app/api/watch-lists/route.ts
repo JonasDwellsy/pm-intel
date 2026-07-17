@@ -18,6 +18,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createWatchList, listWatchListes } from "@/lib/watch-list/store";
 import { captureServerEvent, flushAnalyticsServer } from "@/lib/analytics-server";
 import { getActiveOrgId } from "@/lib/auth/active-org";
+import { recordUsageEvent } from "@/lib/usage/record";
 
 export async function GET() {
   const { userId } = await auth();
@@ -42,7 +43,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const { userId, orgId } = await auth();
   if (!userId) {
     return Response.json({ error: "Unauthorized." }, { status: 401 });
   }
@@ -114,6 +115,16 @@ export async function POST(req: Request) {
       // v0.18 — tag with org for org-level funnel analytics.
       organization_id: organizationId,
     },
+  });
+  // v0.24 — parallel first-party sink (non-blocking). orgId is the Clerk
+  // org id (consistent with other capture sites); targetSlug is the new
+  // watch-list id.
+  recordUsageEvent({
+    userId,
+    orgId,
+    eventName: "watch_list_create",
+    targetKind: "watch_list",
+    targetSlug: record.id,
   });
 
   // v0.18 PR #74 — Vercel lambda-freeze guard. After the HTTP response

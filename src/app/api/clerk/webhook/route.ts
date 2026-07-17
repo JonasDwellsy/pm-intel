@@ -5,13 +5,17 @@
 //      login_completed.
 //   2. Our DB's Organization + OrganizationMembership mirror tables
 //      (v0.18 / PR #65).
-//   3. Auto-provisioning of every new user's personal Organization
-//      (v0.18). Soft-fallback: if creation fails, we log to Sentry,
-//      let the user sign in normally, and the /setup-workspace page
-//      retries provisioning in the background.
+//   3. (Removed) Personal-org auto-provisioning. New users are no
+//      longer given an auto-created "Personal" org. Under the
+//      invite-only model (Clerk restricted sign-up + Membership
+//      required) every user arrives via an organization invitation
+//      and is added to that org on acceptance, so there is no
+//      self-serve user needing a personal workspace. See
+//      handleUserCreated below and provision-personal-org.ts (now
+//      deprecated).
 //
 // Event coverage:
-//   user.created                     → signup_completed + provision personal org
+//   user.created                     → signup_completed
 //   session.created                  → login_completed (with post-signup dedup)
 //   organization.created             → upsert Organization row
 //   organization.updated             → update Organization row
@@ -47,8 +51,8 @@ import { clerkClient } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { captureServerEvent, flushAnalyticsServer } from "@/lib/analytics-server";
 import { prisma } from "@/lib/prisma";
-import { provisionPersonalOrgForUser } from "@/lib/auth/provision-personal-org";
 import { extractEmailDomain } from "@/lib/auth/email-domain";
+import { recordUsageEventAwait } from "@/lib/usage/record";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -281,34 +285,26 @@ async function withSentryBoundary(
 async function handleUserCreated(event: ClerkWebhookEvent): Promise<void> {
   const userId = event.data.id;
   if (!userId) return;
-  // signup_completed event (v0.17).
+  // signup_completed conversion event (v0.17).
+  //
+  // Personal-org auto-provisioning removed (invite-only model): we no
+  // longer create a "Personal" org here. Every user arrives via an
+  // organization invitation and is added to that org on acceptance
+  // (organizationMembership.created / organizationInvitation.accepted
+  // below). Auto-creating a workspace per signup produced a junk
+  // "Personal" org for every user — including invited client members,
+  // alongside their real org — and did so via the Clerk backend API,
+  // which is not gated by the "allow user-created organizations"
+  // instance setting. See provision-personal-org.ts (deprecated).
   captureServerEvent({
     userId,
     event: "signup_completed",
   });
-  // v0.18 — provision the user's personal Organization. Soft-
-  // fallback: if creation fails (Clerk API hiccup, Hobby plan
-  // misconfig, etc.) we log to Sentry and let sign-in proceed. The
-  // /setup-workspace page retries on the user's next visit.
-  try {
-    await provisionPersonalOrgForUser(userId);
-  } catch (err) {
-    Sentry.captureException(err, {
-      tags: {
-        webhook: "clerk",
-        event_type: "user.created",
-        provisioning_failure: "personal_org",
-      },
-      extra: { userId },
-    });
-    console.error(
-      `[clerk/webhook] personal org provisioning failed for ${userId} — soft fallback: user can sign in, /setup-workspace will retry`,
-      err
-    );
-    // Deliberately do NOT re-throw. signup_completed already fired;
-    // partial-success is fine here, retry happens from
-    // /setup-workspace.
-  }
+  // v0.24 — parallel first-party sink (see src/lib/usage/record.ts).
+  // Awaited: the webhook lambda can freeze right after responding, so a
+  // floating write could be lost — logins/signups are the headline signal.
+  // No org context on user.created (orgId stays null).
+  await recordUsageEventAwait({ userId, eventName: "signup" });
 }
 
 async function handleSessionCreated(event: ClerkWebhookEvent): Promise<void> {
@@ -324,6 +320,12 @@ async function handleSessionCreated(event: ClerkWebhookEvent): Promise<void> {
     userId,
     event: "login_completed",
   });
+  // v0.24 — parallel first-party sink. Placed AFTER the post-signup
+  // dedup guard so "login" mirrors login_completed's non-double-fire
+  // behavior (the auto-login right after signup records "signup", not a
+  // second "login"). session.created carries no org, so orgId stays null.
+  // Awaited so the headline login signal can't be lost to lambda freeze.
+  await recordUsageEventAwait({ userId, eventName: "login" });
 }
 
 async function isWithinSignupWindow(args: {
@@ -357,9 +359,12 @@ async function handleOrganizationCreated(event: ClerkWebhookEvent): Promise<void
     );
     return;
   }
-  // Read the marker we set in provisionPersonalOrgForUser() to know
-  // whether this org is personal (and for whom). Non-personal orgs
-  // (Phase 2+ team creation) leave personalForUserId null.
+  // Read the isPersonal marker on the org's privateMetadata to know
+  // whether this org is a (legacy) auto-provisioned personal org and
+  // for whom. New orgs are admin/invite-provisioned and leave the
+  // marker unset → personalForUserId null. The marker was written by
+  // the now-deprecated provisionPersonalOrgForUser; only pre-existing
+  // personal orgs still carry it.
   const isPersonal = event.data.private_metadata?.isPersonal === true;
   const forUserId = isPersonal
     ? event.data.private_metadata?.forUserId ?? event.data.created_by ?? null

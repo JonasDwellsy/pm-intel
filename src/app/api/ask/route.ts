@@ -6,6 +6,7 @@ import { resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server"
 import { buildSystemPrompt } from "@/lib/ask-system-prompt";
 import { prisma } from "@/lib/prisma";
 import { captureServerEvent, flushAnalyticsServer } from "@/lib/analytics-server";
+import { recordUsageEvent } from "@/lib/usage/record";
 
 // POST /api/ask — streaming Claude tool-calling endpoint.
 //
@@ -135,7 +136,7 @@ export async function POST(req: Request) {
   // server and is NEVER attached to the PostHog event (privacy
   // guardrail). userId is best-effort — AskAI is open to anonymous
   // visitors who passed the research-preview password gate.
-  const { userId: askUserId } = await auth();
+  const { userId: askUserId, orgId: askOrgId } = await auth();
   // v0.22 — scope every tool call to the viewer's entitled markets, so
   // the assistant can only read + answer about markets the org bought.
   const askEntitlement = await resolveViewerEntitlement();
@@ -148,6 +149,16 @@ export async function POST(req: Request) {
       turn_index: messages.length, // 1-based; first message is turn 1
     },
   });
+  // v0.24 — parallel first-party sink (authed-only, non-blocking).
+  // AskAI is reachable anonymously; usage analytics only tracks signed-in
+  // client users, so skip when there's no session.
+  if (askUserId) {
+    recordUsageEvent({
+      userId: askUserId,
+      orgId: askOrgId,
+      eventName: "ask_query",
+    });
+  }
 
   // Pull dataAsOf + methodologyVersion from any PM row — every row
   // carries the same version per the seed. Cheap query (one row, two

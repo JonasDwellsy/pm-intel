@@ -1,4 +1,4 @@
-import { TrackedLink } from "@/components/analytics/TrackedLink";
+import { GatedLink } from "@/components/auth/GatedLink";
 import { fmtDays, fmtInt } from "@/lib/format";
 import { quadrantColor } from "@/lib/quadrant-colors";
 import { StarSummaryChip } from "@/components/scorecard/StarSummaryChip";
@@ -95,7 +95,7 @@ export function PMListItem({
 
   return (
     <li className="list-none">
-      <TrackedLink
+      <GatedLink
         event="pm_card_click"
         properties={{
           pmSlug: pm.slug,
@@ -103,6 +103,7 @@ export function PMListItem({
           source: "market_list",
         }}
         href={href}
+        ariaLabel={`View ${pm.name}'s scorecard`}
         className="block rounded-lg border border-grid bg-white p-6 px-7 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgb(15_31_63_/_0.18),_0_2px_6px_rgb(15_31_63_/_0.06)]"
       >
         <div className="grid items-center gap-8 md:grid-cols-[1.35fr_1.1fr_auto]">
@@ -187,7 +188,7 @@ export function PMListItem({
             View scorecard <span className="text-teal">→</span>
           </div>
         </div>
-      </TrackedLink>
+      </GatedLink>
     </li>
   );
 }

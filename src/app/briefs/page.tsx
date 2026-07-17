@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
 import { listMarketHeaders, type MarketHeader } from "@/lib/market-brief";
 import { readLatestCachedProse } from "@/lib/market-brief-prose";
 import { readCachedNationalHeadline } from "@/lib/national-brief-prose";
@@ -46,6 +47,11 @@ async function loadIndex(): Promise<BriefCardData[]> {
 export default async function BriefsIndex() {
   const cards = await loadIndex();
   const nationalHeadline = await readCachedNationalHeadline();
+  // Teaser gate: anonymous visitors see the full catalog + can read the
+  // national brief (the free sample), but opening any market brief requires
+  // sign-in. Signed-in users get direct links.
+  const { userId } = await auth();
+  const isSignedIn = !!userId;
 
   return (
     <div className="bg-background">
@@ -86,9 +92,20 @@ export default async function BriefsIndex() {
           </span>
         </Link>
 
+        {!isSignedIn && (
+          <p className="mt-6 text-[13px] text-muted-foreground">
+            The national brief is free to read. Sign in to open any of the{" "}
+            {cards.length} per-market briefs below.
+          </p>
+        )}
+
         <div className="mt-8 grid gap-5 md:grid-cols-2">
           {cards.map((card) => (
-            <BriefCard key={card.header.marketSlug} card={card} />
+            <BriefCard
+              key={card.header.marketSlug}
+              card={card}
+              isSignedIn={isSignedIn}
+            />
           ))}
         </div>
 
@@ -101,12 +118,23 @@ export default async function BriefsIndex() {
   );
 }
 
-function BriefCard({ card }: { card: BriefCardData }) {
+function BriefCard({
+  card,
+  isSignedIn,
+}: {
+  card: BriefCardData;
+  isSignedIn: boolean;
+}) {
   const { header, headlineRead, generatedAt } = card;
+  // Anonymous → route through /sign-in, preserving the brief as redirect_url
+  // so the reader lands on the brief right after authenticating.
+  const href = isSignedIn
+    ? header.briefUrl
+    : `/sign-in?redirect_url=${encodeURIComponent(header.briefUrl)}`;
 
   return (
     <Link
-      href={header.briefUrl}
+      href={href}
       className="group block rounded-lg border border-grid bg-white p-5 transition-colors hover:border-navy"
     >
       <div className="flex items-baseline justify-between gap-3">
@@ -128,7 +156,7 @@ function BriefCard({ card }: { card: BriefCardData }) {
             : "Not yet generated"}
         </span>
         <span className="font-semibold text-teal transition-transform group-hover:translate-x-0.5">
-          Read full brief →
+          {isSignedIn ? "Read full brief →" : "Sign in to read →"}
         </span>
       </div>
     </Link>

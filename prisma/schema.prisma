@@ -582,6 +582,28 @@ model OperatorMergeDecision {
   @@index([marketId])
 }
 
+// Admin-curated display-name corrections. Single source of truth for a
+// renamed operator. Applied TWICE: live (the /admin/names server action
+// patches the operator's DB rows on save) and durably (prisma/seed.ts
+// re-applies every row in-memory before recreating PMs, since a reseed
+// hard-deletes + recreates PM/CanonicalOperator from the JSON). This
+// table is deliberately NOT in seed.ts's deleteMany set, so corrections
+// survive reseeds — same trick as OperatorMergeDecision / AppSetting.
+//   targetKind "pm"        — targetKey is a PM slug (one market).
+//   targetKind "canonical" — targetKey is a canonicalSlug (the group).
+model OperatorNameCorrection {
+  id              String   @id @default(cuid())
+  targetKind      String   // "pm" | "canonical"
+  targetKey       String   // PM slug, or canonicalSlug/canonicalOperatorId
+  correctedName   String
+  originalName    String   // name at first correction — powers Undo + staleness
+  decidedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([targetKind, targetKey])
+}
+
 // v0.6.5 — generic key/value app settings, editable from the admin panel.
 // First use: `sfr_turnover_multiplier` — the SFR portfolio-size multiplier
 // applied to urusT12 (see src/lib/operator-size.ts). Values are stored as
@@ -595,4 +617,47 @@ model AppSetting {
   description String?
   updatedAt   DateTime @updatedAt
   updatedBy   String?
+}
+
+// v0.24 — First-party, internal usage analytics. An append-only event
+// log written SERVER-SIDE and fire-and-forget from key authenticated
+// surfaces (logins, scorecard/operator/market/brief views, AI queries,
+// watch-list activity). Read only from /admin/usage; never client-facing.
+//
+// This is an ADDITIVE parallel sink alongside PostHog (captureServerEvent)
+// — it lets a Dwellsy admin answer "who logged in, per-client active
+// users, which operators/markets get viewed" straight from our own Neon
+// DB with no third-party dependency.
+//
+// PRIVACY: store Clerk IDs ONLY — never names or emails. Display names
+// are resolved at READ TIME (userId → Clerk getUserList; orgId → the
+// Organization mirror table). This keeps PII out of the event log, the
+// same guardrail the PostHog sinks follow.
+//
+//   userId     — Clerk userId (opaque; no FK to a user table)
+//   orgId      — Clerk org id (auth().orgId). Nullable: session.created
+//                logins carry no org, and a session without an active
+//                org resolves to null. Consistent source everywhere.
+//   eventName  — "login" | "signup" | "scorecard_view" | "operator_view"
+//                | "market_view" | "brief_view" | "ask_query"
+//                | "watch_list_view" | "watch_list_create"
+//   targetKind — "operator" | "market" | "brief" | "watch_list" (nullable)
+//   targetSlug — pm slug / market id / etc (nullable)
+//
+// Indexed on the four columns every /admin/usage query filters or groups
+// by (occurredAt for the time window, userId/orgId for rollups, eventName
+// for per-event breakdowns).
+model UsageEvent {
+  id         String   @id @default(cuid())
+  occurredAt DateTime @default(now())
+  userId     String
+  orgId      String?
+  eventName  String
+  targetKind String?
+  targetSlug String?
+
+  @@index([occurredAt])
+  @@index([userId])
+  @@index([orgId])
+  @@index([eventName])
 }

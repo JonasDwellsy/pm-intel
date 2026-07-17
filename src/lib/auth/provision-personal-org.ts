@@ -1,15 +1,18 @@
+// DEPRECATED — personal-org auto-provisioning was removed when the
+// product moved to an invite-only model (Clerk restricted sign-up +
+// Membership required). Every user now arrives via an organization
+// invitation and is added to that org on acceptance, so no user needs
+// an auto-created "Personal" workspace. The two former prod callers —
+// the user.created webhook and the /setup-workspace page — no longer
+// call this. The function is retained ONLY because the one-time
+// historical migration script (scripts/migrate-to-orgs.ts) still
+// imports it; do NOT wire it into any new signup/runtime path.
+//
+// ─────────────────────────────────────────────────────────────────
 // v0.18 (PR #65) — Phase 1 multi-tenancy: provision a Personal
-// Organization for a Clerk user.
-//
-// Shared by two call paths:
-//   1. user.created webhook (src/app/api/clerk/webhook/route.ts) —
-//      provisions immediately after signup so most users never see
-//      the workspace-setup page.
-//   2. /setup-workspace page — soft-fallback retry when path #1
-//      failed (Clerk API hiccup, plan misconfiguration, etc.).
-//
-// Both paths converge on this single function so the idempotency
-// logic + the privateMetadata marker live in one place.
+// Organization for a Clerk user. Idempotent — checks Clerk for an
+// existing personal org (privateMetadata.isPersonal === true) before
+// creating.
 //
 // Idempotency: the function checks Clerk for an existing personal
 // org (via privateMetadata.isPersonal === true) BEFORE creating.

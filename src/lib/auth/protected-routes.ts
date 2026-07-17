@@ -47,15 +47,19 @@ export const PROTECTED_ROUTE_PATTERNS = [
   "/api/watch-lists/:id/apply",
 
   // v0.21 — premium content. Per-operator scorecards, operator
-  // profiles, and the AI /ask tool are the paid surface. Market-level
-  // pages (state landing, market landing, market brief) stay public
-  // as a marketing wedge; only the per-operator deep dive is gated.
-  // The /brief carve-out below keeps the market-brief sibling route
-  // public (it would otherwise be caught by the :slug pattern).
+  // profiles, and the AI /ask tool are the paid surface. State/market
+  // LANDING pages stay public as a marketing wedge; the per-operator
+  // deep dive is gated.
+  // As of the briefs-gating change: per-market briefs
+  // (/property-managers/:state/:city/brief) are ALSO gated — this
+  // :slug pattern binds `brief` and catches them (the old public
+  // carve-out in PUBLIC_BUYBOX_PATTERNS was removed). The national
+  // brief (/briefs/national) + the /briefs index stay public as the
+  // free sample + teaser.
   // Covers the scorecard itself (4 segments), /compare (5 segments),
   // /opengraph-image (Next.js auto-generated OG route for unfurls),
-  // and any future subroute under the operator slug. :path* is zero-
-  // or-more so the bare scorecard URL still matches.
+  // the per-market /brief, and any future subroute under the slug.
+  // :path* is zero-or-more so the bare scorecard URL still matches.
   "/property-managers/:state/:city/:slug/:path*",
   "/operators/:canonicalSlug",
   "/ask",
@@ -85,11 +89,9 @@ export const PUBLIC_BUYBOX_PATTERNS = [
   // /sign-in.
   "/watch-lists/new",
   "/api/watch-lists/preview",
-  // v0.21 — market-brief carve-out. Public per the launch spec
-  // (briefs are part of the marketing surface), but the route
-  // /property-managers/:state/:city/brief is a path-shape collision
-  // with the now-protected /property-managers/:state/:city/:slug
-  // pattern (createRouteMatcher would happily bind brief → :slug).
-  // This carve-out keeps the brief sub-route public.
-  "/property-managers/:state/:city/brief",
+  // NOTE: the per-market brief (/property-managers/:state/:city/brief) used
+  // to be carved out here as public. It's now intentionally GATED — it falls
+  // through to the protected :slug pattern above. Logged-out visitors get the
+  // /briefs index (teaser) + the national brief (/briefs/national) as the
+  // free sample; opening any market brief requires sign-in.
 ] as const;
