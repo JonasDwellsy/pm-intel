@@ -43,8 +43,12 @@ test("success: returns data URL + projected in-box pixels", async () => {
   for (const p of res!.coveragePx) {
     assert.ok(p.x >= 0 && p.x <= 1000 && p.y >= 0 && p.y <= 500);
   }
-  // URL must NOT contain any coordinate pairs from the points payload
-  assert.ok(!calledUrl.includes("geojson"));
+  // The coverage/backdrop POINTS must never be serialized into the request
+  // URL — only the map center+zoom+size may appear. These fragments are
+  // distinctive to the points (not the bbox-midpoint center or the size).
+  for (const frag of ["-74.98", "40.02", "-75.05", "40.05"]) {
+    assert.ok(!calledUrl.includes(frag), `point coord ${frag} leaked into URL`);
+  }
 });
 
 test("missing token → null (no fetch)", async () => {
