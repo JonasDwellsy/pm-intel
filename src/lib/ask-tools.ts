@@ -91,7 +91,16 @@ export async function searchOperators(
   const cap = Math.min(Math.max(1, limit ?? 10), 20);
   const hits = searchPMs(query.trim(), cap).filter(
     (h) =>
-      h.tier === "canonical" || isMarketEntitled(entitlement, h.marketId)
+      // richer-search — market-tier hits (an MSA/city/state-name match,
+      // e.g. querying "Chattanooga") belong to the search-UI corpus but
+      // have no operator identity of their own: they carry no slug,
+      // stars, or scorecard. Ask-AI's searchOperators is operator-scoped,
+      // so exclude them here before they hit the tier-narrowing `.map`
+      // below, which would otherwise fall through its final branch and
+      // mint a bogus tier:"tracked" row (scorecardUrl: null) for a
+      // market that was never an operator.
+      h.tier !== "market" &&
+      (h.tier === "canonical" || isMarketEntitled(entitlement, h.marketId))
   );
 
   return {

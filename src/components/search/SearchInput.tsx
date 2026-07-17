@@ -91,7 +91,7 @@ function SearchInputInner({
     () => (strictResults.length > 0 ? strictResults : []),
     [strictResults]
   );
-  const { canonical, ranked, tracked } = useMemo(
+  const { canonical, ranked, tracked, markets } = useMemo(
     () => partitionByTier(visibleResults),
     [visibleResults]
   );
@@ -267,6 +267,7 @@ function SearchInputInner({
           {state === "results" && (
             <ul className="max-h-[60vh] overflow-y-auto py-1">
               <ResultGroups
+                markets={markets}
                 canonical={canonical}
                 ranked={ranked}
                 tracked={tracked}
@@ -327,6 +328,7 @@ function SearchInputInner({
 // the flat result list (visibleResults), not per-group, so the keyboard
 // cursor traverses naturally across the boundary.
 function ResultGroups({
+  markets,
   canonical,
   ranked,
   tracked,
@@ -334,6 +336,7 @@ function ResultGroups({
   activeIndex,
   onSelect,
 }: {
+  markets: Extract<PMSearchResult, { tier: "market" }>[];
   canonical: Extract<PMSearchResult, { tier: "canonical" }>[];
   ranked: Extract<PMSearchResult, { tier: "ranked" }>[];
   tracked: Extract<PMSearchResult, { tier: "tracked" }>[];
@@ -343,13 +346,36 @@ function ResultGroups({
   // result-tier metadata to the search_performed event.
   onSelect: (result: PMSearchResult) => void;
 }) {
-  // v0.6.4 Patch 1 — canonical group renders first because cross-market
-  // operators are the most informative search hit; ranked + tracked
-  // follow.
+  // richer-search — Markets group renders first so an MSA/city/state-name
+  // query lands on the market landing page before any operator rows.
+  // v0.6.4 Patch 1 — canonical group follows because cross-market
+  // operators are the most informative operator hit; ranked + tracked
+  // follow that.
   return (
     <>
+      {markets.length > 0 && (
+        <>
+          <p className="px-4 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted-2">
+            Markets
+          </p>
+          {markets.map((r) => {
+            const idx = allResults.indexOf(r);
+            return (
+              <SearchResultRow
+                key={`market-${r.marketId}`}
+                result={r}
+                active={idx === activeIndex}
+                onSelect={() => onSelect(r)}
+              />
+            );
+          })}
+        </>
+      )}
       {canonical.length > 0 && (
         <>
+          {markets.length > 0 && (
+            <div className="my-1 border-t border-grid-soft" aria-hidden />
+          )}
           <p className="px-4 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted-2">
             Cross-market operators
           </p>
@@ -368,7 +394,7 @@ function ResultGroups({
       )}
       {ranked.length > 0 && (
         <>
-          {canonical.length > 0 && (
+          {(markets.length > 0 || canonical.length > 0) && (
             <div className="my-1 border-t border-grid-soft" aria-hidden />
           )}
           <p className="px-4 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted-2">
@@ -389,7 +415,7 @@ function ResultGroups({
       )}
       {tracked.length > 0 && (
         <>
-          {(canonical.length > 0 || ranked.length > 0) && (
+          {(markets.length > 0 || canonical.length > 0 || ranked.length > 0) && (
             <div className="my-1 border-t border-grid-soft" aria-hidden />
           )}
           <p className="px-4 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted-2">
