@@ -280,6 +280,67 @@ export type WatchListAccessResult =
   | { status: "wrong_org"; ownerOrgName: string }
   | { status: "not_found" };
 
+/** List the pinned members of a watch list (manual-pick "kind":
+ *  "pinned" lists). No authz here — this is a read helper; callers
+ *  that expose it to a request MUST gate access themselves (e.g. via
+ *  getWatchList/canViewList) before calling this, same pattern as
+ *  every other unauthenticated helper in this module. */
+export async function listMembers(
+  watchListId: string
+): Promise<{ memberKey: string; addedByUserId: string; createdAt: Date }[]> {
+  const rows = await prisma.watchListMember.findMany({
+    where: { watchListId },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map((row) => ({
+    memberKey: row.memberKey,
+    addedByUserId: row.addedByUserId,
+    createdAt: row.createdAt,
+  }));
+}
+
+/** Add a pinned member to a watch list. Refuses unless `canEditList`
+ *  passes for the given ctx — same no-existence-leak boolean-refusal
+ *  shape as updateWatchList/deleteWatchList (the API layer 404s on
+ *  false without distinguishing "not found" from "not authorized").
+ *  Upserts on the (watchListId, memberKey) compound unique so a
+ *  repeat pin of the same company is a no-op, not a duplicate row or
+ *  a thrown unique-constraint error. */
+export async function addMember(
+  watchListId: string,
+  memberKey: string,
+  ctx: WatchListAuthContext
+): Promise<boolean> {
+  const existing = await prisma.watchList.findUnique({ where: { id: watchListId } });
+  if (!existing) return false;
+  if (!canEditList(parseRow(existing), ctx)) return false;
+
+  await prisma.watchListMember.upsert({
+    where: { watchListId_memberKey: { watchListId, memberKey } },
+    create: { watchListId, memberKey, addedByUserId: ctx.userId },
+    update: {},
+  });
+  return true;
+}
+
+/** Remove a pinned member from a watch list. Refuses unless
+ *  `canEditList` passes for the given ctx. Tolerates the member
+ *  already being absent (deleteMany's count can be 0) — the caller
+ *  asked for the row to be gone, and it is, so this still reports
+ *  success as long as they were authorized to ask. */
+export async function removeMember(
+  watchListId: string,
+  memberKey: string,
+  ctx: WatchListAuthContext
+): Promise<boolean> {
+  const existing = await prisma.watchList.findUnique({ where: { id: watchListId } });
+  if (!existing) return false;
+  if (!canEditList(parseRow(existing), ctx)) return false;
+
+  await prisma.watchListMember.deleteMany({ where: { watchListId, memberKey } });
+  return true;
+}
+
 export async function getWatchListWithCrossOrgCheck(args: {
   watchListId: string;
   userId: string;

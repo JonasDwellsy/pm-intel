@@ -238,3 +238,122 @@ test("v0.26 store: createWatchList requires organizationId in input", () => {
     "WatchListInput.organizationId must be required (no `?` modifier)"
   );
 });
+
+// v0.26 (Task 4) — member store fns (addMember/removeMember/listMembers).
+// Same constraint as the rest of this file: Prisma's `where` clause makes
+// these impossible to unit-test end-to-end without a real DB, so these are
+// source-level regression guards that the owner-only gate is actually
+// consulted (not re-derived inline), plus the upsert/deleteMany shape.
+
+test("addMember gates on canEditList before writing, and upserts on the compound unique", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/store.ts"),
+    "utf8"
+  );
+  const fnMatch = src.match(
+    /export async function addMember\([\s\S]*?\n\}/
+  );
+  assert.ok(fnMatch, "addMember must exist and be exported");
+  const fn = fnMatch![0];
+  assert.ok(
+    /if \(!existing\) return false;/.test(fn),
+    "addMember must return false when the watch list doesn't exist"
+  );
+  assert.ok(
+    /if \(!canEditList\(parseRow\(existing\), ctx\)\) return false;/.test(fn),
+    "addMember must refuse (return false) unless canEditList passes — this is the owner-only enforcement point"
+  );
+  assert.ok(
+    /prisma\.watchListMember\.upsert\(/.test(fn),
+    "addMember must upsert (not create), so re-pinning the same company is a no-op instead of a unique-constraint error"
+  );
+  assert.ok(
+    /where:\s*\{\s*watchListId_memberKey:\s*\{\s*watchListId,\s*memberKey\s*\}\s*\}/.test(fn),
+    "addMember's upsert must key on the (watchListId, memberKey) compound unique"
+  );
+  assert.ok(
+    /addedByUserId:\s*ctx\.userId/.test(fn),
+    "addMember must stamp addedByUserId from ctx.userId on create"
+  );
+});
+
+test("removeMember gates on canEditList before deleting, and tolerates an already-absent row", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/store.ts"),
+    "utf8"
+  );
+  const fnMatch = src.match(
+    /export async function removeMember\([\s\S]*?\n\}/
+  );
+  assert.ok(fnMatch, "removeMember must exist and be exported");
+  const fn = fnMatch![0];
+  assert.ok(
+    /if \(!existing\) return false;/.test(fn),
+    "removeMember must return false when the watch list doesn't exist"
+  );
+  assert.ok(
+    /if \(!canEditList\(parseRow\(existing\), ctx\)\) return false;/.test(fn),
+    "removeMember must refuse (return false) unless canEditList passes — this is the owner-only enforcement point"
+  );
+  // deleteMany (not delete) — delete() on a compound-unique where clause
+  // throws P2025 if the row is already gone; a repeat unpin must still
+  // report success as long as the caller was authorized to ask.
+  assert.ok(
+    /prisma\.watchListMember\.deleteMany\(/.test(fn),
+    "removeMember must use deleteMany so an already-absent member doesn't throw"
+  );
+});
+
+test("member store fns require the same WatchListAuthContext shape as update/deleteWatchList", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/store.ts"),
+    "utf8"
+  );
+  assert.ok(
+    /addMember\(\s*watchListId: string,\s*memberKey: string,\s*ctx: WatchListAuthContext\s*\)/.test(
+      src
+    ),
+    "addMember must take (watchListId, memberKey, ctx: WatchListAuthContext)"
+  );
+  assert.ok(
+    /removeMember\(\s*watchListId: string,\s*memberKey: string,\s*ctx: WatchListAuthContext\s*\)/.test(
+      src
+    ),
+    "removeMember must take (watchListId, memberKey, ctx: WatchListAuthContext)"
+  );
+});
+
+test("the /members route enforces owner-only mutation via the store fns, not an inline check", () => {
+  // The route itself must NOT re-derive an authz decision — it only
+  // resolves { userId, organizationId } and defers the actual
+  // owner-only gate to addMember/removeMember (canEditList). This
+  // guards against a future edit that adds a shortcut check in the
+  // route and bypasses the shared predicate.
+  const routeSrc = readFileSync(
+    join(
+      process.cwd(),
+      "src/app/api/watch-lists/[id]/members/route.ts"
+    ),
+    "utf8"
+  );
+  assert.ok(
+    routeSrc.includes('import { addMember, removeMember } from "@/lib/watch-list/store";'),
+    "the /members route must import addMember/removeMember from the store"
+  );
+  assert.equal(
+    routeSrc.includes("canEditList("),
+    false,
+    "the /members route must not CALL canEditList directly — the gate lives inside addMember/removeMember"
+  );
+  assert.ok(
+    /const ok = await addMember\(/.test(routeSrc) &&
+      /if \(!ok\) return Response\.json\(\{ error: "Not found\." \}, \{ status: 404 \}\);/.test(
+        routeSrc
+      ),
+    "POST must 404 when addMember returns false (covers both not-found and not-authorized)"
+  );
+  assert.ok(
+    /const ok = await removeMember\(/.test(routeSrc),
+    "DELETE must call removeMember"
+  );
+});
