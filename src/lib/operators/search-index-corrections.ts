@@ -4,18 +4,23 @@
 // a relative path under tsx. Corrections target ranked PMs (by slug) and
 // canonical groups (by canonicalSlug); the tracked tier is never targeted.
 
+import { addAlias } from "./search-index-aliases";
+
 export interface RankedEntryName {
   slug: string;
   name: string;
+  aliases?: string[];
 }
 export interface CanonicalEntryName {
   canonicalSlug: string;
   name: string;
+  aliases?: string[];
 }
 export interface NameCorrection {
   targetKind: string;
   targetKey: string;
   correctedName: string;
+  originalName?: string;
 }
 
 /** Mutates the passed ranked/canonical entries' `name` fields in place.
@@ -39,6 +44,10 @@ export function applyNameCorrectionsToSearchIndex(
     else if (c.targetKind === "canonical") entry = canonBySlug.get(c.targetKey);
     if (entry) {
       entry.name = c.correctedName;
+      if (c.originalName) {
+        const list = (entry.aliases = entry.aliases ?? []);
+        addAlias(list, c.originalName, c.correctedName);
+      }
       matched += 1;
     } else {
       unmatched.push(c.targetKey);
