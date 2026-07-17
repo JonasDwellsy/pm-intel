@@ -51,6 +51,10 @@ export type PMSearchResult =
       href: string;
       /** Fuse match score, 0 (perfect) to 1 (no match). Lower is better. */
       score: number;
+      /** The specific alias string Fuse matched on, when the hit came
+       *  through the "aliases" key rather than "name" (e.g. a DBA / former
+       *  name). Lets the renderer show a "matched: <alias>" hint. */
+      matchedAlias?: string;
     }
   | {
       tier: "tracked";
@@ -87,6 +91,10 @@ export type PMSearchResult =
       aliases?: string[];
       href: string;
       score: number;
+      /** The specific alias string Fuse matched on, when the hit came
+       *  through the "aliases" key rather than "name" (e.g. a DBA / former
+       *  name). Lets the renderer show a "matched: <alias>" hint. */
+      matchedAlias?: string;
     }
   | {
       tier: "market";

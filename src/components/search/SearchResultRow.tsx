@@ -115,13 +115,19 @@ export function SearchResultRow({
           </>
         );
 
-  // richer-search — Fuse can match a "market" or operator row on an
-  // alias (DBA / former name / MSA full-name / bare-city / state-name)
-  // rather than the primary `name`. Surface which alias string matched
-  // so the user understands why an unfamiliar name showed up. Not every
-  // tier carries the field (tracked doesn't), so narrow via `in` rather
-  // than accessing it on the raw union.
-  const matchedAlias = "matchedAlias" in result ? result.matchedAlias : undefined;
+  // richer-search — Fuse can match an operator row on an alias (DBA /
+  // former name) rather than the primary `name`. Surface which alias
+  // string matched so the user understands why an unfamiliar name showed
+  // up. Market rows also carry `matchedAlias` (bare-city / state-name
+  // aliases), but that's redundant there — the market's own city/state
+  // subtitle already says the same thing — so the "also:" line is
+  // suppressed for tier === "market". Not every tier carries the field
+  // (tracked doesn't), so narrow via `in` rather than accessing it on the
+  // raw union.
+  const matchedAlias =
+    result.tier !== "market" && "matchedAlias" in result
+      ? result.matchedAlias
+      : undefined;
 
   return (
     <li>
