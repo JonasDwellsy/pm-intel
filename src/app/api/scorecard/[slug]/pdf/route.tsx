@@ -35,6 +35,8 @@ import {
 import { buildConcessionContext } from "@/lib/concession-context";
 import { buildScorecardView } from "@/lib/scorecard/view-model";
 import { parseScorecard } from "@/lib/scorecard/parse";
+import { fetchCoverageMapImage } from "@/lib/scorecard/pdf-coverage-map";
+import { MAP_W, MAP_H } from "@/lib/scorecard/coverage-map-geo";
 
 // nodejs runtime — Prisma + @react-pdf/renderer both need Node. PDF generation
 // is CPU + memory heavier than the OG image route, so it doesn't run on edge.
@@ -124,8 +126,18 @@ export async function GET(
         : {}),
     });
 
+    // Fetch a static basemap for the coverage map (basemap-only — points are
+    // drawn locally in the PDF, never sent to Mapbox). Returns null on any
+    // failure; the PDF then renders the SVG-only fallback.
+    const coverageMap = await fetchCoverageMapImage(scorecard.geographicCoverage, {
+      width: MAP_W,
+      height: MAP_H,
+      token: process.env.NEXT_PUBLIC_MAPBOX_TOKEN,
+      timeoutMs: 2500,
+    });
+
     const buffer = await renderToBuffer(
-      <OperatorProfilePDF view={view} scorecard={scorecard} />
+      <OperatorProfilePDF view={view} scorecard={scorecard} coverageMap={coverageMap} />
     );
 
     // Trigger a download with a stable filename. The dwellsy-iq- prefix makes
