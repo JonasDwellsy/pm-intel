@@ -85,3 +85,39 @@ test("non-member callers cannot trigger wrong_org redirect (existence-leak prote
     "non-members must get not_found, not wrong_org (existence-leak protection)"
   );
 });
+
+// Final-review Fix 2 — membership in the row's org was previously
+// SUFFICIENT for wrong_org, leaking the existence of a teammate's PRIVATE
+// list in another org the caller happens to belong to. canViewList,
+// checked against the row's own org (not the caller's active org), must
+// now gate the wrong_org return exactly like it already gates the
+// same-org "found" path.
+
+test("wrong_org branch gates on canViewList (checked against the row's org) before returning wrong_org", () => {
+  const wrongOrgBranch = STORE_SRC.match(
+    /if \(!membership\) \{\s*\n\s*return \{ status: "not_found" \};\s*\n\s*\}[\s\S]*?return \{\s*\n\s*status: "wrong_org",/
+  );
+  assert.ok(
+    wrongOrgBranch,
+    "must find the code between the membership null-check and the wrong_org return"
+  );
+  assert.ok(
+    /canViewList\(record, \{ userId, organizationId: row\.organizationId \}\)/.test(
+      wrongOrgBranch![0]
+    ),
+    "wrong_org must be gated by canViewList checked against row.organizationId (the OTHER org), not activeOrganizationId"
+  );
+  assert.ok(
+    /if \(!canViewList\(record, \{ userId, organizationId: row\.organizationId \}\)\) \{\s*\n\s*return \{ status: "not_found" \};/.test(
+      wrongOrgBranch![0]
+    ),
+    "a failed canViewList check in the wrong_org branch must fall through to not_found, not wrong_org"
+  );
+});
+
+test("getWatchListWithCrossOrgCheck imports canViewList (already used by the same-org happy path)", () => {
+  assert.ok(
+    STORE_SRC.includes('import { canViewList, canEditList } from "./visibility";'),
+    "store.ts must import canViewList so both the same-org and cross-org branches can share the one predicate"
+  );
+});

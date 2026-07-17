@@ -286,18 +286,24 @@ export async function deleteWatchList(
  *                      canViewList() passes (own list, or a list
  *                      shared within the org). Render.
  *    2. "wrong_org"  — watch list is in a DIFFERENT org that the
- *                      caller IS A MEMBER OF. Detail pages redirect
- *                      to /watch-lists?wrongOrg=<name> and show a
- *                      flash. Caller has access SOMEWHERE, just not
- *                      in their currently-active session.
+ *                      caller IS A MEMBER OF, AND canViewList() passes
+ *                      against THAT org (caller owns the row, or it's
+ *                      shared within it). Detail pages redirect to
+ *                      /watch-lists?wrongOrg=<name> and show a flash.
+ *                      Caller has access SOMEWHERE, just not in their
+ *                      currently-active session.
  *    3. "not_found"  — watch list doesn't exist, exists in an org
- *                      the caller has no membership in, OR exists in
- *                      the caller's active org but is a TEAMMATE'S
- *                      PRIVATE list (canViewList fails). notFound().
+ *                      the caller has no membership in, exists in the
+ *                      caller's active org but is a TEAMMATE'S PRIVATE
+ *                      list (canViewList fails), OR exists in a
+ *                      DIFFERENT org the caller IS a member of but is
+ *                      a TEAMMATE'S PRIVATE list there too
+ *                      (canViewList fails against that org). notFound().
  *                      This branch preserves the no-existence-leak
- *                      property for both random URL guessers AND
- *                      teammates guessing at each other's private
- *                      list ids.
+ *                      property for random URL guessers AND teammates
+ *                      guessing at each other's private list ids, in
+ *                      either the active org or any other org the
+ *                      caller belongs to.
  *
  *  v0.26 (Task 3, SECURITY): the "row is in caller's active org" test
  *  alone used to be sufficient for "found" — that's the leak this
@@ -307,7 +313,15 @@ export async function deleteWatchList(
  *  further down (case 2 vs 3) is unchanged and still critical: without
  *  it, a random URL guesser could learn that a watch list ID exists by
  *  observing the redirect+flash. We only redirect when the caller
- *  is provably a member of the owning org. */
+ *  is provably a member of the owning org.
+ *
+ *  Fix 2 (final-review, SECURITY): membership alone was still too
+ *  permissive for case 2 — ANY row in an org the caller belongs to
+ *  triggered wrong_org, including a teammate's PRIVATE list in that
+ *  other org (an existence leak: the caller learns a private list
+ *  exists there even though they could never view it). canViewList,
+ *  checked against the ROW's org, now gates wrong_org exactly like it
+ *  already gates the same-org "found" path. */
 export type WatchListAccessResult =
   | { status: "found"; record: WatchListRecord }
   | { status: "wrong_org"; ownerOrgName: string }
@@ -420,6 +434,20 @@ export async function getWatchListWithCrossOrgCheck(args: {
     },
   });
   if (!membership) {
+    return { status: "not_found" };
+  }
+
+  // Fix 2 (final-review, SECURITY): membership in the row's org is
+  // necessary but not sufficient — without this gate, ANY row in an
+  // org the caller belongs to triggers the wrong_org redirect+flash,
+  // including a teammate's PRIVATE list. canViewList (checked against
+  // the ROW's org, not the caller's active org) is the same predicate
+  // the happy path above already enforces: the caller must either own
+  // the list or it must be shared within that other org. Only then do
+  // we confirm its existence via the redirect; otherwise fall through
+  // to the same not_found a random URL guesser gets.
+  const record = parseRow(row);
+  if (!canViewList(record, { userId, organizationId: row.organizationId })) {
     return { status: "not_found" };
   }
   return {

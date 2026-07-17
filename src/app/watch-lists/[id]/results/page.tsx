@@ -14,6 +14,7 @@ import { projectResultsForView } from "@/lib/watch-list/results-view";
 import { computeAndRecordChanges } from "@/lib/watch-list/changes";
 import { ResultsTable } from "@/components/watch-list/ResultsTable";
 import { ReRunButton } from "@/components/watch-list/ReRunButton";
+import { ShareToggle } from "@/components/watch-list/ShareToggle";
 import { MethodologyDisclosure } from "@/components/watch-list/MethodologyDisclosure";
 import { DownloadButton } from "@/components/watch-list/DownloadButton";
 import { ChangesBanner } from "@/components/watch-list/ChangesBanner";
@@ -216,6 +217,15 @@ export default async function WatchListResultsPage({ params }: PageProps) {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {/* Fix 1 (final-review) — owner-only share toggle. Same
+                canEdit gate as canManageMembers below; a view-only
+                shared viewer never sees this control. */}
+            {canEdit && (
+              <ShareToggle
+                watchListId={watchList.id}
+                initialIsShared={watchList.isShared}
+              />
+            )}
             <Link
               href={`/watch-lists/${watchList.id}/edit`}
               className="h-9 inline-flex items-center rounded-md border border-grid bg-white px-3.5 text-[13px] font-medium text-navy hover:bg-surface-soft"

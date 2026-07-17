@@ -542,3 +542,66 @@ test("Task 7 Step 4: /changes wires pinned members into applyWatchList, same as 
     "/changes must pass pins + skipCriteriaMatch (isPinnedList) as the 3rd/4th applyWatchList args, same as /results"
   );
 });
+
+// Final-review Fix 1 — wire the "share to org" write path. Before this,
+// POST hardcoded isShared: false and PUT never threaded isShared through
+// at all, so a list could never be shared even though updateWatchList
+// (below) already supported it in its input shape and canEditList already
+// gated it. Source-level regression guards, same convention as the rest
+// of this file, since the route/store pair isn't unit-testable without a
+// real DB + Clerk session.
+
+test("PUT /api/watch-lists/[id] validates isShared as a boolean (422 otherwise) and threads it into updateWatchList", () => {
+  const routeSrc = readFileSync(
+    join(process.cwd(), "src/app/api/watch-lists/[id]/route.ts"),
+    "utf8"
+  );
+  // Reject a present-but-non-boolean isShared with 422, mirroring the
+  // requiredCriteria/preferredCriteria/excludedCriteria array guards
+  // just above it in the same handler.
+  assert.ok(
+    /if \(input\.isShared !== undefined && typeof input\.isShared !== "boolean"\)[\s\S]{0,150}?status: 422/.test(
+      routeSrc
+    ),
+    "PUT must 422 when isShared is present but not a boolean"
+  );
+  // The validated value must actually reach updateWatchList — a route
+  // that validates but forgets to pass the field through would still
+  // leave sharing unreachable.
+  const putMatch = routeSrc.match(
+    /export async function PUT\([\s\S]*?\n\}/
+  );
+  assert.ok(putMatch, "PUT handler must exist");
+  assert.ok(
+    /isShared:\s*typeof input\.isShared === "boolean" \? input\.isShared : undefined,/.test(
+      putMatch![0]
+    ),
+    "PUT must pass isShared into the updateWatchList call (undefined when omitted, so a PUT with no isShared doesn't clobber the existing value)"
+  );
+});
+
+test("updateWatchList's Prisma data spread includes isShared only when defined, so an omitted isShared leaves the row untouched", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/store.ts"),
+    "utf8"
+  );
+  const fnMatch = src.match(
+    /export async function updateWatchList\([\s\S]*?\n\}/
+  );
+  assert.ok(fnMatch, "updateWatchList must exist and be exported");
+  assert.ok(
+    /\.\.\.\(input\.isShared !== undefined && \{ isShared: input\.isShared \}\),/.test(
+      fnMatch![0]
+    ),
+    "updateWatchList must conditionally spread isShared into the Prisma update data, keyed on input.isShared !== undefined"
+  );
+  // updateWatchList is still gated by canEditList before any write — the
+  // share toggle is only reachable by an owner (or legacy-owned-in-org
+  // caller), same as every other field this function updates.
+  assert.ok(
+    /if \(!canEditList\(parseRow\(existing\), ctx\)\) return null;/.test(
+      fnMatch![0]
+    ),
+    "updateWatchList must still refuse (return null) unless canEditList passes, even for an isShared-only update"
+  );
+});

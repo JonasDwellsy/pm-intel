@@ -78,6 +78,13 @@ export async function PUT(req: Request, { params }: RouteParams) {
       return Response.json({ error: `${key} must be an array.` }, { status: 422 });
     }
   }
+  // Fix 1 (final-review) — wire the share-to-org toggle. isShared must be
+  // a real boolean when present; updateWatchList itself gates the write
+  // on canEditList, so only the owner (or a legacy-owned-in-org caller)
+  // can actually flip it — this route just shapes/validates the input.
+  if (input.isShared !== undefined && typeof input.isShared !== "boolean") {
+    return Response.json({ error: "isShared must be a boolean." }, { status: 422 });
+  }
 
   const updated = await updateWatchList(
     id,
@@ -87,6 +94,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
         typeof input.description === "string" || input.description === null
           ? (input.description as string | null)
           : undefined,
+      isShared: typeof input.isShared === "boolean" ? input.isShared : undefined,
       requiredCriteria: input.requiredCriteria as never,
       preferredCriteria: input.preferredCriteria as never,
       excludedCriteria: input.excludedCriteria as never,
