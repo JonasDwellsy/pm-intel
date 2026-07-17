@@ -20,7 +20,7 @@ import Fuse from "fuse.js";
 import type { IFuseOptions } from "fuse.js";
 import indexData from "@/data/search_index.json";
 
-export type PMSearchTier = "ranked" | "tracked" | "canonical";
+export type PMSearchTier = "ranked" | "tracked" | "canonical" | "market";
 
 // Result row shape — discriminated on `tier` so the renderer can branch
 // without re-narrowing every field.
@@ -30,6 +30,9 @@ export type PMSearchTier = "ranked" | "tracked" | "canonical";
 //   canonical — v0.6.4 Patch 1: multi-market operator. Click → operator
 //               scorecard at /operators/<canonicalSlug>. Star counts are
 //               aggregated sums across the operator's market-instances.
+//   market    — richer-search: a market itself (MSA/city/state name match).
+//               Click → market landing page. Surfaced above operator rows
+//               so an MSA or state-name query lands on the market first.
 export type PMSearchResult =
   | {
       tier: "ranked";
@@ -43,9 +46,15 @@ export type PMSearchResult =
       goldCount: number;
       silverCount: number;
       t12Listings: number;
+      /** DBA / former-name aliases folded into the Fuse "aliases" key. */
+      aliases?: string[];
       href: string;
       /** Fuse match score, 0 (perfect) to 1 (no match). Lower is better. */
       score: number;
+      /** The specific alias string Fuse matched on, when the hit came
+       *  through the "aliases" key rather than "name" (e.g. a DBA / former
+       *  name). Lets the renderer show a "matched: <alias>" hint. */
+      matchedAlias?: string;
     }
   | {
       tier: "tracked";
@@ -78,8 +87,33 @@ export type PMSearchResult =
       totalT12Listings: number;
       totalT24T12Listings: number;
       totalUrusT12: number;
+      /** DBA / former-name aliases folded into the Fuse "aliases" key. */
+      aliases?: string[];
       href: string;
       score: number;
+      /** The specific alias string Fuse matched on, when the hit came
+       *  through the "aliases" key rather than "name" (e.g. a DBA / former
+       *  name). Lets the renderer show a "matched: <alias>" hint. */
+      matchedAlias?: string;
+    }
+  | {
+      tier: "market";
+      name: string;
+      marketId: string;
+      marketCity: string;
+      stateCode: string;
+      stateSlug: string;
+      citySlug: string;
+      operatorCount: number;
+      /** MSA full-name / bare-city / state-name aliases folded into the
+       *  Fuse "aliases" key (e.g. "Chattanooga, TN-GA MSA", "tennessee"). */
+      aliases?: string[];
+      href: string;
+      score: number;
+      /** The specific alias string Fuse matched on, when the hit came
+       *  through the "aliases" key rather than "name". Lets the renderer
+       *  show a "matched: <alias>" hint under the market row. */
+      matchedAlias?: string;
     };
 
 interface IndexFile {
@@ -95,6 +129,7 @@ interface IndexFile {
     goldCount: number;
     silverCount: number;
     t12Listings: number;
+    aliases?: string[];
   }>;
   tracked: Array<{
     tier: "tracked";
@@ -121,6 +156,21 @@ interface IndexFile {
     totalT12Listings: number;
     totalT24T12Listings: number;
     totalUrusT12: number;
+    aliases?: string[];
+  }>;
+  // richer-search — one entry per market so an MSA full-name / bare-city
+  // / state-name query surfaces the market landing page alongside operator
+  // results. Optional for back-compat with pre-richer-search index files.
+  markets?: Array<{
+    tier: "market";
+    name: string;
+    marketId: string;
+    marketCity: string;
+    stateCode: string;
+    stateSlug: string;
+    citySlug: string;
+    operatorCount: number;
+    aliases?: string[];
   }>;
 }
 
@@ -139,12 +189,16 @@ function buildHref(
     | { tier: "ranked"; stateSlug: string; citySlug: string; slug: string }
     | { tier: "tracked"; stateSlug: string; citySlug: string; name: string }
     | { tier: "canonical"; canonicalSlug: string }
+    | { tier: "market"; stateSlug: string; citySlug: string }
 ): string {
   if (entry.tier === "ranked") {
     return `/property-managers/${entry.stateSlug}/${entry.citySlug}/${entry.slug}`;
   }
   if (entry.tier === "canonical") {
     return `/operators/${entry.canonicalSlug}`;
+  }
+  if (entry.tier === "market") {
+    return `/property-managers/${entry.stateSlug}/${entry.citySlug}`;
   }
   // Tier 2 → market landing with forward-compat highlight param.
   return `/property-managers/${entry.stateSlug}/${entry.citySlug}?highlight=${encodeURIComponent(entry.name)}`;
@@ -165,6 +219,9 @@ for (const e of data.canonical ?? []) {
 for (const e of data.tracked) {
   corpus.push({ ...e, href: buildHref(e) } as IndexedEntry);
 }
+for (const e of data.markets ?? []) {
+  corpus.push({ ...e, href: buildHref(e) } as IndexedEntry);
+}
 
 // Fuse configuration — name-weighted, with a wider recall threshold so
 // loose fuzzy matches still show up in the fuzzy-suggestions branch.
@@ -180,12 +237,20 @@ for (const e of data.tracked) {
 // of where in the name the match falls — without it, "Reedy" would
 // penalize "Reedy & Company" because the match isn't at character zero.
 const FUSE_OPTIONS: IFuseOptions<IndexedEntry> = {
-  keys: [{ name: "name", weight: 1.0 }],
+  keys: [
+    { name: "name", weight: 1.0 },
+    // richer-search — DBA / former-name / MSA-full-name / state-name
+    // aliases. Lower weight than `name` so an alias hit never outranks
+    // a direct name match; `includeMatches` below lets searchPMs surface
+    // which alias string actually matched.
+    { name: "aliases", weight: 0.5 },
+  ],
   threshold: 0.5,
   distance: 100,
   ignoreLocation: true,
   minMatchCharLength: 2,
   includeScore: true,
+  includeMatches: true,
 };
 
 let fuseInstance: Fuse<IndexedEntry> | null = null;
@@ -203,9 +268,11 @@ export function getAllSearchEntries(): IndexedEntry[] {
 }
 
 /** Aggregate counts for the not-found-state copy and analytics. The
- *  market count is derived from the distinct marketIds in the index
- *  (ranked + tracked), so the search copy ("across N markets") tracks
- *  the seed automatically rather than via a hand-maintained literal. */
+ *  market count prefers the authoritative `markets` tier (one entry per
+ *  market, richer-search) and falls back to the distinct marketIds seen
+ *  across ranked + tracked for back-compat with pre-richer-search index
+ *  files, so the search copy ("across N markets") tracks the seed
+ *  automatically rather than via a hand-maintained literal. */
 export function getSearchCounts(): {
   ranked: number;
   tracked: number;
@@ -220,7 +287,7 @@ export function getSearchCounts(): {
     ranked: data.ranked.length,
     tracked: data.tracked.length,
     canonical: data.canonical?.length ?? 0,
-    markets: marketIds.size,
+    markets: data.markets?.length ?? marketIds.size,
     total: corpus.length,
   };
 }
@@ -235,10 +302,17 @@ export function searchPMs(query: string, limit = 10): PMSearchResult[] {
   if (q.length < 2) return [];
   const fuse = getFuse();
   const matches = fuse.search(q, { limit });
-  return matches.map((m) => ({
-    ...(m.item as IndexedEntry),
-    score: m.score ?? 1,
-  })) as PMSearchResult[];
+  return matches.map((m) => {
+    // richer-search — surface which alias string actually matched (vs.
+    // `name`) so the renderer can show a "matched: <alias>" hint. Only
+    // attached when the hit came through the `aliases` Fuse key.
+    const aliasMatch = m.matches?.find((mm) => mm.key === "aliases");
+    return {
+      ...(m.item as IndexedEntry),
+      score: m.score ?? 1,
+      ...(aliasMatch?.value ? { matchedAlias: aliasMatch.value } : {}),
+    };
+  }) as PMSearchResult[];
 }
 
 /**
@@ -247,6 +321,10 @@ export function searchPMs(query: string, limit = 10): PMSearchResult[] {
  * tracked) only when their marketId is entitled; multi-market canonical
  * hits are kept regardless, since their /operators page is itself
  * entitlement-scoped (it shows only entitled markets, or the upsell).
+ * richer-search — market-tier hits are kept regardless too: the market
+ * landing page itself gates entitled content, so surfacing the row (vs.
+ * hiding the market from search entirely) matches the canonical
+ * treatment rather than the single-market gate.
  * Pure — the entitled set is fetched client-side from
  * /api/me/entitled-markets so the global nav stays statically rendered.
  */
@@ -256,7 +334,9 @@ export function filterResultsByEntitlement(
 ): PMSearchResult[] {
   if (entitled === "all") return results;
   return results.filter((r) =>
-    r.tier === "canonical" ? true : entitled.has(r.marketId)
+    r.tier === "canonical" || r.tier === "market"
+      ? true
+      : entitled.has(r.marketId)
   );
 }
 
@@ -265,21 +345,25 @@ export function filterResultsByEntitlement(
  * Stable order preserved within each tier (Fuse's ranking carries
  * through). v0.6.4 Patch 1 adds the canonical bucket; it renders above
  * ranked + tracked so multi-market operators are visually elevated.
+ * richer-search adds the markets bucket for MSA/city/state-name hits.
  */
 export function partitionByTier(results: PMSearchResult[]): {
   canonical: Extract<PMSearchResult, { tier: "canonical" }>[];
   ranked: Extract<PMSearchResult, { tier: "ranked" }>[];
   tracked: Extract<PMSearchResult, { tier: "tracked" }>[];
+  markets: Extract<PMSearchResult, { tier: "market" }>[];
 } {
   const canonical: Extract<PMSearchResult, { tier: "canonical" }>[] = [];
   const ranked: Extract<PMSearchResult, { tier: "ranked" }>[] = [];
   const tracked: Extract<PMSearchResult, { tier: "tracked" }>[] = [];
+  const markets: Extract<PMSearchResult, { tier: "market" }>[] = [];
   for (const r of results) {
     if (r.tier === "canonical") canonical.push(r);
     else if (r.tier === "ranked") ranked.push(r);
+    else if (r.tier === "market") markets.push(r);
     else tracked.push(r);
   }
-  return { canonical, ranked, tracked };
+  return { canonical, ranked, tracked, markets };
 }
 
 /**

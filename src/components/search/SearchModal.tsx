@@ -98,7 +98,7 @@ export function SearchModal({
   );
   const visibleResults =
     strictResults.length > 0 ? strictResults : fuzzyResults.slice(0, 3);
-  const { canonical, ranked, tracked } = useMemo(
+  const { markets, canonical, ranked, tracked } = useMemo(
     () => partitionByTier(strictResults.length > 0 ? strictResults : []),
     [strictResults]
   );
@@ -220,9 +220,37 @@ export function SearchModal({
 
           {state === "results" && (
             <ul className="py-1">
-              {/* v0.6.4 Patch 1 — Cross-market group renders first. */}
+              {/* richer-search — Markets group renders first so an
+                  MSA/city/state-name query lands on the market landing
+                  page before any operator rows. */}
+              {markets.length > 0 && (
+                <>
+                  <p className="px-5 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-2">
+                    Markets
+                  </p>
+                  {markets.map((r) => {
+                    const idx = strictResults.indexOf(r);
+                    return (
+                      <SearchResultRow
+                        key={`market-${r.marketId}`}
+                        result={r}
+                        active={idx === activeIndex}
+                        onSelect={onClose}
+                        size="comfortable"
+                      />
+                    );
+                  })}
+                </>
+              )}
+              {/* v0.6.4 Patch 1 — Cross-market group renders next. */}
               {canonical.length > 0 && (
                 <>
+                  {markets.length > 0 && (
+                    <div
+                      className="my-1 border-t border-grid-soft"
+                      aria-hidden
+                    />
+                  )}
                   <p className="px-5 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-2">
                     Cross-market operators
                   </p>
@@ -242,7 +270,7 @@ export function SearchModal({
               )}
               {ranked.length > 0 && (
                 <>
-                  {canonical.length > 0 && (
+                  {(markets.length > 0 || canonical.length > 0) && (
                     <div
                       className="my-1 border-t border-grid-soft"
                       aria-hidden
@@ -267,7 +295,9 @@ export function SearchModal({
               )}
               {tracked.length > 0 && (
                 <>
-                  {(canonical.length > 0 || ranked.length > 0) && (
+                  {(markets.length > 0 ||
+                    canonical.length > 0 ||
+                    ranked.length > 0) && (
                     <div
                       className="my-1 border-t border-grid-soft"
                       aria-hidden

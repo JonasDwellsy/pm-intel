@@ -93,6 +93,12 @@ export function SearchResultRow({
             </>
           );
         })()
+      : result.tier === "market"
+      ? (
+          <>
+            <span className="dq-mono">{result.operatorCount}</span> operators
+          </>
+        )
       : (
           <>
             {result.marketCity}, {result.stateCode}
@@ -108,6 +114,20 @@ export function SearchResultRow({
             )}
           </>
         );
+
+  // richer-search — Fuse can match an operator row on an alias (DBA /
+  // former name) rather than the primary `name`. Surface which alias
+  // string matched so the user understands why an unfamiliar name showed
+  // up. Market rows also carry `matchedAlias` (bare-city / state-name
+  // aliases), but that's redundant there — the market's own city/state
+  // subtitle already says the same thing — so the "also:" line is
+  // suppressed for tier === "market". Not every tier carries the field
+  // (tracked doesn't), so narrow via `in` rather than accessing it on the
+  // raw union.
+  const matchedAlias =
+    result.tier !== "market" && "matchedAlias" in result
+      ? result.matchedAlias
+      : undefined;
 
   return (
     <li>
@@ -132,12 +152,22 @@ export function SearchResultRow({
                 Cross-market
               </span>
             )}
+            {result.tier === "market" && (
+              <span className="shrink-0 rounded-full bg-navy/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-navy">
+                Market
+              </span>
+            )}
           </p>
           <p
             className={`mt-0.5 truncate text-muted-foreground ${subSize}`}
           >
             {subtitle}
           </p>
+          {matchedAlias && (
+            <p className={`mt-0.5 truncate text-muted-2 ${subSize}`}>
+              also: {matchedAlias}
+            </p>
+          )}
         </div>
         {(result.tier === "ranked" || result.tier === "canonical") && (
           <StarChip

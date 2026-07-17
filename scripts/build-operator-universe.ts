@@ -17,6 +17,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { applyNameCorrectionsToSearchIndex } from "../src/lib/operators/search-index-corrections";
+import { dbaAlias, addAlias } from "../src/lib/operators/search-index-aliases";
 
 // Per-market source operator entry from allOperatorsT12BySubmarket.
 interface RawUniverseOp {
@@ -70,6 +71,7 @@ interface OutputRankedEntry {
   goldCount: number;
   silverCount: number;
   t12Listings: number;
+  aliases?: string[];
 }
 
 // v0.6.4 Patch 1 — search index entry for a multi-market canonical
@@ -96,6 +98,22 @@ interface OutputCanonicalEntry {
   totalT12Listings: number;
   totalT24T12Listings: number;
   totalUrusT12: number;
+  aliases?: string[];
+}
+
+// New search-index tier — one entry per market, so a market name/MSA
+// full-name/state-name search surfaces a link to the market landing page
+// alongside operator results.
+interface OutputMarketEntry {
+  tier: "market";
+  name: string; // "Denver, CO"
+  marketId: string;
+  marketCity: string;
+  stateCode: string;
+  stateSlug: string;
+  citySlug: string;
+  operatorCount: number;
+  aliases?: string[];
 }
 
 interface OutputTrackedEntry {
@@ -122,6 +140,7 @@ type SearchIndex = {
   // OMITTED from `ranked` so search returns one row per operator
   // regardless of footprint. Single-market PMs stay in `ranked`.
   canonical: OutputCanonicalEntry[];
+  markets: OutputMarketEntry[];
 };
 
 // Per-market source JSONs (the tracked/Tier-2 tier reads these). The
@@ -266,6 +285,7 @@ const allRankedCandidates: Array<{
 }> = [];
 const starsByCanonicalSlug = new Map<string, { gold: number; silver: number }>();
 const rankedNamesByMarket = new Map<string, Set<string>>();
+const namesByCanonicalSlug = new Map<string, Set<string>>();
 
 for (const pm of seed.pms) {
   const m = marketIndex.get(pm.marketId);
@@ -283,6 +303,10 @@ for (const pm of seed.pms) {
     agg.gold += gold;
     agg.silver += silver;
     starsByCanonicalSlug.set(canonSlug, agg);
+    const nameSet = namesByCanonicalSlug.get(canonSlug) ?? new Set<string>();
+    if (pm.name) nameSet.add(pm.name);
+    if (pm.canonicalOperatorName) nameSet.add(pm.canonicalOperatorName);
+    namesByCanonicalSlug.set(canonSlug, nameSet);
   }
 }
 
@@ -308,6 +332,7 @@ for (const { pm, m, gold, silver } of allRankedCandidates) {
     goldCount: gold,
     silverCount: silver,
     t12Listings: pm.coverage?.t12Listings ?? 0,
+    aliases: (() => { const a: string[] = []; addAlias(a, dbaAlias(pm.name, pm.canonicalOperatorName), pm.name); return a.length ? a : undefined; })(),
   });
 }
 console.log(`Tier 1 ranked PMs (single-market only): ${ranked.length}`);
@@ -335,6 +360,7 @@ for (const entity of Object.values(canonicalMap)) {
     totalT12Listings: entity.aggregateStats.totalT12Listings ?? 0,
     totalT24T12Listings: entity.aggregateStats.totalT24T12Listings ?? 0,
     totalUrusT12: entity.aggregateStats.totalUrusT12 ?? 0,
+    aliases: (() => { const a: string[] = []; for (const n of namesByCanonicalSlug.get(entity.canonicalSlug) ?? []) addAlias(a, n, entity.canonicalName); return a.length ? a : undefined; })(),
   });
 }
 console.log(`Canonical multi-market operators: ${canonical.length}`);
@@ -410,7 +436,34 @@ for (const m of MARKETS) {
 // when there's a tie in fuzzy-match score.
 tracked.sort((a, b) => b.t12Listings - a.t12Listings);
 
-const out: SearchIndex = { ranked, tracked, canonical };
+const summaryPath = path.resolve(__dirname, "../src/data/markets-summary.json");
+const summaryById = new Map<string, { operatorCountEligible?: number; fullName?: string }>();
+if (fs.existsSync(summaryPath)) {
+  const summary = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
+  for (const m of summary.markets ?? []) summaryById.set(m.id, m);
+}
+const markets: OutputMarketEntry[] = MARKETS.map((m) => {
+  const s = summaryById.get(m.id);
+  const name = `${m.city}, ${m.state}`;
+  const aliases: string[] = [];
+  addAlias(aliases, s?.fullName, name);   // "Denver-Aurora-Lakewood, CO MSA"
+  addAlias(aliases, m.city, name);        // bare city
+  addAlias(aliases, m.stateSlug, name);   // state name, e.g. "colorado"
+  return {
+    tier: "market" as const,
+    name,
+    marketId: m.id,
+    marketCity: m.city,
+    stateCode: m.state,
+    stateSlug: m.stateSlug,
+    citySlug: m.citySlug,
+    operatorCount: s?.operatorCountEligible ?? 0,
+    aliases: aliases.length ? aliases : undefined,
+  };
+});
+console.log(`  markets: ${markets.length}`);
+
+const out: SearchIndex = { ranked, tracked, canonical, markets };
 
 // Phase 2 — overlay admin name corrections so a corrected operator is shown
 // + searchable by its new name. Reads the committed export (build stays
