@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { ScorecardData } from "@/lib/types";
+import { footprintBounds } from "@/lib/scorecard/coverage-map-geo";
 
 type CoveragePoint = ScorecardData["geographicCoverage"]["coverageMapPoints"][number];
 type BackdropPoint = { lat: number; lon: number };
@@ -72,35 +73,6 @@ function MapSvgFallback({
 // MSA `mapBounds` stays as a fallback for the rare PM with no plotted
 // points. A small degenerate-box guard keeps single-point operators
 // from producing a zero-area box that fitBounds can't reason about.
-function footprintBounds(
-  points: CoveragePoint[]
-): { west: number; south: number; east: number; north: number } | null {
-  if (!points.length) return null;
-  let west = Infinity;
-  let east = -Infinity;
-  let south = Infinity;
-  let north = -Infinity;
-  for (const p of points) {
-    if (p.lon < west) west = p.lon;
-    if (p.lon > east) east = p.lon;
-    if (p.lat < south) south = p.lat;
-    if (p.lat > north) north = p.lat;
-  }
-  // Pad a degenerate (single-point or single-line) box by ~0.01° (~1km)
-  // so fitBounds has a real rectangle to work with; the maxZoom cap then
-  // governs the actual close-in level.
-  const EPS = 0.01;
-  if (east - west < EPS) {
-    west -= EPS;
-    east += EPS;
-  }
-  if (north - south < EPS) {
-    south -= EPS;
-    north += EPS;
-  }
-  return { west, south, east, north };
-}
-
 function pointsToGeoJSON(
   points: Array<CoveragePoint | BackdropPoint>,
   includeProps = false
