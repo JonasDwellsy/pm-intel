@@ -59,8 +59,8 @@ export function MethodologyPillars() {
     <section className="border-t border-grid">
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
-          eyebrow="What we measure"
-          title="Four lenses on every operator, mapped to the questions that actually matter."
+          eyebrow="The rigor behind it"
+          title="How every score is measured."
           context="Scale, type, operating signals, and footprint — applied identically across every market we cover. Each metric is observed, cohort-relative, and reproducible from the underlying Dwellsy listing record. No operator self-reporting."
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

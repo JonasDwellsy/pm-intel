@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { TrackEvent } from "@/components/analytics/TrackEvent";
 import { Hero } from "@/components/homepage/Hero";
+import { SelectScreenMonitor } from "@/components/homepage/SelectScreenMonitor";
 import { MethodologyPillars } from "@/components/homepage/MethodologyPillars";
 import {
   CoveredMarkets,
@@ -23,13 +24,13 @@ import { parseScorecard } from "@/lib/scorecard/parse";
 import type { ScorecardData } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: "Dwellsy IQ — Property Manager Intelligence",
+  title: "Operator IQ — Select, screen & monitor property managers",
   description:
-    "Outside-in scorecards on property managers nationwide — covering over 20,000 property managers. Portfolio scale, operator type, operating signals, and market footprint, every figure observed and reproducible.",
+    "Select, screen, and monitor property managers. Operator IQ turns Dwellsy's nationwide listing record into observed, reproducible scorecards on 20,000+ property managers — shortlist the right operator, vet it before you sign, and get alerted when performance moves.",
   openGraph: {
-    title: "Dwellsy IQ — Property Manager Intelligence",
+    title: "Operator IQ — Select, screen & monitor property managers",
     description:
-      "Outside-in scorecards on property managers nationwide — covering over 20,000 property managers. Portfolio scale, operator type, operating signals, and market footprint, every figure observed and reproducible.",
+      "Select, screen, and monitor property managers. Operator IQ turns Dwellsy's nationwide listing record into observed, reproducible scorecards on 20,000+ property managers — shortlist the right operator, vet it before you sign, and get alerted when performance moves.",
     type: "website",
   },
 };
@@ -390,6 +391,7 @@ export default async function HomePage() {
         properties={{ source: "homepage", page: "home" }}
       />
       <Hero heroCard={heroSampleCard} marketCount={liveMarkets.length} />
+      <SelectScreenMonitor />
       <MethodologyPillars />
       <CoveredMarkets markets={liveMarkets} />
       <SampleScorecards cards={sampleCards} />

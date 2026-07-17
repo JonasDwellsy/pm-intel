@@ -30,7 +30,7 @@ export function MethodologyFooter({
           </p>
         </div>
         <p className="max-w-[70ch] text-[16px] leading-[1.65] text-foreground/85 sm:text-[17px]">
-          Every score, rank, and chart on Dwellsy IQ is produced by a single,
+          Every score, rank, and chart in Operator IQ is produced by a single,
           versioned methodology — not bespoke per-operator analysis. Selection
           bias, eligibility thresholds, cohort assignment, and quadrant
           placement are documented in full and revised in numbered releases.

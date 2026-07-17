@@ -31,7 +31,7 @@ export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
           eyebrow="Coverage"
-          title={`${countWord} markets currently live on Dwellsy IQ.`}
+          title={`${countWord} markets currently live in Operator IQ.`}
           context={`We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. ${countWord} MSAs are live today, and we can stand up any of the top 200 US markets on request — no waiting.`}
         />
 

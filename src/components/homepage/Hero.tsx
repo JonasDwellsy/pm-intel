@@ -1,7 +1,6 @@
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { buttonVariants } from "@/components/ui/button";
 import { ScorecardCard, type SampleCard } from "./SampleScorecards";
-import { PRIMARY_CTA } from "@/lib/nav";
 import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
 
 // v0.14 — Hero right column is now a single live scorecard card
@@ -32,7 +31,7 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
         {/* Left: copy + CTAs */}
         <div>
           <p className="dq-eyebrow tracking-[0.16em]">
-            Dwellsy IQ · Property Manager Intelligence
+            Operator IQ · part of Dwellsy IQ
           </p>
           {/* PR #52 — eyebrow → H1 gap is owned by `.dq-eyebrow`'s
               `margin-bottom: 0.875rem` rule in globals.css, not by
@@ -43,13 +42,14 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
               now keeps the markup honest about where the spacing
               comes from. */}
           <h1 className="dq-h1 max-w-[14ch] text-balance text-[44px] leading-[1.04] tracking-[-0.018em] sm:text-[52px] lg:text-[60px]">
-            Outside-in intelligence on property managers nationwide.
+            Select, screen, and monitor property managers.
           </h1>
           <p className="mt-6 max-w-[60ch] text-[17px] leading-[1.55] text-foreground/85 sm:text-[19px]">
-            Methodology-driven scorecards on portfolio scale, operator type,
-            operating signals, and market footprint — covering over 20,000
-            property managers. Every figure is observed and reproducible, not
-            self-reported.
+            Operator IQ turns Dwellsy&apos;s nationwide listing record into
+            observed, reproducible scorecards on 20,000+ property managers — so
+            you can shortlist the right operator, vet it before you sign, and
+            get alerted the moment performance moves. Every figure is measured,
+            not self-reported.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             {/* Primary CTA. Sends visitors straight into the template
@@ -57,14 +57,14 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
                 one click. No auth gate until save. */}
             <TrackedLink
               event="pm_card_click"
-              properties={{ source: "homepage_hero", cta: "build_watch_list" }}
-              href={PRIMARY_CTA.href}
+              properties={{ source: "homepage_hero", cta: "request_access" }}
+              href="mailto:sales@dwellsy.com?subject=Operator%20IQ%20access"
               className={
                 buttonVariants() +
                 " h-11 bg-navy px-6 text-[14.5px] font-semibold text-white hover:bg-navy-700"
               }
             >
-              {PRIMARY_CTA.label}
+              Request access →
             </TrackedLink>
             {/* Secondary CTA — Browse markets keeps the per-MSA
                 explorer one click away for visitors who want to start
@@ -72,11 +72,11 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
                 primary fill to outline in the v0.12 nav reposition. */}
             <TrackedLink
               event="pm_card_click"
-              properties={{ source: "homepage_hero", cta: "browse_markets" }}
-              href="/property-managers"
+              properties={{ source: "homepage_hero", cta: "view_sample_scorecard" }}
+              href="/sample"
               className="inline-flex h-11 items-center justify-center rounded-md border border-navy bg-white px-6 text-[14.5px] font-semibold text-navy transition-colors hover:bg-navy-soft"
             >
-              Browse markets →
+              See a full sample scorecard →
             </TrackedLink>
           </div>
           {/* Tertiary CTA — the one full scorecard a logged-out visitor
@@ -86,14 +86,11 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
           <p className="mt-4">
             <TrackedLink
               event="pm_card_click"
-              properties={{
-                source: "homepage_hero",
-                cta: "view_sample_scorecard",
-              }}
-              href="/sample"
+              properties={{ source: "homepage_hero", cta: "browse_markets" }}
+              href="/property-managers"
               className="inline-flex items-center gap-1 text-[14.5px] font-semibold text-navy underline-offset-4 hover:underline"
             >
-              See a full sample scorecard →
+              Browse markets →
             </TrackedLink>
           </p>
           <p className="mt-6 text-[14.5px] italic text-muted-foreground">
