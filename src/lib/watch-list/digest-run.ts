@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { clerkClient } from "@clerk/nextjs/server";
 import { toSnapshotRow, type SnapshotRow } from "./snapshot";
 import { buildDigest } from "./digest";
-import { buildListChanges, isDigestDue, selectPriorForRecipient, parseCadence, visibleListsForMember, type OperatorMeta } from "./digest-gather";
+import { buildListChanges, isDigestDue, selectPriorForRecipient, parseCadence, visibleListsForMember, sharedListsOnly, type OperatorMeta } from "./digest-gather";
 import { applyWatchList } from "@/lib/watch-list/apply";
 import { projectResultsForView } from "@/lib/watch-list/results-view";
 import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
@@ -176,10 +176,16 @@ async function runPreview(
   for (const { organizationId } of orgRows) {
     if (!organizationId) continue;
     const ctx = await buildOrgListContext(organizationId, base);
-    if (ctx.lists.length === 0) continue;
+    // SECURITY: preview is a diagnostic with no recipient identity (it
+    // sends to a caller-supplied previewEmail, not an org member), so there's
+    // no userId for visibleListsForMember to authorize against. Scope its
+    // content to the org's SHARED lists only — never a private list — via
+    // sharedListsOnly (digest-gather.ts).
+    const previewLists = sharedListsOnly(ctx.lists);
+    if (previewLists.length === 0) continue;
     const latestBySlug = await fetchSnapshotsAt(ctx.allSlugs, latest);
     const priorBySlug = prior ? await fetchSnapshotsAt(ctx.allSlugs, prior) : new Map<string, SnapshotRow>();
-    const lists = ctx.lists
+    const lists = previewLists
       .map((c) => buildListChanges({ watchListName: c.name, matchedPmSlugs: c.matchedPmSlugs, latestBySlug, priorBySlug, metaBySlug: c.metaBySlug }))
       .filter((l) => l.operators.length > 0);
     const digest = buildDigest({

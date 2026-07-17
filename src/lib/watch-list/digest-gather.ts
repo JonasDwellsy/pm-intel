@@ -59,6 +59,19 @@ export function visibleListsForMember<T extends ListAuthShape>(
   return lists.filter((l) => canViewList(l, member));
 }
 
+// Task 8 regression fix (preview leak) — runPreview (digest-run.ts) is a
+// CRON_SECRET-gated diagnostic that sends to a caller-supplied email, not
+// an org member: it has no recipient identity for visibleListsForMember to
+// check ownership against. Since Task 8 widened buildOrgListContext to
+// include an org's PRIVATE lists (so runDigest's per-member filter could see
+// them), runPreview was left consuming that same unfiltered list set,
+// meaning a preview could render a private list's content to an arbitrary
+// email. Scope preview content to shared lists only — the org-wide content
+// that's safe to show without a recipient to authorize against.
+export function sharedListsOnly<T extends { isShared: boolean }>(lists: T[]): T[] {
+  return lists.filter((l) => l.isShared === true);
+}
+
 export function filterSubscribed(
   recipients: { userId: string; email: string }[],
   unsubscribedUserIds: Set<string>,

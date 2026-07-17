@@ -284,7 +284,7 @@ test("Task 8: runDigest's per-recipient fan-out filters ctx.lists through visibl
   );
   assert.ok(
     src.includes(
-      "import { buildListChanges, isDigestDue, selectPriorForRecipient, parseCadence, visibleListsForMember, type OperatorMeta } from \"./digest-gather\";"
+      "import { buildListChanges, isDigestDue, selectPriorForRecipient, parseCadence, visibleListsForMember, sharedListsOnly, type OperatorMeta } from \"./digest-gather\";"
     ),
     "digest-run.ts must import visibleListsForMember from digest-gather"
   );
@@ -297,6 +297,34 @@ test("Task 8: runDigest's per-recipient fan-out filters ctx.lists through visibl
   assert.ok(
     /const lists = visibleLists\s*\n\s*\.map\(\(c\) => buildListChanges\(/.test(src),
     "buildListChanges must map over visibleLists, not the unfiltered ctx.lists"
+  );
+});
+
+test("Task 8 regression fix: runPreview scopes ctx.lists to sharedListsOnly before rendering (no private-list leak in preview)", () => {
+  // SECURITY-CRITICAL: runPreview has no recipient identity (it emails a
+  // caller-supplied previewEmail, not an org member), so unlike runDigest
+  // it cannot filter via visibleListsForMember. Once buildOrgListContext
+  // started returning private lists too (Task 8), runPreview was left
+  // consuming that unfiltered ctx.lists directly — a preview could render
+  // a private list's content to an arbitrary email. sharedListsOnly closes
+  // that gap; this asserts runPreview actually calls it before building
+  // digest content, and that the filtered set (not the raw ctx.lists) is
+  // what flows into buildListChanges.
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/digest-run.ts"),
+    "utf8"
+  );
+  assert.ok(
+    /const previewLists = sharedListsOnly\(ctx\.lists\);/.test(src),
+    "runPreview must scope ctx.lists through sharedListsOnly"
+  );
+  assert.ok(
+    /const lists = previewLists\s*\n\s*\.map\(\(c\) => buildListChanges\(/.test(src),
+    "runPreview's buildListChanges must map over previewLists, not the unfiltered ctx.lists"
+  );
+  assert.ok(
+    !/ctx\.lists\s*\n\s*\.map\(\(c\) => buildListChanges\(/.test(src),
+    "no code path should map buildListChanges directly over unfiltered ctx.lists"
   );
 });
 

@@ -1,6 +1,6 @@
 import test from "node:test";
 import { strict as assert } from "node:assert";
-import { selectSnapshotPair, buildListChanges, filterSubscribed, isDigestDue, selectPriorForRecipient, parseCadence, visibleListsForMember } from "./digest-gather";
+import { selectSnapshotPair, buildListChanges, filterSubscribed, isDigestDue, selectPriorForRecipient, parseCadence, visibleListsForMember, sharedListsOnly } from "./digest-gather";
 import type { SnapshotRow, StarsPerMetric } from "./snapshot";
 
 const noStars: StarsPerMetric = {
@@ -190,4 +190,33 @@ test("visibleListsForMember: a null-organizationId legacy row is invisible (non-
   const lists = [list({ ownerId: "legacy-pre-auth", isShared: true, organizationId: null })];
   assert.equal(visibleListsForMember(lists, { userId: OWNER, organizationId: ORG }).length, 0);
   assert.equal(visibleListsForMember(lists, { userId: OTHER_MEMBER, organizationId: ORG }).length, 0);
+});
+
+// ─── sharedListsOnly (Task 8 regression fix — preview leak) ──────────
+//
+// runPreview (digest-run.ts) is a CRON_SECRET-gated diagnostic that sends
+// to a caller-supplied email, not an org member — it has no recipient
+// identity for visibleListsForMember to check. Task 8 widened
+// buildOrgListContext to include an org's PRIVATE lists (for runDigest's
+// per-member filter), but left runPreview consuming that same unfiltered
+// set — so a preview could render a private list's content to an
+// arbitrary email. sharedListsOnly is the guard that closes that gap:
+// this test asserts a private list is excluded regardless of who owns it,
+// which is exactly the property runPreview's fix depends on.
+test("sharedListsOnly: excludes private lists, keeps shared ones, regardless of owner", () => {
+  const mine = list({ ownerId: OWNER, isShared: false });
+  const teammatesPrivate = list({ ownerId: OTHER_MEMBER, isShared: false });
+  const shared = list({ ownerId: OTHER_MEMBER, isShared: true });
+  const lists = [mine, teammatesPrivate, shared];
+
+  assert.deepEqual(
+    sharedListsOnly(lists),
+    [shared],
+    "private lists (owned by anyone, including the caller) must never appear in preview content"
+  );
+});
+
+test("sharedListsOnly: empty when no list in the org is shared", () => {
+  const lists = [list({ isShared: false }), list({ ownerId: OTHER_MEMBER, isShared: false })];
+  assert.deepEqual(sharedListsOnly(lists), []);
 });
