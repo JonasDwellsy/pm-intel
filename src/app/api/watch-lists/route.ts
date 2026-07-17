@@ -68,6 +68,11 @@ export async function POST(req: Request) {
   const input = body as {
     name?: unknown;
     description?: unknown;
+    // v0.27 (Task 6) — "criteria" (smart list, default) | "pinned" (manual
+    // pick list). Optional — omitting it preserves the pre-existing
+    // WatchListEditor "new" flow, which never sends kind and always wants
+    // "criteria" (createWatchList's own default).
+    kind?: unknown;
     requiredCriteria?: unknown;
     preferredCriteria?: unknown;
     excludedCriteria?: unknown;
@@ -83,6 +88,9 @@ export async function POST(req: Request) {
       { status: 422 }
     );
   }
+  if (input.kind !== undefined && typeof input.kind !== "string") {
+    return Response.json({ error: "kind must be a string." }, { status: 422 });
+  }
 
   const record = await createWatchList({
     name: input.name,
@@ -90,6 +98,7 @@ export async function POST(req: Request) {
     ownerId: userId,
     organizationId,
     isShared: false,
+    kind: typeof input.kind === "string" ? input.kind : undefined,
     requiredCriteria: input.requiredCriteria as never,
     preferredCriteria: input.preferredCriteria as never,
     excludedCriteria: input.excludedCriteria as never,

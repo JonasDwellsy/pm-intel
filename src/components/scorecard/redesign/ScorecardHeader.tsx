@@ -5,6 +5,7 @@
 import type { HeaderView } from "@/lib/scorecard/view-model";
 import { CopyLinkButton } from "@/components/scorecard/CopyLinkButton";
 import { PrintScorecardButton } from "@/components/scorecard/PrintScorecardButton";
+import { AddToWatchList } from "@/components/watch-list/AddToWatchList";
 
 interface ScorecardHeaderProps {
   header: HeaderView;
@@ -176,6 +177,12 @@ export function ScorecardHeader({
       >
         {!publicSample && <CopyLinkButton operatorSlug={slug} />}
         {!publicSample && <PrintScorecardButton pmSlug={slug} />}
+        {!publicSample && (
+          <AddToWatchList
+            memberKey={header.canonicalOperatorId ?? slug}
+            operatorName={header.name}
+          />
+        )}
 
         {hasAnyLink && (
           <>
