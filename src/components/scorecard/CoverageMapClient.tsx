@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { ScorecardData } from "@/lib/types";
+import { footprintBounds } from "@/lib/scorecard/coverage-map-geo";
 
 type CoveragePoint = ScorecardData["geographicCoverage"]["coverageMapPoints"][number];
 type BackdropPoint = { lat: number; lon: number };
@@ -56,49 +57,6 @@ function MapSvgFallback({
       </g>
     </svg>
   );
-}
-
-// v0.21 — Frame the map to the OPERATOR'S footprint, not the whole MSA.
-//
-// Previously the map was initialized with the MSA-wide `mapBounds`, so
-// every scorecard zoomed out to the entire metro region regardless of
-// where the PM actually operates — a PM concentrated in one Baltimore
-// neighborhood and one spread across five submarkets looked identically
-// zoomed-out, and the user couldn't make out the streets/places needed
-// to read which submarkets the operator serves.
-//
-// Compute a tight bounding box from the operator's coverage points and
-// fit to that (with a maxZoom cap applied at fit time, see below). The
-// MSA `mapBounds` stays as a fallback for the rare PM with no plotted
-// points. A small degenerate-box guard keeps single-point operators
-// from producing a zero-area box that fitBounds can't reason about.
-function footprintBounds(
-  points: CoveragePoint[]
-): { west: number; south: number; east: number; north: number } | null {
-  if (!points.length) return null;
-  let west = Infinity;
-  let east = -Infinity;
-  let south = Infinity;
-  let north = -Infinity;
-  for (const p of points) {
-    if (p.lon < west) west = p.lon;
-    if (p.lon > east) east = p.lon;
-    if (p.lat < south) south = p.lat;
-    if (p.lat > north) north = p.lat;
-  }
-  // Pad a degenerate (single-point or single-line) box by ~0.01° (~1km)
-  // so fitBounds has a real rectangle to work with; the maxZoom cap then
-  // governs the actual close-in level.
-  const EPS = 0.01;
-  if (east - west < EPS) {
-    west -= EPS;
-    east += EPS;
-  }
-  if (north - south < EPS) {
-    south -= EPS;
-    north += EPS;
-  }
-  return { west, south, east, north };
 }
 
 function pointsToGeoJSON(
