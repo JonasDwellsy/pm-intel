@@ -10,13 +10,19 @@ import path from "node:path";
 async function main() {
   const { prisma } = await import("../../src/lib/prisma");
   const rows = await prisma.operatorNameCorrection.findMany({
-    select: { targetKind: true, targetKey: true, correctedName: true },
+    select: {
+      targetKind: true,
+      targetKey: true,
+      correctedName: true,
+      originalName: true,
+    },
   });
   const corrections = rows
     .map((r) => ({
       targetKind: r.targetKind,
       targetKey: r.targetKey,
       correctedName: r.correctedName,
+      originalName: r.originalName,
     }))
     .sort((a, b) =>
       (a.targetKind + a.targetKey).localeCompare(b.targetKind + b.targetKey)
