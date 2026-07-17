@@ -116,7 +116,7 @@ export const runtime = "nodejs";
 // Twitter all crop to ~1.91:1; 1200×630 hits the sweet spot.
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Dwellsy IQ scorecard preview";
+export const alt = "Operator IQ scorecard preview";
 
 // v0.6.4 Patch 6 — ASCII-only sanitizer for any text the OG image
 // renders. The original implementation passed strings containing
@@ -158,12 +158,12 @@ export default async function Image({
   // Segment routes (e.g., /tennessee/chattanooga/large-multifamily)
   // don't carry per-operator data; fall through to the branded card.
   if (isQuadrantSegment(slug)) {
-    return brandedFallback("Property manager intelligence");
+    return brandedFallback("Select, screen & monitor property managers");
   }
 
   try {
     const pm = await prisma.pM.findUnique({ where: { slug } });
-    if (!pm) return brandedFallback("Property manager intelligence");
+    if (!pm) return brandedFallback("Select, screen & monitor property managers");
 
     const scorecard = parseScorecard(pm);
     const { goldCount, silverCount } = countOperatorStars(scorecard);
@@ -248,7 +248,7 @@ export default async function Image({
                 only keeps the render inside Satori's bundled font. */}
             <span style={{ color: COLOR_MUTED, fontWeight: 500 }}>-</span>
             <span style={{ color: COLOR_TEAL, fontWeight: 600, fontSize: 18 }}>
-              Property Manager Scorecard
+              Operator IQ · Property Manager Scorecard
             </span>
           </div>
 
@@ -347,7 +347,7 @@ export default async function Image({
       component: "scorecard-opengraph-image",
       extra: { slug },
     });
-    return brandedFallback("Property manager intelligence");
+    return brandedFallback("Select, screen & monitor property managers");
   }
 }
 

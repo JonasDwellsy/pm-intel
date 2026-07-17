@@ -220,7 +220,7 @@ export async function SiteHeader() {
               - Signed in (customer user): "Build a watch list →"
                 points at the template picker; the watch-list save
                 flow handles the rest.
-              - Signed out (prospect): "Contact sales" mailto so the
+              - Signed out (prospect): "Request access →" mailto so the
                 top-right action is a real conversion path, not a
                 promise we can't keep (self-serve signup closed —
                 /sign-up explains).
@@ -238,7 +238,7 @@ export async function SiteHeader() {
               href="mailto:sales@dwellsy.com?subject=Operator%20IQ%20enterprise%20access"
               className="inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-navy px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-navy-700"
             >
-              Contact sales
+              Request access →
             </a>
           )}
         </nav>

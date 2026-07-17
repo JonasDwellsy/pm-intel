@@ -52,11 +52,11 @@ const siteUrl =
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Dwellsy IQ — Property Manager Intelligence",
-    template: "%s · Dwellsy IQ",
+    default: "Operator IQ — Select, screen & monitor property managers",
+    template: "%s · Operator IQ",
   },
   description:
-    "Independent, data-driven scorecards on property managers across U.S. rental markets.",
+    "Operator IQ helps institutional teams select, screen, and monitor property managers — observed, reproducible scorecards on 20,000+ operators across U.S. rental markets. Part of Dwellsy IQ.",
 };
 
 export default function RootLayout({
