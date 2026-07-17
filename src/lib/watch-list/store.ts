@@ -138,11 +138,35 @@ export async function listWatchListes(
     .filter((r) => canViewList(r, { userId, organizationId }));
 }
 
-/** Lists SHARED to an org (org-visible content, no ownerId match). Used by
- *  the digest content pass, which is org-scoped (not per-recipient). */
+/** Lists SHARED to an org (org-visible content, no ownerId match). Retained
+ *  for its own correctness guarantee (see store.test.ts) though the digest
+ *  no longer calls it directly — see listAllForOrg below. */
 export async function listSharedForOrg(organizationId: string): Promise<WatchListRecord[]> {
   const rows = await prisma.watchList.findMany({
     where: { organizationId, isShared: true },
+    orderBy: { updatedAt: "desc" },
+  });
+  return rows.map(parseRow);
+}
+
+/** ALL of an org's watch lists — private AND shared — used by the
+ *  digest's per-recipient scoping (Task 8, v0.29). Unlike
+ *  listSharedForOrg, this has no `isShared` filter: it returns every
+ *  list, private or shared, so buildOrgListContext can evaluate the
+ *  org's full list set ONCE (prior-independent) and carry each list's
+ *  {ownerId, isShared, organizationId} forward. The security boundary
+ *  is NOT this query — it's the per-recipient canViewList filter
+ *  (visibleListsForMember in digest-gather.ts) applied downstream,
+ *  once per due member, before any list's content is rendered into an
+ *  email. This query is still safe on its own terms: `where:
+ *  { organizationId }` has no ownerId-match path (so it can't pull in
+ *  a same-owner row from a different org) and a null-organizationId
+ *  legacy sentinel row can never match a specific organizationId
+ *  string, so those rows stay excluded exactly as they are for
+ *  listSharedForOrg. */
+export async function listAllForOrg(organizationId: string): Promise<WatchListRecord[]> {
+  const rows = await prisma.watchList.findMany({
+    where: { organizationId },
     orderBy: { updatedAt: "desc" },
   });
   return rows.map(parseRow);

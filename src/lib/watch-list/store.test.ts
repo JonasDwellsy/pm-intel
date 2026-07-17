@@ -202,7 +202,7 @@ test("listSharedForOrg filters by organizationId + isShared, never by ownerId", 
 
 test("digest-run.ts no longer uses LEGACY_OWNER_ID as a fake userId", () => {
   // Regression guard for Fix 1: the digest's org-scoped content pass
-  // must use listSharedForOrg, not listWatchListes(LEGACY_OWNER_ID, ...).
+  // must use a real store query, not listWatchListes(LEGACY_OWNER_ID, ...).
   const src = readFileSync(
     join(process.cwd(), "src/lib/watch-list/digest-run.ts"),
     "utf8"
@@ -212,9 +212,91 @@ test("digest-run.ts no longer uses LEGACY_OWNER_ID as a fake userId", () => {
     false,
     "digest-run.ts must not import or reference LEGACY_OWNER_ID"
   );
+});
+
+test("listAllForOrg queries strictly by organizationId, no isShared/ownerId filter", () => {
+  // Task 8 (W-T8): buildOrgListContext must evaluate EVERY list in the org
+  // (private + shared), not just the shared subset listSharedForOrg
+  // returns — per-recipient scoping (canViewList) is what makes a private
+  // list safe to include here; see digest-gather.ts's visibleListsForMember.
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/store.ts"),
+    "utf8"
+  );
+  const fnMatch = src.match(
+    /export async function listAllForOrg\([\s\S]*?\n\}/
+  );
+  assert.ok(fnMatch, "listAllForOrg must exist and be exported");
+  const fn = fnMatch![0];
   assert.ok(
-    src.includes("listSharedForOrg(orgId)"),
-    "buildOrgListContext must call listSharedForOrg(orgId)"
+    /where:\s*\{\s*organizationId\s*\}/.test(fn),
+    "listAllForOrg's where clause must be exactly { organizationId } — no isShared, no ownerId"
+  );
+  assert.equal(
+    fn.includes("ownerId"),
+    false,
+    "listAllForOrg must not reference ownerId anywhere in its body"
+  );
+});
+
+test("Task 8: buildOrgListContext calls listAllForOrg and carries ownerId/isShared/organizationId per list", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/digest-run.ts"),
+    "utf8"
+  );
+  assert.ok(
+    src.includes("listAllForOrg(orgId)"),
+    "buildOrgListContext must call listAllForOrg(orgId), not listSharedForOrg"
+  );
+  assert.ok(
+    /lists\.push\(\{\s*\n\s*name:\s*wl\.name,\s*ownerId:\s*wl\.ownerId,\s*isShared:\s*wl\.isShared,\s*organizationId:\s*wl\.organizationId,/.test(
+      src
+    ),
+    "each pushed list entry must carry ownerId/isShared/organizationId alongside name/matchedPmSlugs/metaBySlug"
+  );
+});
+
+test("Task 8: buildOrgListContext passes skipCriteriaMatch for kind:'pinned' lists (mirrors /results and /changes)", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/digest-run.ts"),
+    "utf8"
+  );
+  assert.ok(
+    /const isPinnedList = wl\.kind === "pinned";/.test(src),
+    "buildOrgListContext must compute isPinnedList from wl.kind"
+  );
+  assert.ok(
+    /applyWatchList\(\s*\{[\s\S]*?\},\s*entitlement,\s*pins,\s*isPinnedList,?\s*\)/.test(src),
+    "buildOrgListContext must pass pins + isPinnedList (skipCriteriaMatch) as the 3rd/4th applyWatchList args"
+  );
+});
+
+test("Task 8: runDigest's per-recipient fan-out filters ctx.lists through visibleListsForMember before rendering", () => {
+  // SECURITY-CRITICAL: this is the actual leak-prevention gate — a
+  // private list owned by a different member must never reach that
+  // member's rendered digest. buildOrgListContext deliberately performs
+  // NO authorization (it's org-wide + prior-independent), so this filter
+  // is the only thing standing between "org's full list set" and "one
+  // recipient's email."
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/digest-run.ts"),
+    "utf8"
+  );
+  assert.ok(
+    src.includes(
+      "import { buildListChanges, isDigestDue, selectPriorForRecipient, parseCadence, visibleListsForMember, type OperatorMeta } from \"./digest-gather\";"
+    ),
+    "digest-run.ts must import visibleListsForMember from digest-gather"
+  );
+  assert.ok(
+    /const visibleLists = visibleListsForMember\(ctx\.lists,\s*\{\s*\n\s*userId:\s*m\.userId,\s*organizationId:\s*org\.id,\s*\n\s*\}\);/.test(
+      src
+    ),
+    "the per-member loop must filter ctx.lists via visibleListsForMember before buildListChanges"
+  );
+  assert.ok(
+    /const lists = visibleLists\s*\n\s*\.map\(\(c\) => buildListChanges\(/.test(src),
+    "buildListChanges must map over visibleLists, not the unfiltered ctx.lists"
   );
 });
 

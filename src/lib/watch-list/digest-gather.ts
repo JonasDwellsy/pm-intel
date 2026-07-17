@@ -4,6 +4,7 @@
 import { diffSnapshots } from "./change-detection";
 import type { SnapshotRow } from "./snapshot";
 import type { DigestListInput, DigestOperatorInput } from "./digest";
+import { canViewList, type ListAuthShape } from "./visibility";
 
 export function selectSnapshotPair(dates: Date[]): { latest: Date; prior: Date } | null {
   const distinct = Array.from(new Set(dates.map((d) => d.getTime()))).sort((a, b) => b - a);
@@ -35,6 +36,27 @@ export function buildListChanges(args: {
     operators.push({ pmSlug: slug, ...meta, changes });
   }
   return { watchListName: args.watchListName, operators };
+}
+
+// Task 8 (v0.29) — SECURITY-CRITICAL: this is the boundary between
+// buildOrgListContext (digest-run.ts), which evaluates an org's ENTIRE
+// list set once — private lists included — and the per-recipient email
+// that actually goes out. buildOrgListContext is intentionally
+// org-wide and prior-independent; it does NOT gate on who's receiving
+// the digest. Every call site that fans out to a specific member MUST
+// run that org-wide list set through this filter before any list's
+// content reaches that member's rendered digest, or a private list
+// owned by a different member (or org) leaks across the tenancy/
+// visibility boundary — the same class of bug the Task 3 review
+// caught in the digest's org-scoped content pass (see store.ts's
+// listSharedForOrg / listAllForOrg comments). Pure — no IO — delegates
+// entirely to canViewList (./visibility) so this file stays
+// unit-testable without a database.
+export function visibleListsForMember<T extends ListAuthShape>(
+  lists: T[],
+  member: { userId: string; organizationId: string },
+): T[] {
+  return lists.filter((l) => canViewList(l, member));
 }
 
 export function filterSubscribed(

@@ -7,12 +7,12 @@ import { prisma } from "@/lib/prisma";
 import { clerkClient } from "@clerk/nextjs/server";
 import { toSnapshotRow, type SnapshotRow } from "./snapshot";
 import { buildDigest } from "./digest";
-import { buildListChanges, isDigestDue, selectPriorForRecipient, parseCadence, type OperatorMeta } from "./digest-gather";
+import { buildListChanges, isDigestDue, selectPriorForRecipient, parseCadence, visibleListsForMember, type OperatorMeta } from "./digest-gather";
 import { applyWatchList } from "@/lib/watch-list/apply";
 import { projectResultsForView } from "@/lib/watch-list/results-view";
 import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
 import { signUnsubToken } from "./digest-unsubscribe";
-import { listSharedForOrg, listMembers } from "./store";
+import { listAllForOrg, listMembers } from "./store";
 import { sendEmail } from "@/lib/email/send";
 
 /** Newest snapshot per slug AT a specific date (equality on snapshotDate). */
@@ -73,8 +73,16 @@ async function listOrgMembers(clerkOrgId: string): Promise<{ userId: string; ema
   return out;
 }
 
+interface OrgListEntry {
+  name: string;
+  ownerId: string;
+  isShared: boolean;
+  organizationId: string | null;
+  matchedPmSlugs: string[];
+  metaBySlug: Map<string, OperatorMeta>;
+}
 interface OrgListContext {
-  lists: { name: string; matchedPmSlugs: string[]; metaBySlug: Map<string, OperatorMeta> }[];
+  lists: OrgListEntry[];
   allSlugs: string[];
 }
 
@@ -83,24 +91,28 @@ interface OrgListContext {
  *  store layer (parsed criteria) + the same entitlement-scoped applyWatchList
  *  path as /results.
  *
- *  v0.26 (Task 3) interim note: this pass is evaluated ONCE per org, before
- *  we know which individual member is being sent to (see the per-recipient
- *  loop in runDigest/runPreview below) — there's no single "authed userId"
- *  to thread through a canViewList-based lookup here the way every
- *  request-scoped caller does. `listSharedForOrg` queries strictly by
- *  `{ organizationId, isShared: true }` — no ownerId-match path at all — so
- *  this call surfaces exactly the org's SHARED lists — never a private list
- *  some other member owns, and never a legacy pre-auth row (those have
- *  organizationId: null, so they can't match this filter either). That's
- *  the safe interim behavior: it can undercount (a member's own private
- *  list won't appear in anyone's digest yet) but it cannot leak a
- *  teammate's private list or a legacy row across orgs. Task 8 (W-T8,
- *  "digest recipients follow visibility") replaces this with real
- *  per-recipient scoping so each member's digest also includes their own
- *  private lists. */
+ *  v0.26 (Task 3) interim note (SUPERSEDED by Task 8 below): this pass used
+ *  to call `listSharedForOrg` (org's SHARED lists only) because there was no
+ *  per-recipient scoping yet — a safe-but-undercounting stopgap that hid a
+ *  member's own private list from every digest, including their own.
+ *
+ *  v0.29 (Task 8, "digest recipients follow visibility"): this now calls
+ *  `listAllForOrg` — EVERY list in the org, private and shared — and carries
+ *  each list's `{ ownerId, isShared, organizationId }` alongside
+ *  matchedPmSlugs/metaBySlug. This function itself performs NO
+ *  authorization: it is intentionally org-wide and prior-independent, since
+ *  there's no single "authed userId" to check here (the loop runs once per
+ *  org, before we know which individual member is being sent to). The
+ *  security boundary is downstream: every caller that fans out to a
+ *  specific recipient MUST filter this context's `lists` through
+ *  `visibleListsForMember` (digest-gather.ts, wraps canViewList) BEFORE
+ *  rendering any list's content into that member's email — see the
+ *  per-recipient loop in runDigest below. Skipping that filter is exactly
+ *  the class of leak the Task 3 review caught (a private list surfacing
+ *  outside its owner). */
 async function buildOrgListContext(orgId: string, base: string): Promise<OrgListContext> {
   const entitlement = await getEntitledMarketIds(orgId);
-  const watchLists = await listSharedForOrg(orgId);
+  const watchLists = await listAllForOrg(orgId);
   const lists: OrgListContext["lists"] = [];
   const allSlugs = new Set<string>();
   for (const wl of watchLists) {
@@ -108,12 +120,20 @@ async function buildOrgListContext(orgId: string, base: string): Promise<OrgList
     // context the same way they do on /results, still bounded by the
     // entitlement filter inside applyWatchList.
     const pins = new Set((await listMembers(wl.id)).map((m) => m.memberKey));
+    // v0.28 (Task 8 follow-through) — a "pinned" pick list has empty
+    // criteria by convention; skipCriteriaMatch bypasses the natural
+    // criteria-match loop so the digest content is the pin union ONLY,
+    // not the entire operator universe. Mirrors results/page.tsx and
+    // changes/page.tsx exactly (see apply.ts's doc comment on the 4th
+    // parameter for the full rationale).
+    const isPinnedList = wl.kind === "pinned";
     const applied = await applyWatchList(
       { id: wl.id, name: wl.name, description: wl.description,
         requiredCriteria: wl.requiredCriteria, preferredCriteria: wl.preferredCriteria,
         excludedCriteria: wl.excludedCriteria },
       entitlement,
       pins,
+      isPinnedList,
     );
     const matchedPmSlugs = applied.results.map((r) => r.pmSlug);
     if (matchedPmSlugs.length === 0) continue;
@@ -133,7 +153,10 @@ async function buildOrgListContext(orgId: string, base: string): Promise<OrgList
       }
     }
     matchedPmSlugs.forEach((s) => allSlugs.add(s));
-    lists.push({ name: wl.name, matchedPmSlugs, metaBySlug });
+    lists.push({
+      name: wl.name, ownerId: wl.ownerId, isShared: wl.isShared, organizationId: wl.organizationId,
+      matchedPmSlugs, metaBySlug,
+    });
   }
   return { lists, allSlugs: [...allSlugs] };
 }
@@ -256,7 +279,16 @@ export async function runDigest(opts: {
     for (const m of dueMembers) {
       const prior = priorForUser.get(m.userId) ?? null;
       const priorBySlug = prior ? (priorByDate.get(prior.getTime()) ?? new Map<string, SnapshotRow>()) : new Map<string, SnapshotRow>();
-      const lists = ctx.lists
+      // SECURITY-CRITICAL (Task 8): ctx.lists is the org's FULL list set —
+      // private lists included — evaluated once above with no per-member
+      // gating. Every recipient's rendered digest MUST be built only from
+      // the subset they're authorized to view: their own lists (private or
+      // shared) plus the org's shared lists. Filter BEFORE buildListChanges
+      // so a teammate's private list can never reach this member's email.
+      const visibleLists = visibleListsForMember(ctx.lists, {
+        userId: m.userId, organizationId: org.id,
+      });
+      const lists = visibleLists
         .map((c) => buildListChanges({
           watchListName: c.name, matchedPmSlugs: c.matchedPmSlugs,
           latestBySlug, priorBySlug, metaBySlug: c.metaBySlug,
