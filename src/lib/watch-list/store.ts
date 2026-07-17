@@ -129,6 +129,16 @@ export async function listWatchListes(
     .filter((r) => canViewList(r, { userId, organizationId }));
 }
 
+/** Lists SHARED to an org (org-visible content, no ownerId match). Used by
+ *  the digest content pass, which is org-scoped (not per-recipient). */
+export async function listSharedForOrg(organizationId: string): Promise<WatchListRecord[]> {
+  const rows = await prisma.watchList.findMany({
+    where: { organizationId, isShared: true },
+    orderBy: { updatedAt: "desc" },
+  });
+  return rows.map(parseRow);
+}
+
 /** Fetch a single watch list. Returns null unless `canViewList`
  *  passes for the given ctx — equivalent to a 404 from the caller's
  *  perspective so the API layer doesn't leak the existence of
@@ -170,7 +180,7 @@ export async function createWatchList(input: WatchListInput): Promise<WatchListR
       description: input.description ?? null,
       ownerId: input.ownerId,
       organizationId: input.organizationId,
-      isShared: input.isShared ?? true,
+      isShared: input.isShared ?? false,
       kind: input.kind ?? "criteria",
       requiredCriteria: JSON.stringify(input.requiredCriteria),
       preferredCriteria: JSON.stringify(input.preferredCriteria),

@@ -147,6 +147,77 @@ test("v0.26 store: getWatchListWithCrossOrgCheck gates the same-org happy path o
   );
 });
 
+test("createWatchList defaults isShared to false (private-by-default)", () => {
+  // Fix 2 (post-Task-3): the store's default must match the schema's
+  // @default(false) and the private-by-default model. `?? true` here
+  // would silently make every list org-visible unless a caller
+  // explicitly opts out — a landmine for any future caller that omits
+  // isShared.
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/store.ts"),
+    "utf8"
+  );
+  assert.ok(
+    src.includes("isShared: input.isShared ?? false"),
+    "createWatchList must default isShared to false, not true"
+  );
+  assert.equal(
+    src.includes("isShared: input.isShared ?? true"),
+    false,
+    "createWatchList must not fall back to isShared ?? true"
+  );
+});
+
+test("listSharedForOrg filters by organizationId + isShared, never by ownerId", () => {
+  // Fix 1 (CRITICAL, cross-tenant leak): the digest content pass used to
+  // call listWatchListes(LEGACY_OWNER_ID, orgId) as a stand-in for "the
+  // org's visible lists." LEGACY_OWNER_ID is a REAL ownerId stamped on
+  // backfilled pre-auth rows (organizationId: NULL), and canViewList's
+  // ownership branch (ownerId === userId) has no org check — so that
+  // call surfaced every org's legacy rows in every org's digest.
+  //
+  // listSharedForOrg must query strictly by { organizationId,
+  // isShared: true } with no ownerId-match path at all, so legacy rows
+  // (organizationId: null) and other members' private rows can never
+  // match regardless of what ownerId they carry.
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/store.ts"),
+    "utf8"
+  );
+  const fnMatch = src.match(
+    /export async function listSharedForOrg\([\s\S]*?\n\}/
+  );
+  assert.ok(fnMatch, "listSharedForOrg must exist and be exported");
+  const fn = fnMatch![0];
+  assert.ok(
+    /where:\s*\{\s*organizationId,\s*isShared:\s*true\s*\}/.test(fn),
+    "listSharedForOrg's where clause must be exactly { organizationId, isShared: true }"
+  );
+  assert.equal(
+    fn.includes("ownerId"),
+    false,
+    "listSharedForOrg must not reference ownerId anywhere in its body"
+  );
+});
+
+test("digest-run.ts no longer uses LEGACY_OWNER_ID as a fake userId", () => {
+  // Regression guard for Fix 1: the digest's org-scoped content pass
+  // must use listSharedForOrg, not listWatchListes(LEGACY_OWNER_ID, ...).
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/watch-list/digest-run.ts"),
+    "utf8"
+  );
+  assert.equal(
+    src.includes("LEGACY_OWNER_ID"),
+    false,
+    "digest-run.ts must not import or reference LEGACY_OWNER_ID"
+  );
+  assert.ok(
+    src.includes("listSharedForOrg(orgId)"),
+    "buildOrgListContext must call listSharedForOrg(orgId)"
+  );
+});
+
 test("v0.26 store: createWatchList requires organizationId in input", () => {
   // The WatchListInput interface MUST require organizationId so
   // TypeScript catches any caller that forgets to thread it through.
