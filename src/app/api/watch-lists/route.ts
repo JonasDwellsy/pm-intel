@@ -38,7 +38,7 @@ export async function GET() {
       { status: 503 }
     );
   }
-  const rows = await listWatchListes(organizationId);
+  const rows = await listWatchListes(userId, organizationId);
   return Response.json({ watchListes: rows });
 }
 

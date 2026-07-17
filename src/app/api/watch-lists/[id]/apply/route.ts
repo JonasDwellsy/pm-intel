@@ -38,7 +38,7 @@ export async function POST(_req: Request, { params }: RouteParams) {
     );
   }
   const { id } = await params;
-  const watchList = await getWatchList(id, organizationId);
+  const watchList = await getWatchList(id, { userId, organizationId });
   if (!watchList) return Response.json({ error: "Not found." }, { status: 404 });
 
   // v0.22 — scope to the owning org's entitled markets.

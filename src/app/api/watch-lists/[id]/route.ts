@@ -54,7 +54,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
   const ctx = await resolveAuthContext();
   if ("error" in ctx) return ctx.error;
   const { id } = await params;
-  const record = await getWatchList(id, ctx.organizationId);
+  const record = await getWatchList(id, { userId: ctx.userId, organizationId: ctx.organizationId });
   if (!record) return Response.json({ error: "Not found." }, { status: 404 });
   return Response.json({ watchList: record });
 }
@@ -91,7 +91,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
       preferredCriteria: input.preferredCriteria as never,
       excludedCriteria: input.excludedCriteria as never,
     },
-    ctx.organizationId
+    { userId: ctx.userId, organizationId: ctx.organizationId }
   );
   if (!updated) return Response.json({ error: "Not found." }, { status: 404 });
   return Response.json({ watchList: updated });
@@ -101,7 +101,7 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
   const ctx = await resolveAuthContext();
   if ("error" in ctx) return ctx.error;
   const { id } = await params;
-  const ok = await deleteWatchList(id, ctx.organizationId);
+  const ok = await deleteWatchList(id, { userId: ctx.userId, organizationId: ctx.organizationId });
   if (!ok) return Response.json({ error: "Not found." }, { status: 404 });
   return Response.json({ ok: true });
 }

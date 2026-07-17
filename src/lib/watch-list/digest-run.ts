@@ -12,7 +12,7 @@ import { applyWatchList } from "@/lib/watch-list/apply";
 import { projectResultsForView } from "@/lib/watch-list/results-view";
 import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
 import { signUnsubToken } from "./digest-unsubscribe";
-import { listWatchListes } from "./store";
+import { listWatchListes, LEGACY_OWNER_ID } from "./store";
 import { sendEmail } from "@/lib/email/send";
 
 /** Newest snapshot per slug AT a specific date (equality on snapshotDate). */
@@ -81,10 +81,23 @@ interface OrgListContext {
 /** Evaluate an org's watch lists once (prior-independent): matched slugs +
  *  display metadata per list, plus the union of all matched slugs. Uses the
  *  store layer (parsed criteria) + the same entitlement-scoped applyWatchList
- *  path as /results. */
+ *  path as /results.
+ *
+ *  v0.26 (Task 3) interim note: this pass is evaluated ONCE per org, before
+ *  we know which individual member is being sent to (see the per-recipient
+ *  loop in runDigest/runPreview below) — there's no single "authed userId"
+ *  to thread through listWatchListes here the way every request-scoped
+ *  caller does. Passing LEGACY_OWNER_ID (a sentinel no real Clerk user can
+ *  match, see ./store) makes canViewList's "own" branch never fire, so this
+ *  call surfaces exactly the org's SHARED lists — never a private list some
+ *  other member owns. That's the safe interim behavior: it can undercount
+ *  (a member's own private list won't appear in anyone's digest yet) but it
+ *  cannot leak a teammate's private list. Task 8 (W-T8, "digest recipients
+ *  follow visibility") replaces this with real per-recipient scoping so each
+ *  member's digest also includes their own private lists. */
 async function buildOrgListContext(orgId: string, base: string): Promise<OrgListContext> {
   const entitlement = await getEntitledMarketIds(orgId);
-  const watchLists = await listWatchListes(orgId);
+  const watchLists = await listWatchListes(LEGACY_OWNER_ID, orgId);
   const lists: OrgListContext["lists"] = [];
   const allSlugs = new Set<string>();
   for (const wl of watchLists) {

@@ -4,7 +4,8 @@
 // v0.18 (PR #65) AUTHZ NOTE: this module is per-user by design
 // (the view ledger is a personal "what I've seen" record). It
 // trusts callers to have already verified that the user has access
-// to the parent WatchList via getWatchList(id, organizationId).
+// to the parent WatchList via getWatchList(id, { userId, organizationId })
+// (v0.26: canViewList-gated, not organizationId-only).
 // Do NOT add an organizationId parameter here — that would imply
 // org-scoped view state, which is explicitly NOT what we want
 // (different users in the same org should have independent

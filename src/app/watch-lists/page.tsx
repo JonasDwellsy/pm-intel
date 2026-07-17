@@ -97,7 +97,7 @@ export default async function WatchListesPage() {
     );
   }
 
-  const rows = await listWatchListes(organizationId);
+  const rows = await listWatchListes(userId, organizationId);
   const isEmpty = rows.length === 0;
 
   return (
