@@ -53,3 +53,10 @@ jobs:
 
       - name: Unit tests (node:test)
         run: npm run test:watch-list
+
+      # Component/interaction tests run under a SEPARATE runner (Vitest +
+      # happy-dom, scoped to *.test.tsx) so they never overlap the node:test
+      # lib suite (*.test.ts). Without this step the harness would be dead
+      # infra — merged but never enforced.
+      - name: Component tests (Vitest + Testing Library)
+        run: npm run test:components

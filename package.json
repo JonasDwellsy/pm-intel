@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:watch-list": "node --import tsx --test src/lib/*.test.ts src/lib/scorecard/*.test.ts src/lib/watch-list/*.test.ts src/lib/operators/*.test.ts src/lib/auth/*.test.ts src/lib/styles/*.test.ts src/lib/ask-tools/*.test.ts",
+    "test:components": "vitest run",
+    "test:components:watch": "vitest",
     "migrate:to-orgs": "tsx scripts/migrate-to-orgs.ts",
     "migrate:to-orgs:dry-run": "tsx scripts/migrate-to-orgs.ts --dry-run",
     "audit:metrics": "tsx scripts/audit-metrics.ts"
@@ -51,6 +53,8 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/d3-geo": "^3.1.0",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -59,10 +63,12 @@
     "@types/topojson-specification": "^1.0.5",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "happy-dom": "^20.10.6",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.22.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts",
