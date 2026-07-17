@@ -21,6 +21,14 @@
 // userId here is a tenancy boundary violation — the type signatures
 // below catch it via the named-property pattern (no positional
 // arguments that could be mistakenly swapped).
+//
+//   v0.26 (Task 2/3) — Manual-pin watch lists ("kind") + a per-list
+//   visibility model that's finer-grained than plain org-scoping:
+//   view = own OR shared-to-your-org; edit = own OR legacy-owned in
+//   your org (see ./visibility for the pure predicates). Every read
+//   and write below now takes BOTH userId and organizationId and
+//   defers to canViewList/canEditList as the source of truth — the
+//   DB `where` clauses only narrow the candidate set for efficiency.
 
 import { prisma } from "@/lib/prisma";
 import type {
@@ -28,13 +36,34 @@ import type {
   WeightedCriterion,
 } from "./fields";
 import type { WatchListDefinition } from "./scoring";
+import { canViewList, canEditList } from "./visibility";
+
+/** Valid values for the `kind` column — "criteria" (smart list, matches
+ *  via requiredCriteria/preferredCriteria/excludedCriteria) or "pinned"
+ *  (manual pick list, membership via WatchListMember rows). Exported so
+ *  request-body validation (POST /api/watch-lists) checks untrusted
+ *  input against the same source of truth as createWatchList's own
+ *  default, instead of duplicating the two literals. */
+export const WATCH_LIST_KINDS = ["criteria", "pinned"] as const;
+export type WatchListKind = (typeof WATCH_LIST_KINDS)[number];
 
 export interface WatchListRecord extends WatchListDefinition {
   ownerId: string;
   organizationId: string | null;
   isShared: boolean;
+  kind: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Authorization context every read/write below requires: the
+ *  authenticated Clerk userId (resolved via auth()) AND the caller's
+ *  active organizationId (resolved via getActiveOrgId()). Both are
+ *  needed — canViewList/canEditList consult ownerId-vs-userId AND
+ *  organizationId-vs-isShared together. */
+export interface WatchListAuthContext {
+  userId: string;
+  organizationId: string;
 }
 
 /** Pre-auth placeholder. Retained only so seed scripts and tests can
@@ -56,6 +85,7 @@ function parseRow(row: {
   ownerId: string;
   organizationId: string | null;
   isShared: boolean;
+  kind: string;
   requiredCriteria: string;
   preferredCriteria: string;
   excludedCriteria: string;
@@ -69,6 +99,7 @@ function parseRow(row: {
     ownerId: row.ownerId,
     organizationId: row.organizationId,
     isShared: row.isShared,
+    kind: row.kind,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     requiredCriteria: safeParseJson<FilterCriterion[]>(row.requiredCriteria, []),
@@ -87,10 +118,53 @@ function safeParseJson<T>(raw: string, fallback: T): T {
   }
 }
 
-/** List watch lists scoped to the given org. v0.18: organizationId
- *  is the sole authorization key. Used by the API route + the
- *  saved-list page; both resolve organizationId via getActiveOrgId(). */
-export async function listWatchListes(organizationId: string): Promise<WatchListRecord[]> {
+/** List watch lists visible to `userId` in their active org: lists
+ *  they own (any org) OR lists shared within the active org. v0.26:
+ *  the DB `where` only narrows the candidate set for efficiency —
+ *  canViewList is the source of truth, applied defensively as a
+ *  post-filter in case the narrowing ever drifts from the predicate.
+ *  Used by the API route + the saved-list page; both resolve
+ *  organizationId via getActiveOrgId() and userId via auth(). */
+export async function listWatchListes(
+  userId: string,
+  organizationId: string
+): Promise<WatchListRecord[]> {
+  const rows = await prisma.watchList.findMany({
+    where: { OR: [{ ownerId: userId }, { organizationId, isShared: true }] },
+    orderBy: { updatedAt: "desc" },
+  });
+  return rows
+    .map(parseRow)
+    .filter((r) => canViewList(r, { userId, organizationId }));
+}
+
+/** Lists SHARED to an org (org-visible content, no ownerId match). Retained
+ *  for its own correctness guarantee (see store.test.ts) though the digest
+ *  no longer calls it directly — see listAllForOrg below. */
+export async function listSharedForOrg(organizationId: string): Promise<WatchListRecord[]> {
+  const rows = await prisma.watchList.findMany({
+    where: { organizationId, isShared: true },
+    orderBy: { updatedAt: "desc" },
+  });
+  return rows.map(parseRow);
+}
+
+/** ALL of an org's watch lists — private AND shared — used by the
+ *  digest's per-recipient scoping (Task 8, v0.29). Unlike
+ *  listSharedForOrg, this has no `isShared` filter: it returns every
+ *  list, private or shared, so buildOrgListContext can evaluate the
+ *  org's full list set ONCE (prior-independent) and carry each list's
+ *  {ownerId, isShared, organizationId} forward. The security boundary
+ *  is NOT this query — it's the per-recipient canViewList filter
+ *  (visibleListsForMember in digest-gather.ts) applied downstream,
+ *  once per due member, before any list's content is rendered into an
+ *  email. This query is still safe on its own terms: `where:
+ *  { organizationId }` has no ownerId-match path (so it can't pull in
+ *  a same-owner row from a different org) and a null-organizationId
+ *  legacy sentinel row can never match a specific organizationId
+ *  string, so those rows stay excluded exactly as they are for
+ *  listSharedForOrg. */
+export async function listAllForOrg(organizationId: string): Promise<WatchListRecord[]> {
   const rows = await prisma.watchList.findMany({
     where: { organizationId },
     orderBy: { updatedAt: "desc" },
@@ -98,24 +172,19 @@ export async function listWatchListes(organizationId: string): Promise<WatchList
   return rows.map(parseRow);
 }
 
-/** Fetch a single watch list. When `organizationId` is provided
- *  (the normal path), returns null if the row belongs to a different
- *  org — equivalent to a 404 from the caller's perspective so the
- *  API layer doesn't leak the existence of other orgs' watch lists.
- *
- *  Calling without organizationId is reserved for internal use
- *  (seed scripts, migration scripts) and bypasses authz. Production
- *  request paths MUST pass organizationId. */
+/** Fetch a single watch list. Returns null unless `canViewList`
+ *  passes for the given ctx — equivalent to a 404 from the caller's
+ *  perspective so the API layer doesn't leak the existence of
+ *  another user's private list or another org's watch lists. */
 export async function getWatchList(
   id: string,
-  organizationId?: string
+  ctx: WatchListAuthContext
 ): Promise<WatchListRecord | null> {
   const row = await prisma.watchList.findUnique({ where: { id } });
   if (!row) return null;
-  if (organizationId !== undefined && row.organizationId !== organizationId) {
-    return null;
-  }
-  return parseRow(row);
+  const record = parseRow(row);
+  if (!canViewList(record, ctx)) return null;
+  return record;
 }
 
 export interface WatchListInput {
@@ -123,10 +192,15 @@ export interface WatchListInput {
   description?: string | null;
   // ownerId stays populated for forensics + back-compat. New rows
   // set it to the creating user's Clerk userId; authz is via
-  // organizationId.
+  // canViewList/canEditList (see ./visibility), not organizationId
+  // alone.
   ownerId: string;
   organizationId: string;
   isShared?: boolean;
+  // v0.26 — "criteria" (smart list, default) | "pinned" (manual pick
+  // list). Optional on both create and update; create defaults to
+  // "criteria" so pre-existing callers are unaffected.
+  kind?: string;
   requiredCriteria: FilterCriterion[];
   preferredCriteria: WeightedCriterion[];
   excludedCriteria: FilterCriterion[];
@@ -139,7 +213,8 @@ export async function createWatchList(input: WatchListInput): Promise<WatchListR
       description: input.description ?? null,
       ownerId: input.ownerId,
       organizationId: input.organizationId,
-      isShared: input.isShared ?? true,
+      isShared: input.isShared ?? false,
+      kind: input.kind ?? "criteria",
       requiredCriteria: JSON.stringify(input.requiredCriteria),
       preferredCriteria: JSON.stringify(input.preferredCriteria),
       excludedCriteria: JSON.stringify(input.excludedCriteria),
@@ -148,17 +223,19 @@ export async function createWatchList(input: WatchListInput): Promise<WatchListR
   return parseRow(row);
 }
 
-/** Update a watch list. organizationId is the authz key — refuses
- *  to update rows in a different org. Returns null in that case so
- *  the API layer can 404. */
+/** Update a watch list. Fetches the existing row and refuses unless
+ *  `canEditList` passes for the given ctx (own list, or a legacy-
+ *  owned list in your org) — returns null in either the not-found or
+ *  the refused case so the API layer can 404 without distinguishing
+ *  them (no existence leak). */
 export async function updateWatchList(
   id: string,
   input: Partial<Omit<WatchListInput, "organizationId" | "ownerId">>,
-  organizationId: string
+  ctx: WatchListAuthContext
 ): Promise<WatchListRecord | null> {
   const existing = await prisma.watchList.findUnique({ where: { id } });
   if (!existing) return null;
-  if (existing.organizationId !== organizationId) return null;
+  if (!canEditList(parseRow(existing), ctx)) return null;
 
   const row = await prisma.watchList.update({
     where: { id },
@@ -166,6 +243,7 @@ export async function updateWatchList(
       ...(input.name !== undefined && { name: input.name }),
       ...(input.description !== undefined && { description: input.description }),
       ...(input.isShared !== undefined && { isShared: input.isShared }),
+      ...(input.kind !== undefined && { kind: input.kind }),
       ...(input.requiredCriteria !== undefined && {
         requiredCriteria: JSON.stringify(input.requiredCriteria),
       }),
@@ -180,17 +258,17 @@ export async function updateWatchList(
   return parseRow(row);
 }
 
-/** Delete a watch list. organizationId is the authz key — refuses
- *  to delete rows in a different org. Returns false if either the
- *  row doesn't exist or the org check fails. */
+/** Delete a watch list. Refuses unless `canEditList` passes for the
+ *  given ctx. Returns false when the row doesn't exist OR the edit
+ *  check fails — same no-existence-leak shape as updateWatchList. */
 export async function deleteWatchList(
   id: string,
-  organizationId: string
+  ctx: WatchListAuthContext
 ): Promise<boolean> {
   try {
     const existing = await prisma.watchList.findUnique({ where: { id } });
     if (!existing) return false;
-    if (existing.organizationId !== organizationId) return false;
+    if (!canEditList(parseRow(existing), ctx)) return false;
     await prisma.watchList.delete({ where: { id } });
     return true;
   } catch {
@@ -204,25 +282,111 @@ export async function deleteWatchList(
  *  Distinguishes three cases that getWatchList() collapses into a
  *  single `null`:
  *
- *    1. "found"      — watch list IS in caller's active org. Render.
+ *    1. "found"      — watch list IS in caller's active org AND
+ *                      canViewList() passes (own list, or a list
+ *                      shared within the org). Render.
  *    2. "wrong_org"  — watch list is in a DIFFERENT org that the
- *                      caller IS A MEMBER OF. Detail pages redirect
- *                      to /watch-lists?wrongOrg=<name> and show a
- *                      flash. Caller has access SOMEWHERE, just not
- *                      in their currently-active session.
- *    3. "not_found"  — watch list doesn't exist OR exists in an org
- *                      the caller has no membership in. notFound().
+ *                      caller IS A MEMBER OF, AND canViewList() passes
+ *                      against THAT org (caller owns the row, or it's
+ *                      shared within it). Detail pages redirect to
+ *                      /watch-lists?wrongOrg=<name> and show a flash.
+ *                      Caller has access SOMEWHERE, just not in their
+ *                      currently-active session.
+ *    3. "not_found"  — watch list doesn't exist, exists in an org
+ *                      the caller has no membership in, exists in the
+ *                      caller's active org but is a TEAMMATE'S PRIVATE
+ *                      list (canViewList fails), OR exists in a
+ *                      DIFFERENT org the caller IS a member of but is
+ *                      a TEAMMATE'S PRIVATE list there too
+ *                      (canViewList fails against that org). notFound().
  *                      This branch preserves the no-existence-leak
- *                      property for random URL guessers.
+ *                      property for random URL guessers AND teammates
+ *                      guessing at each other's private list ids, in
+ *                      either the active org or any other org the
+ *                      caller belongs to.
  *
- *  The membership check (case 2 vs 3) is critical: without it, a
- *  random URL guesser could learn that a watch list ID exists by
+ *  v0.26 (Task 3, SECURITY): the "row is in caller's active org" test
+ *  alone used to be sufficient for "found" — that's the leak this
+ *  gate closes. A private list (isShared: false) owned by a
+ *  different user in the SAME org must fall through to not_found,
+ *  same as a cross-org list with no membership. The membership check
+ *  further down (case 2 vs 3) is unchanged and still critical: without
+ *  it, a random URL guesser could learn that a watch list ID exists by
  *  observing the redirect+flash. We only redirect when the caller
- *  is provably a member of the owning org. */
+ *  is provably a member of the owning org.
+ *
+ *  Fix 2 (final-review, SECURITY): membership alone was still too
+ *  permissive for case 2 — ANY row in an org the caller belongs to
+ *  triggered wrong_org, including a teammate's PRIVATE list in that
+ *  other org (an existence leak: the caller learns a private list
+ *  exists there even though they could never view it). canViewList,
+ *  checked against the ROW's org, now gates wrong_org exactly like it
+ *  already gates the same-org "found" path. */
 export type WatchListAccessResult =
   | { status: "found"; record: WatchListRecord }
   | { status: "wrong_org"; ownerOrgName: string }
   | { status: "not_found" };
+
+/** List the pinned members of a watch list (manual-pick "kind":
+ *  "pinned" lists). No authz here — this is a read helper; callers
+ *  that expose it to a request MUST gate access themselves (e.g. via
+ *  getWatchList/canViewList) before calling this, same pattern as
+ *  every other unauthenticated helper in this module. */
+export async function listMembers(
+  watchListId: string
+): Promise<{ memberKey: string; addedByUserId: string; createdAt: Date }[]> {
+  const rows = await prisma.watchListMember.findMany({
+    where: { watchListId },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map((row) => ({
+    memberKey: row.memberKey,
+    addedByUserId: row.addedByUserId,
+    createdAt: row.createdAt,
+  }));
+}
+
+/** Add a pinned member to a watch list. Refuses unless `canEditList`
+ *  passes for the given ctx — same no-existence-leak boolean-refusal
+ *  shape as updateWatchList/deleteWatchList (the API layer 404s on
+ *  false without distinguishing "not found" from "not authorized").
+ *  Upserts on the (watchListId, memberKey) compound unique so a
+ *  repeat pin of the same company is a no-op, not a duplicate row or
+ *  a thrown unique-constraint error. */
+export async function addMember(
+  watchListId: string,
+  memberKey: string,
+  ctx: WatchListAuthContext
+): Promise<boolean> {
+  const existing = await prisma.watchList.findUnique({ where: { id: watchListId } });
+  if (!existing) return false;
+  if (!canEditList(parseRow(existing), ctx)) return false;
+
+  await prisma.watchListMember.upsert({
+    where: { watchListId_memberKey: { watchListId, memberKey } },
+    create: { watchListId, memberKey, addedByUserId: ctx.userId },
+    update: {},
+  });
+  return true;
+}
+
+/** Remove a pinned member from a watch list. Refuses unless
+ *  `canEditList` passes for the given ctx. Tolerates the member
+ *  already being absent (deleteMany's count can be 0) — the caller
+ *  asked for the row to be gone, and it is, so this still reports
+ *  success as long as they were authorized to ask. */
+export async function removeMember(
+  watchListId: string,
+  memberKey: string,
+  ctx: WatchListAuthContext
+): Promise<boolean> {
+  const existing = await prisma.watchList.findUnique({ where: { id: watchListId } });
+  if (!existing) return false;
+  if (!canEditList(parseRow(existing), ctx)) return false;
+
+  await prisma.watchListMember.deleteMany({ where: { watchListId, memberKey } });
+  return true;
+}
 
 export async function getWatchListWithCrossOrgCheck(args: {
   watchListId: string;
@@ -237,9 +401,16 @@ export async function getWatchListWithCrossOrgCheck(args: {
     return { status: "not_found" };
   }
 
-  // Happy path — watch list is in the caller's active org.
+  // Happy path — watch list is in the caller's active org. Still
+  // gated by canViewList: a private (isShared: false) list owned by
+  // someone else in this same org must NOT be exposed just because
+  // it happens to share the caller's active organizationId.
   if (row.organizationId === activeOrganizationId) {
-    return { status: "found", record: parseRow(row) };
+    const record = parseRow(row);
+    if (!canViewList(record, { userId, organizationId: activeOrganizationId })) {
+      return { status: "not_found" };
+    }
+    return { status: "found", record };
   }
 
   // Watch list is in a different org. Determine: is the caller a
@@ -263,6 +434,20 @@ export async function getWatchListWithCrossOrgCheck(args: {
     },
   });
   if (!membership) {
+    return { status: "not_found" };
+  }
+
+  // Fix 2 (final-review, SECURITY): membership in the row's org is
+  // necessary but not sufficient — without this gate, ANY row in an
+  // org the caller belongs to triggers the wrong_org redirect+flash,
+  // including a teammate's PRIVATE list. canViewList (checked against
+  // the ROW's org, not the caller's active org) is the same predicate
+  // the happy path above already enforces: the caller must either own
+  // the list or it must be shared within that other org. Only then do
+  // we confirm its existence via the redirect; otherwise fall through
+  // to the same not_found a random URL guesser gets.
+  const record = parseRow(row);
+  if (!canViewList(record, { userId, organizationId: row.organizationId })) {
     return { status: "not_found" };
   }
   return {

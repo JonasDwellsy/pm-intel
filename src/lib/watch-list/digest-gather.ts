@@ -4,6 +4,7 @@
 import { diffSnapshots } from "./change-detection";
 import type { SnapshotRow } from "./snapshot";
 import type { DigestListInput, DigestOperatorInput } from "./digest";
+import { canViewList, type ListAuthShape } from "./visibility";
 
 export function selectSnapshotPair(dates: Date[]): { latest: Date; prior: Date } | null {
   const distinct = Array.from(new Set(dates.map((d) => d.getTime()))).sort((a, b) => b - a);
@@ -35,6 +36,40 @@ export function buildListChanges(args: {
     operators.push({ pmSlug: slug, ...meta, changes });
   }
   return { watchListName: args.watchListName, operators };
+}
+
+// Task 8 (v0.29) — SECURITY-CRITICAL: this is the boundary between
+// buildOrgListContext (digest-run.ts), which evaluates an org's ENTIRE
+// list set once — private lists included — and the per-recipient email
+// that actually goes out. buildOrgListContext is intentionally
+// org-wide and prior-independent; it does NOT gate on who's receiving
+// the digest. Every call site that fans out to a specific member MUST
+// run that org-wide list set through this filter before any list's
+// content reaches that member's rendered digest, or a private list
+// owned by a different member (or org) leaks across the tenancy/
+// visibility boundary — the same class of bug the Task 3 review
+// caught in the digest's org-scoped content pass (see store.ts's
+// listSharedForOrg / listAllForOrg comments). Pure — no IO — delegates
+// entirely to canViewList (./visibility) so this file stays
+// unit-testable without a database.
+export function visibleListsForMember<T extends ListAuthShape>(
+  lists: T[],
+  member: { userId: string; organizationId: string },
+): T[] {
+  return lists.filter((l) => canViewList(l, member));
+}
+
+// Task 8 regression fix (preview leak) — runPreview (digest-run.ts) is a
+// CRON_SECRET-gated diagnostic that sends to a caller-supplied email, not
+// an org member: it has no recipient identity for visibleListsForMember to
+// check ownership against. Since Task 8 widened buildOrgListContext to
+// include an org's PRIVATE lists (so runDigest's per-member filter could see
+// them), runPreview was left consuming that same unfiltered list set,
+// meaning a preview could render a private list's content to an arbitrary
+// email. Scope preview content to shared lists only — the org-wide content
+// that's safe to show without a recipient to authorize against.
+export function sharedListsOnly<T extends { isShared: boolean }>(lists: T[]): T[] {
+  return lists.filter((l) => l.isShared === true);
 }
 
 export function filterSubscribed(

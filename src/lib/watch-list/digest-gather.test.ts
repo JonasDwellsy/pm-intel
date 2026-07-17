@@ -1,6 +1,6 @@
 import test from "node:test";
 import { strict as assert } from "node:assert";
-import { selectSnapshotPair, buildListChanges, filterSubscribed, isDigestDue, selectPriorForRecipient, parseCadence } from "./digest-gather";
+import { selectSnapshotPair, buildListChanges, filterSubscribed, isDigestDue, selectPriorForRecipient, parseCadence, visibleListsForMember, sharedListsOnly } from "./digest-gather";
 import type { SnapshotRow, StarsPerMetric } from "./snapshot";
 
 const noStars: StarsPerMetric = {
@@ -114,4 +114,109 @@ test("selectPriorForRecipient falls back to 2nd-most-recent distinct date when l
 
 test("selectPriorForRecipient returns null when only one distinct date and no lastNotified", () => {
   assert.equal(selectPriorForRecipient(LATEST, null, [LATEST]), null);
+});
+
+// ─── visibleListsForMember (Task 8, W-T8) ────────────────────────────
+//
+// SECURITY-CRITICAL: this is the per-recipient boundary between
+// buildOrgListContext (digest-run.ts), which evaluates an org's ENTIRE
+// list set once — private lists included, with no per-member gating —
+// and the rendered digest that actually reaches one member's inbox.
+// These are behavioral tests (not source regex) precisely because this
+// predicate is pure and the bug class it guards against (a private
+// list leaking to the wrong recipient) is exactly the kind of thing a
+// source-string check can't catch.
+const ORG = "org_1";
+const OTHER_ORG = "org_2";
+const OWNER = "user_owner";
+const OTHER_MEMBER = "user_other_member";
+
+function list(over: Partial<{ ownerId: string; isShared: boolean; organizationId: string | null }> = {}) {
+  return { ownerId: OWNER, isShared: false, organizationId: ORG, ...over, name: "L", matchedPmSlugs: [], metaBySlug: new Map() };
+}
+
+test("visibleListsForMember: a private list reaches only its owner", () => {
+  const lists = [list({ isShared: false })];
+  assert.equal(
+    visibleListsForMember(lists, { userId: OWNER, organizationId: ORG }).length,
+    1,
+    "owner must see their own private list"
+  );
+  assert.equal(
+    visibleListsForMember(lists, { userId: OTHER_MEMBER, organizationId: ORG }).length,
+    0,
+    "a different member in the SAME org must NOT see the owner's private list"
+  );
+});
+
+test("visibleListsForMember: a shared list reaches every org member", () => {
+  const lists = [list({ isShared: true })];
+  assert.equal(visibleListsForMember(lists, { userId: OWNER, organizationId: ORG }).length, 1);
+  assert.equal(
+    visibleListsForMember(lists, { userId: OTHER_MEMBER, organizationId: ORG }).length,
+    1,
+    "a shared list must reach teammates, not just its owner"
+  );
+});
+
+test("visibleListsForMember: cross-org member never sees another org's shared list", () => {
+  const lists = [list({ isShared: true, organizationId: ORG })];
+  assert.equal(
+    visibleListsForMember(lists, { userId: OTHER_MEMBER, organizationId: OTHER_ORG }).length,
+    0
+  );
+});
+
+test("visibleListsForMember: mixed set — filters down to exactly the visible subset per recipient", () => {
+  const mine = list({ ownerId: OWNER, isShared: false });
+  const teammatesPrivate = list({ ownerId: OTHER_MEMBER, isShared: false });
+  const shared = list({ ownerId: OTHER_MEMBER, isShared: true });
+  const lists = [mine, teammatesPrivate, shared];
+
+  const forOwner = visibleListsForMember(lists, { userId: OWNER, organizationId: ORG });
+  assert.deepEqual(forOwner, [mine, shared], "owner sees their own list + the shared one, not the teammate's private list");
+
+  const forOther = visibleListsForMember(lists, { userId: OTHER_MEMBER, organizationId: ORG });
+  assert.deepEqual(forOther, [teammatesPrivate, shared], "the other member sees their own + shared, not OWNER's private list");
+});
+
+test("visibleListsForMember: a null-organizationId legacy row is invisible (non-owner viewer)", () => {
+  // Uses a distinct ownerId (not the viewer) so this exercises the
+  // isShared/organizationId branch of canViewList, not the "it's my own
+  // list" branch — canViewList's ownership check has no org gate at all
+  // (see visibility.ts), so an owner viewing their own row is always
+  // visible to them regardless of organizationId; the null-org
+  // protection matters for everyone ELSE.
+  const lists = [list({ ownerId: "legacy-pre-auth", isShared: true, organizationId: null })];
+  assert.equal(visibleListsForMember(lists, { userId: OWNER, organizationId: ORG }).length, 0);
+  assert.equal(visibleListsForMember(lists, { userId: OTHER_MEMBER, organizationId: ORG }).length, 0);
+});
+
+// ─── sharedListsOnly (Task 8 regression fix — preview leak) ──────────
+//
+// runPreview (digest-run.ts) is a CRON_SECRET-gated diagnostic that sends
+// to a caller-supplied email, not an org member — it has no recipient
+// identity for visibleListsForMember to check. Task 8 widened
+// buildOrgListContext to include an org's PRIVATE lists (for runDigest's
+// per-member filter), but left runPreview consuming that same unfiltered
+// set — so a preview could render a private list's content to an
+// arbitrary email. sharedListsOnly is the guard that closes that gap:
+// this test asserts a private list is excluded regardless of who owns it,
+// which is exactly the property runPreview's fix depends on.
+test("sharedListsOnly: excludes private lists, keeps shared ones, regardless of owner", () => {
+  const mine = list({ ownerId: OWNER, isShared: false });
+  const teammatesPrivate = list({ ownerId: OTHER_MEMBER, isShared: false });
+  const shared = list({ ownerId: OTHER_MEMBER, isShared: true });
+  const lists = [mine, teammatesPrivate, shared];
+
+  assert.deepEqual(
+    sharedListsOnly(lists),
+    [shared],
+    "private lists (owned by anyone, including the caller) must never appear in preview content"
+  );
+});
+
+test("sharedListsOnly: empty when no list in the org is shared", () => {
+  const lists = [list({ isShared: false }), list({ ownerId: OTHER_MEMBER, isShared: false })];
+  assert.deepEqual(sharedListsOnly(lists), []);
 });

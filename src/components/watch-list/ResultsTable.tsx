@@ -29,6 +29,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { fmtInt, fmtPct, fmtNumber } from "@/lib/format";
 import {
   FIELD_REGISTRY,
@@ -48,6 +49,17 @@ interface Props {
   required: FilterCriterion[];
   preferred: WeightedCriterion[];
   excluded: FilterCriterion[];
+  /** v0.28 (Task 7) — needed by the remove-pin control to know which
+   *  list's membership to mutate. Always the current watch list's id;
+   *  unused when canManageMembers is false. */
+  watchListId: string;
+  /** True only on a `kind: "pinned"` pick list's results, for the
+   *  owner (or a legacy-owner-in-org) — i.e. `watchList.kind ===
+   *  "pinned" && canEditList(...)`, resolved by the page. Gates the
+   *  per-row "Remove" control; a view-only shared viewer never sees
+   *  it. Defaults to false so every other caller (smart lists) is
+   *  unaffected. */
+  canManageMembers?: boolean;
 }
 
 type ViewMode = "operator" | "market";
@@ -88,6 +100,8 @@ export function ResultsTable({
   required,
   preferred,
   excluded,
+  watchListId,
+  canManageMembers = false,
 }: Props) {
   // ── View toggle (Operator / Market) with localStorage persistence.
   // Server-render value is "operator" (the spec default). Client
@@ -127,8 +141,8 @@ export function ResultsTable({
 
   // Build the column list adaptively.
   const columns: ColumnDef[] = React.useMemo(
-    () => buildColumns({ required, preferred, excluded }),
-    [required, preferred, excluded]
+    () => buildColumns({ required, preferred, excluded, watchListId, canManageMembers }),
+    [required, preferred, excluded, watchListId, canManageMembers]
   );
 
   // Sort.
@@ -348,10 +362,14 @@ function buildColumns({
   required,
   preferred,
   excluded,
+  watchListId,
+  canManageMembers,
 }: {
   required: FilterCriterion[];
   preferred: WeightedCriterion[];
   excluded: FilterCriterion[];
+  watchListId: string;
+  canManageMembers: boolean;
 }): ColumnDef[] {
   const cols: ColumnDef[] = [
     {
@@ -379,11 +397,21 @@ function buildColumns({
       render: (row) => (
         <div>
           <div className="font-semibold text-navy">{row.name}</div>
-          {row.isMultiMarket && (
-            <span className="dq-pill dq-pill-navy-soft mt-1 inline-block text-[10.5px]">
-              Multi-market · {row.marketCount}
-            </span>
-          )}
+          <div className="mt-1 flex flex-wrap items-center gap-1">
+            {row.isMultiMarket && (
+              <span className="dq-pill dq-pill-navy-soft inline-block text-[10.5px]">
+                Multi-market · {row.marketCount}
+              </span>
+            )}
+            {row.pinned && (
+              <span
+                className="dq-pill dq-pill-teal text-[10.5px]"
+                title="Manually pinned to this watch list."
+              >
+                Pinned
+              </span>
+            )}
+          </div>
         </div>
       ),
     },
@@ -503,6 +531,28 @@ function buildColumns({
     alignRight: true,
     render: (row) => <ViewButton row={row} />,
   });
+  // v0.28 (Task 7 Step 2) — owner-only manage/remove on a pick list's
+  // results. Only rendered when the page has already gated
+  // canManageMembers to `watchList.kind === "pinned" && canEditList(...)`
+  // — a view-only shared viewer never gets this column at all.
+  if (canManageMembers) {
+    cols.push({
+      id: "managePin",
+      label: "",
+      fieldId: null,
+      tooltip: "Remove this company from the pick list.",
+      sortKey: null,
+      alignRight: true,
+      render: (row) =>
+        row.pinned ? (
+          <RemovePinButton
+            watchListId={watchListId}
+            memberKey={row.memberKey}
+            operatorName={row.name}
+          />
+        ) : null,
+    });
+  }
   return cols;
 }
 
@@ -657,6 +707,71 @@ function DrillLink({ t }: { t: DrillTarget }) {
         {t.marketName}
       </span>
     </Link>
+  );
+}
+
+// ─── manage/remove (Task 7 Step 2) ─────────────────────────────────
+
+/** Owner-only unpin control on a pick list's results. Calls DELETE
+ *  /api/watch-lists/[id]/members with the row's company-level
+ *  memberKey, then router.refresh() so the server re-runs
+ *  applyWatchList/listMembers and the row naturally disappears from
+ *  the next render — no local row-removal bookkeeping needed here.
+ *  No confirm dialog: unpinning isn't destructive the way deleting a
+ *  whole list is (WatchListIndex's delete DOES confirm) — a mis-click
+ *  is trivially reversible via the "Watch list" control on the
+ *  operator's scorecard/market/search row. */
+function RemovePinButton({
+  watchListId,
+  memberKey,
+  operatorName,
+}: {
+  watchListId: string;
+  memberKey: string;
+  operatorName: string;
+}) {
+  const router = useRouter();
+  const [pending, setPending] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function handleRemove() {
+    setPending(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/watch-lists/${watchListId}/members`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ memberKey }),
+      });
+      if (!res.ok) throw new Error(`Failed to remove (${res.status}).`);
+      router.refresh();
+      // Deliberately leave `pending` true — the button stays disabled
+      // (reading "Removing…") until the refreshed server render swaps
+      // this row out, avoiding a flash back to "Remove" right before
+      // the row disappears.
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to remove.");
+      setPending(false);
+    }
+  }
+
+  return (
+    <span className="inline-flex flex-col items-end gap-0.5">
+      <button
+        type="button"
+        onClick={() => void handleRemove()}
+        disabled={pending}
+        aria-label={`Remove ${operatorName} from this pick list`}
+        className="inline-flex h-7 items-center whitespace-nowrap rounded-md border border-grid bg-white px-2.5 text-[12px] font-medium text-muted-foreground hover:border-bad hover:text-bad disabled:opacity-50"
+      >
+        {pending ? "Removing…" : "Remove"}
+      </button>
+      {error && (
+        <span role="alert" className="text-[10.5px] text-bad">
+          {error}
+        </span>
+      )}
+    </span>
   );
 }
 

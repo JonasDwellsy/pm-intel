@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { WatchListEditor, type EditorWatchList } from "@/components/watch-list/WatchListEditor";
 import { listMarketOptions } from "@/lib/watch-list/editor-options";
 import { getWatchListWithCrossOrgCheck } from "@/lib/watch-list/store";
+import { canEditList } from "@/lib/watch-list/visibility";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 
 // /watch-lists/[id]/edit — server component loads the existing watch
@@ -15,6 +16,16 @@ import { getActiveOrgId } from "@/lib/auth/active-org";
 // from a different org renders the standard 404 (no existence leak);
 // soft fallback to /setup-workspace when the personal org isn't
 // provisioned yet.
+//
+// Fix 3 (final-review) — getWatchListWithCrossOrgCheck's "found" status
+// only proves canViewList passed (own list, or shared-in-org), which is
+// the read gate, not the write gate. Now that sharing is reachable
+// (Fix 1), a view-only shared viewer could otherwise open this editor.
+// canEditList (own list, or legacy-owned-in-org) is the correct gate
+// here, same predicate every mutation route already enforces
+// server-side — this just keeps the UI from offering an editor the
+// API would refuse to save from. notFound() mirrors the existing
+// no-existence-leak pattern used for the other refusal branches.
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +64,14 @@ export default async function EditWatchListPage({ params }: PageProps) {
     );
   }
   const record = access.record;
+  // Fix 3 (final-review) — a view-only shared viewer passes canViewList
+  // (that's what "found" already proved) but must not reach the editor.
+  // notFound() rather than a redirect: consistent with how this page
+  // already treats not_found/refused-access cases, and avoids a flash
+  // that would confirm the list's existence to a viewer who can't edit it.
+  if (!canEditList(record, { userId, organizationId })) {
+    notFound();
+  }
   const initial: EditorWatchList = {
     id: record.id,
     name: record.name,

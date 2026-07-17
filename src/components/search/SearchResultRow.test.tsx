@@ -1,7 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { SearchResultRow } from "./SearchResultRow";
 import type { PMSearchResult } from "@/lib/pm-search";
+
+// v0.27 (Task 6) — "ranked"/"canonical" rows now mount the AddToWatchList
+// island, which calls Clerk's useAuth() and throws outside a
+// <ClerkProvider/>. These tests don't exercise the pin control itself
+// (see AddToWatchList.test.tsx for that) — mock a signed-out session so
+// the island quietly renders null and the existing row assertions below
+// are unaffected.
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({ isSignedIn: false, userId: null }),
+}));
 
 const market: PMSearchResult = {
   tier: "market", name: "Denver, CO", marketId: "denver-co", marketCity: "Denver",

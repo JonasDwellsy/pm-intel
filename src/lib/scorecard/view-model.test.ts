@@ -61,6 +61,27 @@ test("header dwellsyCompanyUrl is null when companyId missing", () => {
   assert.equal(v.header.dwellsyCompanyUrl, null);
 });
 
+test("header carries canonicalOperatorId when present, null when absent", () => {
+  // v0.27 (Task 6) — drives the Add-to-watch-list pin key
+  // (header.canonicalOperatorId ?? slug) so a multi-market operator
+  // pins the company, not one market-instance slug.
+  const withCanonical = buildScorecardView({
+    scorecard: scFixture({ canonicalOperatorId: "doorby" }),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.equal(withCanonical.header.canonicalOperatorId, "doorby");
+
+  const withoutCanonical = buildScorecardView({
+    scorecard: scFixture(),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.equal(withoutCanonical.header.canonicalOperatorId, null);
+});
+
 test("readout has the four areas with the Operating Performance label", () => {
   const v = buildScorecardView({ scorecard: scFixture(), pool: [], trajectory: { points: [] }, marketConcessionMedian: 0.01 });
   const areas = v.readout.map((r) => r.area);

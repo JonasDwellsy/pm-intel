@@ -229,7 +229,7 @@ model WatchList {
   name              String
   description       String?
   ownerId           String
-  isShared          Boolean  @default(true)
+  isShared          Boolean  @default(false)
   // JSON-encoded arrays. See src/lib/watch-list/fields.ts for the
   // FilterCriterion + WeightedCriterion shapes.
   requiredCriteria  String   @default("[]")
@@ -252,6 +252,10 @@ model WatchList {
   // banner; one row written per signed-in page-view. Cascade-delete
   // so removing a watch list cleans up its view history.
   views WatchListView[]
+
+  // v0.26 — "criteria" (smart list) | "pinned" (manual pick list).
+  kind    String            @default("criteria")
+  members WatchListMember[]
 
   @@index([ownerId])
   // Hot query: list all watch lists in an org, most-recently-updated
@@ -362,6 +366,25 @@ model WatchListView {
   // (userId, watchListId, viewedAt DESC) covers "find the prior
   // viewedAt for this user/watch-list pair" — the only hot query.
   @@index([userId, watchListId, viewedAt(sort: Desc)])
+}
+
+// v0.26 — Manual pins for kind='pinned' watch lists (the "pick list"
+// counterpart to the criteria-driven smart lists). One row per
+// (watchList, operator) pin. Cascade-delete so removing a watch list
+// cleans up its members.
+model WatchListMember {
+  id          String   @id @default(cuid())
+  watchListId String
+  // Company-level pin. Value == canonicalOperatorId, or the PM slug for
+  // single-market operators (the groupByCanonical fallback key).
+  memberKey     String
+  addedByUserId String
+  createdAt     DateTime @default(now())
+
+  watchList WatchList @relation(fields: [watchListId], references: [id], onDelete: Cascade)
+
+  @@unique([watchListId, memberKey])
+  @@index([watchListId])
 }
 
 model DigestPreference {

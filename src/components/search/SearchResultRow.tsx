@@ -2,6 +2,22 @@
 
 import Link from "next/link";
 import type { PMSearchResult } from "@/lib/pm-search";
+import { AddToWatchList } from "@/components/watch-list/AddToWatchList";
+
+// v0.27 (Task 6) — the watch-list pin key for a search row. Only "ranked"
+// (single-market, has a scorecard `slug`) and "canonical" (multi-market,
+// has a `canonicalSlug`) tiers carry a PM/canonical identity that the
+// pin system's `canonicalOperatorId ?? pmSlug` convention (see apply.ts)
+// can key on. "tracked" rows are below the ranking threshold — no PM
+// record, no scorecard, no slug of any kind — so there's nothing to pin
+// to (a pin nobody can ever resolve back to an operator). "market" rows
+// aren't operators at all. Returns null for both, which the renderer
+// treats as "don't mount the control."
+function operatorMemberKey(result: PMSearchResult): string | null {
+  if (result.tier === "canonical") return result.canonicalSlug;
+  if (result.tier === "ranked") return result.slug;
+  return null;
+}
 
 // Shared result-row primitive — rendered inside both the top-nav dropdown
 // (SearchInput) and the Cmd+K modal (SearchModal). Both surfaces share
@@ -129,13 +145,16 @@ export function SearchResultRow({
       ? result.matchedAlias
       : undefined;
 
+  const memberKey = operatorMemberKey(result);
+
   return (
-    <li>
+    <li className="relative">
       <Link
         href={result.href}
         onClick={onSelect}
         className={
           `flex items-center justify-between gap-3 ${padding} transition-colors ` +
+          (memberKey ? "pr-9 " : "") +
           (active
             ? "bg-surface-soft"
             : "hover:bg-surface-soft focus-visible:bg-surface-soft")
@@ -176,6 +195,19 @@ export function SearchResultRow({
           />
         )}
       </Link>
+      {/* Sibling of the Link, not nested in it (same rationale as
+          PMListItem) — absolutely positioned over the row's own right
+          padding (reserved above via pr-9) so it doesn't collide with
+          the star chip or the row's click-to-navigate area. */}
+      {memberKey && (
+        <div className="absolute right-2.5 top-1/2 z-10 -translate-y-1/2">
+          <AddToWatchList
+            memberKey={memberKey}
+            operatorName={result.name}
+            compact
+          />
+        </div>
+      )}
     </li>
   );
 }

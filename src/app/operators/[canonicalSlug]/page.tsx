@@ -114,7 +114,7 @@ export default async function OperatorScorecardPage({
       // affordance here.
       const organizationId = await getActiveOrgId();
       if (organizationId) {
-        const bb = await getWatchList(fromWatchList, organizationId);
+        const bb = await getWatchList(fromWatchList, { userId: viewerId, organizationId });
         if (bb) watchListBreadcrumb = { id: bb.id, name: bb.name };
       }
     }

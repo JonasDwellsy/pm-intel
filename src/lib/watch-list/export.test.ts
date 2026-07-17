@@ -143,6 +143,7 @@ function makeRow(opts: {
   pmName?: string;
   pmMarketId?: string;
   monthsOnPlatform?: number;
+  pinned?: boolean;
 }): ResultRowVM {
   const pm = makePmRecord({
     slug: opts.name.toLowerCase().replace(/\s+/g, "-"),
@@ -170,6 +171,8 @@ function makeRow(opts: {
     listingTrajectoryYoY: opts.listingYoY ?? null,
     concessionRate: opts.concessionRate ?? null,
     fitScore: opts.fitScore,
+    pinned: opts.pinned ?? false,
+    memberKey: pm.slug,
     pm,
     preferredBreakdown: [],
     requiredBreakdown: [],
@@ -516,6 +519,102 @@ test("Adaptive columns dedup — concessionRate appears once (column is the regi
   // Expected: "Concession Rate %" (always-on) + "Concession
   // frequency" (adaptive, the registry's label for concessionRate).
   assert.equal(concessionColumns.length, 2);
+});
+
+// ─── Pinned column (Task 7) ──────────────────────────────────────
+
+test("Operators sheet has a Pinned column marking pinned rows yes/no", () => {
+  const wb = buildWorkbook({
+    watchList: SAMPLE_BUYBOX,
+    operatorRows: [
+      makeRow({ rank: 1, name: "Pinned Op", marketLabel: "X", fitScore: 100, urusT12: 50, pinned: true }),
+      makeRow({ rank: 2, name: "Matched Op", marketLabel: "Y", fitScore: 80, urusT12: 200, pinned: false }),
+    ],
+    marketRows: [],
+    totalCandidates: 100,
+    methodologyVersion: "v0.8",
+    liveUrl: "https://example.test/watch-lists/x/results",
+    generatedAt: new Date("2026-05-21T00:00:00Z"),
+  });
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+    wb.workbook.Sheets["Operators"]
+  );
+  const pinned = rows.find((r) => r["Operator"] === "Pinned Op");
+  const matched = rows.find((r) => r["Operator"] === "Matched Op");
+  assert.equal(pinned?.["Pinned"], "yes");
+  assert.equal(matched?.["Pinned"], "no");
+});
+
+test("Markets sheet has a Pinned column marking pinned rows yes/no", () => {
+  const wb = buildWorkbook({
+    watchList: SAMPLE_BUYBOX,
+    operatorRows: [],
+    marketRows: [
+      makeRow({ rank: 1, name: "Pinned Op", marketLabel: "Birmingham, AL", fitScore: 100, urusT12: 50, pinned: true }),
+      makeRow({ rank: 2, name: "Matched Op", marketLabel: "Phoenix", fitScore: 80, urusT12: 200, pinned: false }),
+    ],
+    totalCandidates: 100,
+    methodologyVersion: "v0.8",
+    liveUrl: "https://example.test/watch-lists/x/results",
+    generatedAt: new Date("2026-05-21T00:00:00Z"),
+  });
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+    wb.workbook.Sheets["Markets"]
+  );
+  const pinned = rows.find((r) => r["Operator"] === "Pinned Op");
+  const matched = rows.find((r) => r["Operator"] === "Matched Op");
+  assert.equal(pinned?.["Pinned"], "yes");
+  assert.equal(matched?.["Pinned"], "no");
+});
+
+test("Summary sheet shows 'Companies pinned' (not 'Match rate') for a kind:'pinned' watch list", () => {
+  const wb = buildWorkbook({
+    watchList: {
+      id: "pick-1",
+      name: "My Pick List",
+      description: null,
+      requiredCriteria: [],
+      preferredCriteria: [],
+      excludedCriteria: [],
+      kind: "pinned",
+    },
+    operatorRows: [
+      makeRow({ rank: 1, name: "Pinned Op", marketLabel: "X", fitScore: 100, urusT12: 50, pinned: true }),
+    ],
+    marketRows: [],
+    totalCandidates: 3200,
+    methodologyVersion: "v0.8",
+    liveUrl: "https://example.test/watch-lists/pick-1/results",
+    generatedAt: new Date("2026-05-21T00:00:00Z"),
+  });
+  const rows = XLSX.utils.sheet_to_json<Array<string | number>>(
+    wb.workbook.Sheets["Summary"],
+    { header: 1 }
+  );
+  const map: Record<string, string | number> = {};
+  for (const row of rows) {
+    if (row.length >= 2 && typeof row[0] === "string") map[row[0]] = row[1];
+  }
+  assert.equal(map["Companies pinned"], 1);
+  assert.equal(map["Operators matched"], undefined);
+  assert.equal(map["Match rate"], undefined);
+  assert.equal(map["Total operators evaluated"], undefined);
+});
+
+test("Summary sheet keeps 'Operators matched' / 'Match rate' wording when kind is omitted (backward compatible)", () => {
+  // SAMPLE_BUYBOX has no `kind` field — every pre-Task-7 caller/test
+  // fixture. Confirms the new conditional doesn't change the default.
+  const { workbook } = buildSampleWorkbook();
+  const rows = XLSX.utils.sheet_to_json<Array<string | number>>(
+    workbook.Sheets["Summary"],
+    { header: 1 }
+  );
+  const map: Record<string, string | number> = {};
+  for (const row of rows) {
+    if (row.length >= 2 && typeof row[0] === "string") map[row[0]] = row[1];
+  }
+  assert.equal(map["Operators matched"], 2);
+  assert.equal(map["Companies pinned"], undefined);
 });
 
 // ─── No-criteria edge case ───────────────────────────────────────

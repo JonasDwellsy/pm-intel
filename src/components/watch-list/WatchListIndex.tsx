@@ -20,9 +20,14 @@ import type { WatchListRecord } from "@/lib/watch-list/store";
 
 interface Props {
   watchListes: WatchListRecord[];
+  /** v0.28 (Task 7 Step 1) — watchListId → pinned-member count, for
+   *  `kind: "pinned"` rows only. Computed server-side (listMembers per
+   *  pinned row) and passed down so this client component doesn't need
+   *  its own data-fetching path just to render "N companies". */
+  pinnedCounts: Record<string, number>;
 }
 
-export function WatchListIndex({ watchListes }: Props) {
+export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
   const router = useRouter();
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
   const [busyId, setBusyId] = React.useState<string | null>(null);
@@ -40,6 +45,14 @@ export function WatchListIndex({ watchListes }: Props) {
         body: JSON.stringify({
           name: `${bb.name} (copy)`,
           description: bb.description,
+          // v0.28 (Task 7) fix: this used to omit `kind` entirely, so
+          // duplicating a "pinned" pick list silently created a
+          // "criteria" list instead (createWatchList's own default) —
+          // the duplicate would show up as a smart list with the same
+          // (empty) criteria arrays but none of the original's pinned
+          // membership, and no way to tell it apart from a genuine
+          // blank smart list on the index.
+          kind: bb.kind,
           requiredCriteria: bb.requiredCriteria,
           preferredCriteria: bb.preferredCriteria,
           excludedCriteria: bb.excludedCriteria,
@@ -91,9 +104,16 @@ export function WatchListIndex({ watchListes }: Props) {
             className="flex flex-col rounded-lg border border-grid bg-white p-5 transition-shadow hover:shadow-tile-hover"
           >
             <header>
-              <h2 className="text-[16px] font-semibold leading-snug text-navy">
-                {bb.name}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-[16px] font-semibold leading-snug text-navy">
+                  {bb.name}
+                </h2>
+                {bb.kind === "pinned" && (
+                  <span className="dq-pill dq-pill-teal shrink-0 text-[10px]">
+                    Pick list
+                  </span>
+                )}
+              </div>
               <p className="mt-1.5 line-clamp-2 min-h-[2.6em] text-[13px] text-foreground/70">
                 {bb.description ?? (
                   <span className="italic text-muted-2">No description.</span>
@@ -101,21 +121,36 @@ export function WatchListIndex({ watchListes }: Props) {
               </p>
             </header>
 
-            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
-              <CountChip label="required" color="text-bad" dot="bg-bad" value={bb.requiredCriteria.length} />
-              <CountChip
-                label="preferred"
-                color="text-orange-700"
-                dot="bg-orange"
-                value={bb.preferredCriteria.length}
-              />
-              <CountChip
-                label="excluded"
-                color="text-muted-foreground"
-                dot="bg-muted-2"
-                value={bb.excludedCriteria.length}
-              />
-            </div>
+            {bb.kind === "pinned" ? (
+              // v0.28 (Task 7 Step 1) — a pick list has no criteria to
+              // summarize; show the manual-membership count instead
+              // (from listMembers, computed server-side).
+              <div className="mt-4 flex items-center gap-1.5 text-[12px]">
+                <span className="inline-block size-1.5 rounded-full bg-teal" />
+                <span className="dq-mono tabular-nums text-navy">
+                  {pinnedCounts[bb.id] ?? 0}
+                </span>
+                <span className="text-teal-700">
+                  {(pinnedCounts[bb.id] ?? 0) === 1 ? "company" : "companies"}
+                </span>
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
+                <CountChip label="required" color="text-bad" dot="bg-bad" value={bb.requiredCriteria.length} />
+                <CountChip
+                  label="preferred"
+                  color="text-orange-700"
+                  dot="bg-orange"
+                  value={bb.preferredCriteria.length}
+                />
+                <CountChip
+                  label="excluded"
+                  color="text-muted-foreground"
+                  dot="bg-muted-2"
+                  value={bb.excludedCriteria.length}
+                />
+              </div>
+            )}
 
             <div className="mt-2 text-[11.5px] text-muted-foreground dq-mono">
               Updated {formatRelative(bb.updatedAt)}

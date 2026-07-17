@@ -194,6 +194,7 @@ const FIXTURE_VIEW: ScorecardView = {
     silverCount: 2,
     dwellsyCompanyUrl: "https://dwellsy.com/company/doorby-realty",
     website: "https://doorby.com",
+    canonicalOperatorId: "doorby-realty-phoenix",
   },
   readout: [
     {

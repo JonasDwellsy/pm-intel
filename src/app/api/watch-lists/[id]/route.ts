@@ -54,7 +54,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
   const ctx = await resolveAuthContext();
   if ("error" in ctx) return ctx.error;
   const { id } = await params;
-  const record = await getWatchList(id, ctx.organizationId);
+  const record = await getWatchList(id, { userId: ctx.userId, organizationId: ctx.organizationId });
   if (!record) return Response.json({ error: "Not found." }, { status: 404 });
   return Response.json({ watchList: record });
 }
@@ -78,6 +78,13 @@ export async function PUT(req: Request, { params }: RouteParams) {
       return Response.json({ error: `${key} must be an array.` }, { status: 422 });
     }
   }
+  // Fix 1 (final-review) — wire the share-to-org toggle. isShared must be
+  // a real boolean when present; updateWatchList itself gates the write
+  // on canEditList, so only the owner (or a legacy-owned-in-org caller)
+  // can actually flip it — this route just shapes/validates the input.
+  if (input.isShared !== undefined && typeof input.isShared !== "boolean") {
+    return Response.json({ error: "isShared must be a boolean." }, { status: 422 });
+  }
 
   const updated = await updateWatchList(
     id,
@@ -87,11 +94,12 @@ export async function PUT(req: Request, { params }: RouteParams) {
         typeof input.description === "string" || input.description === null
           ? (input.description as string | null)
           : undefined,
+      isShared: typeof input.isShared === "boolean" ? input.isShared : undefined,
       requiredCriteria: input.requiredCriteria as never,
       preferredCriteria: input.preferredCriteria as never,
       excludedCriteria: input.excludedCriteria as never,
     },
-    ctx.organizationId
+    { userId: ctx.userId, organizationId: ctx.organizationId }
   );
   if (!updated) return Response.json({ error: "Not found." }, { status: 404 });
   return Response.json({ watchList: updated });
@@ -101,7 +109,7 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
   const ctx = await resolveAuthContext();
   if ("error" in ctx) return ctx.error;
   const { id } = await params;
-  const ok = await deleteWatchList(id, ctx.organizationId);
+  const ok = await deleteWatchList(id, { userId: ctx.userId, organizationId: ctx.organizationId });
   if (!ok) return Response.json({ error: "Not found." }, { status: 404 });
   return Response.json({ ok: true });
 }

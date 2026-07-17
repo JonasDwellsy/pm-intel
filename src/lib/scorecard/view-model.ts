@@ -35,6 +35,11 @@ export interface HeaderView {
   silverCount: number;
   dwellsyCompanyUrl: string | null;
   website: string | null;
+  /** v0.27 (Task 6) — canonicalOperatorId (slug), null when the source
+   *  scorecard doesn't carry one. Drives the Add-to-watch-list pin key
+   *  (`header.canonicalOperatorId ?? slug`) so a multi-market operator
+   *  is pinned once as the company, not once per market instance. */
+  canonicalOperatorId: string | null;
 }
 
 export interface ReadoutRow {
@@ -252,6 +257,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     silverCount,
     dwellsyCompanyUrl: companyId ? `https://dwellsy.com/company/${companyId}` : null,
     website: scorecard.pm.website ?? null,
+    canonicalOperatorId: scorecard.canonicalOperatorId ?? null,
   };
 
   const opLabel = operatingPerformanceLabel(scorecard);

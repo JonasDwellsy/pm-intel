@@ -4,12 +4,17 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { applyWatchList } from "@/lib/watch-list/apply";
 import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
-import { getWatchListWithCrossOrgCheck } from "@/lib/watch-list/store";
+import {
+  getWatchListWithCrossOrgCheck,
+  listMembers,
+} from "@/lib/watch-list/store";
+import { canEditList } from "@/lib/watch-list/visibility";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 import { projectResultsForView } from "@/lib/watch-list/results-view";
 import { computeAndRecordChanges } from "@/lib/watch-list/changes";
 import { ResultsTable } from "@/components/watch-list/ResultsTable";
 import { ReRunButton } from "@/components/watch-list/ReRunButton";
+import { ShareToggle } from "@/components/watch-list/ShareToggle";
 import { MethodologyDisclosure } from "@/components/watch-list/MethodologyDisclosure";
 import { DownloadButton } from "@/components/watch-list/DownloadButton";
 import { ChangesBanner } from "@/components/watch-list/ChangesBanner";
@@ -59,6 +64,18 @@ export default async function WatchListResultsPage({ params }: PageProps) {
 
   // v0.22 — scope results to the owning org's entitled markets.
   const entitlement = await getEntitledMarketIds(organizationId);
+  // v0.27 (Task 5) — manually-pinned members union into the results
+  // below, still bounded by the entitlement filter inside applyWatchList.
+  const pins = new Set(
+    (await listMembers(watchList.id)).map((m) => m.memberKey)
+  );
+  // v0.28 (Task 7) — a "pinned" pick list has empty criteria by
+  // convention; skipCriteriaMatch bypasses the natural criteria-match
+  // loop so results consist purely of the pin union (every row
+  // correctly flagged pinned) instead of the entire operator universe.
+  // See apply.ts's doc comment on the 4th parameter for the full
+  // rationale.
+  const isPinnedList = watchList.kind === "pinned";
   const applied = await applyWatchList(
     {
       id: watchList.id,
@@ -68,8 +85,15 @@ export default async function WatchListResultsPage({ params }: PageProps) {
       preferredCriteria: watchList.preferredCriteria,
       excludedCriteria: watchList.excludedCriteria,
     },
-    entitlement
+    entitlement,
+    pins,
+    isPinnedList
   );
+  // Owner-only manage/remove control on a pick list's results (Task 7
+  // Step 2) — canEditList covers both "you own it" and "legacy-owned
+  // list in your org", same rule every other mutation in this module
+  // uses. A view-only shared viewer never sees the remove control.
+  const canEdit = canEditList(watchList, { userId, organizationId });
 
   const { marketRows, operatorRows, summary } = projectResultsForView({
     marketResults: applied.results,
@@ -140,20 +164,39 @@ export default async function WatchListResultsPage({ params }: PageProps) {
               {watchList.name}
             </h1>
             <p className="mt-3 text-[14.5px] text-foreground/80">
-              <span className="dq-mono text-navy tabular-nums">
-                {headlineMatched}
-              </span>{" "}
-              of{" "}
-              <span className="dq-mono text-navy tabular-nums">
-                {headlineTotal}
-              </span>{" "}
-              operators match this watch list
-              {scoreMin !== null && scoreMax !== null && (
+              {isPinnedList ? (
+                // v0.28 (Task 7) — a pick list has no criteria to
+                // "match against"; every row is here because a person
+                // pinned it. "X of Y operators match" would overstate
+                // Y (the entire operator universe) as if it were the
+                // denominator of a real match rate, and the fit-score
+                // range is meaningless when it's uniformly 100 for
+                // every row. Plain pinned-count instead.
                 <>
-                  {" · fit score range "}
                   <span className="dq-mono text-navy tabular-nums">
-                    {scoreMin}–{scoreMax}
-                  </span>
+                    {headlineMatched}
+                  </span>{" "}
+                  {headlineMatched === 1 ? "company" : "companies"} pinned to
+                  this pick list
+                </>
+              ) : (
+                <>
+                  <span className="dq-mono text-navy tabular-nums">
+                    {headlineMatched}
+                  </span>{" "}
+                  of{" "}
+                  <span className="dq-mono text-navy tabular-nums">
+                    {headlineTotal}
+                  </span>{" "}
+                  operators match this watch list
+                  {scoreMin !== null && scoreMax !== null && (
+                    <>
+                      {" · fit score range "}
+                      <span className="dq-mono text-navy tabular-nums">
+                        {scoreMin}–{scoreMax}
+                      </span>
+                    </>
+                  )}
                 </>
               )}
             </p>
@@ -174,6 +217,15 @@ export default async function WatchListResultsPage({ params }: PageProps) {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {/* Fix 1 (final-review) — owner-only share toggle. Same
+                canEdit gate as canManageMembers below; a view-only
+                shared viewer never sees this control. */}
+            {canEdit && (
+              <ShareToggle
+                watchListId={watchList.id}
+                initialIsShared={watchList.isShared}
+              />
+            )}
             <Link
               href={`/watch-lists/${watchList.id}/edit`}
               className="h-9 inline-flex items-center rounded-md border border-grid bg-white px-3.5 text-[13px] font-medium text-navy hover:bg-surface-soft"
@@ -189,6 +241,7 @@ export default async function WatchListResultsPage({ params }: PageProps) {
                 requiredCriteria: watchList.requiredCriteria,
                 preferredCriteria: watchList.preferredCriteria,
                 excludedCriteria: watchList.excludedCriteria,
+                kind: watchList.kind,
               }}
               operatorRows={operatorRows}
               marketRows={marketRows}
@@ -209,7 +262,7 @@ export default async function WatchListResultsPage({ params }: PageProps) {
         )}
 
         {headlineMatched === 0 && summary.matchedCount === 0 ? (
-          <EmptyMatches watchListId={watchList.id} />
+          <EmptyMatches watchListId={watchList.id} isPinnedList={isPinnedList} />
         ) : (
           <ResultsTable
             operatorRows={operatorRows}
@@ -217,6 +270,8 @@ export default async function WatchListResultsPage({ params }: PageProps) {
             required={watchList.requiredCriteria}
             preferred={watchList.preferredCriteria}
             excluded={watchList.excludedCriteria}
+            watchListId={watchList.id}
+            canManageMembers={isPinnedList && canEdit}
           />
         )}
 
@@ -238,7 +293,29 @@ function buildLiveUrl(watchListId: string): string {
   return `${base.replace(/\/$/, "")}/watch-lists/${watchListId}/results`;
 }
 
-function EmptyMatches({ watchListId }: { watchListId: string }) {
+function EmptyMatches({
+  watchListId,
+  isPinnedList,
+}: {
+  watchListId: string;
+  isPinnedList: boolean;
+}) {
+  // v0.28 (Task 7) — a pick list with zero pins isn't a criteria
+  // problem (it has no criteria); the "required criteria may be too
+  // narrow" copy would be actively misleading here.
+  if (isPinnedList) {
+    return (
+      <div className="mt-10 rounded-lg border border-dashed border-grid bg-white p-10 text-center">
+        <h2 className="text-[18px] font-semibold text-navy">
+          Nothing pinned to this pick list yet
+        </h2>
+        <p className="mt-2 mx-auto max-w-[48ch] text-[13.5px] text-foreground/70">
+          Use the &ldquo;Watch list&rdquo; control on any operator scorecard,
+          market row, or search result to pin a company here.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="mt-10 rounded-lg border border-dashed border-grid bg-white p-10 text-center">
       <h2 className="text-[18px] font-semibold text-navy">

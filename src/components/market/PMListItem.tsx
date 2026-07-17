@@ -2,6 +2,7 @@ import { GatedLink } from "@/components/auth/GatedLink";
 import { fmtDays, fmtInt } from "@/lib/format";
 import { quadrantColor } from "@/lib/quadrant-colors";
 import { StarSummaryChip } from "@/components/scorecard/StarSummaryChip";
+import { AddToWatchList } from "@/components/watch-list/AddToWatchList";
 import type { PMListItem as PMListItemData } from "@/lib/types";
 
 function fmtSignedPct(n: number | null): {
@@ -94,7 +95,20 @@ export function PMListItem({
       : "text-navy";
 
   return (
-    <li className="list-none">
+    <li className="relative list-none">
+      {/* Mounted as a sibling of GatedLink, not nested inside it — the
+          link renders either an <a> or (signed-out) a <button>, and
+          nesting an interactive control inside either is invalid HTML
+          and would fight the row's own click-to-navigate behavior.
+          Absolutely positioned in the card's top-right corner so it
+          overlays the (non-interactive) padding area. */}
+      <div className="absolute right-4 top-4 z-10">
+        <AddToWatchList
+          memberKey={pm.canonicalOperatorId ?? pm.slug}
+          operatorName={pm.displayName ?? pm.name}
+          compact
+        />
+      </div>
       <GatedLink
         event="pm_card_click"
         properties={{
