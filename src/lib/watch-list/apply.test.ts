@@ -22,6 +22,8 @@ import { strict as assert } from "node:assert";
 import {
   unionPinnedRecords,
   unionPinnedOperators,
+  computeCriteriaMatchedRecords,
+  computeCriteriaMatchedOperators,
   type RankedTarget,
   type RolledUpTarget,
 } from "./apply";
@@ -302,4 +304,139 @@ test("unionPinnedRecords / unionPinnedOperators — empty pinnedKeys is a no-op 
     unionPinnedOperators(matchedOperators, byCanonical, new Set(), makeWatchList(), noMarketNames, noCanonicalNames),
     matchedOperators
   );
+});
+
+// ─── computeCriteriaMatchedRecords / computeCriteriaMatchedOperators
+//     (Task 7 — the "pick list" skipCriteriaMatch gate) ──────────────
+//
+// A `kind: "pinned"` pick list's requiredCriteria/preferredCriteria/
+// excludedCriteria are empty by convention (there's no criteria UI for
+// it). An empty criteria set trivially PASSES every operator (scoring.ts:
+// no required to fail, no excluded to veto, fitScore defaults to 100
+// with no preferred weights). Left unguarded, that means every operator
+// in the universe would show up as "naturally matched" for a pick list —
+// which in turn means unionPinnedRecords/unionPinnedOperators (whose
+// `alreadyMatched` check only adds a pinned key that ISN'T already
+// matched) would never flag anything `pinned: true`, silently breaking
+// the entire feature for its primary use case. These tests pin down the
+// gate itself, then a composed scenario proving the full pipeline
+// (compute → union) now does the right thing — and, for contrast, what
+// happens if the gate is ever removed.
+
+test("computeCriteriaMatchedRecords — skipCriteriaMatch true returns [] even though the record would naturally pass", () => {
+  const pm = makePm({ slug: "acme-bhm", marketId: "birmingham-al", canonicalOperatorId: "acme" });
+  const result = computeCriteriaMatchedRecords([pm], makeWatchList(), noMarketNames, true);
+  assert.deepEqual(result, []);
+});
+
+test("computeCriteriaMatchedRecords — skipCriteriaMatch false preserves the pre-existing natural-match behavior", () => {
+  const pm = makePm({ slug: "acme-bhm", marketId: "birmingham-al", canonicalOperatorId: "acme", urusT12: 500 });
+  const bb = makeWatchList({ requiredCriteria: [{ field: "urusT12", operator: "gte", value: 100 }] });
+  const result = computeCriteriaMatchedRecords([pm], bb, noMarketNames, false);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].pmSlug, "acme-bhm");
+  assert.equal(result[0].pinned, undefined);
+});
+
+test("computeCriteriaMatchedOperators — skipCriteriaMatch true returns [] even though the rollup would naturally pass", () => {
+  const pm = makePm({ slug: "acme-bhm", marketId: "birmingham-al", canonicalOperatorId: "acme" });
+  const byCanonical = groupByCanonical([pm]);
+  const result = computeCriteriaMatchedOperators(
+    byCanonical,
+    makeWatchList(),
+    noMarketNames,
+    noCanonicalNames,
+    true
+  );
+  assert.deepEqual(result, []);
+});
+
+test("computeCriteriaMatchedOperators — skipCriteriaMatch false preserves the pre-existing natural-match behavior", () => {
+  const pm = makePm({ slug: "acme-bhm", marketId: "birmingham-al", canonicalOperatorId: "acme", urusT12: 500 });
+  const byCanonical = groupByCanonical([pm]);
+  const bb = makeWatchList({ requiredCriteria: [{ field: "urusT12", operator: "gte", value: 100 }] });
+  const result = computeCriteriaMatchedOperators(byCanonical, bb, noMarketNames, noCanonicalNames, false);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].canonicalOperatorId, "acme");
+});
+
+test("a kind:'pinned' pick list (blank criteria + skipCriteriaMatch) surfaces ONLY the pinned company, flagged pinned:true — both views", () => {
+  // Two operators exist in the universe; only "acme" is pinned. A
+  // blank watch list is exactly what the "New pick list" / AddToWatchList
+  // create flow persists (kind: "pinned", empty criteria arrays).
+  const pinnedPm = makePm({ slug: "acme-bhm", marketId: "birmingham-al", canonicalOperatorId: "acme" });
+  const otherPm = makePm({ slug: "other-op", marketId: "knoxville-tn", canonicalOperatorId: "other" });
+  const blank = makeWatchList();
+  const pinnedKeys = new Set(["acme"]);
+
+  // Per-market (Market view) — mirrors applyWatchList's own pipeline.
+  const matchedRaw = computeCriteriaMatchedRecords(
+    [pinnedPm, otherPm],
+    blank,
+    noMarketNames,
+    true
+  );
+  assert.deepEqual(matchedRaw, []);
+  const marketResult = unionPinnedRecords(
+    matchedRaw,
+    [pinnedPm, otherPm],
+    pinnedKeys,
+    blank,
+    noMarketNames
+  );
+  assert.equal(marketResult.length, 1);
+  assert.equal(marketResult[0].pmSlug, "acme-bhm");
+  assert.equal(marketResult[0].pinned, true);
+
+  // Per-operator (Operator view).
+  const byCanonical = groupByCanonical([pinnedPm, otherPm]);
+  const matchedOperatorsRaw = computeCriteriaMatchedOperators(
+    byCanonical,
+    blank,
+    noMarketNames,
+    noCanonicalNames,
+    true
+  );
+  assert.deepEqual(matchedOperatorsRaw, []);
+  const operatorResult = unionPinnedOperators(
+    matchedOperatorsRaw,
+    byCanonical,
+    pinnedKeys,
+    blank,
+    noMarketNames,
+    noCanonicalNames
+  );
+  assert.equal(operatorResult.length, 1);
+  assert.equal(operatorResult[0].canonicalOperatorId, "acme");
+  assert.equal(operatorResult[0].pinned, true);
+});
+
+test("documents the bug the gate fixes: without skipCriteriaMatch, a blank watch list matches everyone and the pinned flag never fires", () => {
+  // Same fixtures as above but skipCriteriaMatch=false — every
+  // applyWatchList call site had exactly this shape before Task 7.
+  // Both operators pass naturally (empty criteria), so the union's
+  // alreadyMatched check finds "acme" already present and never flags
+  // it. This test exists so a future revert of the gate fails loudly.
+  const pinnedPm = makePm({ slug: "acme-bhm", marketId: "birmingham-al", canonicalOperatorId: "acme" });
+  const otherPm = makePm({ slug: "other-op", marketId: "knoxville-tn", canonicalOperatorId: "other" });
+  const blank = makeWatchList();
+  const pinnedKeys = new Set(["acme"]);
+
+  const matchedRaw = computeCriteriaMatchedRecords(
+    [pinnedPm, otherPm],
+    blank,
+    noMarketNames,
+    false
+  );
+  assert.equal(matchedRaw.length, 2); // both "matched" — the bug this gate fixes
+  const result = unionPinnedRecords(
+    matchedRaw,
+    [pinnedPm, otherPm],
+    pinnedKeys,
+    blank,
+    noMarketNames
+  );
+  assert.equal(result.length, 2);
+  const acmeRow = result.find((r) => r.pmSlug === "acme-bhm");
+  assert.equal(acmeRow?.pinned, undefined); // never flagged without the gate
 });

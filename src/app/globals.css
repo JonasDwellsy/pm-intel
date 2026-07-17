@@ -431,6 +431,12 @@
   color: var(--color-orange-700);
   border: 1px solid #f3d7b3;
 }
+.dq-pill-teal {
+  /* v0.28 (Task 7) — "Pinned" badge on watch-list results rows. */
+  background: var(--color-teal-soft);
+  color: var(--color-teal-700);
+  border: 1px solid color-mix(in srgb, var(--color-teal) 18%, transparent);
+}
 
 /* Chart card */
 .dq-chart-card {

@@ -35,6 +35,14 @@ export interface ExportWatchList {
   requiredCriteria: FilterCriterion[];
   preferredCriteria: WeightedCriterion[];
   excludedCriteria: FilterCriterion[];
+  /** v0.28 (Task 7) — "criteria" | "pinned". Optional so pre-existing
+   *  callers (and the pre-Task-7 test fixtures) that never set it keep
+   *  the "criteria" Summary-sheet wording ("Operators matched" / "Match
+   *  rate"). A `kind: "pinned"` pick list has no criteria to "match" —
+   *  every row is there because it was pinned — so the Summary sheet
+   *  swaps to a plain pinned-count line instead, mirroring the same
+   *  fix applied to the on-page /results headline. */
+  kind?: string;
 }
 
 export interface ExportArgs {
@@ -117,6 +125,7 @@ export function buildWorkbook(args: ExportArgs): ExportResult {
 
 function buildSummarySheet(args: ExportArgs): WorkSheet {
   const { watchList } = args;
+  const isPinnedList = watchList.kind === "pinned";
   const matchedCount = args.operatorRows.length;
   const totalOps = args.totalCandidates;
   const matchRate =
@@ -133,13 +142,23 @@ function buildSummarySheet(args: ExportArgs): WorkSheet {
   rows.push(
     ["Generated on", args.generatedAt.toISOString()],
     ["Generated (local)", args.generatedAt.toLocaleString()],
-    ["Methodology version", args.methodologyVersion],
-    ["Total operators evaluated", totalOps],
-    ["Operators matched", matchedCount],
-    ["Match rate", matchRate],
-    [],
-    ["Required criteria"]
+    ["Methodology version", args.methodologyVersion]
   );
+  // A pick list (kind: "pinned") has no criteria to "match" — every
+  // row is there because a person pinned it. "Operators matched" /
+  // "Match rate" against the whole operator universe would be
+  // misleading (same overstatement the on-page /results headline had
+  // — see results/page.tsx). Swap to a plain pinned-count line.
+  if (isPinnedList) {
+    rows.push(["Companies pinned", matchedCount]);
+  } else {
+    rows.push(
+      ["Total operators evaluated", totalOps],
+      ["Operators matched", matchedCount],
+      ["Match rate", matchRate]
+    );
+  }
+  rows.push([], ["Required criteria"]);
   if (watchList.requiredCriteria.length === 0) {
     rows.push(["", "(none)"]);
   } else {
@@ -186,6 +205,7 @@ function buildOperatorsSheet(
   const headers = [
     "Rank",
     "Operator",
+    "Pinned",
     "Markets",
     "7-Cell",
     "Est. Portfolio",
@@ -207,6 +227,7 @@ function buildOperatorsSheet(
     const out: Array<string | number | null> = [
       r.rank,
       r.name,
+      r.pinned ? "yes" : "no",
       r.marketLabel,
       q7,
       r.estimatedPortfolioPoint,
@@ -247,6 +268,7 @@ function buildMarketsSheet(
 
   const headers = [
     "Operator",
+    "Pinned",
     "Market",
     "7-Cell",
     "Est. Portfolio",
@@ -260,6 +282,7 @@ function buildMarketsSheet(
   const dataRows = sorted.map((r) => {
     const out: Array<string | number | null> = [
       r.name,
+      r.pinned ? "yes" : "no",
       r.marketLabel,
       r.quadrant7Cell,
       r.estimatedPortfolioPoint,
@@ -314,6 +337,7 @@ function colWidthsForOperatorsSheet(adaptiveCount: number) {
   return [
     { wch: 5 }, // Rank
     { wch: 32 }, // Operator
+    { wch: 8 }, // Pinned
     { wch: 28 }, // Markets
     { wch: 26 }, // 7-Cell (with possible " (Mixed)" suffix)
     { wch: 13 }, // Est. Portfolio
@@ -330,6 +354,7 @@ function colWidthsForOperatorsSheet(adaptiveCount: number) {
 function colWidthsForMarketsSheet(adaptiveCount: number) {
   return [
     { wch: 32 }, // Operator
+    { wch: 8 }, // Pinned
     { wch: 28 }, // Market
     { wch: 22 }, // 7-Cell
     { wch: 13 }, // Est. Portfolio

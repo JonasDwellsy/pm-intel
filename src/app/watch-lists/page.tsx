@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import { listWatchListes } from "@/lib/watch-list/store";
+import { listWatchListes, listMembers } from "@/lib/watch-list/store";
 import { WatchListIndex } from "@/components/watch-list/WatchListIndex";
+import { NewPickListButton } from "@/components/watch-list/NewPickListButton";
 import { TemplateGrid } from "@/components/watch-list/TemplateGrid";
 import { WrongOrgFlash } from "@/components/watch-list/WrongOrgFlash";
 import { WelcomeFlash } from "@/components/watch-list/WelcomeFlash";
@@ -100,6 +101,20 @@ export default async function WatchListesPage() {
   const rows = await listWatchListes(userId, organizationId);
   const isEmpty = rows.length === 0;
 
+  // v0.28 (Task 7 Step 1) — pinned-list cards show "N companies"
+  // instead of a criteria summary. `rows` is already scoped by
+  // listWatchListes' canViewList filter, so calling the no-authz
+  // listMembers() per pinned row here is safe (same reasoning as
+  // results/page.tsx's own listMembers call).
+  const pinnedCountEntries = await Promise.all(
+    rows
+      .filter((r) => r.kind === "pinned")
+      .map(async (r) => [r.id, (await listMembers(r.id)).length] as const)
+  );
+  const pinnedCounts: Record<string, number> = Object.fromEntries(
+    pinnedCountEntries
+  );
+
   return (
     <div className="bg-background">
       {/* v0.18 — Toasts. Both render conditionally based on URL
@@ -128,12 +143,21 @@ export default async function WatchListesPage() {
             </p>
           </div>
           {!isEmpty && (
-            <Link
-              href="/watch-lists/new"
-              className="shrink-0 h-9 inline-flex items-center rounded-md bg-teal px-4 text-[13.5px] font-semibold text-white hover:bg-teal-700"
-            >
-              + New watch list
-            </Link>
+            <div className="flex shrink-0 items-center gap-2">
+              {/* v0.28 (Task 7 Step 1) — "New pick list" alongside the
+                  existing "New watch list" entry. A pick list has no
+                  criteria to configure, so this skips the template
+                  picker/editor entirely: name it, create it, land
+                  straight on its (empty) results page where companies
+                  get pinned in from any scorecard/market/search row. */}
+              <NewPickListButton />
+              <Link
+                href="/watch-lists/new"
+                className="h-9 inline-flex items-center rounded-md bg-teal px-4 text-[13.5px] font-semibold text-white hover:bg-teal-700"
+              >
+                + New watch list
+              </Link>
+            </div>
           )}
         </div>
 
@@ -149,7 +173,7 @@ export default async function WatchListesPage() {
             </div>
           </section>
         ) : (
-          <WatchListIndex watchListes={rows} />
+          <WatchListIndex watchListes={rows} pinnedCounts={pinnedCounts} />
         )}
       </div>
     </div>

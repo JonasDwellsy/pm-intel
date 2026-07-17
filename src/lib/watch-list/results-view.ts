@@ -84,6 +84,14 @@ export interface ResultRowVM {
    *  criteria. Threaded straight from RankedTarget/RolledUpTarget's
    *  `pinned` flag — display-only (Task 7 badges it in the table). */
   pinned: boolean;
+  /** canonicalOperatorId ?? pmSlug — the company-level key the pin
+   *  system keys on everywhere (apply.ts, AddToWatchList, the
+   *  /members API). Operator-view rows already use this exact value
+   *  as `id`; market-view rows need it separately since their `id` is
+   *  the composite "{pmSlug}-{marketId}". Task 7's remove-pin control
+   *  on a `kind: "pinned"` list's results page reads this to know
+   *  what to send to `DELETE /api/watch-lists/[id]/members`. */
+  memberKey: string;
   /** PMRecord the adaptive-column cells read from. */
   pm: PMRecord;
   preferredBreakdown: BreakdownEntryVM[];
@@ -186,6 +194,7 @@ function projectMarketRow(
     concessionRate: sc.concessionRate ?? null,
     fitScore: r.fitScore,
     pinned: r.pinned ?? false,
+    memberKey: r.canonicalOperatorId ?? r.pmSlug,
     pm: r.pm,
     preferredBreakdown: projectBreakdown(r.breakdown.preferred, true),
     requiredBreakdown: projectBreakdown(r.breakdown.required, false),
@@ -261,6 +270,7 @@ function projectOperatorRow(
     concessionRate: sc.concessionRate ?? null,
     fitScore: r.fitScore,
     pinned: r.pinned ?? false,
+    memberKey: r.canonicalOperatorId,
     pm: r.pm,
     preferredBreakdown: projectBreakdown(r.breakdown.preferred, true),
     requiredBreakdown: projectBreakdown(r.breakdown.required, false),

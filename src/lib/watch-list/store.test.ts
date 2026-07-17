@@ -398,3 +398,37 @@ test("the /members route enforces owner-only mutation via the store fns, not an 
     "DELETE must call removeMember"
   );
 });
+
+test("Task 7 Step 4: /changes wires pinned members into applyWatchList, same as /results", () => {
+  // Before this fix, changes/page.tsx called applyWatchList(watchList,
+  // entitlement) with no 3rd/4th arg — its matchedPmSlugs (and thus its
+  // diff) disagreed with the pin-inclusive set /results computes and
+  // links here from, violating changes.ts's own documented "both
+  // surfaces must show the same diff" invariant. Source-level check
+  // (matching this file's convention for page/route logic that isn't
+  // otherwise unit-testable without a database) rather than a
+  // behavioral test, since applyWatchList/listMembers are both
+  // DB-bound.
+  const pageSrc = readFileSync(
+    join(process.cwd(), "src/app/watch-lists/[id]/changes/page.tsx"),
+    "utf8"
+  );
+  assert.ok(
+    pageSrc.includes(
+      'import {\n  getWatchListWithCrossOrgCheck,\n  listMembers,\n} from "@/lib/watch-list/store";'
+    ),
+    "/changes must import listMembers alongside getWatchListWithCrossOrgCheck"
+  );
+  assert.ok(
+    /const pins = new Set\(\s*\(await listMembers\(watchList\.id\)\)\.map\(\(m\) => m\.memberKey\)\s*\);/.test(
+      pageSrc
+    ),
+    "/changes must build the same pins Set (memberKey) that /results builds"
+  );
+  assert.ok(
+    /applyWatchList\(\s*\{[\s\S]*?\},\s*entitlement,\s*pins,\s*isPinnedList\s*\)/.test(
+      pageSrc
+    ),
+    "/changes must pass pins + skipCriteriaMatch (isPinnedList) as the 3rd/4th applyWatchList args, same as /results"
+  );
+});

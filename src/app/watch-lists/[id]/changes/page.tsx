@@ -4,7 +4,10 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { applyWatchList } from "@/lib/watch-list/apply";
 import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
-import { getWatchListWithCrossOrgCheck } from "@/lib/watch-list/store";
+import {
+  getWatchListWithCrossOrgCheck,
+  listMembers,
+} from "@/lib/watch-list/store";
 import { computeChangesForDetailView } from "@/lib/watch-list/changes";
 import type { OperatorChange } from "@/lib/watch-list/change-detection";
 import { prisma } from "@/lib/prisma";
@@ -55,6 +58,19 @@ export default async function WatchListChangesPage({ params }: PageProps) {
 
   // v0.22 — scope to the owning org's entitled markets.
   const entitlement = await getEntitledMarketIds(organizationId);
+  // v0.28 (Task 7 Step 4, folded in from the Task 5 review) — this
+  // page used to call applyWatchList WITHOUT pins, so /changes'
+  // matchedPmSlugs (and thus its diff) disagreed with the pin-
+  // inclusive set /results computes and links here from — a direct
+  // violation of this module's own "both surfaces must show the same
+  // diff" invariant (see the file header + computeChangesForDetailView's
+  // doc comment above). Mirrors results/page.tsx exactly: load the
+  // list's pinned members into a key Set and pass it (plus the
+  // kind:"pinned" skipCriteriaMatch flag) as the same 3rd/4th args.
+  const pins = new Set(
+    (await listMembers(watchList.id)).map((m) => m.memberKey)
+  );
+  const isPinnedList = watchList.kind === "pinned";
   const applied = await applyWatchList(
     {
       id: watchList.id,
@@ -64,7 +80,9 @@ export default async function WatchListChangesPage({ params }: PageProps) {
       preferredCriteria: watchList.preferredCriteria,
       excludedCriteria: watchList.excludedCriteria,
     },
-    entitlement
+    entitlement,
+    pins,
+    isPinnedList
   );
 
   const matchedPmSlugs = applied.results.map((r) => r.pmSlug);

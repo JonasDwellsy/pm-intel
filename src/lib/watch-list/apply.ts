@@ -113,7 +113,29 @@ export async function applyWatchList(
   // isMarketEntitled. A pinned key for a company with zero entitled-
   // market rows is simply never encountered by the union step, so it
   // can never surface. See unionPinnedRecords/unionPinnedOperators.
-  pinnedKeys?: ReadonlySet<string>
+  pinnedKeys?: ReadonlySet<string>,
+  // v0.28 (Task 7) — true for a `kind: "pinned"` pick list. A pick
+  // list's requiredCriteria/preferredCriteria/excludedCriteria are
+  // empty by convention (there's no criteria UI for it), and an EMPTY
+  // criteria set trivially "passes" every operator in the universe
+  // (see scoring.ts: no required criteria to fail, no excluded
+  // criteria to veto, fitScore defaults to 100 with no preferred
+  // criteria). Left unguarded, a pick list's natural criteria-match
+  // loop below would silently include the ENTIRE operator universe as
+  // "matched" — which both misrepresents a pick list's membership (the
+  // index's "N companies" would then bear no relation to what
+  // /results actually renders) and, more importantly, would make the
+  // `pinned` flag NEVER fire: unionPinnedRecords/unionPinnedOperators
+  // only add a pinned key when it ISN'T already in the naturally-
+  // matched set, and with an empty criteria set literally everyone is
+  // already "naturally matched". So skipCriteriaMatch bypasses the
+  // natural loops entirely for a pick list — the results consist
+  // purely of the pin union, every row correctly flagged
+  // `pinned: true`. Smart (`kind: "criteria"`) lists — including a
+  // deliberately blank "Start from Scratch" one — are unaffected
+  // (this defaults to false, preserving the pre-existing "empty
+  // criteria matches everyone" behavior for that kind).
+  skipCriteriaMatch?: boolean
 ): Promise<TargetListResult> {
   // PM-only universe. Brokers are scored in their own cohort and hidden from
   // the platform's ranked lists by default; a watch list is a ranked target
@@ -180,21 +202,12 @@ export async function applyWatchList(
   const marketNameBySlug = new Map<string, string>();
   for (const row of rows) marketNameBySlug.set(row.slug, row.market.fullName);
 
-  const matchedRaw: RankedTarget[] = [];
-  for (const pmRecord of allRecords) {
-    const evaluation = evaluateWatchList(pmRecord, watchList);
-    if (!evaluation.passed || evaluation.fitScore === null) continue;
-    matchedRaw.push({
-      pmSlug: pmRecord.slug,
-      name: pmRecord.name,
-      marketId: pmRecord.marketId,
-      marketName: marketNameBySlug.get(pmRecord.slug) ?? pmRecord.marketId,
-      canonicalOperatorId: pmRecord.scorecard.canonicalOperatorId ?? null,
-      fitScore: evaluation.fitScore,
-      breakdown: evaluation.breakdown,
-      pm: pmRecord,
-    });
-  }
+  const matchedRaw = computeCriteriaMatchedRecords(
+    allRecords,
+    watchList,
+    marketNameBySlug,
+    skipCriteriaMatch ?? false
+  );
   // Union pinned companies in BEFORE the sort so pinned rows take
   // their natural position by score, same as everything else — the
   // `pinned` flag is purely a display hint (badge), never a sort key.
@@ -213,22 +226,13 @@ export async function applyWatchList(
   // operator whose summed URUs clear 100 even when no single market
   // does on its own.
   const byCanonical = groupByCanonical(allRecords);
-  const matchedOperatorsRaw: RolledUpTarget[] = [];
-  for (const [canonId, bucket] of byCanonical.entries()) {
-    const { evaluation, target } = buildRolledUpTarget(
-      canonId,
-      bucket,
-      marketNameBySlug,
-      canonicalNameById,
-      watchList
-    );
-    if (!evaluation.passed || evaluation.fitScore === null) continue;
-    matchedOperatorsRaw.push({
-      ...target,
-      fitScore: evaluation.fitScore,
-      breakdown: evaluation.breakdown,
-    });
-  }
+  const matchedOperatorsRaw = computeCriteriaMatchedOperators(
+    byCanonical,
+    watchList,
+    marketNameBySlug,
+    canonicalNameById,
+    skipCriteriaMatch ?? false
+  );
   // Union pinned operators in — only keys present in `byCanonical`
   // (built strictly from the entitlement-filtered `allRecords` above)
   // are ever reachable here, so a pinned operator with zero entitled
@@ -283,6 +287,48 @@ export async function applyWatchList(
 // database: applyWatchList itself is DB-bound (prisma.pM.findMany),
 // but everything past that DB read — evaluation, aggregation, union —
 // is pure and deterministic given the same inputs.
+//
+// v0.28 (Task 7): computeCriteriaMatchedRecords/computeCriteriaMatchedOperators
+// below gate the NATURAL (non-pinned) match loops on `skipCriteriaMatch` —
+// see applyWatchList's doc comment for why a `kind: "pinned"` pick list
+// (empty criteria by convention) needs this bypass for the `pinned` flag
+// to ever be meaningful.
+
+/** Natural per-market (Market view) criteria match — evaluates every
+ *  record in `allRecords` against `watchList` and keeps the ones that
+ *  pass. Returns `[]` unconditionally when `skipCriteriaMatch` is true:
+ *  a `kind: "pinned"` pick list's criteria are empty by convention, and
+ *  an empty required/excluded set trivially passes everyone (see
+ *  scoring.ts) — running this loop for a pick list would make the
+ *  entire operator universe "matched", leaving unionPinnedRecords
+ *  nothing to add (its `alreadyMatched` check would already cover
+ *  every pinned key), so `pinned: true` would never fire. Extracted as
+ *  a pure, exported function so this gate is unit-testable without a
+ *  database. */
+export function computeCriteriaMatchedRecords(
+  allRecords: PMRecord[],
+  watchList: WatchListDefinition,
+  marketNameBySlug: ReadonlyMap<string, string>,
+  skipCriteriaMatch: boolean
+): RankedTarget[] {
+  if (skipCriteriaMatch) return [];
+  const matchedRaw: RankedTarget[] = [];
+  for (const pmRecord of allRecords) {
+    const evaluation = evaluateWatchList(pmRecord, watchList);
+    if (!evaluation.passed || evaluation.fitScore === null) continue;
+    matchedRaw.push({
+      pmSlug: pmRecord.slug,
+      name: pmRecord.name,
+      marketId: pmRecord.marketId,
+      marketName: marketNameBySlug.get(pmRecord.slug) ?? pmRecord.marketId,
+      canonicalOperatorId: pmRecord.scorecard.canonicalOperatorId ?? null,
+      fitScore: evaluation.fitScore,
+      breakdown: evaluation.breakdown,
+      pm: pmRecord,
+    });
+  }
+  return matchedRaw;
+}
 
 /** Union pinned companies into the per-market (Market view) results.
  *  For every record in `allRecords` whose company key
@@ -368,6 +414,41 @@ function buildRolledUpTarget(
       pm: aggregated,
     },
   };
+}
+
+/** Natural per-operator (Operator view) criteria match — aggregates
+ *  every bucket in `byCanonical` and evaluates it against `watchList`,
+ *  keeping the ones that pass. Returns `[]` unconditionally when
+ *  `skipCriteriaMatch` is true, for the same reason as
+ *  computeCriteriaMatchedRecords above: a pick list's empty criteria
+ *  would otherwise roll up as "matched" for the entire operator
+ *  universe, and unionPinnedOperators would then never see an
+ *  un-matched pinned key to flag. */
+export function computeCriteriaMatchedOperators(
+  byCanonical: ReadonlyMap<string, PMRecord[]>,
+  watchList: WatchListDefinition,
+  marketNameBySlug: ReadonlyMap<string, string>,
+  canonicalNameById: ReadonlyMap<string, string>,
+  skipCriteriaMatch: boolean
+): RolledUpTarget[] {
+  if (skipCriteriaMatch) return [];
+  const matchedOperatorsRaw: RolledUpTarget[] = [];
+  for (const [canonId, bucket] of byCanonical.entries()) {
+    const { evaluation, target } = buildRolledUpTarget(
+      canonId,
+      bucket,
+      marketNameBySlug,
+      canonicalNameById,
+      watchList
+    );
+    if (!evaluation.passed || evaluation.fitScore === null) continue;
+    matchedOperatorsRaw.push({
+      ...target,
+      fitScore: evaluation.fitScore,
+      breakdown: evaluation.breakdown,
+    });
+  }
+  return matchedOperatorsRaw;
 }
 
 /** Union pinned companies into the per-operator (Operator view, v0.9
