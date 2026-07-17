@@ -31,6 +31,12 @@ test("footprintBounds: empty → null", () => {
   assert.equal(footprintBounds([]), null);
 });
 
+test("footprintBounds: undefined/null input → null (no throw)", () => {
+  // Guards the never-break invariant: a scorecard blob may omit coverageMapPoints.
+  assert.equal(footprintBounds(undefined as unknown as { lat: number; lon: number }[]), null);
+  assert.equal(footprintBounds(null as unknown as { lat: number; lon: number }[]), null);
+});
+
 test("projectToPixel: center maps to image center", () => {
   const center = { lat: 40, lon: -75 };
   const { x, y } = projectToPixel(center, { center, zoom: 10, width: MAP_W, height: MAP_H });
@@ -73,6 +79,16 @@ test("fitBoundsToCenterZoom: a wider bbox yields a lower zoom", () => {
     opts
   ).zoom;
   assert.ok(wide < narrow);
+});
+
+test("fitBoundsToCenterZoom: degenerate zero-span bounds → maxZoom clamp, center preserved", () => {
+  const { center, zoom } = fitBoundsToCenterZoom(
+    { west: -75, east: -75, south: 40, north: 40 },
+    { width: MAP_W, height: MAP_H, padding: 40, maxZoom: 13 }
+  );
+  assert.equal(zoom, 13);
+  assert.ok(Math.abs(center.lon - -75) < 1e-9);
+  assert.ok(Math.abs(center.lat - 40) < 0.01);
 });
 
 test("thinBackdrop: within cap is unchanged; over cap strides down to ≤ max", () => {
@@ -130,6 +146,18 @@ test("buildFallbackCircles: projects into the box; north above south; no bounds 
     ),
     null
   );
+});
+
+test("buildFallbackCircles: missing coverageMapPoints but mapBounds present → no throw", () => {
+  const geo = {
+    coverageMapPoints: undefined as unknown as { lat: number; lon: number; n: number }[],
+    msaBackdropPoints: undefined,
+    mapBounds: { north: 40.1, south: 39.9, east: -74.9, west: -75.1 },
+  };
+  const fb = buildFallbackCircles(geo, { width: MAP_W, height: MAP_H, padding: 40, maxBackdrop: 600 });
+  assert.ok(fb);
+  assert.deepEqual(fb!.coverage, []);
+  assert.deepEqual(fb!.backdrop, []);
 });
 
 test("coverageMapRenderModel: basemap when image present, fallback when null, empty when null+no bounds", () => {

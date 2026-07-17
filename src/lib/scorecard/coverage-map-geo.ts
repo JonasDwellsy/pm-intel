@@ -50,7 +50,7 @@ function invMercY(y: number): number {
 export function footprintBounds(
   points: Array<{ lat: number; lon: number }>
 ): Bounds | null {
-  if (!points.length) return null;
+  if (!points?.length) return null;
   let west = Infinity;
   let east = -Infinity;
   let south = Infinity;
@@ -157,7 +157,7 @@ export function buildFallbackCircles(
     padding + ((bounds.north - lat) / spanLat) * (height - 2 * padding);
   const inBox = (x: number, y: number) =>
     x >= 0 && x <= width && y >= 0 && y <= height;
-  const coverage: PixelN[] = geo.coverageMapPoints
+  const coverage: PixelN[] = (geo.coverageMapPoints ?? [])
     .map((p) => ({ x: lonToX(p.lon), y: latToY(p.lat), n: p.n }))
     .filter((p) => inBox(p.x, p.y));
   const backdrop: Pixel[] = thinBackdrop(geo.msaBackdropPoints ?? [], opts.maxBackdrop)

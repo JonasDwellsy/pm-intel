@@ -76,7 +76,7 @@ export async function fetchCoverageMapImage(
     const view = { center, zoom, width, height };
     const inBox = (x: number, y: number) =>
       x >= 0 && x <= width && y >= 0 && y <= height;
-    const coveragePx: PixelN[] = geo.coverageMapPoints
+    const coveragePx: PixelN[] = (geo.coverageMapPoints ?? [])
       .map((p) => {
         const { x, y } = projectToPixel({ lat: p.lat, lon: p.lon }, view);
         return { x, y, n: p.n };

@@ -59,20 +59,6 @@ function MapSvgFallback({
   );
 }
 
-// v0.21 — Frame the map to the OPERATOR'S footprint, not the whole MSA.
-//
-// Previously the map was initialized with the MSA-wide `mapBounds`, so
-// every scorecard zoomed out to the entire metro region regardless of
-// where the PM actually operates — a PM concentrated in one Baltimore
-// neighborhood and one spread across five submarkets looked identically
-// zoomed-out, and the user couldn't make out the streets/places needed
-// to read which submarkets the operator serves.
-//
-// Compute a tight bounding box from the operator's coverage points and
-// fit to that (with a maxZoom cap applied at fit time, see below). The
-// MSA `mapBounds` stays as a fallback for the rare PM with no plotted
-// points. A small degenerate-box guard keeps single-point operators
-// from producing a zero-area box that fitBounds can't reason about.
 function pointsToGeoJSON(
   points: Array<CoveragePoint | BackdropPoint>,
   includeProps = false
