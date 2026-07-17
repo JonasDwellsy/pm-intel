@@ -52,9 +52,10 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
             not self-reported.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            {/* Primary CTA. Sends visitors straight into the template
-                picker so they can clone a named watch-list thesis with
-                one click. No auth gate until save. */}
+            {/* Primary CTA — "Request access" (mailto sales). Operator IQ
+                is enterprise/invite-only, so the marketing hero leads with
+                the real conversion path rather than the self-serve
+                watch-list builder (that stays the signed-in nav CTA). */}
             <TrackedLink
               event="pm_card_click"
               properties={{ source: "homepage_hero", cta: "request_access" }}
@@ -66,10 +67,9 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
             >
               Request access →
             </TrackedLink>
-            {/* Secondary CTA — Browse markets keeps the per-MSA
-                explorer one click away for visitors who want to start
-                with geography rather than thesis. Demoted from
-                primary fill to outline in the v0.12 nav reposition. */}
+            {/* Secondary CTA — the one full scorecard a logged-out visitor
+                can open (public /sample route). Gives prospects an explicit
+                "here's a complete example" proof path, in outline style. */}
             <TrackedLink
               event="pm_card_click"
               properties={{ source: "homepage_hero", cta: "view_sample_scorecard" }}
@@ -79,10 +79,8 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
               See a full sample scorecard →
             </TrackedLink>
           </div>
-          {/* Tertiary CTA — the one full scorecard a logged-out visitor
-              can open. Points at the public /sample route (Doorby) so the
-              hero has an explicit "here's a complete example" path beyond
-              the clickable card on the right. */}
+          {/* Tertiary CTA — Browse markets keeps the per-MSA explorer one
+              click away for visitors who want to start from geography. */}
           <p className="mt-4">
             <TrackedLink
               event="pm_card_click"
