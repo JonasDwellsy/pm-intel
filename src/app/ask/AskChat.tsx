@@ -191,10 +191,10 @@ export function AskChat({ dataAsOf }: { dataAsOf: string }) {
       {/* Page intro */}
       <div className="mx-auto w-full max-w-[820px] px-6 pt-12 pb-6">
         <p className="dq-eyebrow tracking-[0.14em] text-[11px]">
-          Ask Dwellsy IQ
+          Ask Operator IQ
         </p>
         <h1 className="mt-2 text-[32px] font-semibold leading-[1.1] tracking-[-0.012em] text-navy">
-          Ask Dwellsy IQ
+          Ask Operator IQ
         </h1>
         <p className="mt-2 text-[15px] leading-[1.5] text-foreground/75">
           Ask anything about the operators, markets, and methodology in

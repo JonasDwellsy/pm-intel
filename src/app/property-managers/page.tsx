@@ -22,7 +22,7 @@ import marketsSummary from "@/data/markets-summary.json";
 const LIVE_MARKET_COUNT = (marketsSummary as { markets: unknown[] }).markets.length;
 
 export const metadata: Metadata = {
-  title: "All markets — Dwellsy IQ",
+  title: "All markets",
   description: `Live coverage in ${LIVE_MARKET_COUNT} US MSAs with 200+ markets available upon request. Browse property manager scorecards by metro market.`,
 };
 

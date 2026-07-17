@@ -13,9 +13,9 @@ import { AskChat } from "./AskChat";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Ask Dwellsy IQ",
+  title: "Ask Operator IQ",
   description:
-    "Natural-language interface for operator scorecards, market intelligence, and methodology questions across Dwellsy IQ's 10 covered markets.",
+    "Natural-language interface for operator scorecards, market intelligence, and methodology questions across Operator IQ's covered markets.",
 };
 
 export default async function AskPage() {
