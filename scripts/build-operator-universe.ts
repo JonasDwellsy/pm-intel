@@ -16,6 +16,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { applyNameCorrectionsToSearchIndex } from "../src/lib/operators/search-index-corrections";
 
 // Per-market source operator entry from allOperatorsT12BySubmarket.
 interface RawUniverseOp {
@@ -410,6 +411,24 @@ for (const m of MARKETS) {
 tracked.sort((a, b) => b.t12Listings - a.t12Listings);
 
 const out: SearchIndex = { ranked, tracked, canonical };
+
+// Phase 2 — overlay admin name corrections so a corrected operator is shown
+// + searchable by its new name. Reads the committed export (build stays
+// DB-free); an empty file is a no-op. A `pm` correction on a grouped member
+// matches no ranked row and is reported as unmatched (expected).
+const ncPath = path.resolve(__dirname, "../src/data/name_corrections.json");
+if (fs.existsSync(ncPath)) {
+  const nc = JSON.parse(fs.readFileSync(ncPath, "utf8"));
+  const { matched, unmatched } = applyNameCorrectionsToSearchIndex(
+    out,
+    nc.corrections ?? []
+  );
+  console.log(
+    `  name corrections: ${matched} applied, ${unmatched.length} unmatched (grouped/absent)`
+  );
+  if (unmatched.length) console.log(`    unmatched: ${unmatched.join(", ")}`);
+}
+
 const outPath = path.resolve(
   __dirname,
   "../src/data/search_index.json"

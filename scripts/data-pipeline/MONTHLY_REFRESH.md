@@ -108,6 +108,18 @@ from `scripts/data-pipeline/`.
     a market brief's "since last period" block and the national brief show real
     month-over-month movement, and the digests have deltas to send.
 
+## Refreshing search after operator name corrections
+
+Admin name corrections (`/admin/names`) are live in the app immediately and
+re-applied on every reseed, EXCEPT the global search index
+(`src/data/search_index.json`), a committed offline artifact. To refresh it:
+run `npx tsx scripts/data-pipeline/export_name_corrections.ts` (writes
+`src/data/name_corrections.json` from the DB — needs `DATABASE_URL`), then
+`IQ_DATA_DIR=… PYTHONHASHSEED=0 npx tsx scripts/build-operator-universe.ts`,
+then commit both files + deploy. The monthly refresh already runs
+build-operator-universe (step 8), so a monthly refresh also picks up
+corrections (run the exporter first).
+
 ## One-time: activate the email digests
 
 The crons are already scheduled in `vercel.json` (`watch-list-digest` 13:00 UTC,
