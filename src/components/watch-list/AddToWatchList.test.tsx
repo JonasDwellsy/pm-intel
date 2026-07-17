@@ -107,6 +107,24 @@ describe("AddToWatchList", () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it("does not flicker null while Clerk is still resolving (isSignedIn === undefined)", () => {
+    // Fix 2: only a CONFIRMED signed-out state (isSignedIn === false)
+    // hides the control — mirrors GatedLink. Treating the resolving
+    // state as signed-out would render null, then pop the bookmark in
+    // once Clerk settles; rendering the control throughout resolving
+    // means the (far more common, on these authenticated hosts)
+    // signed-in case never flickers.
+    useAuthMock.mockReturnValue({ isSignedIn: undefined, userId: undefined });
+    const { container } = render(
+      <AddToWatchList memberKey="doorby" operatorName="Doorby" />
+    );
+    expect(container.firstChild).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Add to watch list" })
+    ).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("opening the popover lists only the caller's own pinned lists", async () => {
     const user = userEvent.setup();
     render(<AddToWatchList memberKey="doorby" operatorName="Doorby" />);
@@ -223,5 +241,85 @@ describe("AddToWatchList", () => {
     });
     const newRow = screen.getByText("My new pins").closest("label")!;
     expect(within(newRow).getByRole("checkbox")).toHaveProperty("checked", true);
+  });
+
+  it("Fix 3: if the pin POST fails after create succeeds, the new list still appears (unchecked) instead of vanishing", async () => {
+    // A retry from this state must pin the EXISTING list via its
+    // checkbox (a members POST), not re-run the create flow and mint a
+    // duplicate list.
+    let pinAttempts = 0;
+    fetchMock.mockImplementation(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+
+      if (url === "/api/watch-lists" && method === "GET") {
+        return jsonResponse({
+          watchListes: [PINNED_A, PINNED_B, CRITERIA_LIST, OTHER_OWNER_PINNED],
+        });
+      }
+      if (url === "/api/watch-lists" && method === "POST") {
+        const body = parseBody(init);
+        return jsonResponse(
+          { watchList: { id: "list-new", name: body.name, kind: body.kind, ownerId: "user_1" } },
+          201
+        );
+      }
+      if (url === "/api/watch-lists/list-a/members" && method === "GET") {
+        return jsonResponse({ members: [{ memberKey: "doorby" }] });
+      }
+      if (url === "/api/watch-lists/list-b/members" && method === "GET") {
+        return jsonResponse({ members: [] });
+      }
+      if (url === "/api/watch-lists/list-new/members" && method === "POST") {
+        pinAttempts += 1;
+        // First pin attempt (right after create) fails; a retry succeeds.
+        if (pinAttempts === 1) return jsonResponse({ error: "boom" }, 500);
+        return jsonResponse({ ok: true });
+      }
+      throw new Error(`Unhandled fetch in test: ${method} ${url}`);
+    });
+
+    const user = userEvent.setup();
+    render(<AddToWatchList memberKey="doorby" operatorName="Doorby" />);
+    await user.click(screen.getByRole("button", { name: "Add to watch list" }));
+    await waitFor(() => screen.getByText("Denver watch"));
+
+    await user.click(screen.getByRole("button", { name: "＋ New list…" }));
+    await user.type(screen.getByLabelText("New watch list name"), "My new pins");
+    await user.click(screen.getByRole("button", { name: "Create" }));
+
+    // The list appears despite the pin POST failing, and settles unchecked.
+    await waitFor(() => {
+      expect(screen.getByText("My new pins")).toBeTruthy();
+    });
+    const newRow = screen.getByText("My new pins").closest("label")!;
+    await waitFor(() => {
+      expect(within(newRow).getByRole("checkbox")).toHaveProperty("checked", false);
+    });
+    expect(screen.getByRole("alert").textContent).toMatch(/failed to update watch list/i);
+
+    // Exactly one create POST fired — the create form is also closed
+    // (no orphaned "creating…" state to retry from).
+    const createCalls = fetchMock.mock.calls.filter(
+      ([u, init]) =>
+        String(u) === "/api/watch-lists" &&
+        (init as RequestInit | undefined)?.method === "POST"
+    );
+    expect(createCalls).toHaveLength(1);
+    expect(screen.queryByLabelText("New watch list name")).toBeNull();
+
+    // Retry via the checkbox pins the EXISTING list-new — no second create.
+    await user.click(within(newRow).getByRole("checkbox"));
+    await waitFor(() => {
+      expect(within(newRow).getByRole("checkbox")).toHaveProperty("checked", true);
+    });
+    expect(
+      fetchMock.mock.calls.filter(
+        ([u, init]) =>
+          String(u) === "/api/watch-lists" &&
+          (init as RequestInit | undefined)?.method === "POST"
+      )
+    ).toHaveLength(1);
+    expect(pinAttempts).toBe(2);
   });
 });

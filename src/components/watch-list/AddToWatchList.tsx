@@ -172,6 +172,8 @@ export function AddToWatchList({
     if (!name) return;
     setPendingId("__new__");
     setError(null);
+
+    let created: WatchListSummary;
     try {
       const res = await fetch("/api/watch-lists", {
         method: "POST",
@@ -186,23 +188,43 @@ export function AddToWatchList({
       });
       if (!res.ok) throw new Error(`Failed to create watch list (${res.status}).`);
       const data = (await res.json()) as { watchList: WatchListSummary };
-      const created = data.watchList;
+      created = data.watchList;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create watch list.");
+      setPendingId(null);
+      return;
+    }
 
+    // The list exists server-side now regardless of what happens next —
+    // add it to `lists` and close the create form immediately (not
+    // gated on the pin call below). If the follow-up pin POST fails,
+    // the list still shows up in the popover as an unchecked row; a
+    // retry pins the EXISTING list via its checkbox (togglePin) instead
+    // of re-running this create flow and minting a duplicate list.
+    setLists((prev) => [...(prev ?? []), created]);
+    setNewListName("");
+    setShowCreate(false);
+
+    // Optimistic pin, same revert-on-failure shape as togglePin: mark
+    // pinned immediately, then undo + surface an error if the POST
+    // fails. pendingId switches from "__new__" to the new list's id so
+    // its checkbox (not the since-closed Create button) shows pending.
+    setPendingId(created.id);
+    setPinnedIn((prev) => new Set(prev).add(created.id));
+    try {
       const pinRes = await fetch(`/api/watch-lists/${created.id}/members`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ memberKey }),
       });
-      if (!pinRes.ok) {
-        throw new Error(`Created the list but failed to pin (${pinRes.status}).`);
-      }
-
-      setLists((prev) => [...(prev ?? []), created]);
-      setPinnedIn((prev) => new Set(prev).add(created.id));
-      setNewListName("");
-      setShowCreate(false);
+      if (!pinRes.ok) throw new Error(`Failed to update watch list (${pinRes.status}).`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create watch list.");
+      setPinnedIn((prev) => {
+        const next = new Set(prev);
+        next.delete(created.id);
+        return next;
+      });
+      setError(e instanceof Error ? e.message : "Failed to update watch list.");
     } finally {
       setPendingId(null);
     }
@@ -211,7 +233,16 @@ export function AddToWatchList({
   // Anonymous / unentitled visitors never see the control — mirrors the
   // scorecard's !publicSample gating for the two hosts (PMListItem,
   // SearchResultRow) that render on fully public pages.
-  if (!isSignedIn) return null;
+  //
+  // Only bail on a CONFIRMED signed-out state (isSignedIn === false), not
+  // Clerk's resolving state (isSignedIn === undefined) — same convention
+  // as GatedLink (src/components/auth/GatedLink.tsx). Treating "resolving"
+  // as "signed out" would pop the bookmark in after hydration on every
+  // row once Clerk settles; rendering the control during the brief
+  // resolving window instead means the (much more common, on these
+  // authenticated hosts) signed-in case never flickers, at the cost of a
+  // confirmed-anon visitor seeing it disappear a beat later.
+  if (isSignedIn === false) return null;
 
   const triggerLabel = compact
     ? `Add ${operatorName} to a watch list`

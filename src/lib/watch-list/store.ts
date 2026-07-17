@@ -38,6 +38,15 @@ import type {
 import type { WatchListDefinition } from "./scoring";
 import { canViewList, canEditList } from "./visibility";
 
+/** Valid values for the `kind` column — "criteria" (smart list, matches
+ *  via requiredCriteria/preferredCriteria/excludedCriteria) or "pinned"
+ *  (manual pick list, membership via WatchListMember rows). Exported so
+ *  request-body validation (POST /api/watch-lists) checks untrusted
+ *  input against the same source of truth as createWatchList's own
+ *  default, instead of duplicating the two literals. */
+export const WATCH_LIST_KINDS = ["criteria", "pinned"] as const;
+export type WatchListKind = (typeof WATCH_LIST_KINDS)[number];
+
 export interface WatchListRecord extends WatchListDefinition {
   ownerId: string;
   organizationId: string | null;

@@ -15,7 +15,7 @@
 // setting up" UI.
 
 import { auth } from "@clerk/nextjs/server";
-import { createWatchList, listWatchListes } from "@/lib/watch-list/store";
+import { createWatchList, listWatchListes, WATCH_LIST_KINDS } from "@/lib/watch-list/store";
 import { captureServerEvent, flushAnalyticsServer } from "@/lib/analytics-server";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 import { recordUsageEvent } from "@/lib/usage/record";
@@ -88,8 +88,15 @@ export async function POST(req: Request) {
       { status: 422 }
     );
   }
-  if (input.kind !== undefined && typeof input.kind !== "string") {
-    return Response.json({ error: "kind must be a string." }, { status: 422 });
+  if (
+    input.kind !== undefined &&
+    input.kind !== "criteria" &&
+    input.kind !== "pinned"
+  ) {
+    return Response.json(
+      { error: `kind must be one of: ${WATCH_LIST_KINDS.join(", ")}.` },
+      { status: 422 }
+    );
   }
 
   const record = await createWatchList({

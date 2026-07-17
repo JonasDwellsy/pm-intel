@@ -32,7 +32,7 @@ import test from "node:test";
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { DEFAULT_OWNER_ID, LEGACY_OWNER_ID } from "./store";
+import { DEFAULT_OWNER_ID, LEGACY_OWNER_ID, WATCH_LIST_KINDS } from "./store";
 
 test("LEGACY_OWNER_ID is the stable string the migration targets", () => {
   assert.equal(LEGACY_OWNER_ID, "legacy-pre-auth");
@@ -320,6 +320,47 @@ test("member store fns require the same WatchListAuthContext shape as update/del
       src
     ),
     "removeMember must take (watchListId, memberKey, ctx: WatchListAuthContext)"
+  );
+});
+
+test("WATCH_LIST_KINDS is exactly the two valid kind values", () => {
+  // Fix 1 (post-Task-6): shared source of truth for both createWatchList's
+  // default and the POST route's whitelist below — a change here should
+  // force both call sites to be reconsidered.
+  assert.deepEqual([...WATCH_LIST_KINDS], ["criteria", "pinned"]);
+});
+
+test("POST /api/watch-lists whitelists kind to WATCH_LIST_KINDS before it reaches createWatchList", () => {
+  // Fix 1 (post-Task-6): the route used to only check `typeof input.kind
+  // !== "string"`, so any string ("archived", "smart-list", a typo) was
+  // accepted and persisted verbatim. Nothing downstream (the
+  // AddToWatchList island's kind === "pinned" filter, the editor's
+  // kind === "criteria" assumptions, the /members route) knows what to
+  // do with an unrecognized kind, so bad input here silently produces a
+  // list that can't be found by either surface.
+  const routeSrc = readFileSync(
+    join(process.cwd(), "src/app/api/watch-lists/route.ts"),
+    "utf8"
+  );
+  assert.ok(
+    routeSrc.includes(
+      'import { createWatchList, listWatchListes, WATCH_LIST_KINDS } from "@/lib/watch-list/store";'
+    ),
+    "route.ts must import WATCH_LIST_KINDS from the store rather than re-declaring the two literals"
+  );
+  assert.ok(
+    /input\.kind !== undefined &&\s*input\.kind !== "criteria" &&\s*input\.kind !== "pinned"/.test(
+      routeSrc
+    ),
+    'POST must reject any kind value other than "criteria" or "pinned"'
+  );
+  const guardMatch = routeSrc.match(
+    /if \(\s*input\.kind !== undefined[\s\S]{0,250}?\n  \}/
+  );
+  assert.ok(guardMatch, "the kind-whitelist guard block must exist");
+  assert.ok(
+    /status: 422/.test(guardMatch![0]),
+    "an invalid kind must 422, matching the other validation failures in this handler"
   );
 });
 
