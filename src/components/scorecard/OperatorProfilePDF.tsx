@@ -42,6 +42,8 @@ import {
   Link,
   Svg,
   Polyline,
+  Circle,
+  Rect,
   Font,
 } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/types";
@@ -58,8 +60,17 @@ import type { MetricTone } from "@/lib/scorecard/operating-detail";
 import type { WatchItem, WatchItemKind } from "@/lib/scorecard/watch-items";
 import type { SelectedPeer } from "@/lib/scorecard/peers";
 import type { RentTierDetail } from "@/lib/scorecard/rent-tier";
+import type { CoverageMapImage } from "@/lib/scorecard/pdf-coverage-map";
+import {
+  coverageMapRenderModel,
+  coverageRadius,
+  MAP_W,
+  MAP_H,
+  MAP_BOX_W,
+  MAP_BOX_H,
+} from "@/lib/scorecard/coverage-map-geo";
 
-import { styles, COLOR_TEAL, COLOR_GRID } from "./OperatorProfilePDF.theme";
+import { styles, COLOR_TEAL, COLOR_GRID, COLOR_MUTED_2 } from "./OperatorProfilePDF.theme";
 
 // Disable automatic mid-word hyphenation globally. @react-pdf otherwise breaks
 // long words with a hyphen to fit narrow columns (e.g. the momentum sparkline
@@ -1020,6 +1031,72 @@ function ConcentrationBar({
   );
 }
 
+function CoverageMapBlock({
+  coverageMap,
+  geo,
+}: {
+  coverageMap: CoverageMapImage | null;
+  geo: ScorecardData["geographicCoverage"];
+}) {
+  const model = coverageMapRenderModel(coverageMap, geo);
+  if (model.mode === "empty") return null;
+
+  return (
+    <View wrap={false} style={{ marginBottom: 10 }}>
+      <Eyebrow style={{ marginBottom: 6 }}>Coverage</Eyebrow>
+      <View
+        style={{
+          position: "relative",
+          width: MAP_BOX_W,
+          height: MAP_BOX_H,
+          borderWidth: 1,
+          borderStyle: "solid",
+          borderColor: COLOR_GRID,
+          borderRadius: 8,
+          overflow: "hidden",
+        }}
+      >
+        {model.mode === "basemap" ? (
+          <Image
+            src={model.imageSrc}
+            style={{ position: "absolute", top: 0, left: 0, width: MAP_BOX_W, height: MAP_BOX_H }}
+          />
+        ) : null}
+        <Svg
+          style={{ position: "absolute", top: 0, left: 0 }}
+          width={MAP_BOX_W}
+          height={MAP_BOX_H}
+          viewBox={`0 0 ${MAP_W} ${MAP_H}`}
+        >
+          {model.mode === "fallback" ? (
+            <Rect x={0} y={0} width={MAP_W} height={MAP_H} fill="#F2F5F8" />
+          ) : null}
+          {model.backdrop.map((p, i) => (
+            <Circle key={`b${i}`} cx={p.x} cy={p.y} r={2} fill="#B8C2D1" opacity={0.4} />
+          ))}
+          {model.coverage.map((p, i) => (
+            <Circle
+              key={`c${i}`}
+              cx={p.x}
+              cy={p.y}
+              r={coverageRadius(p.n)}
+              fill={COLOR_TEAL}
+              fillOpacity={0.85}
+              stroke="#FFFFFF"
+              strokeWidth={1.5}
+            />
+          ))}
+        </Svg>
+      </View>
+      <Text style={{ fontSize: 7.5, color: COLOR_MUTED_2, marginTop: 4 }}>
+        {model.mode === "basemap"
+          ? "Basemap © Mapbox © OpenStreetMap"
+          : "Coverage footprint (basemap unavailable)"}
+      </Text>
+    </View>
+  );
+}
+
 /** Value→premium gradient track (segmented) with a marker + rent captions. */
 function RentTierMarker({ detail }: { detail: RentTierDetail | null }) {
   if (detail == null) {
@@ -1232,9 +1309,13 @@ function PeersTable({
 function ScaleFitSection({
   scaleFit,
   peers,
+  coverageMap,
+  geo,
 }: {
   scaleFit: ScaleFitView;
   peers: SelectedPeer[];
+  coverageMap: CoverageMapImage | null;
+  geo: ScorecardData["geographicCoverage"];
 }) {
   const facts: Array<{ label: string; value: string }> = [];
   if (scaleFit.propertyType != null) facts.push({ label: "Type", value: scaleFit.propertyType });
@@ -1279,6 +1360,9 @@ function ScaleFitSection({
           cohortTop3={scaleFit.cohortTop3}
         />
       </View>
+
+      {/* Coverage map */}
+      <CoverageMapBlock coverageMap={coverageMap} geo={geo} />
 
       {/* Rent tier */}
       <View style={cardBox} wrap={false}>
@@ -2060,12 +2144,14 @@ const peerCell = {
 export function OperatorProfilePDF({
   view,
   scorecard,
+  coverageMap,
 }: {
   /** Pre-built view model — the single source both web + PDF read from. */
   view: ScorecardView;
   /** Raw scorecard — needed by the methodology footer only (mirrors what
    *  ScorecardBody passes MethodologyFooter). */
   scorecard: ScorecardData;
+  coverageMap: CoverageMapImage | null;
 }) {
   const logoDataUrl = getLogoDataUrl();
 
@@ -2093,7 +2179,12 @@ export function OperatorProfilePDF({
         <ExecReadout readout={view.readout} maturityNote={view.maturityNote} />
 
         <View style={{ marginTop: 12 }}>
-          <ScaleFitSection scaleFit={view.scaleFit} peers={view.peers} />
+          <ScaleFitSection
+            scaleFit={view.scaleFit}
+            peers={view.peers}
+            coverageMap={coverageMap}
+            geo={scorecard.geographicCoverage}
+          />
         </View>
         <View style={{ marginTop: 20 }}>
           <OperatingSection operating={view.operating} />
