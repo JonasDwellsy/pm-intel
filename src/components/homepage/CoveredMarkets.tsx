@@ -66,7 +66,7 @@ export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
             Operating in a market we don&apos;t cover yet?{" "}
           </span>
           <Link
-            href="mailto:coverage@dwellsy.com?subject=Dwellsy%20IQ%20%E2%80%94%20Coverage%20request"
+            href="mailto:coverage@dwellsy.com?subject=Operator%20IQ%20%E2%80%94%20Coverage%20request"
             className="not-italic font-semibold text-teal hover:text-teal-700 whitespace-nowrap"
           >
             Tell us where you operate →

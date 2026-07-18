@@ -193,7 +193,7 @@ export default function TermsPage() {
         <p>
           Questions about these terms:{" "}
           <a
-            href="mailto:info@dwellsy.com?subject=Dwellsy%20IQ%20Terms%20of%20Use%20inquiry"
+            href="mailto:info@dwellsy.com?subject=Operator%20IQ%20Terms%20of%20Use%20inquiry"
             className="font-semibold text-teal hover:text-teal-700"
           >
             info@dwellsy.com
