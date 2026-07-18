@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-// v0.22 — public Privacy page for the Dwellsy IQ product. It SUPPLEMENTS
+// v0.22 — public Privacy page for the Operator IQ product. It SUPPLEMENTS
 // Dwellsy's company-wide Privacy Policy (dwellsy.com/pages/privacy-policy)
 // with product-specific data-handling detail grounded in the engineering
 // PRIVACY.md (the factual record of what the observability stack does/does
@@ -8,9 +8,9 @@ import type { Metadata } from "next";
 // to the corporate policy. Public route — no auth gate.
 
 export const metadata: Metadata = {
-  title: "Privacy — Dwellsy IQ",
+  title: "Privacy",
   description:
-    "How the Dwellsy IQ product handles data — a product supplement to Dwellsy's company-wide Privacy Policy.",
+    "How the Operator IQ product handles data — a product supplement to Dwellsy's company-wide Privacy Policy.",
 };
 
 const LAST_UPDATED = "June 29, 2026";
@@ -41,10 +41,10 @@ export default function PrivacyPage() {
       <header className="border-b border-grid pb-6">
         <p className="dq-eyebrow text-teal">Privacy</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-navy">
-          Privacy at Dwellsy IQ
+          Privacy at Operator IQ
         </h1>
         <p className="mt-3 text-[14.5px] leading-relaxed text-muted-foreground">
-          Dwellsy IQ is an institutional intelligence product operated by
+          Operator IQ is an institutional intelligence product operated by
           Dwellsy, Inc. This page describes how data is handled in the product
           itself and{" "}
           <strong className="font-semibold text-navy">supplements</strong>{" "}
@@ -67,7 +67,7 @@ export default function PrivacyPage() {
 
       <Section title="Account &amp; access data">
         <p>
-          Access to Dwellsy IQ is provisioned per organization. We rely on our
+          Access to Operator IQ is provisioned per organization. We rely on our
           authentication provider (Clerk) to manage sign-in. Your organization,
           its members, and each member&rsquo;s role are stored so we can scope
           access to the markets your organization has licensed.
@@ -140,7 +140,7 @@ export default function PrivacyPage() {
           </strong>
           . Data is processed by the infrastructure and observability vendors
           that run the product (hosting, authentication, analytics, and error
-          monitoring) solely to operate Dwellsy IQ on our behalf.
+          monitoring) solely to operate Operator IQ on our behalf.
         </p>
       </Section>
 

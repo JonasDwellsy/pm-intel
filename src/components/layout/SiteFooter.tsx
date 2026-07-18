@@ -28,15 +28,13 @@ export function SiteFooter() {
             />
             <span aria-hidden className="h-3.5 w-px bg-grid" />
             <span className="text-xs text-muted-foreground">Operator IQ</span>
+            <span aria-hidden className="h-3.5 w-px bg-grid" />
+            <span className="text-xs text-muted-2">A Dwellsy IQ product</span>
           </Link>
           <p className="text-xs text-muted-foreground dq-tnum">
             Methodology {METHODOLOGY_VERSION}
             <span className="mx-1.5 text-muted-2">·</span>
             Design {DESIGN_VERSION}
-            <span className="mx-1.5 text-muted-2">·</span>
-            Confidential
-            <span className="mx-1.5 text-muted-2">·</span>
-            For institutional use only
           </p>
         </div>
         <nav className="mt-5 flex flex-wrap gap-6 text-xs text-muted-foreground">

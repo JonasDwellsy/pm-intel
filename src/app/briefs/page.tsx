@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Market briefs",
   description:
-    "Monthly analyst-style market briefs across Dwellsy IQ's covered markets — share movement, operator landscape, and notable signals.",
+    "Monthly analyst-style market briefs across Operator IQ's covered markets — share movement, operator landscape, and notable signals.",
 };
 
 interface BriefCardData {
@@ -57,13 +57,13 @@ export default async function BriefsIndex() {
     <div className="bg-background">
       <div className="mx-auto max-w-[1080px] px-6 py-14 sm:py-20">
         <p className="dq-eyebrow tracking-[0.16em] text-[11px]">
-          Dwellsy IQ research
+          Operator IQ research
         </p>
         <h1 className="mt-3 text-[36px] font-semibold leading-[1.1] tracking-[-0.014em] text-navy sm:text-[44px]">
           Market briefs
         </h1>
         <p className="mt-4 max-w-[56ch] text-[16px] leading-[1.55] text-foreground/80">
-          Analyst-style structural reads across Dwellsy IQ&apos;s{" "}
+          Analyst-style structural reads across Operator IQ&apos;s{" "}
           {cards.length} covered markets. Each brief synthesizes the current
           methodology version and data window into a short, scannable
           narrative — share movement, operator landscape, notable signals

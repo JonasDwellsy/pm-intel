@@ -11,12 +11,14 @@ import { FormulaBlock, Op } from "@/components/methodology/FormulaBlock";
 // explicit limitations section, no interactive JS; everything renders static.
 
 export const metadata: Metadata = {
-  title: "Portfolio Size Estimator — Dwellsy IQ Methodology",
+  // `absolute` so the root template ("%s · Operator IQ") doesn't append and
+  // double-brand ("… Operator IQ Methodology · Operator IQ").
+  title: { absolute: "Portfolio Size Estimator — Operator IQ Methodology" },
   description:
-    "How Dwellsy IQ estimates an operator's total managed units from observed on-market turnover: house URUs × 3.3 + apartment URUs × 2.6, applied uniformly with admin-tunable multipliers and a low–high confidence band.",
+    "How Operator IQ estimates an operator's total managed units from observed on-market turnover: house URUs × 3.3 + apartment URUs × 2.6, applied uniformly with admin-tunable multipliers and a low–high confidence band.",
   alternates: { canonical: "/methodology/portfolio-estimator" },
   openGraph: {
-    title: "Portfolio Size Estimator — Dwellsy IQ Methodology",
+    title: "Portfolio Size Estimator — Operator IQ Methodology",
     description:
       "Unit-type turnover model: house and apartment URUs scaled to estimated managed units, with a plausible-turnover confidence band and known limitations.",
     type: "article",
@@ -48,7 +50,7 @@ export default function PortfolioEstimatorPage() {
         <p className="mt-4 text-[16.5px] leading-[1.65] text-foreground/85">
           The estimator answers a single question:{" "}
           <em>about how many units does this operator actually manage?</em>{" "}
-          Dwellsy IQ observes only listing activity — the subset of an
+          Operator IQ observes only listing activity — the subset of an
           operator&rsquo;s portfolio that hits the open rental market in a given
           window. A unit only appears when it lists, and it only lists on
           turnover, so observed units are a fraction of the managed book. The
@@ -177,7 +179,7 @@ export default function PortfolioEstimatorPage() {
           Estimator version{" "}
           <span className="dq-mono">v0.8-house-apt-turnover</span>. Computed at
           seed time and surfaced on the scorecard; also available through the
-          Ask Dwellsy IQ tools and the market-brief generator. See the{" "}
+          Ask Operator IQ tools and the market-brief generator. See the{" "}
           <Link
             href="/methodology"
             className="font-medium text-teal hover:text-teal-700 hover:underline"
