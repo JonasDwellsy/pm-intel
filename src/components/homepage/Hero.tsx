@@ -48,7 +48,7 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
             Operator IQ turns Dwellsy&apos;s nationwide listing record into
             observed, reproducible scorecards on 20,000+ property managers — so
             you can shortlist the right operator, vet it before you sign, and
-            get alerted the moment performance moves. Every figure is measured,
+            get alerted when performance moves. Every figure is measured,
             not self-reported.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
