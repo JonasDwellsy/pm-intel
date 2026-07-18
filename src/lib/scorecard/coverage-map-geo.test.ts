@@ -100,12 +100,12 @@ test("thinBackdrop: within cap is unchanged; over cap strides down to ≤ max", 
   assert.equal(thinned[0], 0); // deterministic stride, keeps index 0
 });
 
-test("coverageRadius: clamps and interpolates 1→6, 100→18", () => {
-  assert.equal(coverageRadius(1), 6);
-  assert.equal(coverageRadius(100), 18);
-  assert.equal(coverageRadius(0), 6); // clamp low
-  assert.equal(coverageRadius(500), 18); // clamp high
-  assert.ok(Math.abs(coverageRadius(50.5) - 12) < 0.1); // ~midpoint
+test("coverageRadius: clamps and interpolates 1→5, 100→14", () => {
+  assert.equal(coverageRadius(1), 5);
+  assert.equal(coverageRadius(100), 14);
+  assert.equal(coverageRadius(0), 5); // clamp low
+  assert.equal(coverageRadius(500), 14); // clamp high
+  assert.ok(Math.abs(coverageRadius(50.5) - 9.5) < 0.1); // ~midpoint
 });
 
 test("buildStaticImageUrl: correct shape, @2x, no logo/attribution, token in query", () => {

@@ -28,7 +28,11 @@ export const MAP_H = 500; // logical projection height (px) — 2:1
 export const MAP_PADDING = 40; // logical px kept clear around the footprint
 export const MAP_MAX_BACKDROP = 600; // cap on drawn backdrop dots
 export const MAP_MAX_ZOOM = 13; // parity with the web map's fitBounds maxZoom
-export const MAP_STYLE = "light-v11";
+// streets-v12 (not light-v11) for the PDF: the minimal light style shows too
+// few place labels/roads to make out the geography in a static report where the
+// reader can't zoom. Streets adds suburb/neighborhood names + major roads for
+// orientation. (The interactive web map keeps light-v11 — it's zoomable.)
+export const MAP_STYLE = "streets-v12";
 export const MAP_BOX_W = 516; // PDF display width (LETTER 612 − 2×48 margins)
 export const MAP_BOX_H = 258; // PDF display height — 2:1
 
@@ -112,7 +116,8 @@ export function thinBackdrop<T>(points: T[], max: number): T[] {
 
 export function coverageRadius(n: number): number {
   const c = Math.min(Math.max(n, 1), 100);
-  return 6 + ((c - 1) / 99) * 12; // 6..18
+  return 5 + ((c - 1) / 99) * 9; // 5..14 — smaller than the web map's 6..18 so
+  // the denser streets-v12 basemap labels read through in the PDF.
 }
 
 export function buildStaticImageUrl(opts: {
