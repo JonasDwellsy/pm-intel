@@ -126,7 +126,7 @@ export function buildDigest(input: DigestInput): DigestEmail | null {
   if (lists.length === 0) return null;
 
   const opCount = lists.reduce((n, l) => n + l.operators.length, 0);
-  const subject = `Your Dwellsy IQ watch-list update — ${input.monthLabel}`;
+  const subject = `Your Operator IQ watch-list update — ${input.monthLabel}`;
   const greeting = input.recipientFirstName ? `Hi ${input.recipientFirstName},` : "Hi,";
   const lede = `${opCount} watched operator${opCount === 1 ? "" : "s"} changed in the latest data (${input.monthLabel}).`;
 
@@ -167,14 +167,14 @@ export function buildDigest(input: DigestInput): DigestEmail | null {
     })
     .join("");
 
-  const html = `<!-- Dwellsy IQ watch-list digest -->
+  const html = `<!-- Operator IQ watch-list digest -->
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;color:#2a3547;">
   <p style="font-size:14px;">${esc(greeting)}</p>
   <p style="font-size:14px;">${esc(lede)}</p>
   ${sections}
   <hr style="border:none;border-top:1px solid #eef1f6;margin:24px 0 12px;">
   <p style="font-size:11px;color:#8894ac;">
-    You receive this because your organization has a Dwellsy IQ watch list.
+    You receive this because your organization has an Operator IQ watch list.
     <a href="${esc(input.unsubscribeUrl)}" style="color:#8894ac;">Unsubscribe</a>.<br>
     Dwellsy, Inc.
   </p>

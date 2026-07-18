@@ -211,7 +211,7 @@ export function MarketsCoverageMap({
         <svg
           viewBox={`0 0 ${MAP_VIEWBOX.width} ${MAP_VIEWBOX.height}`}
           role="img"
-          aria-label="Map of the contiguous United States showing live Dwellsy IQ markets and additional markets available upon request."
+          aria-label="Map of the contiguous United States showing live Operator IQ markets and additional markets available upon request."
           className="block h-auto w-full"
         >
           {/* State geometry — context only, no interactivity.

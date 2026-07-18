@@ -28,5 +28,5 @@ export async function GET(req: Request) {
     update: { unsubscribed: true },
     create: { userId, unsubscribed: true },
   });
-  return page("You're unsubscribed", "You will no longer receive the Dwellsy IQ market-brief email. This does not affect your watch-list digest.");
+  return page("You're unsubscribed", "You will no longer receive the Operator IQ market-brief email. This does not affect your watch-list digest.");
 }

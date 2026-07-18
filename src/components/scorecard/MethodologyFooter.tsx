@@ -123,7 +123,7 @@ export function MethodologyFooter({
         <div className="rounded-md border border-grid bg-surface-soft p-5">
           <p className="dq-eyebrow-muted mb-2">Disclaimer</p>
           <p className="text-[13px] leading-[1.6] text-foreground">
-            Dwellsy IQ scorecards reflect operator behavior observable in our
+            Operator IQ scorecards reflect operator behavior observable in our
             first-party listings data. Figures are not portfolio totals;
             they&rsquo;re what we see. Composite is descriptive, not
             predictive — it doesn&rsquo;t forecast future outcomes.
@@ -270,7 +270,7 @@ function PortfolioComposition({ scorecard }: { scorecard: ScorecardData }) {
           {c.nationalObservedUnitsT12 !== null && (
             <tr>
               <td>
-                Observed units · all Dwellsy IQ markets{" "}
+                Observed units · all Operator IQ markets{" "}
                 <span className="text-muted-foreground">(T12)</span>
               </td>
               <td className="num">{fmtInt(c.nationalObservedUnitsT12)}</td>

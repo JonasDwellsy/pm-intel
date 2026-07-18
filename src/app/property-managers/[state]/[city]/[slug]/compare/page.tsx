@@ -56,7 +56,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const loaded = await loadFocal(slug);
   if (!loaded) return { title: "Compare not found" };
-  const title = `Compare ${loaded.scorecard.pm.name} with peers — Dwellsy IQ`;
+  const title = `Compare ${loaded.scorecard.pm.name} with peers`;
   const description = `Side-by-side comparison of ${loaded.scorecard.pm.name} against same-cohort peers in ${loaded.marketFullName}.`;
   return {
     title,

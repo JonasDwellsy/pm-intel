@@ -65,7 +65,7 @@ export function buildBriefDigestEmail(input: BriefDigestInput): BriefDigestEmail
   }
 
   const greeting = input.recipientFirstName ? `Hi ${input.recipientFirstName},` : "Hi,";
-  const subject = `Dwellsy IQ market briefs — ${input.monthLabel}`;
+  const subject = `Operator IQ market briefs — ${input.monthLabel}`;
 
   // ---- text ----
   const t: string[] = [greeting, "", `Your ${input.monthLabel} market briefs.`, ""];

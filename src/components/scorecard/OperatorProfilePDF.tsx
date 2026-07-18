@@ -2061,7 +2061,7 @@ function MethodologySection({ scorecard }: { scorecard: ScorecardData }) {
       <View wrap={false} minPresenceAhead={40}>
         <Text style={styles.sectionHeader}>Disclaimer</Text>
         <Text style={styles.paragraph}>
-          Dwellsy IQ scorecards reflect operator behavior observable in our first-party
+          Operator IQ scorecards reflect operator behavior observable in our first-party
           listings data. Figures are not portfolio totals; they&rsquo;re what we see.
           Operators with shorter observation history have noisier estimates on metrics that
           depend on multi-episode unit pairs (Tenancy) or multi-year trajectory (Rent

@@ -27,5 +27,5 @@ export async function GET(req: Request) {
     update: { unsubscribed: true },
     create: { userId, unsubscribed: true },
   });
-  return page("You're unsubscribed", "You will no longer receive the Dwellsy IQ watch-list monthly digest. You can re-enable it anytime from your workspace settings.");
+  return page("You're unsubscribed", "You will no longer receive the Operator IQ watch-list monthly digest. You can re-enable it anytime from your workspace settings.");
 }
