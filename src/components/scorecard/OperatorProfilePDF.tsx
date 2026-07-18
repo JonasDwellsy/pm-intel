@@ -1072,7 +1072,7 @@ function CoverageMapBlock({
             <Rect x={0} y={0} width={MAP_W} height={MAP_H} fill="#F2F5F8" />
           ) : null}
           {model.backdrop.map((p, i) => (
-            <Circle key={`b${i}`} cx={p.x} cy={p.y} r={2} fill="#B8C2D1" opacity={0.4} />
+            <Circle key={`b${i}`} cx={p.x} cy={p.y} r={1.8} fill="#B8C2D1" opacity={0.28} />
           ))}
           {model.coverage.map((p, i) => (
             <Circle
@@ -1081,7 +1081,7 @@ function CoverageMapBlock({
               cy={p.y}
               r={coverageRadius(p.n)}
               fill={COLOR_TEAL}
-              fillOpacity={0.85}
+              fillOpacity={0.7}
               stroke="#FFFFFF"
               strokeWidth={1.5}
             />
