@@ -136,6 +136,14 @@ export default async function WatchListResultsPage({ params }: PageProps) {
   const headlineTotal = summary.totalOperators;
   const scoreMin = summary.scoreMinOperator;
   const scoreMax = summary.scoreMaxOperator;
+  // Task 7 (final review) — the criteria branch below must count only
+  // rows that passed the list's CRITERIA, not pin-union additions. A
+  // hybrid list's pinned-only rows carry `matched` falsy and a sentinel
+  // fitScore of 0, which would otherwise inflate "X of Y match" and
+  // drag the fit-score range floor to 0. See results-view.ts.
+  const criteriaMatched = summary.criteriaMatchedOperatorCount;
+  const criteriaScoreMin = summary.criteriaScoreMinOperator;
+  const criteriaScoreMax = summary.criteriaScoreMaxOperator;
 
   return (
     <div className="bg-background">
@@ -183,19 +191,26 @@ export default async function WatchListResultsPage({ params }: PageProps) {
                 </>
               ) : (
                 <>
+                  {/* v0.28 (Task 7, final review) — this count + range
+                      reflect CRITERIA-matched operators only. A hybrid
+                      list's pinned-only rows are excluded here (they'd
+                      inflate the count against headlineTotal and drag
+                      the range floor to their sentinel fitScore of 0);
+                      they still appear in the table below, badged
+                      "Pinned". */}
                   <span className="dq-mono text-navy tabular-nums">
-                    {headlineMatched}
+                    {criteriaMatched}
                   </span>{" "}
                   of{" "}
                   <span className="dq-mono text-navy tabular-nums">
                     {headlineTotal}
                   </span>{" "}
                   operators match this watch list
-                  {scoreMin !== null && scoreMax !== null && (
+                  {criteriaScoreMin !== null && criteriaScoreMax !== null && (
                     <>
                       {" · fit score range "}
                       <span className="dq-mono text-navy tabular-nums">
-                        {scoreMin}–{scoreMax}
+                        {criteriaScoreMin}–{criteriaScoreMax}
                       </span>
                     </>
                   )}

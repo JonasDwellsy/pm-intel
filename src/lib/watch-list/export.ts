@@ -125,9 +125,18 @@ function buildSummarySheet(args: ExportArgs): WorkSheet {
   const { watchList } = args;
   const isPinnedList = !hasCriteria(watchList);
   const matchedCount = args.operatorRows.length;
+  // Task 7 (final review) — "Operators matched" / "Match rate" for a
+  // has-criteria list must count only rows that passed the CRITERIA
+  // (matched === true), excluding pin-union additions. A hybrid list's
+  // pinned-only rows would otherwise inflate this count against
+  // totalOps; they're still visible per-row via the "Pinned" column on
+  // the Operators/Markets sheets.
+  const criteriaMatchedCount = args.operatorRows.filter((r) => r.matched).length;
   const totalOps = args.totalCandidates;
   const matchRate =
-    totalOps > 0 ? `${Math.round((matchedCount / totalOps) * 1000) / 10}%` : "—";
+    totalOps > 0
+      ? `${Math.round((criteriaMatchedCount / totalOps) * 1000) / 10}%`
+      : "—";
 
   // Build rows as an array-of-arrays. Each row is [label, value].
   // Blank arrays render as visual section separators in Excel.
@@ -149,14 +158,16 @@ function buildSummarySheet(args: ExportArgs): WorkSheet {
   // overstatement the on-page /results headline had — see
   // results/page.tsx). Swap to a plain pinned-count line. A hybrid
   // list (criteria + pins) still has criteria, so it keeps the
-  // matched-count wording here — its pinned rows are already visible
-  // via the per-row "Pinned" column on the Operators/Markets sheets.
+  // matched-count wording here — but "Operators matched" reflects
+  // CRITERIA matches only (criteriaMatchedCount above): pin-union
+  // additions are excluded from this figure but still listed, badged
+  // "Pinned", on the Operators/Markets sheets.
   if (isPinnedList) {
     rows.push(["Companies pinned", matchedCount]);
   } else {
     rows.push(
       ["Total operators evaluated", totalOps],
-      ["Operators matched", matchedCount],
+      ["Operators matched", criteriaMatchedCount],
       ["Match rate", matchRate]
     );
   }

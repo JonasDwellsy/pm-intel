@@ -117,6 +117,13 @@ export interface ResultsViewSummary {
   scoreMax: number | null;
   scoreMinOperator: number | null;
   scoreMaxOperator: number | null;
+  /** Operators that passed the list's CRITERIA (matched === true),
+   *  excluding pin-only rows. The headline "X of Y match" + fit-score
+   *  range use these so a hybrid list's pins don't inflate the count
+   *  or drag the range to the pinned sentinel score. */
+  criteriaMatchedOperatorCount: number;
+  criteriaScoreMinOperator: number | null;
+  criteriaScoreMaxOperator: number | null;
   generatedAt: string;
 }
 
@@ -148,6 +155,11 @@ export function projectResultsForView(args: ProjectArgs): {
   const marketScores = marketRows.map((r) => r.fitScore);
   const operatorScores = operatorRows.map((r) => r.fitScore);
 
+  const criteriaMatchedOperatorRows = operatorRows.filter((r) => r.matched);
+  const criteriaMatchedScores = criteriaMatchedOperatorRows.map(
+    (r) => r.fitScore
+  );
+
   return {
     marketRows,
     operatorRows,
@@ -162,6 +174,15 @@ export function projectResultsForView(args: ProjectArgs): {
         operatorScores.length > 0 ? Math.min(...operatorScores) : null,
       scoreMaxOperator:
         operatorScores.length > 0 ? Math.max(...operatorScores) : null,
+      criteriaMatchedOperatorCount: criteriaMatchedOperatorRows.length,
+      criteriaScoreMinOperator:
+        criteriaMatchedScores.length > 0
+          ? Math.min(...criteriaMatchedScores)
+          : null,
+      criteriaScoreMaxOperator:
+        criteriaMatchedScores.length > 0
+          ? Math.max(...criteriaMatchedScores)
+          : null,
       generatedAt: args.generatedAt,
     },
   };
