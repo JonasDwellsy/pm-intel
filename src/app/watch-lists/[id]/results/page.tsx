@@ -273,7 +273,7 @@ export default async function WatchListResultsPage({ params }: PageProps) {
             preferred={watchList.preferredCriteria}
             excluded={watchList.excludedCriteria}
             watchListId={watchList.id}
-            canManageMembers={skipCriteria && canEdit}
+            canManageMembers={canEdit}
           />
         )}
 

@@ -84,6 +84,9 @@ export interface ResultRowVM {
    *  criteria. Threaded straight from RankedTarget/RolledUpTarget's
    *  `pinned` flag — display-only (Task 7 badges it in the table). */
   pinned: boolean;
+  /** True when this row passed the list's criteria. With pinned, a
+   *  row can be both → "Pinned + matches" badge. */
+  matched?: boolean;
   /** canonicalOperatorId ?? pmSlug — the company-level key the pin
    *  system keys on everywhere (apply.ts, AddToWatchList, the
    *  /members API). Operator-view rows already use this exact value
@@ -194,6 +197,7 @@ function projectMarketRow(
     concessionRate: sc.concessionRate ?? null,
     fitScore: r.fitScore,
     pinned: r.pinned ?? false,
+    matched: r.matched ?? false,
     memberKey: r.canonicalOperatorId ?? r.pmSlug,
     pm: r.pm,
     preferredBreakdown: projectBreakdown(r.breakdown.preferred, true),
@@ -270,6 +274,7 @@ function projectOperatorRow(
     concessionRate: sc.concessionRate ?? null,
     fitScore: r.fitScore,
     pinned: r.pinned ?? false,
+    matched: r.matched ?? false,
     memberKey: r.canonicalOperatorId,
     pm: r.pm,
     preferredBreakdown: projectBreakdown(r.breakdown.preferred, true),
