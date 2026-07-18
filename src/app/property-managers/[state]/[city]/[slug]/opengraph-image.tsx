@@ -250,7 +250,7 @@ export default async function Image({
             {/* ASCII-only — no `·`/em dash here either (same Satori font-
                 preflight risk as the separator above). */}
             <span style={{ color: COLOR_TEAL, fontWeight: 600, fontSize: 18 }}>
-              Operator IQ Property Manager Scorecard
+              Operator IQ: Property Manager Scorecard
             </span>
           </div>
 
