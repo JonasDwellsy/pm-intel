@@ -254,11 +254,9 @@ model WatchList {
   views WatchListView[]
 
   // Smart / pinned / hybrid is DERIVED from content (criteria-presence +
-  // pin count) via src/lib/watch-list/kind.ts. The v0.26 `kind` column is
-  // no longer modeled or read; its physical DROP ships as a follow-up
-  // migration (two-phase: stop reading it here first, then drop it once
-  // this is live, so a shared-DB deploy never leaves old code selecting a
-  // dropped column).
+  // pin count) via src/lib/watch-list/kind.ts. The v0.26 `kind` column
+  // was dropped (20260718000000_drop_watch_list_kind) once nothing read
+  // it for behavior or display.
   members WatchListMember[]
 
   @@index([ownerId])
