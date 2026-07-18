@@ -38,20 +38,10 @@ import type {
 import type { WatchListDefinition } from "./scoring";
 import { canViewList, canEditList } from "./visibility";
 
-/** Valid values for the `kind` column — "criteria" (smart list, matches
- *  via requiredCriteria/preferredCriteria/excludedCriteria) or "pinned"
- *  (manual pick list, membership via WatchListMember rows). Exported so
- *  request-body validation (POST /api/watch-lists) checks untrusted
- *  input against the same source of truth as createWatchList's own
- *  default, instead of duplicating the two literals. */
-export const WATCH_LIST_KINDS = ["criteria", "pinned"] as const;
-export type WatchListKind = (typeof WATCH_LIST_KINDS)[number];
-
 export interface WatchListRecord extends WatchListDefinition {
   ownerId: string;
   organizationId: string | null;
   isShared: boolean;
-  kind: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,7 +75,6 @@ function parseRow(row: {
   ownerId: string;
   organizationId: string | null;
   isShared: boolean;
-  kind: string;
   requiredCriteria: string;
   preferredCriteria: string;
   excludedCriteria: string;
@@ -99,7 +88,6 @@ function parseRow(row: {
     ownerId: row.ownerId,
     organizationId: row.organizationId,
     isShared: row.isShared,
-    kind: row.kind,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     requiredCriteria: safeParseJson<FilterCriterion[]>(row.requiredCriteria, []),
@@ -197,10 +185,6 @@ export interface WatchListInput {
   ownerId: string;
   organizationId: string;
   isShared?: boolean;
-  // v0.26 — "criteria" (smart list, default) | "pinned" (manual pick
-  // list). Optional on both create and update; create defaults to
-  // "criteria" so pre-existing callers are unaffected.
-  kind?: string;
   requiredCriteria: FilterCriterion[];
   preferredCriteria: WeightedCriterion[];
   excludedCriteria: FilterCriterion[];
@@ -214,7 +198,6 @@ export async function createWatchList(input: WatchListInput): Promise<WatchListR
       ownerId: input.ownerId,
       organizationId: input.organizationId,
       isShared: input.isShared ?? false,
-      kind: input.kind ?? "criteria",
       requiredCriteria: JSON.stringify(input.requiredCriteria),
       preferredCriteria: JSON.stringify(input.preferredCriteria),
       excludedCriteria: JSON.stringify(input.excludedCriteria),
@@ -243,7 +226,6 @@ export async function updateWatchList(
       ...(input.name !== undefined && { name: input.name }),
       ...(input.description !== undefined && { description: input.description }),
       ...(input.isShared !== undefined && { isShared: input.isShared }),
-      ...(input.kind !== undefined && { kind: input.kind }),
       ...(input.requiredCriteria !== undefined && {
         requiredCriteria: JSON.stringify(input.requiredCriteria),
       }),

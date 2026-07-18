@@ -45,16 +45,12 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          // A duplicate copies criteria but not pinned membership, so its
+          // derived kind (pinned/smart/hybrid) reflects the copy's own
+          // content — a duplicated pick list comes back as an empty pick
+          // list, a duplicated smart/hybrid list as a smart list.
           name: `${bb.name} (copy)`,
           description: bb.description,
-          // v0.28 (Task 7) fix: this used to omit `kind` entirely, so
-          // duplicating a "pinned" pick list silently created a
-          // "criteria" list instead (createWatchList's own default) —
-          // the duplicate would show up as a smart list with the same
-          // (empty) criteria arrays but none of the original's pinned
-          // membership, and no way to tell it apart from a genuine
-          // blank smart list on the index.
-          kind: bb.kind,
           requiredCriteria: bb.requiredCriteria,
           preferredCriteria: bb.preferredCriteria,
           excludedCriteria: bb.excludedCriteria,

@@ -5,8 +5,9 @@
 // lists (pinned, smart, or hybrid), each with a checkbox reflecting
 // current membership. Toggling calls POST/DELETE
 // /api/watch-lists/[id]/members; a "+ New list…" row creates a fresh
-// pinned list (POST /api/watch-lists, kind: "pinned" — a fresh list has
-// no criteria, so it derives as pinned) and pins into it immediately.
+// list (POST /api/watch-lists with empty criteria — a fresh list has
+// no criteria, so it derives as a pinned list) and pins into it
+// immediately.
 //
 // Mounted on three surfaces: the scorecard header (ScorecardHeader.tsx,
 // gated by !publicSample), market rows (PMListItem.tsx), and search rows
@@ -52,7 +53,6 @@ interface AddToWatchListProps {
 interface WatchListSummary {
   id: string;
   name: string;
-  kind: string;
   ownerId: string;
 }
 
@@ -182,7 +182,6 @@ export function AddToWatchList({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           name,
-          kind: "pinned",
           requiredCriteria: [],
           preferredCriteria: [],
           excludedCriteria: [],
