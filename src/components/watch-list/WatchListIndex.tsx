@@ -17,13 +17,15 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { WatchListRecord } from "@/lib/watch-list/store";
+import { deriveListKind } from "@/lib/watch-list/kind";
 
 interface Props {
   watchListes: WatchListRecord[];
   /** v0.28 (Task 7 Step 1) — watchListId → pinned-member count, for
-   *  `kind: "pinned"` rows only. Computed server-side (listMembers per
-   *  pinned row) and passed down so this client component doesn't need
-   *  its own data-fetching path just to render "N companies". */
+   *  every row (smart lists return 0). Computed server-side
+   *  (listMembers per row) and passed down so this client component
+   *  doesn't need its own data-fetching path just to render "N
+   *  companies". */
   pinnedCounts: Record<string, number>;
 }
 
@@ -98,7 +100,14 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
         </div>
       )}
       <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {watchListes.map((bb) => (
+        {watchListes.map((bb) => {
+          // v0.28 (Task 7 Step 2) — the card's label + body derive from
+          // content (criteria-presence + pin count), NOT the stored
+          // `kind` column, so a smart list that accumulates pins (or a
+          // pick list that later gains criteria) reclassifies itself
+          // automatically without a migration.
+          const listKind = deriveListKind(bb, pinnedCounts[bb.id] ?? 0);
+          return (
           <article
             key={bb.id}
             className="flex flex-col rounded-lg border border-grid bg-white p-5 transition-shadow hover:shadow-tile-hover"
@@ -108,9 +117,14 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
                 <h2 className="text-[16px] font-semibold leading-snug text-navy">
                   {bb.name}
                 </h2>
-                {bb.kind === "pinned" && (
+                {listKind === "pinned" && (
                   <span className="dq-pill dq-pill-teal shrink-0 text-[10px]">
                     Pick list
+                  </span>
+                )}
+                {listKind === "hybrid" && (
+                  <span className="dq-pill dq-pill-teal shrink-0 text-[10px]">
+                    Hybrid
                   </span>
                 )}
               </div>
@@ -121,7 +135,7 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
               </p>
             </header>
 
-            {bb.kind === "pinned" ? (
+            {listKind === "pinned" ? (
               // v0.28 (Task 7 Step 1) — a pick list has no criteria to
               // summarize; show the manual-membership count instead
               // (from listMembers, computed server-side).
@@ -134,7 +148,7 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
                   {(pinnedCounts[bb.id] ?? 0) === 1 ? "company" : "companies"}
                 </span>
               </div>
-            ) : (
+            ) : listKind === "smart" ? (
               <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
                 <CountChip label="required" color="text-bad" dot="bg-bad" value={bb.requiredCriteria.length} />
                 <CountChip
@@ -150,6 +164,37 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
                   value={bb.excludedCriteria.length}
                 />
               </div>
+            ) : (
+              // Hybrid — has both criteria and pins. Show the criteria
+              // chips (what qualifies a match) stacked above the pin
+              // count (what was manually added on top), each block
+              // reusing its exact standalone markup.
+              <>
+                <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
+                  <CountChip label="required" color="text-bad" dot="bg-bad" value={bb.requiredCriteria.length} />
+                  <CountChip
+                    label="preferred"
+                    color="text-orange-700"
+                    dot="bg-orange"
+                    value={bb.preferredCriteria.length}
+                  />
+                  <CountChip
+                    label="excluded"
+                    color="text-muted-foreground"
+                    dot="bg-muted-2"
+                    value={bb.excludedCriteria.length}
+                  />
+                </div>
+                <div className="mt-2 flex items-center gap-1.5 text-[12px]">
+                  <span className="inline-block size-1.5 rounded-full bg-teal" />
+                  <span className="dq-mono tabular-nums text-navy">
+                    {pinnedCounts[bb.id] ?? 0}
+                  </span>
+                  <span className="text-teal-700">
+                    {(pinnedCounts[bb.id] ?? 0) === 1 ? "company" : "companies"}
+                  </span>
+                </div>
+              </>
             )}
 
             <div className="mt-2 text-[11.5px] text-muted-foreground dq-mono">
@@ -187,7 +232,8 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
               </button>
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
 
       {/* Delete confirmation */}

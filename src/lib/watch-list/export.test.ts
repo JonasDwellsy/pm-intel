@@ -567,7 +567,7 @@ test("Markets sheet has a Pinned column marking pinned rows yes/no", () => {
   assert.equal(matched?.["Pinned"], "no");
 });
 
-test("Summary sheet shows 'Companies pinned' (not 'Match rate') for a kind:'pinned' watch list", () => {
+test("Summary sheet shows 'Companies pinned' (not 'Match rate') for a watch list with NO criteria", () => {
   const wb = buildWorkbook({
     watchList: {
       id: "pick-1",
@@ -599,6 +599,50 @@ test("Summary sheet shows 'Companies pinned' (not 'Match rate') for a kind:'pinn
   assert.equal(map["Operators matched"], undefined);
   assert.equal(map["Match rate"], undefined);
   assert.equal(map["Total operators evaluated"], undefined);
+});
+
+test("Summary sheet keeps 'Operators matched' / 'Match rate' wording for a hybrid list (kind:'pinned' but WITH criteria) — wording keys on criteria-presence, not kind", () => {
+  // Task 7 Step 3: buildSummarySheet's isPinnedList now derives from
+  // hasCriteria(watchList), not the stored `kind` column. This fixture
+  // deliberately sets kind: "pinned" (stale/irrelevant creation intent)
+  // alongside a non-empty requiredCriteria to prove the summary wording
+  // no longer keys off kind at all — a hybrid list (criteria + pins)
+  // still gets "Operators matched" / "Match rate" here; its pinned rows
+  // are surfaced separately via the per-row "Pinned" column.
+  const wb = buildWorkbook({
+    watchList: {
+      id: "hybrid-1",
+      name: "Hybrid List",
+      description: null,
+      requiredCriteria: [
+        { field: "quadrant7Cell", operator: "eq", value: "SFR Independent" },
+      ],
+      preferredCriteria: [],
+      excludedCriteria: [],
+      kind: "pinned",
+    },
+    operatorRows: [
+      makeRow({ rank: 1, name: "Matched Op", marketLabel: "X", fitScore: 100, urusT12: 50, pinned: false }),
+      makeRow({ rank: 2, name: "Pinned Op", marketLabel: "X", fitScore: 80, urusT12: 40, pinned: true }),
+    ],
+    marketRows: [],
+    totalCandidates: 3200,
+    methodologyVersion: "v0.8",
+    liveUrl: "https://example.test/watch-lists/hybrid-1/results",
+    generatedAt: new Date("2026-05-21T00:00:00Z"),
+  });
+  const rows = XLSX.utils.sheet_to_json<Array<string | number>>(
+    wb.workbook.Sheets["Summary"],
+    { header: 1 }
+  );
+  const map: Record<string, string | number> = {};
+  for (const row of rows) {
+    if (row.length >= 2 && typeof row[0] === "string") map[row[0]] = row[1];
+  }
+  assert.equal(map["Operators matched"], 2);
+  assert.equal(map["Total operators evaluated"], 3200);
+  assert.equal(map["Match rate"], "0.1%");
+  assert.equal(map["Companies pinned"], undefined);
 });
 
 test("Summary sheet keeps 'Operators matched' / 'Match rate' wording when kind is omitted (backward compatible)", () => {

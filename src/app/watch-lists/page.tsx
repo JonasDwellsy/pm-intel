@@ -101,15 +101,17 @@ export default async function WatchListesPage() {
   const rows = await listWatchListes(userId, organizationId);
   const isEmpty = rows.length === 0;
 
-  // v0.28 (Task 7 Step 1) — pinned-list cards show "N companies"
-  // instead of a criteria summary. `rows` is already scoped by
-  // listWatchListes' canViewList filter, so calling the no-authz
-  // listMembers() per pinned row here is safe (same reasoning as
-  // results/page.tsx's own listMembers call).
+  // v0.28 (Task 7 Step 1) — pin counts for EVERY row, not just
+  // `kind: "pinned"` ones. The index card's pinned/smart/hybrid label
+  // and body now derive from content (criteria-presence + pin count,
+  // see deriveListKind in @/lib/watch-list/kind), so a smart list with
+  // pins attached needs its real count too — smart lists with none
+  // simply come back 0. `rows` is already scoped by listWatchListes'
+  // canViewList filter, so calling the no-authz listMembers() per row
+  // here is safe (same reasoning as results/page.tsx's own
+  // listMembers call).
   const pinnedCountEntries = await Promise.all(
-    rows
-      .filter((r) => r.kind === "pinned")
-      .map(async (r) => [r.id, (await listMembers(r.id)).length] as const)
+    rows.map(async (r) => [r.id, (await listMembers(r.id)).length] as const)
   );
   const pinnedCounts: Record<string, number> = Object.fromEntries(
     pinnedCountEntries
