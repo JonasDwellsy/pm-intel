@@ -256,18 +256,20 @@ test("Task 8: buildOrgListContext calls listAllForOrg and carries ownerId/isShar
   );
 });
 
-test("Task 8: buildOrgListContext passes skipCriteriaMatch for kind:'pinned' lists (mirrors /results and /changes)", () => {
+test("Task 8: buildOrgListContext derives skipCriteriaMatch from criteria-presence (mirrors /results and /changes)", () => {
   const src = readFileSync(
     join(process.cwd(), "src/lib/watch-list/digest-run.ts"),
     "utf8"
   );
+  // Hybrid watch lists — skipCriteriaMatch is keyed on criteria-presence
+  // (shouldSkipCriteriaMatch), never the stored `kind` column.
   assert.ok(
-    /const isPinnedList = wl\.kind === "pinned";/.test(src),
-    "buildOrgListContext must compute isPinnedList from wl.kind"
+    /const skipCriteria = shouldSkipCriteriaMatch\(wl\);/.test(src),
+    "buildOrgListContext must derive skipCriteria via shouldSkipCriteriaMatch(wl)"
   );
   assert.ok(
-    /applyWatchList\(\s*\{[\s\S]*?\},\s*entitlement,\s*pins,\s*isPinnedList,?\s*\)/.test(src),
-    "buildOrgListContext must pass pins + isPinnedList (skipCriteriaMatch) as the 3rd/4th applyWatchList args"
+    /applyWatchList\(\s*\{[\s\S]*?\},\s*entitlement,\s*pins,\s*skipCriteria,?\s*\)/.test(src),
+    "buildOrgListContext must pass pins + skipCriteria as the 3rd/4th applyWatchList args"
   );
 });
 
@@ -536,10 +538,10 @@ test("Task 7 Step 4: /changes wires pinned members into applyWatchList, same as 
     "/changes must build the same pins Set (memberKey) that /results builds"
   );
   assert.ok(
-    /applyWatchList\(\s*\{[\s\S]*?\},\s*entitlement,\s*pins,\s*isPinnedList\s*\)/.test(
+    /applyWatchList\(\s*\{[\s\S]*?\},\s*entitlement,\s*pins,\s*skipCriteria\s*\)/.test(
       pageSrc
     ),
-    "/changes must pass pins + skipCriteriaMatch (isPinnedList) as the 3rd/4th applyWatchList args, same as /results"
+    "/changes must pass pins + skipCriteria (criteria-presence skipCriteriaMatch) as the 3rd/4th applyWatchList args, same as /results"
   );
 });
 
