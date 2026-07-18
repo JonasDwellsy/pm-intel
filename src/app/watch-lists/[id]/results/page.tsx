@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { applyWatchList } from "@/lib/watch-list/apply";
+import { shouldSkipCriteriaMatch } from "@/lib/watch-list/kind";
 import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
 import {
   getWatchListWithCrossOrgCheck,
@@ -69,13 +70,14 @@ export default async function WatchListResultsPage({ params }: PageProps) {
   const pins = new Set(
     (await listMembers(watchList.id)).map((m) => m.memberKey)
   );
-  // v0.28 (Task 7) — a "pinned" pick list has empty criteria by
-  // convention; skipCriteriaMatch bypasses the natural criteria-match
-  // loop so results consist purely of the pin union (every row
-  // correctly flagged pinned) instead of the entire operator universe.
-  // See apply.ts's doc comment on the 4th parameter for the full
-  // rationale.
-  const isPinnedList = watchList.kind === "pinned";
+  // v0.28 (Task 7) — a list with NO criteria (pins-only by convention)
+  // must skip the natural criteria-match loop so results consist purely
+  // of the pin union (every row correctly flagged pinned) instead of the
+  // entire operator universe. Derived from criteria-presence, not the
+  // stored `kind` column, so a pins-only list that later gains criteria
+  // is picked up automatically. See apply.ts's doc comment on the 4th
+  // parameter for the full rationale.
+  const skipCriteria = shouldSkipCriteriaMatch(watchList);
   const applied = await applyWatchList(
     {
       id: watchList.id,
@@ -87,7 +89,7 @@ export default async function WatchListResultsPage({ params }: PageProps) {
     },
     entitlement,
     pins,
-    isPinnedList
+    skipCriteria
   );
   // Owner-only manage/remove control on a pick list's results (Task 7
   // Step 2) — canEditList covers both "you own it" and "legacy-owned
@@ -164,7 +166,7 @@ export default async function WatchListResultsPage({ params }: PageProps) {
               {watchList.name}
             </h1>
             <p className="mt-3 text-[14.5px] text-foreground/80">
-              {isPinnedList ? (
+              {skipCriteria ? (
                 // v0.28 (Task 7) — a pick list has no criteria to
                 // "match against"; every row is here because a person
                 // pinned it. "X of Y operators match" would overstate
@@ -262,7 +264,7 @@ export default async function WatchListResultsPage({ params }: PageProps) {
         )}
 
         {headlineMatched === 0 && summary.matchedCount === 0 ? (
-          <EmptyMatches watchListId={watchList.id} isPinnedList={isPinnedList} />
+          <EmptyMatches watchListId={watchList.id} isPinnedList={skipCriteria} />
         ) : (
           <ResultsTable
             operatorRows={operatorRows}
@@ -271,7 +273,7 @@ export default async function WatchListResultsPage({ params }: PageProps) {
             preferred={watchList.preferredCriteria}
             excluded={watchList.excludedCriteria}
             watchListId={watchList.id}
-            canManageMembers={isPinnedList && canEdit}
+            canManageMembers={skipCriteria && canEdit}
           />
         )}
 
