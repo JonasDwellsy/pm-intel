@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { applyWatchList } from "@/lib/watch-list/apply";
+import { shouldSkipCriteriaMatch } from "@/lib/watch-list/kind";
 import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
 import {
   getWatchListWithCrossOrgCheck,
@@ -66,11 +67,12 @@ export default async function WatchListChangesPage({ params }: PageProps) {
   // diff" invariant (see the file header + computeChangesForDetailView's
   // doc comment above). Mirrors results/page.tsx exactly: load the
   // list's pinned members into a key Set and pass it (plus the
-  // kind:"pinned" skipCriteriaMatch flag) as the same 3rd/4th args.
+  // criteria-presence-derived skipCriteriaMatch flag) as the same
+  // 3rd/4th args.
   const pins = new Set(
     (await listMembers(watchList.id)).map((m) => m.memberKey)
   );
-  const isPinnedList = watchList.kind === "pinned";
+  const skipCriteria = shouldSkipCriteriaMatch(watchList);
   const applied = await applyWatchList(
     {
       id: watchList.id,
@@ -82,7 +84,7 @@ export default async function WatchListChangesPage({ params }: PageProps) {
     },
     entitlement,
     pins,
-    isPinnedList
+    skipCriteria
   );
 
   const matchedPmSlugs = applied.results.map((r) => r.pmSlug);

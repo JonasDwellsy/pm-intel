@@ -84,6 +84,9 @@ export interface ResultRowVM {
    *  criteria. Threaded straight from RankedTarget/RolledUpTarget's
    *  `pinned` flag — display-only (Task 7 badges it in the table). */
   pinned: boolean;
+  /** True when this row passed the list's criteria. With pinned, a
+   *  row can be both → "Pinned + matches" badge. */
+  matched?: boolean;
   /** canonicalOperatorId ?? pmSlug — the company-level key the pin
    *  system keys on everywhere (apply.ts, AddToWatchList, the
    *  /members API). Operator-view rows already use this exact value
@@ -114,6 +117,13 @@ export interface ResultsViewSummary {
   scoreMax: number | null;
   scoreMinOperator: number | null;
   scoreMaxOperator: number | null;
+  /** Operators that passed the list's CRITERIA (matched === true),
+   *  excluding pin-only rows. The headline "X of Y match" + fit-score
+   *  range use these so a hybrid list's pins don't inflate the count
+   *  or drag the range to the pinned sentinel score. */
+  criteriaMatchedOperatorCount: number;
+  criteriaScoreMinOperator: number | null;
+  criteriaScoreMaxOperator: number | null;
   generatedAt: string;
 }
 
@@ -145,6 +155,11 @@ export function projectResultsForView(args: ProjectArgs): {
   const marketScores = marketRows.map((r) => r.fitScore);
   const operatorScores = operatorRows.map((r) => r.fitScore);
 
+  const criteriaMatchedOperatorRows = operatorRows.filter((r) => r.matched);
+  const criteriaMatchedScores = criteriaMatchedOperatorRows.map(
+    (r) => r.fitScore
+  );
+
   return {
     marketRows,
     operatorRows,
@@ -159,6 +174,15 @@ export function projectResultsForView(args: ProjectArgs): {
         operatorScores.length > 0 ? Math.min(...operatorScores) : null,
       scoreMaxOperator:
         operatorScores.length > 0 ? Math.max(...operatorScores) : null,
+      criteriaMatchedOperatorCount: criteriaMatchedOperatorRows.length,
+      criteriaScoreMinOperator:
+        criteriaMatchedScores.length > 0
+          ? Math.min(...criteriaMatchedScores)
+          : null,
+      criteriaScoreMaxOperator:
+        criteriaMatchedScores.length > 0
+          ? Math.max(...criteriaMatchedScores)
+          : null,
       generatedAt: args.generatedAt,
     },
   };
@@ -194,6 +218,7 @@ function projectMarketRow(
     concessionRate: sc.concessionRate ?? null,
     fitScore: r.fitScore,
     pinned: r.pinned ?? false,
+    matched: r.matched ?? false,
     memberKey: r.canonicalOperatorId ?? r.pmSlug,
     pm: r.pm,
     preferredBreakdown: projectBreakdown(r.breakdown.preferred, true),
@@ -270,6 +295,7 @@ function projectOperatorRow(
     concessionRate: sc.concessionRate ?? null,
     fitScore: r.fitScore,
     pinned: r.pinned ?? false,
+    matched: r.matched ?? false,
     memberKey: r.canonicalOperatorId,
     pm: r.pm,
     preferredBreakdown: projectBreakdown(r.breakdown.preferred, true),

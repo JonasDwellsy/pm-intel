@@ -144,6 +144,7 @@ function makeRow(opts: {
   pmMarketId?: string;
   monthsOnPlatform?: number;
   pinned?: boolean;
+  matched?: boolean;
 }): ResultRowVM {
   const pm = makePmRecord({
     slug: opts.name.toLowerCase().replace(/\s+/g, "-"),
@@ -172,6 +173,12 @@ function makeRow(opts: {
     concessionRate: opts.concessionRate ?? null,
     fitScore: opts.fitScore,
     pinned: opts.pinned ?? false,
+    // Default: a row is a criteria match UNLESS it's pinned-only (no
+    // `matched` passed alongside `pinned: true`). Mirrors apply.ts's
+    // real behavior (naturally-matched rows carry matched:true;
+    // pin-union additions leave it falsy) so fixtures don't have to
+    // pass `matched` explicitly for the common non-pinned case.
+    matched: opts.matched ?? !(opts.pinned ?? false),
     memberKey: pm.slug,
     pm,
     preferredBreakdown: [],
@@ -567,7 +574,7 @@ test("Markets sheet has a Pinned column marking pinned rows yes/no", () => {
   assert.equal(matched?.["Pinned"], "no");
 });
 
-test("Summary sheet shows 'Companies pinned' (not 'Match rate') for a kind:'pinned' watch list", () => {
+test("Summary sheet shows 'Companies pinned' (not 'Match rate') for a watch list with NO criteria", () => {
   const wb = buildWorkbook({
     watchList: {
       id: "pick-1",
@@ -599,6 +606,101 @@ test("Summary sheet shows 'Companies pinned' (not 'Match rate') for a kind:'pinn
   assert.equal(map["Operators matched"], undefined);
   assert.equal(map["Match rate"], undefined);
   assert.equal(map["Total operators evaluated"], undefined);
+});
+
+test("Summary sheet keeps 'Operators matched' / 'Match rate' wording for a hybrid list (kind:'pinned' but WITH criteria) — wording keys on criteria-presence, not kind, and the count excludes pinned-only rows", () => {
+  // Task 7 Step 3: buildSummarySheet's isPinnedList now derives from
+  // hasCriteria(watchList), not the stored `kind` column. This fixture
+  // deliberately sets kind: "pinned" (stale/irrelevant creation intent)
+  // alongside a non-empty requiredCriteria to prove the summary wording
+  // no longer keys off kind at all — a hybrid list (criteria + pins)
+  // still gets "Operators matched" / "Match rate" here; its pinned rows
+  // are surfaced separately via the per-row "Pinned" column.
+  //
+  // Task 7 (final review): "Operators matched" / "Match rate" now count
+  // only CRITERIA-matched rows (matched === true), not pin-union
+  // additions. "Matched Op" is non-pinned → matched:true by makeRow's
+  // default. "Pinned Op" is pinned-only (pinned:true, no explicit
+  // matched) → matched:false by that same default, so it must NOT
+  // count toward "Operators matched" even though it's a row in this
+  // has-criteria list.
+  const wb = buildWorkbook({
+    watchList: {
+      id: "hybrid-1",
+      name: "Hybrid List",
+      description: null,
+      requiredCriteria: [
+        { field: "quadrant7Cell", operator: "eq", value: "SFR Independent" },
+      ],
+      preferredCriteria: [],
+      excludedCriteria: [],
+      kind: "pinned",
+    },
+    operatorRows: [
+      makeRow({ rank: 1, name: "Matched Op", marketLabel: "X", fitScore: 100, urusT12: 50, pinned: false }),
+      makeRow({ rank: 2, name: "Pinned Op", marketLabel: "X", fitScore: 80, urusT12: 40, pinned: true }),
+    ],
+    marketRows: [],
+    totalCandidates: 3200,
+    methodologyVersion: "v0.8",
+    liveUrl: "https://example.test/watch-lists/hybrid-1/results",
+    generatedAt: new Date("2026-05-21T00:00:00Z"),
+  });
+  const rows = XLSX.utils.sheet_to_json<Array<string | number>>(
+    wb.workbook.Sheets["Summary"],
+    { header: 1 }
+  );
+  const map: Record<string, string | number> = {};
+  for (const row of rows) {
+    if (row.length >= 2 && typeof row[0] === "string") map[row[0]] = row[1];
+  }
+  // Only "Matched Op" counts — "Pinned Op" is pinned-only (matched
+  // falsy) so it's excluded: 1 / 3200 * 100 = 0.03125%, which rounds
+  // to 0.0% → rendered as "0%" (Math.round(0.3125) === 0).
+  assert.equal(map["Operators matched"], 1);
+  assert.equal(map["Total operators evaluated"], 3200);
+  assert.equal(map["Match rate"], "0%");
+  assert.equal(map["Companies pinned"], undefined);
+});
+
+test("Summary sheet 'Operators matched' is 0 for a has-criteria list whose only rows are pinned-only (no criteria hits)", () => {
+  // Task 7 (final review) edge case distinct from the hybrid test above:
+  // here EVERY row is pinned-only (matched falsy), so criteriaMatchedCount
+  // must be 0 even though the list has criteria and 2 rows appear on the
+  // Operators/Markets sheets (both badged "Pinned"). Pre-fix, this would
+  // have reported "Operators matched: 2" for a list that matched nothing.
+  const wb = buildWorkbook({
+    watchList: {
+      id: "hybrid-2",
+      name: "Hybrid List (zero criteria hits)",
+      description: null,
+      requiredCriteria: [
+        { field: "quadrant7Cell", operator: "eq", value: "SFR Independent" },
+      ],
+      preferredCriteria: [],
+      excludedCriteria: [],
+    },
+    operatorRows: [
+      makeRow({ rank: 1, name: "Pinned Op A", marketLabel: "X", fitScore: 0, urusT12: 50, pinned: true }),
+      makeRow({ rank: 2, name: "Pinned Op B", marketLabel: "X", fitScore: 0, urusT12: 40, pinned: true }),
+    ],
+    marketRows: [],
+    totalCandidates: 3200,
+    methodologyVersion: "v0.8",
+    liveUrl: "https://example.test/watch-lists/hybrid-2/results",
+    generatedAt: new Date("2026-05-21T00:00:00Z"),
+  });
+  const rows = XLSX.utils.sheet_to_json<Array<string | number>>(
+    wb.workbook.Sheets["Summary"],
+    { header: 1 }
+  );
+  const map: Record<string, string | number> = {};
+  for (const row of rows) {
+    if (row.length >= 2 && typeof row[0] === "string") map[row[0]] = row[1];
+  }
+  assert.equal(map["Operators matched"], 0);
+  assert.equal(map["Match rate"], "0%");
+  assert.equal(map["Companies pinned"], undefined);
 });
 
 test("Summary sheet keeps 'Operators matched' / 'Match rate' wording when kind is omitted (backward compatible)", () => {

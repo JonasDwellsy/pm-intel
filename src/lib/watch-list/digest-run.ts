@@ -9,6 +9,7 @@ import { toSnapshotRow, type SnapshotRow } from "./snapshot";
 import { buildDigest } from "./digest";
 import { buildListChanges, isDigestDue, selectPriorForRecipient, parseCadence, visibleListsForMember, sharedListsOnly, type OperatorMeta } from "./digest-gather";
 import { applyWatchList } from "@/lib/watch-list/apply";
+import { shouldSkipCriteriaMatch } from "@/lib/watch-list/kind";
 import { projectResultsForView } from "@/lib/watch-list/results-view";
 import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
 import { signUnsubToken } from "./digest-unsubscribe";
@@ -120,20 +121,20 @@ async function buildOrgListContext(orgId: string, base: string): Promise<OrgList
     // context the same way they do on /results, still bounded by the
     // entitlement filter inside applyWatchList.
     const pins = new Set((await listMembers(wl.id)).map((m) => m.memberKey));
-    // v0.28 (Task 8 follow-through) — a "pinned" pick list has empty
-    // criteria by convention; skipCriteriaMatch bypasses the natural
-    // criteria-match loop so the digest content is the pin union ONLY,
-    // not the entire operator universe. Mirrors results/page.tsx and
-    // changes/page.tsx exactly (see apply.ts's doc comment on the 4th
-    // parameter for the full rationale).
-    const isPinnedList = wl.kind === "pinned";
+    // v0.28 (Task 8 follow-through) — a list with NO criteria (pins-only
+    // by convention) skips the natural criteria-match loop so the digest
+    // content is the pin union ONLY, not the entire operator universe.
+    // Derived from criteria-presence, not the stored `kind` column.
+    // Mirrors results/page.tsx and changes/page.tsx exactly (see
+    // apply.ts's doc comment on the 4th parameter for the full rationale).
+    const skipCriteria = shouldSkipCriteriaMatch(wl);
     const applied = await applyWatchList(
       { id: wl.id, name: wl.name, description: wl.description,
         requiredCriteria: wl.requiredCriteria, preferredCriteria: wl.preferredCriteria,
         excludedCriteria: wl.excludedCriteria },
       entitlement,
       pins,
-      isPinnedList,
+      skipCriteria,
     );
     const matchedPmSlugs = applied.results.map((r) => r.pmSlug);
     if (matchedPmSlugs.length === 0) continue;

@@ -173,6 +173,7 @@ test("unionPinnedRecords — forces an otherwise-failing PM in, flagged pinned w
   const result = unionPinnedRecords([], [pm], pinnedKeys, bb, noMarketNames);
   assert.equal(result.length, 1);
   assert.equal(result[0].pinned, true);
+  assert.ok(!result[0].matched); // pin-only add — "Pinned", not "Pinned + matches"
   assert.equal(result[0].fitScore, 0); // sentinel — evaluation.fitScore was null
   assert.equal(result[0].pmSlug, "acme-bhm");
   assert.equal(result[0].breakdown.excludedBy?.field, "urusT12");
@@ -188,7 +189,7 @@ test("unionPinnedRecords — a pinned key absent from allRecords never appears (
   assert.equal(result.length, 0);
 });
 
-test("unionPinnedRecords — doesn't duplicate a PM that already matched naturally", () => {
+test("unionPinnedRecords — flags the already-matched PM pinned:true (Pinned + matches), no duplicate row", () => {
   const pm = makePm({ slug: "acme-bhm", marketId: "birmingham-al", canonicalOperatorId: "acme", urusT12: 500 });
   const matched: RankedTarget[] = [
     {
@@ -205,7 +206,7 @@ test("unionPinnedRecords — doesn't duplicate a PM that already matched natural
   const pinnedKeys = new Set(["acme"]);
   const result = unionPinnedRecords(matched, [pm], pinnedKeys, makeWatchList(), noMarketNames);
   assert.equal(result.length, 1); // no duplicate row
-  assert.equal(result[0].pinned, undefined); // the naturally-matched row is untouched
+  assert.equal(result[0].pinned, true); // the naturally-matched row now flips pinned:true (overlap)
 });
 
 test("unionPinnedRecords — a pinned multi-market operator only adds the sibling market that didn't already match", () => {
@@ -234,7 +235,33 @@ test("unionPinnedRecords — a pinned multi-market operator only adds the siblin
   assert.equal(jaxRow?.pinned, true);
   assert.equal(jaxRow?.fitScore, 0);
   const bhmRow = result.find((r) => r.pmSlug === "acme-bhm");
-  assert.equal(bhmRow?.pinned, undefined); // naturally matched, not flagged
+  assert.equal(bhmRow?.pinned, true); // naturally matched AND pinned (same key "acme") — flips to Pinned + matches
+});
+
+test("unionPinnedRecords — hybrid overlap: a pinned key that's also a criteria match yields ONE row, matched:true AND pinned:true, not re-scored to the sentinel", () => {
+  const pm = makePm({ slug: "acme-bhm", marketId: "birmingham-al", canonicalOperatorId: "acme", urusT12: 500 });
+  const matched: RankedTarget[] = [
+    {
+      pmSlug: "acme-bhm",
+      name: "Acme",
+      marketId: "birmingham-al",
+      marketName: "Birmingham-Hoover, AL MSA",
+      canonicalOperatorId: "acme",
+      fitScore: 87,
+      breakdown: { required: [{ field: "urusT12", operator: "gte", passed: true }], preferred: [], excluded: [], excludedBy: null },
+      pm,
+      matched: true,
+    },
+  ];
+  const pinnedKeys = new Set(["acme"]);
+  const result = unionPinnedRecords(matched, [pm], pinnedKeys, makeWatchList(), noMarketNames);
+  assert.equal(result.length, 1); // no duplicate row
+  assert.equal(result[0].pinned, true);
+  assert.equal(result[0].matched, true);
+  // Preserved from the original matched row — NOT re-scored to sentinel 0.
+  assert.equal(result[0].fitScore, 87);
+  assert.equal(result[0].breakdown.required[0]?.passed, true);
+  assert.equal(result[0].pm, pm);
 });
 
 // ─── unionPinnedOperators (Operator view) ──────────────────────────
@@ -263,7 +290,7 @@ test("unionPinnedOperators — a pinned key with no bucket (entitlement-filtered
   assert.equal(result.length, 0);
 });
 
-test("unionPinnedOperators — doesn't duplicate an operator that already matched naturally", () => {
+test("unionPinnedOperators — flags the already-matched operator pinned:true (Pinned + matches), no duplicate row", () => {
   const a = makePm({ slug: "acme-bhm", marketId: "birmingham-al", canonicalOperatorId: "acme", urusT12: 500 });
   const byCanonical = groupByCanonical([a]);
   const matchedOperators: RolledUpTarget[] = [
@@ -290,8 +317,45 @@ test("unionPinnedOperators — doesn't duplicate an operator that already matche
   ];
   const pinnedKeys = new Set(["acme"]);
   const result = unionPinnedOperators(matchedOperators, byCanonical, pinnedKeys, makeWatchList(), noMarketNames, noCanonicalNames);
-  assert.equal(result.length, 1);
-  assert.equal(result[0].pinned, undefined);
+  assert.equal(result.length, 1); // no duplicate row
+  assert.equal(result[0].pinned, true); // the naturally-matched row now flips pinned:true (overlap)
+});
+
+test("unionPinnedOperators — hybrid overlap: a pinned canonicalOperatorId that's also a criteria match yields ONE row, matched:true AND pinned:true, not re-scored to the sentinel", () => {
+  const a = makePm({ slug: "acme-bhm", marketId: "birmingham-al", canonicalOperatorId: "acme", urusT12: 500 });
+  const byCanonical = groupByCanonical([a]);
+  const matchedOperators: RolledUpTarget[] = [
+    {
+      canonicalOperatorId: "acme",
+      canonicalOperatorName: "Acme",
+      memberMarketIds: ["birmingham-al"],
+      memberMarketNames: ["Birmingham-Hoover, AL MSA"],
+      memberPmSlugs: ["acme-bhm"],
+      isRollup: false,
+      quadrant7CellIsMixed: false,
+      fitScore: 87,
+      breakdown: { required: [{ field: "urusT12", operator: "gte", passed: true }], preferred: [], excluded: [], excludedBy: null },
+      pm: {
+        ...a,
+        isRollup: false,
+        memberMarketIds: ["birmingham-al"],
+        memberMarketNames: ["birmingham-al"],
+        memberPmSlugs: ["acme-bhm"],
+        quadrant7CellIsMixed: false,
+        members: [a],
+      },
+      matched: true,
+    },
+  ];
+  const pinnedKeys = new Set(["acme"]);
+  const result = unionPinnedOperators(matchedOperators, byCanonical, pinnedKeys, makeWatchList(), noMarketNames, noCanonicalNames);
+  assert.equal(result.length, 1); // no duplicate row
+  assert.equal(result[0].pinned, true);
+  assert.equal(result[0].matched, true);
+  // Preserved from the original matched row — NOT re-aggregated/re-scored to sentinel 0.
+  assert.equal(result[0].fitScore, 87);
+  assert.equal(result[0].breakdown.required[0]?.passed, true);
+  assert.equal(result[0].pm, matchedOperators[0].pm);
 });
 
 test("unionPinnedRecords / unionPinnedOperators — empty pinnedKeys is a no-op (returns the same reference)", () => {
@@ -315,9 +379,10 @@ test("unionPinnedRecords / unionPinnedOperators — empty pinnedKeys is a no-op 
 // no required to fail, no excluded to veto, fitScore defaults to 100
 // with no preferred weights). Left unguarded, that means every operator
 // in the universe would show up as "naturally matched" for a pick list —
-// which in turn means unionPinnedRecords/unionPinnedOperators (whose
-// `alreadyMatched` check only adds a pinned key that ISN'T already
-// matched) would never flag anything `pinned: true`, silently breaking
+// which in turn means unionPinnedRecords/unionPinnedOperators (which now
+// flip `pinned: true` on any already-present row whose key overlaps a
+// pinned key) would flip `pinned: true` on EVERY row in the universe,
+// not just the ones the user actually pinned, silently breaking
 // the entire feature for its primary use case. These tests pin down the
 // gate itself, then a composed scenario proving the full pipeline
 // (compute → union) now does the right thing — and, for contrast, what
@@ -336,6 +401,7 @@ test("computeCriteriaMatchedRecords — skipCriteriaMatch false preserves the pr
   assert.equal(result.length, 1);
   assert.equal(result[0].pmSlug, "acme-bhm");
   assert.equal(result[0].pinned, undefined);
+  assert.equal(result[0].matched, true);
 });
 
 test("computeCriteriaMatchedOperators — skipCriteriaMatch true returns [] even though the rollup would naturally pass", () => {
@@ -358,6 +424,7 @@ test("computeCriteriaMatchedOperators — skipCriteriaMatch false preserves the 
   const result = computeCriteriaMatchedOperators(byCanonical, bb, noMarketNames, noCanonicalNames, false);
   assert.equal(result.length, 1);
   assert.equal(result[0].canonicalOperatorId, "acme");
+  assert.equal(result[0].matched, true);
 });
 
 test("a kind:'pinned' pick list (blank criteria + skipCriteriaMatch) surfaces ONLY the pinned company, flagged pinned:true — both views", () => {
@@ -411,12 +478,17 @@ test("a kind:'pinned' pick list (blank criteria + skipCriteriaMatch) surfaces ON
   assert.equal(operatorResult[0].pinned, true);
 });
 
-test("documents the bug the gate fixes: without skipCriteriaMatch, a blank watch list matches everyone and the pinned flag never fires", () => {
+test("documents the bug the gate fixes: without skipCriteriaMatch, a blank watch list wrongly matches the entire universe, not just the pinned company", () => {
   // Same fixtures as above but skipCriteriaMatch=false — every
   // applyWatchList call site had exactly this shape before Task 7.
-  // Both operators pass naturally (empty criteria), so the union's
-  // alreadyMatched check finds "acme" already present and never flags
-  // it. This test exists so a future revert of the gate fails loudly.
+  // Both operators pass naturally (empty criteria). Under the current
+  // mark-overlap union logic, the pinned "acme" row's `pinned` flips to
+  // true regardless of the gate (Pinned + matches) — but the un-pinned
+  // "other-op" row is ALSO present as "matched" purely because the
+  // criteria are blank, which is exactly the bug the gate exists to
+  // prevent: a pick list's surfaced set should be the pinned company
+  // alone, not the entire operator universe. This test exists so a
+  // future revert of the gate fails loudly.
   const pinnedPm = makePm({ slug: "acme-bhm", marketId: "birmingham-al", canonicalOperatorId: "acme" });
   const otherPm = makePm({ slug: "other-op", marketId: "knoxville-tn", canonicalOperatorId: "other" });
   const blank = makeWatchList();
@@ -436,7 +508,10 @@ test("documents the bug the gate fixes: without skipCriteriaMatch, a blank watch
     blank,
     noMarketNames
   );
-  assert.equal(result.length, 2);
+  assert.equal(result.length, 2); // no addition — "acme" overlaps, "other-op" already present
   const acmeRow = result.find((r) => r.pmSlug === "acme-bhm");
-  assert.equal(acmeRow?.pinned, undefined); // never flagged without the gate
+  assert.equal(acmeRow?.pinned, true); // overlap flip fires regardless of the gate
+  const otherRow = result.find((r) => r.pmSlug === "other-op");
+  assert.ok(otherRow); // present regardless — guards the assertion below against a silent miss
+  assert.equal(otherRow?.pinned, undefined); // not pinned — yet still wrongly surfaced as "matched" without the gate
 });

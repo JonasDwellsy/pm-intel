@@ -53,12 +53,13 @@ interface Props {
    *  list's membership to mutate. Always the current watch list's id;
    *  unused when canManageMembers is false. */
   watchListId: string;
-  /** True only on a `kind: "pinned"` pick list's results, for the
-   *  owner (or a legacy-owner-in-org) — i.e. `watchList.kind ===
-   *  "pinned" && canEditList(...)`, resolved by the page. Gates the
-   *  per-row "Remove" control; a view-only shared viewer never sees
-   *  it. Defaults to false so every other caller (smart lists) is
-   *  unaffected. */
+  /** True on ANY editable watch list's results, for the owner (or a
+   *  legacy-owner-in-org) — i.e. `canEditList(...)`, resolved by the
+   *  page. Gates the per-row "Remove" control; a view-only shared
+   *  viewer never sees it. The per-row `render` further guards on
+   *  `row.pinned`, so a match-only row (no pin) never gets a remove
+   *  button even on an editable list. Defaults to false so every
+   *  other caller is unaffected. */
   canManageMembers?: boolean;
 }
 
@@ -356,6 +357,36 @@ function ViewToggle({
   );
 }
 
+// ─── pinned / matched badge ───────────────────────────────────────
+
+/** The "Pinned" / "Pinned + matches" pill shown next to a row's name
+ *  when it was manually pinned to the watch list. `matched` (also
+ *  true) means the row independently passes the list's criteria —
+ *  pulled into its own component so it's the exact unit under test
+ *  in ResultsTable.test.tsx, without needing a full ResultRowVM
+ *  fixture. */
+export function PinnedMatchBadge({
+  pinned,
+  matched,
+}: {
+  pinned: boolean;
+  matched?: boolean;
+}) {
+  if (!pinned) return null;
+  return (
+    <span
+      className="dq-pill dq-pill-teal text-[10.5px]"
+      title={
+        matched
+          ? "Manually pinned; also matches this list's criteria."
+          : "Manually pinned to this watch list."
+      }
+    >
+      {matched ? "Pinned + matches" : "Pinned"}
+    </span>
+  );
+}
+
 // ─── column builder ───────────────────────────────────────────────
 
 function buildColumns({
@@ -403,14 +434,7 @@ function buildColumns({
                 Multi-market · {row.marketCount}
               </span>
             )}
-            {row.pinned && (
-              <span
-                className="dq-pill dq-pill-teal text-[10.5px]"
-                title="Manually pinned to this watch list."
-              >
-                Pinned
-              </span>
-            )}
+            <PinnedMatchBadge pinned={row.pinned} matched={row.matched} />
           </div>
         </div>
       ),
@@ -531,10 +555,15 @@ function buildColumns({
     alignRight: true,
     render: (row) => <ViewButton row={row} />,
   });
-  // v0.28 (Task 7 Step 2) — owner-only manage/remove on a pick list's
-  // results. Only rendered when the page has already gated
-  // canManageMembers to `watchList.kind === "pinned" && canEditList(...)`
-  // — a view-only shared viewer never gets this column at all.
+  // v0.28 (Task 7 Step 2; widened by the hybrid-watch-lists work) —
+  // owner-only manage/remove on ANY editable list's results (owner,
+  // or legacy-owned-in-org — the same `canEditList(...)` rule every
+  // other mutation in this module uses). Not gated to `kind`
+  // anymore: a hybrid list can carry both criteria matches and
+  // manual pins, and pin-management should show wherever pins can
+  // exist. The per-row `row.pinned ?` guard below means a match-only
+  // row (no pin) still renders no remove button, and a view-only
+  // shared viewer never gets this column at all.
   if (canManageMembers) {
     cols.push({
       id: "managePin",

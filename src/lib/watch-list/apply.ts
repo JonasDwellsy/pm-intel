@@ -49,6 +49,9 @@ export interface RankedTarget {
    *  because it matched the criteria. Display-only — never affects
    *  sorting or entitlement scoping. See unionPinnedRecords below. */
   pinned?: boolean;
+  /** True when this row passed the watch list's criteria. A row may be
+   *  both matched and pinned (→ "Pinned + matches"). Display-only. */
+  matched?: boolean;
 }
 
 export interface RolledUpTarget {
@@ -75,6 +78,9 @@ export interface RolledUpTarget {
    *  its member PMs) was manually pinned, not because the rollup
    *  matched the criteria. Display-only. See unionPinnedOperators. */
   pinned?: boolean;
+  /** True when this row passed the watch list's criteria. A row may be
+   *  both matched and pinned (→ "Pinned + matches"). Display-only. */
+  matched?: boolean;
 }
 
 export interface TargetListResult {
@@ -125,13 +131,15 @@ export async function applyWatchList(
   // "matched" — which both misrepresents a pick list's membership (the
   // index's "N companies" would then bear no relation to what
   // /results actually renders) and, more importantly, would make the
-  // `pinned` flag NEVER fire: unionPinnedRecords/unionPinnedOperators
-  // only add a pinned key when it ISN'T already in the naturally-
-  // matched set, and with an empty criteria set literally everyone is
-  // already "naturally matched". So skipCriteriaMatch bypasses the
+  // `pinned` flag near-meaningless: unionPinnedRecords/unionPinnedOperators
+  // flip `pinned: true` onto a pinned key's existing row when it's
+  // already in the naturally-matched set, and with an empty criteria
+  // set literally EVERY row is already "naturally matched" — so every
+  // row in the universe would flip to `pinned: true`, not just the
+  // ones the user actually pinned. So skipCriteriaMatch bypasses the
   // natural loops entirely for a pick list — the results consist
   // purely of the pin union, every row correctly flagged
-  // `pinned: true`. Smart (`kind: "criteria"`) lists — including a
+  // `pinned: true` (and only those rows). Smart (`kind: "criteria"`) lists — including a
   // deliberately blank "Start from Scratch" one — are unaffected
   // (this defaults to false, preserving the pre-existing "empty
   // criteria matches everyone" behavior for that kind).
@@ -300,9 +308,10 @@ export async function applyWatchList(
  *  a `kind: "pinned"` pick list's criteria are empty by convention, and
  *  an empty required/excluded set trivially passes everyone (see
  *  scoring.ts) — running this loop for a pick list would make the
- *  entire operator universe "matched", leaving unionPinnedRecords
- *  nothing to add (its `alreadyMatched` check would already cover
- *  every pinned key), so `pinned: true` would never fire. Extracted as
+ *  entire operator universe "matched", and since unionPinnedRecords now
+ *  flips `pinned: true` on any pinned key that overlaps an already-
+ *  matched row, that would flip `pinned: true` on EVERY row in the
+ *  universe, not just the ones the user actually pinned. Extracted as
  *  a pure, exported function so this gate is unit-testable without a
  *  database. */
 export function computeCriteriaMatchedRecords(
@@ -325,6 +334,7 @@ export function computeCriteriaMatchedRecords(
       fitScore: evaluation.fitScore,
       breakdown: evaluation.breakdown,
       pm: pmRecord,
+      matched: true,
     });
   }
   return matchedRaw;
@@ -332,11 +342,13 @@ export function computeCriteriaMatchedRecords(
 
 /** Union pinned companies into the per-market (Market view) results.
  *  For every record in `allRecords` whose company key
- *  (canonicalOperatorId ?? slug) is pinned and isn't already present
- *  in `matched` (by pmSlug), score it against the watch list and push
- *  it in, flagged `pinned: true`. A pinned multi-market operator
- *  contributes one row per member PM record present in `allRecords` —
- *  i.e. per entitled market only. */
+ *  (canonicalOperatorId ?? slug) is pinned: if that pmSlug is already
+ *  present in `matched` (a natural criteria match), flip that existing
+ *  row's `pinned` to `true` in place (→ "Pinned + matches") rather than
+ *  adding a duplicate. Otherwise score it against the watch list and
+ *  push a NEW row in, flagged `pinned: true` (matched left falsy). A
+ *  pinned multi-market operator contributes one row per member PM
+ *  record present in `allRecords` — i.e. per entitled market only. */
 export function unionPinnedRecords(
   matched: RankedTarget[],
   allRecords: PMRecord[],
@@ -345,12 +357,20 @@ export function unionPinnedRecords(
   marketNameBySlug: ReadonlyMap<string, string>
 ): RankedTarget[] {
   if (pinnedKeys.size === 0) return matched;
-  const alreadyMatched = new Set(matched.map((m) => m.pmSlug));
+  // Map by pmSlug so a pinned key that's ALSO a natural criteria match
+  // flips that existing row's `pinned` flag (→ "Pinned + matches")
+  // rather than being dropped. Only un-matched pinned keys become new
+  // rows (pinned:true, matched left falsy).
+  const matchedBySlug = new Map(matched.map((m) => [m.pmSlug, m]));
   const additions: RankedTarget[] = [];
   for (const pmRecord of allRecords) {
     const key = pmRecord.scorecard.canonicalOperatorId ?? pmRecord.slug;
     if (!pinnedKeys.has(key)) continue;
-    if (alreadyMatched.has(pmRecord.slug)) continue;
+    const existing = matchedBySlug.get(pmRecord.slug);
+    if (existing) {
+      existing.pinned = true;
+      continue;
+    }
     const evaluation = evaluateWatchList(pmRecord, watchList);
     additions.push({
       pmSlug: pmRecord.slug,
@@ -422,8 +442,10 @@ function buildRolledUpTarget(
  *  `skipCriteriaMatch` is true, for the same reason as
  *  computeCriteriaMatchedRecords above: a pick list's empty criteria
  *  would otherwise roll up as "matched" for the entire operator
- *  universe, and unionPinnedOperators would then never see an
- *  un-matched pinned key to flag. */
+ *  universe, and since unionPinnedOperators now flips `pinned: true`
+ *  on any pinned key that overlaps an already-matched operator, that
+ *  would flip `pinned: true` on EVERY operator in the universe, not
+ *  just the ones the user actually pinned. */
 export function computeCriteriaMatchedOperators(
   byCanonical: ReadonlyMap<string, PMRecord[]>,
   watchList: WatchListDefinition,
@@ -446,6 +468,7 @@ export function computeCriteriaMatchedOperators(
       ...target,
       fitScore: evaluation.fitScore,
       breakdown: evaluation.breakdown,
+      matched: true,
     });
   }
   return matchedOperatorsRaw;
@@ -453,11 +476,14 @@ export function computeCriteriaMatchedOperators(
 
 /** Union pinned companies into the per-operator (Operator view, v0.9
  *  default) results. For every pinned key present as a bucket key in
- *  `byCanonical` but not already in `matchedOperators`, aggregate the
- *  bucket, evaluate it, and push a RolledUpTarget flagged
- *  `pinned: true`. A pinned key with no bucket in `byCanonical` (i.e.
- *  no entitled-market record contributed to it) is correctly skipped —
- *  it never had a chance to be aggregated in the first place. */
+ *  `byCanonical`: if that key is already present in `matchedOperators`
+ *  (a natural criteria match), flip that existing row's `pinned` to
+ *  `true` in place (→ "Pinned + matches") rather than adding a
+ *  duplicate. Otherwise aggregate the bucket, evaluate it, and push a
+ *  NEW RolledUpTarget flagged `pinned: true` (matched left falsy). A
+ *  pinned key with no bucket in `byCanonical` (i.e. no entitled-market
+ *  record contributed to it) is correctly skipped — it never had a
+ *  chance to be aggregated in the first place. */
 export function unionPinnedOperators(
   matchedOperators: RolledUpTarget[],
   byCanonical: ReadonlyMap<string, PMRecord[]>,
@@ -467,12 +493,16 @@ export function unionPinnedOperators(
   canonicalNameById: ReadonlyMap<string, string>
 ): RolledUpTarget[] {
   if (pinnedKeys.size === 0) return matchedOperators;
-  const alreadyMatched = new Set(
-    matchedOperators.map((m) => m.canonicalOperatorId)
+  const matchedById = new Map(
+    matchedOperators.map((m) => [m.canonicalOperatorId, m])
   );
   const additions: RolledUpTarget[] = [];
   for (const key of pinnedKeys) {
-    if (alreadyMatched.has(key)) continue;
+    const existingOp = matchedById.get(key);
+    if (existingOp) {
+      existingOp.pinned = true;
+      continue;
+    }
     const bucket = byCanonical.get(key);
     if (!bucket || bucket.length === 0) continue;
     const { evaluation, target } = buildRolledUpTarget(

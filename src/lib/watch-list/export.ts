@@ -23,6 +23,7 @@ import type { WorkBook, WorkSheet } from "xlsx";
 import { resolveAdaptiveColumns } from "./adaptive-columns";
 import { formatCriterion } from "./criterion-format";
 import { FIELD_REGISTRY, type FilterCriterion, type WeightedCriterion } from "./fields";
+import { hasCriteria } from "./kind";
 import type { ResultRowVM } from "./results-view";
 
 /** A subset of the WatchListRecord shape the export needs. The page
@@ -35,13 +36,10 @@ export interface ExportWatchList {
   requiredCriteria: FilterCriterion[];
   preferredCriteria: WeightedCriterion[];
   excludedCriteria: FilterCriterion[];
-  /** v0.28 (Task 7) — "criteria" | "pinned". Optional so pre-existing
-   *  callers (and the pre-Task-7 test fixtures) that never set it keep
-   *  the "criteria" Summary-sheet wording ("Operators matched" / "Match
-   *  rate"). A `kind: "pinned"` pick list has no criteria to "match" —
-   *  every row is there because it was pinned — so the Summary sheet
-   *  swaps to a plain pinned-count line instead, mirroring the same
-   *  fix applied to the on-page /results headline. */
+  /** v0.28 (Task 7) — "criteria" | "pinned". Retained as creation
+   *  intent / a passthrough for callers that still populate it, but no
+   *  longer read by the Summary-sheet wording below (that now derives
+   *  from criteria-presence via hasCriteria(), see buildSummarySheet). */
   kind?: string;
 }
 
@@ -125,11 +123,20 @@ export function buildWorkbook(args: ExportArgs): ExportResult {
 
 function buildSummarySheet(args: ExportArgs): WorkSheet {
   const { watchList } = args;
-  const isPinnedList = watchList.kind === "pinned";
+  const isPinnedList = !hasCriteria(watchList);
   const matchedCount = args.operatorRows.length;
+  // Task 7 (final review) — "Operators matched" / "Match rate" for a
+  // has-criteria list must count only rows that passed the CRITERIA
+  // (matched === true), excluding pin-union additions. A hybrid list's
+  // pinned-only rows would otherwise inflate this count against
+  // totalOps; they're still visible per-row via the "Pinned" column on
+  // the Operators/Markets sheets.
+  const criteriaMatchedCount = args.operatorRows.filter((r) => r.matched).length;
   const totalOps = args.totalCandidates;
   const matchRate =
-    totalOps > 0 ? `${Math.round((matchedCount / totalOps) * 1000) / 10}%` : "—";
+    totalOps > 0
+      ? `${Math.round((criteriaMatchedCount / totalOps) * 1000) / 10}%`
+      : "—";
 
   // Build rows as an array-of-arrays. Each row is [label, value].
   // Blank arrays render as visual section separators in Excel.
@@ -144,17 +151,23 @@ function buildSummarySheet(args: ExportArgs): WorkSheet {
     ["Generated (local)", args.generatedAt.toLocaleString()],
     ["Methodology version", args.methodologyVersion]
   );
-  // A pick list (kind: "pinned") has no criteria to "match" — every
-  // row is there because a person pinned it. "Operators matched" /
-  // "Match rate" against the whole operator universe would be
-  // misleading (same overstatement the on-page /results headline had
-  // — see results/page.tsx). Swap to a plain pinned-count line.
+  // A list with NO criteria (a pins-only list, regardless of its
+  // stored `kind`) has nothing to "match" — every row is there
+  // because a person pinned it. "Operators matched" / "Match rate"
+  // against the whole operator universe would be misleading (same
+  // overstatement the on-page /results headline had — see
+  // results/page.tsx). Swap to a plain pinned-count line. A hybrid
+  // list (criteria + pins) still has criteria, so it keeps the
+  // matched-count wording here — but "Operators matched" reflects
+  // CRITERIA matches only (criteriaMatchedCount above): pin-union
+  // additions are excluded from this figure but still listed, badged
+  // "Pinned", on the Operators/Markets sheets.
   if (isPinnedList) {
     rows.push(["Companies pinned", matchedCount]);
   } else {
     rows.push(
       ["Total operators evaluated", totalOps],
-      ["Operators matched", matchedCount],
+      ["Operators matched", criteriaMatchedCount],
       ["Match rate", matchRate]
     );
   }
