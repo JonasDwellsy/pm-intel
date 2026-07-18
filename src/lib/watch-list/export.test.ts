@@ -528,14 +528,20 @@ test("Adaptive columns dedup — concessionRate appears once (column is the regi
   assert.equal(concessionColumns.length, 2);
 });
 
-// ─── Pinned column (Task 7) ──────────────────────────────────────
+// ─── Inclusion column (Task 7 → hybrid three-way label) ──────────
+// A row is in the export because it matched the list's criteria, was
+// manually pinned, or both. The Inclusion column reads "matches" /
+// "pinned" / "pinned + matches" so a hybrid list's CSV distinguishes
+// all three (the old yes/no "Pinned" column collapsed pinned+matches
+// into a bare "yes").
 
-test("Operators sheet has a Pinned column marking pinned rows yes/no", () => {
+test("Operators sheet Inclusion column labels matches / pinned / pinned + matches", () => {
   const wb = buildWorkbook({
     watchList: SAMPLE_BUYBOX,
     operatorRows: [
       makeRow({ rank: 1, name: "Pinned Op", marketLabel: "X", fitScore: 100, urusT12: 50, pinned: true }),
       makeRow({ rank: 2, name: "Matched Op", marketLabel: "Y", fitScore: 80, urusT12: 200, pinned: false }),
+      makeRow({ rank: 3, name: "Both Op", marketLabel: "Z", fitScore: 90, urusT12: 120, pinned: true, matched: true }),
     ],
     marketRows: [],
     totalCandidates: 100,
@@ -548,17 +554,20 @@ test("Operators sheet has a Pinned column marking pinned rows yes/no", () => {
   );
   const pinned = rows.find((r) => r["Operator"] === "Pinned Op");
   const matched = rows.find((r) => r["Operator"] === "Matched Op");
-  assert.equal(pinned?.["Pinned"], "yes");
-  assert.equal(matched?.["Pinned"], "no");
+  const both = rows.find((r) => r["Operator"] === "Both Op");
+  assert.equal(pinned?.["Inclusion"], "pinned");
+  assert.equal(matched?.["Inclusion"], "matches");
+  assert.equal(both?.["Inclusion"], "pinned + matches");
 });
 
-test("Markets sheet has a Pinned column marking pinned rows yes/no", () => {
+test("Markets sheet Inclusion column labels matches / pinned / pinned + matches", () => {
   const wb = buildWorkbook({
     watchList: SAMPLE_BUYBOX,
     operatorRows: [],
     marketRows: [
       makeRow({ rank: 1, name: "Pinned Op", marketLabel: "Birmingham, AL", fitScore: 100, urusT12: 50, pinned: true }),
       makeRow({ rank: 2, name: "Matched Op", marketLabel: "Phoenix", fitScore: 80, urusT12: 200, pinned: false }),
+      makeRow({ rank: 3, name: "Both Op", marketLabel: "Denver", fitScore: 90, urusT12: 120, pinned: true, matched: true }),
     ],
     totalCandidates: 100,
     methodologyVersion: "v0.8",
@@ -570,8 +579,10 @@ test("Markets sheet has a Pinned column marking pinned rows yes/no", () => {
   );
   const pinned = rows.find((r) => r["Operator"] === "Pinned Op");
   const matched = rows.find((r) => r["Operator"] === "Matched Op");
-  assert.equal(pinned?.["Pinned"], "yes");
-  assert.equal(matched?.["Pinned"], "no");
+  const both = rows.find((r) => r["Operator"] === "Both Op");
+  assert.equal(pinned?.["Inclusion"], "pinned");
+  assert.equal(matched?.["Inclusion"], "matches");
+  assert.equal(both?.["Inclusion"], "pinned + matches");
 });
 
 test("Summary sheet shows 'Companies pinned' (not 'Match rate') for a watch list with NO criteria", () => {

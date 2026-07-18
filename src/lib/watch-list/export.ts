@@ -129,8 +129,8 @@ function buildSummarySheet(args: ExportArgs): WorkSheet {
   // has-criteria list must count only rows that passed the CRITERIA
   // (matched === true), excluding pin-union additions. A hybrid list's
   // pinned-only rows would otherwise inflate this count against
-  // totalOps; they're still visible per-row via the "Pinned" column on
-  // the Operators/Markets sheets.
+  // totalOps; they're still visible per-row via the "Inclusion" column
+  // on the Operators/Markets sheets.
   const criteriaMatchedCount = args.operatorRows.filter((r) => r.matched).length;
   const totalOps = args.totalCandidates;
   const matchRate =
@@ -160,8 +160,9 @@ function buildSummarySheet(args: ExportArgs): WorkSheet {
   // list (criteria + pins) still has criteria, so it keeps the
   // matched-count wording here — but "Operators matched" reflects
   // CRITERIA matches only (criteriaMatchedCount above): pin-union
-  // additions are excluded from this figure but still listed, badged
-  // "Pinned", on the Operators/Markets sheets.
+  // additions are excluded from this figure but still listed, labeled
+  // "pinned" (or "pinned + matches") in the Inclusion column on the
+  // Operators/Markets sheets.
   if (isPinnedList) {
     rows.push(["Companies pinned", matchedCount]);
   } else {
@@ -205,6 +206,17 @@ function buildSummarySheet(args: ExportArgs): WorkSheet {
   return ws;
 }
 
+/** Per-row inclusion reason for the data sheets. A row is in the result
+ *  set because it matched the list's criteria, was manually pinned, or
+ *  both — surfaced as one human-readable label so a hybrid list's CSV
+ *  distinguishes "pinned + matches" from a plain pin or a plain match
+ *  (the old yes/no column couldn't). A non-pinned row is only ever
+ *  present because it matched, so it reads "matches". */
+function inclusionLabel(r: ResultRowVM): string {
+  if (r.pinned) return r.matched ? "pinned + matches" : "pinned";
+  return "matches";
+}
+
 function buildOperatorsSheet(
   rows: ResultRowVM[],
   adaptive: ReturnType<typeof resolveAdaptiveColumns>
@@ -218,7 +230,7 @@ function buildOperatorsSheet(
   const headers = [
     "Rank",
     "Operator",
-    "Pinned",
+    "Inclusion",
     "Markets",
     "7-Cell",
     "Est. Portfolio",
@@ -240,7 +252,7 @@ function buildOperatorsSheet(
     const out: Array<string | number | null> = [
       r.rank,
       r.name,
-      r.pinned ? "yes" : "no",
+      inclusionLabel(r),
       r.marketLabel,
       q7,
       r.estimatedPortfolioPoint,
@@ -281,7 +293,7 @@ function buildMarketsSheet(
 
   const headers = [
     "Operator",
-    "Pinned",
+    "Inclusion",
     "Market",
     "7-Cell",
     "Est. Portfolio",
@@ -295,7 +307,7 @@ function buildMarketsSheet(
   const dataRows = sorted.map((r) => {
     const out: Array<string | number | null> = [
       r.name,
-      r.pinned ? "yes" : "no",
+      inclusionLabel(r),
       r.marketLabel,
       r.quadrant7Cell,
       r.estimatedPortfolioPoint,
@@ -350,7 +362,7 @@ function colWidthsForOperatorsSheet(adaptiveCount: number) {
   return [
     { wch: 5 }, // Rank
     { wch: 32 }, // Operator
-    { wch: 8 }, // Pinned
+    { wch: 16 }, // Inclusion (matches / pinned / pinned + matches)
     { wch: 28 }, // Markets
     { wch: 26 }, // 7-Cell (with possible " (Mixed)" suffix)
     { wch: 13 }, // Est. Portfolio
@@ -367,7 +379,7 @@ function colWidthsForOperatorsSheet(adaptiveCount: number) {
 function colWidthsForMarketsSheet(adaptiveCount: number) {
   return [
     { wch: 32 }, // Operator
-    { wch: 8 }, // Pinned
+    { wch: 16 }, // Inclusion (matches / pinned / pinned + matches)
     { wch: 28 }, // Market
     { wch: 22 }, // 7-Cell
     { wch: 13 }, // Est. Portfolio
