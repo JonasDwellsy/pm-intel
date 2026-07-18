@@ -45,7 +45,7 @@ export interface RankedTarget {
   /** Full PM payload for drill-down rendering. */
   pm: PMRecord;
   /** True when this row is present only because it was manually
-   *  pinned to the watch list (kind: "pinned" membership), not
+   *  pinned to the watch list (WatchListMember membership), not
    *  because it matched the criteria. Display-only — never affects
    *  sorting or entitlement scoping. See unionPinnedRecords below. */
   pinned?: boolean;
@@ -120,15 +120,14 @@ export async function applyWatchList(
   // market rows is simply never encountered by the union step, so it
   // can never surface. See unionPinnedRecords/unionPinnedOperators.
   pinnedKeys?: ReadonlySet<string>,
-  // v0.28 (Task 7) — true for a `kind: "pinned"` pick list. A pick
-  // list's requiredCriteria/preferredCriteria/excludedCriteria are
-  // empty by convention (there's no criteria UI for it), and an EMPTY
-  // criteria set trivially "passes" every operator in the universe
-  // (see scoring.ts: no required criteria to fail, no excluded
+  // True for a pins-only list (no criteria). Such a list's
+  // requiredCriteria/preferredCriteria/excludedCriteria are all empty,
+  // and an EMPTY criteria set trivially "passes" every operator in the
+  // universe (see scoring.ts: no required criteria to fail, no excluded
   // criteria to veto, fitScore defaults to 100 with no preferred
-  // criteria). Left unguarded, a pick list's natural criteria-match
+  // criteria). Left unguarded, a pins-only list's natural criteria-match
   // loop below would silently include the ENTIRE operator universe as
-  // "matched" — which both misrepresents a pick list's membership (the
+  // "matched" — which both misrepresents the list's membership (the
   // index's "N companies" would then bear no relation to what
   // /results actually renders) and, more importantly, would make the
   // `pinned` flag near-meaningless: unionPinnedRecords/unionPinnedOperators
@@ -137,12 +136,13 @@ export async function applyWatchList(
   // set literally EVERY row is already "naturally matched" — so every
   // row in the universe would flip to `pinned: true`, not just the
   // ones the user actually pinned. So skipCriteriaMatch bypasses the
-  // natural loops entirely for a pick list — the results consist
+  // natural loops entirely for a pins-only list — the results consist
   // purely of the pin union, every row correctly flagged
-  // `pinned: true` (and only those rows). Smart (`kind: "criteria"`) lists — including a
-  // deliberately blank "Start from Scratch" one — are unaffected
-  // (this defaults to false, preserving the pre-existing "empty
-  // criteria matches everyone" behavior for that kind).
+  // `pinned: true` (and only those rows). Lists WITH criteria (smart or
+  // hybrid) — including a deliberately blank "Start from Scratch" one
+  // that hasn't gained criteria yet — pass false here, preserving the
+  // "empty criteria matches everyone" behavior. Callers derive this via
+  // shouldSkipCriteriaMatch() (= !hasCriteria), never a stored column.
   skipCriteriaMatch?: boolean
 ): Promise<TargetListResult> {
   // PM-only universe. Brokers are scored in their own cohort and hidden from
@@ -275,10 +275,10 @@ export async function applyWatchList(
 
 // ─── pin union (pure — no I/O) ───────────────────────────────────────
 //
-// Task 5 (v0.27): a watch list of kind "pinned" lets a user manually
-// add companies regardless of whether they match the watch list's
-// criteria. These helpers union those pins into the criteria-matched
-// results applyWatchList already computed.
+// Task 5 (v0.27): manual pins let a user add companies to a watch list
+// regardless of whether they match the list's criteria. These helpers
+// union those pins into the criteria-matched results applyWatchList
+// already computed.
 //
 // ENTITLEMENT SAFETY: every helper below reads exclusively from the
 // caller-supplied `allRecords` / `byCanonical`, which applyWatchList
@@ -298,16 +298,16 @@ export async function applyWatchList(
 //
 // v0.28 (Task 7): computeCriteriaMatchedRecords/computeCriteriaMatchedOperators
 // below gate the NATURAL (non-pinned) match loops on `skipCriteriaMatch` —
-// see applyWatchList's doc comment for why a `kind: "pinned"` pick list
-// (empty criteria by convention) needs this bypass for the `pinned` flag
+// see applyWatchList's doc comment for why a pins-only list
+// (empty criteria) needs this bypass for the `pinned` flag
 // to ever be meaningful.
 
 /** Natural per-market (Market view) criteria match — evaluates every
  *  record in `allRecords` against `watchList` and keeps the ones that
  *  pass. Returns `[]` unconditionally when `skipCriteriaMatch` is true:
- *  a `kind: "pinned"` pick list's criteria are empty by convention, and
+ *  a pins-only list's criteria are empty, and
  *  an empty required/excluded set trivially passes everyone (see
- *  scoring.ts) — running this loop for a pick list would make the
+ *  scoring.ts) — running this loop for such a list would make the
  *  entire operator universe "matched", and since unionPinnedRecords now
  *  flips `pinned: true` on any pinned key that overlaps an already-
  *  matched row, that would flip `pinned: true` on EVERY row in the

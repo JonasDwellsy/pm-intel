@@ -373,9 +373,9 @@ test("unionPinnedRecords / unionPinnedOperators — empty pinnedKeys is a no-op 
 // ─── computeCriteriaMatchedRecords / computeCriteriaMatchedOperators
 //     (Task 7 — the "pick list" skipCriteriaMatch gate) ──────────────
 //
-// A `kind: "pinned"` pick list's requiredCriteria/preferredCriteria/
-// excludedCriteria are empty by convention (there's no criteria UI for
-// it). An empty criteria set trivially PASSES every operator (scoring.ts:
+// A pins-only pick list's requiredCriteria/preferredCriteria/
+// excludedCriteria are empty (no criteria were set). An empty criteria
+// set trivially PASSES every operator (scoring.ts:
 // no required to fail, no excluded to veto, fitScore defaults to 100
 // with no preferred weights). Left unguarded, that means every operator
 // in the universe would show up as "naturally matched" for a pick list —
@@ -427,10 +427,10 @@ test("computeCriteriaMatchedOperators — skipCriteriaMatch false preserves the 
   assert.equal(result[0].matched, true);
 });
 
-test("a kind:'pinned' pick list (blank criteria + skipCriteriaMatch) surfaces ONLY the pinned company, flagged pinned:true — both views", () => {
+test("a pins-only pick list (blank criteria + skipCriteriaMatch) surfaces ONLY the pinned company, flagged pinned:true — both views", () => {
   // Two operators exist in the universe; only "acme" is pinned. A
   // blank watch list is exactly what the "New pick list" / AddToWatchList
-  // create flow persists (kind: "pinned", empty criteria arrays).
+  // create flow persists (empty criteria arrays, membership via pins).
   const pinnedPm = makePm({ slug: "acme-bhm", marketId: "birmingham-al", canonicalOperatorId: "acme" });
   const otherPm = makePm({ slug: "other-op", marketId: "knoxville-tn", canonicalOperatorId: "other" });
   const blank = makeWatchList();

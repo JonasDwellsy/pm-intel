@@ -92,7 +92,7 @@ export interface ResultRowVM {
    *  /members API). Operator-view rows already use this exact value
    *  as `id`; market-view rows need it separately since their `id` is
    *  the composite "{pmSlug}-{marketId}". Task 7's remove-pin control
-   *  on a `kind: "pinned"` list's results page reads this to know
+   *  on a pins-only list's results page reads this to know
    *  what to send to `DELETE /api/watch-lists/[id]/members`. */
   memberKey: string;
   /** PMRecord the adaptive-column cells read from. */

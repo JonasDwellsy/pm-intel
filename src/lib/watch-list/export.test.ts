@@ -594,7 +594,6 @@ test("Summary sheet shows 'Companies pinned' (not 'Match rate') for a watch list
       requiredCriteria: [],
       preferredCriteria: [],
       excludedCriteria: [],
-      kind: "pinned",
     },
     operatorRows: [
       makeRow({ rank: 1, name: "Pinned Op", marketLabel: "X", fitScore: 100, urusT12: 50, pinned: true }),
@@ -619,14 +618,11 @@ test("Summary sheet shows 'Companies pinned' (not 'Match rate') for a watch list
   assert.equal(map["Total operators evaluated"], undefined);
 });
 
-test("Summary sheet keeps 'Operators matched' / 'Match rate' wording for a hybrid list (kind:'pinned' but WITH criteria) — wording keys on criteria-presence, not kind, and the count excludes pinned-only rows", () => {
-  // Task 7 Step 3: buildSummarySheet's isPinnedList now derives from
-  // hasCriteria(watchList), not the stored `kind` column. This fixture
-  // deliberately sets kind: "pinned" (stale/irrelevant creation intent)
-  // alongside a non-empty requiredCriteria to prove the summary wording
-  // no longer keys off kind at all — a hybrid list (criteria + pins)
-  // still gets "Operators matched" / "Match rate" here; its pinned rows
-  // are surfaced separately via the per-row "Pinned" column.
+test("Summary sheet keeps 'Operators matched' / 'Match rate' wording for a hybrid list (WITH criteria) — wording keys on criteria-presence, and the count excludes pinned-only rows", () => {
+  // buildSummarySheet's isPinnedList derives from hasCriteria(watchList).
+  // A hybrid list (criteria + pins) has criteria, so it gets "Operators
+  // matched" / "Match rate" here; its pinned rows are surfaced separately
+  // via the per-row "Inclusion" column.
   //
   // Task 7 (final review): "Operators matched" / "Match rate" now count
   // only CRITERIA-matched rows (matched === true), not pin-union
@@ -645,7 +641,6 @@ test("Summary sheet keeps 'Operators matched' / 'Match rate' wording for a hybri
       ],
       preferredCriteria: [],
       excludedCriteria: [],
-      kind: "pinned",
     },
     operatorRows: [
       makeRow({ rank: 1, name: "Matched Op", marketLabel: "X", fitScore: 100, urusT12: 50, pinned: false }),
@@ -714,9 +709,9 @@ test("Summary sheet 'Operators matched' is 0 for a has-criteria list whose only 
   assert.equal(map["Companies pinned"], undefined);
 });
 
-test("Summary sheet keeps 'Operators matched' / 'Match rate' wording when kind is omitted (backward compatible)", () => {
-  // SAMPLE_BUYBOX has no `kind` field — every pre-Task-7 caller/test
-  // fixture. Confirms the new conditional doesn't change the default.
+test("Summary sheet uses 'Operators matched' / 'Match rate' wording for the sample (has-criteria) workbook", () => {
+  // SAMPLE_BUYBOX carries criteria, so hasCriteria(watchList) is true and
+  // the summary takes the matched-count branch (not "Companies pinned").
   const { workbook } = buildSampleWorkbook();
   const rows = XLSX.utils.sheet_to_json<Array<string | number>>(
     workbook.Sheets["Summary"],

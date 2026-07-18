@@ -36,11 +36,6 @@ export interface ExportWatchList {
   requiredCriteria: FilterCriterion[];
   preferredCriteria: WeightedCriterion[];
   excludedCriteria: FilterCriterion[];
-  /** v0.28 (Task 7) — "criteria" | "pinned". Retained as creation
-   *  intent / a passthrough for callers that still populate it, but no
-   *  longer read by the Summary-sheet wording below (that now derives
-   *  from criteria-presence via hasCriteria(), see buildSummarySheet). */
-  kind?: string;
 }
 
 export interface ExportArgs {

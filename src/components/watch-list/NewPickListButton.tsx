@@ -2,18 +2,18 @@
 
 // v0.28 (Task 7 Step 1) — "New pick list" entry on the /watch-lists
 // index, alongside the existing "New watch list" link. A pick list
-// (kind: "pinned") has no criteria to configure, so this deliberately
-// skips the template picker / WatchListEditor flow that "New watch
-// list" goes through — there's nothing to pick a template FOR. Name
-// it, POST it into existence, and land straight on its (initially
-// empty) results page; companies get pinned in from the "Watch list"
-// control on any scorecard, market row, or search result (see
-// AddToWatchList.tsx), which already lists this new pick list as a
-// destination once it exists.
+// has no criteria to configure, so this deliberately skips the
+// template picker / WatchListEditor flow that "New watch list" goes
+// through — there's nothing to pick a template FOR. Name it, POST it
+// into existence (empty criteria arrays → derives as a pinned list),
+// and land straight on its (initially empty) results page; companies
+// get pinned in from the "Watch list" control on any scorecard, market
+// row, or search result (see AddToWatchList.tsx), which already lists
+// this new pick list as a destination once it exists.
 //
 // Modeled on AddToWatchList's own inline create flow (same request
-// shape: kind: "pinned", empty criteria arrays) and on
-// WatchListIndex's delete-confirmation modal (same overlay pattern).
+// shape: empty criteria arrays) and on WatchListIndex's
+// delete-confirmation modal (same overlay pattern).
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -43,7 +43,6 @@ export function NewPickListButton() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           name: trimmed,
-          kind: "pinned",
           requiredCriteria: [],
           preferredCriteria: [],
           excludedCriteria: [],

@@ -258,7 +258,6 @@ export default async function WatchListResultsPage({ params }: PageProps) {
                 requiredCriteria: watchList.requiredCriteria,
                 preferredCriteria: watchList.preferredCriteria,
                 excludedCriteria: watchList.excludedCriteria,
-                kind: watchList.kind,
               }}
               operatorRows={operatorRows}
               marketRows={marketRows}

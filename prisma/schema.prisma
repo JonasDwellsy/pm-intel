@@ -253,8 +253,12 @@ model WatchList {
   // so removing a watch list cleans up its view history.
   views WatchListView[]
 
-  // v0.26 — "criteria" (smart list) | "pinned" (manual pick list).
-  kind    String            @default("criteria")
+  // Smart / pinned / hybrid is DERIVED from content (criteria-presence +
+  // pin count) via src/lib/watch-list/kind.ts. The v0.26 `kind` column is
+  // no longer modeled or read; its physical DROP ships as a follow-up
+  // migration (two-phase: stop reading it here first, then drop it once
+  // this is live, so a shared-DB deploy never leaves old code selecting a
+  // dropped column).
   members WatchListMember[]
 
   @@index([ownerId])
@@ -368,8 +372,8 @@ model WatchListView {
   @@index([userId, watchListId, viewedAt(sort: Desc)])
 }
 
-// v0.26 — Manual pins for kind='pinned' watch lists (the "pick list"
-// counterpart to the criteria-driven smart lists). One row per
+// v0.26 — Manual pins for a watch list (the "pick list" side of the
+// derived pinned/smart/hybrid model). One row per
 // (watchList, operator) pin. Cascade-delete so removing a watch list
 // cleans up its members.
 model WatchListMember {

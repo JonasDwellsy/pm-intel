@@ -14,10 +14,13 @@ vi.mock("@clerk/nextjs", () => ({
   useAuth: () => useAuthMock(),
 }));
 
-const PINNED_A = { id: "list-a", name: "Denver watch", kind: "pinned", ownerId: "user_1" };
-const PINNED_B = { id: "list-b", name: "Austin watch", kind: "pinned", ownerId: "user_1" };
-const CRITERIA_LIST = { id: "list-c", name: "Smart list", kind: "criteria", ownerId: "user_1" };
-const OTHER_OWNER_PINNED = { id: "list-d", name: "Not mine", kind: "pinned", ownerId: "user_2" };
+// The popover offers all of the caller's OWN lists (any kind — the
+// pinned/smart distinction is derived from content elsewhere, not a
+// stored column), and excludes lists owned by someone else.
+const PINNED_A = { id: "list-a", name: "Denver watch", ownerId: "user_1" };
+const PINNED_B = { id: "list-b", name: "Austin watch", ownerId: "user_1" };
+const CRITERIA_LIST = { id: "list-c", name: "Smart list", ownerId: "user_1" };
+const OTHER_OWNER_PINNED = { id: "list-d", name: "Not mine", ownerId: "user_2" };
 
 function jsonResponse(body: unknown, status = 200): Response {
   return {
@@ -55,7 +58,6 @@ function makeFetchMock() {
           watchList: {
             id: "list-new",
             name: body.name,
-            kind: body.kind,
             ownerId: "user_1",
           },
         },
@@ -220,7 +222,6 @@ describe("AddToWatchList", () => {
       const [, init] = createCall!;
       expect(parseBody(init as RequestInit)).toEqual({
         name: "My new pins",
-        kind: "pinned",
         requiredCriteria: [],
         preferredCriteria: [],
         excludedCriteria: [],
@@ -262,7 +263,7 @@ describe("AddToWatchList", () => {
       if (url === "/api/watch-lists" && method === "POST") {
         const body = parseBody(init);
         return jsonResponse(
-          { watchList: { id: "list-new", name: body.name, kind: body.kind, ownerId: "user_1" } },
+          { watchList: { id: "list-new", name: body.name, ownerId: "user_1" } },
           201
         );
       }
