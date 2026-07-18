@@ -11,7 +11,9 @@ import { FormulaBlock, Op } from "@/components/methodology/FormulaBlock";
 // explicit limitations section, no interactive JS; everything renders static.
 
 export const metadata: Metadata = {
-  title: "Portfolio Size Estimator — Operator IQ Methodology",
+  // `absolute` so the root template ("%s · Operator IQ") doesn't append and
+  // double-brand ("… Operator IQ Methodology · Operator IQ").
+  title: { absolute: "Portfolio Size Estimator — Operator IQ Methodology" },
   description:
     "How Operator IQ estimates an operator's total managed units from observed on-market turnover: house URUs × 3.3 + apartment URUs × 2.6, applied uniformly with admin-tunable multipliers and a low–high confidence band.",
   alternates: { canonical: "/methodology/portfolio-estimator" },

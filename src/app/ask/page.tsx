@@ -13,7 +13,9 @@ import { AskChat } from "./AskChat";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Ask Operator IQ",
+  // `absolute` so the root template ("%s · Operator IQ") doesn't append and
+  // render "Ask Operator IQ · Operator IQ".
+  title: { absolute: "Ask Operator IQ" },
   description:
     "Natural-language interface for operator scorecards, market intelligence, and methodology questions across Operator IQ's covered markets.",
 };
