@@ -2186,7 +2186,14 @@ export function OperatorProfilePDF({
             geo={scorecard.geographicCoverage}
           />
         </View>
-        <View style={{ marginTop: 20 }}>
+        {/* Force "02 Operating Performance" onto a fresh page. Section 01 now
+            carries the full-width coverage map, so it reliably spans past the
+            first page; without this break, section 02 lands low on the map's
+            page and react-pdf can't cleanly break its wrap={false} metric
+            cards, overlapping them. Starting 02 fresh guarantees a full page
+            of room regardless of the operator's section-01 height (peers,
+            cross-market block, unit mix, rent-tier lines all vary). */}
+        <View style={{ marginTop: 20 }} break>
           <OperatingSection operating={view.operating} />
         </View>
         <View style={{ marginTop: 20 }}>

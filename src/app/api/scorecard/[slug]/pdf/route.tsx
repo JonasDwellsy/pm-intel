@@ -129,10 +129,20 @@ export async function GET(
     // Fetch a static basemap for the coverage map (basemap-only — points are
     // drawn locally in the PDF, never sent to Mapbox). Returns null on any
     // failure; the PDF then renders the SVG-only fallback.
+    //
+    // Token: use a dedicated SERVER token, NOT NEXT_PUBLIC_MAPBOX_TOKEN. The
+    // public web token is URL-restricted (works in the browser via an allowed
+    // Referer/Origin) and Mapbox rejects it 403 on server-side requests like
+    // this one — so the basemap silently fell back to the SVG-only map. Set
+    // MAPBOX_SERVER_TOKEN in the environment to an unrestricted (or
+    // server-scoped) token. Falls back to the public token for local dev; if
+    // neither is usable the PDF still renders via the SVG fallback.
+    const mapboxToken =
+      process.env.MAPBOX_SERVER_TOKEN ?? process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
     const coverageMap = await fetchCoverageMapImage(scorecard.geographicCoverage, {
       width: MAP_W,
       height: MAP_H,
-      token: process.env.NEXT_PUBLIC_MAPBOX_TOKEN,
+      token: mapboxToken,
       timeoutMs: 2500,
     });
 
