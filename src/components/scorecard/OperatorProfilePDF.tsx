@@ -2063,9 +2063,10 @@ function MethodologySection({ scorecard }: { scorecard: ScorecardData }) {
         <Text style={styles.paragraph}>
           Operator IQ scorecards reflect operator behavior observable in our first-party
           listings data. Figures are not portfolio totals; they&rsquo;re what we see.
-          Operators with shorter observation history have noisier estimates on metrics that
-          depend on multi-episode unit pairs (Tenancy) or multi-year trajectory (Rent
-          Performance). See the methodology page for full caveats.
+          Operators with shorter observation history have noisier estimates on metrics
+          built from observed tenancy episodes (Tenant Retention, a Kaplan-Meier survival
+          estimate) or multi-year trajectory (Rent Performance). See the methodology page
+          for full caveats.
         </Text>
       </View>
 
