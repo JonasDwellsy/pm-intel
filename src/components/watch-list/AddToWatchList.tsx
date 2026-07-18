@@ -1,11 +1,12 @@
 "use client";
 
 // v0.27 (Task 6) — "Add to watch list" client island. A bookmark button
-// that opens a small popover listing the signed-in user's OWN "pinned"
-// (manual pick-list) watch lists, each with a checkbox reflecting current
-// membership. Toggling calls POST/DELETE /api/watch-lists/[id]/members;
-// a "+ New list…" row creates a fresh pinned list (POST /api/watch-lists,
-// kind: "pinned") and pins into it immediately.
+// that opens a small popover listing the signed-in user's OWN watch
+// lists (pinned, smart, or hybrid), each with a checkbox reflecting
+// current membership. Toggling calls POST/DELETE
+// /api/watch-lists/[id]/members; a "+ New list…" row creates a fresh
+// pinned list (POST /api/watch-lists, kind: "pinned" — a fresh list has
+// no criteria, so it derives as pinned) and pins into it immediately.
 //
 // Mounted on three surfaces: the scorecard header (ScorecardHeader.tsx,
 // gated by !publicSample), market rows (PMListItem.tsx), and search rows
@@ -19,15 +20,18 @@
 // isSignedIn is true there in practice.
 //
 // Membership check: GET /api/watch-lists returns every list visible to
-// the caller (own + shared-in-org); we filter to kind === "pinned" AND
-// ownerId === the caller's own userId — a personal pick-list feature,
-// so only your own pin lists show up here (a legacy-owned-in-org list
-// is editable via canEditList server-side, but surfacing someone else's
-// list in a per-operator quick-pin menu would be a confusing scope
-// creep for this control). For each of those (typically a handful),
-// we then GET /api/watch-lists/[id]/members to resolve whether this
-// memberKey is already pinned — an N+1 fan-out, deferred to popover-open
-// so a market page with 50 rows never fires 50×N background requests.
+// the caller (own + shared-in-org); we filter to ownerId === the
+// caller's own userId — any of your own lists, regardless of kind, are
+// valid pin targets (the server's add/remove member routes authorize via
+// canEditList, not via kind, so pinning onto a smart/hybrid list already
+// works server-side). A shared-in-org list you don't own is excluded
+// even though canEditList may allow editing it — surfacing someone
+// else's list in a per-operator quick-pin menu would be a confusing
+// scope creep for this control. For each of the caller's own lists
+// (typically a handful), we then GET /api/watch-lists/[id]/members to
+// resolve whether this memberKey is already pinned — an N+1 fan-out,
+// deferred to popover-open so a market page with 50 rows never fires
+// 50×N background requests.
 
 import * as React from "react";
 import { useAuth } from "@clerk/nextjs";
@@ -98,9 +102,7 @@ export function AddToWatchList({
       const res = await fetch("/api/watch-lists");
       if (!res.ok) throw new Error(`Failed to load watch lists (${res.status}).`);
       const data = (await res.json()) as { watchListes: WatchListSummary[] };
-      const mine = data.watchListes.filter(
-        (w) => w.kind === "pinned" && w.ownerId === userId
-      );
+      const mine = data.watchListes.filter((w) => w.ownerId === userId);
       setLists(mine);
 
       // Resolve current membership per list. Small N (a user's own pin
@@ -282,7 +284,7 @@ export function AddToWatchList({
 
           {!loading && lists !== null && lists.length === 0 && !showCreate && (
             <p className="mt-2 text-[12.5px] text-muted-foreground">
-              No pinned watch lists yet.
+              No watch lists yet.
             </p>
           )}
 

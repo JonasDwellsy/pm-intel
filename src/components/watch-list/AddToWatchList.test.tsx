@@ -125,7 +125,7 @@ describe("AddToWatchList", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("opening the popover lists only the caller's own pinned lists", async () => {
+  it("opening the popover lists all the caller's OWN lists (pinned + smart), not other owners'", async () => {
     const user = userEvent.setup();
     render(<AddToWatchList memberKey="doorby" operatorName="Doorby" />);
 
@@ -135,8 +135,10 @@ describe("AddToWatchList", () => {
       expect(screen.getByText("Denver watch")).toBeTruthy();
     });
     expect(screen.getByText("Austin watch")).toBeTruthy();
-    // "criteria"-kind list and another user's pinned list are excluded.
-    expect(screen.queryByText("Smart list")).toBeNull();
+    // A "criteria"-kind (smart) list owned by the caller is now a valid
+    // pin target; another user's pinned list is still excluded by the
+    // owner-only gate.
+    expect(screen.getByText("Smart list")).toBeTruthy();
     expect(screen.queryByText("Not mine")).toBeNull();
 
     // Membership resolved per list (a second fetch fan-out, after the
