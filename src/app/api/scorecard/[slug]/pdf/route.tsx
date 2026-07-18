@@ -144,6 +144,34 @@ export async function GET(
       height: MAP_H,
       token: mapboxToken,
       timeoutMs: 2500,
+      onFailure: (failure) => {
+        // Always leave a breadcrumb so a later captured exception carries the
+        // map-fetch context.
+        Sentry.addBreadcrumb({
+          category: "scorecard-pdf.map",
+          level: "warning",
+          message: `coverage map fetch failed: ${failure.reason}${
+            failure.reason === "http" ? ` ${failure.status}` : ""
+          }`,
+          data: { slug, ...failure },
+        });
+        // 401/403 means the token is misconfigured — missing MAPBOX_SERVER_TOKEN
+        // or a URL-restricted public token that Mapbox rejects server-side. The
+        // basemap silently degrades to the SVG fallback, so proactively surface
+        // it instead of waiting for a client-reported PDF. Fingerprinted so all
+        // occurrences roll into ONE grouped Sentry issue (alert-once, not
+        // per-render spam).
+        if (failure.reason === "http" && (failure.status === 401 || failure.status === 403)) {
+          Sentry.captureMessage(
+            `[scorecard-pdf] Mapbox basemap ${failure.status} — MAPBOX_SERVER_TOKEN missing or URL-restricted; PDFs are falling back to the SVG map`,
+            {
+              level: "warning",
+              tags: { component: "scorecard-pdf", mapbox_status: String(failure.status) },
+              fingerprint: ["scorecard-pdf-mapbox-auth"],
+            }
+          );
+        }
+      },
     });
 
     const buffer = await renderToBuffer(

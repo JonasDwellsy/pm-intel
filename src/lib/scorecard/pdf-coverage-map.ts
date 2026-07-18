@@ -27,6 +27,17 @@ export type CoverageMapImage = {
   backdropPx: Pixel[];
 };
 
+/** Why a basemap fetch returned null. Reported via the optional `onFailure`
+ *  telemetry hook so the caller (the PDF route) can surface config problems —
+ *  notably an `http` 401/403 from a URL-restricted/missing server token — to
+ *  Sentry, rather than the basemap silently degrading to the SVG fallback. */
+export type CoverageMapFailure =
+  | { reason: "no_token" }
+  | { reason: "no_bounds" }
+  | { reason: "http"; status: number }
+  | { reason: "aborted" }
+  | { reason: "error"; message: string };
+
 export async function fetchCoverageMapImage(
   geo: ScorecardData["geographicCoverage"],
   opts: {
@@ -36,11 +47,25 @@ export async function fetchCoverageMapImage(
     timeoutMs: number;
     maxBackdrop?: number;
     fetchImpl?: typeof fetch;
+    /** Optional telemetry hook fired on every null-returning path. Must not
+     *  throw (calls are guarded). Lets the route report failures to Sentry
+     *  without this module depending on Sentry. */
+    onFailure?: (failure: CoverageMapFailure) => void;
   }
 ): Promise<CoverageMapImage | null> {
   const { width, height, token, timeoutMs } = opts;
   const maxBackdrop = opts.maxBackdrop ?? MAP_MAX_BACKDROP;
-  if (!token) return null;
+  // Report a failure via the telemetry hook (never let it throw — the PDF must
+  // still render the SVG fallback) and return null.
+  const fail = (failure: CoverageMapFailure): null => {
+    try {
+      opts.onFailure?.(failure);
+    } catch {
+      /* telemetry must never break PDF generation */
+    }
+    return null;
+  };
+  if (!token) return fail({ reason: "no_token" });
 
   const bounds: Bounds | null =
     footprintBounds(geo.coverageMapPoints) ??
@@ -52,7 +77,7 @@ export async function fetchCoverageMapImage(
           south: geo.mapBounds.south,
         }
       : null);
-  if (!bounds) return null;
+  if (!bounds) return fail({ reason: "no_bounds" });
 
   const { center, zoom } = fitBoundsToCenterZoom(bounds, {
     width,
@@ -69,7 +94,7 @@ export async function fetchCoverageMapImage(
     const res = await doFetch(url, { signal: controller.signal });
     if (!res.ok) {
       console.error(`[scorecard-pdf] coverage map fetch HTTP ${res.status}`);
-      return null;
+      return fail({ reason: "http", status: res.status });
     }
     const buf = Buffer.from(await res.arrayBuffer());
     const dataUrl = `data:image/png;base64,${buf.toString("base64")}`;
@@ -88,7 +113,12 @@ export async function fetchCoverageMapImage(
     return { dataUrl, width, height, coveragePx, backdropPx };
   } catch (err) {
     console.error("[scorecard-pdf] coverage map fetch failed", err);
-    return null;
+    const aborted = err instanceof Error && err.name === "AbortError";
+    return fail(
+      aborted
+        ? { reason: "aborted" }
+        : { reason: "error", message: err instanceof Error ? err.message : String(err) }
+    );
   } finally {
     clearTimeout(timer);
   }

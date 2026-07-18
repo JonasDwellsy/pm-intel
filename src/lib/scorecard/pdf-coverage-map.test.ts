@@ -117,3 +117,59 @@ test("fetch rejection / abort → null", async () => {
   });
   assert.equal(res, null);
 });
+
+test("onFailure telemetry hook reports each failure reason", async () => {
+  const calls: Array<{ reason: string; status?: number }> = [];
+  const onFailure = (f: { reason: string; status?: number }) => calls.push(f);
+  const opts = { width: 1000, height: 500, timeoutMs: 2500, onFailure };
+
+  // 403 → { reason: "http", status: 403 } (the actionable token-misconfig case)
+  const http403 = (async () =>
+    ({ ok: false, status: 403 }) as unknown as Response) as unknown as typeof fetch;
+  await fetchCoverageMapImage(GEO, { ...opts, token: "TESTTOKEN", fetchImpl: http403 });
+  assert.deepEqual(calls.at(-1), { reason: "http", status: 403 });
+
+  // missing token → { reason: "no_token" } (before any fetch)
+  await fetchCoverageMapImage(GEO, { ...opts, token: undefined, fetchImpl: http403 });
+  assert.deepEqual(calls.at(-1), { reason: "no_token" });
+
+  // abort → { reason: "aborted" }
+  const abortImpl = (async () => {
+    throw new DOMException("aborted", "AbortError");
+  }) as unknown as typeof fetch;
+  await fetchCoverageMapImage(GEO, { ...opts, token: "TESTTOKEN", fetchImpl: abortImpl });
+  assert.deepEqual(calls.at(-1), { reason: "aborted" });
+});
+
+test("onFailure is NOT called on success", async () => {
+  let failures = 0;
+  const fetchImpl = (async () => pngResponse()) as unknown as typeof fetch;
+  const res = await fetchCoverageMapImage(GEO, {
+    width: 1000,
+    height: 500,
+    token: "TESTTOKEN",
+    timeoutMs: 2500,
+    fetchImpl,
+    onFailure: () => {
+      failures += 1;
+    },
+  });
+  assert.ok(res);
+  assert.equal(failures, 0);
+});
+
+test("a throwing onFailure never breaks the caller (still returns null)", async () => {
+  const http403 = (async () =>
+    ({ ok: false, status: 403 }) as unknown as Response) as unknown as typeof fetch;
+  const res = await fetchCoverageMapImage(GEO, {
+    width: 1000,
+    height: 500,
+    token: "TESTTOKEN",
+    timeoutMs: 2500,
+    fetchImpl: http403,
+    onFailure: () => {
+      throw new Error("telemetry boom");
+    },
+  });
+  assert.equal(res, null);
+});
