@@ -69,7 +69,7 @@ function signInContext(redirectUrl: string | undefined): {
     };
   if (url.includes("/ask"))
     return {
-      title: "Sign in to use Ask Dwellsy IQ",
+      title: "Sign in to use Ask Operator IQ",
       sub: "The AI research tool is available to signed-in members.",
     };
   if (url.includes("/watch-lists"))

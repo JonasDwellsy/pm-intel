@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const headline = await readCachedNationalHeadline();
-  const title = "National Market Brief — Dwellsy IQ";
+  const title = "National Market Brief";
   const description =
     headline ??
     "A cross-market read of U.S. rental operator dynamics — what moved, standout markets, and the national operator landscape.";
@@ -143,7 +143,7 @@ export default async function NationalBriefPage() {
         {prose && (
           <p className="mt-12 border-t border-grid pt-5 text-[12px] text-muted-foreground">
             Generated {fmtDate(prose.generatedAt.toISOString())} · Powered by
-            Dwellsy IQ methodology {data.methodologyVersion}
+            Operator IQ methodology {data.methodologyVersion}
           </p>
         )}
       </article>

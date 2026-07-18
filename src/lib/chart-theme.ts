@@ -1,4 +1,4 @@
-// Dwellsy IQ Recharts theme. Apply consistently across every Recharts chart in
+// Operator IQ Recharts theme. Apply consistently across every Recharts chart in
 // the scorecard. The values mirror the inline-SVG mock so that PDF / web /
 // preview surfaces all read the same brand language.
 

@@ -22,7 +22,7 @@ export async function generateMetadata({
   if (!pm) return { title: "Claim — not found" };
   return {
     title: `Claim ${pm.name}`,
-    description: `Claim and manage the Dwellsy IQ profile for ${pm.name}.`,
+    description: `Claim and manage the Operator IQ profile for ${pm.name}.`,
     robots: { index: false, follow: false },
   };
 }

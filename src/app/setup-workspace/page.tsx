@@ -74,7 +74,7 @@ export default async function SetupWorkspacePage({ searchParams }: PageProps) {
           You&rsquo;re not part of an organization yet
         </h1>
         <p className="mt-3 text-[14.5px] leading-relaxed text-foreground/75">
-          Dwellsy IQ is provisioned per organization. An administrator
+          Operator IQ is provisioned per organization. An administrator
           needs to add you to your team&rsquo;s workspace before you can
           view markets and build watch lists.
         </p>

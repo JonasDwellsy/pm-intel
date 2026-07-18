@@ -113,7 +113,7 @@ const CONCEPTUAL_7CELL_ROWS: Array<{
         scaleEyebrow: "Institutional",
         title: "SFR Institutional",
         description:
-          "Geographically distributed SFR books large enough to operate at institutional scale (500+ urus across all Dwellsy IQ markets).",
+          "Geographically distributed SFR books large enough to operate at institutional scale (500+ urus across all Operator IQ markets).",
         samples: ["Progress Residential", "Tricon Residential", "Invitation Homes"],
       },
     ],

@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   // Mock email payloads. Real delivery wires in at deploy time.
   console.log("[EMAIL → owner]", {
     to: lead.ownerEmail,
-    subject: "Your Dwellsy IQ property manager matches",
+    subject: "Your Operator IQ property manager matches",
     body: `Hi ${lead.ownerName}, we found ${matches.length} operator${
       matches.length === 1 ? "" : "s"
     } that fit your search:\n${matches
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     console.log("[EMAIL → PM]", {
       pm: pm.slug,
       to: `${pm.slug}@example.invalid`, // contact email lands in Journey 3 (claim flow)
-      subject: "New lead from Dwellsy IQ",
+      subject: "New lead from Operator IQ",
       body: `${lead.ownerName} (${lead.ownerEmail}) is exploring ${
         lead.propertyType
       }${lead.unitCount ? ` · ${lead.unitCount} units` : ""}${

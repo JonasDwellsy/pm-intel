@@ -1,6 +1,6 @@
 // v0.22 — per-organization market entitlements (pure logic).
 //
-// Dwellsy IQ is sold by market. An organization is entitled either to
+// Operator IQ is sold by market. An organization is entitled either to
 // EVERY market (the `allMarkets` flag — internal/comp accounts and
 // national-tier clients) or to an explicit set of granted market ids.
 // Internal admins always resolve to ALL.

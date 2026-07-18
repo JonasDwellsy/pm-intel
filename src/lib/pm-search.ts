@@ -1,7 +1,7 @@
 // Two-tier PM search index + Fuse.js fuzzy searcher.
 // Drives both the top-nav SearchInput dropdown and the Cmd+K SearchModal.
 //
-// Tier 1 (ranked): all 575 PMs that carry a Dwellsy IQ scorecard — clicks
+// Tier 1 (ranked): all 575 PMs that carry an Operator IQ scorecard — clicks
 // route to /property-managers/[state]/[city]/[slug]. Star counts (gold +
 // silver) surface inline so the user can see the operator's strongest
 // markers without leaving the search.
