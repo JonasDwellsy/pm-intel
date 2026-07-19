@@ -134,18 +134,36 @@ class AssemblePropertyDetail(unittest.TestCase):
     fold into the SFR submarket bucket keyed by their own submarket.
     """
 
-    def test_concentrated_community_stays_a_community_record(self):
+    def test_concentrated_community_units_is_declared_tdc_not_urus(self):
+        # units must be the DECLARED community size (comm_tdc), NOT the
+        # observed URU count used for the concentration decision. Use a tdc
+        # value distinct from the URU count so the two can't be confused.
         out = assemble_property_detail(
             comm_buckets={"c1": _mk_comm_bucket()},
             comm_urus_counts={"c1": 15},
+            comm_tdc={"c1": 140},
             sfr_buckets={},
             comps=_COMPS)
         self.assertIsNotNone(out)
         self.assertEqual(len(out["properties"]), 1)
         p = out["properties"][0]
         self.assertEqual(p["kind"], "community")
-        self.assertEqual(p["units"], 15)
+        self.assertEqual(p["units"], 140)
         self.assertIsNone(p["homes"])
+
+    def test_concentrated_community_units_none_when_no_declared_tdc(self):
+        # comm_tdc lacking the cid (source had no declared count) must yield
+        # units=None rather than falling back to the URU count.
+        out = assemble_property_detail(
+            comm_buckets={"c1": _mk_comm_bucket()},
+            comm_urus_counts={"c1": 15},
+            comm_tdc={},
+            sfr_buckets={},
+            comps=_COMPS)
+        self.assertIsNotNone(out)
+        p = out["properties"][0]
+        self.assertEqual(p["kind"], "community")
+        self.assertIsNone(p["units"])
 
     def test_scattered_community_folds_into_matching_sfr_submarket(self):
         out = assemble_property_detail(
@@ -153,6 +171,7 @@ class AssemblePropertyDetail(unittest.TestCase):
                                                  rent_prior=[1440], concession_hits=1, homes=2,
                                                  submarket="chattanooga-tn")},
             comm_urus_counts={"c1": 4},  # below default min_concentrated=10
+            comm_tdc={},
             sfr_buckets={"chattanooga-tn": _mk_sfr_bucket(n_listings=1, dom=[30], rent_t12=[1600],
                                                            rent_prior=[1550], concession_hits=0, homes=5)},
             comps=_COMPS)
@@ -169,16 +188,20 @@ class AssemblePropertyDetail(unittest.TestCase):
     def test_boundary_urus_exactly_min_concentrated_is_a_community_record(self):
         # min_concentrated defaults to 10; the threshold is ">=" so exactly
         # 10 URUs must still count as concentrated (a community record).
+        # The concentration DECISION is still URU-based (10 here); the units
+        # VALUE displayed is the declared tdc, which is deliberately a
+        # different number to prove the two are decoupled.
         out = assemble_property_detail(
             comm_buckets={"c1": _mk_comm_bucket()},
             comm_urus_counts={"c1": 10},
+            comm_tdc={"c1": 250},
             sfr_buckets={},
             comps=_COMPS)
         self.assertIsNotNone(out)
         self.assertEqual(len(out["properties"]), 1)
         p = out["properties"][0]
         self.assertEqual(p["kind"], "community")
-        self.assertEqual(p["units"], 10)
+        self.assertEqual(p["units"], 250)
         self.assertIsNone(p["homes"])
 
     def test_boundary_urus_one_below_min_concentrated_folds_to_sfr(self):
@@ -187,6 +210,7 @@ class AssemblePropertyDetail(unittest.TestCase):
         out = assemble_property_detail(
             comm_buckets={"c1": _mk_comm_bucket()},
             comm_urus_counts={"c1": 9},
+            comm_tdc={"c1": 250},
             sfr_buckets={},
             comps=_COMPS)
         self.assertIsNotNone(out)
@@ -196,7 +220,7 @@ class AssemblePropertyDetail(unittest.TestCase):
 
     def test_scattered_only_operator_yields_all_sfr_records(self):
         out = assemble_property_detail(
-            comm_buckets={}, comm_urus_counts={},
+            comm_buckets={}, comm_urus_counts={}, comm_tdc={},
             sfr_buckets={"mesa-az": _mk_sfr_bucket(submarket="mesa-az", label="Mesa")},
             comps=_COMPS)
         self.assertIsNotNone(out)
@@ -204,7 +228,7 @@ class AssemblePropertyDetail(unittest.TestCase):
         self.assertTrue(all(p["kind"] == "sfr-submarket" for p in out["properties"]))
 
     def test_empty_returns_none(self):
-        out = assemble_property_detail({}, {}, {}, _COMPS)
+        out = assemble_property_detail({}, {}, {}, {}, _COMPS)
         self.assertIsNone(out)
 
 

@@ -73,7 +73,7 @@ export function MethodologyFooter({
       className="dq-section border-t border-grid pt-10"
     >
       <LayerSectionHeader
-        num="06"
+        num={scorecard.propertyDetail?.properties?.length ? "06" : "05"}
         title="Methodology & limits"
         lede="What backs this scorecard — classification rationale, coverage universe, per-metric sample sizes, version stamp, and the v0.7 follow-up tracker."
         ledeMaxWidthClass="max-w-none"

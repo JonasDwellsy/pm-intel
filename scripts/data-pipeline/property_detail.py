@@ -158,7 +158,7 @@ def _blank_sfr_bucket(label, submarket):
             "marketing": [], "homes": 0}
 
 
-def assemble_property_detail(comm_buckets, comm_urus_counts, sfr_buckets, comps, min_concentrated=10):
+def assemble_property_detail(comm_buckets, comm_urus_counts, comm_tdc, sfr_buckets, comps, min_concentrated=10):
     """Split an operator's community buckets into concentrated-MF vs
     scattered-SFR, then delegate to `build_property_detail` (Task 2).
 
@@ -176,7 +176,18 @@ def assemble_property_detail(comm_buckets, comm_urus_counts, sfr_buckets, comps,
             community (the pipeline's `len(comm_urus_t12[cid])`). Decides
             concentrated (>= min_concentrated) vs scattered, mirroring the
             same >=10 threshold pipeline.py already uses to classify
-            concentrated communities elsewhere.
+            concentrated communities elsewhere. This is an OBSERVED count —
+            it decides the concentration boundary only; it is NOT what gets
+            displayed as `units` (see comm_tdc below).
+        comm_tdc: dict[community_id] -> int declared top-down community size
+            (the pipeline's `comm_tdc`, sourced from top_down_community_count
+            in the raw listing data). A concentrated community's `units`
+            field is this DECLARED size, not the observed URU count — the
+            two can differ meaningfully (a large community can have well
+            under `min_concentrated` T12 URUs turn over and still be a
+            1,000-unit property). `.get(cid)` naturally yields None when the
+            source had no declared count for that community; that's a valid
+            "unknown declared size" result, not an error.
         sfr_buckets: dict[submarket_slug] -> bucket (see module docstring),
             the pipeline's existing scattered-SFR rollups.
         comps: MSA-median comps dict, passed through unchanged.
@@ -194,7 +205,10 @@ def assemble_property_detail(comm_buckets, comm_urus_counts, sfr_buckets, comps,
         urus = comm_urus_counts.get(cid, 0)
         if urus >= min_concentrated:
             record = {k: v for k, v in bucket.items() if k != "homes"}
-            record["units"] = urus
+            # units = the DECLARED community size (top_down_community_count),
+            # NOT the observed URU count used above for the concentration
+            # decision. May be None when the source has no declared count.
+            record["units"] = comm_tdc.get(cid)
             concentrated[cid] = record
             continue
 

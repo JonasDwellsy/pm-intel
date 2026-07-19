@@ -2057,7 +2057,8 @@ for norm in sorted(eligible_norms):
         }
         for sub in _prop_d["sfr_n"]
     }
-    property_detail = assemble_property_detail(_comm_buckets, _comm_urus_counts, _sfr_buckets, market_comps)
+    property_detail = assemble_property_detail(
+        _comm_buckets, _comm_urus_counts, _prop_d["comm_tdc"], _sfr_buckets, market_comps)
     if property_detail is not None:
         pm_out["propertyDetail"] = property_detail
 
