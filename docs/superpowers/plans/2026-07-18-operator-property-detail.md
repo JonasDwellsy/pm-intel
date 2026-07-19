@@ -40,7 +40,8 @@
 - **rentYoY caveat:** per-property rentYoY is a raw median-rent delta (T12 vs T24→T12), explicitly NOT the operator metric's mix-adjusted YoY — surfaced as an observation with a methodology note, never a score.
 - **Coverage:** attach `propertyDetail` to every operator that gets a full `pm_out`. Task 2 confirms whether that's the eligible set only or includes tracked-tier operators; if eligible-only, note it (tracked-tier coverage is a Phase-1.5 follow-up) — do NOT silently drop the thin-market rationale.
 - **Entitlement/auth:** the Properties section + export ride the scorecard's existing gate; no new authz.
-- **CI gate:** `pytest scripts/data-pipeline/` (pipeline) + `npx tsc --noEmit` + `npm run test:watch-list` + `npm run test:components`.
+- **CI gate:** pipeline tests via **stdlib `unittest`** run as `python3 <test_file>.py` from `scripts/data-pipeline/` (this repo has NO pytest; mirror `test_marketing.py`: `import unittest` / `class …(unittest.TestCase)` / `if __name__ == "__main__": unittest.main()`) + `npx tsc --noEmit` + `npm run test:watch-list` + `npm run test:components`.
+- **compute_marketing reuse:** `marketing.compute_marketing` takes an operator-dict and reads `d["marketing_listings_t12"]`; call it per-property as `compute_marketing({"marketing_listings_t12": bucket["marketing"]})["compositeScore"]`.
 
 ---
 
@@ -79,7 +80,7 @@
   ```
   Returns the `propertyDetail` dict (`{"properties":[...], "comps":comps}`) or `None` when there are no property records.
 
-- [ ] **Step 1: Write failing tests** (`test_property_detail.py`, pytest; mirror `test_marketing.py`).
+- [ ] **Step 1: Write failing tests** (`test_property_detail.py`, **stdlib unittest** — mirror `test_marketing.py`'s `class …(unittest.TestCase)` + `unittest.main()` structure; translate the pytest-style asserts below into `self.assertEqual`/`self.assertIsNone`/`self.assertNotIn` equivalents). Run with `python3 test_property_detail.py`.
 
 ```python
 from property_detail import build_property_detail
@@ -122,11 +123,11 @@ def test_empty_returns_none():
                                           "rentYoY":None,"concessionRate":None}) is None
 ```
 
-- [ ] **Step 2: Run, verify fail.** `cd scripts/data-pipeline && python -m pytest test_property_detail.py -q` → fail (no module).
+- [ ] **Step 2: Run, verify fail.** `cd scripts/data-pipeline && python3 test_property_detail.py` → fail (no module).
 
 - [ ] **Step 3: Implement `property_detail.py`.** Pure functions only (no I/O). For each community and each SFR submarket bucket, compute a record: `medianDomT12 = median(dom) or None`, `medianRentT12 = median(rent_t12) or None`, `rentYoY = (median(rent_t12)-median(rent_prior))/median(rent_prior)` rounded, or None when either side empty, `concessionRate = concession_hits / n_listings` (None if n_listings 0), `listingQuality = marketing.compute_marketing(marketing)` (import from `marketing.py`; None if no marketing dicts), `nListings`, plus identity (`kind`, `label`, `submarket`, `units`/`homes`). Sort `properties` by `nListings` desc then `label`. Return `None` if no properties. Round rents to whole dollars, rates to 3 dp, DOM to 1 dp, matching existing pipeline rounding.
 
-- [ ] **Step 4: Run, verify pass.** `python -m pytest test_property_detail.py -q` → pass.
+- [ ] **Step 4: Run, verify pass.** `python3 test_property_detail.py` → OK.
 
 - [ ] **Step 5: Commit.**
 ```bash
@@ -150,7 +151,7 @@ git commit -m "feat(pipeline): pure property-detail builder (MF community + SFR 
 
 - [ ] **Step 4: Build + emit in the `pm_out` assembly** (near line 1888, alongside `coverageMapPoints`). For the operator, split its community buckets into concentrated (≥10 T12 URUs via `comm_urus_t12`, matching line 872) → MF community records, and fold non-concentrated communities' listings into the SFR submarket buckets. Call `build_property_detail(concentrated_communities, sfr_by_submarket, market_comps)` and, when non-None, set `pm_out["propertyDetail"] = <result>`. Confirm which operators reach this emit (eligible-only vs all); if a separate tracked-tier emit exists, attach there too or note the coverage gap in the report.
 
-- [ ] **Step 5: Verify.** Run the pipeline test suite `cd scripts/data-pipeline && python -m pytest -q` (all green). If a small market fixture / smoke exists, run it and confirm a sample `pm_out` has a well-formed `propertyDetail`; otherwise add a minimal integration assertion. Report which operator set gets `propertyDetail`.
+- [ ] **Step 5: Verify.** Run the pipeline tests `cd scripts/data-pipeline && python3 test_property_detail.py && python3 test_marketing.py` (all OK). If a small market fixture / smoke exists, run it and confirm a sample `pm_out` has a well-formed `propertyDetail`; otherwise add a minimal integration assertion. Report which operator set gets `propertyDetail`.
 
 - [ ] **Step 6: Commit.**
 ```bash
@@ -230,7 +231,7 @@ git commit -m "feat(scorecard): property-detail xlsx export (rollup granularity)
 
 ## Task 6: Full gate + review + PR
 
-- [ ] **Step 1: Full gate** — `cd scripts/data-pipeline && python -m pytest -q` → green; then `npx tsc --noEmit && npm run test:watch-list && npm run test:components` → green. If stale `.next/types/validator.ts` errors, `rm -f .next/types/validator.ts .next/dev/types/validator.ts` and re-run.
+- [ ] **Step 1: Full gate** — `cd scripts/data-pipeline && python3 test_property_detail.py` (and any other pipeline unittest files touched) → OK; then `npx tsc --noEmit && npm run test:watch-list && npm run test:components` → green. If stale `.next/types/validator.ts` errors, `rm -f .next/types/validator.ts .next/dev/types/validator.ts` and re-run.
 - [ ] **Step 2: No-scores audit** — grep the new property surfaces (`PropertyDetailSection`, `property-detail-view`, `property_detail.py`, `property-export`) to confirm no `star`/`score`/`percentile`/`rank` field is emitted or rendered per property.
 - [ ] **Step 3: Coverage confirmation** — from Task 2's report, state which operators carry `propertyDetail` (eligible vs all) so Jonas knows the thin-market coverage reality before merge.
 - [ ] **Step 4: Final whole-branch review** (opus) + address findings.
