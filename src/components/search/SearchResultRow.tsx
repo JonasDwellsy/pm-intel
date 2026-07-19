@@ -3,21 +3,7 @@
 import Link from "next/link";
 import type { PMSearchResult } from "@/lib/pm-search";
 import { AddToWatchList } from "@/components/watch-list/AddToWatchList";
-
-// v0.27 (Task 6) — the watch-list pin key for a search row. Only "ranked"
-// (single-market, has a scorecard `slug`) and "canonical" (multi-market,
-// has a `canonicalSlug`) tiers carry a PM/canonical identity that the
-// pin system's `canonicalOperatorId ?? pmSlug` convention (see apply.ts)
-// can key on. "tracked" rows are below the ranking threshold — no PM
-// record, no scorecard, no slug of any kind — so there's nothing to pin
-// to (a pin nobody can ever resolve back to an operator). "market" rows
-// aren't operators at all. Returns null for both, which the renderer
-// treats as "don't mount the control."
-function operatorMemberKey(result: PMSearchResult): string | null {
-  if (result.tier === "canonical") return result.canonicalSlug;
-  if (result.tier === "ranked") return result.slug;
-  return null;
-}
+import { operatorMemberKey } from "@/lib/watch-list/operator-member-key";
 
 // Shared result-row primitive — rendered inside both the top-nav dropdown
 // (SearchInput) and the Cmd+K modal (SearchModal). Both surfaces share
