@@ -1,8 +1,10 @@
 // Component test for the Properties section (Task 4 — property-level
-// detail). PropertyDetailSection only reads `scorecard.propertyDetail`, so
-// the fixture below is a minimal cast rather than a full ScorecardData —
-// same shortcut src/lib/scorecard/pdf-coverage-map.test.ts takes for a
-// narrow-surface component.
+// detail; Task 5 wires in PropertyExportButton, which reads
+// `scorecard.pm.slug`). PropertyDetailSection only reads
+// `scorecard.propertyDetail` and `scorecard.pm.slug`, so the fixture below is
+// a minimal cast rather than a full ScorecardData — same shortcut
+// src/lib/scorecard/pdf-coverage-map.test.ts takes for a narrow-surface
+// component.
 
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -48,7 +50,10 @@ const PROPERTY_DETAIL: PropertyDetailBlock = {
 };
 
 function makeScorecard(propertyDetail?: PropertyDetailBlock): ScorecardData {
-  return { propertyDetail } as unknown as ScorecardData;
+  return {
+    propertyDetail,
+    pm: { slug: "test-operator" },
+  } as unknown as ScorecardData;
 }
 
 describe("PropertyDetailSection", () => {

@@ -16,10 +16,7 @@ import {
   type PropertyRowVM,
 } from "@/lib/scorecard/property-detail-view";
 import { fmtInt, fmtPct } from "@/lib/format";
-// Task 5 builds the CSV export control for this section. Import it here once
-// it lands; until then, render nothing in its place (see the placeholder
-// comment in the header below) rather than block this section on it.
-// import { PropertyExportButton } from "./PropertyExportButton";
+import { PropertyExportButton } from "@/components/scorecard/PropertyExportButton";
 
 type SortKey =
   | "label"
@@ -285,11 +282,7 @@ export function PropertyDetailSection({
           Properties
         </span>
         <span style={{ flex: 1 }} />
-        {!publicSample && (
-          <>
-            {/* PropertyExportButton mounts here (Task 5) */}
-          </>
-        )}
+        {!publicSample && <PropertyExportButton slug={scorecard.pm.slug} />}
       </div>
 
       {/* Plain-English intro */}
