@@ -569,7 +569,7 @@ function buildColumns({
       id: "managePin",
       label: "",
       fieldId: null,
-      tooltip: "Remove this company from the pick list.",
+      tooltip: "Remove this company from the watch list.",
       sortKey: null,
       alignRight: true,
       render: (row) =>
@@ -741,7 +741,7 @@ function DrillLink({ t }: { t: DrillTarget }) {
 
 // ─── manage/remove (Task 7 Step 2) ─────────────────────────────────
 
-/** Owner-only unpin control on a pick list's results. Calls DELETE
+/** Owner-only unpin control on a watch list's results. Calls DELETE
  *  /api/watch-lists/[id]/members with the row's company-level
  *  memberKey, then router.refresh() so the server re-runs
  *  applyWatchList/listMembers and the row naturally disappears from
@@ -790,7 +790,7 @@ function RemovePinButton({
         type="button"
         onClick={() => void handleRemove()}
         disabled={pending}
-        aria-label={`Remove ${operatorName} from this pick list`}
+        aria-label={`Remove ${operatorName} from this watch list`}
         className="inline-flex h-7 items-center whitespace-nowrap rounded-md border border-grid bg-white px-2.5 text-[12px] font-medium text-muted-foreground hover:border-bad hover:text-bad disabled:opacity-50"
       >
         {pending ? "Removing…" : "Remove"}
