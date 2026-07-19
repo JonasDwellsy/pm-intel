@@ -23,7 +23,7 @@
 // only renders operators the caller is entitled to see, so no additional
 // gating is needed here.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { PMListItem } from "./PMListItem";
@@ -85,8 +85,35 @@ export function RankedOperatorList({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
 
   const sorted = useMemo(() => sortRankedOperators(pms, sort), [pms, sort]);
+
+  // Outside click + Escape close — mirrors AddToWatchList's popover
+  // dismissal (src/components/watch-list/AddToWatchList.tsx). Resets the
+  // "+ New list" sub-form too, same as the Cancel/Clear handlers below,
+  // so a later reopen never lands on a stale pre-filled create form.
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function close() {
+      setPickerOpen(false);
+      setShowCreate(false);
+      setNewListName("");
+    }
+    function onDoc(e: MouseEvent) {
+      if (!wrapRef.current) return;
+      if (!wrapRef.current.contains(e.target as Node)) close();
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") close();
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [pickerOpen]);
 
   function toggleSelectMode() {
     setSelectMode((prev) => {
@@ -94,6 +121,8 @@ export function RankedOperatorList({
       if (!next) {
         setSelected(new Set());
         setPickerOpen(false);
+        setShowCreate(false);
+        setNewListName("");
       }
       return next;
     });
@@ -112,6 +141,8 @@ export function RankedOperatorList({
   function clearSelection() {
     setSelected(new Set());
     setPickerOpen(false);
+    setShowCreate(false);
+    setNewListName("");
   }
 
   // Fetch the caller's OWN lists — same ownerId === userId filter shape
@@ -231,7 +262,7 @@ export function RankedOperatorList({
       )}
 
       <div className="mb-3 flex items-center justify-end gap-2">
-        {isSignedIn && (
+        {isSignedIn !== false && (
           <button
             type="button"
             onClick={toggleSelectMode}
@@ -276,7 +307,7 @@ export function RankedOperatorList({
               citySlug={citySlug}
               submarket={pmSubmarket}
               selection={
-                isSignedIn && selectMode
+                isSignedIn !== false && selectMode
                   ? { selected: selected.has(key), onToggle: () => toggleSelected(key) }
                   : undefined
               }
@@ -285,21 +316,115 @@ export function RankedOperatorList({
         })}
       </ul>
 
-      {isSignedIn && selected.size > 0 && (
+      {isSignedIn !== false && selected.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-grid bg-white/95 shadow-[0_-8px_24px_-12px_rgba(15,31,63,0.18)] backdrop-blur">
           <div className="relative mx-auto flex max-w-[1080px] items-center justify-between px-6 py-3">
             <span className="text-[13.5px] font-semibold text-navy">
               {selected.size} selected
             </span>
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={openPicker}
-                aria-expanded={pickerOpen}
-                className="text-[13px] font-semibold text-teal hover:text-teal-700"
-              >
-                Add to a watch list
-              </button>
+              {/* wrapRef scopes the outside-click/Escape dismissal (the
+                  useEffect above) to just the trigger + picker — it never
+                  wraps the Clear button or the row checkboxes elsewhere on
+                  the page, so it can't interfere with either. */}
+              <div ref={wrapRef} className="relative">
+                <button
+                  type="button"
+                  onClick={openPicker}
+                  aria-expanded={pickerOpen}
+                  className="text-[13px] font-semibold text-teal hover:text-teal-700"
+                >
+                  Add to a watch list
+                </button>
+
+                {pickerOpen && (
+                  <div
+                    role="dialog"
+                    aria-label="Add to a watch list"
+                    className="absolute bottom-full right-0 mb-2 w-[280px] rounded-lg border border-grid bg-white p-3 text-left shadow-xl"
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                      Add to a watch list
+                    </p>
+
+                    {listsLoading && (
+                      <p className="mt-2 text-[12.5px] text-muted-foreground">Loading…</p>
+                    )}
+
+                    {!listsLoading && lists !== null && lists.length === 0 && !showCreate && (
+                      <p className="mt-2 text-[12.5px] text-muted-foreground">
+                        No watch lists yet.
+                      </p>
+                    )}
+
+                    {!listsLoading && lists !== null && lists.length > 0 && (
+                      <ul className="mt-2 max-h-[200px] space-y-1 overflow-y-auto">
+                        {lists.map((l) => (
+                          <li key={l.id}>
+                            <button
+                              type="button"
+                              disabled={submitting}
+                              onClick={() => void submitTo({ listId: l.id })}
+                              className="block w-full truncate rounded-md px-1.5 py-1 text-left text-[13px] text-navy hover:bg-surface-soft disabled:opacity-50"
+                            >
+                              {l.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {listsError && (
+                      <p role="alert" className="mt-2 text-[12px] text-bad">
+                        {listsError}
+                      </p>
+                    )}
+                    {submitError && (
+                      <p role="alert" className="mt-2 text-[12px] text-bad">
+                        {submitError}
+                      </p>
+                    )}
+
+                    <div className="mt-2 border-t border-grid pt-2">
+                      {showCreate ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={newListName}
+                            onChange={(e) => setNewListName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                void handleCreate();
+                              }
+                            }}
+                            placeholder="List name"
+                            aria-label="New watch list name"
+                            className="h-8 min-w-0 flex-1 rounded-md border border-grid px-2 text-[12.5px] text-navy focus:border-navy focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void handleCreate()}
+                            disabled={submitting || newListName.trim().length === 0}
+                            className="h-8 shrink-0 rounded-md bg-teal px-2.5 text-[12px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+                          >
+                            {submitting ? "…" : "Create"}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setShowCreate(true)}
+                          className="text-[12.5px] font-semibold text-teal hover:text-teal-700"
+                        >
+                          ＋ New list…
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
               <span className="text-muted-2">·</span>
               <button
                 type="button"
@@ -309,94 +434,6 @@ export function RankedOperatorList({
                 Clear
               </button>
             </div>
-
-            {pickerOpen && (
-              <div
-                role="dialog"
-                aria-label="Add to a watch list"
-                className="absolute bottom-full right-6 mb-2 w-[280px] rounded-lg border border-grid bg-white p-3 text-left shadow-xl"
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Add to a watch list
-                </p>
-
-                {listsLoading && (
-                  <p className="mt-2 text-[12.5px] text-muted-foreground">Loading…</p>
-                )}
-
-                {!listsLoading && lists !== null && lists.length === 0 && !showCreate && (
-                  <p className="mt-2 text-[12.5px] text-muted-foreground">
-                    No watch lists yet.
-                  </p>
-                )}
-
-                {!listsLoading && lists !== null && lists.length > 0 && (
-                  <ul className="mt-2 max-h-[200px] space-y-1 overflow-y-auto">
-                    {lists.map((l) => (
-                      <li key={l.id}>
-                        <button
-                          type="button"
-                          disabled={submitting}
-                          onClick={() => void submitTo({ listId: l.id })}
-                          className="block w-full truncate rounded-md px-1.5 py-1 text-left text-[13px] text-navy hover:bg-surface-soft disabled:opacity-50"
-                        >
-                          {l.name}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {listsError && (
-                  <p role="alert" className="mt-2 text-[12px] text-bad">
-                    {listsError}
-                  </p>
-                )}
-                {submitError && (
-                  <p role="alert" className="mt-2 text-[12px] text-bad">
-                    {submitError}
-                  </p>
-                )}
-
-                <div className="mt-2 border-t border-grid pt-2">
-                  {showCreate ? (
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="text"
-                        autoFocus
-                        value={newListName}
-                        onChange={(e) => setNewListName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            void handleCreate();
-                          }
-                        }}
-                        placeholder="List name"
-                        aria-label="New watch list name"
-                        className="h-8 min-w-0 flex-1 rounded-md border border-grid px-2 text-[12.5px] text-navy focus:border-navy focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void handleCreate()}
-                        disabled={submitting || newListName.trim().length === 0}
-                        className="h-8 shrink-0 rounded-md bg-teal px-2.5 text-[12px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
-                      >
-                        {submitting ? "…" : "Create"}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowCreate(true)}
-                      className="text-[12.5px] font-semibold text-teal hover:text-teal-700"
-                    >
-                      ＋ New list…
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}

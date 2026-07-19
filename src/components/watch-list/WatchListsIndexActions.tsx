@@ -2,7 +2,7 @@
 
 // Operator-roster watch lists (Task 3) — the two primary entry points on
 // the /watch-lists index toolbar, verb-first instead of noun-first
-// ("+ New pick list" / "+ New watch list"):
+// ("+ New pinned list" / "+ New watch list"):
 //
 //   - "Watch operators"    → opens WatchOperatorsModal (Task 2): search
 //                            operators by name, add several, name the

@@ -235,11 +235,11 @@ export default async function WatchListResultsPage({ params }: PageProps) {
                   existing per-user digest preference rather than adding
                   a per-list toggle; the digest already covers every
                   watch list the viewer can see, so this can render on
-                  any list regardless of skipCriteria. Copy stays to what
-                  the digest actually does (monthly cadence, only on
-                  change) — see settings/notifications/page.tsx. */}
+                  any list regardless of skipCriteria. Cadence-agnostic
+                  copy — /settings/notifications lets the viewer pick
+                  daily/weekly/monthly, so this can't commit to one. */}
               <p className="text-[12px] text-muted-foreground">
-                Get a monthly email when these operators move —{" "}
+                Get an email when these operators move —{" "}
                 <Link
                   href="/settings/notifications"
                   className="text-teal hover:text-teal-700 hover:underline"
