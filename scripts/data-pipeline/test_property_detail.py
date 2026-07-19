@@ -1,6 +1,7 @@
 import unittest
 
 from property_detail import build_property_detail, compute_market_comps, assemble_property_detail
+from marketing import compute_marketing
 
 
 def _mk_comm(**kw):
@@ -73,6 +74,29 @@ class PropertyDetailBuilder(unittest.TestCase):
                                               "rentYoY": None, "concessionRate": None})
         self.assertIsNone(out)
 
+    def test_listing_quality_present_when_marketing_data_exists(self):
+        marketing = [{"amenities_n": 5, "desc_len": 800, "distinct_words": 120,
+                      "content_cats": 4, "photos_n": 12}]
+        out = build_property_detail(
+            communities={"c1": _mk_comm(marketing=marketing)}, sfr_by_submarket={},
+            comps={"medianDomT12": 29, "medianRentT12": 1520, "rentYoY": 0.01, "concessionRate": 0.17})
+        p = next(r for r in out["properties"] if r["kind"] == "community")
+        expected = compute_marketing({"marketing_listings_t12": marketing})["compositeScore"]
+        self.assertIsInstance(p["listingQuality"], float)
+        self.assertEqual(p["listingQuality"], expected)
+        # compute_marketing is a pure function of its input — a second call on
+        # the same listings must reproduce the same score.
+        self.assertEqual(
+            p["listingQuality"],
+            compute_marketing({"marketing_listings_t12": marketing})["compositeScore"])
+
+    def test_listing_quality_none_when_marketing_empty(self):
+        out = build_property_detail(
+            communities={"c1": _mk_comm(marketing=[])}, sfr_by_submarket={},
+            comps={"medianDomT12": 29, "medianRentT12": 1520, "rentYoY": 0.01, "concessionRate": 0.17})
+        p = next(r for r in out["properties"] if r["kind"] == "community")
+        self.assertIsNone(p["listingQuality"])
+
 
 class ComputeMarketComps(unittest.TestCase):
     """MSA-median comps builder (Task 2): same rounding/guards as
@@ -84,7 +108,7 @@ class ComputeMarketComps(unittest.TestCase):
                                     rent_prior_values=[1440], concession_hits=3, n_listings=12)
         self.assertEqual(out["medianDomT12"], 22)
         self.assertEqual(out["medianRentT12"], 1490)
-        self.assertIsNotNone(out["rentYoY"])
+        self.assertEqual(out["rentYoY"], 0.035)  # (1490 - 1440) / 1440, rounded 3dp
         self.assertEqual(out["concessionRate"], round(3 / 12, 3))
 
     def test_empty_inputs_all_none(self):
@@ -141,6 +165,34 @@ class AssemblePropertyDetail(unittest.TestCase):
         self.assertEqual(p["nListings"], 3)      # 2 (community) + 1 (sfr)
         self.assertEqual(p["homes"], 7)           # 2 + 5
         self.assertEqual(p["medianDomT12"], 22)   # median([20, 22, 30])
+
+    def test_boundary_urus_exactly_min_concentrated_is_a_community_record(self):
+        # min_concentrated defaults to 10; the threshold is ">=" so exactly
+        # 10 URUs must still count as concentrated (a community record).
+        out = assemble_property_detail(
+            comm_buckets={"c1": _mk_comm_bucket()},
+            comm_urus_counts={"c1": 10},
+            sfr_buckets={},
+            comps=_COMPS)
+        self.assertIsNotNone(out)
+        self.assertEqual(len(out["properties"]), 1)
+        p = out["properties"][0]
+        self.assertEqual(p["kind"], "community")
+        self.assertEqual(p["units"], 10)
+        self.assertIsNone(p["homes"])
+
+    def test_boundary_urus_one_below_min_concentrated_folds_to_sfr(self):
+        # One URU below the threshold (9) must fold into the SFR submarket
+        # rollup rather than staying its own community record.
+        out = assemble_property_detail(
+            comm_buckets={"c1": _mk_comm_bucket()},
+            comm_urus_counts={"c1": 9},
+            sfr_buckets={},
+            comps=_COMPS)
+        self.assertIsNotNone(out)
+        self.assertEqual(len(out["properties"]), 1)
+        p = out["properties"][0]
+        self.assertEqual(p["kind"], "sfr-submarket")
 
     def test_scattered_only_operator_yields_all_sfr_records(self):
         out = assemble_property_detail(

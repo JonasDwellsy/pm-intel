@@ -32,11 +32,35 @@ import statistics
 from marketing import compute_marketing
 
 
-def _median_rounded(values, ndigits):
-    """statistics.median rounded to ndigits, or None for an empty list."""
+def _median_or_none(values, ndigits=None):
+    """statistics.median rounded to ndigits, or None for an empty list.
+
+    ndigits=None (the default) matches plain `round(x)` — an int result —
+    which is what a whole-dollar median needs; pass an int ndigits (e.g. 1
+    for medianDomT12) for a fractional round.
+    """
     if not values:
         return None
     return round(statistics.median(values), ndigits)
+
+
+def _rent_yoy(t12, prior):
+    """(median(t12) - median(prior)) / median(prior), rounded to 3dp, or
+    None when either list is empty or the prior median is zero (div-by-zero
+    guard). Shared by `_build_record` and `compute_market_comps` so the
+    guard logic can't drift between the two callers.
+    """
+    if not t12 or not prior:
+        return None
+    median_prior = statistics.median(prior)
+    if not median_prior:
+        return None
+    return round((statistics.median(t12) - median_prior) / median_prior, 3)
+
+
+def _rate(hits, n):
+    """hits / n rounded to 3dp, or None when n is 0 (div-by-zero guard)."""
+    return round(hits / n, 3) if n else None
 
 
 def _build_record(kind, bucket):
@@ -47,16 +71,10 @@ def _build_record(kind, bucket):
     concession_hits = bucket.get("concession_hits", 0)
     marketing_listings = bucket.get("marketing") or []
 
-    median_dom_t12 = _median_rounded(dom, 1)
-    median_rent_t12 = round(statistics.median(rent_t12)) if rent_t12 else None
-
-    rent_yoy = None
-    if rent_t12 and rent_prior:
-        median_prior = statistics.median(rent_prior)
-        if median_prior:
-            rent_yoy = round((statistics.median(rent_t12) - median_prior) / median_prior, 3)
-
-    concession_rate = round(concession_hits / n_listings, 3) if n_listings else None
+    median_dom_t12 = _median_or_none(dom, 1)
+    median_rent_t12 = _median_or_none(rent_t12)
+    rent_yoy = _rent_yoy(rent_t12, rent_prior)
+    concession_rate = _rate(concession_hits, n_listings)
 
     listing_quality = None
     if marketing_listings:
@@ -121,16 +139,10 @@ def compute_market_comps(dom_values, rent_t12_values, rent_prior_values, concess
     Returns:
         {"medianDomT12", "medianRentT12", "rentYoY", "concessionRate"}.
     """
-    median_dom_t12 = _median_rounded(dom_values, 1)
-    median_rent_t12 = round(statistics.median(rent_t12_values)) if rent_t12_values else None
-
-    rent_yoy = None
-    if rent_t12_values and rent_prior_values:
-        median_prior = statistics.median(rent_prior_values)
-        if median_prior:
-            rent_yoy = round((statistics.median(rent_t12_values) - median_prior) / median_prior, 3)
-
-    concession_rate = round(concession_hits / n_listings, 3) if n_listings else None
+    median_dom_t12 = _median_or_none(dom_values, 1)
+    median_rent_t12 = _median_or_none(rent_t12_values)
+    rent_yoy = _rent_yoy(rent_t12_values, rent_prior_values)
+    concession_rate = _rate(concession_hits, n_listings)
 
     return {
         "medianDomT12": median_dom_t12,

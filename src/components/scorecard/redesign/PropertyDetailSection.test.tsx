@@ -121,12 +121,19 @@ describe("PropertyDetailSection", () => {
       <PropertyDetailSection scorecard={makeScorecard(PROPERTY_DETAIL)} publicSample={false} />
     );
     expect(screen.getByText("Properties")).toBeTruthy();
+    // publicSample={false} → the PropertyExportButton link is present.
+    expect(
+      screen.queryByRole("link", { name: /export/i })
+    ).toBeTruthy();
 
     rerender(
       <PropertyDetailSection scorecard={makeScorecard(PROPERTY_DETAIL)} publicSample />
     );
     // The table of observations still renders on the public sample — only
-    // the export control (not yet built) would hide, per the header gate.
+    // the export control hides, per the header gate.
     expect(screen.getByText("The Oaks")).toBeTruthy();
+    expect(
+      screen.queryByRole("link", { name: /export/i })
+    ).toBeNull();
   });
 });

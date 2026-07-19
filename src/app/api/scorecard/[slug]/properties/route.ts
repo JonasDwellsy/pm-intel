@@ -66,9 +66,9 @@ export async function GET(
     return new Response(buf, {
       status: 200,
       headers: {
-        "content-type":
+        "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "content-disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `attachment; filename="${filename}"`,
       },
     });
   } catch (err) {
