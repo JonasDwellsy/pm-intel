@@ -73,7 +73,7 @@ export function MethodologyFooter({
       className="dq-section border-t border-grid pt-10"
     >
       <LayerSectionHeader
-        num="05"
+        num={scorecard.propertyDetail?.properties?.length ? "06" : "05"}
         title="Methodology & limits"
         lede="What backs this scorecard — classification rationale, coverage universe, per-metric sample sizes, version stamp, and the v0.7 follow-up tracker."
         ledeMaxWidthClass="max-w-none"
@@ -85,6 +85,24 @@ export function MethodologyFooter({
           <p className="dq-eyebrow-muted mb-2">Classification rationale</p>
           <p className="text-[14px] leading-[1.65] text-foreground text-pretty">
             {scorecard.classificationRationale}
+          </p>
+        </div>
+      )}
+
+      {/* Property-level detail note (Phase 1) — only relevant when the
+          Properties section actually rendered for this operator. */}
+      {scorecard.propertyDetail && (
+        <div className="mt-6 max-w-[820px]">
+          <p className="dq-eyebrow-muted mb-2">Property-level detail</p>
+          <p className="text-[14px] leading-[1.65] text-foreground text-pretty">
+            The Properties section above presents descriptive observations
+            plus MSA-median comps per property — intentionally un-scored,
+            since per-property sample sizes are too small to support a
+            reliable rank; its rent YoY is a raw median-rent delta for that
+            property, not the mix-adjusted Rent Performance metric reported
+            elsewhere on this scorecard; and scattered single-family
+            holdings are shown as submarket rollups rather than individual
+            addresses in this phase.
           </p>
         </div>
       )}

@@ -1,7 +1,9 @@
 // Scorecard redesign — main body compositor (v2).
 // Composes the redesigned sections in order:
 //   ScorecardHeader · ExecReadout · ScaleFitSection · OperatingPerformanceSection
-//   · MomentumSection · WatchItemsSection · MethodologyFooter (section 05)
+//   · MomentumSection · WatchItemsSection · PropertyDetailSection (section 05,
+//   only when scorecard.propertyDetail has properties — see hasProperties below)
+//   · MethodologyFooter (section 05 when Properties is absent, else 06)
 // Right rail: ScorecardNav (client component, sticky).
 //
 // Takes a pre-built ScorecardView from buildScorecardView() so this component
@@ -17,6 +19,7 @@ import { ScaleFitSection } from "@/components/scorecard/redesign/ScaleFitSection
 import { OperatingPerformanceSection } from "@/components/scorecard/redesign/OperatingPerformanceSection";
 import { MomentumSection } from "@/components/scorecard/redesign/MomentumSection";
 import { WatchItemsSection } from "@/components/scorecard/redesign/WatchItemsSection";
+import { PropertyDetailSection } from "@/components/scorecard/redesign/PropertyDetailSection";
 import { ScorecardNav } from "@/components/scorecard/redesign/ScorecardNav";
 import { MethodologyFooter } from "@/components/scorecard/MethodologyFooter";
 
@@ -46,6 +49,14 @@ export function ScorecardBody({
     (w) => w.kind !== "positive"
   ).length;
 
+  // The Properties section (and its nav entry) only exist once the pipeline
+  // has populated propertyDetail for this operator — PropertyDetailSection
+  // itself already returns null when absent, but the nav entry doesn't know
+  // that on its own, so gate it here too (otherwise every scorecard without
+  // property data shows a dangling "05 Properties" link that scrolls
+  // nowhere, and Methodology's number skips from 04 to 06).
+  const hasProperties = !!scorecard.propertyDetail?.properties?.length;
+
   // Build the nav sections array for the right rail.
   const navSections = [
     { id: "scale-fit", num: "01", label: "Scale & Fit" },
@@ -73,7 +84,12 @@ export function ScorecardBody({
       statusLabel:
         nonPositiveWatchCount > 0 ? String(nonPositiveWatchCount) : undefined,
     },
-    { id: "methodology-footer", num: "05", label: "Methodology" },
+    ...(hasProperties ? [{ id: "properties", num: "05", label: "Properties" }] : []),
+    {
+      id: "methodology-footer",
+      num: hasProperties ? "06" : "05",
+      label: "Methodology",
+    },
   ];
 
   return (
@@ -118,7 +134,10 @@ export function ScorecardBody({
         {/* 04 Watch Items */}
         <WatchItemsSection items={view.watchItems} />
 
-        {/* 05 Methodology */}
+        {/* 05 Properties (Phase 1 property-level detail) */}
+        <PropertyDetailSection scorecard={scorecard} publicSample={publicSample} />
+
+        {/* 06 Methodology */}
         <MethodologyFooter scorecard={scorecard} publicSample={publicSample} />
       </div>
 
