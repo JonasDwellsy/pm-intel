@@ -191,6 +191,59 @@ describe("RankedOperatorList — multi-select roster builder", () => {
       expect(screen.queryByText(/2 selected/)).toBeNull();
     });
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+
+    // Success renders in the status-styled (green) box, not an alert.
+    const status = screen.getByRole("status");
+    expect(status.textContent).toMatch(/Added 2 operators to the watch list\./);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("a partial pin failure surfaces as an alert (not the success box) and keeps the selection for retry", async () => {
+    const user = userEvent.setup();
+    // First /members POST fails (transient 500), second succeeds — mirrors
+    // a real partial-batch outcome from Promise.allSettled in pin-client.
+    let memberCallCount = 0;
+    fetchMock.mockImplementation(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (url === "/api/watch-lists" && method === "GET") {
+        return jsonResponse({ watchListes: [OWN_LIST, OTHER_OWNER_LIST] });
+      }
+      if (/^\/api\/watch-lists\/[^/]+\/members$/.test(url) && method === "POST") {
+        memberCallCount += 1;
+        if (memberCallCount === 1) return jsonResponse({ error: "boom" }, 500);
+        return jsonResponse({ ok: true });
+      }
+      throw new Error(`Unhandled fetch in test: ${method} ${url}`);
+    });
+
+    renderList();
+
+    await user.click(screen.getByRole("button", { name: "Select" }));
+    await user.click(screen.getByRole("checkbox", { name: /Acme Co/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Borden Management/ }));
+
+    await user.click(screen.getByRole("button", { name: "Add to a watch list" }));
+    await waitFor(() => screen.getByText("Austin watch"));
+    await user.click(screen.getByRole("button", { name: "Austin watch" }));
+
+    // (a) Failure renders with role="alert" (error styling), never
+    // role="status" (the success-green box) — final review finding #1.
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toMatch(
+        /Added 1 of 2 operators — 1 couldn't be added\./
+      );
+    });
+    expect(screen.queryByRole("status")).toBeNull();
+
+    // (b) The selection is preserved — action bar and both checkboxes are
+    // still there so the user can retry (addMember is an idempotent
+    // upsert, so resubmitting the whole selection is safe) — final review
+    // finding #2.
+    expect(screen.getByText(/2 selected/)).toBeTruthy();
+    const checkboxes = screen.getAllByRole("checkbox") as HTMLInputElement[];
+    expect(checkboxes).toHaveLength(3);
+    expect(checkboxes.filter((cb) => cb.checked)).toHaveLength(2);
   });
 
   it("the '+ New list' path POSTs a create, then POSTs both memberKeys into the new list", async () => {

@@ -84,7 +84,12 @@ export function RankedOperatorList({
   const [newListName, setNewListName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [confirmation, setConfirmation] = useState<string | null>(null);
+  // tone drives both the box styling AND the ARIA role (status vs alert) —
+  // a pin failure must never be painted in the success-green box (final
+  // review finding #1).
+  const [confirmation, setConfirmation] = useState<
+    { tone: "success" | "error"; message: string } | null
+  >(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   const sorted = useMemo(() => sortRankedOperators(pms, sort), [pms, sort]);
@@ -159,7 +164,12 @@ export function RankedOperatorList({
       setLists(data.watchListes.filter((w) => w.ownerId === userId));
     } catch (e) {
       setListsError(e instanceof Error ? e.message : "Failed to load watch lists.");
-      setLists([]);
+      // Leave `lists` as null (NOT []) on failure. `openPicker` only
+      // refetches when `lists === null`, so a `[]` here would permanently
+      // read as "loaded, zero lists" — the transient error would show
+      // "No watch lists yet." forever with no way to retry short of a full
+      // page reload. Staying null keeps the next openPicker() a real retry.
+      setLists(null);
     } finally {
       setListsLoading(false);
     }
@@ -170,7 +180,13 @@ export function RankedOperatorList({
     setConfirmation(null);
     setPickerOpen((prev) => {
       const next = !prev;
-      if (next && lists === null) void loadLists();
+      if (next) {
+        // Clear any stale error from a previous failed load on every
+        // (re)open, not just the first one, so closing and reopening the
+        // picker is always enough to recover from a transient failure.
+        setListsError(null);
+        if (lists === null) void loadLists();
+      }
       return next;
     });
   }
@@ -184,20 +200,29 @@ export function RankedOperatorList({
     const keys = Array.from(selected);
     try {
       const result = await addOperatorsToWatchList(target, keys);
-      // Clear selection + selectMode on completion (full success or
-      // partial failure) — the list mutation already happened server-side
-      // either way; only a hard failure (create POST itself throwing,
-      // caught below) leaves the selection intact for a retry.
-      setSelected(new Set());
-      setSelectMode(false);
+      // The picker UI itself always closes — the outcome (success or
+      // failure) is carried by the confirmation box above the list, not by
+      // anything inside the picker.
       setPickerOpen(false);
       setShowCreate(false);
       setNewListName("");
-      setConfirmation(
-        result.failed > 0
-          ? `Added ${result.added} of ${keys.length} operators — ${result.failed} couldn't be added.`
-          : `Added ${result.added} operator${result.added === 1 ? "" : "s"} to the watch list.`
-      );
+      if (result.failed > 0) {
+        // Partial/total failure — keep the selection AND keep select mode
+        // on so the user can retry. addMember (via /members) is an
+        // idempotent upsert, so resubmitting the whole selection is safe:
+        // whatever already landed is just a no-op the second time.
+        setConfirmation({
+          tone: "error",
+          message: `Added ${result.added} of ${keys.length} operators — ${result.failed} couldn't be added.`,
+        });
+      } else {
+        setSelected(new Set());
+        setSelectMode(false);
+        setConfirmation({
+          tone: "success",
+          message: `Added ${result.added} operator${result.added === 1 ? "" : "s"} to the watch list.`,
+        });
+      }
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Failed to add to watch list.");
     } finally {
@@ -246,15 +271,24 @@ export function RankedOperatorList({
     <>
       {confirmation && (
         <div
-          role="status"
-          className="mb-3 flex items-center justify-between rounded-md border border-good/30 bg-good/5 px-3.5 py-2 text-[13px] font-medium text-good"
+          role={confirmation.tone === "error" ? "alert" : "status"}
+          className={
+            "mb-3 flex items-center justify-between rounded-md border px-3.5 py-2 text-[13px] font-medium " +
+            (confirmation.tone === "error"
+              ? "border-bad/40 bg-rose-soft text-bad"
+              : "border-good/30 bg-good/5 text-good")
+          }
         >
-          {confirmation}
+          {confirmation.message}
           <button
             type="button"
             onClick={() => setConfirmation(null)}
             aria-label="Dismiss"
-            className="text-good/70 hover:text-good"
+            className={
+              confirmation.tone === "error"
+                ? "text-bad/70 hover:text-bad"
+                : "text-good/70 hover:text-good"
+            }
           >
             ×
           </button>
