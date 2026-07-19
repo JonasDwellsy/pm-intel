@@ -109,6 +109,32 @@ function makeFetchMock() {
   });
 }
 
+// Same as makeFetchMock, but the /members POST for `failingMemberKey`
+// returns a 500 (the fix-under-test's partial-failure path) while every
+// other member POST still succeeds. The create POST always succeeds —
+// this models "list created, one pin failed."
+function makeFetchMockWithMemberFailure(failingMemberKey: string) {
+  return vi.fn(async (input: unknown, init?: RequestInit) => {
+    const url = String(input);
+    const method = (init?.method ?? "GET").toUpperCase();
+
+    if (url === "/api/watch-lists" && method === "POST") {
+      return jsonResponse({ watchList: { id: "list-99" } }, 201);
+    }
+    if (
+      /^\/api\/watch-lists\/list-99\/members$/.test(url) &&
+      method === "POST"
+    ) {
+      const body = parseBody(init);
+      if (body.memberKey === failingMemberKey) {
+        return jsonResponse({ error: "boom" }, 500);
+      }
+      return jsonResponse({ ok: true });
+    }
+    throw new Error(`Unhandled fetch in test: ${method} ${url}`);
+  });
+}
+
 let fetchMock: ReturnType<typeof makeFetchMock>;
 
 beforeEach(() => {
@@ -214,6 +240,60 @@ describe("WatchOperatorsModal", () => {
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith("/watch-lists/list-99/results");
     });
+  });
+
+  it("surfaces a partial-pin failure instead of silently navigating away, and links to the already-created list", async () => {
+    // The create POST succeeds, but the /members POST for Beacon fails
+    // (500) while Acme's succeeds — "list created, one pin failed."
+    fetchMock = makeFetchMockWithMemberFailure("beacon-property-group-co");
+    vi.stubGlobal("fetch", fetchMock);
+
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<WatchOperatorsModal open={true} onClose={onClose} />);
+
+    await user.type(
+      screen.getByPlaceholderText("Search operators by name..."),
+      "acme"
+    );
+    await waitFor(() => screen.getByText("Acme Residential"));
+
+    await user.click(screen.getByRole("option", { name: /Acme Residential/ }));
+    await user.click(
+      screen.getByRole("option", { name: /Beacon Property Group/ })
+    );
+    await user.type(screen.getByLabelText("List name"), "My Roster");
+
+    await user.click(screen.getByRole("button", { name: "Create & watch" }));
+
+    // The error (with the failure count) is painted.
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toContain(
+        "1 operator couldn't be added to the list."
+      );
+    });
+
+    // No navigation, and the modal was NOT closed — onClose() flipping the
+    // parent's `open` to false is exactly what used to make this error
+    // vanish silently before the fix.
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    // The modal stayed open: the search box and the submit control are
+    // still present and interactive (busy state was cleared, not stuck).
+    expect(
+      screen.getByPlaceholderText("Search operators by name...")
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Create & watch" })
+    ).toHaveProperty("disabled", false);
+
+    // A link to the already-created list lets the user proceed without
+    // re-submitting (re-submitting would create a SECOND list).
+    const viewListLink = screen.getByRole("link", { name: "View the list" });
+    expect(viewListLink.getAttribute("href")).toBe(
+      "/watch-lists/list-99/results"
+    );
   });
 
   it("Create & watch is disabled until at least one operator is selected and the name is non-empty", async () => {

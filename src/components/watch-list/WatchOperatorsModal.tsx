@@ -23,6 +23,7 @@
 // overlay system.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   filterResultsByEntitlement,
@@ -57,6 +58,11 @@ export function WatchOperatorsModal({
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set only on the partial-failure path (list created, some pins failed)
+  // so the error paragraph can offer a link to the list that already
+  // exists rather than the user re-submitting (which would create a
+  // second list — see handleSubmit).
+  const [createdListId, setCreatedListId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Debounce the query the same way SearchInput does so the in-memory
@@ -80,6 +86,7 @@ export function WatchOperatorsModal({
     setSelected(new Map());
     setName("");
     setError(null);
+    setCreatedListId(null);
     setBusy(false);
     return undefined;
   }, [open]);
@@ -144,15 +151,27 @@ export function WatchOperatorsModal({
     if (selected.size === 0 || trimmedName.length === 0) return;
     setBusy(true);
     setError(null);
+    setCreatedListId(null);
     try {
       const { listId, failed } = await addOperatorsToWatchList(
         { newName: trimmedName },
         Array.from(selected.keys())
       );
       if (failed > 0) {
+        // The list was already created (and any successful pins already
+        // landed) — don't navigate and don't onClose(), or the error is
+        // lost silently: onClose() flips the parent's `open` to false and
+        // this component early-returns null on its next render, so an
+        // error set right before that never gets painted. Keep the modal
+        // open, surface the count, and link to the already-created list
+        // instead of letting the user re-submit — clicking "Create &
+        // watch" again would create a SECOND list rather than retry the
+        // failed pins.
+        setCreatedListId(listId);
         setError(
-          `${failed} operator${failed === 1 ? "" : "s"} couldn't be added.`
+          `${failed} operator${failed === 1 ? "" : "s"} couldn't be added to the list.`
         );
+        return;
       }
       router.push(`/watch-lists/${listId}/results`);
       onClose();
@@ -229,7 +248,7 @@ export function WatchOperatorsModal({
                     ? `${r.marketCount} markets`
                     : `${r.marketCity}, ${r.stateCode}`;
                 return (
-                  <li key={`${r.tier}-${r.name}-${"slug" in r ? r.slug : r.tier === "canonical" ? r.canonicalSlug : `${r.marketId}`}`}>
+                  <li key={key ?? `${r.tier}-${r.name}`}>
                     <button
                       type="button"
                       role="option"
@@ -312,9 +331,18 @@ export function WatchOperatorsModal({
           </div>
 
           {error && (
-            <p role="alert" className="mt-3 text-[12.5px] text-bad">
-              {error}
-            </p>
+            <div role="alert" className="mt-3 text-[12.5px] text-bad">
+              <p>{error}</p>
+              {createdListId && (
+                <Link
+                  href={`/watch-lists/${createdListId}/results`}
+                  onClick={onClose}
+                  className="mt-1 inline-block font-semibold text-teal underline hover:text-teal-700"
+                >
+                  View the list
+                </Link>
+              )}
+            </div>
           )}
 
           {/* Submit */}
