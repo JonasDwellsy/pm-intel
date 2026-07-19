@@ -1,7 +1,8 @@
 // Scorecard redesign — main body compositor (v2).
 // Composes the redesigned sections in order:
 //   ScorecardHeader · ExecReadout · ScaleFitSection · OperatingPerformanceSection
-//   · MomentumSection · WatchItemsSection · MethodologyFooter (section 05)
+//   · MomentumSection · WatchItemsSection · PropertyDetailSection (section 05)
+//   · MethodologyFooter (section 06)
 // Right rail: ScorecardNav (client component, sticky).
 //
 // Takes a pre-built ScorecardView from buildScorecardView() so this component
@@ -17,6 +18,7 @@ import { ScaleFitSection } from "@/components/scorecard/redesign/ScaleFitSection
 import { OperatingPerformanceSection } from "@/components/scorecard/redesign/OperatingPerformanceSection";
 import { MomentumSection } from "@/components/scorecard/redesign/MomentumSection";
 import { WatchItemsSection } from "@/components/scorecard/redesign/WatchItemsSection";
+import { PropertyDetailSection } from "@/components/scorecard/redesign/PropertyDetailSection";
 import { ScorecardNav } from "@/components/scorecard/redesign/ScorecardNav";
 import { MethodologyFooter } from "@/components/scorecard/MethodologyFooter";
 
@@ -73,7 +75,8 @@ export function ScorecardBody({
       statusLabel:
         nonPositiveWatchCount > 0 ? String(nonPositiveWatchCount) : undefined,
     },
-    { id: "methodology-footer", num: "05", label: "Methodology" },
+    { id: "properties", num: "05", label: "Properties" },
+    { id: "methodology-footer", num: "06", label: "Methodology" },
   ];
 
   return (
@@ -118,7 +121,10 @@ export function ScorecardBody({
         {/* 04 Watch Items */}
         <WatchItemsSection items={view.watchItems} />
 
-        {/* 05 Methodology */}
+        {/* 05 Properties (Phase 1 property-level detail) */}
+        <PropertyDetailSection scorecard={scorecard} publicSample={publicSample} />
+
+        {/* 06 Methodology */}
         <MethodologyFooter scorecard={scorecard} publicSample={publicSample} />
       </div>
 
