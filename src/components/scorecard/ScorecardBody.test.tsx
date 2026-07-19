@@ -132,4 +132,41 @@ describe("ScorecardBody nav section gating (Fix 2)", () => {
     const methodologyLink = getNavLink("Methodology");
     expect(methodologyLink.textContent).toMatch(/06/);
   });
+
+  it("omits the Properties nav entry and numbers Methodology 05 on the public sample even when propertyDetail has properties", () => {
+    const propertyDetail = {
+      properties: [
+        {
+          kind: "community",
+          label: "The Oaks",
+          submarket: null,
+          units: 140,
+          homes: null,
+          nListings: 18,
+          medianDomT12: 22,
+          medianRentT12: 1450,
+          rentYoY: 0.04,
+          concessionRate: 0.1,
+          listingQuality: 78,
+        },
+      ],
+      comps: { medianDomT12: 29, medianRentT12: 1510, rentYoY: 0.021, concessionRate: 0.18 },
+    } as unknown as ScorecardData["propertyDetail"];
+
+    render(
+      <ScorecardBody
+        view={makeView()}
+        scorecard={makeScorecard(propertyDetail)}
+        isClaimed={false}
+        geographicCoverage={undefined as unknown as ScorecardData["geographicCoverage"]}
+        publicSample
+      />
+    );
+
+    // Property-level detail is gated + premium → suppressed on /sample, so the
+    // nav entry drops and Methodology falls back to 05 (no dangling link / no
+    // number skip), exactly as when propertyDetail is absent.
+    expect(screen.queryByRole("link", { name: /Properties/ })).toBeNull();
+    expect(getNavLink("Methodology").textContent).toMatch(/05/);
+  });
 });

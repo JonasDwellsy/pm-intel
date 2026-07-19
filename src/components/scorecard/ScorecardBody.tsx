@@ -55,7 +55,12 @@ export function ScorecardBody({
   // that on its own, so gate it here too (otherwise every scorecard without
   // property data shows a dangling "05 Properties" link that scrolls
   // nowhere, and Methodology's number skips from 04 to 06).
-  const hasProperties = !!scorecard.propertyDetail?.properties?.length;
+  //
+  // Also suppress it on the public /sample: property-level detail is gated +
+  // premium and PropertyDetailSection returns null there, so the nav entry
+  // and methodology numbering must follow — same reasoning, different trigger.
+  const hasProperties =
+    !publicSample && !!scorecard.propertyDetail?.properties?.length;
 
   // Build the nav sections array for the right rail.
   const navSections = [
