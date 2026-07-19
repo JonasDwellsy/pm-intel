@@ -248,7 +248,15 @@ export function WatchOperatorsModal({
                     ? `${r.marketCount} markets`
                     : `${r.marketCity}, ${r.stateCode}`;
                 return (
-                  <li key={key ?? `${r.tier}-${r.name}`}>
+                  <li
+                    key={
+                      key ??
+                      // Null-key rows are tracked-tier (sub-threshold)
+                      // operators; the same franchise name can appear once
+                      // per market, so include marketId to keep keys unique.
+                      `${r.tier}-${r.name}-${"marketId" in r ? r.marketId : ""}`
+                    }
+                  >
                     <button
                       type="button"
                       role="option"
