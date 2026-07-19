@@ -91,7 +91,7 @@ export default async function WatchListResultsPage({ params }: PageProps) {
     pins,
     skipCriteria
   );
-  // Owner-only manage/remove control on a pick list's results (Task 7
+  // Owner-only manage/remove control on a watch list's results (Task 7
   // Step 2) — canEditList covers both "you own it" and "legacy-owned
   // list in your org", same rule every other mutation in this module
   // uses. A view-only shared viewer never sees the remove control.
@@ -175,19 +175,19 @@ export default async function WatchListResultsPage({ params }: PageProps) {
             </h1>
             <p className="mt-3 text-[14.5px] text-foreground/80">
               {skipCriteria ? (
-                // v0.28 (Task 7) — a pick list has no criteria to
+                // v0.29 (Task 5) — a pins-only roster has no criteria to
                 // "match against"; every row is here because a person
-                // pinned it. "X of Y operators match" would overstate
-                // Y (the entire operator universe) as if it were the
-                // denominator of a real match rate, and the fit-score
-                // range is meaningless when it's uniformly 100 for
-                // every row. Plain pinned-count instead.
+                // added it to be watched. "X of Y operators match" would
+                // overstate Y (the entire operator universe) as if it
+                // were the denominator of a real match rate, and the
+                // fit-score range is meaningless when it's uniformly 100
+                // for every row. Frame around monitoring instead: how
+                // many operators this roster is watching.
                 <>
                   <span className="dq-mono text-navy tabular-nums">
                     {headlineMatched}
                   </span>{" "}
-                  {headlineMatched === 1 ? "company" : "companies"} pinned to
-                  this pick list
+                  {headlineMatched === 1 ? "operator" : "operators"} watched
                 </>
               ) : (
                 <>
@@ -229,8 +229,24 @@ export default async function WatchListResultsPage({ params }: PageProps) {
                 {watchList.description}
               </p>
             )}
-            <div className="mt-3">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
               <MethodologyDisclosure />
+              {/* v0.29 (Task 5) — subtle alerts opt-in. Links to the
+                  existing per-user digest preference rather than adding
+                  a per-list toggle; the digest already covers every
+                  watch list the viewer can see, so this can render on
+                  any list regardless of skipCriteria. Cadence-agnostic
+                  copy — /settings/notifications lets the viewer pick
+                  daily/weekly/monthly, so this can't commit to one. */}
+              <p className="text-[12px] text-muted-foreground">
+                Get an email when these operators move —{" "}
+                <Link
+                  href="/settings/notifications"
+                  className="text-teal hover:text-teal-700 hover:underline"
+                >
+                  turn on alerts
+                </Link>
+              </p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -316,18 +332,18 @@ function EmptyMatches({
   watchListId: string;
   isPinnedList: boolean;
 }) {
-  // v0.28 (Task 7) — a pick list with zero pins isn't a criteria
+  // v0.29 (Task 5) — a pins-only roster with zero pins isn't a criteria
   // problem (it has no criteria); the "required criteria may be too
   // narrow" copy would be actively misleading here.
   if (isPinnedList) {
     return (
       <div className="mt-10 rounded-lg border border-dashed border-grid bg-white p-10 text-center">
         <h2 className="text-[18px] font-semibold text-navy">
-          Nothing pinned to this pick list yet
+          No operators watched yet
         </h2>
         <p className="mt-2 mx-auto max-w-[48ch] text-[13.5px] text-foreground/70">
           Use the &ldquo;Watch list&rdquo; control on any operator scorecard,
-          market row, or search result to pin a company here.
+          market row, or search result to add an operator here.
         </p>
       </div>
     );

@@ -47,8 +47,8 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
         body: JSON.stringify({
           // A duplicate copies criteria but not pinned membership, so its
           // derived kind (pinned/smart/hybrid) reflects the copy's own
-          // content — a duplicated pick list comes back as an empty pick
-          // list, a duplicated smart/hybrid list as a smart list.
+          // content — a duplicated pinned list comes back as an empty
+          // pinned list, a duplicated smart/hybrid list as a smart list.
           name: `${bb.name} (copy)`,
           description: bb.description,
           requiredCriteria: bb.requiredCriteria,
@@ -100,7 +100,7 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
           // v0.28 (Task 7 Step 2) — the card's label + body derive from
           // content (criteria-presence + pin count), NOT the stored
           // `kind` column, so a smart list that accumulates pins (or a
-          // pick list that later gains criteria) reclassifies itself
+          // pinned list that later gains criteria) reclassifies itself
           // automatically without a migration.
           const listKind = deriveListKind(bb, pinnedCounts[bb.id] ?? 0);
           return (
@@ -113,16 +113,6 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
                 <h2 className="text-[16px] font-semibold leading-snug text-navy">
                   {bb.name}
                 </h2>
-                {listKind === "pinned" && (
-                  <span className="dq-pill dq-pill-teal shrink-0 text-[10px]">
-                    Pick list
-                  </span>
-                )}
-                {listKind === "hybrid" && (
-                  <span className="dq-pill dq-pill-teal shrink-0 text-[10px]">
-                    Hybrid
-                  </span>
-                )}
               </div>
               <p className="mt-1.5 line-clamp-2 min-h-[2.6em] text-[13px] text-foreground/70">
                 {bb.description ?? (
@@ -132,7 +122,7 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
             </header>
 
             {listKind === "pinned" ? (
-              // v0.28 (Task 7 Step 1) — a pick list has no criteria to
+              // v0.28 (Task 7 Step 1) — a pinned list has no criteria to
               // summarize; show the manual-membership count instead
               // (from listMembers, computed server-side).
               <div className="mt-4 flex items-center gap-1.5 text-[12px]">
@@ -141,7 +131,7 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
                   {pinnedCounts[bb.id] ?? 0}
                 </span>
                 <span className="text-teal-700">
-                  {(pinnedCounts[bb.id] ?? 0) === 1 ? "company" : "companies"}
+                  {(pinnedCounts[bb.id] ?? 0) === 1 ? "operator" : "operators"}
                 </span>
               </div>
             ) : listKind === "smart" ? (
@@ -187,7 +177,7 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
                     {pinnedCounts[bb.id] ?? 0}
                   </span>
                   <span className="text-teal-700">
-                    {(pinnedCounts[bb.id] ?? 0) === 1 ? "company" : "companies"}
+                    {(pinnedCounts[bb.id] ?? 0) === 1 ? "operator" : "operators"}
                   </span>
                 </div>
               </>

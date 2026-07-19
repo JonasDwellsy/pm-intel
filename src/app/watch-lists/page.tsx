@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { listWatchListes, listMembers } from "@/lib/watch-list/store";
 import { WatchListIndex } from "@/components/watch-list/WatchListIndex";
-import { NewPickListButton } from "@/components/watch-list/NewPickListButton";
+import { WatchListsIndexActions } from "@/components/watch-list/WatchListsIndexActions";
 import { TemplateGrid } from "@/components/watch-list/TemplateGrid";
 import { WrongOrgFlash } from "@/components/watch-list/WrongOrgFlash";
 import { WelcomeFlash } from "@/components/watch-list/WelcomeFlash";
@@ -144,23 +143,7 @@ export default async function WatchListesPage() {
                 : "Saved sets of criteria that filter the operator universe down to the property managers that match your thesis. Each watch list pairs hard filters (required, excluded) with weighted preferences to produce a ranked fit score."}
             </p>
           </div>
-          {!isEmpty && (
-            <div className="flex shrink-0 items-center gap-2">
-              {/* v0.28 (Task 7 Step 1) — "New pick list" alongside the
-                  existing "New watch list" entry. A pick list has no
-                  criteria to configure, so this skips the template
-                  picker/editor entirely: name it, create it, land
-                  straight on its (empty) results page where companies
-                  get pinned in from any scorecard/market/search row. */}
-              <NewPickListButton />
-              <Link
-                href="/watch-lists/new"
-                className="h-9 inline-flex items-center rounded-md bg-teal px-4 text-[13.5px] font-semibold text-white hover:bg-teal-700"
-              >
-                + New watch list
-              </Link>
-            </div>
-          )}
+          {!isEmpty && <WatchListsIndexActions />}
         </div>
 
         {isEmpty ? (

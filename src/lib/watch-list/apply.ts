@@ -440,7 +440,7 @@ function buildRolledUpTarget(
  *  every bucket in `byCanonical` and evaluates it against `watchList`,
  *  keeping the ones that pass. Returns `[]` unconditionally when
  *  `skipCriteriaMatch` is true, for the same reason as
- *  computeCriteriaMatchedRecords above: a pick list's empty criteria
+ *  computeCriteriaMatchedRecords above: a pins-only list's empty criteria
  *  would otherwise roll up as "matched" for the entire operator
  *  universe, and since unionPinnedOperators now flips `pinned: true`
  *  on any pinned key that overlaps an already-matched operator, that

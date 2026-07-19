@@ -44,6 +44,7 @@ export function PMListItem({
   stateSlug,
   citySlug,
   submarket,
+  selection,
 }: {
   pm: PMListItemData;
   stateSlug: string;
@@ -62,6 +63,18 @@ export function PMListItem({
     displayName: string;
     share: number | null;
   } | null;
+  /** Task 4 — market roster multi-select checkbox (RankedOperatorList's
+   *  "Select" mode). Optional and OFF by default: every existing/other
+   *  caller of PMListItem renders exactly as before. When present, a
+   *  checkbox is mounted in the card's top-LEFT corner — a sibling of the
+   *  AddToWatchList corner control below, and likewise NOT nested inside
+   *  GatedLink (same reason: GatedLink renders either an <a> or a
+   *  sign-in <button>, and an interactive control nested inside either
+   *  is invalid HTML and would fight the row's click-to-navigate). */
+  selection?: {
+    selected: boolean;
+    onToggle: () => void;
+  };
 }) {
   const href = `/property-managers/${stateSlug}/${citySlug}/${pm.slug}`;
   const color = quadrantColor(pm.quadrant);
@@ -109,6 +122,19 @@ export function PMListItem({
           compact
         />
       </div>
+      {selection && (
+        <div className="absolute left-4 top-4 z-10">
+          <label className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-grid bg-white transition-colors hover:border-navy">
+            <input
+              type="checkbox"
+              checked={selection.selected}
+              onChange={selection.onToggle}
+              aria-label={`Select ${pm.displayName ?? pm.name}`}
+              className="size-3.5 cursor-pointer accent-teal"
+            />
+          </label>
+        </div>
+      )}
       <GatedLink
         event="pm_card_click"
         properties={{

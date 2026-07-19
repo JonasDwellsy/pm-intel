@@ -36,6 +36,7 @@
 
 import * as React from "react";
 import { useAuth } from "@clerk/nextjs";
+import { addOperatorsToWatchList } from "@/lib/watch-list/pin-client";
 
 interface AddToWatchListProps {
   /** canonicalOperatorId ?? pmSlug — the one-company pin key used
@@ -175,60 +176,41 @@ export function AddToWatchList({
     setPendingId("__new__");
     setError(null);
 
-    let created: WatchListSummary;
+    // Funnel through the shared helper (pin-client.ts) so the create +
+    // pin contract matches every other "add operators to a watch list"
+    // flow (market multi-select, search-and-add modal). The helper
+    // creates the criteria-less list, then pins memberKey via the same
+    // entitlement-safe /members POST as togglePin below.
+    let result: Awaited<ReturnType<typeof addOperatorsToWatchList>>;
     try {
-      const res = await fetch("/api/watch-lists", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          name,
-          requiredCriteria: [],
-          preferredCriteria: [],
-          excludedCriteria: [],
-        }),
-      });
-      if (!res.ok) throw new Error(`Failed to create watch list (${res.status}).`);
-      const data = (await res.json()) as { watchList: WatchListSummary };
-      created = data.watchList;
+      result = await addOperatorsToWatchList({ newName: name }, [memberKey]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create watch list.");
       setPendingId(null);
       return;
     }
 
-    // The list exists server-side now regardless of what happens next —
-    // add it to `lists` and close the create form immediately (not
-    // gated on the pin call below). If the follow-up pin POST fails,
-    // the list still shows up in the popover as an unchecked row; a
-    // retry pins the EXISTING list via its checkbox (togglePin) instead
-    // of re-running this create flow and minting a duplicate list.
+    // The list exists server-side now regardless of what happens with
+    // the pin — add it to `lists` and close the create form immediately.
+    // If the pin failed, the list still shows up in the popover as an
+    // unchecked row; a retry pins the EXISTING list via its checkbox
+    // (togglePin) instead of re-running this create flow and minting a
+    // duplicate list.
+    const created: WatchListSummary = {
+      id: result.listId,
+      name,
+      ownerId: userId ?? "",
+    };
     setLists((prev) => [...(prev ?? []), created]);
     setNewListName("");
     setShowCreate(false);
 
-    // Optimistic pin, same revert-on-failure shape as togglePin: mark
-    // pinned immediately, then undo + surface an error if the POST
-    // fails. pendingId switches from "__new__" to the new list's id so
-    // its checkbox (not the since-closed Create button) shows pending.
-    setPendingId(created.id);
-    setPinnedIn((prev) => new Set(prev).add(created.id));
-    try {
-      const pinRes = await fetch(`/api/watch-lists/${created.id}/members`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ memberKey }),
-      });
-      if (!pinRes.ok) throw new Error(`Failed to update watch list (${pinRes.status}).`);
-    } catch (e) {
-      setPinnedIn((prev) => {
-        const next = new Set(prev);
-        next.delete(created.id);
-        return next;
-      });
-      setError(e instanceof Error ? e.message : "Failed to update watch list.");
-    } finally {
-      setPendingId(null);
+    if (result.failed > 0) {
+      setError("Failed to update watch list.");
+    } else {
+      setPinnedIn((prev) => new Set(prev).add(created.id));
     }
+    setPendingId(null);
   }
 
   // Anonymous / unentitled visitors never see the control — mirrors the
