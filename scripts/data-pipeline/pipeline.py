@@ -49,6 +49,7 @@ from operator_grouping import (
     format_auto_merge_report, strong_name_key, GENERIC_TOKENS,
 )
 from marketing import compute_marketing, count_distinct_words, count_content_categories
+from property_detail import compute_market_comps, assemble_property_detail
 
 csv.field_size_limit(sys.maxsize)
 
@@ -462,6 +463,19 @@ def init_rich(norm):
     pm_rich[norm] = {
         "urus_t12": set(), "urus_lifetime": set(),
         "comm_urus_t12": defaultdict(set), "comm_tdc": {},
+        # Task 2 (property-level detail) — per-community listing buckets,
+        # keyed by community_id, feeding assemble_property_detail's
+        # concentrated-vs-scattered split at emit time.
+        "comm_dom": defaultdict(list), "comm_rent_t12": defaultdict(list),
+        "comm_rent_prior": defaultdict(list), "comm_concession": defaultdict(int),
+        "comm_n": defaultdict(int), "comm_marketing": defaultdict(list),
+        "comm_homes": defaultdict(set), "comm_label": {}, "comm_submarket": {},
+        # Task 2 — per-submarket SFR rollup buckets, keyed by city slug
+        # (addr_city_slug), for listings with no community_id.
+        "sfr_dom": defaultdict(list), "sfr_rent_t12": defaultdict(list),
+        "sfr_rent_prior": defaultdict(list), "sfr_concession": defaultdict(int),
+        "sfr_n": defaultdict(int), "sfr_marketing": defaultdict(list),
+        "sfr_homes": defaultdict(set), "sfr_label": {},
         "address_t12": set(), "address_lifetime": set(),
         "br_t12_count": Counter(),
         "quarterly_rents_by_br": defaultdict(lambda: defaultdict(list)),
@@ -668,24 +682,59 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
                 if bb: d["br_t12_count"][bb] += 1
             if cid and tdc and cid not in d["comm_tdc"]:
                 d["comm_tdc"][cid] = tdc
+
+            # Task 2 (property-level detail) — route this listing to its
+            # per-community bucket (cid present) or the SFR submarket
+            # rollup bucket (addr_city_slug), so assemble_property_detail
+            # can later split concentrated communities from scattered SFR.
+            # Whether a cid ends up "concentrated" is decided at emit time,
+            # not here.
+            if cid:
+                d["comm_n"][cid] += 1
+                if rent and rent > 0:
+                    d["comm_rent_t12"][cid].append(rent)
+                if aid:
+                    d["comm_homes"][cid].add(aid)
+                if cid not in d["comm_label"]:
+                    d["comm_label"][cid] = (row.get("address_1") or "").strip() or addr_city or "Unnamed community"
+                if cid not in d["comm_submarket"] and addr_city_slug:
+                    d["comm_submarket"][cid] = addr_city_slug
+            elif addr_city_slug:
+                d["sfr_n"][addr_city_slug] += 1
+                if rent and rent > 0:
+                    d["sfr_rent_t12"][addr_city_slug].append(rent)
+                if aid:
+                    d["sfr_homes"][addr_city_slug].add(aid)
+                if addr_city_slug not in d["sfr_label"]:
+                    d["sfr_label"][addr_city_slug] = addr_city or addr_city_slug
+
             if ct and dt_ and dt_ >= ct:
                 dom_days = (dt_ - ct).days
                 if addr_type in ("house", "single-family", "single_family", "sf"):
                     d["dom_t12_house"].append(dom_days)
                 else:
                     d["dom_t12_apt"].append(dom_days)
+                if cid:
+                    d["comm_dom"][cid].append(dom_days)
+                elif addr_city_slug:
+                    d["sfr_dom"][addr_city_slug].append(dom_days)
             amen = row.get("amenities") or ""
             photos = row.get("photos") or ""
             # amenities + photos are ';'-delimited in the source (a '|' split
             # collapsed every listing to a count of 1 — capping the marketing
             # composite at ~73 via amen_score and pinning medianPhotosT12 to 1).
-            d["marketing_listings_t12"].append({
+            marketing_entry = {
                 "amenities_n": len([x for x in amen.split(";") if x.strip()]) if amen else 0,
                 "desc_len": len(desc),
                 "distinct_words": count_distinct_words(desc),
                 "content_cats": count_content_categories(desc),
                 "photos_n": len([x for x in photos.split(";") if x.strip()]) if photos else 0,
-            })
+            }
+            d["marketing_listings_t12"].append(marketing_entry)
+            if cid:
+                d["comm_marketing"][cid].append(marketing_entry)
+            elif addr_city_slug:
+                d["sfr_marketing"][addr_city_slug].append(marketing_entry)
             if uru:
                 if addr_type in ("house", "single-family", "single_family", "sf"):
                     d["uru_addr_type"][uru] = "house"
@@ -701,6 +750,10 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
                 matches = classify_concession(desc)
                 if matches:
                     d["concession_t12_count"] += 1
+                    if cid:
+                        d["comm_concession"][cid] += 1
+                    elif addr_city_slug:
+                        d["sfr_concession"][addr_city_slug] += 1
                     for pname, _start in matches:
                         d["concession_patterns"][pname] += 1
                     if len(d["concession_samples"]) < 3:
@@ -714,6 +767,13 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
         if in_t24_t12(ct, dt_):
             pm_t24t12_listings[norm] += 1
             d["t24t12_listings"] += 1
+            # Task 2 — prior-year rent for the same community/submarket
+            # bucket the listing would route to, feeding rentYoY.
+            if rent and rent > 0:
+                if cid:
+                    d["comm_rent_prior"][cid].append(rent)
+                elif addr_city_slug:
+                    d["sfr_rent_prior"][addr_city_slug].append(rent)
 
         if uru and ct:
             d["tenancy_episodes"][uru].append((ct, dt_))
@@ -1625,6 +1685,36 @@ operators_with_concessions = sum(
     1 for n in PM_NORMS if pm_features[n]["concession_count"] > 0
 )
 
+# Task 2 (property-level detail) — MSA-median comps for this market, pooled
+# across every eligible PM operator (PM_NORMS; brokers excluded, matching
+# the PM-only convention the other market-headline stats above already
+# follow). Reuses all_dom_t12 (already computed above) for DOM, and each
+# operator's existing pm_features totals for concession hits / listing
+# count (concession_count / t12_listings) instead of re-deriving them from
+# the raw buckets. Rent T12 / prior-year values have no existing
+# market-wide accumulation to reuse, so they're pooled here from the
+# per-operator community + SFR-submarket buckets populated during the
+# streaming loop.
+_market_rent_t12 = []
+_market_rent_prior = []
+for _norm in PM_NORMS:
+    _d = pm_rich[_norm]
+    for _vals in _d["comm_rent_t12"].values():
+        _market_rent_t12.extend(_vals)
+    for _vals in _d["sfr_rent_t12"].values():
+        _market_rent_t12.extend(_vals)
+    for _vals in _d["comm_rent_prior"].values():
+        _market_rent_prior.extend(_vals)
+    for _vals in _d["sfr_rent_prior"].values():
+        _market_rent_prior.extend(_vals)
+market_comps = compute_market_comps(
+    dom_values=all_dom_t12,
+    rent_t12_values=_market_rent_t12,
+    rent_prior_values=_market_rent_prior,
+    concession_hits=sum(pm_features[n]["concession_count"] for n in PM_NORMS),
+    n_listings=sum(pm_features[n]["t12_listings"] for n in PM_NORMS),
+)
+
 
 def _weighting_scheme_label(has_cv, has_tenancy):
     # v0.6.4 — records which metrics were redistributed when CV and/or
@@ -1929,6 +2019,48 @@ for norm in sorted(eligible_norms):
     }
     if cv is not None:
         pm_out["communityVisibility"] = cv
+
+    # Task 2 (property-level detail) — assemble this operator's community /
+    # SFR-submarket buckets from the raw per-listing accumulators populated
+    # during the streaming loop, and hand them to assemble_property_detail
+    # for the concentrated-vs-scattered split + build_property_detail call.
+    # "homes" converts each bucket's raw aid SET to a count here (the pure
+    # helpers deal in ints, not sets, so this set->len conversion is the
+    # one bit of real logic left in pipeline.py's glue).
+    _prop_d = pm_rich[norm]
+    _comm_urus_counts = {cid: len(urus) for cid, urus in _prop_d["comm_urus_t12"].items()}
+    _comm_buckets = {
+        cid: {
+            "label": _prop_d["comm_label"].get(cid),
+            "submarket": _prop_d["comm_submarket"].get(cid),
+            "dom": _prop_d["comm_dom"].get(cid, []),
+            "rent_t12": _prop_d["comm_rent_t12"].get(cid, []),
+            "rent_prior": _prop_d["comm_rent_prior"].get(cid, []),
+            "concession_hits": _prop_d["comm_concession"].get(cid, 0),
+            "n_listings": _prop_d["comm_n"].get(cid, 0),
+            "marketing": _prop_d["comm_marketing"].get(cid, []),
+            "homes": len(_prop_d["comm_homes"].get(cid, ())),
+        }
+        for cid in _prop_d["comm_n"]
+    }
+    _sfr_buckets = {
+        sub: {
+            "label": _prop_d["sfr_label"].get(sub),
+            "submarket": sub,
+            "dom": _prop_d["sfr_dom"].get(sub, []),
+            "rent_t12": _prop_d["sfr_rent_t12"].get(sub, []),
+            "rent_prior": _prop_d["sfr_rent_prior"].get(sub, []),
+            "concession_hits": _prop_d["sfr_concession"].get(sub, 0),
+            "n_listings": _prop_d["sfr_n"].get(sub, 0),
+            "marketing": _prop_d["sfr_marketing"].get(sub, []),
+            "homes": len(_prop_d["sfr_homes"].get(sub, ())),
+        }
+        for sub in _prop_d["sfr_n"]
+    }
+    property_detail = assemble_property_detail(_comm_buckets, _comm_urus_counts, _sfr_buckets, market_comps)
+    if property_detail is not None:
+        pm_out["propertyDetail"] = property_detail
+
     pms.append(pm_out)
 
 pms.sort(key=lambda p: (p["rank"]["overall"] if p["rank"]["overall"] is not None else 9999, p["name"]))
