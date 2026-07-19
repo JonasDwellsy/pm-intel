@@ -266,6 +266,14 @@ export interface ScorecardData {
   // Suppressed for operators failing Section 4's scope gate (Scattered,
   // Hybrid below the gate, MF/BTR under tenure). null → section omitted.
   communityVisibility: CommunityVisibilityBlock | null;
+  // Phase 1 property-level detail (demo item #1). MF → one record per
+  // concentrated community; scattered SFR → one record per submarket.
+  // Descriptive observations + MSA-median comps, deliberately UN-scored
+  // (no per-property star/percentile). Optional + omitted for seeds
+  // predating this feature (and for operators with no property records) —
+  // the Properties section/export render nothing when absent. Populated by
+  // the pipeline's property_detail pass; rides the scorecardData blob.
+  propertyDetail?: PropertyDetailBlock;
   classificationRationale: string;
   // v0.6.3 Patch 6 — share-trajectory listing counts. t12ListingsCount is
   // listings observed in the trailing 12 months anchored to Patch 6's
@@ -348,6 +356,37 @@ export interface CommunityVisibilityBlock {
   star?: StarLevel;
   cohortUsedForStar?: CohortLevel;
   cohortName?: string;
+}
+
+// Phase 1 property-level detail (demo item #1). Each record is a
+// descriptive observation set for one property (MF community) or one
+// scattered-SFR submarket rollup — NEVER a scored/starred entity. Comps
+// are the MSA medians for the comparable metrics ("value vs market").
+export interface PropertyRecord {
+  kind: "community" | "sfr-submarket";
+  label: string;
+  submarket: string | null;
+  units: number | null; // MF community units (top_down_community_count)
+  homes: number | null; // scattered-SFR distinct homes
+  nListings: number;
+  medianDomT12: number | null;
+  medianRentT12: number | null;
+  // Raw median-rent delta (T12 vs prior year) — an OBSERVATION, NOT the
+  // operator metric's mix-adjusted YoY. See the methodology note.
+  rentYoY: number | null;
+  concessionRate: number | null;
+  listingQuality: number | null;
+}
+
+export interface PropertyDetailBlock {
+  properties: PropertyRecord[];
+  // MSA-median reference for the comparable metrics.
+  comps: {
+    medianDomT12: number | null;
+    medianRentT12: number | null;
+    rentYoY: number | null;
+    concessionRate: number | null;
+  };
 }
 
 // Defensive guard against marketing data with no signal at all. Reads from
