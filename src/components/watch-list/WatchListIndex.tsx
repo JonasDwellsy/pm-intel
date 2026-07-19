@@ -113,16 +113,6 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
                 <h2 className="text-[16px] font-semibold leading-snug text-navy">
                   {bb.name}
                 </h2>
-                {listKind === "pinned" && (
-                  <span className="dq-pill dq-pill-teal shrink-0 text-[10px]">
-                    Pick list
-                  </span>
-                )}
-                {listKind === "hybrid" && (
-                  <span className="dq-pill dq-pill-teal shrink-0 text-[10px]">
-                    Hybrid
-                  </span>
-                )}
               </div>
               <p className="mt-1.5 line-clamp-2 min-h-[2.6em] text-[13px] text-foreground/70">
                 {bb.description ?? (
@@ -141,7 +131,7 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
                   {pinnedCounts[bb.id] ?? 0}
                 </span>
                 <span className="text-teal-700">
-                  {(pinnedCounts[bb.id] ?? 0) === 1 ? "company" : "companies"}
+                  {(pinnedCounts[bb.id] ?? 0) === 1 ? "operator" : "operators"}
                 </span>
               </div>
             ) : listKind === "smart" ? (
@@ -187,7 +177,7 @@ export function WatchListIndex({ watchListes, pinnedCounts }: Props) {
                     {pinnedCounts[bb.id] ?? 0}
                   </span>
                   <span className="text-teal-700">
-                    {(pinnedCounts[bb.id] ?? 0) === 1 ? "company" : "companies"}
+                    {(pinnedCounts[bb.id] ?? 0) === 1 ? "operator" : "operators"}
                   </span>
                 </div>
               </>
