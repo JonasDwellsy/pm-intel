@@ -128,3 +128,80 @@ test("SFR: observedCommunities = 1 does NOT yield a single-community item ('comm
   );
   assert.ok(items.every((i) => !/single community/i.test(i.headline) && !/limited footprint/i.test(i.headline)));
 });
+
+// ── v0.25: absolute concession trigger + tiers + scored metrics + geo margin + cap ──
+
+const clean = (o: any = {}) =>
+  sc({ concessionRate: 0, coverage: { yearsVisible: 6 }, lendingSignals: undefined, ...o });
+
+test("objectively-high concessions flag even in a low-concession market (the Doorby case)", () => {
+  // 60% in a 17% market: 5× would need ~85%, so the old relative-only rule missed it.
+  const items = buildWatchItems(clean({ concessionRate: 0.604 }), 0.171);
+  assert.ok(items.some((i) => i.kind === "risk" && /heavy concession/i.test(i.headline)));
+});
+
+test("40–60% concessions is 'elevated', not 'heavy'", () => {
+  // mkt 0.20 so the 5× relative arm isn't tripped — only the 40% absolute arm.
+  const items = buildWatchItems(clean({ concessionRate: 0.45 }), 0.2);
+  assert.ok(items.some((i) => /elevated concession/i.test(i.headline)));
+  assert.ok(items.every((i) => !/heavy concession/i.test(i.headline)));
+});
+
+test("modest concessions barely above a low market do NOT flag (no card-style over-firing)", () => {
+  // 12% vs 10% market = 1.2×: the card WATCHes, but it isn't objectively high.
+  const items = buildWatchItems(clean({ concessionRate: 0.12 }), 0.1);
+  assert.ok(items.every((i) => !/concession/i.test(i.headline)));
+});
+
+test("a bottom-quartile graded metric becomes a risk with an Ask; a strong one does not", () => {
+  const items = buildWatchItems(clean(), null, undefined, [
+    { title: "Tenant retention", position: 0.12, star: null },
+    { title: "Lease-up speed", position: 0.7, star: null },
+  ]);
+  const weak = items.find((i) => /bottom-quartile tenant retention/i.test(i.headline));
+  assert.ok(weak && weak.kind === "risk" && !!weak.ask);
+  assert.ok(items.every((i) => !/lease-up/i.test(i.headline)));
+});
+
+test("gold graded metrics roll up into a single positive", () => {
+  const items = buildWatchItems(clean(), null, undefined, [
+    { title: "Marketing discipline", position: 0.9, star: "gold" },
+    { title: "Lease-up speed", position: 0.88, star: "gold" },
+  ]);
+  const pos = items.filter((i) => i.kind === "positive");
+  assert.equal(pos.length, 1);
+  assert.match(pos[0].headline, /top-tier/i);
+});
+
+test("geography fires only when meaningfully above cohort, not just above median", () => {
+  const justAbove = buildWatchItems(
+    clean({ lendingSignals: { geographicConcentration: { top3CityShare: 0.66, cohortMedianTop3: 0.61 } } }),
+    null
+  );
+  assert.ok(justAbove.every((i) => !/concentrated geography/i.test(i.headline))); // +5pts < 10pt margin
+  const wellAbove = buildWatchItems(
+    clean({ lendingSignals: { geographicConcentration: { top3CityShare: 0.8, cohortMedianTop3: 0.61 } } }),
+    null
+  );
+  assert.ok(wellAbove.some((i) => /concentrated geography/i.test(i.headline)));
+});
+
+test("the item list is capped to stay scannable", () => {
+  const items = buildWatchItems(
+    sc({
+      concessionRate: 0.7,
+      pm: { quadrant7Cell: "MF/BTR" },
+      coverage: { yearsVisible: 1, observedCommunities: 1, monthsOnPlatform: 6, urusT12: 40 },
+      lendingSignals: { geographicConcentration: { top3CityShare: 0.9, cohortMedianTop3: 0.5 } },
+    }),
+    0.02,
+    undefined,
+    [
+      { title: "Tenant retention", position: 0.1, star: null },
+      { title: "Lease-up speed", position: 0.05, star: null },
+      { title: "Rent performance", position: 0.2, star: null },
+      { title: "Marketing discipline", position: 0.15, star: null },
+    ]
+  );
+  assert.ok(items.length <= 6);
+});

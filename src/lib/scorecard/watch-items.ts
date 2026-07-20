@@ -1,8 +1,11 @@
-// v0.24 — build categorized Watch Items from the signals already in the seed.
-// Replaces the "Lending Signals" section. Kinds: risk (needs follow-up), data
+// v0.25 — build categorized Watch Items: the scorecard's SYNTHESIS layer. It
+// reads the same signals the metric cards + momentum already compute and
+// surfaces the ones worth a human read, at thresholds consistent with (but
+// noise-controlled vs) the cards. Kinds: risk (needs follow-up), data
 // (limitation/caveat), context (neutral), positive. Not everything is bad.
-// Trend-based detectors (concession spike, rank/star change) are added later
-// once per-snapshot history exists; this phase covers point-in-time signals.
+//
+// Items carry an internal severity so the most important surface first and the
+// list is capped — the section is a scannable read, not an exhaustive dump.
 
 import type { ScorecardData } from "@/lib/types";
 
@@ -14,6 +17,15 @@ export interface WatchItem {
   explanation: string;
   /** Follow-up question — set on risks. */
   ask?: string;
+}
+
+/** A graded operating metric, distilled from the built OperatingView so Watch
+ *  Items reads the SAME normalized position + star the metric cards render. */
+export interface ScoredMetricInput {
+  title: string;
+  /** 0..1 cohort percentile, higher = better (as on the position bar). */
+  position: number | null;
+  star: "gold" | "silver" | null;
 }
 
 export interface WatchTrajectoryPoint {
@@ -28,8 +40,23 @@ export interface WatchTrajectory {
 }
 
 const SHORT_HISTORY_YEARS = 3;
-const CONCESSION_RISK_MULTIPLE = 5; // >=5x the market median flags a risk
 const MIN_GAP_DAYS = 80; // require ~a quarter between compared snapshots
+const MAX_ITEMS = 6; // keep the section a scannable read
+const WEAK_METRIC_PCTL = 0.25; // bottom-quartile position = meaningfully weak
+
+// Concession thresholds (share of T12 listings advertising concessions).
+// Two-pronged so an objectively-high rate flags even in a low-concession market
+// (the old rule was purely relative — 5× market — so 60% in a 17% market slipped
+// through). Absolute OR relative; two tiers.
+const CONC_HEAVY_ABS = 0.6;
+const CONC_HEAVY_MULT = 5;
+const CONC_ELEVATED_ABS = 0.4;
+const CONC_ELEVATED_MULT = 3;
+const CONC_ELEVATED_FLOOR = 0.2; // relative trigger needs a real floor
+
+// Geography: only "concentrated" when MEANINGFULLY above the cohort, not merely
+// above the median (which fires for ~half the population).
+const GEO_MARGIN = 0.1;
 
 function daysBetween(a: string, b: string): number {
   return Math.abs((Date.parse(b) - Date.parse(a)) / 86_400_000);
@@ -52,68 +79,117 @@ function trendPair(
   return null;
 }
 
+function joinList(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+// Kind order for the final sort; severity (desc) breaks ties within a kind.
+const KIND_ORDER: WatchItemKind[] = ["risk", "data", "context", "positive"];
+
+interface Ranked extends WatchItem {
+  severity: number;
+}
+
 export function buildWatchItems(
   scorecard: ScorecardData,
   marketConcessionMedian: number | null,
-  trajectory?: WatchTrajectory
+  trajectory?: WatchTrajectory,
+  scoredMetrics?: ScoredMetricInput[]
 ): WatchItem[] {
-  const items: WatchItem[] = [];
+  const items: Ranked[] = [];
   const pct = (n: number) => `${Math.round(n * 100)}%`;
+  const push = (severity: number, item: WatchItem) => items.push({ ...item, severity });
 
-  // RISK — heavy concession use vs market median.
+  // ── RISK: concession use (absolute OR relative, two tiers) ──────────────
   let concessionLevelFired = false;
   const rate = scorecard.concessionRate ?? null;
   const mkt = marketConcessionMedian;
-  if (rate != null && rate > 0 && mkt != null && rate >= Math.max(0.1, mkt * CONCESSION_RISK_MULTIPLE)) {
-    concessionLevelFired = true;
-    items.push({
-      kind: "risk",
-      headline: "Heavy concession use",
-      explanation: `${pct(rate)} of trailing-12-month listings mention concessions, versus a ${pct(mkt)} market median.`,
-      ask: "Is this pricing pressure, an aggressive leasing strategy, or standardized promotional language in their listings?",
-    });
+  if (rate != null && rate > 0) {
+    const vsMarket = mkt != null ? `, versus a ${pct(mkt)} market rate` : "";
+    const heavy = rate >= CONC_HEAVY_ABS || (mkt != null && rate >= mkt * CONC_HEAVY_MULT);
+    const elevated =
+      rate >= CONC_ELEVATED_ABS ||
+      (mkt != null && rate >= Math.max(CONC_ELEVATED_FLOOR, mkt * CONC_ELEVATED_MULT));
+    if (heavy) {
+      concessionLevelFired = true;
+      push(90, {
+        kind: "risk",
+        headline: "Heavy concession use",
+        explanation: `${pct(rate)} of trailing-12-month listings advertise concessions${vsMarket} — a high share.`,
+        ask: "Is this pricing pressure, an aggressive leasing strategy, or standardized promotional language across their listings?",
+      });
+    } else if (elevated) {
+      concessionLevelFired = true;
+      push(60, {
+        kind: "risk",
+        headline: "Elevated concession use",
+        explanation: `${pct(rate)} of trailing-12-month listings advertise concessions${vsMarket} — above the norm, worth a look.`,
+        ask: "Is demand softening in their submarkets, or a deliberate leasing push?",
+      });
+    }
   }
 
-  // DATA — short observation history.
+  // ── RISK: meaningfully weak scored metrics (bottom quartile) ────────────
+  // The scorecard's own graded dimensions — the strongest "human read" signal.
+  const goldTitles: string[] = [];
+  for (const m of scoredMetrics ?? []) {
+    if (m.star === "gold") goldTitles.push(m.title);
+    if (m.position != null && m.position <= WEAK_METRIC_PCTL) {
+      const name = m.title.toLowerCase();
+      push(70, {
+        kind: "risk",
+        headline: `Bottom-quartile ${name}`,
+        explanation: `${m.title} sits in the bottom quartile of its cohort — a weak spot versus peers.`,
+        ask: `Is the weak ${name} concentrated in a few properties or portfolio-wide, and recent or persistent?`,
+      });
+    }
+  }
+
+  // ── DATA: short observation history ─────────────────────────────────────
   const years = scorecard.coverage?.yearsVisible ?? null;
   if (years != null && years < SHORT_HISTORY_YEARS) {
-    items.push({
+    push(40, {
       kind: "data",
       headline: "Short observation history",
       explanation: `Observed only ${years.toFixed(1)} years — shorter than the ${SHORT_HISTORY_YEARS}-year reference window, so retention estimates may be biased low. Treat retention as directional, not precise.`,
     });
   }
 
-  // DATA — single / very small footprint: metrics describe one property, not a portfolio.
-  // "Community" is an MF/BTR concept (apartment complexes); meaningless for SFR.
+  // ── DATA: single / very small footprint (MF/BTR only) ───────────────────
   const isMultifamily = (scorecard.pm?.quadrant7Cell ?? "").includes("MF/BTR");
   const communities = scorecard.coverage?.observedCommunities ?? null;
   if (isMultifamily && communities != null && communities <= 2) {
     const units = scorecard.coverage?.totalObservedUnits ?? scorecard.coverage?.urusT12 ?? null;
     const months = scorecard.coverage?.monthsOnPlatform ?? null;
-    items.push({
+    push(45, {
       kind: "data",
       headline: communities === 1 ? "Single community observed" : `Limited footprint (${communities} communities)`,
       explanation: `Only ${communities === 1 ? "one community" : `${communities} communities`}${units != null ? ` (~${units} units)` : ""} observed${months != null ? ` over ${months} months` : ""}. Metrics reflect ${communities === 1 ? "one property" : "a handful of properties"}, not a portfolio — read peer comparisons, momentum, and estimates as indicative only.`,
     });
   }
 
-  // CONTEXT — concentrated geography.
+  // ── CONTEXT: concentrated geography (meaningfully above cohort) ─────────
   const geo = scorecard.lendingSignals?.geographicConcentration;
-  if (geo && geo.top3CityShare != null && geo.cohortMedianTop3 != null && geo.top3CityShare > geo.cohortMedianTop3) {
-    items.push({
+  if (
+    geo &&
+    geo.top3CityShare != null &&
+    geo.cohortMedianTop3 != null &&
+    geo.top3CityShare >= geo.cohortMedianTop3 + GEO_MARGIN
+  ) {
+    push(20, {
       kind: "context",
       headline: "Concentrated geography",
       explanation: `${pct(geo.top3CityShare)} of inventory sits in its top 3 cities (cohort median ${pct(geo.cohortMedianTop3)}) — a plus for a focused local operator, a drawback if you need geographic diversification.`,
     });
   }
 
-  // RISK (trend) — concessions climbing sharply quarter-over-quarter.
-  // Suppressed when the level-based risk already fired above.
+  // ── RISK (trend): concessions climbing — suppressed when a level fired ──
   if (trajectory && !concessionLevelFired) {
     const pair = trendPair(trajectory.points, (p) => p.concessionRate ?? null);
     if (pair && pair.curr >= Math.max(0.1, pair.prev * 2) && pair.curr - pair.prev >= 0.05) {
-      items.push({
+      push(55, {
         kind: "risk",
         headline: "Concession use climbing",
         explanation: `Concessions rose from ${pct(pair.prev)} to ${pct(pair.curr)} of listings over recent quarters — a sharp increase.`,
@@ -122,13 +198,13 @@ export function buildWatchItems(
     }
   }
 
-  // RISK / POSITIVE (trend) — recent ranking or star movement.
+  // ── RISK / POSITIVE (trend): ranking or star movement ──────────────────
   if (trajectory) {
     const pts = trajectory.points;
     const last = pts[pts.length - 1];
     const droppedOut = !!last && last.eligible === false && pts.some((p) => p.eligible === true);
     if (droppedOut) {
-      items.push({
+      push(100, {
         kind: "risk",
         headline: "Recently fell below the listing threshold",
         explanation:
@@ -142,7 +218,7 @@ export function buildWatchItems(
           : null
       );
       if (pair && pair.curr < pair.prev) {
-        items.push({
+        push(80, {
           kind: "risk",
           headline: "Recent rating downgrade",
           explanation:
@@ -150,7 +226,7 @@ export function buildWatchItems(
           ask: "Which operating metric weakened, and is the change durable or a one-quarter dip?",
         });
       } else if (pair && pair.curr > pair.prev) {
-        items.push({
+        push(10, {
           kind: "positive",
           headline: "Recent rating improvement",
           explanation:
@@ -160,6 +236,22 @@ export function buildWatchItems(
     }
   }
 
-  const order: WatchItemKind[] = ["risk", "data", "context", "positive"];
-  return items.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+  // ── POSITIVE: top-tier graded dimensions (one consolidated item) ────────
+  if (goldTitles.length > 0) {
+    push(5, {
+      kind: "positive",
+      headline:
+        goldTitles.length === 1
+          ? `Top-tier ${goldTitles[0].toLowerCase()}`
+          : `Top-tier on ${goldTitles.length} graded dimensions`,
+      explanation: `Gold-tier (top of cohort) on ${joinList(goldTitles.map((t) => t.toLowerCase()))}.`,
+    });
+  }
+
+  // Sort by kind, then severity (desc) within a kind; cap to keep it scannable.
+  items.sort((a, b) => {
+    const k = KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind);
+    return k !== 0 ? k : b.severity - a.severity;
+  });
+  return items.slice(0, MAX_ITEMS).map(({ severity: _s, ...item }) => item);
 }

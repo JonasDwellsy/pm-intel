@@ -145,10 +145,35 @@ export function WatchItemsSection({ items }: WatchItemsSectionProps) {
         worth a follow-up, some are neutral context, some are positives.
       </p>
 
-      {/* Item rows */}
-      {items.map((item, i) => (
-        <WatchItemRow key={`${item.kind}-${i}`} item={item} />
-      ))}
+      {/* Item rows — or an affirmative "clean" state when there's nothing. */}
+      {items.length === 0 ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            borderLeft: "4px solid #3f9c6d",
+            borderRadius: "0 8px 8px 0",
+            background: "#f4faf6",
+            padding: "12px 16px",
+            fontSize: "13px",
+            color: "#1a7f5a",
+          }}
+        >
+          <span style={{ fontSize: "15px", lineHeight: 1 }}>✅</span>
+          <span>
+            <b style={{ color: "#146c4c" }}>No flags.</b>{" "}
+            <span style={{ color: "#3a5a4b" }}>
+              Clean across the concession, coverage, geography, graded-metric, and
+              trajectory signals we check.
+            </span>
+          </span>
+        </div>
+      ) : (
+        items.map((item, i) => (
+          <WatchItemRow key={`${item.kind}-${i}`} item={item} />
+        ))
+      )}
     </div>
   );
 }
