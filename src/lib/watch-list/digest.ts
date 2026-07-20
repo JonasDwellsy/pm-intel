@@ -3,6 +3,7 @@
 // The diff engine (change-detection.ts) is slug-keyed and carries no display
 // strings, so the caller supplies name/market/scorecardUrl per operator.
 import { summariseChanges, type OperatorChange, type ChangeType, type ChangeBreakdown } from "./change-detection";
+import { wrapEmail, emailSectionLabel, EMAIL } from "@/lib/email/layout";
 
 export interface DigestOperatorInput {
   pmSlug: string;
@@ -148,37 +149,39 @@ export function buildDigest(input: DigestInput): DigestEmail | null {
   const sections = lists
     .map((l) => {
       const rows = l.operators
-        .map((o) => {
+        .map((o, i) => {
           const items = sortChanges(o.changes)
-            .map((c) => `<li style="margin:2px 0;color:#2a3547;font-size:13px;">${esc(describeChange(c))}</li>`)
+            .map((c) => `<li style="margin:2px 0;color:${EMAIL.body};font-size:13px;">${esc(describeChange(c))}</li>`)
             .join("");
           return `
-            <tr><td style="padding:10px 0;border-top:1px solid #eef1f6;">
-              <a href="${esc(o.scorecardUrl)}" style="font-weight:600;color:#0f1f3f;text-decoration:none;font-size:14px;">${esc(o.name)}</a>
-              <span style="color:#6b7688;font-size:12px;"> · ${esc(o.marketLabel)}</span>
+            <tr><td style="padding:10px 0;${i > 0 ? `border-top:1px solid ${EMAIL.hairline};` : ""}">
+              <a href="${esc(o.scorecardUrl)}" style="font-weight:600;color:${EMAIL.ink};text-decoration:none;font-size:14px;">${esc(o.name)}</a>
+              <span style="color:${EMAIL.slate};font-size:12px;"> · ${esc(o.marketLabel)}</span>
               <ul style="margin:6px 0 0;padding-left:18px;">${items}</ul>
             </td></tr>`;
         })
         .join("");
       return `
-        <h2 style="font-size:15px;color:#0f1f3f;margin:20px 0 2px;">${esc(l.watchListName)}</h2>
-        <p style="font-size:12px;color:#6b7688;margin:0 0 4px;">${esc(listRollUp(l.operators))}</p>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>`;
+        <div style="margin-top:22px">
+          ${emailSectionLabel(esc(l.watchListName))}
+          <p style="font-size:12px;color:${EMAIL.slate};margin:0 0 2px;">${esc(listRollUp(l.operators))}</p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>
+        </div>`;
     })
     .join("");
 
-  const html = `<!-- Operator IQ watch-list digest -->
-<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;color:#2a3547;">
-  <p style="font-size:14px;">${esc(greeting)}</p>
-  <p style="font-size:14px;">${esc(lede)}</p>
-  ${sections}
-  <hr style="border:none;border-top:1px solid #eef1f6;margin:24px 0 12px;">
-  <p style="font-size:11px;color:#8894ac;">
-    You receive this because your organization has an Operator IQ watch list.
-    <a href="${esc(input.unsubscribeUrl)}" style="color:#8894ac;">Unsubscribe</a>.<br>
-    Dwellsy, Inc.
-  </p>
-</div>`;
+  const content = `
+    <p style="font-size:15px;color:${EMAIL.body};margin:0 0 2px">${esc(greeting)}</p>
+    <p style="font-size:15px;color:${EMAIL.body};margin:0 0 4px">${esc(lede)}</p>
+    ${sections}`;
+
+  const html = wrapEmail({
+    preheader: lede,
+    contentHtml: content,
+    footerNote: "You're receiving this because your organization has an Operator IQ watch list.",
+    unsubscribeUrl: esc(input.unsubscribeUrl),
+    unsubscribeLabel: "Unsubscribe",
+  });
 
   return { subject, html, text };
 }
