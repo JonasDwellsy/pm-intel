@@ -56,6 +56,29 @@ function fixturePm(): Record<string, unknown> {
     performance: { domT12: 23, domStar: "silver" },
     marketing: { compositeScore: 73, star: "silver" },
     rank: { percentiles: { tenancy: 60, dom: 55 } },
+    propertyDetail: {
+      properties: [
+        {
+          kind: "community",
+          label: "The Oaks",
+          submarket: null,
+          units: 120,
+          homes: null,
+          nListings: 18,
+          medianDomT12: 22,
+          medianRentT12: 1450,
+          rentYoY: 0.04,
+          concessionRate: 0.1,
+          listingQuality: 78,
+        },
+      ],
+      comps: {
+        medianDomT12: 29,
+        medianRentT12: 1510,
+        rentYoY: 0.021,
+        concessionRate: 0.18,
+      },
+    },
   };
 }
 
@@ -67,6 +90,18 @@ test("REGRESSION: buildScorecard persists survival-based tenancy fields into sco
   assert.deepEqual(sc.tenancy.retentionCurve, { m12: 83.9, m18: 75.3, m24: 63.6 });
   assert.equal(sc.tenancy.tenancySuppressed, false);
   assert.equal(sc.tenancy.tenancyQualified, true);
+});
+
+test("REGRESSION: buildScorecard persists propertyDetail into scorecardData", () => {
+  // propertyDetail (Phase 1 property-level detail) hit the exact silent-drop
+  // trap this file guards against: the pipeline populated it on every operator
+  // (#260 reseed) but the seed normalizer field-picked it away, so the
+  // Properties section never rendered in production. Guard against recurrence.
+  const sc = buildScorecard(fixturePm() as never, market);
+  assert.ok(sc.propertyDetail, "propertyDetail must survive the seed normalizer");
+  assert.equal(sc.propertyDetail?.properties.length, 1);
+  assert.equal(sc.propertyDetail?.properties[0].label, "The Oaks");
+  assert.equal(sc.propertyDetail?.comps.medianDomT12, 29);
 });
 
 test("buildScorecard carries the cross-section fields the scorecard view-model reads", () => {

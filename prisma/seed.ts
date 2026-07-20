@@ -779,8 +779,17 @@ const SIZE_METHODOLOGY_VERSION = "v0.8.1-house-apt-turnover-band";
 // unchanged content (parse order is deterministic per file); reformatting the
 // JSON without a content change keeps the same hash.
 const SEED_CONTENT_VERSION_KEY = "seed_content_version";
+// Salt for the content fingerprint. Bump this string whenever buildScorecard's
+// EMITTED SHAPE changes without the input JSON changing — e.g. wiring a new
+// pipeline field through the seed normalizer. Folding it into the hash forces a
+// one-time re-seed on the next deploy even though scorecard_data.json is byte-
+// identical, so the new column shape actually lands. (v1 = propertyDetail
+// passthrough — the JSON already carried it from the #260 reseed, but
+// buildScorecard was dropping it, so the fingerprint alone wouldn't re-trigger.)
+const SEED_SHAPE_VERSION = "v1-propertyDetail";
 const SEED_CONTENT_VERSION = crypto
   .createHash("sha256")
+  .update(SEED_SHAPE_VERSION)
   .update(JSON.stringify(data))
   .update(JSON.stringify(companyEnrichment))
   .digest("hex")
@@ -1146,6 +1155,18 @@ export function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardDat
     // estimated / insufficient_data / insufficient_history /
     // no_listings; the Layer 5 widget branches on it.
     portfolioEstimate: estimatePortfolioSize(coverage, performance),
+    // Phase 1 property-level detail (property_detail.py → pipeline). The
+    // pipeline already emits the PropertyDetailBlock shape the view-model +
+    // export consume, so it passes straight through; undefined when absent
+    // (operators with no listings). MUST be copied explicitly — buildScorecard
+    // field-picks the blob, so an un-copied pipeline field is silently dropped
+    // (the same trap that blanked the tenancy fields; see
+    // seed-build-scorecard.test.ts). Without this the Properties section never
+    // renders even after the pipeline populates the data.
+    propertyDetail:
+      (getObj(pm, "propertyDetail") as unknown as
+        | ScorecardData["propertyDetail"]
+        | null) ?? undefined,
   };
 }
 
