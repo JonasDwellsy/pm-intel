@@ -19,6 +19,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { InviteUserForm } from "@/components/admin/InviteUserForm";
 import { DeleteOrgButton } from "@/components/admin/DeleteOrgButton";
+import { DigestExclusionToggle } from "@/components/admin/DigestExclusionToggle";
 import {
   MarketAccessForm,
   type MarketAccessGroup,
@@ -179,6 +180,17 @@ export default async function AdminOrganizationDetailPage({
           groups={marketGroups}
           totalMarkets={allMarketRows.length}
         />
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-[12px] font-semibold uppercase tracking-[0.12em] text-grey-600 mb-3">
+          Digest emails
+        </h2>
+        <p className="text-[13px] text-grey-500 mb-3 max-w-[680px]">
+          Turn this on for internal, demo, or comp accounts that shouldn&rsquo;t
+          receive the client-facing monthly brief + watch-list digests.
+        </p>
+        <DigestExclusionToggle orgId={org.id} initialExcluded={org.excludeFromDigests} />
       </section>
 
       <section className="mb-8">

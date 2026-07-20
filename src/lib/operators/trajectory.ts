@@ -150,6 +150,21 @@ export function snapshotGeneration(methodologyVersion: string): string {
 }
 
 /**
+ * The methodologyVersion values belonging to the current estimator generation
+ * — the live tag + its "-recon" backfill sibling — given the most-recent
+ * snapshot's version. Digest queries filter `methodologyVersion IN (...)` on
+ * this so they never diff across generations (which would report a methodology
+ * recalibration as spurious rating/portfolio changes). Null → no snapshots.
+ */
+export function currentGenerationVersions(
+  latestMethodologyVersion: string | null | undefined
+): string[] | null {
+  if (!latestMethodologyVersion) return null;
+  const gen = snapshotGeneration(latestMethodologyVersion);
+  return [gen, `${gen}-recon`];
+}
+
+/**
  * Keep only snapshots from the CURRENT methodology generation — defined as the
  * generation of the most-recent snapshot. Older generations (a prior portfolio
  * estimator, or pre-retag backfill rows) are dropped, because the portfolio

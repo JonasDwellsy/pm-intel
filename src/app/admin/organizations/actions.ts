@@ -254,6 +254,55 @@ export async function deleteOrganization(
   return { ok: true, name: org.name };
 }
 
+export interface SetDigestExclusionResult {
+  ok: boolean;
+  /** New state, for the confirmation line. */
+  excluded?: boolean;
+  error?: string;
+}
+
+/** Toggle whether an org is excluded from ALL outbound digest emails (brief +
+ *  watch-list). For internal / demo / comp accounts that shouldn't receive
+ *  client-facing digests. Pure Prisma — the digest runs read this flag.
+ *
+ *  Form fields:
+ *    - orgId: local Organization id (hidden)
+ *    - excluded: "on" to exclude, absent to include. */
+export async function setOrganizationDigestExclusion(
+  _prevState: SetDigestExclusionResult | null,
+  formData: FormData
+): Promise<SetDigestExclusionResult> {
+  const { userId } = await auth();
+  if (!userId || !isAdminUser(userId)) {
+    return { ok: false, error: "Not found." };
+  }
+
+  const orgId = formData.get("orgId");
+  if (typeof orgId !== "string" || orgId.length === 0) {
+    return { ok: false, error: "Organization id is missing." };
+  }
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { id: true, personalForUserId: true },
+  });
+  if (!org || org.personalForUserId !== null) {
+    return { ok: false, error: "Not found." };
+  }
+
+  const excluded = formData.get("excluded") === "on";
+  try {
+    await prisma.organization.update({
+      where: { id: orgId },
+      data: { excludeFromDigests: excluded },
+    });
+    revalidatePath(`/admin/organizations/${orgId}`);
+    revalidatePath(`/admin/organizations`);
+    return { ok: true, excluded };
+  } catch (err) {
+    return { ok: false, error: describeError(err) };
+  }
+}
+
 export interface SetMarketAccessResult {
   ok: boolean;
   /** "all" or the number of markets granted, for the confirmation line. */
