@@ -221,11 +221,12 @@ export function PropertyDetailSection({
   publicSample = false,
 }: {
   scorecard: ScorecardData;
-  /** When true (the public /sample page), the export control hides — it has
-   *  no gated identity to attach a download to, mirroring how the header's
-   *  Copy-link/Download-PDF affordances hide on the public sample. The table
-   *  of observations itself still renders (same treatment as every other
-   *  metric section on /sample). Defaults to false. */
+  /** When true (the public /sample page), the ENTIRE section is omitted —
+   *  property-level detail is a gated, premium capability and names specific
+   *  communities of the (non-client) showcase operators, so it stays behind
+   *  auth rather than on the public marketing sample. ScorecardBody's nav +
+   *  methodology numbering are gated on the same condition, so nothing dangles.
+   *  Defaults to false, so the real (authenticated) scorecard is unchanged. */
   publicSample?: boolean;
 }) {
   const [sortKey, setSortKey] = React.useState<SortKey>("nListings");
@@ -258,7 +259,10 @@ export function PropertyDetailSection({
     }
   }
 
-  if (rows.length === 0) {
+  // Gated + premium: never render on the public marketing sample (see the
+  // publicSample prop doc). ScorecardBody omits the matching nav/methodology
+  // entries under the same condition.
+  if (publicSample || rows.length === 0) {
     return null;
   }
 
@@ -282,7 +286,9 @@ export function PropertyDetailSection({
           Properties
         </span>
         <span style={{ flex: 1 }} />
-        {!publicSample && <PropertyExportButton slug={scorecard.pm.slug} />}
+        {/* Reached only when publicSample is false (the section early-returns
+            null otherwise), so the export control always renders here. */}
+        <PropertyExportButton slug={scorecard.pm.slug} />
       </div>
 
       {/* Plain-English intro */}
