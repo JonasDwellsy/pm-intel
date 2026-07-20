@@ -139,6 +139,46 @@ export async function loadOperatorTrajectory(
 
 // ─── pure shaping (unit-tested) ─────────────────────────────────────
 
+/**
+ * Keep only snapshots from the CURRENT methodology generation — defined as the
+ * methodologyVersion of the most-recent snapshot. Older generations (a prior
+ * portfolio estimator, or pre-retag backfill rows) are dropped, because the
+ * portfolio estimate scale (and star scoring) changed across methodology
+ * revisions: blending them onto one axis renders a methodology recalibration as
+ * a fake portfolio cliff (e.g. 1,412 → 446). Self-adapting: after a future
+ * methodology bump, history collapses to the new generation until the
+ * trajectory backfill is re-run and re-tagged to that version. Order-independent;
+ * empty or single-generation input returns unchanged.
+ */
+export function keepCurrentGenerationSnapshots<
+  T extends { snapshotDate: Date; methodologyVersion: string }
+>(rows: T[]): T[] {
+  if (rows.length === 0) return rows;
+  let latest = rows[0];
+  for (const r of rows) {
+    if (r.snapshotDate.getTime() > latest.snapshotDate.getTime()) latest = r;
+  }
+  const current = latest.methodologyVersion;
+  return rows.filter((r) => r.methodologyVersion === current);
+}
+
+/**
+ * Clamp any aggregate point whose (quarter-end) date sits beyond the latest
+ * real snapshot back to that date. The quarterly collapse stamps points to
+ * their quarter-END for member alignment, which for the in-progress quarter
+ * projects into the future (a mid-July snapshot → Sep 30); this pulls only
+ * those future-stamped points back to real data. Only the final point can be
+ * affected (no date collisions). `maxDate` empty → no-op.
+ */
+export function clampFutureTrajectoryDates(
+  points: AggregateTrajectoryPoint[],
+  maxDate: string
+): AggregateTrajectoryPoint[] {
+  if (!maxDate) return points;
+  return points.map((p) => (p.date > maxDate ? { ...p, date: maxDate } : p));
+}
+
+
 export interface TrajectorySummary {
   pointCount: number;
   firstDate: string | null;
@@ -283,22 +323,35 @@ export async function loadOperatorAggregateTrajectory(
     orderBy: { snapshotDate: "asc" },
     select: {
       snapshotDate: true,
+      methodologyVersion: true,
       pmSlug: true,
       estimatedPortfolioPoint: true,
       starGoldCount: true,
       starSilverCount: true,
     },
   });
-  const mapped: MemberSnapshotRow[] = rows.map((r) => ({
+  // Drop older methodology generations first — a prior portfolio estimator
+  // produced a different scale, so blending it in renders a methodology change
+  // as a fake portfolio cliff (see keepCurrentGenerationSnapshots).
+  const kept = keepCurrentGenerationSnapshots(rows);
+  const mapped: MemberSnapshotRow[] = kept.map((r) => ({
     date: r.snapshotDate.toISOString().slice(0, 10),
     pmSlug: r.pmSlug,
     portfolioPoint: r.estimatedPortfolioPoint,
     goldCount: r.starGoldCount,
     silverCount: r.starSilverCount,
   }));
+  // The latest real snapshot date — the quarterly collapse stamps points to
+  // their quarter-END, which for the in-progress quarter would sit in the
+  // future (e.g. a July snapshot → Sep 30); clamp those back to real data.
+  const maxDate = mapped.reduce((m, r) => (r.date > m ? r.date : m), "");
   // Collapse to one point per (member, quarter) so incrementally-onboarded
   // forward snapshots don't create an intra-quarter footprint ramp.
-  return { points: aggregateMemberSnapshots(collapseMemberRowsToQuarterly(mapped)) };
+  const points = clampFutureTrajectoryDates(
+    aggregateMemberSnapshots(collapseMemberRowsToQuarterly(mapped)),
+    maxDate
+  );
+  return { points };
 }
 
 export interface SparkPoint {

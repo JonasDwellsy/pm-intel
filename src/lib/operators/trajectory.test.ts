@@ -12,6 +12,8 @@ import {
   aggregateMemberSnapshots,
   quarterEndDate,
   collapseMemberRowsToQuarterly,
+  keepCurrentGenerationSnapshots,
+  clampFutureTrajectoryDates,
   parseSubmarketCount,
   attachShareOfMarket,
   type OperatorTrajectory,
@@ -273,6 +275,67 @@ test("collapse then aggregate removes the intra-quarter footprint ramp", () => {
   assert.equal(agg[0].date, "2026-06-30");
   assert.equal(agg[0].marketsPresent, 2);
   assert.equal(agg[0].portfolioPoint, 160); // op-a latest (120) + op-b (40)
+});
+
+// ─── keepCurrentGenerationSnapshots (methodology guard) ──────────
+
+function snap(date: string, methodologyVersion: string) {
+  return { snapshotDate: new Date(date), methodologyVersion, portfolio: 0 };
+}
+
+test("generation guard — keeps only the latest methodology generation (the Riparian bug)", () => {
+  // Three incompatible estimator generations on one operator; only the newest
+  // (matching the most-recent snapshot) survives, so the trajectory can't show
+  // a methodology recalibration as a fake portfolio cliff.
+  const out = keepCurrentGenerationSnapshots([
+    snap("2021-12-31", "v0.6.4-recon"),
+    snap("2026-06-28", "v0.6.4"),
+    snap("2026-07-15", "v0.7"),
+  ]);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].methodologyVersion, "v0.7");
+});
+
+test("generation guard — order-independent; current = version of the latest DATE not last element", () => {
+  const out = keepCurrentGenerationSnapshots([
+    snap("2026-07-15", "v0.7"),
+    snap("2026-06-28", "v0.6.4"),
+    snap("2021-12-31", "v0.6.4-recon"),
+  ]);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].methodologyVersion, "v0.7");
+});
+
+test("generation guard — single generation kept in full; empty → empty", () => {
+  const all = keepCurrentGenerationSnapshots([
+    snap("2026-03-31", "v0.7"),
+    snap("2026-06-30", "v0.7"),
+  ]);
+  assert.equal(all.length, 2);
+  assert.deepEqual(keepCurrentGenerationSnapshots([]), []);
+});
+
+// ─── clampFutureTrajectoryDates (no future quarter-end labels) ────
+
+test("clamp — pulls a future-stamped quarter-end back to the latest real date", () => {
+  const out = clampFutureTrajectoryDates(
+    [
+      { date: "2026-03-31", portfolioPoint: 200, portfolioBand: null, goldCount: 0, silverCount: 0, eligible: true, marketsPresent: 1 },
+      // in-progress quarter stamped to its quarter-end (Sep 30), past real data
+      { date: "2026-09-30", portfolioPoint: 220, portfolioBand: null, goldCount: 0, silverCount: 0, eligible: true, marketsPresent: 1 },
+    ],
+    "2026-07-15"
+  );
+  assert.equal(out[0].date, "2026-03-31"); // past quarter untouched
+  assert.equal(out[1].date, "2026-07-15"); // future quarter-end clamped to real data
+});
+
+test("clamp — no-op when maxDate is empty or all dates are in range", () => {
+  const pts = [
+    { date: "2026-03-31", portfolioPoint: 1, portfolioBand: null, goldCount: 0, silverCount: 0, eligible: true, marketsPresent: 1 },
+  ];
+  assert.deepEqual(clampFutureTrajectoryDates(pts, ""), pts);
+  assert.deepEqual(clampFutureTrajectoryDates(pts, "2026-07-15"), pts);
 });
 
 // ─── source guard ────────────────────────────────────────────────
