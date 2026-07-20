@@ -593,7 +593,10 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const watchItems = buildWatchItems(
     scorecard,
     input.marketConcessionMedian,
-    input.trajectory as unknown as WatchTrajectory | undefined
+    input.trajectory as unknown as WatchTrajectory | undefined,
+    // Feed the SAME graded-metric signals the cards render so Watch Items
+    // surfaces meaningfully-weak / top-tier dimensions consistently.
+    operating.metrics.map((m) => ({ title: m.title, position: m.position, star: m.star }))
   );
   const candidates: PeerCandidate[] = pool.map((m) => ({
     slug: m.slug, name: m.name, quadrant7Cell: m.quadrant7Cell,
@@ -606,7 +609,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const flagged = watchItems.filter((w) => w.kind !== "positive").map((w) => w.headline);
   readout[3].value = flagged.length > 0
     ? flagged.slice(0, 3).join(" · ")
-    : (watchItems.length > 0 ? "positives only" : "none");
+    : (watchItems.length > 0 ? "positives only" : "No flags — clean");
   readout[3].label = flagged.length > 0 ? `${flagged.length} to review` : undefined;
 
   return { header, readout, scaleFit, operating, momentum, watchItems, peers, maturityNote };

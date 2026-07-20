@@ -1807,9 +1807,29 @@ function WatchItemsSection({ items }: { items: WatchItem[] }) {
           worth a follow-up, some are neutral context, some are positives.
         </Text>
       </View>
-      {items.map((item, i) => (
-        <WatchRow key={`${item.kind}-${i}`} item={item} />
-      ))}
+      {items.length === 0 ? (
+        <View
+          style={{
+            borderLeftWidth: 4,
+            borderLeftStyle: "solid",
+            borderLeftColor: "#3f9c6d",
+            borderTopRightRadius: 8,
+            borderBottomRightRadius: 8,
+            backgroundColor: "#f4faf6",
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+          }}
+          wrap={false}
+        >
+          <Text style={{ fontSize: 10.5, color: C.good, lineHeight: 1.4 }}>
+            <Text style={{ fontFamily: "Helvetica-Bold" }}>No flags. </Text>
+            Clean across the concession, coverage, geography, graded-metric, and
+            trajectory signals we check.
+          </Text>
+        </View>
+      ) : (
+        items.map((item, i) => <WatchRow key={`${item.kind}-${i}`} item={item} />)
+      )}
     </View>
   );
 }
