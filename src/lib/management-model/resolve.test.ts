@@ -40,6 +40,20 @@ test("MF Institutional with no strong structure → unknown (verify)", () => {
   assert.match(v.basis, /verify directly/i);
 });
 
+test("BROAD MF Institutional → unknown, NOT third-party (owning REIT vs 3rd-party manager indistinguishable at scale; guards UDR-type owners)", () => {
+  // Broad footprint (>=8 communities, >=4 submarkets) would trip the
+  // third_party/low breadth rule, but institutional resolves to unknown first.
+  const v = listingVerdict(sig({ quadrant7Cell: "Large MF/BTR Institutional", communities: 12, submarkets: 6 }));
+  assert.equal(v.model, "unknown");
+  assert.equal(v.confidence, null);
+});
+
+test("BROAD MF Independent still → third-party / low (breadth rule intact for non-institutional)", () => {
+  const v = listingVerdict(sig({ quadrant7Cell: "Large MF/BTR Independent", communities: 12, submarkets: 6 }));
+  assert.equal(v.model, "third_party");
+  assert.equal(v.confidence, "low");
+});
+
 test("MF concentrated → owner-operator / low", () => {
   const v = listingVerdict(sig({ quadrant7Cell: "Small MF/BTR Independent", communities: 2, submarkets: 1 }));
   assert.equal(v.model, "owner_operator");

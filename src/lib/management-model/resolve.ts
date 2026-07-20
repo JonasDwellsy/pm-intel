@@ -89,15 +89,22 @@ export function listingVerdict(s: ListingSignal): Verdict {
       basis: "Institutional single-family operator; typically owns its homes (may also manage third-party)." };
 
   if (q7.includes("MF/BTR")) {
+    // Mixed book (apartment communities + scattered homes) is a strong
+    // third-party tell an owning REIT never produces — check it first.
     if (s.communities >= 1 && s.scatteredHomes >= SCATTERED_MIN)
       return { model: "third_party", confidence: "medium",
         basis: "Manages both apartment communities and scattered homes — a pattern typical of third-party management." };
-    if (s.communities >= BREADTH_COMMUNITIES && s.submarkets >= BREADTH_SUBMARKETS)
-      return { model: "third_party", confidence: "low",
-        basis: "Broad, multi-submarket apartment portfolio; listings can't confirm ownership vs. management." };
+    // Institutional apartment operators resolve to Unknown BEFORE the
+    // broad-footprint heuristic: at scale an owning REIT and a large
+    // third-party manager both have wide, multi-submarket footprints, so
+    // breadth alone can't separate them (it was mislabeling REIT owners like
+    // UDR third-party/low). A confident website verdict still overrides this.
     if (q7.includes("Institutional"))
       return { model: "unknown", confidence: null,
         basis: "Institutional apartment operator — could be an owning REIT or a large third-party manager; both common at this scale. Verify directly." };
+    if (s.communities >= BREADTH_COMMUNITIES && s.submarkets >= BREADTH_SUBMARKETS)
+      return { model: "third_party", confidence: "low",
+        basis: "Broad, multi-submarket apartment portfolio; listings can't confirm ownership vs. management." };
     if (s.communities > 0 && s.communities <= CONCENTRATED_COMMUNITIES && s.submarkets <= CONCENTRATED_SUBMARKETS)
       return { model: "owner_operator", confidence: "low",
         basis: "Small, concentrated apartment footprint; may be an owner. Listings can't confirm." };
