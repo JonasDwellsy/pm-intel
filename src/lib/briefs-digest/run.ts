@@ -9,6 +9,7 @@
 import { prisma } from "@/lib/prisma";
 import { clerkClient } from "@clerk/nextjs/server";
 import { toSnapshotRow, type SnapshotRow } from "@/lib/watch-list/snapshot";
+import { keepCurrentGenerationSnapshots } from "@/lib/operators/trajectory";
 import { isDigestDue, parseCadence } from "@/lib/watch-list/digest-gather";
 import { fetchSnapshotDates } from "@/lib/watch-list/digest-run";
 import {
@@ -75,9 +76,15 @@ async function computeChanges(): Promise<{
   byMarket: Map<string, MarketChangeSummary | null>;
   markets: Map<string, { marketName: string; briefUrl: string }>;
 } | null> {
-  const snaps = await prisma.operatorSnapshot.findMany({
-    orderBy: [{ pmSlug: "asc" }, { snapshotDate: "desc" }],
-  });
+  // Only the current estimator generation — never diff a v0.7 snapshot against a
+  // v0.6.4 one, which would report methodology recalibration as spurious rating
+  // changes (same class of bug as the operator trajectory; see
+  // keepCurrentGenerationSnapshots).
+  const snaps = keepCurrentGenerationSnapshots(
+    await prisma.operatorSnapshot.findMany({
+      orderBy: [{ pmSlug: "asc" }, { snapshotDate: "desc" }],
+    })
+  );
   if (snaps.length === 0) return null;
 
   const currentBySlug = new Map<string, SnapshotRow>();
@@ -195,7 +202,7 @@ export async function runBriefDigest(opts: {
     (await prisma.briefDigestPreference.findMany()).map((p) => [p.userId, p]),
   );
   const orgs = await prisma.organization.findMany({
-    where: { personalForUserId: null, clerkOrgId: { not: "" } },
+    where: { personalForUserId: null, clerkOrgId: { not: "" }, excludeFromDigests: false },
     select: { id: true, clerkOrgId: true },
   });
 

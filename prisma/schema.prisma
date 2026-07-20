@@ -474,6 +474,12 @@ model Organization {
   // provisioned per deal from the admin panel. See
   // src/lib/auth/market-entitlements.ts for the resolver.
   allMarkets        Boolean  @default(false)
+  // When true, this org is excluded from ALL outbound digest emails (brief +
+  // watch-list). For internal / demo / comp accounts (e.g. the Dwellsy IQ org)
+  // that shouldn't receive client-facing digests. Default false; toggled from
+  // /admin/organizations. Separate from allMarkets, which national CLIENTS also
+  // carry, so it can't stand in for "internal".
+  excludeFromDigests Boolean @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

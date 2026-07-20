@@ -12,18 +12,26 @@ import { applyWatchList } from "@/lib/watch-list/apply";
 import { shouldSkipCriteriaMatch } from "@/lib/watch-list/kind";
 import { projectResultsForView } from "@/lib/watch-list/results-view";
 import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
+import { currentGenerationVersions } from "@/lib/operators/trajectory";
 import { signUnsubToken } from "./digest-unsubscribe";
 import { listAllForOrg, listMembers } from "./store";
 import { sendEmail } from "@/lib/email/send";
 
-/** Newest snapshot per slug AT a specific date (equality on snapshotDate). */
+/** Newest snapshot per slug AT a specific date (equality on snapshotDate).
+ *  `methodologyVersions` (when given) restricts to the current estimator
+ *  generation so a diff never mixes generations — see currentGenerationVersions. */
 export async function fetchSnapshotsAt(
   pmSlugs: string[],
   date: Date,
+  methodologyVersions?: string[],
 ): Promise<Map<string, SnapshotRow>> {
   if (pmSlugs.length === 0) return new Map();
   const rows = await prisma.operatorSnapshot.findMany({
-    where: { pmSlug: { in: pmSlugs }, snapshotDate: date },
+    where: {
+      pmSlug: { in: pmSlugs },
+      snapshotDate: date,
+      ...(methodologyVersions ? { methodologyVersion: { in: methodologyVersions } } : {}),
+    },
     orderBy: [{ pmSlug: "asc" }],
   });
   const bySlug = new Map<string, SnapshotRow>();
@@ -31,14 +39,26 @@ export async function fetchSnapshotsAt(
   return bySlug;
 }
 
-/** All distinct snapshot dates present, newest first. */
-export async function fetchSnapshotDates(): Promise<Date[]> {
+/** All distinct snapshot dates present, newest first. `methodologyVersions`
+ *  (when given) restricts to the current estimator generation's dates. */
+export async function fetchSnapshotDates(methodologyVersions?: string[]): Promise<Date[]> {
   const rows = await prisma.operatorSnapshot.findMany({
+    where: methodologyVersions ? { methodologyVersion: { in: methodologyVersions } } : undefined,
     distinct: ["snapshotDate"],
     orderBy: { snapshotDate: "desc" },
     select: { snapshotDate: true },
   });
   return rows.map((r) => r.snapshotDate);
+}
+
+/** The current estimator generation's methodologyVersion set, from the latest
+ *  snapshot; undefined when there are no snapshots (→ callers pass no filter). */
+export async function currentDigestGenerationVersions(): Promise<string[] | undefined> {
+  const latest = await prisma.operatorSnapshot.findFirst({
+    orderBy: { snapshotDate: "desc" },
+    select: { methodologyVersion: true },
+  });
+  return currentGenerationVersions(latest?.methodologyVersion) ?? undefined;
 }
 
 export interface DigestRunSummary {
@@ -166,7 +186,7 @@ async function buildOrgListContext(orgId: string, base: string): Promise<OrgList
  *  from the first org that has changes, and send only to `previewEmail`.
  *  Bypasses all gating + bookkeeping. */
 async function runPreview(
-  previewEmail: string, latest: Date, distinctDates: Date[],
+  previewEmail: string, latest: Date, distinctDates: Date[], genVersions?: string[],
 ): Promise<DigestRunSummary> {
   const base = appBase();
   const monthLabel = latest.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -184,8 +204,8 @@ async function runPreview(
     // sharedListsOnly (digest-gather.ts).
     const previewLists = sharedListsOnly(ctx.lists);
     if (previewLists.length === 0) continue;
-    const latestBySlug = await fetchSnapshotsAt(ctx.allSlugs, latest);
-    const priorBySlug = prior ? await fetchSnapshotsAt(ctx.allSlugs, prior) : new Map<string, SnapshotRow>();
+    const latestBySlug = await fetchSnapshotsAt(ctx.allSlugs, latest, genVersions);
+    const priorBySlug = prior ? await fetchSnapshotsAt(ctx.allSlugs, prior, genVersions) : new Map<string, SnapshotRow>();
     const lists = previewLists
       .map((c) => buildListChanges({ watchListName: c.name, matchedPmSlugs: c.matchedPmSlugs, latestBySlug, priorBySlug, metaBySlug: c.metaBySlug }))
       .filter((l) => l.operators.length > 0);
@@ -207,14 +227,18 @@ export async function runDigest(opts: {
 }): Promise<DigestRunSummary> {
   const dryRun = opts.mode === "dryRun";
   const now = new Date();
-  const distinctDates = await fetchSnapshotDates(); // newest-first
+  // Restrict every snapshot read to the current estimator generation so a diff
+  // never spans a methodology change (which would report recalibration as
+  // spurious rating/portfolio moves — same class of bug as the trajectory).
+  const genVersions = await currentDigestGenerationVersions();
+  const distinctDates = await fetchSnapshotDates(genVersions); // newest-first
   if (distinctDates.length === 0) {
     return { snapshotDate: null, skipped: "no snapshots", recipients: 0, sent: 0, failed: 0, dryRun };
   }
   const latest = distinctDates[0];
 
   if (opts.previewEmail) {
-    return runPreview(opts.previewEmail, latest, distinctDates);
+    return runPreview(opts.previewEmail, latest, distinctDates, genVersions);
   }
 
   // Reuse an existing non-completed run for `latest` rather than minting a new
@@ -246,9 +270,9 @@ export async function runDigest(opts: {
   for (const { organizationId } of orgRows) {
     if (!organizationId) continue;
     const org = await prisma.organization.findUnique({
-      where: { id: organizationId }, select: { id: true, clerkOrgId: true },
+      where: { id: organizationId }, select: { id: true, clerkOrgId: true, excludeFromDigests: true },
     });
-    if (!org?.clerkOrgId) continue;
+    if (!org?.clerkOrgId || org.excludeFromDigests) continue;
 
     const members = await listOrgMembers(org.clerkOrgId);
     // Per-recipient gate: subscribed + new data since last notified + throttle.
@@ -268,7 +292,7 @@ export async function runDigest(opts: {
     // Evaluate the org's watch lists once (prior-independent).
     const ctx = await buildOrgListContext(org.id, base);
     if (ctx.lists.length === 0) continue;
-    const latestBySlug = await fetchSnapshotsAt(ctx.allSlugs, latest);
+    const latestBySlug = await fetchSnapshotsAt(ctx.allSlugs, latest, genVersions);
 
     // Fetch prior snapshots grouped by the distinct prior dates among due
     // members (usually 1–2), not one fetch per recipient.
@@ -279,7 +303,7 @@ export async function runDigest(opts: {
       const prior = selectPriorForRecipient(latest, p?.lastNotifiedSnapshotDate ?? null, distinctDates);
       priorForUser.set(m.userId, prior);
       if (prior && !priorByDate.has(prior.getTime())) {
-        priorByDate.set(prior.getTime(), await fetchSnapshotsAt(ctx.allSlugs, prior));
+        priorByDate.set(prior.getTime(), await fetchSnapshotsAt(ctx.allSlugs, prior, genVersions));
       }
     }
 

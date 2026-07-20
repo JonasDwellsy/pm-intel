@@ -14,6 +14,7 @@ import {
   collapseMemberRowsToQuarterly,
   keepCurrentGenerationSnapshots,
   snapshotGeneration,
+  currentGenerationVersions,
   clampFutureTrajectoryDates,
   parseSubmarketCount,
   attachShareOfMarket,
@@ -325,6 +326,13 @@ test("snapshotGeneration strips the -recon backfill suffix", () => {
   assert.equal(snapshotGeneration("v0.7"), "v0.7");
   assert.equal(snapshotGeneration("v0.7-recon"), "v0.7");
   assert.equal(snapshotGeneration("v0.6.4-recon"), "v0.6.4");
+});
+
+test("currentGenerationVersions returns the live tag + its -recon sibling", () => {
+  assert.deepEqual(currentGenerationVersions("v0.7"), ["v0.7", "v0.7-recon"]);
+  assert.deepEqual(currentGenerationVersions("v0.7-recon"), ["v0.7", "v0.7-recon"]);
+  assert.equal(currentGenerationVersions(null), null);
+  assert.equal(currentGenerationVersions(undefined), null);
 });
 
 test("generation guard — single generation kept in full; empty → empty", () => {
