@@ -29,6 +29,8 @@ export interface BriefDigestInput {
   unsubscribeUrl: string;
 }
 
+import { wrapEmail, emailSectionLabel, emailButton, EMAIL } from "@/lib/email/layout";
+
 export interface BriefDigestEmail {
   subject: string;
   html: string;
@@ -87,24 +89,37 @@ export function buildBriefDigestEmail(input: BriefDigestInput): BriefDigestEmail
   // ---- html ----
   const marketRows = input.markets
     .map(
-      (m) =>
-        `<li style="margin:0 0 8px"><a href="${esc(m.briefUrl)}" style="color:#155772;font-weight:600;text-decoration:none">${esc(m.marketName)}</a> — <span style="color:#5b6577">${esc(countPhrase(m))}</span></li>`,
+      (m, i) =>
+        `<tr><td style="padding:10px 0;${i > 0 ? `border-top:1px solid ${EMAIL.hairline};` : ""}">
+          <a href="${esc(m.briefUrl)}" style="font-size:14px;font-weight:600;color:${EMAIL.teal};text-decoration:none">${esc(m.marketName)}</a>
+          <div style="font-size:12.5px;color:${EMAIL.slate};margin-top:2px">${esc(countPhrase(m))}</div>
+        </td></tr>`,
     )
     .join("");
-  const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#0f1f3f">
-  <p style="font-size:14px;color:#2a3547">${esc(greeting)}</p>
-  <p style="font-size:14px;color:#2a3547">Your <strong>${esc(input.monthLabel)}</strong> market briefs.</p>
-  <h2 style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8894ac;margin:20px 0 6px">National</h2>
-  ${input.nationalHeadline ? `<p style="font-size:15px;line-height:1.5;color:#0f1f3f;margin:0 0 6px">${esc(input.nationalHeadline)}</p>` : ""}
-  ${hasAny(input.national) ? `<p style="font-size:13px;color:#5b6577;margin:0 0 8px">This period: ${esc(countPhrase(input.national!))}.</p>` : ""}
-  <p style="margin:0 0 4px"><a href="${esc(input.nationalUrl)}" style="color:#155772;font-weight:600;text-decoration:none">Read the national brief →</a></p>
-  ${
-    input.markets.length
-      ? `<h2 style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8894ac;margin:22px 0 6px">Your markets</h2><ul style="list-style:none;padding:0;margin:0;font-size:14px">${marketRows}</ul>`
-      : ""
-  }
-  <p style="font-size:11px;color:#8894ac;margin:28px 0 0;border-top:1px solid #eef1f6;padding-top:12px">You're receiving this because your organization has Dwellsy IQ access. <a href="${esc(input.unsubscribeUrl)}" style="color:#8894ac">Unsubscribe from brief emails</a>.</p>
-</div>`;
+
+  const content = `
+    <p style="font-size:15px;color:${EMAIL.body};margin:0 0 2px">${esc(greeting)}</p>
+    <p style="font-size:15px;color:${EMAIL.body};margin:0 0 20px">Your <strong style="color:${EMAIL.ink}">${esc(input.monthLabel)}</strong> market briefs.</p>
+
+    ${emailSectionLabel("National")}
+    ${input.nationalHeadline ? `<p style="font-size:15px;line-height:1.55;color:${EMAIL.ink};margin:0 0 8px">${esc(input.nationalHeadline)}</p>` : ""}
+    ${hasAny(input.national) ? `<p style="font-size:13px;color:${EMAIL.slate};margin:0 0 12px">This period: ${esc(countPhrase(input.national!))}.</p>` : ""}
+    <p style="margin:0 0 4px">${emailButton("Read the national brief →", esc(input.nationalUrl))}</p>
+
+    ${
+      input.markets.length
+        ? `<div style="margin-top:26px">${emailSectionLabel("Your markets")}
+           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${marketRows}</table></div>`
+        : ""
+    }`;
+
+  const html = wrapEmail({
+    preheader: `Your ${input.monthLabel} Operator IQ market briefs`,
+    contentHtml: content,
+    footerNote: "You're receiving this because your organization has Operator IQ access.",
+    unsubscribeUrl: esc(input.unsubscribeUrl),
+    unsubscribeLabel: "Unsubscribe from brief emails",
+  });
 
   return { subject, html, text };
 }
