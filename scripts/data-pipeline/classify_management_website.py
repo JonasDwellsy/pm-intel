@@ -67,8 +67,12 @@ def classify_text(text):
         return ("third_party", "high", strong + weak)
     if len(weak) >= 2:
         return ("third_party", "high", weak)
-    if len(weak) == 1:
-        return ("third_party", "medium", weak)
+    # A SINGLE weak tell is not enough to assert third-party: the weak list
+    # includes generic phrases ("our services", "landlord") that appear on
+    # owner-operator sites too, so a lone match would flip institutional
+    # owner-operators (e.g. Tricon Residential on "our services" alone). Require
+    # a strong tell or >=2 weak tells; otherwise fall through — owner framing if
+    # present, else inconclusive (→ resolver uses the listing verdict).
     if oo:
         return ("owner_operator", "medium", oo)
     return ("inconclusive", None, [])
