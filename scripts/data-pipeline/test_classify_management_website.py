@@ -13,9 +13,17 @@ class ClassifyText(unittest.TestCase):
         v, c, _ = classify_text("Our services include tenant placement for every landlord.")
         self.assertEqual((v, c), ("third_party", "high"))
 
-    def test_one_weak_tell_medium(self):
+    def test_one_weak_tell_is_inconclusive(self):
+        # A single weak tell is not enough to assert third-party (the weak list
+        # has generic phrases that also appear on owner-operator sites). Requires
+        # >=2 weak or a strong tell. Guards against flipping institutional
+        # owner-operators (e.g. Tricon Residential on a lone "our services").
         v, c, _ = classify_text("We manage buildings across the city.")  # only "we manage"
-        self.assertEqual((v, c), ("third_party", "medium"))
+        self.assertEqual((v, c), ("inconclusive", None))
+
+    def test_lone_generic_our_services_is_inconclusive(self):
+        v, c, _ = classify_text("Learn more about our services and our team.")
+        self.assertEqual((v, c), ("inconclusive", None))
 
     def test_owner_framing_only_is_owner_operator_medium(self):
         v, c, _ = classify_text("Explore our communities and our portfolio of living.")
