@@ -123,6 +123,12 @@ const GLOSSARY: GlossaryRow[] = [
     ref: "§03",
   },
   {
+    term: "Management model (inferred)",
+    definition:
+      "A hire-framed signal for whether an operator likely manages third-party properties (a PM you can hire), only owns/operates its own, or is undetermined — with a confidence level. Inferred from two layers: listing structure (independent scattered single-family operators are third-party managers by nature; an operator running both apartment communities and scattered homes is a management book) and, where a website is available, a keyword read of whether the site markets property-management services to owners. The apartment middle is often Unknown because listings can't separate a large third-party manager from an owning REIT — Unknown means verify directly, not \"no.\" Owner-operator is always shown as \"(likely).\"",
+    ref: "§03",
+  },
+  {
     term: "Concentrated share",
     definition:
       "Fraction of an operator's observed urus that sit in communities where they manage 10 or more units. Drives the SFR / MF/BTR / Hybrid split (< 30% / ≥ 70% / in between) — but only for operators that are not apartment-dominant; the apartment-dominant override (house share ≤ 10%) is applied first.",
