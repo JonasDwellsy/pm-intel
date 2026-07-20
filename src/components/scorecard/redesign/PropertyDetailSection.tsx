@@ -17,6 +17,7 @@ import {
 } from "@/lib/scorecard/property-detail-view";
 import { fmtInt, fmtPct } from "@/lib/format";
 import { PropertyExportButton } from "@/components/scorecard/PropertyExportButton";
+import { ColumnInfoTip } from "@/components/scorecard/redesign/ColumnInfoTip";
 
 type SortKey =
   | "label"
@@ -132,16 +133,59 @@ interface ColDef {
   label: string;
   sortKey: SortKey | null;
   alignRight?: boolean;
+  /** Plain-English "what this column shows", surfaced via a header "i" tip. */
+  info?: string;
 }
 
 const COLUMNS: ColDef[] = [
-  { id: "label", label: "Property / Community", sortKey: "label" },
-  { id: "size", label: "Units / Homes", sortKey: "size", alignRight: true },
-  { id: "nListings", label: "N Listings", sortKey: "nListings", alignRight: true },
-  { id: "dom", label: "Median DOM", sortKey: "dom", alignRight: true },
-  { id: "rent", label: "Rent + YoY", sortKey: "rent", alignRight: true },
-  { id: "concession", label: "Concession %", sortKey: "concession", alignRight: true },
-  { id: "quality", label: "Listing Quality", sortKey: "quality", alignRight: true },
+  {
+    id: "label",
+    label: "Property / Community",
+    sortKey: "label",
+    info: "The property. Apartment communities with 10+ listings in the trailing 12 months appear individually; scattered single-family homes are grouped into a submarket rollup shown as “SFR · area”.",
+  },
+  {
+    id: "size",
+    label: "Units / Homes",
+    sortKey: "size",
+    alignRight: true,
+    info: "For a community, its declared managed unit count. For an SFR submarket, the number of distinct homes this operator listed there in the trailing 12 months.",
+  },
+  {
+    id: "nListings",
+    label: "N Listings",
+    sortKey: "nListings",
+    alignRight: true,
+    info: "How many listings the operator posted for this property or submarket over the trailing 12 months — a count of listings, not units.",
+  },
+  {
+    id: "dom",
+    label: "Median DOM",
+    sortKey: "dom",
+    alignRight: true,
+    info: "Median days a listing stayed on the market before leasing (trailing 12 months); lower is faster. “mkt” is the MSA-wide median for comparison.",
+  },
+  {
+    id: "rent",
+    label: "Rent + YoY",
+    sortKey: "rent",
+    alignRight: true,
+    info: "Median asking rent (trailing 12 months) and its year-over-year change. The YoY here is a raw median-rent delta for this property — an observation, not the operator’s mix-adjusted Rent Performance metric. “mkt” shows the MSA medians.",
+  },
+  {
+    id: "concession",
+    label: "Concession %",
+    sortKey: "concession",
+    alignRight: true,
+    info: "Share of this property’s listings advertising a concession, such as free weeks (trailing 12 months); lower means less discounting. “mkt” is the MSA rate.",
+  },
+  {
+    id: "quality",
+    label: "Listing Quality",
+    sortKey: "quality",
+    alignRight: true,
+    info: "Composite listing-quality score from 0–100 — photo coverage, description depth, and completeness — averaged across this property’s listings. Higher is better.",
+  },
 ];
 
 function SortableHeaderCell({
@@ -161,20 +205,23 @@ function SortableHeaderCell({
       className={col.alignRight ? "num" : undefined}
       aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
     >
-      {col.sortKey ? (
-        <button
-          type="button"
-          onClick={() => onSort(col.sortKey!)}
-          className="inline-flex items-center gap-1 text-inherit hover:opacity-90"
-        >
+      <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+        {col.sortKey ? (
+          <button
+            type="button"
+            onClick={() => onSort(col.sortKey!)}
+            className="inline-flex items-center gap-1 text-inherit hover:opacity-90"
+          >
+            <span>{col.label}</span>
+            <span aria-hidden className={"text-[9px] " + (active ? "opacity-90" : "opacity-40")}>
+              {active ? (sortDir === "asc" ? "▲" : "▼") : "▼"}
+            </span>
+          </button>
+        ) : (
           <span>{col.label}</span>
-          <span aria-hidden className={"text-[9px] " + (active ? "opacity-90" : "opacity-40")}>
-            {active ? (sortDir === "asc" ? "▲" : "▼") : "▼"}
-          </span>
-        </button>
-      ) : (
-        col.label
-      )}
+        )}
+        {col.info && <ColumnInfoTip label={col.label} description={col.info} />}
+      </span>
     </th>
   );
 }
