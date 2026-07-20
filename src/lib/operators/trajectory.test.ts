@@ -13,6 +13,7 @@ import {
   quarterEndDate,
   collapseMemberRowsToQuarterly,
   keepCurrentGenerationSnapshots,
+  snapshotGeneration,
   clampFutureTrajectoryDates,
   parseSubmarketCount,
   attachShareOfMarket,
@@ -304,6 +305,26 @@ test("generation guard — order-independent; current = version of the latest DA
   ]);
   assert.equal(out.length, 1);
   assert.equal(out[0].methodologyVersion, "v0.7");
+});
+
+test("generation guard — live + matching -recon are ONE generation, kept together", () => {
+  // The re-backfill tags recon "<methodology>-recon"; it must ride with the
+  // live captures of the same generation, while an OLDER-generation recon drops.
+  const out = keepCurrentGenerationSnapshots([
+    snap("2021-12-31", "v0.6.4-recon"), // old generation → dropped
+    snap("2026-06-30", "v0.7-recon"), // current-gen backfill → kept
+    snap("2026-07-15", "v0.7"), // current-gen live (latest) → kept
+  ]);
+  assert.deepEqual(
+    out.map((r) => r.methodologyVersion).sort(),
+    ["v0.7", "v0.7-recon"]
+  );
+});
+
+test("snapshotGeneration strips the -recon backfill suffix", () => {
+  assert.equal(snapshotGeneration("v0.7"), "v0.7");
+  assert.equal(snapshotGeneration("v0.7-recon"), "v0.7");
+  assert.equal(snapshotGeneration("v0.6.4-recon"), "v0.6.4");
 });
 
 test("generation guard — single generation kept in full; empty → empty", () => {
