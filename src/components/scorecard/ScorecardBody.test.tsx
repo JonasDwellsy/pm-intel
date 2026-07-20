@@ -133,7 +133,7 @@ describe("ScorecardBody nav section gating (Fix 2)", () => {
     expect(methodologyLink.textContent).toMatch(/06/);
   });
 
-  it("omits the Properties nav entry and numbers Methodology 05 on the public sample even when propertyDetail has properties", () => {
+  it("includes the Properties nav entry (05) on the public sample too when propertyDetail has properties", () => {
     const propertyDetail = {
       properties: [
         {
@@ -163,10 +163,10 @@ describe("ScorecardBody nav section gating (Fix 2)", () => {
       />
     );
 
-    // Property-level detail is gated + premium → suppressed on /sample, so the
-    // nav entry drops and Methodology falls back to 05 (no dangling link / no
-    // number skip), exactly as when propertyDetail is absent.
-    expect(screen.queryByRole("link", { name: /Properties/ })).toBeNull();
-    expect(getNavLink("Methodology").textContent).toMatch(/05/);
+    // Properties shows on /sample (part of the marketing showcase), so the nav
+    // is identical to the authenticated case: Properties 05, Methodology 06 —
+    // matching MethodologyFooter's own propertyDetail-based numbering.
+    expect(getNavLink("Properties").textContent).toMatch(/05/);
+    expect(getNavLink("Methodology").textContent).toMatch(/06/);
   });
 });
