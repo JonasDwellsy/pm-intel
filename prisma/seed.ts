@@ -26,6 +26,12 @@ import seedData from "../src/data/scorecard_data.json";
 // Keyed by the same companyId the scorecard blob carries; missing/empty websites
 // leave scorecard.pm.website undefined so the header link stays hidden.
 import companyEnrichment from "../src/data/company_enrichment.json";
+// v0.26 — cached website-content verdicts (companyId → WebsiteVerdict) for the
+// management-model resolver. Produced by
+// scripts/data-pipeline/classify_management_website.py; empty ({}) until that
+// scrape has run, in which case resolveManagementModel falls back to the
+// listing-only signal for every operator.
+import managementModelWebsite from "../src/data/management_model_website.json";
 import type {
   CohortLevel,
   CommunityVisibilityBlock,
@@ -41,6 +47,10 @@ import {
   type PortfolioMultipliers,
 } from "../src/lib/operator-size";
 import { applyCorrectionsToSeedData } from "../src/lib/operators/name-correction";
+import {
+  resolveManagementModel,
+  type WebsiteVerdict,
+} from "@/lib/management-model/resolve";
 
 const prisma = new PrismaClient();
 
@@ -183,6 +193,14 @@ function websiteForCompany(companyId: string | undefined): string | undefined {
   const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
   return /^https?:\/\/[^\s.]+\.[^\s]+$/i.test(url) ? url : undefined;
 }
+
+// companyId → website-content verdict for the management-model resolver.
+// Empty ({}) until scripts/data-pipeline/classify_management_website.py has
+// run; every lookup below then safely falls through to null (listing-only).
+const websiteVerdictByCompanyId = managementModelWebsite as Record<
+  string,
+  WebsiteVerdict
+>;
 
 // Per-market data-cutoff lookup. The scorecard footer shows each operator's
 // OWN market cutoff (markets refresh on different dates), not the global max
@@ -785,13 +803,16 @@ const SEED_CONTENT_VERSION_KEY = "seed_content_version";
 // one-time re-seed on the next deploy even though scorecard_data.json is byte-
 // identical, so the new column shape actually lands. (v1 = propertyDetail
 // passthrough — the JSON already carried it from the #260 reseed, but
-// buildScorecard was dropping it, so the fingerprint alone wouldn't re-trigger.)
-const SEED_SHAPE_VERSION = "v1-propertyDetail";
+// buildScorecard was dropping it, so the fingerprint alone wouldn't re-trigger.
+// v2 = managementModel, computed+baked at seed time from the listing shape +
+// management_model_website.json — no pipeline re-run needed to pick it up.)
+const SEED_SHAPE_VERSION = "v2-managementModel";
 const SEED_CONTENT_VERSION = crypto
   .createHash("sha256")
   .update(SEED_SHAPE_VERSION)
   .update(JSON.stringify(data))
   .update(JSON.stringify(companyEnrichment))
+  .update(JSON.stringify(managementModelWebsite))
   .digest("hex")
   .slice(0, 16);
 
@@ -914,6 +935,26 @@ export function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardDat
   const rentPerformance = normalizeRentPerformance(pm);
   const lendingSignals = normalizeLendingSignals(pm);
   const generatedText = normalizeGeneratedText(pm);
+
+  // v0.26 — management-model resolution. quadrant7Cell and companyId are
+  // top-level on the raw pm record (same accessors used for pm.quadrant7Cell
+  // / pm.companyId below); propertyDetail comes via the existing getObj
+  // helper, matching the passthrough already used for the field itself.
+  // Computed here (once, ahead of the returned object) so both the
+  // propertyDetail passthrough and managementModel reuse the same value
+  // instead of reading pm.propertyDetail twice.
+  const propertyDetailValue =
+    (getObj(pm, "propertyDetail") as unknown as
+      | ScorecardData["propertyDetail"]
+      | null) ?? undefined;
+  const companyIdValue = asString(pm.companyId) || undefined;
+  const managementModel = resolveManagementModel(
+    {
+      quadrant7Cell: asString(pm.quadrant7Cell) || null,
+      properties: propertyDetailValue?.properties ?? null,
+    },
+    companyIdValue ? (websiteVerdictByCompanyId[companyIdValue] ?? null) : null
+  );
 
   return {
     methodologyVersion: data.methodologyVersion,
@@ -1163,10 +1204,12 @@ export function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardDat
     // (the same trap that blanked the tenancy fields; see
     // seed-build-scorecard.test.ts). Without this the Properties section never
     // renders even after the pipeline populates the data.
-    propertyDetail:
-      (getObj(pm, "propertyDetail") as unknown as
-        | ScorecardData["propertyDetail"]
-        | null) ?? undefined,
+    propertyDetail: propertyDetailValue,
+    // v0.26 — inferred management model, baked in at seed time (see the
+    // computation above buildScorecard's `return`). Same field-pick trap as
+    // propertyDetail: an un-listed field here is silently dropped from the
+    // stored blob even though managementModel itself is fully computed.
+    managementModel,
   };
 }
 
