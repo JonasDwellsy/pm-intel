@@ -392,6 +392,128 @@ test("Operators sheet aggregates rows — Ark appears once with markets joined",
   assert.equal(ark["Fit Score"], 87);
 });
 
+// ─── Management model columns (Task 6) ───────────────────────────
+// managementModel is baked onto the scorecard blob by the seed-time
+// resolver (Tasks 1-5) and exposed here as two explicit columns
+// ("Management model" + "Management model confidence") positioned
+// right after "7-Cell" on BOTH data sheets. These tests pin the
+// header position (a misinsertion would shift every column after it)
+// and the values (default "Unknown"/null vs a resolved model), while
+// the pre-existing "Est. Portfolio" / "Fit Score" assertions above and
+// below double as a column-shift tripwire — if the two new columns
+// were spliced in at the wrong position, those existing value
+// assertions would fail too.
+
+test("Operators sheet header places Management model columns directly after 7-Cell", () => {
+  const { workbook } = buildSampleWorkbook();
+  const header = XLSX.utils.sheet_to_json<Array<string>>(
+    workbook.Sheets["Operators"],
+    { header: 1 }
+  )[0];
+  const q7Index = header.indexOf("7-Cell");
+  assert.equal(header[q7Index + 1], "Management model");
+  assert.equal(header[q7Index + 2], "Management model confidence");
+});
+
+test("Markets sheet header places Management model columns directly after 7-Cell", () => {
+  const { workbook } = buildSampleWorkbook();
+  const header = XLSX.utils.sheet_to_json<Array<string>>(
+    workbook.Sheets["Markets"],
+    { header: 1 }
+  )[0];
+  const q7Index = header.indexOf("7-Cell");
+  assert.equal(header[q7Index + 1], "Management model");
+  assert.equal(header[q7Index + 2], "Management model confidence");
+});
+
+test("Operators + Markets sheets default to 'Unknown' with a null confidence when the scorecard carries no managementModel block", () => {
+  // SAMPLE_BUYBOX's fixtures never set managementModel — mirrors a
+  // seed predating v0.26.
+  const { workbook } = buildSampleWorkbook();
+  const opRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+    workbook.Sheets["Operators"]
+  );
+  const ark = opRows.find((r) => r["Operator"] === "Ark Homes For Rent");
+  assert.equal(ark?.["Management model"], "Unknown");
+  assert.equal(ark?.["Management model confidence"], undefined); // null cells are omitted by sheet_to_json
+
+  const marketRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+    workbook.Sheets["Markets"]
+  );
+  const arkMarket = marketRows.find((r) => r["Operator"] === "Ark Homes For Rent");
+  assert.equal(arkMarket?.["Management model"], "Unknown");
+  assert.equal(arkMarket?.["Management model confidence"], undefined);
+});
+
+test("Operators + Markets sheets resolve a set managementModel to its display label + confidence, and columns after it stay aligned", () => {
+  const wb = buildWorkbook({
+    watchList: SAMPLE_BUYBOX,
+    operatorRows: [
+      (() => {
+        const row = makeRow({
+          rank: 1,
+          name: "Third Party Co",
+          marketLabel: "X",
+          fitScore: 77,
+          urusT12: 150,
+          portfolioPoint: 400,
+          portfolioLow: 300,
+          portfolioHigh: 500,
+        });
+        row.pm.scorecard.managementModel = {
+          model: "third_party",
+          confidence: "high",
+          basis: "Independent scattered single-family operator — management-for-owners by nature.",
+          source: "listing",
+        };
+        return row;
+      })(),
+    ],
+    marketRows: [
+      (() => {
+        const row = makeRow({
+          rank: 1,
+          name: "Third Party Co",
+          marketLabel: "X",
+          fitScore: 77,
+          urusT12: 150,
+        });
+        row.pm.scorecard.managementModel = {
+          model: "owner_operator",
+          confidence: "low",
+          basis: "Small, concentrated apartment footprint; may be an owner. Listings can't confirm.",
+          source: "listing",
+        };
+        return row;
+      })(),
+    ],
+    totalCandidates: 100,
+    methodologyVersion: "v0.8",
+    liveUrl: "https://example.test/watch-lists/x/results",
+    generatedAt: new Date("2026-05-21T00:00:00Z"),
+  });
+
+  const opRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+    wb.workbook.Sheets["Operators"]
+  );
+  assert.equal(opRows[0]["Management model"], "Third-party manager");
+  assert.equal(opRows[0]["Management model confidence"], "high");
+  // Columns after the insertion point must still carry their own
+  // (not shifted) values.
+  assert.equal(opRows[0]["Est. Portfolio"], 400);
+  assert.equal(opRows[0]["Est. Portfolio Low"], 300);
+  assert.equal(opRows[0]["Est. Portfolio High"], 500);
+  assert.equal(opRows[0]["Fit Score"], 77);
+
+  const marketRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+    wb.workbook.Sheets["Markets"]
+  );
+  assert.equal(marketRows[0]["Management model"], "Owner-operator (likely)");
+  assert.equal(marketRows[0]["Management model confidence"], "low");
+  assert.equal(marketRows[0]["Est. Portfolio"], 250); // makeRow's default portfolioPoint
+  assert.equal(marketRows[0]["Fit Score"], 77);
+});
+
 test("Operators sheet appends 7-Cell (Mixed) suffix when member markets disagree", () => {
   const wb = buildWorkbook({
     watchList: SAMPLE_BUYBOX,

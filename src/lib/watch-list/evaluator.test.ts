@@ -139,6 +139,54 @@ test("listingTrajectoryYoY null when prior window is 0", () => {
   assert.equal(evaluateCriterion(pm, { field: "listingTrajectoryYoY", operator: "gte", value: 0 }), false);
 });
 
+test("managementModel resolves to 'Unknown' when the scorecard carries no managementModel block", () => {
+  // makePm()'s base fixture doesn't set managementModel — mirrors a
+  // seed predating v0.26 / an operator the resolver couldn't classify.
+  const pm = makePm();
+  assert.equal(evaluateCriterion(pm, { field: "managementModel", operator: "eq", value: "Unknown" }), true);
+  assert.equal(evaluateCriterion(pm, { field: "managementModel", operator: "eq", value: "Third-party manager" }), false);
+});
+
+test("managementModel resolves the third_party model to its display label", () => {
+  const pm = makePm({
+    managementModel: {
+      model: "third_party",
+      confidence: "high",
+      basis: "Independent scattered single-family operator — management-for-owners by nature.",
+      source: "listing",
+    },
+  });
+  assert.equal(evaluateCriterion(pm, { field: "managementModel", operator: "eq", value: "Third-party manager" }), true);
+  assert.equal(evaluateCriterion(pm, { field: "managementModel", operator: "ne", value: "Owner-operator (likely)" }), true);
+});
+
+test("managementModel resolves the owner_operator model to its display label, and supports in/notIn", () => {
+  const pm = makePm({
+    managementModel: {
+      model: "owner_operator",
+      confidence: "medium",
+      basis: "Institutional single-family operator; typically owns its homes (may also manage third-party).",
+      source: "listing",
+    },
+  });
+  assert.equal(
+    evaluateCriterion(pm, {
+      field: "managementModel",
+      operator: "in",
+      value: ["Owner-operator (likely)", "Unknown"],
+    }),
+    true
+  );
+  assert.equal(
+    evaluateCriterion(pm, {
+      field: "managementModel",
+      operator: "notIn",
+      value: ["Third-party manager"],
+    }),
+    true
+  );
+});
+
 test("boolean fields — claimed / hybrid / institutional", () => {
   const pm = makePm({}, { claimed: true });
   assert.equal(evaluateCriterion(pm, { field: "claimed", operator: "eq", value: true }), true);

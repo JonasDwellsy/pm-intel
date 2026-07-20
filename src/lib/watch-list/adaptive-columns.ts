@@ -2,9 +2,9 @@
 // the in-app results table AND the v0.12 Excel export. Both
 // surfaces walk the watch list's required/preferred/excluded
 // criteria, drop any field already covered by an always-on
-// column (Operator / Market / 7-Cell / Est. Portfolio / URUs T12 /
-// Fit Score), and surface the remainder in the order they appear
-// in the watch list.
+// column (Operator / Market / 7-Cell / Management model /
+// Est. Portfolio / URUs T12 / Fit Score), and surface the remainder
+// in the order they appear in the watch list.
 
 import {
   FIELD_REGISTRY,
@@ -19,6 +19,7 @@ import {
  *  for the same field. */
 export const ALWAYS_ON_FIELD_IDS: ReadonlySet<string> = new Set([
   "quadrant7Cell",
+  "managementModel",
   "estimatedPortfolioPoint",
   "estimatedPortfolioLow",
   "estimatedPortfolioHigh",
