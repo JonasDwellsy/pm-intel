@@ -118,22 +118,21 @@ describe("PropertyDetailSection", () => {
     expect(screen.queryByText(/percentile/i)).toBeNull();
   });
 
-  it("renders the section with its export control when publicSample is false", () => {
-    render(
+  it("hides only the export control on the public sample — the table still renders", () => {
+    const { rerender } = render(
       <PropertyDetailSection scorecard={makeScorecard(PROPERTY_DETAIL)} publicSample={false} />
     );
     expect(screen.getByText("Properties")).toBeTruthy();
     // Authenticated scorecard → the PropertyExportButton link is present.
     expect(screen.queryByRole("link", { name: /export/i })).toBeTruthy();
-  });
 
-  it("renders nothing when publicSample is true — property detail is gated + premium, not for the public sample", () => {
-    const { container } = render(
+    rerender(
       <PropertyDetailSection scorecard={makeScorecard(PROPERTY_DETAIL)} publicSample />
     );
-    // The whole section is omitted on /sample — no table, no header, no export.
-    expect(container.firstChild).toBeNull();
-    expect(screen.queryByText("The Oaks")).toBeNull();
-    expect(screen.queryByText("Properties")).toBeNull();
+    // On /sample the section + its rows still render (part of the showcase);
+    // only the export control is withheld (no auth to gate a download).
+    expect(screen.getByText("Properties")).toBeTruthy();
+    expect(screen.getByText("The Oaks")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /export/i })).toBeNull();
   });
 });
