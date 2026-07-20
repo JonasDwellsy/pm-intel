@@ -102,7 +102,9 @@ describe("PropertyDetailSection", () => {
     const rowsBefore = screen.getAllByRole("row").slice(1); // drop header row
     expect(rowsBefore[0].textContent).toMatch(/North Suburbs/);
 
-    await user.click(screen.getByRole("button", { name: /Median DOM/ }));
+    // Anchored to start so it matches the sort button ("Median DOM") and not
+    // the column's info tip ("About Median DOM").
+    await user.click(screen.getByRole("button", { name: /^Median DOM/ }));
 
     const rowsAfter = screen.getAllByRole("row").slice(1);
     // Ascending DOM: The Oaks (22) before North Suburbs (35).
