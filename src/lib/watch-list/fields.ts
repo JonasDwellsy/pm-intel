@@ -24,6 +24,7 @@
 // low/high turnover band is seeded as of v0.8.1).
 
 import type { ScorecardData } from "@/lib/types";
+import { managementModelLabel } from "@/lib/management-model/resolve";
 
 // ─── operator types ────────────────────────────────────────────────
 
@@ -225,6 +226,18 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
       "Large MF/BTR Institutional",
       "Hybrid",
     ],
+  },
+  managementModel: {
+    id: "managementModel",
+    label: "Management model",
+    description:
+      "Whether the operator likely manages third-party properties (hireable), owns its own, or is undetermined. Inferred — see methodology.",
+    category: "asset",
+    type: "enum",
+    validOperators: ["eq", "ne", "in", "notIn"],
+    getValueFromPM: (pm) =>
+      managementModelLabel(pm.scorecard.managementModel?.model ?? "unknown"),
+    enumOptions: ["Third-party manager", "Owner-operator (likely)", "Unknown"],
   },
   institutional: {
     id: "institutional",

@@ -11,8 +11,8 @@
 //
 // Columns are adaptive:
 //   Always-on (in this order):
-//     #, Operator, Market, 7-cell, Est. Portfolio, URUs T12,
-//     Fit Score, View →
+//     #, Operator, Market, 7-cell, Management model, Est. Portfolio,
+//     URUs T12, Fit Score, View →
 //   Adaptive (appended in watch-list criterion order, deduped against
 //   the always-on set):
 //     1 column per criterion in required / preferred / excluded.
@@ -38,6 +38,7 @@ import {
 } from "@/lib/watch-list/fields";
 import type { ResultRowVM, DrillTarget } from "@/lib/watch-list/results-view";
 import { ALWAYS_ON_FIELD_IDS } from "@/lib/watch-list/adaptive-columns";
+import { managementModelLabel } from "@/lib/management-model/resolve";
 import { FitScoreBadge } from "./FitScoreBadge";
 
 interface Props {
@@ -169,7 +170,10 @@ export function ResultsTable({
       setSortKey(key);
       // Bigger-is-better defaults descend; string-y columns ascend.
       setSortDir(
-        key === "name" || key === "market" || key === "quadrant7Cell"
+        key === "name" ||
+          key === "market" ||
+          key === "quadrant7Cell" ||
+          key === "managementModel"
           ? "asc"
           : "desc"
       );
@@ -463,6 +467,19 @@ function buildColumns({
             >
               mixed
             </span>
+          )}
+        </span>
+      ),
+    },
+    {
+      id: "managementModel",
+      label: "Management model",
+      fieldId: "managementModel",
+      sortKey: "managementModel",
+      render: (row) => (
+        <span className="text-[12.5px] text-foreground/80">
+          {managementModelLabel(row.pm.scorecard.managementModel?.model ?? "unknown") ?? (
+            <span className="text-muted-2">—</span>
           )}
         </span>
       ),
@@ -947,6 +964,12 @@ function compareForKey(a: ResultRowVM, b: ResultRowVM, key: string): number {
       return a.marketLabel.localeCompare(b.marketLabel);
     case "quadrant7Cell":
       return (a.quadrant7Cell ?? "").localeCompare(b.quadrant7Cell ?? "");
+    case "managementModel":
+      return (
+        managementModelLabel(a.pm.scorecard.managementModel?.model ?? "unknown") ?? ""
+      ).localeCompare(
+        managementModelLabel(b.pm.scorecard.managementModel?.model ?? "unknown") ?? ""
+      );
     case "estimatedPortfolio":
       return numCmp(a.estimatedPortfolioPoint, b.estimatedPortfolioPoint);
     case "urusT12":

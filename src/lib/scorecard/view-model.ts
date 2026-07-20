@@ -4,6 +4,7 @@
 // rank/composite — only labels, values-vs-benchmark, stars, positions.
 
 import type { ScorecardData } from "@/lib/types";
+import type { ManagementModel } from "@/lib/management-model/resolve";
 import { countOperatorStars } from "@/lib/operators/stars";
 import { operatingPerformanceLabel, type ScoreLabel, metricLabels, metricCohortPercentile, strongestAndWatch, type MetricKey } from "./labels";
 import { momentumDirection, momentumProfile, aggregateSectionDirection, type MomentumDirection } from "./momentum";
@@ -40,6 +41,12 @@ export interface HeaderView {
    *  (`header.canonicalOperatorId ?? slug`) so a multi-market operator
    *  is pinned once as the company, not once per market instance. */
   canonicalOperatorId: string | null;
+  /** v0.28 (Task 4) — hire-framed management-model flag (third-party /
+   *  owner-operator / unknown), baked onto the ScorecardData blob at seed
+   *  time by the Task 1-3 resolver. null only for ad hoc/partial fixtures
+   *  that omit it; real seeded scorecards always carry a value (worst case
+   *  {model:"unknown", confidence:null, ...}). */
+  managementModel: ManagementModel | null;
 }
 
 export interface ReadoutRow {
@@ -258,6 +265,7 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     dwellsyCompanyUrl: companyId ? `https://dwellsy.com/company/${companyId}` : null,
     website: scorecard.pm.website ?? null,
     canonicalOperatorId: scorecard.canonicalOperatorId ?? null,
+    managementModel: scorecard.managementModel ?? null,
   };
 
   const opLabel = operatingPerformanceLabel(scorecard);

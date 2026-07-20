@@ -25,6 +25,7 @@ import { formatCriterion } from "./criterion-format";
 import { FIELD_REGISTRY, type FilterCriterion, type WeightedCriterion } from "./fields";
 import { hasCriteria } from "./kind";
 import type { ResultRowVM } from "./results-view";
+import { managementModelLabel } from "@/lib/management-model/resolve";
 
 /** A subset of the WatchListRecord shape the export needs. The page
  *  passes through the full record but the export only reads what's
@@ -228,6 +229,8 @@ function buildOperatorsSheet(
     "Inclusion",
     "Markets",
     "7-Cell",
+    "Management model",
+    "Management model confidence",
     "Est. Portfolio",
     "Est. Portfolio Low",
     "Est. Portfolio High",
@@ -250,6 +253,8 @@ function buildOperatorsSheet(
       inclusionLabel(r),
       r.marketLabel,
       q7,
+      managementModelLabel(r.pm.scorecard.managementModel?.model ?? "unknown"),
+      r.pm.scorecard.managementModel?.confidence ?? null,
       r.estimatedPortfolioPoint,
       r.estimatedPortfolioLow,
       r.estimatedPortfolioHigh,
@@ -291,6 +296,8 @@ function buildMarketsSheet(
     "Inclusion",
     "Market",
     "7-Cell",
+    "Management model",
+    "Management model confidence",
     "Est. Portfolio",
     "URUs T12",
     "Listing YoY %",
@@ -305,6 +312,8 @@ function buildMarketsSheet(
       inclusionLabel(r),
       r.marketLabel,
       r.quadrant7Cell,
+      managementModelLabel(r.pm.scorecard.managementModel?.model ?? "unknown"),
+      r.pm.scorecard.managementModel?.confidence ?? null,
       r.estimatedPortfolioPoint,
       r.urusT12,
       r.listingTrajectoryYoY === null
@@ -360,6 +369,8 @@ function colWidthsForOperatorsSheet(adaptiveCount: number) {
     { wch: 16 }, // Inclusion (matches / pinned / pinned + matches)
     { wch: 28 }, // Markets
     { wch: 26 }, // 7-Cell (with possible " (Mixed)" suffix)
+    { wch: 22 }, // Management model
+    { wch: 24 }, // Management model confidence
     { wch: 13 }, // Est. Portfolio
     { wch: 16 }, // Est. Portfolio Low
     { wch: 16 }, // Est. Portfolio High
@@ -377,6 +388,8 @@ function colWidthsForMarketsSheet(adaptiveCount: number) {
     { wch: 16 }, // Inclusion (matches / pinned / pinned + matches)
     { wch: 28 }, // Market
     { wch: 22 }, // 7-Cell
+    { wch: 22 }, // Management model
+    { wch: 24 }, // Management model confidence
     { wch: 13 }, // Est. Portfolio
     { wch: 10 }, // URUs T12
     { wch: 14 }, // Listing YoY %

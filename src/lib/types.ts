@@ -8,6 +8,8 @@
 // The seed normalizes heterogeneous per-market input schemas down to this
 // canonical shape; downstream components read only from this shape.
 
+import type { ManagementModel } from "@/lib/management-model/resolve";
+
 // 5-cell legacy taxonomy (v0.6.1 form). Kept for route segment back-compat.
 export type QuadrantKey =
   | "MF/BTR / Institutional"
@@ -274,6 +276,9 @@ export interface ScorecardData {
   // the Properties section/export render nothing when absent. Populated by
   // the pipeline's property_detail pass; rides the scorecardData blob.
   propertyDetail?: PropertyDetailBlock;
+  /** v0.26 — inferred management model (third-party vs owner-operator).
+   *  Baked at seed time by resolveManagementModel(); see src/lib/management-model. */
+  managementModel?: ManagementModel;
   classificationRationale: string;
   // v0.6.3 Patch 6 — share-trajectory listing counts. t12ListingsCount is
   // listings observed in the trailing 12 months anchored to Patch 6's

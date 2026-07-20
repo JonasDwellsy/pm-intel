@@ -710,6 +710,20 @@ test("'Also operates in' excludes the home market from the member list", () => {
   assert.equal(v.header.singleMarket, false);
 });
 
+// --- Task 4: managementModel passthrough ---
+
+test("view-model surfaces managementModel on the header", () => {
+  const v = buildScorecardView({
+    scorecard: scFixture({
+      managementModel: { model: "third_party", confidence: "high", basis: "x", source: "listing" },
+    }),
+    pool: [],
+    trajectory: { points: [] },
+    marketConcessionMedian: null,
+  });
+  assert.equal(v.header.managementModel?.model, "third_party");
+});
+
 test("single-member canonical whose only market is the home market → single-market, no crossMarket (the Crye Leike case)", () => {
   const v = buildScorecardView({
     scorecard: scFixture({

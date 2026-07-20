@@ -6,6 +6,7 @@ import type { HeaderView } from "@/lib/scorecard/view-model";
 import { CopyLinkButton } from "@/components/scorecard/CopyLinkButton";
 import { PrintScorecardButton } from "@/components/scorecard/PrintScorecardButton";
 import { AddToWatchList } from "@/components/watch-list/AddToWatchList";
+import { managementModelLabel } from "@/lib/management-model/resolve";
 
 interface ScorecardHeaderProps {
   header: HeaderView;
@@ -93,6 +94,26 @@ export function ScorecardHeader({
                 }}
               >
                 ● {header.quadrant7Cell}
+              </span>
+            )}
+
+            {/* Management-model chip — neutral (hireable, not "good") */}
+            {header.managementModel != null && (
+              <span
+                title={header.managementModel.basis}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "6px",
+                  fontSize: "12px", fontWeight: 600, color: "#4a5568",
+                  background: "#f1f4f8", border: "1px solid #e2e8f0",
+                  borderRadius: "6px", padding: "3px 9px",
+                }}
+              >
+                {managementModelLabel(header.managementModel.model)}
+                {header.managementModel.confidence && (
+                  <span style={{ fontSize: "10.5px", color: "#8a94a6", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                    {header.managementModel.confidence} confidence
+                  </span>
+                )}
               </span>
             )}
 
