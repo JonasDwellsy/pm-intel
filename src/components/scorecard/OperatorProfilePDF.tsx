@@ -70,6 +70,12 @@ import {
   MAP_BOX_H,
 } from "@/lib/scorecard/coverage-map-geo";
 
+import {
+  projectPropertyRows,
+  type ComparableCell,
+  type PropertyRowVM,
+} from "@/lib/scorecard/property-detail-view";
+
 import { styles, COLOR_TEAL, COLOR_GRID, COLOR_MUTED_2 } from "./OperatorProfilePDF.theme";
 
 // Disable automatic mid-word hyphenation globally. @react-pdf otherwise breaks
@@ -1809,6 +1815,160 @@ function WatchItemsSection({ items }: { items: WatchItem[] }) {
 }
 
 // =====================================================================
+//  05 Properties (property-level detail) — mirrors PropertyDetailSection.tsx
+// =====================================================================
+
+// The PDF is a fixed artifact, so a huge scattered-SFR operator (max ~122
+// submarket rows) would balloon it. Cap at the highest-listing-volume rows —
+// ~95% of operators have ≤26 properties, so most show in full; the rest get an
+// explicit footnote pointing to the in-app export for the complete list.
+const MAX_PDF_PROPERTY_ROWS = 30;
+
+function propDisplayLabel(row: PropertyRowVM): string {
+  // Scattered-SFR rows are submarket rollups, not single addresses.
+  return row.kind === "sfr-submarket"
+    ? `SFR · ${row.submarket ?? row.label}`
+    : row.label;
+}
+function fmtRentValue(n: number): string {
+  return `$${fmtInt(n)}`;
+}
+function fmtDomValue(n: number): string {
+  return String(Math.round(n));
+}
+function fmtConcessionValue(n: number): string {
+  return fmtPct(n * 100, 0);
+}
+function fmtRentYoyValue(n: number): string {
+  return fmtPct(n * 100, 1, true);
+}
+
+/** A comparable metric cell: operator value (toned by deltaSign, never on a
+ *  neutral/null sign) with the MSA-median comp beneath it. No scores. */
+function PropComparable({
+  cell,
+  format,
+}: {
+  cell: ComparableCell;
+  format: (n: number) => string;
+}) {
+  if (cell.value == null) {
+    return <Text style={{ fontSize: 9, color: C.faint }}>—</Text>;
+  }
+  const color =
+    cell.deltaSign === "better" ? C.good : cell.deltaSign === "worse" ? C.bad : C.ink;
+  return (
+    <View style={{ alignItems: "flex-end" }}>
+      <Text style={{ fontSize: 9, color, fontFamily: "Helvetica-Bold" }}>
+        {format(cell.value)}
+      </Text>
+      {cell.comp != null ? (
+        <Text style={{ fontSize: 6.5, color: C.label, marginTop: 1 }}>
+          mkt {format(cell.comp)}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+const propCell = { fontSize: 9, color: "#374356", paddingHorizontal: 3 };
+
+function PropertyRowCells({ row }: { row: PropertyRowVM }) {
+  const sizeText =
+    row.kind === "community"
+      ? row.units != null
+        ? `${fmtInt(row.units)} units`
+        : "—"
+      : row.homes != null
+        ? `${fmtInt(row.homes)} homes`
+        : "—";
+  return (
+    <View style={[styles.tableRow, { alignItems: "flex-start" }]} wrap={false}>
+      <Text style={[propCell, { flex: 2.6 }]}>{propDisplayLabel(row)}</Text>
+      <Text style={[propCell, { flex: 1.3, textAlign: "right" }]}>{sizeText}</Text>
+      <Text style={[propCell, { flex: 0.8, textAlign: "right" }]}>{fmtInt(row.nListings)}</Text>
+      <View style={{ flex: 1.5, alignItems: "flex-end", paddingHorizontal: 3 }}>
+        <PropComparable cell={row.medianDomT12} format={fmtDomValue} />
+      </View>
+      <View style={{ flex: 2.0, alignItems: "flex-end", paddingHorizontal: 3 }}>
+        <PropComparable cell={row.medianRentT12} format={fmtRentValue} />
+        <View style={{ height: 2 }} />
+        <PropComparable cell={row.rentYoY} format={fmtRentYoyValue} />
+      </View>
+      <View style={{ flex: 1.4, alignItems: "flex-end", paddingHorizontal: 3 }}>
+        <PropComparable cell={row.concessionRate} format={fmtConcessionValue} />
+      </View>
+      <Text style={[propCell, { flex: 1.0, textAlign: "right" }]}>
+        {row.listingQuality != null ? fmtInt(Math.round(row.listingQuality)) : "—"}
+      </Text>
+    </View>
+  );
+}
+
+function PropertiesSection({
+  scorecard,
+  num,
+}: {
+  scorecard: ScorecardData;
+  num: string;
+}) {
+  const block = scorecard.propertyDetail;
+  if (!block?.properties?.length) return null;
+
+  const allRows = projectPropertyRows(block);
+  const total = allRows.length;
+  // Highest listing-volume first (mirrors the web table's default sort) and
+  // capped for the fixed artifact.
+  const rows = [...allRows]
+    .sort((a, b) => b.nListings - a.nListings)
+    .slice(0, MAX_PDF_PROPERTY_ROWS);
+  const truncated = total > rows.length;
+
+  return (
+    <View>
+      <View wrap={false} minPresenceAhead={60}>
+        <SectionHeader num={num} title="Properties" />
+        <Text
+          style={{
+            fontSize: 10,
+            color: C.slate,
+            marginTop: 2,
+            marginBottom: 10,
+            lineHeight: 1.45,
+          }}
+        >
+          Per-property observations vs. the MSA median (&ldquo;mkt&rdquo;) — descriptive,
+          not scored. Scattered single-family holdings are grouped into submarket rollups
+          rather than shown per address.
+        </Text>
+      </View>
+
+      {/* Header row (kept with the first data row so it never strands). */}
+      <View wrap={false}>
+        <View style={styles.tableHeaderRow}>
+          <Text style={[styles.tableHeaderCell, { flex: 2.6 }]}>Property / Community</Text>
+          <Text style={[styles.tableHeaderCell, { flex: 1.3, textAlign: "right" }]}>Units / Homes</Text>
+          <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: "right" }]}>Listings</Text>
+          <Text style={[styles.tableHeaderCell, { flex: 1.5, textAlign: "right" }]}>Median DOM</Text>
+          <Text style={[styles.tableHeaderCell, { flex: 2.0, textAlign: "right" }]}>Rent + YoY</Text>
+          <Text style={[styles.tableHeaderCell, { flex: 1.4, textAlign: "right" }]}>Concession</Text>
+          <Text style={[styles.tableHeaderCell, { flex: 1.0, textAlign: "right" }]}>Quality</Text>
+        </View>
+        {rows.length > 0 ? <PropertyRowCells row={rows[0]} /> : null}
+      </View>
+      {rows.slice(1).map((row, i) => (
+        <PropertyRowCells key={`${row.kind}-${row.label}-${i + 1}`} row={row} />
+      ))}
+      {truncated ? (
+        <Text style={{ fontSize: 8, color: C.label, marginTop: 6, lineHeight: 1.4 }}>
+          {`Showing the ${rows.length} highest-volume of ${total} properties. The full list is available in the in-app Properties export.`}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+// =====================================================================
 //  Page chrome (footer + running header) — reused from the prior PDF
 // =====================================================================
 
@@ -2027,11 +2187,18 @@ function MethodologySampleSizeTable({ scorecard }: { scorecard: ScorecardData })
   );
 }
 
-function MethodologySection({ scorecard }: { scorecard: ScorecardData }) {
+function MethodologySection({
+  scorecard,
+  num = "05",
+}: {
+  scorecard: ScorecardData;
+  /** 05 normally; 06 when the Properties section (05) precedes it. */
+  num?: string;
+}) {
   return (
     <View>
       <View wrap={false} minPresenceAhead={60}>
-        <SectionHeader num="05" title="Methodology & limits" />
+        <SectionHeader num={num} title="Methodology & limits" />
         <Text style={[styles.paragraph, { marginTop: 4 }]}>
           {`What backs this scorecard — classification rationale, coverage universe, per-metric sample sizes, and the version stamp. Rendered against methodology ${scorecard.methodologyVersion}`}
           {scorecard.designVersion ? `, design ${scorecard.designVersion}` : ""}
@@ -2155,6 +2322,10 @@ export function OperatorProfilePDF({
   coverageMap: CoverageMapImage | null;
 }) {
   const logoDataUrl = getLogoDataUrl();
+  // Properties section (05) only exists once the pipeline has populated
+  // propertyDetail; when present it shifts Methodology to 06 (mirrors
+  // ScorecardBody's nav/number gating on the web).
+  const hasProperties = !!scorecard.propertyDetail?.properties?.length;
 
   return (
     <Document
@@ -2203,8 +2374,13 @@ export function OperatorProfilePDF({
         <View style={{ marginTop: 20 }}>
           <WatchItemsSection items={view.watchItems} />
         </View>
+        {hasProperties ? (
+          <View style={{ marginTop: 20 }}>
+            <PropertiesSection scorecard={scorecard} num="05" />
+          </View>
+        ) : null}
         <View style={{ marginTop: 20 }}>
-          <MethodologySection scorecard={scorecard} />
+          <MethodologySection scorecard={scorecard} num={hasProperties ? "06" : "05"} />
         </View>
 
         <PageFooter scorecard={scorecard} />
