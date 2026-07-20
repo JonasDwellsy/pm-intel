@@ -365,43 +365,54 @@ function Badge({
 /** Neutral management-model chip — "hireable," not a value judgment. Mirrors
  *  the web chip in ScorecardHeader.tsx (muted grey/blue, rounded-rect not
  *  pill, same treatment for all three model states). Confidence sub-label
- *  only renders when non-null (always null for "unknown"). */
+ *  only renders when non-null (always null for "unknown"). The web chip
+ *  surfaces `basis` via a hover `title`; the static PDF has no hover, so
+ *  `basis` renders as a small muted caption beneath the chip instead
+ *  (reusing the existing, otherwise-unused `perfFootnote` style) — this is
+ *  the only way the "unknown" state's "Verify directly" honesty copy makes
+ *  it into the PDF at all, since `basis` is its only home. Always present,
+ *  so the caption renders for all three model states. */
 function ManagementModelChip({
   managementModel,
 }: {
   managementModel: NonNullable<ScorecardView["header"]["managementModel"]>;
 }) {
   return (
-    <View
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        borderWidth: 1,
-        borderStyle: "solid",
-        borderColor: "#e2e8f0",
-        backgroundColor: "#f1f4f8",
-        borderRadius: 6,
-        paddingHorizontal: 9,
-        paddingVertical: 3,
-      }}
-    >
-      <Text style={{ fontSize: 9.5, color: "#4a5568", fontFamily: "Helvetica-Bold" }}>
-        {managementModelLabel(managementModel.model)}
-      </Text>
-      {managementModel.confidence ? (
-        <Text
-          style={{
-            fontSize: 8,
-            color: "#8a94a6",
-            textTransform: "uppercase",
-            letterSpacing: 0.3,
-          }}
-        >
-          {managementModel.confidence} confidence
+    <View style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 4,
+          borderWidth: 1,
+          borderStyle: "solid",
+          borderColor: "#e2e8f0",
+          backgroundColor: "#f1f4f8",
+          borderRadius: 6,
+          paddingHorizontal: 9,
+          paddingVertical: 3,
+        }}
+      >
+        <Text style={{ fontSize: 9.5, color: "#4a5568", fontFamily: "Helvetica-Bold" }}>
+          {managementModelLabel(managementModel.model)}
         </Text>
-      ) : null}
+        {managementModel.confidence ? (
+          <Text
+            style={{
+              fontSize: 8,
+              color: "#8a94a6",
+              textTransform: "uppercase",
+              letterSpacing: 0.3,
+            }}
+          >
+            {managementModel.confidence} confidence
+          </Text>
+        ) : null}
+      </View>
+      <Text style={[styles.perfFootnote, { marginTop: 0, maxWidth: 260 }]}>
+        {managementModel.basis}
+      </Text>
     </View>
   );
 }
