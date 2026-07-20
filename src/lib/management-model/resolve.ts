@@ -111,7 +111,7 @@ export function listingVerdict(s: ListingSignal): Verdict {
 }
 
 export function combine(listing: Verdict, website?: WebsiteVerdict | null): ManagementModel {
-  const w = website && website.verdict !== "inconclusive" ? website : null;
+  const w = website && website.verdict !== "inconclusive" && website.confidence != null ? website : null;
   if (!w) return { ...listing, source: "listing" };
 
   const wModel = w.verdict as ManagementModelKind; // third_party | owner_operator

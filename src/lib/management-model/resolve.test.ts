@@ -88,3 +88,35 @@ test("unknown never carries a confidence chip; labels are exact", () => {
   assert.equal(managementModelLabel("third_party"), "Third-party manager");
   assert.equal(managementModelLabel("owner_operator"), "Owner-operator (likely)");
 });
+
+test("combine: decisive website verdict with null confidence is treated as inconclusive (falls through to listing)", () => {
+  const listing = listingVerdict(sig({ quadrant7Cell: "SFR Independent" })); // tp/high
+  // Decisive verdict but null confidence is type-legal on WebsiteVerdict — must not leak through.
+  const m = combine(listing, { verdict: "owner_operator", confidence: null });
+  assert.equal(m.source, "listing");
+  assert.equal(m.model, "third_party");
+  assert.equal(m.confidence, "high");
+});
+
+test("combine: disagreement with equal confidence rank → website wins the tie-break", () => {
+  const listing = listingVerdict(sig({ quadrant7Cell: "SFR Institutional" })); // owner_operator/medium
+  const m = combine(listing, { verdict: "third_party", confidence: "medium" }); // equal rank, disagrees
+  assert.equal(m.model, "third_party");
+  assert.equal(m.confidence, "medium");
+  assert.equal(m.source, "website");
+});
+
+test("combine: listing outranks a lower-confidence disagreeing website → listing wins", () => {
+  const listing = listingVerdict(sig({ quadrant7Cell: "SFR Independent" })); // tp/high
+  const m = combine(listing, { verdict: "owner_operator", confidence: "low" }); // lower rank, disagrees
+  assert.equal(m.model, "third_party");
+  assert.equal(m.confidence, "high");
+  assert.equal(m.source, "listing");
+});
+
+test("resolveManagementModel: true unknown path (MF Institutional, no strong structure, no website) carries null confidence", () => {
+  const m = resolveManagementModel({ quadrant7Cell: "Large MF/BTR Institutional", properties: [] });
+  assert.equal(m.model, "unknown");
+  assert.equal(m.confidence, null);
+  assert.equal(m.source, "listing");
+});
