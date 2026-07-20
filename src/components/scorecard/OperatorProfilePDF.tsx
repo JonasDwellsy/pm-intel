@@ -61,6 +61,7 @@ import type { WatchItem, WatchItemKind } from "@/lib/scorecard/watch-items";
 import type { SelectedPeer } from "@/lib/scorecard/peers";
 import type { RentTierDetail } from "@/lib/scorecard/rent-tier";
 import type { CoverageMapImage } from "@/lib/scorecard/pdf-coverage-map";
+import { managementModelLabel } from "@/lib/management-model/resolve";
 import {
   coverageMapRenderModel,
   coverageRadius,
@@ -357,6 +358,50 @@ function Badge({
       }}
     >
       <Text style={{ fontSize: 9.5, color: fg }}>{children}</Text>
+    </View>
+  );
+}
+
+/** Neutral management-model chip — "hireable," not a value judgment. Mirrors
+ *  the web chip in ScorecardHeader.tsx (muted grey/blue, rounded-rect not
+ *  pill, same treatment for all three model states). Confidence sub-label
+ *  only renders when non-null (always null for "unknown"). */
+function ManagementModelChip({
+  managementModel,
+}: {
+  managementModel: NonNullable<ScorecardView["header"]["managementModel"]>;
+}) {
+  return (
+    <View
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        borderWidth: 1,
+        borderStyle: "solid",
+        borderColor: "#e2e8f0",
+        backgroundColor: "#f1f4f8",
+        borderRadius: 6,
+        paddingHorizontal: 9,
+        paddingVertical: 3,
+      }}
+    >
+      <Text style={{ fontSize: 9.5, color: "#4a5568", fontFamily: "Helvetica-Bold" }}>
+        {managementModelLabel(managementModel.model)}
+      </Text>
+      {managementModel.confidence ? (
+        <Text
+          style={{
+            fontSize: 8,
+            color: "#8a94a6",
+            textTransform: "uppercase",
+            letterSpacing: 0.3,
+          }}
+        >
+          {managementModel.confidence} confidence
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -673,6 +718,9 @@ function ScorecardHeaderBlock({
               <Badge border={C.tealBorder} bg={C.tealSoft} fg={C.teal700}>
                 {header.quadrant7Cell}
               </Badge>
+            ) : null}
+            {header.managementModel != null ? (
+              <ManagementModelChip managementModel={header.managementModel} />
             ) : null}
             <Badge border={C.chipBorder} fg="#3a4a6b">
               {header.marketFullName}
