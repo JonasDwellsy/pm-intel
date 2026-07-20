@@ -140,15 +140,26 @@ export async function loadOperatorTrajectory(
 // ─── pure shaping (unit-tested) ─────────────────────────────────────
 
 /**
+ * A snapshot's estimator "generation": its methodologyVersion with any "-recon"
+ * backfill suffix stripped. Reconstructed history (backfill-trajectory.ts tags
+ * rows "<methodology>-recon", e.g. "v0.7-recon") is the SAME generation as the
+ * live captures it deepens ("v0.7"), so the two must group together.
+ */
+export function snapshotGeneration(methodologyVersion: string): string {
+  return methodologyVersion.replace(/-recon$/, "");
+}
+
+/**
  * Keep only snapshots from the CURRENT methodology generation — defined as the
- * methodologyVersion of the most-recent snapshot. Older generations (a prior
- * portfolio estimator, or pre-retag backfill rows) are dropped, because the
- * portfolio estimate scale (and star scoring) changed across methodology
- * revisions: blending them onto one axis renders a methodology recalibration as
- * a fake portfolio cliff (e.g. 1,412 → 446). Self-adapting: after a future
- * methodology bump, history collapses to the new generation until the
- * trajectory backfill is re-run and re-tagged to that version. Order-independent;
- * empty or single-generation input returns unchanged.
+ * generation of the most-recent snapshot. Older generations (a prior portfolio
+ * estimator, or pre-retag backfill rows) are dropped, because the portfolio
+ * estimate scale (and star scoring) changed across methodology revisions:
+ * blending them onto one axis renders a methodology recalibration as a fake
+ * portfolio cliff (e.g. 1,412 → 446). Live captures and their matching "-recon"
+ * backfill are the same generation and stay together. Self-adapting: after a
+ * future methodology bump, history collapses to the new generation until the
+ * trajectory backfill is re-run and re-tagged. Order-independent; empty or
+ * single-generation input returns unchanged.
  */
 export function keepCurrentGenerationSnapshots<
   T extends { snapshotDate: Date; methodologyVersion: string }
@@ -158,8 +169,8 @@ export function keepCurrentGenerationSnapshots<
   for (const r of rows) {
     if (r.snapshotDate.getTime() > latest.snapshotDate.getTime()) latest = r;
   }
-  const current = latest.methodologyVersion;
-  return rows.filter((r) => r.methodologyVersion === current);
+  const current = snapshotGeneration(latest.methodologyVersion);
+  return rows.filter((r) => snapshotGeneration(r.methodologyVersion) === current);
 }
 
 /**

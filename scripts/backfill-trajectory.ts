@@ -30,18 +30,38 @@ import {
 } from "@/lib/watch-list/snapshot";
 import type { ScorecardData } from "@/lib/types";
 
-const RECON_VERSION = "v0.6.4-recon";
 const SCRIPT_DIR = path.join(process.cwd(), "scripts/data-pipeline");
 const TMP = path.join(process.cwd(), ".trajectory-backfill-tmp");
 
-/** Quarter-end dates 2020Q4 → 2026Q1 (inclusive). Quarterly cadence:
- *  T12 windows make monthly steps 11/12 redundant. */
+// Recon rows are tagged "<current methodology>-recon" (e.g. "v0.7-recon"), read
+// from the committed seed so a methodology bump doesn't leave recon stranded on
+// a stale tag. snapshotGeneration() (trajectory.ts) strips the "-recon" suffix,
+// so the trajectory groups this reconstructed history with the live captures of
+// the same generation — and the loaders' generation guard never blends it with
+// an OLDER estimator's rows. (Previously hardcoded "v0.6.4-recon", which the
+// guard then excluded once live captures moved to v0.7 — the bug this fixes.)
+const RECON_VERSION = `${
+  (
+    JSON.parse(
+      fs.readFileSync(
+        path.join(process.cwd(), "src/data/scorecard_data.json"),
+        "utf8"
+      )
+    ) as { methodologyVersion: string }
+  ).methodologyVersion
+}-recon`;
+
+/** Quarter-end dates 2022Q1 → 2026Q2 (inclusive). Floor is 2022Q1: the merged
+ *  source data has robust listing volume from 2021, so 2022Q1 is the first
+ *  quarter with a FULL 12-month T12 window (earlier quarters reconstruct from a
+ *  partial/empty window and are unreliable). Quarterly cadence — T12 windows
+ *  make monthly steps redundant. Bump the end bound as new quarters complete. */
 function defaultQuarters(): string[] {
   const out: string[] = [];
-  for (let y = 2020; y <= 2026; y++) {
+  for (let y = 2022; y <= 2026; y++) {
     for (const [m, d] of [[3, 31], [6, 30], [9, 30], [12, 31]] as const) {
       const s = `${y}-${String(m).padStart(2, "0")}-${d}`;
-      if (s >= "2020-12-31" && s <= "2026-03-31") out.push(s);
+      if (s >= "2022-03-31" && s <= "2026-06-30") out.push(s);
     }
   }
   return out;
