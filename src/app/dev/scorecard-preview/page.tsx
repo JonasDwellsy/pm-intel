@@ -195,6 +195,7 @@ const FIXTURE_VIEW: ScorecardView = {
     dwellsyCompanyUrl: "https://dwellsy.com/company/doorby-realty",
     website: "https://doorby.com",
     canonicalOperatorId: "doorby-realty-phoenix",
+    managementModel: { model: "third_party", confidence: "high", basis: "Independent scattered single-family operator — management-for-owners by nature.", source: "listing" },
   },
   readout: [
     {
