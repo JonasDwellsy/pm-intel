@@ -28,6 +28,7 @@ passes them through unchanged in the returned dict.
 """
 
 import statistics
+from collections import Counter
 
 from marketing import compute_marketing
 
@@ -227,3 +228,37 @@ def assemble_property_detail(comm_buckets, comm_urus_counts, comm_tdc, sfr_bucke
         target["homes"] = (target.get("homes") or 0) + (bucket.get("homes") or 0)
 
     return build_property_detail(concentrated, merged_sfr, comps)
+
+
+def build_home_records(home_recs):
+    """Per-home aggregation for Phase 2 individual-home export. Pure.
+
+    home_recs: dict[address_id] -> accumulator with keys:
+      address:str, submarket:str|None, lat:float|None, lng:float|None,
+      brs:list[int], rents:list[float], doms:list[int], dates:list[str],
+      concession:bool, n:int
+    Returns one record per home, sorted by address, un-scored.
+    """
+    def _median_int(xs):
+        return round(statistics.median(xs)) if xs else None
+
+    def _modal_int(xs):
+        return Counter(xs).most_common(1)[0][0] if xs else None
+
+    out = []
+    for aid, a in home_recs.items():
+        out.append({
+            "addressId": aid,
+            "address": a.get("address") or "",
+            "submarket": a.get("submarket"),
+            "latitude": a.get("lat"),
+            "longitude": a.get("lng"),
+            "bedrooms": _modal_int(a.get("brs") or []),
+            "medianRentT12": _median_int(a.get("rents") or []),
+            "domT12": _median_int(a.get("doms") or []),
+            "lastListedDate": max(a["dates"]) if a.get("dates") else None,
+            "nListings": a.get("n") or 0,
+            "concession": bool(a.get("concession")),
+        })
+    out.sort(key=lambda r: (r["address"] or "").lower())
+    return out
