@@ -692,3 +692,30 @@ model UsageEvent {
   @@index([orgId])
   @@index([eventName])
 }
+
+// v0.27 — Phase 2 individual-home detail. One row per distinct scattered-SFR
+// home per operator, deduped on the source address id. Populated by the
+// owner-run scripts/load-property-homes.ts from the pipeline's
+// property_homes.jsonl extract (NOT reseeded with scorecardData). Read
+// on-demand by the Properties export route to append a "Homes" sheet.
+// Un-scored — observations only.
+model PropertyHome {
+  id             String    @id @default(cuid())
+  pmSlug         String
+  marketId       String
+  addressId      String
+  address        String
+  submarket      String?
+  latitude       Float?
+  longitude      Float?
+  bedrooms       Int?
+  medianRentT12  Int?
+  domT12         Int?
+  lastListedDate DateTime?
+  nListings      Int       @default(0)
+  concession     Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+
+  @@unique([pmSlug, addressId])
+  @@index([pmSlug])
+}

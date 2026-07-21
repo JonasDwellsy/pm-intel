@@ -49,7 +49,7 @@ from operator_grouping import (
     format_auto_merge_report, strong_name_key, GENERIC_TOKENS,
 )
 from marketing import compute_marketing, count_distinct_words, count_content_categories
-from property_detail import compute_market_comps, assemble_property_detail
+from property_detail import compute_market_comps, assemble_property_detail, build_home_records
 
 csv.field_size_limit(sys.maxsize)
 
@@ -137,6 +137,12 @@ NATIONAL_LOOKUP = os.path.join(
 CSV_PATH = os.path.join(BASE, _mkt["csvFile"])
 OUT_JSON = os.path.join(OUT_DIR, f"Scorecard_Data_v0.6.4_{_mkt['outputSlug']}.json")
 OUT_SUMMARY = os.path.join(OUT_DIR, f"Scorecard_Data_v0.6.4_{_mkt['outputSlug']}_Summary.md")
+# Phase 2 (individual-home export) — one JSONL extract per market run,
+# appended to per-operator during the emit loop below. Truncated here (once
+# per market run, since pipeline.py is invoked with a single --market per
+# process) so a re-run doesn't append duplicate homes onto a stale file.
+HOMES_EXTRACT_PATH = os.path.join(OUT_DIR, f"property_homes_{_mkt['outputSlug']}.jsonl")
+open(HOMES_EXTRACT_PATH, "w").close()
 
 for _path, _label in [(CSV_PATH, "csvFile"), (NATIONAL_LOOKUP, "nationalLookup")]:
     if not os.path.isfile(_path):
@@ -476,6 +482,9 @@ def init_rich(norm):
         "sfr_rent_prior": defaultdict(list), "sfr_concession": defaultdict(int),
         "sfr_n": defaultdict(int), "sfr_marketing": defaultdict(list),
         "sfr_homes": defaultdict(set), "sfr_label": {},
+        # Phase 2 — per-home accumulator, keyed by address1_id. Scattered SFR
+        # only (community listings are the Phase 1 per-community rollup).
+        "home_recs": {},
         "address_t12": set(), "address_lifetime": set(),
         "br_t12_count": Counter(),
         "quarterly_rents_by_br": defaultdict(lambda: defaultdict(list)),
@@ -708,6 +717,25 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
                 if addr_city_slug not in d["sfr_label"]:
                     d["sfr_label"][addr_city_slug] = addr_city or addr_city_slug
 
+                # Phase 2 (individual-home export) — per-home accumulator,
+                # keyed by address1_id. Only reachable from this SFR branch,
+                # so a community listing (cid set) can never enter home_recs;
+                # the DOM/concession folds below re-check `aid in d["home_recs"]`
+                # as a second guard.
+                if aid:
+                    hr = d["home_recs"].setdefault(aid, {
+                        "address": "", "submarket": addr_city_slug, "lat": None, "lng": None,
+                        "brs": [], "rents": [], "doms": [], "dates": [], "concession": False, "n": 0,
+                    })
+                    hr["n"] += 1
+                    if not hr["address"]:
+                        hr["address"] = (row.get("address_1") or "").strip() or addr_city or ""
+                    if hr["lat"] is None and lat is not None: hr["lat"] = lat
+                    if hr["lng"] is None and lng is not None: hr["lng"] = lng
+                    if br is not None: hr["brs"].append(br)
+                    if rent and rent > 0: hr["rents"].append(rent)
+                    if ct: hr["dates"].append(ct.date().isoformat())
+
             if ct and dt_ and dt_ >= ct:
                 dom_days = (dt_ - ct).days
                 if addr_type in ("house", "single-family", "single_family", "sf"):
@@ -718,6 +746,12 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
                     d["comm_dom"][cid].append(dom_days)
                 elif addr_city_slug:
                     d["sfr_dom"][addr_city_slug].append(dom_days)
+                # Phase 2 — fold into the same home record. Guarding on
+                # `aid in d["home_recs"]` (not just `aid`) is what keeps a
+                # community listing (cid branch above) out of home_recs,
+                # since only the SFR branch ever creates an entry there.
+                if aid and aid in d["home_recs"]:
+                    d["home_recs"][aid]["doms"].append(dom_days)
             amen = row.get("amenities") or ""
             photos = row.get("photos") or ""
             # amenities + photos are ';'-delimited in the source (a '|' split
@@ -754,6 +788,9 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
                         d["comm_concession"][cid] += 1
                     elif addr_city_slug:
                         d["sfr_concession"][addr_city_slug] += 1
+                    # Phase 2 — same aid-in-home_recs guard as the DOM fold.
+                    if aid and aid in d["home_recs"]:
+                        d["home_recs"][aid]["concession"] = True
                     for pname, _start in matches:
                         d["concession_patterns"][pname] += 1
                     if len(d["concession_samples"]) < 3:
@@ -2061,6 +2098,20 @@ for norm in sorted(eligible_norms):
         _comm_buckets, _comm_urus_counts, _prop_d["comm_tdc"], _sfr_buckets, market_comps)
     if property_detail is not None:
         pm_out["propertyDetail"] = property_detail
+
+    # Phase 2 (individual-home export) — this loop already iterates only
+    # `eligible_norms` (T12 >= ELIG_T12_MIN, see the `for norm in
+    # sorted(eligible_norms):` header above), so every operator reaching
+    # this point is eligible; no extra filter needed. Scattered-SFR only —
+    # _prop_d["home_recs"] is populated solely from the SFR (addr_city_slug)
+    # branch of the streaming loop, so community listings never appear here.
+    homes = build_home_records(_prop_d["home_recs"])
+    if homes:
+        with open(HOMES_EXTRACT_PATH, "a") as _hf:
+            for _h in homes:
+                _h["pmSlug"] = pm_out["slug"]
+                _h["marketId"] = MARKET_ID
+                _hf.write(json.dumps(_h) + "\n")
 
     pms.append(pm_out)
 

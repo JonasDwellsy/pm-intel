@@ -6,7 +6,7 @@
 import test from "node:test";
 import { strict as assert } from "node:assert";
 import * as XLSX from "xlsx";
-import { buildPropertyWorkbook } from "./property-export";
+import { buildPropertyWorkbook, type PropertyHomeRow } from "./property-export";
 import type { PropertyDetailBlock, ScorecardData } from "@/lib/types";
 
 const PROPERTY_DETAIL: PropertyDetailBlock = {
@@ -207,4 +207,103 @@ test("empty propertyDetail.properties produces a header-only sheet", () => {
 test("filename is built from the operator name + ' properties' suffix and dataAsOf date", () => {
   const { filename } = buildPropertyWorkbook(makeScorecard(PROPERTY_DETAIL));
   assert.equal(filename, "ark-homes-for-rent-properties-2026-06-15.xlsx");
+});
+
+// --- Homes sheet (Task 5: per-home rows from the PropertyHome table) ------
+
+const HOMES: PropertyHomeRow[] = [
+  {
+    address: "12 Oak St",
+    submarket: "North Suburbs",
+    bedrooms: 3,
+    medianRentT12: 1450,
+    domT12: 25,
+    lastListedDate: new Date("2026-06-01"),
+    nListings: 2,
+    concession: true,
+  },
+  {
+    address: "88 Elm Ave",
+    submarket: null,
+    bedrooms: null,
+    medianRentT12: null,
+    domT12: null,
+    lastListedDate: null,
+    nListings: 0,
+    concession: false,
+  },
+];
+
+test("workbook gets a 'Homes' sheet appended when homes rows are passed", () => {
+  const { workbook } = buildPropertyWorkbook(makeScorecard(PROPERTY_DETAIL), HOMES);
+  assert.deepEqual(workbook.SheetNames, ["Properties", "Homes"]);
+});
+
+test("no 'Homes' sheet when the homes array is empty", () => {
+  const { workbook } = buildPropertyWorkbook(makeScorecard(PROPERTY_DETAIL), []);
+  assert.deepEqual(workbook.SheetNames, ["Properties"]);
+});
+
+test("no 'Homes' sheet when homes is omitted entirely (default param)", () => {
+  const { workbook } = buildPropertyWorkbook(makeScorecard(PROPERTY_DETAIL));
+  assert.deepEqual(workbook.SheetNames, ["Properties"]);
+});
+
+test("Homes sheet header has Address + no score/star/percentile/rank column", () => {
+  const { workbook } = buildPropertyWorkbook(makeScorecard(PROPERTY_DETAIL), HOMES);
+  const aoa = XLSX.utils.sheet_to_json<Array<string>>(workbook.Sheets["Homes"], {
+    header: 1,
+  });
+  assert.deepEqual(aoa[0], [
+    "Address",
+    "Submarket",
+    "Beds",
+    "Median Rent",
+    "Median DOM",
+    "Last Listed",
+    "N Listings",
+    "Concession",
+  ]);
+  assert.ok(
+    !aoa[0].some((h) => /score|star|percentile|rank/i.test(h)),
+    `unexpected scoring column in Homes header: ${aoa[0].join(", ")}`
+  );
+  assert.ok(
+    !aoa[0].some((h) => /bathroom/i.test(h)),
+    `unexpected bathrooms column in Homes header: ${aoa[0].join(", ")}`
+  );
+});
+
+test("Homes sheet rows carry per-home fields, with the date formatted YYYY-MM-DD", () => {
+  const { workbook } = buildPropertyWorkbook(makeScorecard(PROPERTY_DETAIL), HOMES);
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Homes"]);
+  assert.equal(rows.length, 2);
+  const oak = rows.find((r) => r["Address"] === "12 Oak St");
+  assert.ok(oak, "12 Oak St row should be present");
+  assert.equal(oak!["Submarket"], "North Suburbs");
+  assert.equal(oak!["Beds"], 3);
+  assert.equal(oak!["Median Rent"], 1450);
+  assert.equal(oak!["Median DOM"], 25);
+  assert.equal(oak!["Last Listed"], "2026-06-01");
+  assert.equal(oak!["N Listings"], 2);
+  assert.equal(oak!["Concession"], "Yes");
+});
+
+test("Homes sheet renders null fields blank and concession=false as an empty cell", () => {
+  const { workbook } = buildPropertyWorkbook(makeScorecard(PROPERTY_DETAIL), HOMES);
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets["Homes"]);
+  const elm = rows.find((r) => r["Address"] === "88 Elm Ave");
+  assert.ok(elm, "88 Elm Ave row should be present");
+  assert.equal(elm!["Submarket"], undefined);
+  assert.equal(elm!["Beds"], undefined);
+  assert.equal(elm!["Median Rent"], undefined);
+  assert.equal(elm!["Median DOM"], undefined);
+  assert.equal(elm!["Last Listed"], undefined);
+  assert.equal(elm!["N Listings"], 0);
+  assert.equal(elm!["Concession"], ""); // false → empty-string cell (present, not "No")
+});
+
+test("Homes sheet is appended even when propertyDetail is absent (homes-only export)", () => {
+  const { workbook } = buildPropertyWorkbook(makeScorecard(undefined), HOMES);
+  assert.deepEqual(workbook.SheetNames, ["Properties", "Homes"]);
 });
