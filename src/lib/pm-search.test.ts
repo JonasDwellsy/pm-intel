@@ -173,16 +173,14 @@ test("read-time overlay applies committed name corrections to the live corpus", 
         : undefined;
     if (!entry) continue; // grouped/absent target — helper leaves it unmatched (expected)
     assert.equal(entry.name, c.correctedName, `${c.targetKey}: corrected name shown`);
-    // The old name is kept as a searchable alias — UNLESS it differs only in
-    // case (e.g. "Snshn" → "SNSHN"), where a case-insensitive match on the name
-    // already finds it, so addAlias skips the redundant alias by design.
-    if (
-      c.originalName &&
-      c.originalName.toLowerCase() !== c.correctedName.toLowerCase()
-    )
+    // A correction is a fix, not a rename: the corrected-away original is NOT
+    // surfaced as an alias (that would re-display the very error we fixed, e.g.
+    // "also: Fischer Assert Management"). The old spelling stays findable via
+    // fuzzy match on the corrected name — asserted separately below.
+    if (c.originalName && c.originalName !== c.correctedName)
       assert.ok(
-        (entry.aliases as string[] | undefined)?.includes(c.originalName),
-        `${c.targetKey}: original name kept as searchable alias`
+        !((entry.aliases as string[] | undefined) ?? []).includes(c.originalName),
+        `${c.targetKey}: corrected-away name must NOT be surfaced as an alias`
       );
   }
 });
