@@ -62,7 +62,7 @@ test("unknown targetKind is reported unmatched", () => {
   assert.deepEqual(r.unmatched, ["x"]);
 });
 
-test("a correction with a differing originalName pushes it onto the matched entry's aliases", () => {
+test("a correction does NOT keep the pre-correction name as an alias (a fix, not a rename)", () => {
   const i = idx();
   applyNameCorrectionsToSearchIndex(i, [
     {
@@ -73,10 +73,12 @@ test("a correction with a differing originalName pushes it onto the matched entr
     },
   ]);
   assert.equal(i.ranked[0].name, "ACME");
-  assert.deepEqual(i.ranked[0].aliases, ["Acme Realty Group"]);
+  // The corrected-away name is never surfaced — aliasing it would re-display
+  // the error (e.g. "also: Fischer Assert Management"). Left untouched.
+  assert.equal(i.ranked[0].aliases, undefined);
 });
 
-test("a correction with an originalName equal (casing) to correctedName adds no alias", () => {
+test("a correction never adds an alias, regardless of the originalName", () => {
   const i = idx();
   applyNameCorrectionsToSearchIndex(i, [
     {
@@ -87,5 +89,5 @@ test("a correction with an originalName equal (casing) to correctedName adds no 
     },
   ]);
   assert.equal(i.ranked[0].name, "ACME");
-  assert.deepEqual(i.ranked[0].aliases, []);
+  assert.equal(i.ranked[0].aliases, undefined);
 });
