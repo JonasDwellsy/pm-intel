@@ -1,4 +1,17 @@
 {
-  "generatedAt": null,
-  "corrections": []
+  "generatedAt": "2026-07-21T00:23:30.622Z",
+  "corrections": [
+    {
+      "targetKind": "pm",
+      "targetKey": "fischer-assert-management-cleveland-elyria-mentor-oh",
+      "correctedName": "Fischer Asset Management",
+      "originalName": "Fischer Assert Management"
+    },
+    {
+      "targetKind": "pm",
+      "targetKey": "snshn-milwaukee-waukesha-west-allis-wi",
+      "correctedName": "SNSHN",
+      "originalName": "Snshn"
+    }
+  ]
 }

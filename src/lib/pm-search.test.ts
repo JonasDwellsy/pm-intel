@@ -3,8 +3,10 @@ import { strict as assert } from "node:assert";
 import {
   partitionByTier,
   filterResultsByEntitlement,
+  getAllSearchEntries,
   type PMSearchResult,
 } from "./pm-search";
+import nameCorrections from "../data/name_corrections.json";
 
 // Fabricated result objects — these tests exercise the pure partition /
 // filter functions in isolation and deliberately do NOT depend on the
@@ -136,4 +138,51 @@ test("filterResultsByEntitlement — 'all' passes everything through untouched",
   const all = [marketResult, rankedResult, trackedResult, canonicalResult];
   const filtered = filterResultsByEntitlement(all, "all");
   assert.equal(filtered.length, all.length);
+});
+
+// Integration guard (unlike the pure tests above, this DOES touch the real
+// corpus + committed name_corrections.json): every committed name correction
+// whose target exists in the search index must surface under its corrected
+// name at read time, with the original name kept as a searchable alias. This
+// is the regression guard for the read-time overlay — search used to keep the
+// pre-correction name until someone manually rebuilt the offline index.
+test("read-time overlay applies committed name corrections to the live corpus", () => {
+  const corrections =
+    (nameCorrections as {
+      corrections?: {
+        targetKind: string;
+        targetKey: string;
+        correctedName: string;
+        originalName?: string;
+      }[];
+    }).corrections ?? [];
+  const entries = getAllSearchEntries() as Array<Record<string, unknown>>;
+  assert.ok(entries.length > 0, "corpus should be non-empty");
+  const rankedBySlug = new Map(
+    entries.filter((e) => e.tier === "ranked").map((e) => [e.slug, e])
+  );
+  const canonBySlug = new Map(
+    entries.filter((e) => e.tier === "canonical").map((e) => [e.canonicalSlug, e])
+  );
+  for (const c of corrections) {
+    const entry =
+      c.targetKind === "pm"
+        ? rankedBySlug.get(c.targetKey)
+        : c.targetKind === "canonical"
+        ? canonBySlug.get(c.targetKey)
+        : undefined;
+    if (!entry) continue; // grouped/absent target — helper leaves it unmatched (expected)
+    assert.equal(entry.name, c.correctedName, `${c.targetKey}: corrected name shown`);
+    // The old name is kept as a searchable alias — UNLESS it differs only in
+    // case (e.g. "Snshn" → "SNSHN"), where a case-insensitive match on the name
+    // already finds it, so addAlias skips the redundant alias by design.
+    if (
+      c.originalName &&
+      c.originalName.toLowerCase() !== c.correctedName.toLowerCase()
+    )
+      assert.ok(
+        (entry.aliases as string[] | undefined)?.includes(c.originalName),
+        `${c.targetKey}: original name kept as searchable alias`
+      );
+  }
 });

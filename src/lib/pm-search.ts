@@ -19,6 +19,11 @@
 import Fuse from "fuse.js";
 import type { IFuseOptions } from "fuse.js";
 import indexData from "@/data/search_index.json";
+import nameCorrections from "@/data/name_corrections.json";
+import {
+  applyNameCorrectionsToSearchIndex,
+  type NameCorrection,
+} from "@/lib/operators/search-index-corrections";
 
 export type PMSearchTier = "ranked" | "tracked" | "canonical" | "market";
 
@@ -175,6 +180,22 @@ interface IndexFile {
 }
 
 const data = indexData as IndexFile;
+
+// Apply admin name corrections at read time. The offline-built search_index is
+// only rebuildable on the pipeline machine (build-operator-universe needs the
+// per-market source files, which aren't in the repo/CI), so corrections can't
+// be baked into it at deploy. Instead export_name_corrections.ts refreshes this
+// small DB-derived file on every vercel-build, and we overlay it here before
+// indexing: a corrected operator shows + is searchable under its new name, with
+// its old name kept as an alias — no index rebuild. Targets ranked (by slug) /
+// canonical (by canonicalSlug); the tracked tier is never targeted.
+applyNameCorrectionsToSearchIndex(
+  // The helper only reads slug/canonicalSlug and writes name/aliases — all
+  // present on these richer index entries; cast bridges the incidental
+  // structural gap without widening the helper's contract.
+  data as unknown as Parameters<typeof applyNameCorrectionsToSearchIndex>[0],
+  (nameCorrections as { corrections?: NameCorrection[] }).corrections ?? []
+);
 
 // Combined corpus — all three tiers in one Fuse instance so a single
 // query produces a unified ranked list, then we partition by tier for
