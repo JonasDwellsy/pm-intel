@@ -59,13 +59,17 @@ from `scripts/data-pipeline/`.
    Confirm `dataAsOf` advanced (`git diff markets.json`). Preview without
    `--apply` first if unsure.
 
-3. **Run the pipeline for every market** (34):
+3. **Run the pipeline for every market** (35):
    ```
    for M in $(python3 -c "import json;print(' '.join(m['id'] for m in json.load(open('markets.json'))['markets']))"); do
      PYTHONHASHSEED=0 python3 pipeline.py --market "$M" --data-dir "$IQ_DATA_DIR"
    done
    ```
    Check the tail of each run: `Operator dignity validation failures: 0`.
+   This also emits the per-home extract `property_homes_<market>.jsonl` into
+   `$IQ_DATA_DIR` — load it into Neon per **"Individual-home extract →
+   `PropertyHome`"** below (independent of the seed flow; do it any time after
+   this step).
 
 4. **Apply cross-market canonicals** (all curated sets, sequentially). Apply
    **every** `canonical_decisions_v064_p*.json` that exists — new markets add new
@@ -113,6 +117,40 @@ from `scripts/data-pipeline/`.
 11. **Confirm the change surfaces populated:** once ≥2 monthly snapshots exist,
     a market brief's "since last period" block and the national brief show real
     month-over-month movement, and the digests have deltas to send.
+
+## Individual-home extract → `PropertyHome` (owner-run, after the pipeline)
+
+The pipeline run (step 3) also emits a per-home extract per market —
+`property_homes_<market>.jsonl` in `$IQ_DATA_DIR`, next to each
+`Scorecard_Data_*.json`. It powers the **"Homes" sheet** on the Properties
+export (scattered-SFR homes; concentrated MF communities excluded). This is a
+**separate Neon table** (`PropertyHome`) loaded directly by an owner-run
+script — it is NOT part of the seed / merge / deploy flow above and needs no
+reseed or redeploy. Load it any time after step 3.
+
+**From the repo root** (not `scripts/data-pipeline/` like the rest):
+
+```
+# first load of a fresh table:
+HOMES_DIR="$IQ_DATA_DIR" npx tsx scripts/load-property-homes.ts
+# every monthly refresh after that (homes age out of the T12 window):
+HOMES_DIR="$IQ_DATA_DIR" npx tsx scripts/load-property-homes.ts --reset
+```
+
+- **`HOMES_DIR` MUST point at the extracts.** If it's unset the loader
+  defaults to `scripts/data-pipeline` (no extracts there) and silently loads
+  nothing. Watch the first line of output — `files=35 homes=<N>`. `files=0`
+  means `HOMES_DIR` didn't resolve; fix it and rerun.
+- **Use `--reset` on every refresh after the first.** A plain re-run upserts
+  (idempotent on `pmSlug+addressId`) but leaves stale rows for homes that fell
+  out of the rolling T12 window; `--reset` deletes each loaded operator's rows
+  first so the table matches exactly the current window.
+- Reads ambient `DATABASE_URL` from `.env` (the shared Neon DB) via the same
+  prisma singleton as the other data scripts — writes to prod. Finishes with
+  `DONE. PropertyHome rows: <N>`; the total should equal the summed extract
+  line counts. Baseline from the 2026-07-21 full load: **221,709 rows / 3,258
+  operators / 35 markets** (sanity anchor — a big pure-MF operator like Equity
+  Residential should contribute 0 homes).
 
 ## Refreshing search after operator name corrections
 
