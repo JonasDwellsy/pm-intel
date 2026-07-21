@@ -100,7 +100,12 @@ export function MarketCard({
           </p>
         </div>
         <span className="dq-mono whitespace-nowrap text-[11px] font-medium text-muted-foreground">
-          {market.fullName.replace(`${market.city}, `, "")}
+          {/* Official MSA name. Don't strip the leading "City, " — real
+              multi-city MSAs are hyphen-joined ("Bakersfield-Delano, CA MSA")
+              so the strip never matched them, and for single-city MSAs it
+              mangled "Stockton, CA MSA" → "CA MSA". Multi-city cards already
+              repeat the lead city here, so the full name is consistent. */}
+          {market.fullName}
         </span>
       </div>
 
