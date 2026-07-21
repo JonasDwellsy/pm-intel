@@ -18,6 +18,13 @@ export interface TrajectoryPoint {
   portfolioBand: string | null;
   goldCount: number;
   silverCount: number;
+  /** Per-metric star tier at this snapshot ('gold'|'silver'|null), keyed by
+   *  the starsPerMetric keys (leaseUp, tenancy, rentPerformance,
+   *  marketingDiscipline, inventoryTransparency). Lets consumers name WHICH
+   *  metric moved between snapshots, not just that the total shifted.
+   *  Populated only by the single-operator loader (the aggregate loader sums
+   *  members, so per-metric tiers don't compose). */
+  starsPerMetric?: Record<string, "gold" | "silver" | null>;
   eligible: boolean;
   /** Distinct submarkets with T12 listings that snapshot — geographic-reach
    *  proxy. Optional: only the per-operator loader populates it. */
@@ -50,6 +57,21 @@ export function parseSubmarketCount(topSubmarkets: string | null): number | null
     return Array.isArray(arr) ? arr.length : null;
   } catch {
     return null;
+  }
+}
+
+/** Parse the snapshot's starsPerMetric JSON string into a per-metric tier map.
+ *  Returns undefined when absent or unparseable so downstream naming degrades
+ *  gracefully to the tier-total signal. */
+export function parseStarsPerMetric(
+  raw: string | null | undefined
+): Record<string, "gold" | "silver" | null> | undefined {
+  if (!raw) return undefined;
+  try {
+    const obj = JSON.parse(raw);
+    return obj && typeof obj === "object" ? obj : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -116,6 +138,7 @@ export async function loadOperatorTrajectory(
       estimatedPortfolioBand: true,
       starGoldCount: true,
       starSilverCount: true,
+      starsPerMetric: true,
       isEligibleForRanking: true,
       topSubmarkets: true,
       concessionRate: true,
@@ -128,6 +151,7 @@ export async function loadOperatorTrajectory(
     portfolioBand: r.estimatedPortfolioBand,
     goldCount: r.starGoldCount,
     silverCount: r.starSilverCount,
+    starsPerMetric: parseStarsPerMetric(r.starsPerMetric),
     eligible: r.isEligibleForRanking,
     submarketCount: parseSubmarketCount(r.topSubmarkets),
     concessionRate: r.concessionRate,

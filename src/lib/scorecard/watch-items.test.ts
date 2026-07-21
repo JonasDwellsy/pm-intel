@@ -73,6 +73,51 @@ test("rating downgrade is a risk; improvement is positive", () => {
   assert.ok(up.some((i) => i.kind === "positive" && /improvement/i.test(i.headline)));
 });
 
+test("rating downgrade NAMES the metric that dropped a tier (not a reader question)", () => {
+  const items = buildWatchItems(sc(quiet), null, traj([
+    { date: "2024-06-30", goldCount: 3, silverCount: 1, starsPerMetric: { leaseUp: "gold", tenancy: "gold", rentPerformance: "gold", marketingDiscipline: "silver", inventoryTransparency: null } },
+    { date: "2025-06-30", goldCount: 2, silverCount: 1, starsPerMetric: { leaseUp: "gold", tenancy: "silver", rentPerformance: "gold", marketingDiscipline: "silver", inventoryTransparency: null } },
+  ]));
+  const item = items.find((i) => i.kind === "risk" && /rating downgrade/i.test(i.headline));
+  assert.ok(item);
+  assert.match(item!.explanation, /tenant retention dropped from gold to silver/i);
+  assert.doesNotMatch(item!.ask ?? "", /which operating metric/i);
+  assert.match(item!.ask ?? "", /durable/i);
+});
+
+test("rating downgrade lists multiple dropped metrics", () => {
+  const items = buildWatchItems(sc(quiet), null, traj([
+    { date: "2024-06-30", goldCount: 3, silverCount: 0, starsPerMetric: { leaseUp: "gold", tenancy: "gold", rentPerformance: "gold", marketingDiscipline: null, inventoryTransparency: null } },
+    { date: "2025-06-30", goldCount: 1, silverCount: 0, starsPerMetric: { leaseUp: "gold", tenancy: null, rentPerformance: null, marketingDiscipline: null, inventoryTransparency: null } },
+  ]));
+  const item = items.find((i) => i.kind === "risk" && /rating downgrade/i.test(i.headline));
+  assert.ok(item);
+  assert.match(item!.explanation, /tenant retention/i);
+  assert.match(item!.explanation, /rent performance/i);
+  assert.match(item!.explanation, /slipped out of the top tiers/i);
+});
+
+test("rating improvement names the metric that climbed", () => {
+  const items = buildWatchItems(sc(quiet), null, traj([
+    { date: "2024-06-30", goldCount: 1, silverCount: 0, starsPerMetric: { leaseUp: "gold", tenancy: null, rentPerformance: null, marketingDiscipline: null, inventoryTransparency: null } },
+    { date: "2025-06-30", goldCount: 1, silverCount: 1, starsPerMetric: { leaseUp: "gold", tenancy: null, rentPerformance: null, marketingDiscipline: "silver", inventoryTransparency: null } },
+  ]));
+  const item = items.find((i) => i.kind === "positive" && /rating improvement/i.test(i.headline));
+  assert.ok(item);
+  assert.match(item!.explanation, /marketing discipline climbed into the top tier/i);
+});
+
+test("rating move falls back to generic wording (+ reader ask) when per-metric stars are absent", () => {
+  const items = buildWatchItems(sc(quiet), null, traj([
+    { date: "2024-06-30", goldCount: 3, silverCount: 1 },
+    { date: "2025-06-30", goldCount: 1, silverCount: 1 },
+  ]));
+  const item = items.find((i) => i.kind === "risk" && /rating downgrade/i.test(i.headline));
+  assert.ok(item);
+  assert.match(item!.explanation, /one or more metrics fell out of the top tiers/i);
+  assert.match(item!.ask ?? "", /which operating metric/i);
+});
+
 test("falling below the listing threshold is a risk", () => {
   const items = buildWatchItems(sc(quiet), null, traj([
     { date: "2024-06-30", eligible: true, goldCount: 1, silverCount: 0 },

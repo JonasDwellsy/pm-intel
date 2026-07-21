@@ -33,6 +33,10 @@ export interface WatchTrajectoryPoint {
   concessionRate?: number | null;
   goldCount?: number;
   silverCount?: number;
+  /** Per-metric star tier at this snapshot, so a rating move can name WHICH
+   *  metric changed. Absent on cross-market aggregate points and on older
+   *  recon rows → detector falls back to the tier-total signal. */
+  starsPerMetric?: Record<string, "gold" | "silver" | null>;
   eligible?: boolean;
 }
 export interface WatchTrajectory {
@@ -83,6 +87,86 @@ function joinList(items: string[]): string {
   if (items.length <= 1) return items[0] ?? "";
   if (items.length === 2) return `${items[0]} and ${items[1]}`;
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+/** Like trendPair but returns the compared POINTS, so a caller can inspect
+ *  fields beyond the compared value (here: per-metric stars). */
+function trendPointPair(
+  points: WatchTrajectoryPoint[],
+  valueOf: (p: WatchTrajectoryPoint) => number | null,
+  minGapDays = MIN_GAP_DAYS
+): { prev: WatchTrajectoryPoint; curr: WatchTrajectoryPoint } | null {
+  const usable = points.filter((p) => valueOf(p) != null && p.date);
+  if (usable.length < 2) return null;
+  const curr = usable[usable.length - 1];
+  for (let i = usable.length - 2; i >= 0; i--) {
+    if (daysBetween(usable[i].date, curr.date) >= minGapDays) {
+      return { prev: usable[i], curr };
+    }
+  }
+  return null;
+}
+
+// Human labels for the starsPerMetric keys (the scored operating metrics).
+const STAR_METRIC_LABELS: Record<string, string> = {
+  leaseUp: "Lease-up speed",
+  tenancy: "Tenant retention",
+  rentPerformance: "Rent performance",
+  marketingDiscipline: "Marketing discipline",
+  inventoryTransparency: "Inventory transparency",
+};
+type StarTier = "gold" | "silver" | null;
+const starTierRank = (s: StarTier | undefined): number =>
+  s === "gold" ? 2 : s === "silver" ? 1 : 0;
+
+interface StarMove {
+  label: string;
+  from: StarTier;
+  to: StarTier;
+}
+
+/** Metrics whose star tier moved in `dir` between two snapshots. Empty when
+ *  either point lacks per-metric stars (→ caller uses the generic wording). */
+function changedStarMetrics(
+  prev: Record<string, StarTier> | undefined,
+  curr: Record<string, StarTier> | undefined,
+  dir: "down" | "up"
+): StarMove[] {
+  if (!prev || !curr) return [];
+  const moves: StarMove[] = [];
+  for (const key of Object.keys(STAR_METRIC_LABELS)) {
+    const from = (prev[key] ?? null) as StarTier;
+    const to = (curr[key] ?? null) as StarTier;
+    const delta = starTierRank(to) - starTierRank(from);
+    if ((dir === "down" && delta < 0) || (dir === "up" && delta > 0)) {
+      moves.push({ label: STAR_METRIC_LABELS[key], from, to });
+    }
+  }
+  return moves;
+}
+
+function downgradeExplanation(moves: StarMove[]): string {
+  if (moves.length === 0)
+    return "The operator's star rating has slipped versus an earlier snapshot — one or more metrics fell out of the top tiers.";
+  if (moves.length === 1) {
+    const m = moves[0];
+    return m.to === null
+      ? `${m.label} fell out of the top tier versus an earlier snapshot.`
+      : `${m.label} dropped from ${m.from} to ${m.to} versus an earlier snapshot.`;
+  }
+  return `${joinList(moves.map((m) => m.label))} slipped out of the top tiers versus an earlier snapshot.`;
+}
+
+function improvementExplanation(moves: StarMove[]): string {
+  if (moves.length === 0)
+    return "The operator's star rating has improved versus an earlier snapshot — operating metrics are trending into higher tiers.";
+  if (moves.length === 1) {
+    const m = moves[0];
+    return m.from === null
+      ? `${m.label} climbed into the top tier versus an earlier snapshot.`
+      : `${m.label} improved from ${m.from} to ${m.to} versus an earlier snapshot.`;
+  }
+  return `${joinList(moves.map((m) => m.label))} moved into higher tiers versus an earlier snapshot.`;
 }
 
 // Kind order for the final sort; severity (desc) breaks ties within a kind.
@@ -212,25 +296,31 @@ export function buildWatchItems(
         ask: "Is the operator winding down, or did its listings simply move off-platform?",
       });
     } else {
-      const pair = trendPair(pts, (p) =>
+      const starTotal = (p: WatchTrajectoryPoint) =>
         p.goldCount != null || p.silverCount != null
           ? (p.goldCount ?? 0) * 2 + (p.silverCount ?? 0)
-          : null
-      );
-      if (pair && pair.curr < pair.prev) {
+          : null;
+      const pair = trendPointPair(pts, starTotal);
+      const prevTotal = pair && starTotal(pair.prev);
+      const currTotal = pair && starTotal(pair.curr);
+      if (pair && prevTotal != null && currTotal != null && currTotal < prevTotal) {
+        // Name WHICH metric(s) fell rather than asking the reader — we hold the
+        // per-snapshot star history they can't see.
+        const moves = changedStarMetrics(pair.prev.starsPerMetric, pair.curr.starsPerMetric, "down");
         push(80, {
           kind: "risk",
           headline: "Recent rating downgrade",
-          explanation:
-            "The operator's star rating has slipped versus an earlier snapshot — one or more metrics fell out of the top tiers.",
-          ask: "Which operating metric weakened, and is the change durable or a one-quarter dip?",
+          explanation: downgradeExplanation(moves),
+          ask: moves.length
+            ? "Is the decline durable, or a one-quarter dip?"
+            : "Which operating metric weakened, and is the change durable or a one-quarter dip?",
         });
-      } else if (pair && pair.curr > pair.prev) {
+      } else if (pair && prevTotal != null && currTotal != null && currTotal > prevTotal) {
+        const moves = changedStarMetrics(pair.prev.starsPerMetric, pair.curr.starsPerMetric, "up");
         push(10, {
           kind: "positive",
           headline: "Recent rating improvement",
-          explanation:
-            "The operator's star rating has improved versus an earlier snapshot — operating metrics are trending into higher tiers.",
+          explanation: improvementExplanation(moves),
         });
       }
     }
