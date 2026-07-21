@@ -1,0 +1,228 @@
+{
+  "_comment": "v0.6.4 Patch 10 \u2014 cross-market canonical extensions for the 6 new California markets (Sacramento/Bakersfield/Fresno/Stockton/Visalia/Modesto). extend_existing folds each new-market PM into an ALREADY-established canonical, distinctive-name matches only. Generic quality-descriptor names were rejected (see 'rejected') to avoid conflating distinct same-name companies. new_pairs from the proposal were skipped entirely per curation decision (generic, low value). new_canonicals empty.",
+  "version": "v0.6.4-p10-ca",
+  "generated_at": "2026-07-21",
+  "curator": "add-ca-markets",
+  "summary": {
+    "extend_existing": 24,
+    "new_canonicals": 0,
+    "rejected": 5
+  },
+  "extend_existing": [
+    {
+      "canonical_slug": "mynd-property-management",
+      "add_pm_slugs": [
+        "mynd-property-management-sacramento-arden-arcade-roseville-ca"
+      ]
+    },
+    {
+      "canonical_slug": "invitation-homes",
+      "add_pm_slugs": [
+        "invitation-homes-sacramento-arden-arcade-roseville-ca",
+        "invitation-homes-stockton-ca"
+      ]
+    },
+    {
+      "canonical_slug": "tricon-residential",
+      "add_pm_slugs": [
+        "tricon-residential-sacramento-arden-arcade-roseville-ca",
+        "tricon-residential-modesto-ca"
+      ]
+    },
+    {
+      "canonical_slug": "watson-realty-corp-property-management",
+      "add_pm_slugs": [
+        "watson-realty-property-management-bakersfield-delano-ca"
+      ]
+    },
+    {
+      "canonical_slug": "pacifica-residential",
+      "add_pm_slugs": [
+        "pacifica-residential-sacramento-arden-arcade-roseville-ca"
+      ]
+    },
+    {
+      "canonical_slug": "haven-residential",
+      "add_pm_slugs": [
+        "haven-residential-sacramento-arden-arcade-roseville-ca"
+      ]
+    },
+    {
+      "canonical_slug": "wasatch-group",
+      "add_pm_slugs": [
+        "wasatch-group-sacramento-arden-arcade-roseville-ca",
+        "wasatch-group-fresno-ca"
+      ]
+    },
+    {
+      "canonical_slug": "mg-properties-group",
+      "add_pm_slugs": [
+        "mg-properties-group-sacramento-arden-arcade-roseville-ca",
+        "mg-properties-group-stockton-ca"
+      ]
+    },
+    {
+      "canonical_slug": "utopia-management",
+      "add_pm_slugs": [
+        "utopia-management-sacramento-arden-arcade-roseville-ca",
+        "utopia-management-stockton-ca"
+      ]
+    },
+    {
+      "canonical_slug": "dge-investments",
+      "add_pm_slugs": [
+        "dge-investments-sacramento-arden-arcade-roseville-ca",
+        "dge-investments-bakersfield-delano-ca",
+        "dge-investments-fresno-ca"
+      ]
+    },
+    {
+      "canonical_slug": "vandenberghe-properties-inc",
+      "add_pm_slugs": [
+        "vandenberghe-properties-inc-sacramento-arden-arcade-roseville-ca",
+        "vandenberghe-properties-inc-fresno-ca",
+        "vandenberghe-properties-inc-modesto-ca"
+      ]
+    },
+    {
+      "canonical_slug": "lrs-realty-management",
+      "add_pm_slugs": [
+        "lrs-realty-management-bakersfield-delano-ca"
+      ]
+    },
+    {
+      "canonical_slug": "j-v-real-estate-group-inc",
+      "add_pm_slugs": [
+        "j-v-real-estate-group-inc-bakersfield-delano-ca"
+      ]
+    },
+    {
+      "canonical_slug": "bunting-management-group",
+      "add_pm_slugs": [
+        "bunting-management-group-sacramento-arden-arcade-roseville-ca",
+        "bunting-management-group-modesto-ca"
+      ]
+    },
+    {
+      "canonical_slug": "realty-roundup",
+      "add_pm_slugs": [
+        "realty-roundup-sacramento-arden-arcade-roseville-ca",
+        "realty-roundup-stockton-ca"
+      ]
+    },
+    {
+      "canonical_slug": "ej-williams-property-management",
+      "add_pm_slugs": [
+        "ej-williams-property-management-sacramento-arden-arcade-roseville-ca",
+        "ej-williams-property-management-stockton-ca"
+      ]
+    },
+    {
+      "canonical_slug": "stonesfair-management",
+      "add_pm_slugs": [
+        "stonesfair-management-sacramento-arden-arcade-roseville-ca",
+        "stonesfair-management-stockton-ca",
+        "stonesfair-management-modesto-ca"
+      ]
+    },
+    {
+      "canonical_slug": "blr-commercial-real-estate",
+      "add_pm_slugs": [
+        "blr-commercial-real-estate-sacramento-arden-arcade-roseville-ca",
+        "blr-commercial-real-estate-stockton-ca",
+        "blr-commercial-real-estate-modesto-ca"
+      ]
+    },
+    {
+      "canonical_slug": "mdi-img-property-management",
+      "add_pm_slugs": [
+        "mdi-img-property-management-sacramento-arden-arcade-roseville-ca",
+        "mdi-img-property-management-modesto-ca"
+      ]
+    },
+    {
+      "canonical_slug": "gsf-properties",
+      "add_pm_slugs": [
+        "gsf-properties-bakersfield-delano-ca",
+        "gsf-properties-fresno-ca"
+      ]
+    },
+    {
+      "canonical_slug": "fresno-management-company",
+      "add_pm_slugs": [
+        "fresno-management-company-fresno-ca",
+        "fresno-management-company-visalia-porterville-ca"
+      ]
+    },
+    {
+      "canonical_slug": "wright-equities",
+      "add_pm_slugs": [
+        "wright-equities-fresno-ca",
+        "wright-equities-stockton-ca"
+      ]
+    },
+    {
+      "canonical_slug": "dh-apartment-homes",
+      "add_pm_slugs": [
+        "dh-apartment-homes-fresno-ca",
+        "dh-apartment-homes-stockton-ca",
+        "dh-apartment-homes-modesto-ca"
+      ]
+    },
+    {
+      "canonical_slug": "sayland-property-management",
+      "add_pm_slugs": [
+        "sayland-property-management-fresno-ca",
+        "sayland-property-management-visalia-porterville-ca"
+      ]
+    }
+  ],
+  "new_canonicals": [],
+  "rejected": [
+    {
+      "canonical_slug": "five-star-property-management",
+      "canonical_name": "Five Star Property Management",
+      "add_pm_slugs": [
+        "five-star-property-management-bakersfield-delano-ca",
+        "five-star-property-management-stockton-ca",
+        "five-star-property-management-modesto-ca"
+      ],
+      "reason": "generic descriptor name \u2014 same-name-different-company risk; left un-folded (shows as separate operator)"
+    },
+    {
+      "canonical_slug": "pro-residential-services",
+      "canonical_name": "Pro Residential Services",
+      "add_pm_slugs": [
+        "pro-residential-services-bakersfield-delano-ca"
+      ],
+      "reason": "generic descriptor name \u2014 same-name-different-company risk; left un-folded (shows as separate operator)"
+    },
+    {
+      "canonical_slug": "select-property-management",
+      "canonical_name": "Select Property Management",
+      "add_pm_slugs": [
+        "select-property-management-sacramento-arden-arcade-roseville-ca",
+        "select-property-management-modesto-ca"
+      ],
+      "reason": "generic descriptor name \u2014 same-name-different-company risk; left un-folded (shows as separate operator)"
+    },
+    {
+      "canonical_slug": "the-equity-group",
+      "canonical_name": "The Equity Group",
+      "add_pm_slugs": [
+        "the-equity-group-fresno-ca",
+        "the-equity-group-visalia-porterville-ca"
+      ],
+      "reason": "generic descriptor name \u2014 same-name-different-company risk; left un-folded (shows as separate operator)"
+    },
+    {
+      "canonical_slug": "countryside-property-management",
+      "canonical_name": "Countryside Property Management",
+      "add_pm_slugs": [
+        "countryside-property-management-fresno-ca",
+        "countryside-property-management-modesto-ca"
+      ],
+      "reason": "generic descriptor name \u2014 same-name-different-company risk; left un-folded (shows as separate operator)"
+    }
+  ]
+}

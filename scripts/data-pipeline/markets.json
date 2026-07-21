@@ -387,6 +387,72 @@
       "primaryCity": "Milwaukee",
       "csvFile": "merged_milwaukee-waukesha-west-allis-wi_20260715.csv",
       "dataAsOf": "2026-07-15"
+    },
+    {
+      "id": "sacramento-arden-arcade-roseville-ca",
+      "outputSlug": "sacramento",
+      "msaCode": "40900",
+      "msaFullName": "Sacramento--Arden-Arcade--Roseville, CA MSA",
+      "name": "Sacramento",
+      "state": "CA",
+      "primaryCity": "Sacramento",
+      "csvFile": "merged_sacramento-arden-arcade-roseville-ca_20260717.csv",
+      "dataAsOf": "2026-07-17"
+    },
+    {
+      "id": "bakersfield-delano-ca",
+      "outputSlug": "bakersfield",
+      "msaCode": "12540",
+      "msaFullName": "Bakersfield-Delano, CA MSA",
+      "name": "Bakersfield",
+      "state": "CA",
+      "primaryCity": "Bakersfield",
+      "csvFile": "merged_bakersfield-delano-ca_20260717.csv",
+      "dataAsOf": "2026-07-17"
+    },
+    {
+      "id": "fresno-ca",
+      "outputSlug": "fresno",
+      "msaCode": "23420",
+      "msaFullName": "Fresno, CA MSA",
+      "name": "Fresno",
+      "state": "CA",
+      "primaryCity": "Fresno",
+      "csvFile": "merged_fresno-ca_20260717.csv",
+      "dataAsOf": "2026-07-17"
+    },
+    {
+      "id": "stockton-ca",
+      "outputSlug": "stockton",
+      "msaCode": "44700",
+      "msaFullName": "Stockton, CA MSA",
+      "name": "Stockton",
+      "state": "CA",
+      "primaryCity": "Stockton",
+      "csvFile": "merged_stockton-ca_20260717.csv",
+      "dataAsOf": "2026-07-17"
+    },
+    {
+      "id": "visalia-porterville-ca",
+      "outputSlug": "visalia",
+      "msaCode": "47300",
+      "msaFullName": "Visalia-Porterville, CA MSA",
+      "name": "Visalia",
+      "state": "CA",
+      "primaryCity": "Visalia",
+      "csvFile": "merged_visalia-porterville-ca_20260717.csv",
+      "dataAsOf": "2026-07-17"
+    },
+    {
+      "id": "modesto-ca",
+      "outputSlug": "modesto",
+      "msaCode": "33700",
+      "msaFullName": "Modesto, CA MSA",
+      "name": "Modesto",
+      "state": "CA",
+      "primaryCity": "Modesto",
+      "csvFile": "merged_modesto-ca_20260717.csv",
+      "dataAsOf": "2026-07-17"
     }
   ]
 }

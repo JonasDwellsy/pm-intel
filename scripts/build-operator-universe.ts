@@ -234,6 +234,14 @@ const MARKETS: Array<{
   // v0.6.4 Patch 14 — Milwaukee added (35th market). First WI-anchored
   // market. Milwaukee-Waukesha-West Allis, WI MSA (33340).
   { slug: "milwaukee", id: "milwaukee-waukesha-west-allis-wi", city: "Milwaukee", state: "WI", stateSlug: "wisconsin", citySlug: "milwaukee" },
+  // v0.6.4 Patch 15 — six California Central Valley + Sacramento markets added
+  // (36th–41st) for the Sarah asset-management use case. dataAsOf 2026-07-17.
+  { slug: "sacramento", id: "sacramento-arden-arcade-roseville-ca", city: "Sacramento", state: "CA", stateSlug: "california", citySlug: "sacramento" },
+  { slug: "bakersfield", id: "bakersfield-delano-ca", city: "Bakersfield", state: "CA", stateSlug: "california", citySlug: "bakersfield" },
+  { slug: "fresno", id: "fresno-ca", city: "Fresno", state: "CA", stateSlug: "california", citySlug: "fresno" },
+  { slug: "stockton", id: "stockton-ca", city: "Stockton", state: "CA", stateSlug: "california", citySlug: "stockton" },
+  { slug: "visalia", id: "visalia-porterville-ca", city: "Visalia", state: "CA", stateSlug: "california", citySlug: "visalia" },
+  { slug: "modesto", id: "modesto-ca", city: "Modesto", state: "CA", stateSlug: "california", citySlug: "modesto" },
 ];
 const MIN_T12 = 3;
 
