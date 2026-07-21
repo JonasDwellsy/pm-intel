@@ -14,3 +14,7 @@ test("blank/invalid lines → null", () => {
   assert.equal(parseHomeRecord("   "), null);
   assert.equal(parseHomeRecord(JSON.stringify({ marketId: "m" })), null); // no pmSlug/addressId
 });
+test("malformed JSON line → null, does not throw", () => {
+  assert.doesNotThrow(() => parseHomeRecord("{not valid json"));
+  assert.equal(parseHomeRecord("{not valid json"), null);
+});

@@ -4,6 +4,9 @@
 // re-run REFRESHES (idempotent on @@unique([pmSlug, addressId])). Run directly:
 //   HOMES_DIR=/path/to/pipeline/output npx tsx scripts/load-property-homes.ts
 //   npx tsx scripts/load-property-homes.ts --reset   # clear loaded operators first
+//   A plain re-run REFRESHES matching homes but leaves stale rows for homes/
+//   operators that dropped out of the T12 window — run with --reset on a
+//   full refresh to clear them.
 import fs from "node:fs";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
@@ -18,7 +21,8 @@ interface HomeRec {
 export function parseHomeRecord(line: string): HomeRec | null {
   const t = line.trim();
   if (!t) return null;
-  const o = JSON.parse(t);
+  let o: any;
+  try { o = JSON.parse(t); } catch { return null; }   // skip a corrupt/truncated line rather than abort the whole load
   if (!o.pmSlug || !o.addressId) return null;
   return {
     pmSlug: o.pmSlug, marketId: o.marketId ?? "", addressId: o.addressId,
