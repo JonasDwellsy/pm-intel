@@ -107,15 +107,76 @@ function buildPropertiesSheet(scorecard: ScorecardData): WorkSheet {
   return ws;
 }
 
+/** Row shape the Homes sheet needs (subset of the PropertyHome model). */
+export interface PropertyHomeRow {
+  address: string;
+  submarket: string | null;
+  bedrooms: number | null;
+  medianRentT12: number | null;
+  domT12: number | null;
+  lastListedDate: Date | null;
+  nListings: number;
+  concession: boolean;
+}
+
+const HOME_HEADERS = [
+  "Address",
+  "Submarket",
+  "Beds",
+  "Median Rent",
+  "Median DOM",
+  "Last Listed",
+  "N Listings",
+  "Concession",
+] as const;
+
+/** One row per individual home (Task 1's PropertyHome table), appended only
+ *  when the caller has rows to show. Deliberately NO score/star/percentile/
+ *  rank column — same rank-leak guardrail as the Properties sheet above,
+ *  and these are un-scored, per-address records rather than a rollup. */
+function buildHomesSheet(homes: PropertyHomeRow[]): WorkSheet {
+  const rows = homes.map((h) => [
+    h.address,
+    h.submarket,
+    h.bedrooms,
+    h.medianRentT12,
+    h.domT12,
+    h.lastListedDate ? h.lastListedDate.toISOString().slice(0, 10) : null,
+    h.nListings,
+    h.concession ? "Yes" : "",
+  ]);
+  const ws = XLSX.utils.aoa_to_sheet([[...HOME_HEADERS], ...rows]);
+  ws["!cols"] = [
+    { wch: 30 }, // Address
+    { wch: 18 }, // Submarket
+    { wch: 6 }, // Beds
+    { wch: 13 }, // Median Rent
+    { wch: 12 }, // Median DOM
+    { wch: 13 }, // Last Listed
+    { wch: 11 }, // N Listings
+    { wch: 11 }, // Concession
+  ];
+  return ws;
+}
+
 /** Build the property-detail export workbook for one operator's scorecard.
  *  Pure — no IO, no DOM. Returns an empty (header-only) Properties sheet
  *  when `propertyDetail` is absent; callers that want to 404 on "nothing to
  *  export" (the download route) check `scorecard.propertyDetail` themselves
- *  before calling this. */
-export function buildPropertyWorkbook(scorecard: ScorecardData): PropertyExportResult {
+ *  before calling this. `homes` (Task 1's PropertyHome rows, read by the
+ *  route on demand) appends a second "Homes" sheet, but only when non-empty
+ *  — most operators have no home-level rows loaded yet, and an empty sheet
+ *  would just be noise. */
+export function buildPropertyWorkbook(
+  scorecard: ScorecardData,
+  homes: PropertyHomeRow[] = []
+): PropertyExportResult {
   const wb = XLSX.utils.book_new();
   const sheet = buildPropertiesSheet(scorecard);
   XLSX.utils.book_append_sheet(wb, sheet, "Properties");
+  if (homes.length > 0) {
+    XLSX.utils.book_append_sheet(wb, buildHomesSheet(homes), "Homes");
+  }
 
   // Filename date source: `dataAsOf` is a required, always-present field
   // (unlike the optional `generatedText.generatedAt`), so it's the stable
