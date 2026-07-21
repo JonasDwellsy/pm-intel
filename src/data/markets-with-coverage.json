@@ -764,6 +764,72 @@
         "lng": -75.5398
       },
       "status": "available"
+    },
+    {
+      "slug": "sacramento-arden-arcade-roseville-ca",
+      "name": "Sacramento--Arden-Arcade--Roseville, CA MSA",
+      "shortName": "Sacramento",
+      "centroid": {
+        "lat": 38.5994,
+        "lng": -121.3959
+      },
+      "status": "live",
+      "marketPageHref": "/property-managers/california/sacramento"
+    },
+    {
+      "slug": "bakersfield-delano-ca",
+      "name": "Bakersfield-Delano, CA MSA",
+      "shortName": "Bakersfield",
+      "centroid": {
+        "lat": 35.3607,
+        "lng": -119.0347
+      },
+      "status": "live",
+      "marketPageHref": "/property-managers/california/bakersfield"
+    },
+    {
+      "slug": "fresno-ca",
+      "name": "Fresno, CA MSA",
+      "shortName": "Fresno",
+      "centroid": {
+        "lat": 36.8122,
+        "lng": -119.7823
+      },
+      "status": "live",
+      "marketPageHref": "/property-managers/california/fresno"
+    },
+    {
+      "slug": "stockton-ca",
+      "name": "Stockton, CA MSA",
+      "shortName": "Stockton",
+      "centroid": {
+        "lat": 37.9644,
+        "lng": -121.3219
+      },
+      "status": "live",
+      "marketPageHref": "/property-managers/california/stockton"
+    },
+    {
+      "slug": "visalia-porterville-ca",
+      "name": "Visalia-Porterville, CA MSA",
+      "shortName": "Visalia",
+      "centroid": {
+        "lat": 36.3157,
+        "lng": -119.3178
+      },
+      "status": "live",
+      "marketPageHref": "/property-managers/california/visalia"
+    },
+    {
+      "slug": "modesto-ca",
+      "name": "Modesto, CA MSA",
+      "shortName": "Modesto",
+      "centroid": {
+        "lat": 37.6605,
+        "lng": -120.9686
+      },
+      "status": "live",
+      "marketPageHref": "/property-managers/california/modesto"
     }
   ]
 }
