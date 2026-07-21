@@ -230,15 +230,35 @@ def assemble_property_detail(comm_buckets, comm_urus_counts, comm_tdc, sfr_bucke
     return build_property_detail(concentrated, merged_sfr, comps)
 
 
-def build_home_records(home_recs):
+def build_home_records(home_recs, concentrated_cids=None, submarket_by_cid=None):
     """Per-home aggregation for Phase 2 individual-home export. Pure.
 
     home_recs: dict[address_id] -> accumulator with keys:
-      address:str, submarket:str|None, lat:float|None, lng:float|None,
-      brs:list[int], rents:list[float], doms:list[int], dates:list[str],
-      concession:bool, n:int
-    Returns one record per home, sorted by address, un-scored.
+      address:str, cid:str|None, submarket:str|None, lat:float|None,
+      lng:float|None, brs:list[int], rents:list[float], doms:list[int],
+      dates:list[str], concession:bool, n:int
+
+    In the source data EVERY listing carries a community_id — scattered
+    single-family homes are micro-communities (often of 1), real MF holdings
+    are communities with many T12 units. The Homes export is SCATTERED-SFR
+    ONLY, so `home_recs` is keyed across all listings during streaming and the
+    concentrated MF communities are dropped HERE, mirroring the same
+    concentrated/scattered split `assemble_property_detail` makes:
+
+      concentrated_cids: set of community_ids that qualify as concentrated MF
+        (>= the URU threshold). A home whose `cid` is in this set is excluded.
+        A home with no cid, or a cid below the threshold, is a scattered home
+        and is kept. Defaults to none-excluded.
+      submarket_by_cid: {community_id -> submarket slug}, the pipeline's
+        `comm_submarket`. A home's submarket is resolved from its community
+        (matching the Phase 1 rollup), falling back to the accumulator's own
+        `submarket` (the rare true-no-cid SFR bucket). Defaults to empty.
+
+    Returns one record per scattered home, sorted by address, un-scored.
     """
+    concentrated_cids = concentrated_cids or set()
+    submarket_by_cid = submarket_by_cid or {}
+
     def _median_int(xs):
         return round(statistics.median(xs)) if xs else None
 
@@ -247,10 +267,13 @@ def build_home_records(home_recs):
 
     out = []
     for aid, a in home_recs.items():
+        cid = a.get("cid")
+        if cid is not None and cid in concentrated_cids:
+            continue  # concentrated MF community — not a scattered SFR home
         out.append({
             "addressId": aid,
             "address": a.get("address") or "",
-            "submarket": a.get("submarket"),
+            "submarket": submarket_by_cid.get(cid) or a.get("submarket"),
             "latitude": a.get("lat"),
             "longitude": a.get("lng"),
             "bedrooms": _modal_int(a.get("brs") or []),

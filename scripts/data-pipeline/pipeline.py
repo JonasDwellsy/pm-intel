@@ -717,24 +717,30 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
                 if addr_city_slug not in d["sfr_label"]:
                     d["sfr_label"][addr_city_slug] = addr_city or addr_city_slug
 
-                # Phase 2 (individual-home export) — per-home accumulator,
-                # keyed by address1_id. Only reachable from this SFR branch,
-                # so a community listing (cid set) can never enter home_recs;
-                # the DOM/concession folds below re-check `aid in d["home_recs"]`
-                # as a second guard.
-                if aid:
-                    hr = d["home_recs"].setdefault(aid, {
-                        "address": "", "submarket": addr_city_slug, "lat": None, "lng": None,
-                        "brs": [], "rents": [], "doms": [], "dates": [], "concession": False, "n": 0,
-                    })
-                    hr["n"] += 1
-                    if not hr["address"]:
-                        hr["address"] = (row.get("address_1") or "").strip() or addr_city or ""
-                    if hr["lat"] is None and lat is not None: hr["lat"] = lat
-                    if hr["lng"] is None and lng is not None: hr["lng"] = lng
-                    if br is not None: hr["brs"].append(br)
-                    if rent and rent > 0: hr["rents"].append(rent)
-                    if ct: hr["dates"].append(ct.date().isoformat())
+            # Phase 2 (individual-home export) — per-home accumulator, keyed by
+            # address1_id, populated for EVERY listing with an address id.
+            # Scattered SFR lives under a community_id in the source (each
+            # scattered house is a micro-community, often of 1), so this must
+            # NOT be gated on the SFR-only `elif` branch above — that branch
+            # almost never fires, which is why the first cut of the extract
+            # came up empty. The home's community_id is recorded so the emit
+            # step can drop homes in concentrated MF communities (keeping the
+            # export scattered-SFR only). The DOM/concession folds below fold
+            # their values into these same entries.
+            if aid:
+                hr = d["home_recs"].setdefault(aid, {
+                    "address": "", "cid": cid or None, "submarket": addr_city_slug,
+                    "lat": None, "lng": None, "brs": [], "rents": [], "doms": [],
+                    "dates": [], "concession": False, "n": 0,
+                })
+                hr["n"] += 1
+                if not hr["address"]:
+                    hr["address"] = (row.get("address_1") or "").strip() or addr_city or ""
+                if hr["lat"] is None and lat is not None: hr["lat"] = lat
+                if hr["lng"] is None and lng is not None: hr["lng"] = lng
+                if br is not None: hr["brs"].append(br)
+                if rent and rent > 0: hr["rents"].append(rent)
+                if ct: hr["dates"].append(ct.date().isoformat())
 
             if ct and dt_ and dt_ >= ct:
                 dom_days = (dt_ - ct).days
@@ -746,10 +752,8 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
                     d["comm_dom"][cid].append(dom_days)
                 elif addr_city_slug:
                     d["sfr_dom"][addr_city_slug].append(dom_days)
-                # Phase 2 — fold into the same home record. Guarding on
-                # `aid in d["home_recs"]` (not just `aid`) is what keeps a
-                # community listing (cid branch above) out of home_recs,
-                # since only the SFR branch ever creates an entry there.
+                # Phase 2 — fold this listing's DOM into its per-home record
+                # (created above for any listing with an aid).
                 if aid and aid in d["home_recs"]:
                     d["home_recs"][aid]["doms"].append(dom_days)
             amen = row.get("amenities") or ""
@@ -788,7 +792,8 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
                         d["comm_concession"][cid] += 1
                     elif addr_city_slug:
                         d["sfr_concession"][addr_city_slug] += 1
-                    # Phase 2 — same aid-in-home_recs guard as the DOM fold.
+                    # Phase 2 — mark this home's per-home record as having had
+                    # a concession (created above for any listing with an aid).
                     if aid and aid in d["home_recs"]:
                         d["home_recs"][aid]["concession"] = True
                     for pname, _start in matches:
@@ -2100,12 +2105,19 @@ for norm in sorted(eligible_norms):
         pm_out["propertyDetail"] = property_detail
 
     # Phase 2 (individual-home export) — this loop already iterates only
-    # `eligible_norms` (T12 >= ELIG_T12_MIN, see the `for norm in
-    # sorted(eligible_norms):` header above), so every operator reaching
-    # this point is eligible; no extra filter needed. Scattered-SFR only —
-    # _prop_d["home_recs"] is populated solely from the SFR (addr_city_slug)
-    # branch of the streaming loop, so community listings never appear here.
-    homes = build_home_records(_prop_d["home_recs"])
+    # `eligible_norms` (T12 >= ELIG_T12_MIN), so every operator here is
+    # eligible; no extra operator filter needed. `home_recs` was keyed across
+    # ALL of the operator's listings during streaming; make it SCATTERED-SFR
+    # only here by dropping homes in concentrated MF communities (>= 10 T12
+    # URUs — the same split assemble_property_detail makes above), and resolve
+    # each home's submarket from its community (comm_submarket), matching the
+    # Phase 1 rollup.
+    _concentrated_cids = {cid for cid, n in _comm_urus_counts.items() if n >= 10}
+    homes = build_home_records(
+        _prop_d["home_recs"],
+        concentrated_cids=_concentrated_cids,
+        submarket_by_cid=_prop_d["comm_submarket"],
+    )
     if homes:
         with open(HOMES_EXTRACT_PATH, "a") as _hf:
             for _h in homes:
