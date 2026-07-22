@@ -134,6 +134,7 @@ export async function loadOperatorTrajectory(
     orderBy: { snapshotDate: "asc" },
     select: {
       snapshotDate: true,
+      methodologyVersion: true,
       estimatedPortfolioPoint: true,
       estimatedPortfolioBand: true,
       starGoldCount: true,
@@ -145,7 +146,13 @@ export async function loadOperatorTrajectory(
       t12ListingsCount: true,
     },
   });
-  const points: TrajectoryPoint[] = rows.map((r) => ({
+  // Drop any prior estimator generation before shaping the single-market
+  // scorecard Momentum series — same guard the aggregate loader applies, so a
+  // future methodology bump can't blend incompatible portfolio scales onto one
+  // axis (the "fake cliff" bug). A no-op while the DB is single-generation
+  // (live "v0.7" + backfill "v0.7-recon" share a generation); protective at the
+  // next bump, when live snapshots lead the not-yet-re-tagged recon history.
+  const points: TrajectoryPoint[] = keepCurrentGenerationSnapshots(rows).map((r) => ({
     date: r.snapshotDate.toISOString().slice(0, 10),
     portfolioPoint: r.estimatedPortfolioPoint,
     portfolioBand: r.estimatedPortfolioBand,
