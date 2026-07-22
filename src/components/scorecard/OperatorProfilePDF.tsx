@@ -713,6 +713,7 @@ function ScorecardHeaderBlock({
               display: "flex",
               flexDirection: "row",
               flexWrap: "wrap",
+              alignItems: "flex-start",
               gap: 6,
               marginTop: 10,
             }}
@@ -1945,10 +1946,10 @@ function PropertyRowCells({ row }: { row: PropertyRowVM }) {
   const sizeText =
     row.kind === "community"
       ? row.units != null
-        ? `${fmtInt(row.units)} units`
+        ? `${fmtInt(row.units)} ${row.units === 1 ? "unit" : "units"}`
         : "—"
       : row.homes != null
-        ? `${fmtInt(row.homes)} homes`
+        ? `${fmtInt(row.homes)} ${row.homes === 1 ? "home" : "homes"}`
         : "—";
   return (
     <View style={[styles.tableRow, { alignItems: "flex-start" }]} wrap={false}>
@@ -2015,7 +2016,7 @@ function PropertiesSection({
       <View wrap={false}>
         <View style={styles.tableHeaderRow}>
           <Text style={[styles.tableHeaderCell, { flex: 2.6 }]}>Property / Community</Text>
-          <Text style={[styles.tableHeaderCell, { flex: 1.3, textAlign: "right" }]}>Units / Homes</Text>
+          <Text style={[styles.tableHeaderCell, { flex: 1.3, textAlign: "right" }]}>Size</Text>
           <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: "right" }]}>Listings</Text>
           <Text style={[styles.tableHeaderCell, { flex: 1.5, textAlign: "right" }]}>Median DOM</Text>
           <Text style={[styles.tableHeaderCell, { flex: 2.0, textAlign: "right" }]}>Rent + YoY</Text>
@@ -2433,7 +2434,7 @@ export function OperatorProfilePDF({
             cards, overlapping them. Starting 02 fresh guarantees a full page
             of room regardless of the operator's section-01 height (peers,
             cross-market block, unit mix, rent-tier lines all vary). */}
-        <View style={{ marginTop: 20 }} break>
+        <View break>
           <OperatingSection operating={view.operating} />
         </View>
         <View style={{ marginTop: 20 }}>
