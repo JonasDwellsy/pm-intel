@@ -46,6 +46,9 @@ interface AddToWatchListProps {
   /** Icon-only trigger (market/search rows). Default renders the full
    *  labeled pill button (scorecard header). */
   compact?: boolean;
+  /** Filled/accent labeled pill — the scorecard header's primary action.
+   *  Ignored when `compact` is set. */
+  primary?: boolean;
 }
 
 /** Minimal shape this component reads off a watch-list row — decoupled
@@ -65,6 +68,7 @@ export function AddToWatchList({
   memberKey,
   operatorName,
   compact = false,
+  primary = false,
 }: AddToWatchListProps) {
   const { isSignedIn, userId } = useAuth();
 
@@ -241,6 +245,8 @@ export function AddToWatchList({
         className={
           compact
             ? "inline-flex h-7 w-7 items-center justify-center rounded-full border border-grid bg-white text-muted-foreground transition-colors hover:border-navy hover:text-navy focus-visible:border-navy focus-visible:outline-none"
+            : primary
+            ? "inline-flex items-center gap-1.5 rounded-full bg-navy px-3.5 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-navy/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy/40"
             : "inline-flex items-center gap-1.5 rounded-full border border-grid bg-white px-3 py-1 text-[11.5px] font-semibold text-navy transition-colors hover:border-navy hover:bg-surface-soft focus-visible:border-navy focus-visible:bg-surface-soft focus-visible:outline-none"
         }
       >
