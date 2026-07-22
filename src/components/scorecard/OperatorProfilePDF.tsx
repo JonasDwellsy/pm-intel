@@ -1028,8 +1028,9 @@ function ScaleFitSection({
         <RentTierCard detail={scaleFit.rentTier} />
         {scaleFit.unitMix != null ? <UnitMixCard unitMix={scaleFit.unitMix} /> : null}
       </View>
-      {/* Full-width coverage map */}
-      <CoverageMapCard coverageMap={coverageMap} geo={geo} />
+      {/* Cross-market footprint (multi-market operators only) — kept ABOVE the
+          full-width map so, when §01 overflows onto a second page, that page
+          carries the large map rather than stranding this 2-line strip alone. */}
       {scaleFit.crossMarket != null ? (
         <View style={styles.card} wrap={false}>
           <MicroLabel style={{ marginBottom: 6 }}>Also operates in</MicroLabel>
@@ -1041,6 +1042,8 @@ function ScaleFitSection({
           </Text>
         </View>
       ) : null}
+      {/* Full-width coverage map */}
+      <CoverageMapCard coverageMap={coverageMap} geo={geo} />
     </View>
   );
 }
