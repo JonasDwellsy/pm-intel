@@ -802,12 +802,6 @@ function LinkChip({
       >
         {label}
       </Link>
-      <Link
-        src={url}
-        style={{ fontSize: 7.5, color: COLOR_TEAL, marginTop: 2, textDecoration: "none" }}
-      >
-        {url}
-      </Link>
     </View>
   );
 }
@@ -1926,13 +1920,15 @@ function PropComparable({
   }
   const color =
     cell.deltaSign === "better" ? C.good : cell.deltaSign === "worse" ? C.bad : C.ink;
+  // Value + "mkt X" comp on ONE line (was stacked) — halves row height so a
+  // multi-property table stays on a single page instead of orphaning rows.
   return (
-    <View style={{ alignItems: "flex-end" }}>
+    <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "flex-end", gap: 4 }}>
       <Text style={{ fontSize: 9, color, fontFamily: "Helvetica-Bold" }}>
         {format(cell.value)}
       </Text>
       {cell.comp != null ? (
-        <Text style={{ fontSize: 6.5, color: C.label, marginTop: 1 }}>
+        <Text style={{ fontSize: 6.5, color: C.label }}>
           mkt {format(cell.comp)}
         </Text>
       ) : null}
@@ -2448,7 +2444,12 @@ export function OperatorProfilePDF({
             <PropertiesSection scorecard={scorecard} num="05" />
           </View>
         ) : null}
-        <View style={{ marginTop: 20 }}>
+        {/* Methodology is a full section (classification + coverage universe +
+            sample sizes + disclaimer + citation); start it on a fresh page so
+            it never crams at the bottom of the properties page and overlaps the
+            footer. `break` with NO top margin — a top margin on a react-pdf
+            `break` element spawns a blank page (see the section-02 break). */}
+        <View break>
           <MethodologySection scorecard={scorecard} num={hasProperties ? "06" : "05"} />
         </View>
 
