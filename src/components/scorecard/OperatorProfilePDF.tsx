@@ -364,19 +364,23 @@ function Badge({
 
 /** Neutral management-model chip — "hireable," not a value judgment. Mirrors
  *  the web chip in ScorecardHeader.tsx (muted grey/blue, rounded-rect not
- *  pill, same treatment for all three model states). Confidence sub-label
- *  only renders when non-null (always null for "unknown"). The web chip
- *  surfaces `basis` via a hover `title`; the static PDF has no hover, so
- *  `basis` renders as a small muted caption beneath the chip instead
- *  (reusing the existing, otherwise-unused `perfFootnote` style) — this is
- *  the only way the "unknown" state's "Verify directly" honesty copy makes
- *  it into the PDF at all, since `basis` is its only home. Always present,
- *  so the caption renders for all three model states. */
+ *  pill, same treatment for all three model states). The web chip keeps its
+ *  face to just the model label and surfaces confidence + `basis` via a hover
+ *  `title`; the static PDF has no hover, so both fold into a small muted
+ *  caption beneath the chip (reusing the otherwise-unused `perfFootnote`
+ *  style) — the PDF analog of that tooltip, and the only way the "unknown"
+ *  state's "Verify directly" honesty copy makes it into the PDF at all.
+ *  `basis` is always present, so the caption renders for all three states. */
 function ManagementModelChip({
   managementModel,
 }: {
   managementModel: NonNullable<ScorecardView["header"]["managementModel"]>;
 }) {
+  // Confidence lives in the caption (not on the chip face), mirroring the web
+  // header's tooltip text verbatim: "High confidence · <basis>".
+  const caption = managementModel.confidence
+    ? `${managementModel.confidence.charAt(0).toUpperCase()}${managementModel.confidence.slice(1)} confidence · ${managementModel.basis}`
+    : managementModel.basis;
   return (
     <View style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <View
@@ -397,21 +401,9 @@ function ManagementModelChip({
         <Text style={{ fontSize: 9.5, color: "#4a5568", fontFamily: "Helvetica-Bold" }}>
           {managementModelLabel(managementModel.model)}
         </Text>
-        {managementModel.confidence ? (
-          <Text
-            style={{
-              fontSize: 8,
-              color: "#8a94a6",
-              textTransform: "uppercase",
-              letterSpacing: 0.3,
-            }}
-          >
-            {managementModel.confidence} confidence
-          </Text>
-        ) : null}
       </View>
       <Text style={[styles.perfFootnote, { marginTop: 0, maxWidth: 260 }]}>
-        {managementModel.basis}
+        {caption}
       </Text>
     </View>
   );
@@ -734,13 +726,10 @@ function ScorecardHeaderBlock({
               <ManagementModelChip managementModel={header.managementModel} />
             ) : null}
             <Badge border={C.chipBorder} fg="#3a4a6b">
-              {header.marketFullName}
+              {header.singleMarket
+                ? `${header.marketFullName} · single-market`
+                : header.marketFullName}
             </Badge>
-            {header.singleMarket ? (
-              <Badge border={C.chipBorder} fg="#3a4a6b">
-                Single-market
-              </Badge>
-            ) : null}
           </View>
         </View>
         <StarReadout
