@@ -23,27 +23,72 @@ const AREA_ICONS: Record<ReadoutRow["area"], string> = {
 interface ExecReadoutProps {
   readout: ReadoutRow[];
   maturityNote?: string | null;
+  /** Gold/silver star summary — relocated here from the header. Optional so
+   *  the PDF's ExecReadout call (no stars) stays unchanged. */
+  goldCount?: number;
+  silverCount?: number;
 }
 
 /**
  * 4-row bordered table: eyebrow "30-second readout" + one row per area.
  * Each area name links to its section anchor. LabelChip rendered when label set.
  */
-export function ExecReadout({ readout, maturityNote }: ExecReadoutProps) {
+export function ExecReadout({ readout, maturityNote, goldCount, silverCount }: ExecReadoutProps) {
   return (
     <div style={{ marginTop: "22px", marginBottom: "24px" }}>
-      {/* Eyebrow */}
+      {/* Eyebrow + relocated gold/silver star summary */}
       <div
         style={{
-          fontSize: "10px",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "#8894ac",
-          fontWeight: 600,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
           marginBottom: "6px",
+          gap: "12px",
         }}
       >
-        30-second readout
+        <div
+          style={{
+            fontSize: "10px",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "#8894ac",
+            fontWeight: 600,
+          }}
+        >
+          30-second readout
+        </div>
+        {goldCount != null && silverCount != null && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              border: "1px solid #ead9a8",
+              background: "#fdf7e7",
+              borderRadius: "20px",
+              padding: "4px 11px",
+              fontSize: "12px",
+              color: "#7a5c12",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {goldCount > 0 && (
+              <span style={{ color: "#d4a017", letterSpacing: "1px" }}>
+                {"★".repeat(goldCount)}
+              </span>
+            )}
+            {goldCount} gold
+            <span style={{ color: "#c9cfd8" }}>·</span>
+            {silverCount > 0 && (
+              <span style={{ color: "#9aa4b2", letterSpacing: "1px" }}>
+                {"★".repeat(silverCount)}
+              </span>
+            )}
+            {silverCount} silver
+          </span>
+        )}
       </div>
 
       {/* Bordered table */}
