@@ -1,481 +1,185 @@
-// PDF design tokens + StyleSheet, extracted from OperatorProfilePDF.tsx so the
-// ~3k-line component isn't also carrying ~490 lines of style definitions. Pure
-// constants, imported by the PDF component. Colors mirror the OG image + live-
-// scorecard palette so the share artifacts read as one product.
+// PDF design tokens + StyleSheet for the Operator IQ scorecard PDF (design v3).
+//
+// This is the VIOLET print system from the Claude-Design handoff
+// (docs/design/pdf-scorecard-v3/README.md). It intentionally DIVERGES from the
+// live web scorecard (which keeps the navy/teal system) — the PDF is its own
+// deal-room artifact. Pure constants; Inter font registration lives in the
+// component (OperatorProfilePDF.tsx) alongside the hyphenation callback.
 import { StyleSheet } from "@react-pdf/renderer";
 
-export const COLOR_NAVY = "#0f1f3f";
-export const COLOR_TEAL = "#1b6e8c";
-export const COLOR_GOLD = "#E5A800";
-export const COLOR_SILVER = "#9CA3AF";
-export const COLOR_MUTED = "#5f6b80";
-export const COLOR_MUTED_2 = "#8b95a8";
-export const COLOR_GRID = "#e1e5ec";
-export const COLOR_SURFACE = "#f6f7fa";
-export const COLOR_BG = "#ffffff";
-// Directional tones — mirror --color-good / --color-bad from
-// globals.css so the Trajectory delta + Performance trend labels
-// read the same green/red as the live report.
-export const COLOR_GOOD = "#3e7c3e";
-export const COLOR_BAD = "#a63a2a";
-// Teal used for the peer-comparison IQR band + the sparkline stroke.
-// The live components use #0E7C86 for the sparkline; we reuse the
-// existing brand COLOR_TEAL (#1b6e8c) for consistency across the PDF.
-export const COLOR_TEAL_SOFT = "#d3e5eb";
+// Font family registered in the component. Weights selected via `fontWeight`.
+export const FONT = "Inter";
+
+// --- Palette (README "Design tokens") ---
+export const NIGHT_BASE = "#0a1124"; // dark hero base
+export const NIGHT_LIGHT = "#131a3e"; // hero gradient light end
+
+export const INK = "#0c1322"; // headings
+export const BODY = "#2c3344"; // body text
+export const MUTED = "#5d6678"; // secondary / labels
+export const FAINT = "#9aa1ae"; // tick labels / captions
+
+export const BORDER = "#e5e7eb"; // hairline
+export const BAND = "#d9dee8"; // cohort band grey / heavy table rule
+export const TILE = "#f5f6f8"; // tile / track / disclaimer panel grey
+export const CHIP = "#eef0f3"; // neutral chip grey
+
+export const VIOLET = "#5b3cff"; // primary data + STRONG
+export const VIOLET_SOFT = "#ece8ff";
+export const ROW_HL = "#f4f1ff"; // peer / property "this operator" row highlight
+
+export const TEAL = "#2bb3c7"; // secondary data
+export const TEAL_CHIP_BG = "#dff3f6";
+export const TEAL_CHIP_FG = "#0e6b79";
+
+export const MAGENTA_CHIP_BG = "#fbe7f3";
+export const MAGENTA_CHIP_FG = "#99206c";
+
+export const YELLOW = "#ffc820"; // wordmark IQ, gold medal, sparkline end-dot
+export const YELLOW_RING = "#d99f00";
+export const SILVER = "#cdd3dd"; // silver medal
+export const SILVER_RING = "#9aa1ae";
+
+// Directional tones for YoY / deltas (mirror the teal/magenta chip fgs).
+export const POS = TEAL_CHIP_FG; // positive / better
+export const NEG = MAGENTA_CHIP_FG; // negative / worse
+
+// Legacy aliases still imported by the coverage-map block (recolored to violet
+// at the call site; kept exported so pdf-coverage-map consumers don't break).
+export const COLOR_TEAL = TEAL;
+export const COLOR_GRID = BORDER;
+export const COLOR_MUTED_2 = FAINT;
+
+// --- Page geometry ---
+export const PAGE_PADDING_X = 56;
+export const PAGE_PADDING_TOP = 74; // clears the fixed running head (pages 2+)
+export const PAGE_PADDING_BOTTOM = 52; // clears the fixed footer
 
 export const styles = StyleSheet.create({
-  // --- Page chrome ---
   page: {
-    paddingTop: 48,
-    paddingBottom: 60,
-    paddingHorizontal: 48,
+    paddingTop: PAGE_PADDING_TOP,
+    paddingBottom: PAGE_PADDING_BOTTOM,
+    paddingLeft: PAGE_PADDING_X,
+    paddingRight: PAGE_PADDING_X,
     fontSize: 10,
-    color: COLOR_NAVY,
-    fontFamily: "Helvetica",
-    backgroundColor: COLOR_BG,
+    color: BODY,
+    fontFamily: FONT,
+    backgroundColor: "#ffffff",
+    letterSpacing: -0.1,
   },
-  // --- Header ---
-  brandRow: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
+
+  // --- Section header (violet number + h2 + optional chip + intro sentence) ---
+  sectionNum: {
+    fontSize: 14,
+    fontWeight: 800,
+    color: VIOLET,
+    letterSpacing: -0.2,
   },
-  brandText: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: COLOR_NAVY,
-    fontFamily: "Helvetica-Bold",
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: 800,
+    color: INK,
+    letterSpacing: -0.5,
   },
-  brandSep: {
-    fontSize: 10,
-    color: COLOR_MUTED,
-  },
-  brandEyebrow: {
-    fontSize: 9,
-    fontWeight: 600,
-    color: COLOR_TEAL,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    fontFamily: "Helvetica-Bold",
-  },
-  // --- Identity hero ---
-  operatorName: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: COLOR_NAVY,
-    letterSpacing: -0.4,
-    lineHeight: 1.1,
-    marginTop: 8,
-    fontFamily: "Helvetica-Bold",
-  },
-  operatorMeta: {
-    fontSize: 12,
-    color: COLOR_MUTED,
-    marginTop: 6,
-    fontWeight: 500,
-  },
-  starRow: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 14,
-  },
-  starChip: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderStyle: "solid",
-  },
-  starChipText: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: COLOR_NAVY,
-    fontFamily: "Helvetica-Bold",
-  },
-  starChipLabel: {
-    fontSize: 8,
-    fontWeight: 700,
-    color: COLOR_MUTED,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    fontFamily: "Helvetica-Bold",
-  },
-  starGlyph: {
-    fontSize: 10,
-    lineHeight: 1,
-  },
-  cohortFraming: {
+  sectionIntro: {
     fontSize: 11,
-    color: COLOR_MUTED,
-    marginTop: 14,
+    color: BODY,
     lineHeight: 1.45,
-    maxWidth: 480,
+    marginTop: 6,
+    marginBottom: 14,
   },
-  // --- Section headers ---
-  sectionHeader: {
-    fontSize: 8,
+  // Sub-heading inside a section (methodology sub-sections).
+  subHead: {
+    fontSize: 9,
     fontWeight: 700,
-    color: COLOR_TEAL,
-    letterSpacing: 1,
+    color: MUTED,
+    letterSpacing: 0.9,
     textTransform: "uppercase",
-    marginTop: 24,
+    marginTop: 14,
     marginBottom: 6,
-    fontFamily: "Helvetica-Bold",
   },
   paragraph: {
     fontSize: 10.5,
-    lineHeight: 1.55,
-    color: COLOR_NAVY,
-    maxWidth: 500,
+    lineHeight: 1.5,
+    color: BODY,
   },
-  // --- Metric tiles ---
-  tilesGrid: {
-    display: "flex",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 6,
+
+  // --- Micro label (letterspaced, e.g. "30-SECOND READOUT", tile labels) ---
+  microLabel: {
+    fontSize: 9,
+    fontWeight: 700,
+    color: MUTED,
+    letterSpacing: 0.9,
+    textTransform: "uppercase",
   },
-  tile: {
-    width: "31.5%",
-    padding: 10,
-    backgroundColor: COLOR_BG,
-    borderColor: COLOR_GRID,
+
+  // --- Card ---
+  card: {
     borderWidth: 1,
     borderStyle: "solid",
-    borderRadius: 6,
+    borderColor: BORDER,
+    borderRadius: 12,
+    paddingVertical: 15,
+    paddingHorizontal: 18,
+    marginBottom: 12,
   },
-  tileTitle: {
-    fontSize: 7.5,
-    fontWeight: 700,
-    color: COLOR_MUTED,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    fontFamily: "Helvetica-Bold",
-  },
-  tileValueRow: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 4,
-    marginTop: 6,
-  },
-  tileValue: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: COLOR_NAVY,
-    fontFamily: "Helvetica-Bold",
-  },
-  tileUnit: {
+
+  // --- Running head (pages 2+) ---
+  runHeadName: { fontSize: 10, fontWeight: 600, color: MUTED },
+  runHeadRight: {
     fontSize: 9,
-    color: COLOR_MUTED,
-    fontWeight: 500,
-  },
-  tileCompare: {
-    fontSize: 9,
-    color: COLOR_MUTED,
-    marginTop: 4,
-    lineHeight: 1.35,
-  },
-  // --- Bullets ---
-  bulletRow: {
-    display: "flex",
-    flexDirection: "row",
-    gap: 6,
-    marginTop: 4,
-  },
-  bulletDot: {
-    fontSize: 10,
-    color: COLOR_TEAL,
-    lineHeight: 1.55,
-  },
-  bulletText: {
-    fontSize: 10.5,
-    lineHeight: 1.55,
-    color: COLOR_NAVY,
-    flex: 1,
-  },
-  // --- Signal cards (Pages 2/3) ---
-  signalCard: {
-    padding: 12,
-    marginTop: 8,
-    backgroundColor: COLOR_SURFACE,
-    borderColor: COLOR_GRID,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderRadius: 6,
-  },
-  // PR #86 — Concession sample card. Italic + indented + muted to
-  // visually distinguish operator-quoted text from the surrounding
-  // narrative.
-  concessionSample: {
-    marginTop: 6,
-    paddingLeft: 12,
-    borderLeftWidth: 2,
-    borderLeftStyle: "solid",
-    borderLeftColor: COLOR_TEAL,
-  },
-  concessionSampleText: {
-    fontSize: 9.5,
-    fontStyle: "italic",
-    color: COLOR_MUTED,
-    lineHeight: 1.45,
-  },
-  signalTitle: {
-    fontSize: 11,
     fontWeight: 700,
-    color: COLOR_NAVY,
-    fontFamily: "Helvetica-Bold",
-  },
-  signalDetail: {
-    fontSize: 10,
-    color: COLOR_MUTED,
-    marginTop: 4,
-    lineHeight: 1.45,
-  },
-  // --- Page header (smaller, repeats on pages 2+) ---
-  pageHeader: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomStyle: "solid",
-    borderBottomColor: COLOR_GRID,
-  },
-  pageHeaderTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: COLOR_NAVY,
-    fontFamily: "Helvetica-Bold",
-  },
-  pageHeaderMeta: {
-    fontSize: 8,
-    color: COLOR_MUTED_2,
-    letterSpacing: 0.4,
+    color: FAINT,
+    letterSpacing: 1.1,
     textTransform: "uppercase",
-    fontFamily: "Helvetica-Bold",
   },
+
   // --- Footer (every page) ---
   footer: {
     position: "absolute",
-    left: 48,
-    right: 48,
-    bottom: 28,
-    paddingTop: 8,
+    left: PAGE_PADDING_X,
+    right: PAGE_PADDING_X,
+    bottom: 26,
+    paddingTop: 6,
     borderTopWidth: 1,
     borderTopStyle: "solid",
-    borderTopColor: COLOR_GRID,
+    borderTopColor: BORDER,
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    fontSize: 8,
-    color: COLOR_MUTED_2,
+    fontSize: 9.5,
+    fontWeight: 500,
+    color: FAINT,
   },
-  footerLink: {
-    color: COLOR_TEAL,
-    fontWeight: 700,
-    fontFamily: "Helvetica-Bold",
-  },
-  // --- Trajectory page (mirrors OperatorTrajectorySection.tsx) ---
-  trajectorySubtitle: {
-    fontSize: 10,
-    color: COLOR_MUTED,
-    marginTop: 2,
-    marginBottom: 4,
-    lineHeight: 1.45,
-  },
-  trajectoryHeadlineRow: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "baseline",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 12,
-  },
-  trajectoryHeadlineEyebrow: {
-    fontSize: 8,
-    fontWeight: 700,
-    color: COLOR_MUTED,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    fontFamily: "Helvetica-Bold",
-  },
-  trajectoryHeadlineValue: {
-    fontSize: 22,
-    fontWeight: 700,
-    color: COLOR_NAVY,
-    fontFamily: "Helvetica-Bold",
-  },
-  trajectoryDelta: {
-    fontSize: 11,
-    fontWeight: 700,
-    fontFamily: "Helvetica-Bold",
-  },
-  trajectoryAxisRow: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  trajectoryAxisLabel: {
-    fontSize: 8,
-    color: COLOR_MUTED_2,
-  },
-  trajectoryAxisCenter: {
-    fontSize: 8,
-    color: COLOR_MUTED_2,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    fontFamily: "Helvetica-Bold",
-  },
-  trajectoryFooter: {
-    fontSize: 8.5,
-    color: COLOR_MUTED_2,
-    marginTop: 16,
-    lineHeight: 1.45,
-  },
-  // --- Generic table (Trajectory snapshots + Methodology tables) ---
+  footerLink: { color: MUTED, fontWeight: 600 },
+
+  // --- Generic table (methodology + properties) ---
   tableHeaderRow: {
     display: "flex",
     flexDirection: "row",
-    borderBottomWidth: 1,
+    borderBottomWidth: 1.5,
     borderBottomStyle: "solid",
-    borderBottomColor: COLOR_GRID,
-    paddingVertical: 4,
+    borderBottomColor: BAND,
+    paddingBottom: 6,
+    paddingTop: 2,
+  },
+  tableHeaderCell: {
+    fontSize: 9,
+    fontWeight: 700,
+    color: FAINT,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
   },
   tableRow: {
     display: "flex",
     flexDirection: "row",
-    borderBottomWidth: 0.5,
+    borderBottomWidth: 0.75,
     borderBottomStyle: "solid",
-    borderBottomColor: COLOR_GRID,
-    paddingVertical: 4,
+    borderBottomColor: BORDER,
+    paddingVertical: 8,
   },
-  tableHeaderCell: {
-    fontSize: 7.5,
-    fontWeight: 700,
-    color: COLOR_MUTED,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    fontFamily: "Helvetica-Bold",
-  },
-  tableCell: {
-    fontSize: 9,
-    color: COLOR_NAVY,
-  },
-  tableCellMuted: {
-    fontSize: 9,
-    color: COLOR_MUTED,
-  },
-  // --- Performance card enrichment (mirrors PerformanceLayer.tsx) ---
-  perfCard: {
-    padding: 14,
-    marginTop: 8,
-    backgroundColor: COLOR_BG,
-    borderColor: COLOR_GRID,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderRadius: 6,
-  },
-  perfCardHeaderRow: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomStyle: "solid",
-    borderBottomColor: COLOR_GRID,
-    paddingBottom: 8,
-  },
-  perfCardTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: COLOR_NAVY,
-    fontFamily: "Helvetica-Bold",
-  },
-  perfCardQualifier: {
-    fontSize: 9,
-    color: COLOR_MUTED,
-    marginTop: 3,
-  },
-  perfHeadlineValue: {
-    fontSize: 26,
-    fontWeight: 700,
-    color: COLOR_NAVY,
-    fontFamily: "Helvetica-Bold",
-    lineHeight: 1,
-  },
-  perfHeadlineUnit: {
-    fontSize: 9,
-    color: COLOR_MUTED,
-    marginTop: 3,
-  },
-  perfTrend: {
-    fontSize: 9.5,
-    fontWeight: 700,
-    fontFamily: "Helvetica-Bold",
-  },
-  perfEyebrowMuted: {
-    fontSize: 7.5,
-    fontWeight: 700,
-    color: COLOR_MUTED,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    fontFamily: "Helvetica-Bold",
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  perfDistCaption: {
-    fontSize: 8,
-    color: COLOR_MUTED_2,
-    marginTop: 4,
-    lineHeight: 1.4,
-  },
-  perfContext: {
-    fontSize: 9.5,
-    color: COLOR_MUTED,
-    marginTop: 8,
-    lineHeight: 1.5,
-  },
-  perfFootnote: {
-    fontSize: 8.5,
-    fontStyle: "italic",
-    color: COLOR_MUTED_2,
-    marginTop: 4,
-    lineHeight: 1.4,
-  },
-  // Peer mini-table row
-  peerRow: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 3,
-    borderBottomWidth: 0.5,
-    borderBottomStyle: "solid",
-    borderBottomColor: COLOR_GRID,
-  },
-  peerName: {
-    fontSize: 9,
-    color: COLOR_NAVY,
-  },
-  peerValue: {
-    fontSize: 9,
-    color: COLOR_NAVY,
-    textAlign: "right",
-  },
+  tableCell: { fontSize: 10, color: BODY },
+  tableCellBold: { fontSize: 10, color: INK, fontWeight: 700 },
+  tableCellMuted: { fontSize: 10, color: MUTED },
 });

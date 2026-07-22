@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+doc-page:not(:defined){visibility:hidden}
+body{margin:0}
+a{color:#5b3cff;text-decoration:none}
+a:hover{color:#4a2ee0}
+</style>
+<script src="./doc-page.js"></script>
+</helmet>
+<doc-page>
+
+<!-- PAGE 1 — Cover + readout -->
+<section class="page" id="p1" data-screen-label="Cover" style="display:flex;flex-direction:column;background:#ffffff;font-family:'Inter',sans-serif;color:#0c1322;">
+  <div style="background:radial-gradient(620px 320px at 88% -12%, rgba(91,60,255,0.55), transparent 65%), radial-gradient(520px 280px at 108% 62%, rgba(43,179,199,0.32), transparent 60%), radial-gradient(440px 260px at -6% 96%, rgba(179,38,127,0.28), transparent 60%), linear-gradient(160deg, #131a3e 0%, #0a1124 55%, #0a1124 100%);padding:44px 56px 40px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:21px;font-weight:800;letter-spacing:-0.02em;"><span style="color:#ffffff;">Dwellsy</span><span style="color:#ffc820;">IQ</span></div>
+      <a href="https://dwellsy.com" style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);">View listings on Dwellsy »</a>
+    </div>
+    <div style="margin-top:52px;font-size:13px;font-weight:600;color:#2bb3c7;">Property Manager Scorecard</div>
+    <h1 style="margin:6px 0 0;font-size:52px;line-height:1.05;font-weight:800;letter-spacing:-0.02em;color:#ffffff;">Reeder Companies</h1>
+    <div style="display:flex;gap:8px;margin-top:18px;">
+      <div style="padding:5px 12px;border:1px solid rgba(255,255,255,0.25);border-radius:999px;font-size:11px;font-weight:600;color:#ffffff;">SFR Independent</div>
+      <div style="padding:5px 12px;border:1px solid rgba(255,255,255,0.25);border-radius:999px;font-size:11px;font-weight:600;color:#ffffff;">Third-party manager</div>
+      <div style="padding:5px 12px;border-radius:999px;background:rgba(255,200,32,0.14);border:1px solid rgba(255,200,32,0.45);font-size:11px;font-weight:600;color:#ffc820;">High confidence</div>
+    </div>
+    <div style="margin-top:16px;font-size:13px;font-style:italic;color:rgba(255,255,255,0.72);max-width:520px;">Independent scattered single-family operator — management-for-owners by nature.</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:34px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.12);">
+      <div style="font-size:12px;font-weight:500;color:rgba(255,255,255,0.85);">Chicago-Joliet-Naperville, IL-IN-WI MSA <span style="color:rgba(255,255,255,0.45);">· single-market</span></div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="width:12px;height:12px;border-radius:50%;background:#ffc820;border:2px solid #d99f00;"></span>
+        <span style="width:12px;height:12px;border-radius:50%;background:#cdd3dd;border:2px solid #9aa1ae;"></span>
+        <span style="width:12px;height:12px;border-radius:50%;background:#cdd3dd;border:2px solid #9aa1ae;"></span>
+        <span style="margin-left:4px;font-size:11.5px;font-weight:600;color:rgba(255,255,255,0.85);">1 gold · 2 silver</span>
+      </div>
+    </div>
+  </div>
+  <div style="padding:36px 56px 0;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">30-SECOND READOUT</div>
+    <div style="margin-top:12px;border-top:1px solid #e5e7eb;">
+      <div style="display:grid;grid-template-columns:180px 1fr auto;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid #e5e7eb;">
+        <div style="font-size:12px;font-weight:700;color:#0c1322;">Scale &amp; fit</div>
+        <div style="font-size:12.5px;color:#2c3344;">SFR Independent in Chicago · ~290 managed units (est.)</div>
+        <div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:180px 1fr auto;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid #e5e7eb;">
+        <div style="font-size:12px;font-weight:700;color:#0c1322;">Operating performance</div>
+        <div style="font-size:12.5px;color:#2c3344;">Above cohort median on 3 of 4 scored dimensions</div>
+        <div style="padding:3px 10px;border-radius:6px;background:#5b3cff;color:#ffffff;font-size:10px;font-weight:700;letter-spacing:0.06em;">STRONG</div>
+      </div>
+      <div style="display:grid;grid-template-columns:180px 1fr auto;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid #e5e7eb;">
+        <div style="font-size:12px;font-weight:700;color:#0c1322;">Momentum</div>
+        <div style="font-size:12.5px;color:#2c3344;">Portfolio larger than when first observed</div>
+        <div style="padding:3px 10px;border-radius:6px;background:#fbe7f3;color:#99206c;font-size:10px;font-weight:700;letter-spacing:0.06em;">GROWING</div>
+      </div>
+      <div style="display:grid;grid-template-columns:180px 1fr auto;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid #e5e7eb;">
+        <div style="font-size:12px;font-weight:700;color:#0c1322;">Watch items</div>
+        <div style="font-size:12.5px;color:#2c3344;">Positives only — nothing flagged for review</div>
+        <div style="padding:3px 10px;border-radius:6px;background:#dff3f6;color:#0e6b79;font-size:10px;font-weight:700;letter-spacing:0.06em;">0 TO REVIEW</div>
+      </div>
+    </div>
+    <div style="margin-top:32px;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">AT A GLANCE</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px;">
+      <div style="background:#f5f6f8;border-radius:12px;padding:14px 14px 12px;"><div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#5d6678;">TYPE</div><div style="margin-top:6px;font-size:14px;font-weight:800;letter-spacing:-0.01em;">SFR Independent</div></div>
+      <div style="background:#f5f6f8;border-radius:12px;padding:14px 14px 12px;"><div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#5d6678;">CITIES</div><div style="margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-0.02em;">5</div></div>
+      <div style="background:#f5f6f8;border-radius:12px;padding:14px 14px 12px;"><div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#5d6678;">FOOTPRINT</div><div style="margin-top:6px;font-size:14px;font-weight:800;letter-spacing:-0.01em;">1 market</div></div>
+      <div style="background:#f5f6f8;border-radius:12px;padding:14px 14px 12px;"><div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#5d6678;">OBSERVED</div><div style="margin-top:6px;font-size:22px;font-weight:800;letter-spacing:-0.02em;">103 <span style="font-size:11px;font-weight:600;color:#5d6678;">units</span></div></div>
+      <div style="background:#f5f6f8;border-radius:12px;padding:14px 14px 12px;"><div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#5d6678;">TENURE</div><div style="margin-top:6px;font-size:14px;font-weight:800;letter-spacing:-0.01em;">5.6y <span style="font-size:11px;font-weight:600;color:#5d6678;">· 1 market</span></div></div>
+    </div>
+  </div>
+  <div style="margin:auto 56px 36px;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9.5px;font-weight:500;color:#9aa1ae;">
+    <div>Methodology v0.7 · Design v2.0 · Data as of July 6, 2026</div><div>iq.dwellsy.com · 1 of 6</div>
+  </div>
+</section>
+
+<!-- PAGE 2 — 01 Scale & Fit -->
+<section class="page" id="p2" data-screen-label="Scale and fit" style="display:flex;flex-direction:column;background:#ffffff;font-family:'Inter',sans-serif;color:#0c1322;padding:40px 56px 36px;">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid #e5e7eb;">
+    <div style="font-size:10px;font-weight:600;color:#5d6678;">Reeder Companies · Chicago-Joliet-Naperville, IL-IN-WI MSA</div>
+    <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:#9aa1ae;">PROPERTY MANAGER SCORECARD</div>
+  </div>
+  <div style="display:flex;align-items:baseline;gap:12px;margin-top:28px;">
+    <div style="font-size:14px;font-weight:800;color:#5b3cff;">01</div>
+    <h2 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.02em;">Scale &amp; fit</h2>
+  </div>
+  <p style="margin:8px 0 0;font-size:12.5px;color:#2c3344;">Reeder Companies operates in Chicago-Joliet-Naperville, IL-IN-WI MSA as a SFR Independent.</p>
+
+  <div style="margin-top:22px;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">PORTFOLIO SIZE</div>
+    <div style="display:flex;gap:36px;margin-top:12px;">
+      <div><div style="font-size:26px;font-weight:800;letter-spacing:-0.02em;color:#5b3cff;">103</div><div style="font-size:10.5px;font-weight:500;color:#5d6678;">observed</div></div>
+      <div><div style="font-size:26px;font-weight:800;letter-spacing:-0.02em;">290</div><div style="font-size:10.5px;font-weight:500;color:#5d6678;">est.</div></div>
+      <div><div style="font-size:26px;font-weight:800;letter-spacing:-0.02em;color:#5d6678;">220–370</div><div style="font-size:10.5px;font-weight:500;color:#5d6678;">plausible range</div></div>
+    </div>
+    <div style="position:relative;height:14px;margin-top:18px;border-radius:7px;background:#f5f6f8;">
+      <div style="position:absolute;left:55%;width:37.5%;height:14px;border-radius:7px;background:#ece8ff;"></div>
+      <div style="position:absolute;left:0;width:25.75%;height:14px;border-radius:7px 0 0 7px;background:#5b3cff;"></div>
+      <div style="position:absolute;left:72.5%;top:50%;width:12px;height:12px;border-radius:50%;background:#0c1322;border:2.5px solid #ffffff;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(12,19,34,0.35);"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;font-weight:600;color:#9aa1ae;"><span>0</span><span>100</span><span>200</span><span>300</span><span>400 units</span></div>
+    <div style="margin-top:10px;font-size:10.5px;color:#5d6678;">Violet = directly observed units (T12). Band = plausible range from unit-turnover uncertainty. Point = best estimate (turnover-adjusted).</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">GEOGRAPHIC CONCENTRATION</div>
+      <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:14px;">
+        <div style="width:51%;background:#5b3cff;"></div>
+        <div style="width:26%;background:#2bb3c7;"></div>
+        <div style="width:23%;background:#d9dee8;"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px;margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:7px;font-weight:600;"><span style="width:8px;height:8px;border-radius:2px;background:#5b3cff;"></span>Hammond</span><span style="font-weight:700;">51%</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:7px;font-weight:600;"><span style="width:8px;height:8px;border-radius:2px;background:#2bb3c7;"></span>East Chicago</span><span style="font-weight:700;">26%</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span style="display:flex;align-items:center;gap:7px;font-weight:600;color:#5d6678;"><span style="width:8px;height:8px;border-radius:2px;background:#d9dee8;"></span>Other (7 cities)</span><span style="font-weight:700;color:#5d6678;">23%</span></div>
+      </div>
+      <div style="margin-top:14px;font-size:10.5px;color:#5d6678;">Top-3 share 82% vs cohort median 81% — in line with peers.</div>
+    </div>
+    <sc-if value="{{ showCoverageMap }}" hint-placeholder-val="{{ true }}">
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">COVERAGE</div>
+      <svg viewBox="0 0 300 214" style="width:100%;margin-top:10px;">
+        <rect x="0" y="0" width="300" height="214" rx="8" fill="#f5f6f8"></rect>
+        <path d="M0,0 L300,0 L300,99 L216,96 L150,85 L100,53 L50,36 L0,8 Z" fill="#ddeaf3"></path>
+        <text x="238" y="34" font-family="Inter" font-size="9" font-weight="600" fill="#8fa8bb" font-style="italic">Lake Michigan</text>
+        <line x1="30" y1="0" x2="30" y2="214" stroke="#c3c9d4" stroke-width="1" stroke-dasharray="3 3"></line>
+        <text x="24" y="206" font-family="Inter" font-size="8" font-weight="700" fill="#9aa1ae" text-anchor="end">IL</text>
+        <text x="36" y="206" font-family="Inter" font-size="8" font-weight="700" fill="#9aa1ae">IN</text>
+        <circle cx="50" cy="119" r="13" fill="rgba(91,60,255,0.22)" stroke="#5b3cff" stroke-width="1.5"></circle>
+        <circle cx="88" cy="79" r="9.5" fill="rgba(91,60,255,0.22)" stroke="#5b3cff" stroke-width="1.5"></circle>
+        <circle cx="55" cy="50" r="5" fill="rgba(91,60,255,0.22)" stroke="#5b3cff" stroke-width="1.5"></circle>
+        <circle cx="40" cy="132" r="4.5" fill="rgba(91,60,255,0.22)" stroke="#5b3cff" stroke-width="1.5"></circle>
+        <circle cx="90" cy="139" r="6.5" fill="rgba(91,60,255,0.22)" stroke="#5b3cff" stroke-width="1.5"></circle>
+        <circle cx="114" cy="157" r="6" fill="rgba(91,60,255,0.22)" stroke="#5b3cff" stroke-width="1.5"></circle>
+        <circle cx="178" cy="111" r="6" fill="rgba(91,60,255,0.22)" stroke="#5b3cff" stroke-width="1.5"></circle>
+        <circle cx="189" cy="184" r="5.5" fill="rgba(91,60,255,0.22)" stroke="#5b3cff" stroke-width="1.5"></circle>
+        <circle cx="248" cy="124" r="4.5" fill="rgba(91,60,255,0.22)" stroke="#5b3cff" stroke-width="1.5"></circle>
+        <text x="50" y="144" font-family="Inter" font-size="9" font-weight="700" fill="#0c1322" text-anchor="middle">Hammond</text>
+        <text x="88" y="62" font-family="Inter" font-size="9" font-weight="700" fill="#0c1322" text-anchor="middle">East Chicago</text>
+        <text x="178" y="127" font-family="Inter" font-size="9" font-weight="700" fill="#0c1322" text-anchor="middle">Gary</text>
+      </svg>
+      <div style="margin-top:8px;font-size:9.5px;color:#9aa1ae;">Northwest Indiana submarkets · dot area ∝ managed homes</div>
+    </div>
+    </sc-if>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">RENT TIER</div>
+      <div style="margin-top:12px;font-size:20px;font-weight:800;letter-spacing:-0.02em;">~$1,093<span style="font-size:12px;font-weight:600;color:#5d6678;">/mo median</span></div>
+      <div style="font-size:10.5px;color:#5d6678;margin-top:2px;">from 28 recent listings · value end of market</div>
+      <div style="position:relative;height:12px;margin-top:16px;border-radius:6px;background:#f5f6f8;">
+        <div style="position:absolute;left:36.8%;width:54.7%;height:12px;border-radius:6px;background:#d9dee8;"></div>
+        <div style="position:absolute;left:18.3%;top:50%;width:12px;height:12px;border-radius:50%;background:#5b3cff;border:2.5px solid #ffffff;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(12,19,34,0.3);"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;font-weight:600;color:#9aa1ae;"><span>$800</span><span>Market P25 $1,389 — P75 $2,264</span><span>$2,400</span></div>
+      <div style="margin-top:10px;font-size:10.5px;color:#5d6678;">Grey band = other operators in the MSA (P25–P75).</div>
+    </div>
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">HOUSE VS APARTMENT SPLIT</div>
+      <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:16px;">
+        <div style="width:34%;background:#5b3cff;"></div>
+        <div style="width:66%;background:#2bb3c7;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:14px;">
+        <div><div style="font-size:20px;font-weight:800;letter-spacing:-0.02em;color:#5b3cff;">34%</div><div style="font-size:10.5px;font-weight:500;color:#5d6678;">Houses · 35 units</div></div>
+        <div style="text-align:right;"><div style="font-size:20px;font-weight:800;letter-spacing:-0.02em;color:#2bb3c7;">66%</div><div style="font-size:10.5px;font-weight:500;color:#5d6678;">Apartments · 68 units</div></div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9.5px;font-weight:500;color:#9aa1ae;">
+    <div>Methodology v0.7 · Design v2.0 · Data as of July 6, 2026</div><div>iq.dwellsy.com · 2 of 6</div>
+  </div>
+</section>
+
+<!-- PAGE 3 — Similar players + 02 Operating Performance -->
+<section class="page" id="p3" data-screen-label="Operating performance" style="display:flex;flex-direction:column;background:#ffffff;font-family:'Inter',sans-serif;color:#0c1322;padding:40px 56px 36px;">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid #e5e7eb;">
+    <div style="font-size:10px;font-weight:600;color:#5d6678;">Reeder Companies · Chicago-Joliet-Naperville, IL-IN-WI MSA</div>
+    <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:#9aa1ae;">PROPERTY MANAGER SCORECARD</div>
+  </div>
+  <div style="margin-top:26px;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">SIMILAR LOCAL PLAYERS</div>
+  <table style="width:100%;border-collapse:collapse;margin-top:10px;">
+    <thead><tr>
+      <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 10px 8px;border-bottom:1px solid #e5e7eb;">OPERATOR</th>
+      <th style="text-align:right;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 10px 8px;border-bottom:1px solid #e5e7eb;">EST. SIZE</th>
+      <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 10px 8px;border-bottom:1px solid #e5e7eb;">TYPE</th>
+      <th style="text-align:right;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 10px 8px;border-bottom:1px solid #e5e7eb;">OPERATING PERF.</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="font-size:12px;font-weight:600;padding:10px;border-bottom:1px solid #e5e7eb;">Protown Properties</td><td style="font-size:12px;text-align:right;padding:10px;border-bottom:1px solid #e5e7eb;">299</td><td style="font-size:11.5px;color:#5d6678;padding:10px;border-bottom:1px solid #e5e7eb;">SFR Independent</td><td style="text-align:right;padding:10px;border-bottom:1px solid #e5e7eb;"><span style="padding:3px 10px;border-radius:6px;background:#dff3f6;color:#0e6b79;font-size:10px;font-weight:700;letter-spacing:0.06em;">GOOD</span></td></tr>
+      <tr style="background:#f4f1ff;"><td style="font-size:12px;font-weight:700;padding:10px;border-bottom:1px solid #e5e7eb;">Reeder Companies <span style="font-weight:500;color:#5b3cff;">(this operator)</span></td><td style="font-size:12px;font-weight:700;text-align:right;padding:10px;border-bottom:1px solid #e5e7eb;">292</td><td style="font-size:11.5px;color:#5d6678;padding:10px;border-bottom:1px solid #e5e7eb;">SFR Independent</td><td style="text-align:right;padding:10px;border-bottom:1px solid #e5e7eb;"><span style="padding:3px 10px;border-radius:6px;background:#5b3cff;color:#ffffff;font-size:10px;font-weight:700;letter-spacing:0.06em;">STRONG</span></td></tr>
+      <tr><td style="font-size:12px;font-weight:600;padding:10px;border-bottom:1px solid #e5e7eb;">Durante &amp; Rich Real Estate</td><td style="font-size:12px;text-align:right;padding:10px;border-bottom:1px solid #e5e7eb;">274</td><td style="font-size:11.5px;color:#5d6678;padding:10px;border-bottom:1px solid #e5e7eb;">SFR Independent</td><td style="text-align:right;padding:10px;border-bottom:1px solid #e5e7eb;"><span style="padding:3px 10px;border-radius:6px;background:#eef0f3;color:#5d6678;font-size:10px;font-weight:700;letter-spacing:0.06em;">NEUTRAL</span></td></tr>
+      <tr><td style="font-size:12px;font-weight:600;padding:10px;border-bottom:1px solid #e5e7eb;">Complete Asset Protection Services, LLC</td><td style="font-size:12px;text-align:right;padding:10px;border-bottom:1px solid #e5e7eb;">271</td><td style="font-size:11.5px;color:#5d6678;padding:10px;border-bottom:1px solid #e5e7eb;">SFR Independent</td><td style="text-align:right;padding:10px;border-bottom:1px solid #e5e7eb;"><span style="padding:3px 10px;border-radius:6px;background:#5b3cff;color:#ffffff;font-size:10px;font-weight:700;letter-spacing:0.06em;">STRONG</span></td></tr>
+    </tbody>
+  </table>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-top:34px;">
+    <div style="font-size:14px;font-weight:800;color:#5b3cff;">02</div>
+    <h2 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.02em;">Operating performance</h2>
+    <div style="padding:3px 10px;border-radius:6px;background:#5b3cff;color:#ffffff;font-size:10px;font-weight:700;letter-spacing:0.06em;">STRONG</div>
+  </div>
+  <p style="margin:8px 0 0;font-size:12.5px;color:#2c3344;">Above the cohort median on 3 of 4 scored dimensions. Strongest: lease-up speed, tenant retention, rent performance.</p>
+
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:18px;">
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:15px 18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;"><span style="font-size:13px;font-weight:700;">Lease-up speed</span><span style="width:9px;height:9px;border-radius:50%;background:#ffc820;border:2px solid #d99f00;"></span></div>
+        <span style="padding:3px 10px;border-radius:6px;background:#5b3cff;color:#ffffff;font-size:10px;font-weight:700;letter-spacing:0.06em;">STRONG</span>
+      </div>
+      <div style="margin-top:4px;font-size:11.5px;color:#5d6678;">Leases in about 14 days, versus a 26-day cohort median. Houses 13d · Apartments 14d.</div>
+      <div style="position:relative;height:8px;margin:22px 8px 0;border-radius:4px;background:#f5f6f8;">
+        <div style="position:absolute;left:25%;width:50%;height:8px;background:#d9dee8;"></div>
+        <div style="position:absolute;left:50%;top:-3px;width:2px;height:14px;background:#5d6678;"></div>
+        <div style="position:absolute;left:12%;top:50%;width:14px;height:14px;border-radius:50%;background:#5b3cff;border:2.5px solid #ffffff;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(12,19,34,0.3);"></div>
+        <div style="position:absolute;left:12%;top:-24px;transform:translateX(-50%);font-size:12px;font-weight:800;color:#5b3cff;">14d</div>
+      </div>
+      <div style="position:relative;height:12px;margin:5px 8px 0;font-size:8.5px;font-weight:600;color:#9aa1ae;"><span style="position:absolute;left:25%;transform:translateX(-50%);">P25</span><span style="position:absolute;left:50%;transform:translateX(-50%);">med 26d</span><span style="position:absolute;left:75%;transform:translateX(-50%);">P75</span></div>
+    </div>
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:15px 18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:13px;font-weight:700;">Tenant retention</span>
+        <span style="padding:3px 10px;border-radius:6px;background:#dff3f6;color:#0e6b79;font-size:10px;font-weight:700;letter-spacing:0.06em;">GOOD</span>
+      </div>
+      <div style="margin-top:4px;font-size:11.5px;color:#5d6678;">About 76% of Reeder Companies's tenancies reach 1.5 years, versus a 76% cohort median.</div>
+      <div style="position:relative;height:8px;margin:22px 8px 0;border-radius:4px;background:#f5f6f8;">
+        <div style="position:absolute;left:25%;width:50%;height:8px;background:#d9dee8;"></div>
+        <div style="position:absolute;left:50%;top:-3px;width:2px;height:14px;background:#5d6678;"></div>
+        <div style="position:absolute;left:51%;top:50%;width:14px;height:14px;border-radius:50%;background:#2bb3c7;border:2.5px solid #ffffff;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(12,19,34,0.3);"></div>
+        <div style="position:absolute;left:51%;top:-24px;transform:translateX(-50%);font-size:12px;font-weight:800;color:#0e6b79;">76%</div>
+      </div>
+      <div style="position:relative;height:12px;margin:5px 8px 0;font-size:8.5px;font-weight:600;color:#9aa1ae;"><span style="position:absolute;left:25%;transform:translateX(-50%);">P25</span><span style="position:absolute;left:50%;transform:translateX(-50%);">med 76%</span><span style="position:absolute;left:75%;transform:translateX(-50%);">P75</span></div>
+    </div>
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:15px 18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:13px;font-weight:700;">Rent performance</span>
+        <span style="padding:3px 10px;border-radius:6px;background:#dff3f6;color:#0e6b79;font-size:10px;font-weight:700;letter-spacing:0.06em;">GOOD</span>
+      </div>
+      <div style="margin-top:4px;font-size:11.5px;color:#5d6678;">Year-over-year rent change of 2.2%, versus a 2.5% cohort median.</div>
+      <div style="position:relative;height:8px;margin:22px 8px 0;border-radius:4px;background:#f5f6f8;">
+        <div style="position:absolute;left:25%;width:50%;height:8px;background:#d9dee8;"></div>
+        <div style="position:absolute;left:50%;top:-3px;width:2px;height:14px;background:#5d6678;"></div>
+        <div style="position:absolute;left:45%;top:50%;width:14px;height:14px;border-radius:50%;background:#2bb3c7;border:2.5px solid #ffffff;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(12,19,34,0.3);"></div>
+        <div style="position:absolute;left:45%;top:-24px;transform:translateX(-50%);font-size:12px;font-weight:800;color:#0e6b79;">+2.2%</div>
+      </div>
+      <div style="position:relative;height:12px;margin:5px 8px 0;font-size:8.5px;font-weight:600;color:#9aa1ae;"><span style="position:absolute;left:25%;transform:translateX(-50%);">P25</span><span style="position:absolute;left:50%;transform:translateX(-50%);">med +2.5%</span><span style="position:absolute;left:75%;transform:translateX(-50%);">P75</span></div>
+    </div>
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:15px 18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:13px;font-weight:700;">Marketing discipline</span>
+        <span style="padding:3px 10px;border-radius:6px;background:#eef0f3;color:#5d6678;font-size:10px;font-weight:700;letter-spacing:0.06em;">NEUTRAL</span>
+      </div>
+      <div style="margin-top:4px;font-size:11.5px;color:#5d6678;">Composite listing-quality score of 47 out of 100 (photos, description, completeness).</div>
+      <div style="position:relative;height:8px;margin:22px 8px 0;border-radius:4px;background:#f5f6f8;">
+        <div style="position:absolute;left:25%;width:50%;height:8px;background:#d9dee8;"></div>
+        <div style="position:absolute;left:50%;top:-3px;width:2px;height:14px;background:#5d6678;"></div>
+        <div style="position:absolute;left:48%;top:50%;width:14px;height:14px;border-radius:50%;background:#5d6678;border:2.5px solid #ffffff;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(12,19,34,0.3);"></div>
+        <div style="position:absolute;left:48%;top:-24px;transform:translateX(-50%);font-size:12px;font-weight:800;color:#5d6678;">47</div>
+      </div>
+      <div style="position:relative;height:12px;margin:5px 8px 0;font-size:8.5px;font-weight:600;color:#9aa1ae;"><span style="position:absolute;left:25%;transform:translateX(-50%);">P25</span><span style="position:absolute;left:50%;transform:translateX(-50%);">med</span><span style="position:absolute;left:75%;transform:translateX(-50%);">P75</span></div>
+    </div>
+  </div>
+  <div style="margin-top:12px;font-size:10px;color:#9aa1ae;">Marker = this operator · grey band = cohort P25–P75 · tick = cohort median. Gold dot = top of cohort.</div>
+  <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9.5px;font-weight:500;color:#9aa1ae;">
+    <div>Methodology v0.7 · Design v2.0 · Data as of July 6, 2026</div><div>iq.dwellsy.com · 3 of 6</div>
+  </div>
+</section>
+
+<!-- PAGE 4 — 03 Momentum + 04 Watch Items -->
+<section class="page" id="p4" data-screen-label="Momentum and watch items" style="display:flex;flex-direction:column;background:#ffffff;font-family:'Inter',sans-serif;color:#0c1322;padding:40px 56px 36px;">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid #e5e7eb;">
+    <div style="font-size:10px;font-weight:600;color:#5d6678;">Reeder Companies · Chicago-Joliet-Naperville, IL-IN-WI MSA</div>
+    <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:#9aa1ae;">PROPERTY MANAGER SCORECARD</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;margin-top:28px;">
+    <div style="font-size:14px;font-weight:800;color:#5b3cff;">03</div>
+    <h2 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.02em;">Momentum</h2>
+    <div style="padding:3px 10px;border-radius:6px;background:#fbe7f3;color:#99206c;font-size:10px;font-weight:700;letter-spacing:0.06em;">GROWING</div>
+  </div>
+  <p style="margin:8px 0 0;font-size:12.5px;color:#2c3344;">Reeder Companies's estimated portfolio has grown, then leveled off recently. Alongside, its geographic reach has widened and its share of the market's new listings has climbed.</p>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:20px;">
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">PORTFOLIO</div>
+      <svg viewBox="0 0 260 52" style="width:100%;margin-top:12px;"><polyline points="4,44 40,38 80,28 120,17 160,11 210,10 252,10" fill="none" stroke="#5b3cff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="252" cy="10" r="4" fill="#ffc820" stroke="#d99f00" stroke-width="1.5"></circle></svg>
+      <div style="margin-top:10px;font-size:11px;color:#5d6678;">Grew from first observation, then leveled off recently.</div>
+    </div>
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">LISTING SHARE</div>
+      <svg viewBox="0 0 260 52" style="width:100%;margin-top:12px;"><polyline points="4,42 50,39 95,33 140,26 190,17 252,8 " fill="none" stroke="#5b3cff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="252" cy="8" r="4" fill="#ffc820" stroke="#d99f00" stroke-width="1.5"></circle></svg>
+      <div style="margin-top:10px;font-size:11px;color:#5d6678;">Share of the market's new listings has climbed.</div>
+    </div>
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">GEOGRAPHIC REACH</div>
+      <svg viewBox="0 0 260 52" style="width:100%;margin-top:12px;"><polyline points="4,42 60,42 60,28 140,28 140,13 252,13" fill="none" stroke="#5b3cff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="252" cy="13" r="4" fill="#ffc820" stroke="#d99f00" stroke-width="1.5"></circle></svg>
+      <div style="margin-top:10px;font-size:11px;color:#5d6678;">Widened from its Hammond core — now 5 cities.</div>
+    </div>
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">OPERATING QUALITY</div>
+      <svg viewBox="0 0 260 52" style="width:100%;margin-top:12px;"><polyline points="4,26 45,22 90,26 135,19 180,23 220,18 252,19" fill="none" stroke="#2bb3c7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="252" cy="19" r="4" fill="#ffc820" stroke="#d99f00" stroke-width="1.5"></circle></svg>
+      <div style="margin-top:10px;font-size:11px;color:#5d6678;">Composite of the four scored dimensions over time.</div>
+    </div>
+  </div>
+  <div style="margin-top:10px;font-size:10px;color:#9aa1ae;">Trend shapes are directional summaries; full monthly series available in the interactive scorecard.</div>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-top:36px;">
+    <div style="font-size:14px;font-weight:800;color:#5b3cff;">04</div>
+    <h2 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.02em;">Watch items</h2>
+    <div style="padding:3px 10px;border-radius:6px;background:#dff3f6;color:#0e6b79;font-size:10px;font-weight:700;letter-spacing:0.06em;">0 TO REVIEW</div>
+  </div>
+  <p style="margin:8px 0 0;font-size:12.5px;color:#2c3344;">Signals that need a human read before you hire, monitor, or acquire — some are risks worth a follow-up, some are neutral context, some are positives.</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px;">
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;">
+      <span style="padding:3px 10px;border-radius:6px;background:#dff3f6;color:#0e6b79;font-size:10px;font-weight:700;letter-spacing:0.06em;">POSITIVE</span>
+      <div style="margin-top:10px;font-size:13px;font-weight:700;">Recent rating improvement</div>
+      <div style="margin-top:4px;font-size:11.5px;color:#5d6678;">Rent performance climbed into the top tier versus an earlier snapshot.</div>
+    </div>
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;">
+      <span style="padding:3px 10px;border-radius:6px;background:#dff3f6;color:#0e6b79;font-size:10px;font-weight:700;letter-spacing:0.06em;">POSITIVE</span>
+      <div style="margin-top:10px;font-size:13px;font-weight:700;">Top-tier lease-up speed</div>
+      <div style="margin-top:4px;font-size:11.5px;color:#5d6678;">Gold-tier (top of cohort) on lease-up speed.</div>
+    </div>
+  </div>
+  <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9.5px;font-weight:500;color:#9aa1ae;">
+    <div>Methodology v0.7 · Design v2.0 · Data as of July 6, 2026</div><div>iq.dwellsy.com · 4 of 6</div>
+  </div>
+</section>
+
+<!-- PAGE 5 — 05 Properties -->
+<section class="page" id="p5" data-screen-label="Properties" style="display:flex;flex-direction:column;background:#ffffff;font-family:'Inter',sans-serif;color:#0c1322;padding:40px 56px 36px;">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid #e5e7eb;">
+    <div style="font-size:10px;font-weight:600;color:#5d6678;">Reeder Companies · Chicago-Joliet-Naperville, IL-IN-WI MSA</div>
+    <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:#9aa1ae;">PROPERTY MANAGER SCORECARD</div>
+  </div>
+  <div style="display:flex;align-items:baseline;gap:12px;margin-top:28px;">
+    <div style="font-size:14px;font-weight:800;color:#5b3cff;">05</div>
+    <h2 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.02em;">Properties</h2>
+  </div>
+  <p style="margin:8px 0 0;font-size:12.5px;color:#2c3344;">Per-property observations vs. the MSA median ("mkt") — descriptive, not scored. Scattered single-family holdings are grouped into submarket rollups rather than shown per address.</p>
+  <table style="width:100%;border-collapse:collapse;margin-top:18px;">
+    <thead><tr>
+      <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 8px 8px;border-bottom:1.5px solid #d9dee8;">SUBMARKET ROLLUP</th>
+      <th style="text-align:right;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 8px 8px;border-bottom:1.5px solid #d9dee8;">SIZE</th>
+      <th style="text-align:right;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 8px 8px;border-bottom:1.5px solid #d9dee8;">LISTINGS</th>
+      <th style="text-align:right;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 8px 8px;border-bottom:1.5px solid #d9dee8;">MEDIAN DOM</th>
+      <th style="text-align:right;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 8px 8px;border-bottom:1.5px solid #d9dee8;">RENT + YOY</th>
+      <th style="text-align:right;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 8px 8px;border-bottom:1.5px solid #d9dee8;">CONCESSION</th>
+      <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 8px 8px 16px;border-bottom:1.5px solid #d9dee8;">QUALITY</th>
+    </tr></thead>
+    <tbody>
+      <sc-for list="{{ propRows }}" as="p" hint-placeholder-count="9">
+      <tr>
+        <td style="padding:11px 8px;border-bottom:1px solid #e5e7eb;"><div style="font-size:12px;font-weight:700;">{{ p.name }}</div><div style="font-size:9.5px;color:#9aa1ae;">SFR rollup</div></td>
+        <td style="font-size:11.5px;text-align:right;padding:11px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap;">{{ p.size }}</td>
+        <td style="font-size:11.5px;text-align:right;padding:11px 8px;border-bottom:1px solid #e5e7eb;">{{ p.listings }}</td>
+        <td style="text-align:right;padding:11px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap;"><span style="font-size:11.5px;font-weight:700;">{{ p.dom }}d</span> <span style="font-size:9.5px;color:#9aa1ae;">mkt 20d</span></td>
+        <td style="text-align:right;padding:11px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap;"><div style="font-size:11.5px;font-weight:700;">{{ p.rent }} <span style="font-weight:700;color:{{ p.yoyColor }};">{{ p.yoy }}</span></div><div style="font-size:9.5px;color:#9aa1ae;">mkt $1,670 · -0.6%</div></td>
+        <td style="text-align:right;padding:11px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap;"><span style="font-size:11.5px;font-weight:700;">0%</span> <span style="font-size:9.5px;color:#9aa1ae;">mkt 4%</span></td>
+        <td style="padding:11px 8px 11px 16px;border-bottom:1px solid #e5e7eb;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:11.5px;font-weight:700;width:18px;">{{ p.q }}</span><span style="display:block;width:52px;height:5px;border-radius:3px;background:#eef0f3;overflow:hidden;"><span style="display:block;height:5px;border-radius:3px;background:#5b3cff;width:{{ p.qW }};"></span></span></div></td>
+      </tr>
+      </sc-for>
+    </tbody>
+  </table>
+  <sc-if value="{{ rollupNote }}" hint-placeholder-val="{{ false }}">
+  <div style="margin-top:10px;font-size:10.5px;color:#5d6678;">{{ rollupNote }}</div>
+  </sc-if>
+  <div style="margin-top:12px;font-size:10px;color:#9aa1ae;">Quality = composite listing-quality score, 0–100. "—" = insufficient listing history for a YoY read.</div>
+  <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9.5px;font-weight:500;color:#9aa1ae;">
+    <div>Methodology v0.7 · Design v2.0 · Data as of July 6, 2026</div><div>iq.dwellsy.com · 5 of 6</div>
+  </div>
+</section>
+
+<!-- PAGE 6 — 06 Methodology & limits -->
+<section class="page" id="p6" data-screen-label="Methodology" style="display:flex;flex-direction:column;background:#ffffff;font-family:'Inter',sans-serif;color:#0c1322;padding:40px 56px 36px;">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid #e5e7eb;">
+    <div style="font-size:10px;font-weight:600;color:#5d6678;">Reeder Companies · Chicago-Joliet-Naperville, IL-IN-WI MSA</div>
+    <div style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:#9aa1ae;">PROPERTY MANAGER SCORECARD</div>
+  </div>
+  <div style="display:flex;align-items:baseline;gap:12px;margin-top:28px;">
+    <div style="font-size:14px;font-weight:800;color:#5b3cff;">06</div>
+    <h2 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.02em;">Methodology &amp; limits</h2>
+  </div>
+  <p style="margin:8px 0 0;font-size:12.5px;color:#2c3344;">What backs this scorecard — classification rationale, coverage universe, per-metric sample sizes, and the version stamp. Rendered against methodology v0.7, design v2.0. Underlying data is current as of July 6, 2026.</p>
+
+  <div style="margin-top:22px;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">CLASSIFICATION RATIONALE</div>
+  <p style="margin:8px 0 0;font-size:12px;color:#2c3344;">Reeder Companies operates predominantly scattered single-family inventory. 0% of observed inventory sits in concentrated communities. Total observed managed units in Chicago MSA: 103, classified as Scattered / Independent at the Independent scale.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:22px;">
+    <div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">COVERAGE PARAMETERS</div>
+      <div style="margin-top:10px;border-top:1px solid #e5e7eb;">
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:11.5px;"><span style="color:#5d6678;">First observed listing</span><span style="font-weight:700;">November 17, 2020</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:11.5px;"><span style="color:#5d6678;">Months on platform</span><span style="font-weight:700;">68</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:11.5px;"><span style="color:#5d6678;">Listings — lifetime</span><span style="font-weight:700;">533</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:11.5px;"><span style="color:#5d6678;">Listings — T12</span><span style="font-weight:700;">107</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:11.5px;"><span style="color:#5d6678;">URUs — lifetime / T12</span><span style="font-weight:700;">330 / 103</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:11.5px;"><span style="color:#5d6678;">Active inventory</span><span style="font-weight:700;">5</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:11.5px;"><span style="color:#5d6678;">Data tier</span><span style="font-weight:700;">Full ranking</span></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">PORTFOLIO COMPOSITION</div>
+      <div style="margin-top:10px;border-top:1px solid #e5e7eb;">
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:11.5px;"><span style="color:#5d6678;">Observed managed units · this MSA</span><span style="font-weight:700;">103</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:11.5px;"><span style="color:#5d6678;">Observed units · all markets (T12)</span><span style="font-weight:700;">103</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:11.5px;"><span style="color:#5d6678;">Cities observed</span><span style="font-weight:700;">5</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:11.5px;"><span style="color:#5d6678;">Observed community totals (top-down)</span><span style="font-weight:700;">316</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:11.5px;"><span style="color:#5d6678;">7-cell classification</span><span style="font-weight:700;">SFR Independent</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:22px;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">SAMPLE SIZES PER METRIC</div>
+  <table style="width:100%;border-collapse:collapse;margin-top:10px;">
+    <thead><tr>
+      <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 8px 7px;border-bottom:1px solid #e5e7eb;">METRIC</th>
+      <th style="text-align:right;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 8px 7px;border-bottom:1px solid #e5e7eb;">N</th>
+      <th style="text-align:left;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#9aa1ae;padding:0 8px 7px 24px;border-bottom:1px solid #e5e7eb;">BACKING</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="font-size:11.5px;font-weight:600;padding:8px;border-bottom:1px solid #e5e7eb;">Lease-up performance (DOM)</td><td style="font-size:11.5px;font-weight:700;text-align:right;padding:8px;border-bottom:1px solid #e5e7eb;">102</td><td style="font-size:11.5px;color:#5d6678;padding:8px 8px 8px 24px;border-bottom:1px solid #e5e7eb;">T12 leased listings</td></tr>
+      <tr><td style="font-size:11.5px;font-weight:600;padding:8px;border-bottom:1px solid #e5e7eb;">Tenant retention</td><td style="font-size:11.5px;font-weight:700;text-align:right;padding:8px;border-bottom:1px solid #e5e7eb;">117</td><td style="font-size:11.5px;color:#5d6678;padding:8px 8px 8px 24px;border-bottom:1px solid #e5e7eb;">Multi-episode units (35% of 330 observed)</td></tr>
+      <tr><td style="font-size:11.5px;font-weight:600;padding:8px;border-bottom:1px solid #e5e7eb;">Rent performance</td><td style="font-size:11.5px;font-weight:700;text-align:right;padding:8px;border-bottom:1px solid #e5e7eb;">103</td><td style="font-size:11.5px;color:#5d6678;padding:8px 8px 8px 24px;border-bottom:1px solid #e5e7eb;">T12 observed URUs feeding mix-adjusted YoY</td></tr>
+      <tr><td style="font-size:11.5px;font-weight:600;padding:8px;border-bottom:1px solid #e5e7eb;">Marketing discipline</td><td style="font-size:11.5px;font-weight:700;text-align:right;padding:8px;border-bottom:1px solid #e5e7eb;">107</td><td style="font-size:11.5px;color:#5d6678;padding:8px 8px 8px 24px;border-bottom:1px solid #e5e7eb;">T12 listings scored</td></tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:22px;background:#f5f6f8;border-radius:12px;padding:16px 20px;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">DISCLAIMER</div>
+    <p style="margin:8px 0 0;font-size:11px;line-height:1.55;color:#2c3344;">Operator IQ scorecards reflect operator behavior observable in our first-party listings data. Figures are not portfolio totals; they're what we see. Operators with shorter observation history have noisier estimates on metrics built from observed tenancy episodes (Tenant Retention, a Kaplan-Meier survival estimate) or multi-year trajectory (Rent Performance). See the methodology page for full caveats.</p>
+  </div>
+
+  <div style="margin-top:14px;border:1px solid #e5e7eb;border-radius:12px;padding:16px 20px;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#5d6678;">SUGGESTED CITATION</div>
+    <div style="margin-top:8px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:10px;line-height:1.6;color:#2c3344;">Dwellsy IQ, 2026. Operator IQ Scorecard for Reeder Companies (Chicago). Methodology v0.7 · Design v2.0.<br>iq.dwellsy.com/property-managers/reeder-companies-chicago-joliet-naperville-il-in-wi</div>
+  </div>
+  <div style="margin-top:14px;font-size:11.5px;font-weight:600;">Full methodology » <a href="https://iq.dwellsy.com/methodology">iq.dwellsy.com/methodology</a></div>
+  <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9.5px;font-weight:500;color:#9aa1ae;">
+    <div>Methodology v0.7 · Design v2.0 · Data as of July 6, 2026</div><div>iq.dwellsy.com · 6 of 6</div>
+  </div>
+</section>
+
+</doc-page>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;propertiesView&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;all&quot;,&quot;top 5&quot;],&quot;default&quot;:&quot;all&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Properties table&quot;},&quot;showCoverageMap&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Scale &amp; fit&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const raw = [
+      ['Hammond', '42 homes', 55, 14, '$1,125', '+40.6%', 51],
+      ['East Chicago', '18 homes', 27, 14, '$895', '+10.5%', 15],
+      ['Griffith', '4 homes', 6, 19, '$950', '+10.5%', 36],
+      ['Highland', '5 homes', 5, 15, '$1,350', '+42.1%', 73],
+      ['Gary', '4 homes', 5, 11, '$1,050', '+27.3%', 51],
+      ['Merrillville', '3 homes', 4, 10, '$1,200', '+11.9%', 27],
+      ['Lake Station', '1 home', 2, 4, '$945', '—', 71],
+      ['Whiting', '2 homes', 2, 13, '$925', '-19.6%', 13],
+      ['Munster', '1 home', 1, 19, '$2,050', '—', 74],
+    ];
+    const rows = raw.map(([name, size, listings, dom, rent, yoy, q]) => ({
+      name, size, listings, dom, rent, yoy, q,
+      yoyColor: yoy === '—' ? '#9aa1ae' : (yoy.startsWith('-') ? '#99206c' : '#0e6b79'),
+      qW: q + '%',
+    }));
+    const view = this.props.propertiesView ?? 'all';
+    const propRows = view === 'top 5' ? rows.slice(0, 5) : rows;
+    return {
+      showCoverageMap: this.props.showCoverageMap ?? true,
+      propRows,
+      rollupNote: view === 'top 5' ? '4 smaller rollups (Merrillville, Lake Station, Whiting, Munster · ≤3 homes each) not shown.' : '',
+    };
+  }
+}
+</script>
+</body>
+</html>
