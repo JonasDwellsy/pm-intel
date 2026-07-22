@@ -86,7 +86,7 @@ export const styles = StyleSheet.create({
     color: BODY,
     lineHeight: 1.45,
     marginTop: 6,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   // Sub-heading inside a section (methodology sub-sections).
   subHead: {
@@ -119,7 +119,7 @@ export const styles = StyleSheet.create({
     borderStyle: "solid",
     borderColor: BORDER,
     borderRadius: 12,
-    paddingVertical: 15,
+    paddingVertical: 12,
     paddingHorizontal: 18,
     marginBottom: 12,
   },
