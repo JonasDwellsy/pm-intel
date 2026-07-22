@@ -310,8 +310,9 @@ function MedalDots({
 // =====================================================================
 const HERO_W = 612; // LETTER width in pt (full-bleed)
 const HERO_H = 336;
-// Coverage map fits a half-width two-up card (full column width, 2:1 aspect).
-const MAP_CARD_H = 104;
+// Coverage map now runs full-width below the three §01 stat cards, so it can
+// be large (≈2:1 over the full content column) while still sharing page 2.
+const MAP_CARD_H = 178;
 
 /** Hero pill chip. `variant`: "solid" (translucent white) or "confidence"
  *  (yellow-tinted). Rendered on the dark hero. */
@@ -690,7 +691,7 @@ function PortfolioScaleBar({
     <View style={styles.card} wrap={false}>
       <MicroLabel>Portfolio size</MicroLabel>
       {/* Inline stats */}
-      <View style={{ display: "flex", flexDirection: "row", gap: 28, marginTop: 8, marginBottom: 16, alignItems: "baseline" }}>
+      <View style={{ display: "flex", flexDirection: "row", gap: 28, marginTop: 8, marginBottom: 10, alignItems: "baseline" }}>
         {observedUnits != null ? (
           <View>
             <Text style={{ fontSize: 26, fontWeight: 800, color: VIOLET, letterSpacing: -0.5 }}>
@@ -767,10 +768,10 @@ function PortfolioScaleBar({
         <Text style={{ fontSize: 9, color: FAINT }}>0</Text>
         <Text style={{ fontSize: 9, color: FAINT }}>{fmtInt(axisMax)}</Text>
       </View>
-      <Text style={{ fontSize: 10.5, color: MUTED, marginTop: 8, lineHeight: 1.4 }}>
+      <Text style={{ fontSize: 9, color: MUTED, marginTop: 6, lineHeight: 1.35 }}>
         {hasBand
-          ? "Violet = directly observed units (T12). Soft band = plausible range from turnover uncertainty. Dot = best estimate."
-          : "Violet = directly observed units (T12). Dot = estimated managed units (turnover-adjusted for SFR; declared units for multifamily)."}
+          ? "Violet = observed units (T12) · soft band = plausible range from turnover uncertainty · dot = best estimate."
+          : "Violet = observed units (T12) · dot = estimated managed units (turnover-adjusted for SFR; declared for multifamily)."}
       </Text>
     </View>
   );
@@ -860,10 +861,10 @@ function CoverageMapCard({
 }) {
   const model = coverageMapRenderModel(coverageMap, geo);
   if (model.mode === "empty") {
-    return <View style={{ flex: 1 }} />;
+    return null;
   }
   return (
-    <View style={[styles.card, { flex: 1 }]} wrap={false}>
+    <View style={styles.card} wrap={false}>
       <MicroLabel style={{ marginBottom: 8 }}>Coverage</MicroLabel>
       <View
         style={{
@@ -937,11 +938,11 @@ function RentTierCard({ detail }: { detail: RentTierDetail | null }) {
   return (
     <View style={[styles.card, { flex: 1 }]} wrap={false}>
       <MicroLabel style={{ marginBottom: 8 }}>Rent tier</MicroLabel>
-      <Text style={{ fontSize: 20, fontWeight: 800, color: INK, letterSpacing: -0.4 }}>
-        ~${fmtInt(detail.rentMedian)}/mo <Text style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>median</Text>
+      <Text style={{ fontSize: 19, fontWeight: 800, color: INK, letterSpacing: -0.4 }}>
+        ~${fmtInt(detail.rentMedian)}/mo
       </Text>
-      <Text style={{ fontSize: 9.5, color: MUTED, marginTop: 2 }}>
-        {`${tierWord} end${detail.sampleSize != null ? ` · from ${detail.sampleSize} recent listing${detail.sampleSize === 1 ? "" : "s"}` : ""}`}
+      <Text style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>
+        {`median rent · ${tierWord} end${detail.sampleSize != null ? ` · ${detail.sampleSize} listing${detail.sampleSize === 1 ? "" : "s"}` : ""}`}
       </Text>
       {/* Track: grey band = market IQR, violet dot = operator median */}
       <View style={{ position: "relative", height: 8, marginTop: 16, borderRadius: 4, backgroundColor: TILE }}>
@@ -983,14 +984,18 @@ function UnitMixCard({ unitMix }: { unitMix: NonNullable<ScaleFitView["unitMix"]
         {houseUrus > 0 ? <View style={{ width: `${housePct}%`, backgroundColor: VIOLET }} /> : null}
         {aptUrus > 0 ? <View style={{ width: `${aptPct}%`, backgroundColor: TEAL }} /> : null}
       </View>
-      <View style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", marginTop: 12 }}>
-        <View>
+      {/* Stacked blocks (not a wide space-between row) so the labels don't
+          collide at ⅓-card width. */}
+      <View style={{ display: "flex", flexDirection: "row", marginTop: 12 }}>
+        <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 20, fontWeight: 800, color: VIOLET, letterSpacing: -0.4 }}>{housePct}%</Text>
-          <Text style={{ fontSize: 9.5, color: MUTED, marginTop: 1 }}>Houses · {fmtInt(houseUrus)} units</Text>
+          <Text style={{ fontSize: 9, color: MUTED, marginTop: 1 }}>Houses</Text>
+          <Text style={{ fontSize: 8.5, color: FAINT }}>{fmtInt(houseUrus)} units</Text>
         </View>
-        <View style={{ alignItems: "flex-end" }}>
+        <View style={{ flex: 1, alignItems: "flex-end" }}>
           <Text style={{ fontSize: 20, fontWeight: 800, color: TEAL_CHIP_FG, letterSpacing: -0.4 }}>{aptPct}%</Text>
-          <Text style={{ fontSize: 9.5, color: MUTED, marginTop: 1 }}>Apartments · {fmtInt(aptUrus)} units</Text>
+          <Text style={{ fontSize: 9, color: MUTED, marginTop: 1 }}>Apartments</Text>
+          <Text style={{ fontSize: 8.5, color: FAINT }}>{fmtInt(aptUrus)} units</Text>
         </View>
       </View>
     </View>
@@ -1012,20 +1017,19 @@ function ScaleFitSection({
         <SectionHeader num="01" title="Scale & fit" intro={scaleFit.takeaway} />
       </View>
       <PortfolioScaleBar estimate={scaleFit.estimate} observedUnits={scaleFit.observedUnits} />
-      {/* Two-up: concentration | coverage */}
-      <View style={{ display: "flex", flexDirection: "row", gap: 12 }} wrap={false}>
+      {/* Three-up: concentration | rent tier | house/apt split — compressed
+          onto one line so the coverage map below can run full-width + large. */}
+      <View style={{ display: "flex", flexDirection: "row", gap: 12, alignItems: "stretch" }} wrap={false}>
         <ConcentrationCard
           topCities={scaleFit.topCities}
           top3Share={scaleFit.top3Share}
           cohortTop3={scaleFit.cohortTop3}
         />
-        <CoverageMapCard coverageMap={coverageMap} geo={geo} />
-      </View>
-      {/* Two-up: rent tier | unit mix */}
-      <View style={{ display: "flex", flexDirection: "row", gap: 12 }} wrap={false}>
         <RentTierCard detail={scaleFit.rentTier} />
-        {scaleFit.unitMix != null ? <UnitMixCard unitMix={scaleFit.unitMix} /> : <View style={{ flex: 1 }} />}
+        {scaleFit.unitMix != null ? <UnitMixCard unitMix={scaleFit.unitMix} /> : null}
       </View>
+      {/* Full-width coverage map */}
+      <CoverageMapCard coverageMap={coverageMap} geo={geo} />
       {scaleFit.crossMarket != null ? (
         <View style={styles.card} wrap={false}>
           <MicroLabel style={{ marginBottom: 6 }}>Also operates in</MicroLabel>
