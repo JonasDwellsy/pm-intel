@@ -597,15 +597,20 @@ function AtAGlance({ tiles }: { tiles: GlanceTile[] }) {
               paddingHorizontal: 12,
             }}
           >
-            <Text style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: 0.5, textTransform: "uppercase" }}>
-              {t.label}
-            </Text>
+            {/* Fixed two-line label box so a wrapping label ("Observed units")
+                doesn't push its value down — every tile's number starts at the
+                same baseline. */}
+            <View style={{ height: 24 }}>
+              <Text style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: 0.5, textTransform: "uppercase", lineHeight: 1.25 }}>
+                {t.label}
+              </Text>
+            </View>
             <Text
               style={{
                 fontSize: t.big ? 22 : 14,
                 fontWeight: 800,
                 color: INK,
-                marginTop: 6,
+                marginTop: 4,
                 letterSpacing: -0.3,
               }}
             >
