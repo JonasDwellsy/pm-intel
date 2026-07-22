@@ -28,9 +28,11 @@ import { capture } from "@/lib/analytics";
 export function PrintScorecardButton({
   pmSlug,
   className,
+  compact = false,
 }: {
   pmSlug: string;
   className?: string;
+  compact?: boolean;
 }) {
   function handleClick() {
     capture("pdf_export_click", { pmSlug });
@@ -41,19 +43,38 @@ export function PrintScorecardButton({
   return (
     <a
       href={`/api/scorecard/${pmSlug}/pdf`}
-      // The download attribute on a same-origin a-tag tells the
-      // browser to save the response instead of navigating to it.
-      // The server already sets Content-Disposition: attachment
-      // with a filename, so the saved file will be named
-      // `dwellsy-iq-<slug>.pdf` in both Chromium and Safari.
       download
       onClick={handleClick}
+      title="Download PDF"
+      aria-label="Download scorecard PDF"
       className={
-        "dq-no-print inline-flex h-9 items-center justify-center rounded-md border border-grid bg-white px-4 text-[13px] font-semibold text-navy transition-colors hover:bg-navy-soft" +
+        (compact
+          ? "dq-no-print inline-flex h-7 w-7 items-center justify-center rounded-full border border-grid bg-white text-muted-foreground transition-colors hover:border-navy hover:text-navy"
+          : "dq-no-print inline-flex h-9 items-center justify-center rounded-md border border-grid bg-white px-4 text-[13px] font-semibold text-navy transition-colors hover:bg-navy-soft") +
         (className ? ` ${className}` : "")
       }
     >
-      Download PDF
+      {compact ? <DownloadIcon /> : "Download PDF"}
     </a>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 3v12" />
+      <path d="M7 12l5 5 5-5" />
+      <path d="M5 21h14" />
+    </svg>
   );
 }
