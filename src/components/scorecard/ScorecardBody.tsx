@@ -114,7 +114,12 @@ export function ScorecardBody({
         />
 
         {/* 30-second exec readout */}
-        <ExecReadout readout={view.readout} maturityNote={view.maturityNote} />
+        <ExecReadout
+          readout={view.readout}
+          maturityNote={view.maturityNote}
+          goldCount={view.header.goldCount}
+          silverCount={view.header.silverCount}
+        />
 
         {/* 01 Scale & Fit */}
         <ScaleFitSection
