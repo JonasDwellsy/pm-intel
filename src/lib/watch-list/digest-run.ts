@@ -4,6 +4,7 @@
 // notified AND their cadence throttle has elapsed; diff against the snapshot they
 // were last notified through ("since you last heard from us").
 import { prisma } from "@/lib/prisma";
+import * as Sentry from "@sentry/nextjs";
 import { clerkClient } from "@clerk/nextjs/server";
 import { toSnapshotRow, type SnapshotRow } from "./snapshot";
 import { buildDigest } from "./digest";
@@ -68,6 +69,8 @@ export interface DigestRunSummary {
   sent: number;
   failed: number;
   dryRun: boolean;
+  /** Orgs skipped mid-run because processing them threw (isolated, not fatal). */
+  orgErrors?: number;
 }
 
 function appBase(): string {
@@ -265,10 +268,14 @@ export async function runDigest(opts: {
     select: { organizationId: true },
   });
 
-  let sent = 0, failed = 0, recipients = 0;
+  let sent = 0, failed = 0, recipients = 0, orgErrors = 0;
 
   for (const { organizationId } of orgRows) {
     if (!organizationId) continue;
+    // Isolate each org: one org's failure (e.g. a stale Clerk org that 404s in
+    // listOrgMembers, or an entitlement lookup error) must NOT abort the whole
+    // run and starve every OTHER org's members of their digest.
+    try {
     const org = await prisma.organization.findUnique({
       where: { id: organizationId }, select: { id: true, clerkOrgId: true, excludeFromDigests: true },
     });
@@ -354,12 +361,30 @@ export async function runDigest(opts: {
         }
       }
     }
+    } catch (err) {
+      orgErrors++;
+      console.error(
+        `[cron/watch-list-digest] org ${organizationId} failed; skipping it`,
+        err,
+      );
+      Sentry.captureException(err, {
+        tags: { component: "watch-list-digest" },
+        extra: { organizationId },
+      });
+    }
   }
 
   if (run) {
     await prisma.watchListDigestRun.update({
-      where: { id: run.id }, data: { status: "completed", completedAt: new Date(), recipientCount: recipients },
+      where: { id: run.id },
+      data: {
+        // Distinguish a clean run from one that skipped a failing org, and
+        // never leave a run stuck "running" — the loop no longer throws.
+        status: orgErrors > 0 ? "completed_with_errors" : "completed",
+        completedAt: new Date(),
+        recipientCount: recipients,
+      },
     });
   }
-  return { snapshotDate: latest.toISOString(), skipped: "", recipients, sent, failed, dryRun };
+  return { snapshotDate: latest.toISOString(), skipped: "", recipients, sent, failed, dryRun, orgErrors };
 }
