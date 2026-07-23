@@ -185,15 +185,22 @@ async function buildOrgListContext(orgId: string, base: string): Promise<OrgList
   return { lists, allSlugs: [...allSlugs] };
 }
 
-/** Preview: compose one digest against a generic (second-most-recent) window
- *  from the first org that has changes, and send only to `previewEmail`.
- *  Bypasses all gating + bookkeeping. */
+/** Preview: compose one digest from the first org that has changes and send
+ *  only to `previewEmail`. Bypasses all gating + bookkeeping.
+ *
+ *  Diff window = latest vs the EARLIEST snapshot (widest available), NOT the
+ *  narrow "since last notified" window a real recipient gets. A preview's job
+ *  is to show representative, non-empty content for rendering + deliverability
+ *  validation; two adjacent snapshots are often identical (no change to show),
+ *  which would make the preview silently empty. The widest window almost always
+ *  has real changes to render. */
 async function runPreview(
   previewEmail: string, latest: Date, distinctDates: Date[], genVersions?: string[],
 ): Promise<DigestRunSummary> {
   const base = appBase();
   const monthLabel = latest.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
-  const prior = selectPriorForRecipient(latest, null, distinctDates);
+  // distinctDates is newest-first; the last entry is the earliest snapshot.
+  const prior = distinctDates.length > 1 ? distinctDates[distinctDates.length - 1] : null;
   const orgRows = await prisma.watchList.findMany({
     where: { organizationId: { not: null } }, distinct: ["organizationId"], select: { organizationId: true },
   });
