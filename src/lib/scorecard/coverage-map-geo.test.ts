@@ -117,7 +117,7 @@ test("buildStaticImageUrl: correct shape, @2x, no logo/attribution, token in que
     style: "light-v11",
     token: "TESTTOKEN",
   });
-  assert.ok(url.includes("/styles/v1/mapbox/light-v11/static/-75.00000,40.00000,11.50/1000x500@2x"));
+  assert.ok(url.includes("/styles/v1/mapbox/light-v11/static/-75.00000,40.00000,11.50/1000x384@2x"));
   assert.ok(url.includes("access_token=TESTTOKEN"));
   assert.ok(url.includes("logo=false"));
   assert.ok(url.includes("attribution=false"));

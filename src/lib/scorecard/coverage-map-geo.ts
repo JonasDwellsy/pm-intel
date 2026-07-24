@@ -23,11 +23,21 @@ type GeoInput = {
 };
 
 // --- Shared constants (single source for route + projection + render) ---
+// PDF-only (the web map sizes itself). The logical W:H MUST match the PDF's
+// display box aspect (OperatorProfilePDF CoverageMapCard: full content width
+// 464pt × MAP_CARD_H 178pt ≈ 2.6:1) — the box renders the basemap + dots with
+// preserveAspectRatio="none", so any mismatch squashes the map. 1000×384 = 2.60
+// matches 464/178 = 2.607, so there's no stretch.
 export const MAP_W = 1000; // logical projection width (px)
-export const MAP_H = 500; // logical projection height (px) — 2:1
+export const MAP_H = 384; // logical projection height (px) — ~2.6:1, matches the display box
 export const MAP_PADDING = 40; // logical px kept clear around the footprint
 export const MAP_MAX_BACKDROP = 600; // cap on drawn backdrop dots
-export const MAP_MAX_ZOOM = 13; // parity with the web map's fitBounds maxZoom
+// Static PDF can't be zoomed, so frame tighter than the interactive web map:
+// a single-location operator (all units at one address) hit the old cap of 13
+// and rendered as a tiny cluster in a sea of context. 15 ≈ neighborhood level.
+// Spread footprints are still fit-limited below this, so it only bites the
+// tight-cluster cases that need it.
+export const MAP_MAX_ZOOM = 15;
 // streets-v12 (not light-v11) for the PDF: the minimal light style shows too
 // few place labels/roads to make out the geography in a static report where the
 // reader can't zoom. Streets adds suburb/neighborhood names + major roads for

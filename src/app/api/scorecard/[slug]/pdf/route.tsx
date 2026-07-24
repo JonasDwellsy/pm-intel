@@ -143,7 +143,13 @@ export async function GET(
       width: MAP_W,
       height: MAP_H,
       token: mapboxToken,
-      timeoutMs: 2500,
+      // Generous budget (the route's maxDuration is 300s): a 2.5s cap was
+      // aborting the Mapbox fetch on cold lambdas / slow responses, so SOME
+      // renders silently fell back to the basemap-less SVG map — and since the
+      // PDF is CDN-cached for an hour, different users got served whichever
+      // render (basemap vs fallback) populated their edge node ("map shows for
+      // me but not for a teammate"). fetchCoverageMapImage also retries once.
+      timeoutMs: 9000,
       onFailure: (failure) => {
         // Always leave a breadcrumb so a later captured exception carries the
         // map-fetch context.
