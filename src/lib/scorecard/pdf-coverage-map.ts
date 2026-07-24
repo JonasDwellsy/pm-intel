@@ -88,38 +88,48 @@ export async function fetchCoverageMapImage(
   const url = buildStaticImageUrl({ center, zoom, width, height, style: MAP_STYLE, token });
 
   const doFetch = opts.fetchImpl ?? fetch;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await doFetch(url, { signal: controller.signal });
-    if (!res.ok) {
-      console.error(`[scorecard-pdf] coverage map fetch HTTP ${res.status}`);
-      return fail({ reason: "http", status: res.status });
-    }
-    const buf = Buffer.from(await res.arrayBuffer());
-    const dataUrl = `data:image/png;base64,${buf.toString("base64")}`;
-    const view = { center, zoom, width, height };
-    const inBox = (x: number, y: number) =>
-      x >= 0 && x <= width && y >= 0 && y <= height;
-    const coveragePx: PixelN[] = (geo.coverageMapPoints ?? [])
-      .map((p) => {
-        const { x, y } = projectToPixel({ lat: p.lat, lon: p.lon }, view);
-        return { x, y, n: p.n };
-      })
-      .filter((p) => inBox(p.x, p.y));
-    const backdropPx: Pixel[] = thinBackdrop(geo.msaBackdropPoints ?? [], maxBackdrop)
-      .map((p) => projectToPixel({ lat: p.lat, lon: p.lon }, view))
-      .filter((p) => inBox(p.x, p.y));
-    return { dataUrl, width, height, coveragePx, backdropPx };
-  } catch (err) {
-    console.error("[scorecard-pdf] coverage map fetch failed", err);
-    const aborted = err instanceof Error && err.name === "AbortError";
-    return fail(
-      aborted
+  // Retry once on a TRANSIENT failure (timeout / network error / 5xx) — a
+  // single slow Mapbox response shouldn't drop the basemap for that render (and
+  // cache a basemap-less PDF). Auth/client errors (401/403/4xx) are config
+  // problems that won't fix on retry, so bail immediately and report them.
+  const ATTEMPTS = 2;
+  let lastFailure: CoverageMapFailure = { reason: "error", message: "no attempt made" };
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await doFetch(url, { signal: controller.signal });
+      if (!res.ok) {
+        console.error(`[scorecard-pdf] coverage map fetch HTTP ${res.status} (attempt ${attempt}/${ATTEMPTS})`);
+        if (res.status < 500) return fail({ reason: "http", status: res.status });
+        lastFailure = { reason: "http", status: res.status };
+        continue; // 5xx — server-side, worth one retry
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      const dataUrl = `data:image/png;base64,${buf.toString("base64")}`;
+      const view = { center, zoom, width, height };
+      const inBox = (x: number, y: number) =>
+        x >= 0 && x <= width && y >= 0 && y <= height;
+      const coveragePx: PixelN[] = (geo.coverageMapPoints ?? [])
+        .map((p) => {
+          const { x, y } = projectToPixel({ lat: p.lat, lon: p.lon }, view);
+          return { x, y, n: p.n };
+        })
+        .filter((p) => inBox(p.x, p.y));
+      const backdropPx: Pixel[] = thinBackdrop(geo.msaBackdropPoints ?? [], maxBackdrop)
+        .map((p) => projectToPixel({ lat: p.lat, lon: p.lon }, view))
+        .filter((p) => inBox(p.x, p.y));
+      return { dataUrl, width, height, coveragePx, backdropPx };
+    } catch (err) {
+      console.error(`[scorecard-pdf] coverage map fetch failed (attempt ${attempt}/${ATTEMPTS})`, err);
+      const aborted = err instanceof Error && err.name === "AbortError";
+      lastFailure = aborted
         ? { reason: "aborted" }
-        : { reason: "error", message: err instanceof Error ? err.message : String(err) }
-    );
-  } finally {
-    clearTimeout(timer);
+        : { reason: "error", message: err instanceof Error ? err.message : String(err) };
+      // transient — fall through to the next attempt
+    } finally {
+      clearTimeout(timer);
+    }
   }
+  return fail(lastFailure);
 }
