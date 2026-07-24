@@ -651,6 +651,35 @@ function buildGlanceTiles(scaleFit: ScaleFitView): GlanceTile[] {
   return tiles.slice(0, 5);
 }
 
+/** Cross-market footprint (multi-market operators only). Lives on page 1 with
+ *  the identity/scale summary — it's a "how big / where else" fact, and keeping
+ *  it off §01 means the full-width coverage map stays on page 2 for multi-market
+ *  operators too (rather than being pushed to its own page). */
+function CrossMarketFootprint({
+  crossMarket,
+}: {
+  crossMarket: NonNullable<ScaleFitView["crossMarket"]>;
+}) {
+  const names = crossMarket.marketNames;
+  const shown = names.slice(0, 4);
+  const extra = names.length - shown.length;
+  // Single self-contained line: page 1 only has ~50pt free below the tiles, so
+  // this must not wrap to a second line (which would split across the page
+  // boundary). maxLines + ellipsis is the hard backstop; wrap={false} keeps the
+  // label + line together on page 1.
+  return (
+    <View style={{ marginTop: 16 }} wrap={false}>
+      <MicroLabel style={{ marginBottom: 6 }}>Also operates in</MicroLabel>
+      <Text
+        style={{ fontSize: 11, fontWeight: 700, color: VIOLET, maxLines: 1, textOverflow: "ellipsis" }}
+      >
+        {shown.join(" · ")}
+        {extra > 0 ? ` +${extra} more` : ""}
+      </Text>
+    </View>
+  );
+}
+
 // =====================================================================
 //  01 Scale & fit
 // =====================================================================
@@ -1033,21 +1062,10 @@ function ScaleFitSection({
         <RentTierCard detail={scaleFit.rentTier} />
         {scaleFit.unitMix != null ? <UnitMixCard unitMix={scaleFit.unitMix} /> : null}
       </View>
-      {/* Cross-market footprint (multi-market operators only) — kept ABOVE the
-          full-width map so, when §01 overflows onto a second page, that page
-          carries the large map rather than stranding this 2-line strip alone. */}
-      {scaleFit.crossMarket != null ? (
-        <View style={styles.card} wrap={false}>
-          <MicroLabel style={{ marginBottom: 6 }}>Also operates in</MicroLabel>
-          <Text style={{ fontSize: 11, fontWeight: 700, color: VIOLET }}>
-            {scaleFit.crossMarket.marketNames.slice(0, 4).join(" · ")}
-            {scaleFit.crossMarket.marketNames.length > 4
-              ? ` +${scaleFit.crossMarket.marketNames.length - 4} more`
-              : ""}
-          </Text>
-        </View>
-      ) : null}
-      {/* Full-width coverage map */}
+      {/* Full-width coverage map. (The cross-market "Also operates in" footprint
+          moved to page 1 with the identity/scale summary — see
+          CrossMarketFootprint — so §01 stays on one page and the map no longer
+          gets pushed to its own page for multi-market operators.) */}
       <CoverageMapCard coverageMap={coverageMap} geo={geo} />
     </View>
   );
@@ -1868,6 +1886,9 @@ export function OperatorProfilePDF({
         <CoverHero header={view.header} />
         <ExecReadout readout={view.readout} maturityNote={view.maturityNote} />
         <AtAGlance tiles={glanceTiles} />
+        {view.scaleFit.crossMarket != null ? (
+          <CrossMarketFootprint crossMarket={view.scaleFit.crossMarket} />
+        ) : null}
 
         {/* Page 2 — 01 Scale & fit */}
         <View break>
