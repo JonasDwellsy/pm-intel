@@ -1,0 +1,221 @@
+{
+  "_comment": "v0.6.4 Patch 11 \u2014 cross-market canonical extensions for the 2 new Bay Area markets (San Francisco-Oakland-Berkeley + San Jose-Sunnyvale-Santa Clara). extend_existing folds each new-market PM into an ALREADY-established canonical, distinctive-name matches only. Generic quality-descriptor names rejected (see 'rejected'). new_canonicals: 2 distinctive multi-market operators linking an existing market (LA) to SF \u2014 Veritas Investments (a major SF apartment owner) and E&S Ring Management \u2014 approved by Jonas 2026-08-06. Other new_pairs candidates (BLVD Residential, Intempus Realty, Income Property Specialists) skipped per that decision.",
+  "version": "v0.6.4-p11-bay-area",
+  "generated_at": "2026-08-06",
+  "curator": "add-bay-area-markets",
+  "summary": {
+    "extend_existing": 25,
+    "new_canonicals": 2,
+    "rejected": 3
+  },
+  "extend_existing": [
+    {
+      "canonical_slug": "mynd-property-management",
+      "add_pm_slugs": [
+        "mynd-property-management-san-francisco-oakland-berkeley-ca",
+        "mynd-property-management-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "invitation-homes",
+      "add_pm_slugs": [
+        "invitation-homes-san-francisco-oakland-berkeley-ca"
+      ]
+    },
+    {
+      "canonical_slug": "tricon-residential",
+      "add_pm_slugs": [
+        "tricon-residential-san-francisco-oakland-berkeley-ca"
+      ]
+    },
+    {
+      "canonical_slug": "udr",
+      "add_pm_slugs": [
+        "udr-san-francisco-oakland-berkeley-ca",
+        "udr-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "aperto-property-management",
+      "add_pm_slugs": [
+        "aperto-property-management-inc-san-francisco-oakland-berkeley-ca",
+        "aperto-property-management-inc-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "mg-properties-group",
+      "add_pm_slugs": [
+        "mg-properties-group-san-francisco-oakland-berkeley-ca",
+        "mg-properties-group-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "holland-partner-group",
+      "add_pm_slugs": [
+        "holland-partner-group-san-francisco-oakland-berkeley-ca",
+        "holland-partner-group-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "pacific-urban-investors",
+      "add_pm_slugs": [
+        "pacific-urban-investors-san-francisco-oakland-berkeley-ca",
+        "pacific-urban-investors-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "ti-communities",
+      "add_pm_slugs": [
+        "ti-communities-lp-san-francisco-oakland-berkeley-ca"
+      ]
+    },
+    {
+      "canonical_slug": "equity-residential",
+      "add_pm_slugs": [
+        "equity-residential-san-francisco-oakland-berkeley-ca",
+        "equity-residential-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "utopia-management",
+      "add_pm_slugs": [
+        "utopia-management-san-francisco-oakland-berkeley-ca"
+      ]
+    },
+    {
+      "canonical_slug": "sares-regis-management",
+      "add_pm_slugs": [
+        "sares-regis-management-san-francisco-oakland-berkeley-ca",
+        "sares-regis-management-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "altos-realty-advisors",
+      "add_pm_slugs": [
+        "altos-realty-advisors-san-francisco-oakland-berkeley-ca",
+        "altos-realty-advisors-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "related",
+      "add_pm_slugs": [
+        "related-san-francisco-oakland-berkeley-ca"
+      ]
+    },
+    {
+      "canonical_slug": "wilshire-properties-inc",
+      "add_pm_slugs": [
+        "wilshire-properties-inc-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "pacifica-real-estate-services",
+      "add_pm_slugs": [
+        "pacifica-real-estate-services-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "drysdale-property-management",
+      "add_pm_slugs": [
+        "drysdale-property-management-san-francisco-oakland-berkeley-ca"
+      ]
+    },
+    {
+      "canonical_slug": "bg-asset-management",
+      "add_pm_slugs": [
+        "bg-asset-management-san-francisco-oakland-berkeley-ca"
+      ]
+    },
+    {
+      "canonical_slug": "dh-apartment-homes",
+      "add_pm_slugs": [
+        "dh-apartment-homes-san-francisco-oakland-berkeley-ca"
+      ]
+    },
+    {
+      "canonical_slug": "redwood-property-investors",
+      "add_pm_slugs": [
+        "redwood-property-investors-san-francisco-oakland-berkeley-ca"
+      ]
+    },
+    {
+      "canonical_slug": "diablo-pacific",
+      "add_pm_slugs": [
+        "diablo-pacific-san-francisco-oakland-berkeley-ca"
+      ]
+    },
+    {
+      "canonical_slug": "wilbur-properties",
+      "add_pm_slugs": [
+        "wilbur-properties-san-francisco-oakland-berkeley-ca",
+        "wilbur-properties-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "tenant-planet",
+      "add_pm_slugs": [
+        "tenant-planet-san-francisco-oakland-berkeley-ca",
+        "tenant-planet-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "orvick-management-group",
+      "add_pm_slugs": [
+        "orvick-management-group-san-francisco-oakland-berkeley-ca",
+        "orvick-management-group-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    },
+    {
+      "canonical_slug": "taycon-properties",
+      "add_pm_slugs": [
+        "taycon-properties-san-francisco-oakland-berkeley-ca",
+        "taycon-properties-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    }
+  ],
+  "new_canonicals": [
+    {
+      "canonical_slug": "veritas-investments-inc",
+      "canonical_name": "Veritas Investments Inc",
+      "pm_slugs": [
+        "veritas-investments-inc-los-angeles-long-beach-santa-ana-ca",
+        "veritas-investments-inc-san-francisco-oakland-berkeley-ca"
+      ]
+    },
+    {
+      "canonical_slug": "e-s-ring-management",
+      "canonical_name": "E&S Ring Management",
+      "pm_slugs": [
+        "e-s-ring-management-los-angeles-long-beach-santa-ana-ca",
+        "e-s-ring-management-san-francisco-oakland-berkeley-ca"
+      ]
+    }
+  ],
+  "rejected": [
+    {
+      "canonical_slug": "five-star-property-management",
+      "canonical_name": "Five Star Property Management",
+      "add_pm_slugs": [
+        "five-star-property-management-san-francisco-oakland-berkeley-ca"
+      ],
+      "reason": "generic descriptor name \u2014 same-name-different-company risk; left un-folded (shows as separate operator)"
+    },
+    {
+      "canonical_slug": "apt-building-rents-maintenance",
+      "canonical_name": "Apt Building Rents & Maintenance",
+      "add_pm_slugs": [
+        "apt-building-rents-maintenance-san-francisco-oakland-berkeley-ca"
+      ],
+      "reason": "generic descriptor name \u2014 same-name-different-company risk; left un-folded (shows as separate operator)"
+    },
+    {
+      "canonical_slug": "legacy-property-group",
+      "canonical_name": "Legacy Property Group",
+      "add_pm_slugs": [
+        "legacy-property-group-san-francisco-oakland-berkeley-ca",
+        "legacy-property-group-san-jose-sunnyvale-santa-clara-ca"
+      ],
+      "reason": "generic descriptor name \u2014 same-name-different-company risk; left un-folded (shows as separate operator)"
+    }
+  ]
+}
