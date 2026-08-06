@@ -1,11 +1,11 @@
 {
-  "_comment": "v0.6.4 Patch 11 \u2014 cross-market canonical extensions for the 2 new Bay Area markets (San Francisco-Oakland-Berkeley + San Jose-Sunnyvale-Santa Clara). extend_existing folds each new-market PM into an ALREADY-established canonical, distinctive-name matches only. Generic quality-descriptor names rejected (see 'rejected'). new_pairs from the proposal held for review (distinctive candidates: Veritas Investments, E&S Ring Management, BLVD Residential, Intempus Realty, Income Property Specialists) \u2014 pending sign-off; new_canonicals empty for now.",
+  "_comment": "v0.6.4 Patch 11 \u2014 cross-market canonical extensions for the 2 new Bay Area markets (San Francisco-Oakland-Berkeley + San Jose-Sunnyvale-Santa Clara). extend_existing folds each new-market PM into an ALREADY-established canonical, distinctive-name matches only. Generic quality-descriptor names rejected (see 'rejected'). new_canonicals: 2 distinctive multi-market operators linking an existing market (LA) to SF \u2014 Veritas Investments (a major SF apartment owner) and E&S Ring Management \u2014 approved by Jonas 2026-08-06. Other new_pairs candidates (BLVD Residential, Intempus Realty, Income Property Specialists) skipped per that decision.",
   "version": "v0.6.4-p11-bay-area",
   "generated_at": "2026-08-06",
   "curator": "add-bay-area-markets",
   "summary": {
     "extend_existing": 25,
-    "new_canonicals": 0,
+    "new_canonicals": 2,
     "rejected": 3
   },
   "extend_existing": [
@@ -173,7 +173,24 @@
       ]
     }
   ],
-  "new_canonicals": [],
+  "new_canonicals": [
+    {
+      "canonical_slug": "veritas-investments-inc",
+      "canonical_name": "Veritas Investments Inc",
+      "pm_slugs": [
+        "veritas-investments-inc-los-angeles-long-beach-santa-ana-ca",
+        "veritas-investments-inc-san-francisco-oakland-berkeley-ca"
+      ]
+    },
+    {
+      "canonical_slug": "e-s-ring-management",
+      "canonical_name": "E&S Ring Management",
+      "pm_slugs": [
+        "e-s-ring-management-los-angeles-long-beach-santa-ana-ca",
+        "e-s-ring-management-san-francisco-oakland-berkeley-ca"
+      ]
+    }
+  ],
   "rejected": [
     {
       "canonical_slug": "five-star-property-management",
