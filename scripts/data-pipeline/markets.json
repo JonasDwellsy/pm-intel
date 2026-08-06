@@ -453,6 +453,28 @@
       "primaryCity": "Modesto",
       "csvFile": "merged_modesto-ca_20260717.csv",
       "dataAsOf": "2026-07-17"
+    },
+    {
+      "id": "san-francisco-oakland-berkeley-ca",
+      "outputSlug": "san-francisco",
+      "msaCode": "41860",
+      "msaFullName": "San Francisco-Oakland-Berkeley, CA MSA",
+      "name": "San Francisco",
+      "state": "CA",
+      "primaryCity": "San Francisco",
+      "csvFile": "merged_san-francisco-oakland-berkeley-ca_20260805.csv",
+      "dataAsOf": "2026-08-05"
+    },
+    {
+      "id": "san-jose-sunnyvale-santa-clara-ca",
+      "outputSlug": "san-jose",
+      "msaCode": "41940",
+      "msaFullName": "San Jose-Sunnyvale-Santa Clara, CA MSA",
+      "name": "San Jose",
+      "state": "CA",
+      "primaryCity": "San Jose",
+      "csvFile": "merged_san-jose-sunnyvale-santa-clara-ca_20260805.csv",
+      "dataAsOf": "2026-08-05"
     }
   ]
 }

@@ -242,6 +242,8 @@ const MARKETS: Array<{
   { slug: "stockton", id: "stockton-ca", city: "Stockton", state: "CA", stateSlug: "california", citySlug: "stockton" },
   { slug: "visalia", id: "visalia-porterville-ca", city: "Visalia", state: "CA", stateSlug: "california", citySlug: "visalia" },
   { slug: "modesto", id: "modesto-ca", city: "Modesto", state: "CA", stateSlug: "california", citySlug: "modesto" },
+  { slug: "san-francisco", id: "san-francisco-oakland-berkeley-ca", city: "San Francisco", state: "CA", stateSlug: "california", citySlug: "san-francisco" },
+  { slug: "san-jose", id: "san-jose-sunnyvale-santa-clara-ca", city: "San Jose", state: "CA", stateSlug: "california", citySlug: "san-jose" },
 ];
 const MIN_T12 = 3;
 

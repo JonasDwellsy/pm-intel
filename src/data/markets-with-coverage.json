@@ -696,14 +696,26 @@
       "status": "available"
     },
     {
-      "slug": "san-francisco-ca",
+      "slug": "san-francisco-oakland-berkeley-ca",
       "name": "San Francisco-Oakland-Berkeley, CA MSA",
       "shortName": "San Francisco",
       "centroid": {
         "lat": 37.7749,
         "lng": -122.4194
       },
-      "status": "available"
+      "status": "live",
+      "marketPageHref": "/property-managers/california/san-francisco"
+    },
+    {
+      "slug": "san-jose-sunnyvale-santa-clara-ca",
+      "name": "San Jose-Sunnyvale-Santa Clara, CA MSA",
+      "shortName": "San Jose",
+      "centroid": {
+        "lat": 37.3382,
+        "lng": -121.8863
+      },
+      "status": "live",
+      "marketPageHref": "/property-managers/california/san-jose"
     },
     {
       "slug": "sioux-falls-sd",
