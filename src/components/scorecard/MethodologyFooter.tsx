@@ -198,8 +198,8 @@ export function MethodologyFooter({
           {scorecard.designVersion ? ` · Design ${scorecard.designVersion}` : ""}
           .{" "}
           {publicSample
-            ? "iq.dwellsy.com/sample"
-            : `iq.dwellsy.com/property-managers/${scorecard.pm.slug}`}
+            ? "intel.iq.dwellsy.com/sample"
+            : `intel.iq.dwellsy.com/property-managers/${scorecard.pm.slug}`}
         </p>
       </div>
     </section>

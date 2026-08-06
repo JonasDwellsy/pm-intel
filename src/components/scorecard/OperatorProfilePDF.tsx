@@ -1653,7 +1653,7 @@ function PageFooter({ scorecard }: { scorecard: ScorecardData }) {
         {" · Data as of "}
         {fmtDate(scorecard.dataAsOf)}
       </Text>
-      <Text render={({ pageNumber, totalPages }) => `iq.dwellsy.com · ${pageNumber} of ${totalPages}`} />
+      <Text render={({ pageNumber, totalPages }) => `intel.iq.dwellsy.com · ${pageNumber} of ${totalPages}`} />
     </View>
   );
 }
@@ -1846,11 +1846,11 @@ function MethodologySection({ scorecard, num }: { scorecard: ScorecardData; num:
         <Text style={styles.subHead}>Suggested citation</Text>
         <View style={{ borderWidth: 1, borderStyle: "solid", borderColor: BORDER, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16 }}>
           <Text style={{ fontSize: 10, fontFamily: "Courier", color: BODY, lineHeight: 1.5 }}>
-            {`Dwellsy IQ, 2026. Operator IQ Scorecard for ${scorecard.pm.name} (${scorecard.market.name}). Methodology ${scorecard.methodologyVersion}${scorecard.designVersion ? ` · Design ${scorecard.designVersion}` : ""}. iq.dwellsy.com/property-managers/${scorecard.pm.slug}`}
+            {`Dwellsy IQ, 2026. Operator IQ Scorecard for ${scorecard.pm.name} (${scorecard.market.name}). Methodology ${scorecard.methodologyVersion}${scorecard.designVersion ? ` · Design ${scorecard.designVersion}` : ""}. intel.iq.dwellsy.com/property-managers/${scorecard.pm.slug}`}
           </Text>
         </View>
-        <Link src="https://iq.dwellsy.com/methodology" style={{ fontSize: 10.5, fontWeight: 700, color: VIOLET, marginTop: 10 }}>
-          Full methodology » iq.dwellsy.com/methodology
+        <Link src="https://intel.iq.dwellsy.com/methodology" style={{ fontSize: 10.5, fontWeight: 700, color: VIOLET, marginTop: 10 }}>
+          Full methodology » intel.iq.dwellsy.com/methodology
         </Link>
       </View>
     </View>

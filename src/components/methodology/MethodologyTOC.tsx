@@ -58,7 +58,7 @@ export function MethodologyTOC({
   }, [items]);
 
   function handleCopy() {
-    const citation = `Dwellsy IQ, 2026. Operator IQ Methodology ${version}. iq.dwellsy.com/methodology`;
+    const citation = `Dwellsy IQ, 2026. Operator IQ Methodology ${version}. intel.iq.dwellsy.com/methodology`;
     void navigator.clipboard.writeText(citation).then(() => {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1400);
@@ -120,7 +120,7 @@ export function MethodologyTOC({
             <p className="dq-mono text-[11.5px] leading-[1.5] text-navy">
               Dwellsy IQ, 2026.{" "}
               <em>Operator IQ Methodology {version}</em>.
-              iq.dwellsy.com/methodology
+              intel.iq.dwellsy.com/methodology
             </p>
             <button
               type="button"

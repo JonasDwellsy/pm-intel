@@ -337,7 +337,7 @@ export default async function Image({
           >
             <span style={{ fontWeight: 600 }}>{cohortLine}</span>
             <span style={{ color: COLOR_TEAL, fontWeight: 600 }}>
-              iq.dwellsy.com →
+              intel.iq.dwellsy.com →
             </span>
           </div>
         </div>

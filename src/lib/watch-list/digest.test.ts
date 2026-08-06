@@ -7,8 +7,8 @@ function input(overrides: Partial<DigestInput> = {}): DigestInput {
   return {
     recipientFirstName: "Sam",
     monthLabel: "June 2026",
-    unsubscribeUrl: "https://iq.dwellsy.com/api/digest/unsubscribe?u=user_1&t=abc",
-    scorecardBaseUrl: "https://iq.dwellsy.com",
+    unsubscribeUrl: "https://intel.iq.dwellsy.com/api/digest/unsubscribe?u=user_1&t=abc",
+    scorecardBaseUrl: "https://intel.iq.dwellsy.com",
     lists: [
       {
         watchListName: "SFR scale-ups",
@@ -17,7 +17,7 @@ function input(overrides: Partial<DigestInput> = {}): DigestInput {
             pmSlug: "acme-chattanooga-tn",
             name: "Acme Homes",
             marketLabel: "Chattanooga",
-            scorecardUrl: "https://iq.dwellsy.com/property-managers/tn/chattanooga/acme-chattanooga-tn",
+            scorecardUrl: "https://intel.iq.dwellsy.com/property-managers/tn/chattanooga/acme-chattanooga-tn",
             changes: [
               { type: "star", metric: "tenancy", before: "silver", after: "gold" },
               { type: "eligibility_flip", direction: "entered" },
