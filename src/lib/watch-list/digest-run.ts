@@ -74,7 +74,7 @@ export interface DigestRunSummary {
 }
 
 function appBase(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "https://iq.dwellsy.com";
+  return process.env.NEXT_PUBLIC_APP_URL ?? "https://intel.iq.dwellsy.com";
 }
 
 /** Enumerate an org's members (userId + email) via the Clerk backend SDK. */
