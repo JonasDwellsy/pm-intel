@@ -77,7 +77,10 @@ export default function RootLayout({
   // and template-preloaded editor stay anonymous-friendly so the
   // PR #45 discovery path is preserved.
   return (
-    <ClerkProvider appearance={clerkAppearance}>
+    <ClerkProvider
+      appearance={clerkAppearance}
+      allowedRedirectOrigins={["https://portfolio.iq.dwellsy.com"]}
+    >
       <html
         lang="en"
         className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
