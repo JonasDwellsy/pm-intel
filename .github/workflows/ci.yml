@@ -48,8 +48,15 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      # prisma/seed.ts statically imports src/data/scorecard_data.json, so tsc
+      # infers a literal type for the whole seed blob (57MB and growing with
+      # every market we add). That exceeds Node's default ~4GB heap on the
+      # runner and aborts with an OOM that reads like a type failure. Raise the
+      # cap so the check reflects real type errors, not seed size.
+      # Durable fix (tracked separately): load the seed at runtime in seed.ts
+      # instead of importing it, which drops it out of tsc's type graph.
       - name: Type check
-        run: npx tsc --noEmit
+        run: NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit
 
       - name: Unit tests (node:test)
         run: npm run test:watch-list
