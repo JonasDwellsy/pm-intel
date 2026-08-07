@@ -22,6 +22,7 @@ import { estimatedManagedUnitsBand } from "@/lib/operator-size";
 import type { PoolPm } from "@/lib/msa-pool";
 import { buildConcessionContext, uniquePatternLabels, formatConcessionSample } from "@/lib/concession-context";
 import { roundPortfolioUnits } from "@/lib/format";
+import { sizeBandLabel } from "@/lib/operator-size-bands";
 import {
   concessionDetail,
   type MetricTone,
@@ -442,7 +443,14 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const mktShort = scorecard.market.name ?? scorecard.market.fullName;
   const units = scorecard.coverage?.totalObservedUnits ?? scorecard.coverage?.urusT12 ?? "—";
   if (estimate.point != null) {
-    readout[0].value = `${typeLabel} in ${mktShort} · ~${estimate.point.toLocaleString()} managed units (est.)`;
+    // Lead with the observed count — a hard fact — and band the estimate.
+    // This line is the single most-read sentence on the scorecard and on page 1
+    // of the PDF, so it can't be where we make the precision claim the size
+    // estimator can't support (see lib/operator-size-bands.ts).
+    // The observed clause is dropped rather than printed as "— units observed"
+    // when there's no count to state.
+    const observed = typeof units === "number" ? `${units.toLocaleString()} units observed · ` : "";
+    readout[0].value = `${typeLabel} in ${mktShort} · ${observed}est. ${sizeBandLabel(estimate.point)} managed units`;
   } else if (communitiesObserved != null) {
     readout[0].value = `${typeLabel} in ${mktShort} · ${communitiesObserved} ${communitiesObserved === 1 ? "community" : "communities"} · ${units} units observed — self-report needed for a portfolio estimate`;
   } else {

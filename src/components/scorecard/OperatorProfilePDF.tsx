@@ -60,6 +60,7 @@ import type { SelectedPeer } from "@/lib/scorecard/peers";
 import type { RentTierDetail } from "@/lib/scorecard/rent-tier";
 import type { CoverageMapImage } from "@/lib/scorecard/pdf-coverage-map";
 import { managementModelLabel } from "@/lib/management-model/resolve";
+import { sizeBandLabel, SIZE_COVERAGE_CAVEAT_SHORT } from "@/lib/operator-size-bands";
 import {
   coverageMapRenderModel,
   coverageRadius,
@@ -625,10 +626,9 @@ function AtAGlance({ tiles }: { tiles: GlanceTile[] }) {
 
 function buildGlanceTiles(scaleFit: ScaleFitView): GlanceTile[] {
   const tiles: GlanceTile[] = [];
-  const est = scaleFit.estimate.point;
-  if (est != null && (scaleFit.observedUnits == null || est !== scaleFit.observedUnits)) {
-    tiles.push({ label: "Est. size", value: fmtInt(est), big: true });
-  }
+  // No size estimate up here. At-a-glance tiles are the numbers a reader takes
+  // at face value, so they hold hard counts only — the banded estimate lives in
+  // the Portfolio size card below, next to the caveat that qualifies it.
   if (scaleFit.observedUnits != null) {
     tiles.push({ label: "Observed units", value: fmtInt(scaleFit.observedUnits), big: true });
   }
@@ -734,20 +734,17 @@ function PortfolioScaleBar({
             <Text style={{ fontSize: 10.5, color: MUTED, marginTop: 2 }}>observed units (T12)</Text>
           </View>
         ) : null}
-        {point != null ? (
+        {/* The estimate reads as a band, not a figure. This page ends up in a
+            deal room in front of someone who knows their own unit count, and a
+            26pt "790" next to an operator running 1,400 is the one number that
+            can lose the room. The point still drives the marker on the track
+            below; it just no longer makes a precision claim in type. */}
+        {sizeBandLabel(point) != null ? (
           <View>
-            <Text style={{ fontSize: 26, fontWeight: 800, color: INK, letterSpacing: -0.5 }}>
-              {fmtInt(point)}
+            <Text style={{ fontSize: 20, fontWeight: 800, color: INK, letterSpacing: -0.4 }}>
+              {sizeBandLabel(point)}
             </Text>
-            <Text style={{ fontSize: 10.5, color: MUTED, marginTop: 2 }}>best estimate</Text>
-          </View>
-        ) : null}
-        {hasBand ? (
-          <View>
-            <Text style={{ fontSize: 15, fontWeight: 600, color: MUTED, letterSpacing: -0.3 }}>
-              {fmtInt(low!)}–{fmtInt(high!)}
-            </Text>
-            <Text style={{ fontSize: 10.5, color: FAINT, marginTop: 2 }}>plausible range</Text>
+            <Text style={{ fontSize: 10.5, color: MUTED, marginTop: 2 }}>estimated units managed</Text>
           </View>
         ) : null}
       </View>
@@ -802,10 +799,16 @@ function PortfolioScaleBar({
         <Text style={{ fontSize: 9, color: FAINT }}>0</Text>
         <Text style={{ fontSize: 9, color: FAINT }}>{fmtInt(axisMax)}</Text>
       </View>
+      {/* Legend and coverage limit share one paragraph. The caveat has to
+          travel with the PDF — it leaves with the reader and gets forwarded —
+          but as its own block it cost two extra lines, which was enough to push
+          the coverage map off this page and onto a near-empty one of its own.
+          Folded in here it costs a single wrapped line. */}
       <Text style={{ fontSize: 9, color: MUTED, marginTop: 6, lineHeight: 1.35 }}>
         {hasBand
-          ? "Violet = observed units (T12) · soft band = plausible range from turnover uncertainty · dot = best estimate."
-          : "Violet = observed units (T12) · dot = estimated managed units (turnover-adjusted for SFR; declared for multifamily)."}
+          ? "Violet = observed units (T12) · band = turnover uncertainty · dot = point estimate. "
+          : "Violet = observed units (T12) · dot = point estimate. "}
+        <Text style={{ color: FAINT }}>{SIZE_COVERAGE_CAVEAT_SHORT}</Text>
       </Text>
     </View>
   );
@@ -1106,8 +1109,13 @@ function PeersTable({ peers }: { peers: SelectedPeer[] }) {
             {peer.name}
             {peer.isFocal ? <Text style={{ color: VIOLET, fontWeight: 600 }}>  (this operator)</Text> : ""}
           </Text>
+          {/* Band, matching the web comparison table — a column of exact peer
+              figures invites side-by-side comparisons the estimator can't
+              support. Column width is unchanged: "800–1,600" is no wider than
+              the four-digit figures it replaces, and widening it squeezed the
+              name column enough to hyphenate operator names mid-word. */}
           <Text style={{ flex: 1.3, fontSize: 10, color: BODY, textAlign: "right", fontWeight: peer.isFocal ? 700 : 400 }}>
-            {peer.estimatedUnits != null ? fmtInt(peer.estimatedUnits) : "—"}
+            {sizeBandLabel(peer.estimatedUnits) ?? "—"}
           </Text>
           <Text style={{ flex: 1.8, fontSize: 10, color: BODY, paddingLeft: 10 }}>{peer.quadrant7Cell ?? "—"}</Text>
           <View style={{ flex: 1.6, alignItems: "flex-end" }}>

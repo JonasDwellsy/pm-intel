@@ -146,19 +146,10 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
         {/* Band edge labels */}
         {hasBand && (
           <>
-            <span
-              style={{
-                position: "absolute",
-                top: "-22px",
-                left: `${bandLeft}%`,
-                fontSize: "10px",
-                color: "#5b6577",
-                transform: "translateX(-50%)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {low!.toLocaleString()}
-            </span>
+            {/* Tick marks only. The band's numeric edges used to print here,
+                but the band label above the bar is now the claim we stand
+                behind — printing 460 and 770 alongside it re-asserts the
+                precision the band exists to retire. */}
             <div
               style={{
                 position: "absolute",
@@ -169,19 +160,6 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
                 background: "#8894ac",
               }}
             />
-            <span
-              style={{
-                position: "absolute",
-                top: "-22px",
-                left: `${100 - (bandRight ?? 0)}%`,
-                fontSize: "10px",
-                color: "#5b6577",
-                transform: "translateX(-50%)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {high!.toLocaleString()}
-            </span>
             <div
               style={{
                 position: "absolute",
@@ -239,20 +217,6 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
                 transform: "translateX(-50%)",
               }}
             />
-            <span
-              style={{
-                position: "absolute",
-                top: "-22px",
-                left: `${pointLeft}%`,
-                fontSize: "10px",
-                color: "#0f1f3f",
-                fontWeight: 700,
-                transform: "translateX(-50%)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {point!.toLocaleString()} est
-            </span>
           </>
         )}
       </div>
@@ -266,8 +230,8 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
         }}
       >
         {hasBand
-          ? "Green = directly observed units (T12). Shaded band = plausible range from unit-turnover uncertainty. Point = best estimate (turnover-adjusted)."
-          : "Green = directly observed units (T12). Point = estimated managed units (turnover-adjusted for SFR; declared units for multifamily)."}
+          ? "Green = directly observed units (T12). Shaded band = turnover uncertainty. Marker = point estimate (turnover-adjusted)."
+          : "Green = directly observed units (T12). Marker = point estimate (turnover-adjusted for SFR; declared units for multifamily)."}
       </p>
       {/* The coverage limit, stated rather than implied. We only see what an
           operator lists with Dwellsy, and calibration against operator-reported

@@ -1,5 +1,6 @@
 import { GatedLink } from "@/components/auth/GatedLink";
 import { fmtDays, fmtInt } from "@/lib/format";
+import { sizeBandLabel } from "@/lib/operator-size-bands";
 import { quadrantColor } from "@/lib/quadrant-colors";
 import { StarSummaryChip } from "@/components/scorecard/StarSummaryChip";
 import { AddToWatchList } from "@/components/watch-list/AddToWatchList";
@@ -198,11 +199,15 @@ export function PMListItem({
                 ? `${displayShare}% `
                 : ""}
               {displayCity}
-              <span className="mx-1.5 text-muted-2">·</span>~
+              {/* Banded, not a point — the rankings list puts this figure
+                  side by side with dozens of others, which is exactly where a
+                  false sense of precision compounds. */}
+              <span className="mx-1.5 text-muted-2">·</span>est.{" "}
               <span className="dq-mono font-medium text-navy/90">
-                {fmtInt(pm.estManagedUnits ?? pm.totalObservedUnits)}
+                {sizeBandLabel(pm.estManagedUnits ?? pm.totalObservedUnits) ??
+                  fmtInt(pm.estManagedUnits ?? pm.totalObservedUnits)}
               </span>{" "}
-              managed units (est.)
+              managed units
             </p>
           </div>
 

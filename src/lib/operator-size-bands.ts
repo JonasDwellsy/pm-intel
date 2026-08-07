@@ -22,6 +22,8 @@
 //   <50 2.7% · 50-100 20.5% · 100-200 33.8% · 200-400 22.4%
 //   400-800 12.3% · 800-1,600 5.0% · 1,600+ 3.3%
 
+import { roundPortfolioUnits } from "@/lib/format";
+
 export interface SizeBand {
   /** Inclusive lower edge. Sort on this — it's stable and non-arbitrary. */
   min: number;
@@ -44,11 +46,24 @@ export const SIZE_BANDS: readonly SizeBand[] = [
 /**
  * Band containing `units`. Returns null when there is no estimate at all —
  * callers must render the absence rather than inventing a band.
+ *
+ * The input is display-rounded FIRST, and that is load-bearing. Two code paths
+ * carry an operator's size: the scorecard view-model rounds the estimate for
+ * display (roundPortfolioUnits), while the peer table carries the raw figure.
+ * A 1-unit gap was invisible when both printed a number, but it straddles a
+ * band edge — 1,599 raw vs 1,600 rounded printed "800–1,600" in the peer table
+ * and "1,600+" on the card of the same page, for the same operator. Rounding
+ * here makes the band a property of the operator, not of the caller. The
+ * rounding is idempotent, so an already-rounded input is unaffected.
  */
 export function sizeBandFor(units: number | null | undefined): SizeBand | null {
+  // Guard the RAW input: roundPortfolioUnits turns a small negative into -0,
+  // which would then pass a `>= 0` check and band as "<50".
   if (units == null || !Number.isFinite(units) || units < 0) return null;
+  const rounded = roundPortfolioUnits(units);
+  if (rounded == null) return null;
   for (const b of SIZE_BANDS) {
-    if (units >= b.min && (b.max === null || units < b.max)) return b;
+    if (rounded >= b.min && (b.max === null || rounded < b.max)) return b;
   }
   return null;
 }
@@ -66,3 +81,12 @@ export function sizeBandLabel(units: number | null | undefined): string | null {
 export const SIZE_COVERAGE_CAVEAT =
   "Estimated from listings observed on Dwellsy. Operators may not list their " +
   "entire portfolio with us, so treat this as a floor rather than a census.";
+
+/**
+ * One-line form, for surfaces where vertical space is load-bearing. The PDF is
+ * the case: the full sentence costs two extra wrapped lines in the Portfolio
+ * size card, which is enough to push the coverage map onto a page of its own.
+ * Same claim, no hedging removed — just fewer words.
+ */
+export const SIZE_COVERAGE_CAVEAT_SHORT =
+  "Estimated from Dwellsy listings only — a floor, not a census.";
