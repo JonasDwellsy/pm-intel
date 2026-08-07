@@ -6,6 +6,7 @@ import test from "node:test";
 import { strict as assert } from "node:assert";
 import { evaluateCriterion } from "./evaluator";
 import type { PMRecord } from "./fields";
+import { sizeBandLabel } from "@/lib/operator-size-bands";
 
 // Fixture: a minimal PMRecord that covers every field accessor used
 // across the test suite. Filled in with deliberately-mixed values so
@@ -97,6 +98,50 @@ test("between numeric range on estimatedPortfolioPoint", () => {
   assert.equal(evaluateCriterion(pm, { field: "estimatedPortfolioPoint", operator: "between", value: [1000, 3000] }), false);
   // inclusive at boundary
   assert.equal(evaluateCriterion(pm, { field: "estimatedPortfolioPoint", operator: "between", value: [800, 1000] }), true);
+});
+
+test("portfolioSizeBand — ordinal comparison on band index, not units", () => {
+  // makePm's default point is 800, which lands in "800–1,600" (index 5).
+  const pm = makePm();
+  assert.equal(evaluateCriterion(pm, { field: "portfolioSizeBand", operator: "gte", value: 5 }), true);
+  assert.equal(evaluateCriterion(pm, { field: "portfolioSizeBand", operator: "gte", value: 6 }), false);
+  assert.equal(evaluateCriterion(pm, { field: "portfolioSizeBand", operator: "lte", value: 5 }), true);
+  assert.equal(evaluateCriterion(pm, { field: "portfolioSizeBand", operator: "lte", value: 4 }), false);
+  // "between the 400–800 and 1,600+ bands" spans indexes 4..6.
+  assert.equal(evaluateCriterion(pm, { field: "portfolioSizeBand", operator: "between", value: [4, 6] }), true);
+  assert.equal(evaluateCriterion(pm, { field: "portfolioSizeBand", operator: "between", value: [0, 3] }), false);
+});
+
+test("portfolioSizeBand agrees with the band the scorecard displays", () => {
+  // Regression. The precise-number fields compare the RAW estimate while every
+  // display surface bands the display-ROUNDED one. At 1,599.4 that split put a
+  // watch list and a scorecard in direct contradiction: the card, PDF, and peer
+  // table all read "1,600+" while a list set to "at least 1600" excluded the
+  // operator. Filtering by band has to agree with the band on the page.
+  const straddler = makePm({
+    portfolioEstimate: { status: "estimated", point: 1599.4 },
+  } as unknown as Parameters<typeof makePm>[0]);
+  assert.equal(sizeBandLabel(1599.4), "1,600+");
+  assert.equal(
+    evaluateCriterion(straddler, { field: "portfolioSizeBand", operator: "gte", value: 6 }),
+    true
+  );
+  // The retired field still behaves the old way — that is the point of keeping
+  // it: saved lists must keep matching exactly what they always matched.
+  assert.equal(
+    evaluateCriterion(straddler, { field: "estimatedPortfolioPoint", operator: "gte", value: 1600 }),
+    false
+  );
+});
+
+test("portfolioSizeBand — no estimate yields no band, so the criterion fails", () => {
+  const pm = makePm({
+    portfolioEstimate: {
+      status: "insufficient_data",
+      message: "Verified self-report required",
+    } as PMRecord["scorecard"]["portfolioEstimate"],
+  });
+  assert.equal(evaluateCriterion(pm, { field: "portfolioSizeBand", operator: "gte", value: 0 }), false);
 });
 
 test("between rejects malformed value array", () => {

@@ -25,7 +25,7 @@
         { "field": "quadrant7Cell", "operator": "in", "value": ["Hybrid", "SFR Institutional"] }
       ],
       "preferredCriteria": [
-        { "field": "estimatedPortfolioPoint", "operator": "gte", "value": 300, "weight": 0.40 },
+        { "field": "portfolioSizeBand", "operator": "gte", "value": 3, "weight": 0.40 },
         { "field": "topCityConcentration", "operator": "gte", "value": 60, "weight": 0.30 }
       ],
       "excludedCriteria": []
@@ -62,11 +62,11 @@
     {
       "slug": "institutional-platform",
       "name": "Institutional Platform",
-      "tagline": "1000+ unit operators with multi-market footprints",
-      "description": "Captures institutional-scale operators across multiple markets. Thesis is tracking platform-level operators at fund-of-funds scale.",
+      "tagline": "Operators in the 800\u20131,600 unit band and above, with multi-market footprints",
+      "description": "Captures institutional-scale operators across multiple markets. Thesis is tracking platform-level operators at fund-of-funds scale. Sized by band rather than an exact threshold \u2014 the estimate is a floor, so an operator we place at 850 units may well run over 1,000.",
       "requiredCriteria": [
         { "field": "quadrant7Cell", "operator": "in", "value": ["SFR Institutional", "Large MF/BTR Institutional"] },
-        { "field": "estimatedPortfolioPoint", "operator": "gte", "value": 1000 }
+        { "field": "portfolioSizeBand", "operator": "gte", "value": 5 }
       ],
       "preferredCriteria": [],
       "excludedCriteria": []

@@ -44,6 +44,24 @@ function renderValue(criterion: FilterCriterion): string {
 
   if (v === null || v === undefined) return "—";
 
+  // Ordinal fields (the size bands) store an INDEX. Printing it raw would
+  // put "Estimated size band is at least 4" in the Summary sheet and the
+  // digest — a number that means nothing to the reader. Resolve to the
+  // band's own label.
+  const ordinal = FIELD_REGISTRY[fieldId]?.ordinalOptions;
+  if (ordinal) {
+    const label = (n: number | null) =>
+      n === null ? "—" : (ordinal.find((o) => o.value === n)?.label ?? String(n));
+    if (criterion.operator === "between" && Array.isArray(v)) {
+      const [a, b] = v as [number | null, number | null];
+      return `${label(a)} and ${label(b)}`;
+    }
+    if (Array.isArray(v)) {
+      return (v as Array<number | null>).map(label).join(", ");
+    }
+    if (typeof v === "number") return label(v);
+  }
+
   // Between → [low, high] (with possible null in either slot)
   if (criterion.operator === "between" && Array.isArray(v)) {
     const [a, b] = v as [number | null, number | null];

@@ -486,23 +486,17 @@ function buildColumns({
     },
     {
       id: "estimatedPortfolio",
-      label: "Est. Portfolio",
-      fieldId: "estimatedPortfolioPoint",
+      label: "Est. Size",
+      fieldId: "portfolioSizeBand",
+      // Sorts on the raw point, so ordering inside a band stays stable and
+      // the column doesn't shuffle arbitrarily among ties — the band is the
+      // claim we display, not the one we rank by.
       sortKey: "estimatedPortfolio",
       alignRight: true,
       render: (row) => (
-        <>
-          <span className="dq-mono tabular-nums text-navy">
-            {fmtInt(row.estimatedPortfolioPoint)}
-          </span>
-          {row.estimatedPortfolioLow !== null &&
-            row.estimatedPortfolioHigh !== null && (
-              <div className="dq-mono text-[10.5px] text-muted-foreground tabular-nums">
-                {fmtInt(row.estimatedPortfolioLow)}–
-                {fmtInt(row.estimatedPortfolioHigh)}
-              </div>
-            )}
-        </>
+        <span className="dq-mono tabular-nums text-navy">
+          {row.estimatedSizeBand ?? <span className="text-muted-2">—</span>}
+        </span>
       ),
     },
     {

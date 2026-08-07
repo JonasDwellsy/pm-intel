@@ -69,3 +69,60 @@ describe("ValueInput — market picker (multi-select + search)", () => {
     expect(screen.getByText("2 selected")).toBeTruthy();
   });
 });
+
+// ─── Size band picker ────────────────────────────────────────────────
+//
+// The whole point of the band field is that nobody types a unit count into
+// the watch-list builder again — calibration against operator-reported counts
+// showed the point estimate is 2-4x low for apartment-heavy operators, and the
+// residual is coverage we can't recover. So these assert the CONTROL, not just
+// the value contract: if this silently fell back to a number box, the product
+// would be inviting exactly the precision claim it retired.
+
+describe("ValueInput — size band picker (ordinal select)", () => {
+  const bandDescriptor: InputDescriptor = {
+    kind: "ordinal",
+    ordinalOptions: [
+      { value: 0, label: "<50" },
+      { value: 3, label: "200–400" },
+      { value: 5, label: "800–1,600" },
+    ],
+  };
+
+  it("renders a labelled select, never a free-text number input", () => {
+    render(<ValueInput descriptor={bandDescriptor} value={undefined} onChange={vi.fn()} />);
+    const select = screen.getByRole("combobox");
+    expect(select).toBeTruthy();
+    expect(document.querySelector('input[type="number"]')).toBeNull();
+    expect(screen.getByRole("option", { name: "200–400 units" })).toBeTruthy();
+  });
+
+  it("stores the band INDEX, not the unit count — that is what keeps gte ordinal", async () => {
+    const onChange = vi.fn();
+    render(<ValueInput descriptor={bandDescriptor} value={undefined} onChange={onChange} />);
+    await userEvent.selectOptions(screen.getByRole("combobox"), "5");
+    expect(onChange).toHaveBeenCalledWith(5);
+  });
+
+  it("clearing the selection emits null so the criterion reads as incomplete", async () => {
+    const onChange = vi.fn();
+    render(<ValueInput descriptor={bandDescriptor} value={3} onChange={onChange} />);
+    await userEvent.selectOptions(screen.getByRole("combobox"), "");
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it("`between` renders two band selects and emits an index pair", async () => {
+    const onChange = vi.fn();
+    render(
+      <ValueInput
+        descriptor={{ ...bandDescriptor, kind: "ordinalBetween" }}
+        value={[null, null]}
+        onChange={onChange}
+      />
+    );
+    const [from, to] = screen.getAllByRole("combobox");
+    expect(to).toBeTruthy();
+    await userEvent.selectOptions(from, "3");
+    expect(onChange).toHaveBeenCalledWith([3, null]);
+  });
+});

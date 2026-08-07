@@ -71,10 +71,13 @@ export function describeChange(c: OperatorChange): string {
     case "market_dropped":
       return `Left a market (${c.marketId})`;
     case "portfolio_band":
-      return `Portfolio size range: ${c.before ?? "—"} → ${c.after ?? "—"}`;
+      return `Estimated size band: ${c.before ?? "—"} → ${c.after ?? "—"}`;
     case "portfolio_size": {
       const dir = c.pctChange >= 0 ? "up" : "down";
-      return `Estimated portfolio ${dir} ${pct(Math.abs(c.pctChange))} (${c.before ?? "—"} → ${c.after ?? "—"})`;
+      // Percentage only — the raw before/after point estimates are exactly the
+      // precision claim the size bands retire, and an email is a place a
+      // client quotes us from.
+      return `Estimated portfolio ${dir} ${pct(Math.abs(c.pctChange))}`;
     }
     case "concession_transition":
       return c.direction === "appeared"

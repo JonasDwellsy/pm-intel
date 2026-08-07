@@ -12,6 +12,7 @@
 // the actual DB write.
 
 import type { ScorecardData, StarLevel } from "@/lib/types";
+import { sizeBandLabel } from "@/lib/operator-size-bands";
 
 /** Five canonical metrics that earn per-metric stars. Keys are the
  *  business labels surfaced on the scorecard; values are the star
@@ -135,12 +136,23 @@ export function readActiveSubmarkets(
   return result.sort();
 }
 
-/** Read the portfolio estimate point + range band off the scorecard.
- *  v0.8.1: `band` is the low–high turnover range string (the old
- *  confidence tier was retired with v0.8). Non-estimated rows
- *  (status = 'insufficient_data', 'insufficient_history',
- *  'no_listings') return null point + the status string as the band so
- *  the diff can detect transitions in/out of estimated mode. */
+/** Read the portfolio estimate point + display size band off the scorecard.
+ *
+ *  `band` is the operator's SIZE BAND label ("400–800"). It used to be the
+ *  raw low–high turnover range ("463–771"), which jittered every refresh as
+ *  turnover moved a few units — so the portfolio_band change alert fired
+ *  constantly and said nothing. A band change now means the operator actually
+ *  crossed a scale threshold, which is a thing a client can act on.
+ *
+ *  Note this column has carried three vocabularies over its life: a v0.7
+ *  confidence tier ("Low"/"Medium"/"High"), the v0.8.1 turnover range, and now
+ *  the size band. Comparisons across a vocabulary change are suppressed by the
+ *  methodology-version guard in change-detection.ts, which is what stops a
+ *  deploy from firing a spurious alert on every tracked operator at once.
+ *
+ *  Non-estimated rows (status = 'insufficient_data', 'insufficient_history',
+ *  'no_listings') return null point + the status string as the band, so the
+ *  diff still detects transitions in and out of estimated mode. */
 export function readPortfolioBand(sc: ScorecardData): {
   point: number | null;
   band: string | null;
@@ -148,11 +160,7 @@ export function readPortfolioBand(sc: ScorecardData): {
   const est = sc.portfolioEstimate;
   if (!est) return { point: null, band: null };
   if (est.status === "estimated" && typeof est.point === "number") {
-    const band =
-      typeof est.low === "number" && typeof est.high === "number"
-        ? `${Math.round(est.low)}–${Math.round(est.high)}`
-        : null;
-    return { point: Math.round(est.point), band };
+    return { point: Math.round(est.point), band: sizeBandLabel(est.point) };
   }
   return { point: null, band: est.status ?? null };
 }

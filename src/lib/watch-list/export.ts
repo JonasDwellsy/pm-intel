@@ -231,9 +231,10 @@ function buildOperatorsSheet(
     "7-Cell",
     "Management model",
     "Management model confidence",
-    "Est. Portfolio",
-    "Est. Portfolio Low",
-    "Est. Portfolio High",
+    // One band column in place of the three raw portfolio numbers. An XLSX
+    // is the worst place to leave a precise estimate we've retired
+    // everywhere else — it is exactly what a client sorts and pivots on.
+    "Est. Size Band",
     "URUs T12",
     "Listing YoY %",
     "Concession Rate %",
@@ -255,9 +256,7 @@ function buildOperatorsSheet(
       q7,
       managementModelLabel(r.pm.scorecard.managementModel?.model ?? "unknown"),
       r.pm.scorecard.managementModel?.confidence ?? null,
-      r.estimatedPortfolioPoint,
-      r.estimatedPortfolioLow,
-      r.estimatedPortfolioHigh,
+      r.estimatedSizeBand,
       r.urusT12,
       r.listingTrajectoryYoY === null
         ? null
@@ -298,7 +297,7 @@ function buildMarketsSheet(
     "7-Cell",
     "Management model",
     "Management model confidence",
-    "Est. Portfolio",
+    "Est. Size Band",
     "URUs T12",
     "Listing YoY %",
     "Concession Rate %",
@@ -314,7 +313,7 @@ function buildMarketsSheet(
       r.quadrant7Cell,
       managementModelLabel(r.pm.scorecard.managementModel?.model ?? "unknown"),
       r.pm.scorecard.managementModel?.confidence ?? null,
-      r.estimatedPortfolioPoint,
+      r.estimatedSizeBand,
       r.urusT12,
       r.listingTrajectoryYoY === null
         ? null
