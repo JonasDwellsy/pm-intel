@@ -52,6 +52,12 @@ export type InputKind =
   | "percent"
   /** Two number inputs for `between` operator. */
   | "between"
+  /** Labelled select over a fixed, ORDERED option set (the size bands).
+   *  Stores the option's numeric value, so gte/lte/between still work —
+   *  the user picks "400–800" and the criterion compares band indexes. */
+  | "ordinal"
+  /** Two ordinal selects, for `between` on an ordinal field. */
+  | "ordinalBetween"
   /** Yes/No toggle for boolean fields. */
   | "boolean"
   /** Multi-select chip group for `in`/`notIn` on enum fields, or
@@ -79,6 +85,8 @@ export interface InputDescriptor {
   /** Allow-multi for the editor's enumChips mode. False for
    *  eq/ne operators (single value), true for in/notIn. */
   allowMulti?: boolean;
+  /** Ordered options for the `ordinal` / `ordinalBetween` kinds. */
+  ordinalOptions?: Array<{ value: number; label: string }>;
 }
 
 /** Fields whose stored value is a 0..1 decimal but should be entered
@@ -96,6 +104,8 @@ const SUFFIX_BY_FIELD: Record<string, string | undefined> = {
   estimatedPortfolioPoint: "units",
   estimatedPortfolioLow: "units",
   estimatedPortfolioHigh: "units",
+  // portfolioSizeBand deliberately has no suffix — "units" is already in
+  // every option label ("400–800"), and the stored value is an index.
   urusT12: "URUs",
   monthsOnPlatform: "months",
   daysOnMarketT12: "days",
@@ -109,6 +119,17 @@ export function inputDescriptorFor(
 ): InputDescriptor {
   const entry = FIELD_REGISTRY[fieldId];
   if (!entry) return { kind: "text" };
+
+  // Ordinal fields (the size bands) are checked FIRST. The `between`
+  // branch below renders free-text number boxes, which for a band field
+  // would ask the user to type an index — meaningless, and the whole
+  // point of this field is that nobody types a size number again.
+  if (entry.ordinalOptions) {
+    return {
+      kind: operator === "between" ? "ordinalBetween" : "ordinal",
+      ordinalOptions: entry.ordinalOptions,
+    };
+  }
 
   // `between` always renders two numbers, regardless of field type
   // (it only makes sense on numeric fields anyway).

@@ -20,6 +20,13 @@ import {
 export const ALWAYS_ON_FIELD_IDS: ReadonlySet<string> = new Set([
   "quadrant7Cell",
   "managementModel",
+  // The standing size column. Without this a watch list that filters on the
+  // band would get a second, duplicate size column beside it.
+  "portfolioSizeBand",
+  // The three retired precise-portfolio fields stay in this set even though
+  // they no longer have standing columns. A saved list can still filter on
+  // them, and the adaptive path would otherwise re-introduce exactly the
+  // exact-unit-count column the size bands removed.
   "estimatedPortfolioPoint",
   "estimatedPortfolioLow",
   "estimatedPortfolioHigh",

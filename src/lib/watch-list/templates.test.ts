@@ -17,6 +17,8 @@ import {
   validateTemplate,
   type WatchListTemplate,
 } from "./templates";
+import { FIELD_REGISTRY } from "./fields";
+import { SIZE_BANDS } from "@/lib/operator-size-bands";
 
 const EXPECTED_SLUGS = [
   "scale-density-rollup",
@@ -145,9 +147,28 @@ test("institutional-platform — single high-floor required criterion", () => {
   const t = getTemplateBySlug("institutional-platform") as WatchListTemplate;
   assert.equal(t.requiredCriteria.length, 2);
   const portfolioReq = t.requiredCriteria.find(
-    (c) => c.field === "estimatedPortfolioPoint"
+    (c) => c.field === "portfolioSizeBand"
   );
   assert.ok(portfolioReq);
   assert.equal(portfolioReq.operator, "gte");
-  assert.equal(portfolioReq.value, 1000);
+  // Band index 5 = "800–1,600". The old threshold was a bare 1,000, which
+  // sits INSIDE that band; snapping to the band's floor loosens slightly
+  // rather than tightening, because the estimate is a floor and dropping an
+  // operator we place at 850 would rest on a number we don't trust.
+  assert.equal(portfolioReq.value, 5);
+  assert.equal(SIZE_BANDS[portfolioReq.value as number].label, "800–1,600");
+});
+
+test("no template filters on a retired precise-portfolio threshold", () => {
+  // Templates are the product's own example lists. If one still filtered on
+  // an exact unit count it would teach the pattern the size bands retire, and
+  // the field isn't even offered in the builder any more.
+  for (const t of getTemplates()) {
+    for (const c of [...t.requiredCriteria, ...t.preferredCriteria, ...t.excludedCriteria]) {
+      assert.ok(
+        !FIELD_REGISTRY[c.field]?.hiddenFromBuilder,
+        `${t.slug} filters on retired field ${c.field}`
+      );
+    }
+  }
 });

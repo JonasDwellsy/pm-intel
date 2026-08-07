@@ -25,6 +25,7 @@
 
 import type { ScorecardData } from "@/lib/types";
 import { managementModelLabel } from "@/lib/management-model/resolve";
+import { SIZE_BANDS, sizeBandFor } from "@/lib/operator-size-bands";
 
 // ─── operator types ────────────────────────────────────────────────
 
@@ -115,6 +116,19 @@ export interface FieldRegistryEntry {
   /** Closed-set option list for enum fields (e.g. quadrant7Cell). The
    *  editor renders a multi-select keyed on these; ignored at runtime. */
   enumOptions?: string[];
+  /** Keep this field OUT of the builder's field picker while still
+   *  evaluating it. Used to retire a field without changing what saved
+   *  watch lists return: a client list built on a precise portfolio
+   *  threshold keeps matching exactly the operators it always did, but
+   *  no NEW list can be built that way. Silently changing a saved list's
+   *  meaning is worse than carrying a hidden field. */
+  hiddenFromBuilder?: boolean;
+  /** Ordinal number fields whose legal values are a fixed, ordered set
+   *  (today: the size bands). The editor renders a labelled select
+   *  instead of a free-text number box, and stores the option's numeric
+   *  value — so gte/lte/between keep working and "at least this size"
+   *  stays expressible, which a label multi-select can't do. */
+  ordinalOptions?: Array<{ value: number; label: string }>;
 }
 
 // ─── helper accessors ──────────────────────────────────────────────
@@ -166,34 +180,58 @@ export const FIELD_REGISTRY: Record<string, FieldRegistryEntry> = {
   },
 
   // ── Scale ─────────────────────────────────────────────────────
+  portfolioSizeBand: {
+    id: "portfolioSizeBand",
+    label: "Estimated size band",
+    description:
+      "The operator's estimated managed-unit band (<50 through 1,600+). Calibration against operator-reported counts showed the point estimate runs materially low for apartment-heavy operators, and that the residual is coverage — units never listed with Dwellsy — which no multiplier recovers. Filtering by band states a claim the data supports; filtering by an exact number does not.",
+    category: "scale",
+    type: "number",
+    validOperators: ["gte", "lte", "between"],
+    // The STORED value is the band's index, not its label or its unit
+    // count — that is what keeps the comparison ordinal, so "at least
+    // 400–800" is one selection rather than four ticked boxes.
+    ordinalOptions: SIZE_BANDS.map((b, i) => ({ value: i, label: b.label })),
+    // Banding the point (which sizeBandFor display-rounds first) is also
+    // what keeps the filter honest: comparing the RAW point meant a list
+    // set to "at least 1,600" excluded an operator at 1,599.4 whose
+    // scorecard, PDF, and peer table all read "1,600+".
+    getValueFromPM: (pm) => {
+      const band = sizeBandFor(pm.scorecard.portfolioEstimate?.point);
+      return band ? SIZE_BANDS.indexOf(band) : null;
+    },
+  },
   estimatedPortfolioPoint: {
     id: "estimatedPortfolioPoint",
     label: "Estimated portfolio (median)",
     description:
-      "Estimated total managed units (point estimate). Derived from observed URUs T12 via the unit-type turnover model (house URUs × 3.3 + apartment URUs × 2.6).",
+      "Estimated total managed units (point estimate). Derived from observed URUs T12 via the unit-type turnover model (house URUs × 3.3 + apartment URUs × 2.6). Superseded by Estimated size band; retained so saved watch lists keep matching what they always matched.",
     category: "scale",
     type: "number",
     validOperators: ["gte", "lte", "between"],
+    hiddenFromBuilder: true,
     getValueFromPM: (pm) => pm.scorecard.portfolioEstimate?.point ?? null,
   },
   estimatedPortfolioLow: {
     id: "estimatedPortfolioLow",
     label: "Portfolio estimate (low end)",
     description:
-      "Conservative estimate of total managed units — the low end of the turnover-range band (slower-turnover multipliers).",
+      "Conservative estimate of total managed units — the low end of the turnover-range band (slower-turnover multipliers). Retired from the builder: the size band already states the uncertainty, and offering both invites two contradictory precision claims.",
     category: "scale",
     type: "number",
     validOperators: ["gte", "lte", "between"],
+    hiddenFromBuilder: true,
     getValueFromPM: (pm) => pm.scorecard.portfolioEstimate?.low ?? null,
   },
   estimatedPortfolioHigh: {
     id: "estimatedPortfolioHigh",
     label: "Portfolio estimate (high end)",
     description:
-      "Optimistic estimate of total managed units — the high end of the turnover-range band (faster-turnover multipliers).",
+      "Optimistic estimate of total managed units — the high end of the turnover-range band (faster-turnover multipliers). Retired from the builder: the size band already states the uncertainty, and offering both invites two contradictory precision claims.",
     category: "scale",
     type: "number",
     validOperators: ["gte", "lte", "between"],
+    hiddenFromBuilder: true,
     getValueFromPM: (pm) => pm.scorecard.portfolioEstimate?.high ?? null,
   },
   urusT12: {
@@ -388,6 +426,10 @@ export function listFieldsByCategory(): Record<FieldCategory, FieldRegistryEntry
     operator: [],
   };
   for (const entry of Object.values(FIELD_REGISTRY)) {
+    // Retired fields stay in the registry so saved watch lists keep
+    // evaluating, but never appear in the builder's picker — nobody can
+    // create a NEW list on a precise portfolio number.
+    if (entry.hiddenFromBuilder) continue;
     out[entry.category].push(entry);
   }
   return out;

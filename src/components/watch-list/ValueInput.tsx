@@ -56,6 +56,22 @@ export function ValueInput({ descriptor, value, onChange, marketOptions }: Props
           suffix={descriptor.suffix}
         />
       );
+    case "ordinal":
+      return (
+        <OrdinalValue
+          value={value}
+          onChange={onChange}
+          options={descriptor.ordinalOptions ?? []}
+        />
+      );
+    case "ordinalBetween":
+      return (
+        <OrdinalBetweenValue
+          value={value}
+          onChange={onChange}
+          options={descriptor.ordinalOptions ?? []}
+        />
+      );
     case "boolean":
       return <BooleanValue value={value} onChange={onChange} />;
     case "enumChips":
@@ -410,6 +426,87 @@ function parseNumberInput(raw: string): number | null {
  *  field is already the right behaviour). */
 function selectAllIfZero(e: React.FocusEvent<HTMLInputElement>) {
   if (e.target.value === "0") e.target.select();
+}
+
+/** Labelled select over an ordered option set. The user picks a size
+ *  band by name; the criterion stores the band's index, which keeps
+ *  gte/lte ordinal so "at least 400–800" is one selection. A blank
+ *  option is offered because a cleared criterion must be expressible —
+ *  the scoring path skips incomplete criteria rather than counting them
+ *  as a miss. */
+function OrdinalValue({
+  value,
+  onChange,
+  options,
+}: {
+  value: FilterValue | undefined;
+  onChange: (v: FilterValue) => void;
+  options: Array<{ value: number; label: string }>;
+}) {
+  const display = typeof value === "number" ? String(value) : "";
+  return (
+    <select
+      value={display}
+      onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+      className={inputClass}
+    >
+      <option value="">Select a size band…</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label} units
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** Two ordinal selects for `between`. Stores [lowIndex, highIndex];
+ *  either side may be null while the user is mid-edit. */
+function OrdinalBetweenValue({
+  value,
+  onChange,
+  options,
+}: {
+  value: FilterValue | undefined;
+  onChange: (v: FilterValue) => void;
+  options: Array<{ value: number; label: string }>;
+}) {
+  const pair = Array.isArray(value) ? value : [null, null];
+  const lo = typeof pair[0] === "number" ? String(pair[0]) : "";
+  const hi = typeof pair[1] === "number" ? String(pair[1]) : "";
+  const emit = (next: [number | null, number | null]) => onChange(next);
+  const parse = (raw: string) => (raw === "" ? null : Number(raw));
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        value={lo}
+        onChange={(e) => emit([parse(e.target.value), typeof pair[1] === "number" ? pair[1] : null])}
+        className={inputClass}
+        aria-label="Smallest size band"
+      >
+        <option value="">From…</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <span className="text-[12px] text-muted-foreground">and</span>
+      <select
+        value={hi}
+        onChange={(e) => emit([typeof pair[0] === "number" ? pair[0] : null, parse(e.target.value)])}
+        className={inputClass}
+        aria-label="Largest size band"
+      >
+        <option value="">To…</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 }
 
 const inputClass =

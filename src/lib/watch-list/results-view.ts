@@ -17,6 +17,7 @@
 // pass per column.
 
 import { stateCodeToSlug, citySlug } from "@/lib/slugify";
+import { sizeBandLabel } from "@/lib/operator-size-bands";
 import {
   FIELD_REGISTRY,
   type FilterOperator,
@@ -75,6 +76,11 @@ export interface ResultRowVM {
   estimatedPortfolioPoint: number | null;
   estimatedPortfolioLow: number | null;
   estimatedPortfolioHigh: number | null;
+  /** Display band ("400–800"), null when there's no estimate at all. This is
+   *  what the results table and the export show; the raw point is retained
+   *  above only so saved watch lists on the retired precise fields keep
+   *  evaluating. */
+  estimatedSizeBand: string | null;
   urusT12: number | null;
   listingTrajectoryYoY: number | null;
   concessionRate: number | null;
@@ -210,6 +216,7 @@ function projectMarketRow(
     estimatedPortfolioPoint: sc.portfolioEstimate?.point ?? null,
     estimatedPortfolioLow: sc.portfolioEstimate?.low ?? null,
     estimatedPortfolioHigh: sc.portfolioEstimate?.high ?? null,
+    estimatedSizeBand: sizeBandLabel(sc.portfolioEstimate?.point),
     urusT12: sc.coverage?.urusT12 ?? null,
     listingTrajectoryYoY: computeYoY(
       sc.t12ListingsCount,
@@ -287,6 +294,7 @@ function projectOperatorRow(
     estimatedPortfolioPoint: sc.portfolioEstimate?.point ?? null,
     estimatedPortfolioLow: sc.portfolioEstimate?.low ?? null,
     estimatedPortfolioHigh: sc.portfolioEstimate?.high ?? null,
+    estimatedSizeBand: sizeBandLabel(sc.portfolioEstimate?.point),
     urusT12: sc.coverage?.urusT12 ?? null,
     listingTrajectoryYoY: computeYoY(
       sc.t12ListingsCount,

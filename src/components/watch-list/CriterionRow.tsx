@@ -54,6 +54,7 @@ export function CriterionRow({
   const fieldEntry = FIELD_REGISTRY[criterion.field];
   const groups = React.useMemo(() => listFieldsByCategory(), []);
   const validOps = fieldEntry?.validOperators ?? [];
+  const isRetiredField = fieldEntry?.hiddenFromBuilder === true;
 
   function handleFieldChange(newFieldId: string) {
     const newEntry = FIELD_REGISTRY[newFieldId];
@@ -91,6 +92,17 @@ export function CriterionRow({
           onChange={(e) => handleFieldChange(e.target.value)}
           className="h-8 min-w-0 flex-1 rounded-md border border-grid bg-white px-2 text-[13.5px] text-navy outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
         >
+        {/* A saved list can sit on a retired field (the precise portfolio
+            thresholds, superseded by Estimated size band). listFieldsByCategory
+            omits those, so without this the select would fall back to its first
+            option and silently misrepresent the criterion the user is looking
+            at. Show it, labelled as retired, so the row reads truthfully — and
+            once they change it, the retired option is gone for good. */}
+        {isRetiredField && fieldEntry && (
+          <optgroup label="Retired">
+            <option value={fieldEntry.id}>{fieldEntry.label} (retired)</option>
+          </optgroup>
+        )}
         {(["geographic", "scale", "asset", "trajectory", "operator"] as const).map((cat) => (
           <optgroup key={cat} label={CATEGORY_LABELS[cat]}>
             {groups[cat].map((entry) => (

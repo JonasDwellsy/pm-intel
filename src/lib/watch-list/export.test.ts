@@ -15,6 +15,7 @@ import {
 } from "./export";
 import type { ResultRowVM } from "./results-view";
 import type { PMRecord } from "./fields";
+import { sizeBandLabel } from "@/lib/operator-size-bands";
 
 // ─── Test fixture helpers ────────────────────────────────────────
 
@@ -168,6 +169,7 @@ function makeRow(opts: {
     estimatedPortfolioPoint: opts.portfolioPoint ?? 250,
     estimatedPortfolioLow: opts.portfolioLow ?? 200,
     estimatedPortfolioHigh: opts.portfolioHigh ?? 300,
+    estimatedSizeBand: sizeBandLabel(opts.portfolioPoint ?? 250),
     urusT12: opts.urusT12,
     listingTrajectoryYoY: opts.listingYoY ?? null,
     concessionRate: opts.concessionRate ?? null,
@@ -386,9 +388,7 @@ test("Operators sheet aggregates rows — Ark appears once with markets joined",
   assert.ok(ark, "Ark row should appear");
   assert.equal(ark["Markets"], "BHM, HSV, JAX, KNOX");
   assert.equal(ark["URUs T12"], 255);
-  assert.equal(ark["Est. Portfolio"], 1200);
-  assert.equal(ark["Est. Portfolio Low"], 900);
-  assert.equal(ark["Est. Portfolio High"], 1500);
+  assert.equal(ark["Est. Size Band"], "800–1,600"); // point 1,200
   assert.equal(ark["Fit Score"], 87);
 });
 
@@ -499,10 +499,13 @@ test("Operators + Markets sheets resolve a set managementModel to its display la
   assert.equal(opRows[0]["Management model"], "Third-party manager");
   assert.equal(opRows[0]["Management model confidence"], "high");
   // Columns after the insertion point must still carry their own
-  // (not shifted) values.
-  assert.equal(opRows[0]["Est. Portfolio"], 400);
-  assert.equal(opRows[0]["Est. Portfolio Low"], 300);
-  assert.equal(opRows[0]["Est. Portfolio High"], 500);
+  // (not shifted) values. The three raw portfolio columns collapsed into a
+  // single band column — a spreadsheet is the last place a retired precise
+  // estimate should survive, since it's exactly what a client sorts on.
+  assert.equal(opRows[0]["Est. Size Band"], "400–800");
+  assert.equal(opRows[0]["Est. Portfolio"], undefined);
+  assert.equal(opRows[0]["Est. Portfolio Low"], undefined);
+  assert.equal(opRows[0]["Est. Portfolio High"], undefined);
   assert.equal(opRows[0]["Fit Score"], 77);
 
   const marketRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
@@ -510,7 +513,7 @@ test("Operators + Markets sheets resolve a set managementModel to its display la
   );
   assert.equal(marketRows[0]["Management model"], "Owner-operator (likely)");
   assert.equal(marketRows[0]["Management model confidence"], "low");
-  assert.equal(marketRows[0]["Est. Portfolio"], 250); // makeRow's default portfolioPoint
+  assert.equal(marketRows[0]["Est. Size Band"], "200–400"); // makeRow's default point 250
   assert.equal(marketRows[0]["Fit Score"], 77);
 });
 

@@ -137,8 +137,10 @@ export function diffSnapshots(
     }
   }
 
-  // Portfolio band — the low–high size range, OR a transition in/out of
-  // 'estimated' mode (both surface as a band change here).
+  // Size band — the operator crossed a scale threshold ("400–800" →
+  // "800–1,600"), OR transitioned in/out of 'estimated' mode. This used to
+  // diff the raw low–high turnover range, which moved a few units every
+  // refresh and made the alert pure noise.
   if (
     !methodologyChanged &&
     prior.estimatedPortfolioBand !== current.estimatedPortfolioBand
