@@ -1,0 +1,32 @@
+{
+  "_comment": "v0.6.4 Patch 12 \u2014 Income Property Specialists linked across the two Bay Area markets (San Francisco-Oakland-Berkeley + San Jose-Sunnyvale-Santa Clara). Confirmed by Jonas 2026-08-07 as one company. Held back from p11 pending that confirmation. NOTE: the similarly named 'Ips Property Management' in Fresno is a DIFFERENT operator (scattered SFR, unrelated geography) and is deliberately NOT part of this canonical.",
+  "version": "v0.6.4-p12-ips",
+  "generated_at": "2026-08-07",
+  "curator": "canonical-ips-bay-area",
+  "summary": {
+    "extend_existing": 0,
+    "new_canonicals": 1,
+    "rejected": 1
+  },
+  "extend_existing": [],
+  "new_canonicals": [
+    {
+      "canonical_slug": "income-property-specialists",
+      "canonical_name": "Income Property Specialists",
+      "pm_slugs": [
+        "income-property-specialists-san-francisco-oakland-berkeley-ca",
+        "income-property-specialists-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    }
+  ],
+  "rejected": [
+    {
+      "canonical_slug": "ips-property-management-fresno",
+      "canonical_name": "Ips Property Management (Fresno)",
+      "add_pm_slugs": [
+        "ips-property-management-fresno-ca"
+      ],
+      "reason": "name-similar to Income Property Specialists but a different company \u2014 scattered SFR in Fresno, no Bay Area overlap; left standalone"
+    }
+  ]
+}

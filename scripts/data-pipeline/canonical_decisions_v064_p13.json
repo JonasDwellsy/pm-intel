@@ -1,0 +1,35 @@
+{
+  "_comment": "v0.6.4 Patch 13 \u2014 BLVD Residential linked across its five markets (Los Angeles, Sacramento, Stockton, San Francisco-Oakland-Berkeley, San Jose-Sunnyvale-Santa Clara). Surfaced as a distinctive new_pair during the Bay Area add and approved by Jonas 2026-08-07. NOT included: 'Blvd Management & Advisory' in Minneapolis \u2014 a different trading name with no observed overlap, left standalone pending confirmation.",
+  "version": "v0.6.4-p13-blvd",
+  "generated_at": "2026-08-07",
+  "curator": "canonical-blvd",
+  "summary": {
+    "extend_existing": 0,
+    "new_canonicals": 1,
+    "rejected": 1
+  },
+  "extend_existing": [],
+  "new_canonicals": [
+    {
+      "canonical_slug": "blvd-residential",
+      "canonical_name": "BLVD Residential",
+      "pm_slugs": [
+        "blvd-residential-los-angeles-long-beach-santa-ana-ca",
+        "blvd-residential-sacramento-arden-arcade-roseville-ca",
+        "blvd-residential-stockton-ca",
+        "blvd-residential-san-francisco-oakland-berkeley-ca",
+        "blvd-residential-san-jose-sunnyvale-santa-clara-ca"
+      ]
+    }
+  ],
+  "rejected": [
+    {
+      "canonical_slug": "blvd-management-advisory",
+      "canonical_name": "Blvd Management & Advisory (Minneapolis)",
+      "add_pm_slugs": [
+        "blvd-management-advisory-minneapolis-st-paul-bloomington-mn-wi"
+      ],
+      "reason": "different trading name from BLVD Residential and no geographic overlap with the CA cluster; not merged without confirmation that it is the same company"
+    }
+  ]
+}
