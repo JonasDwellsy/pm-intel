@@ -21,6 +21,19 @@ interface ScorecardHeaderProps {
 }
 
 /** Top header: eyebrow, name, primary action, identity line, utility/links. */
+/** "2026-05-27" -> "27 May 2026". Parsed as UTC so the rendered date can't
+ *  slip a day for viewers behind UTC. */
+function formatLastListing(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function ScorecardHeader({
   header,
   slug,
@@ -35,6 +48,7 @@ export function ScorecardHeader({
     : header.marketFullName;
 
   const mm = header.managementModel;
+  const isDormant = header.operatorStatus === "dormant";
   const mmTooltip = mm
     ? mm.confidence
       ? `${cap(mm.confidence)} confidence · ${mm.basis}`
@@ -104,7 +118,40 @@ export function ScorecardHeader({
           </Chip>
         )}
         <Chip>{marketLabel}</Chip>
+        {isDormant && <Chip>No recent listings</Chip>}
       </div>
+
+      {/* v0.8 dormant-operator tier. A dormant operator keeps a real scorecard —
+          the T12 record behind it happened — but the reader has to know the
+          window ended and that this operator isn't being ranked against active
+          peers. Amber, never red: going quiet on one listing source is not a
+          performance failure, and it is frequently a syndication change rather
+          than anything about the operator's business. The copy therefore states
+          only what we observe (listings on Dwellsy) and dates it explicitly. */}
+      {isDormant && (
+        <div
+          role="note"
+          style={{
+            marginTop: "14px",
+            padding: "10px 14px",
+            border: "1px solid #E4D3AE",
+            borderLeft: "3px solid #B26B00",
+            borderRadius: "6px",
+            background: "#FBF4E6",
+            fontSize: "13px",
+            lineHeight: 1.5,
+            color: "#4A3A1C",
+          }}
+        >
+          <strong style={{ fontWeight: 650 }}>
+            No listings observed on Dwellsy
+            {header.lastListingDate ? ` since ${formatLastListing(header.lastListingDate)}` : ""}.
+          </strong>{" "}
+          The figures below reflect this operator&apos;s last 12 months of
+          observed activity. They are shown for reference and are not ranked
+          against operators currently listing in this market.
+        </div>
+      )}
 
       {/* Utility / links row: external links (left) + quiet copy/PDF (right).
           Skip the whole row (and its margin) when nothing would render. */}

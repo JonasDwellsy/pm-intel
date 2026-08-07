@@ -196,6 +196,8 @@ const FIXTURE_VIEW: ScorecardView = {
     website: "https://doorby.com",
     canonicalOperatorId: "doorby-realty-phoenix",
     managementModel: { model: "third_party", confidence: "high", basis: "Independent scattered single-family operator — management-for-owners by nature.", source: "listing" },
+    operatorStatus: "active",
+    lastListingDate: null,
   },
   readout: [
     {
