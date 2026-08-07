@@ -61,6 +61,7 @@ import type { RentTierDetail } from "@/lib/scorecard/rent-tier";
 import type { CoverageMapImage } from "@/lib/scorecard/pdf-coverage-map";
 import { managementModelLabel } from "@/lib/management-model/resolve";
 import { sizeBandLabel, SIZE_COVERAGE_CAVEAT_SHORT } from "@/lib/operator-size-bands";
+import { sanitizeClassificationRationale } from "@/lib/scorecard/classification-rationale";
 import {
   coverageMapRenderModel,
   coverageRadius,
@@ -1818,7 +1819,12 @@ function MethodologySection({ scorecard, num }: { scorecard: ScorecardData; num:
       {scorecard.classificationRationale ? (
         <View wrap={false} minPresenceAhead={40}>
           <Text style={styles.subHead}>Classification rationale</Text>
-          <Text style={styles.paragraph}>{scorecard.classificationRationale}</Text>
+          <Text style={styles.paragraph}>
+            {sanitizeClassificationRationale(
+              scorecard.classificationRationale,
+              scorecard.pm.quadrant7Cell
+            )}
+          </Text>
         </View>
       ) : null}
 
