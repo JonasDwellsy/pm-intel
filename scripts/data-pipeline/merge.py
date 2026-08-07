@@ -223,7 +223,19 @@ def link_by_parent_id(pms, curated_canon_slugs=frozenset()):
             continue
         # Same base slug, genuinely different parents: largest group keeps
         # the bare slug (URL stability), the rest get an id suffix.
-        for i, pid in enumerate(sorted(pids, key=lambda p: (-len(pid_groups[p]), p))):
+        #
+        # v0.8 — groups containing ACTIVE operators outrank all-dormant groups.
+        # Without this, introducing the dormant tier could hand the bare slug to
+        # a dormant operator and rename a live one's /operators/<slug> URL, which
+        # is the opposite of the stability this tiebreak exists to protect. When
+        # no dormant operators are present this is identical to the old ordering
+        # (active count == group size), so existing slugs are untouched.
+        def _slug_priority(p):
+            grp = pid_groups[p]
+            n_active = sum(1 for pm in grp if pm.get("operatorStatus") != "dormant")
+            return (-n_active, -len(grp), p)
+
+        for i, pid in enumerate(sorted(pids, key=_slug_priority)):
             pid_slug[pid] = base if i == 0 else f"{base}-{pid}"
 
     assigned = 0
