@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
+import { ELIG_T12_MIN, ELIG_ADDR_MIN } from "@/lib/methodology-constants";
 
 // v0.6.3 quick-wins — Tier 2 search highlight banner.
 // PR #15 (PM search) routes Tier 2 results (tracked, no scorecard) to
@@ -86,8 +87,28 @@ export function TrackedOperatorBanner({
                 .
               </>
             )}{" "}
-            Below the ≥30 listings threshold for full ranking — no scorecard
-            available yet.
+            {/* The banner only knows the operator's T12 listing count, so it
+                must not assert WHICH gate the operator missed. Ranking needs
+                three things: >= ELIG_T12_MIN listings, listings at
+                ELIG_ADDR_MIN+ distinct addresses, and recent listing activity
+                (an operator with no listing event in the last 60 days is held
+                out as inactive). Operators well over the listing threshold —
+                318 of them today, some with thousands of listings — are
+                excluded by one of the other two rules, so the old blanket
+                "below the >=30 listings threshold" line was simply false for
+                them. Name the real requirement set instead of guessing. */}
+            {t12Listings < ELIG_T12_MIN ? (
+              <>
+                Below the ≥{ELIG_T12_MIN} listings needed for full ranking, so
+                there is no scorecard yet.
+              </>
+            ) : (
+              <>
+                Not in the ranked set for this market, so there is no scorecard
+                yet. Ranking also requires listings at {ELIG_ADDR_MIN}+ distinct
+                addresses and recent listing activity.
+              </>
+            )}
           </p>
         </div>
         <button
