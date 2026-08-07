@@ -58,3 +58,7 @@ src/data/.backups/
 # Python bytecode caches (data pipeline)
 __pycache__/
 *.pyc
+
+# Calibration export from /admin/sizes — carries who-said-what from sales
+# conversations, so it stays out of the repo.
+scripts/data-pipeline/reported_sizes.csv

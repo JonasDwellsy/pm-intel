@@ -375,8 +375,8 @@ model WatchListView {
 // (watchList, operator) pin. Cascade-delete so removing a watch list
 // cleans up its members.
 model WatchListMember {
-  id          String   @id @default(cuid())
-  watchListId String
+  id            String   @id @default(cuid())
+  watchListId   String
   // Company-level pin. Value == canonicalOperatorId, or the PM slug for
   // single-market operators (the groupByCanonical fallback key).
   memberKey     String
@@ -414,11 +414,11 @@ model BriefDigestPreference {
 }
 
 model WatchListDigestRun {
-  id             String    @id @default(cuid())
+  id             String                @id @default(cuid())
   snapshotDate   DateTime
-  status         String    @default("running")
-  recipientCount Int       @default(0)
-  startedAt      DateTime  @default(now())
+  status         String                @default("running")
+  recipientCount Int                   @default(0)
+  startedAt      DateTime              @default(now())
   completedAt    DateTime?
   sends          WatchListDigestSend[]
 
@@ -426,13 +426,13 @@ model WatchListDigestRun {
 }
 
 model WatchListDigestSend {
-  id      String   @id @default(cuid())
-  runId   String
-  userId  String
-  email   String
-  status  String
-  sentAt  DateTime @default(now())
-  run     WatchListDigestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  id     String             @id @default(cuid())
+  runId  String
+  userId String
+  email  String
+  status String
+  sentAt DateTime           @default(now())
+  run    WatchListDigestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@unique([runId, userId])
 }
@@ -456,15 +456,15 @@ model WatchListDigestSend {
 // `clerkOrgId` is the @unique sync key; webhook upserts are keyed
 // on it so re-delivery of the same Clerk event is a no-op.
 model Organization {
-  id                String   @id @default(cuid())
-  clerkOrgId        String   @unique
-  name              String
-  slug              String?
+  id                 String   @id @default(cuid())
+  clerkOrgId         String   @unique
+  name               String
+  slug               String?
   // Set on personal orgs (one per Clerk user, created at signup).
   // Null on team orgs (Phase 2+). The @unique constraint makes
   // "find personal org for user X" a single indexed lookup AND
   // enforces idempotency of the signup-time org provisioning.
-  personalForUserId String?  @unique
+  personalForUserId  String?  @unique
   // v0.22 — market entitlements. `allMarkets = true` means the org is
   // entitled to every current AND future market (internal/comp accounts
   // and national-tier clients); the migration backfills it to true for
@@ -473,15 +473,15 @@ model Organization {
   // org defaults to false + zero grants (fail-closed) — access is
   // provisioned per deal from the admin panel. See
   // src/lib/auth/market-entitlements.ts for the resolver.
-  allMarkets        Boolean  @default(false)
+  allMarkets         Boolean  @default(false)
   // When true, this org is excluded from ALL outbound digest emails (brief +
   // watch-list). For internal / demo / comp accounts (e.g. the Dwellsy IQ org)
   // that shouldn't receive client-facing digests. Default false; toggled from
   // /admin/organizations. Separate from allMarkets, which national CLIENTS also
   // carry, so it can't stand in for "internal".
-  excludeFromDigests Boolean @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  excludeFromDigests Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   memberships     OrganizationMembership[]
   watchLists      WatchList[]
@@ -540,7 +540,7 @@ model OrganizationMarketAccess {
 // simplifies the cleanup story.
 model PendingWelcome {
   id             String   @id @default(cuid())
-  userId         String   // Clerk userId, opaque (no FK to a User table)
+  userId         String // Clerk userId, opaque (no FK to a User table)
   organizationId String
   createdAt      DateTime @default(now())
 
@@ -569,12 +569,12 @@ model PendingWelcome {
 // "one membership per (user, org)" — duplicate webhook deliveries
 // can hit either key without creating duplicates.
 model OrganizationMembership {
-  id                 String   @id @default(cuid())
-  clerkMembershipId  String   @unique
-  organizationId     String
-  userId             String   // Clerk userId, opaque
-  role               String   // "org:admin" | "org:member"
-  createdAt          DateTime @default(now())
+  id                String   @id @default(cuid())
+  clerkMembershipId String   @unique
+  organizationId    String
+  userId            String // Clerk userId, opaque
+  role              String // "org:admin" | "org:member"
+  createdAt         DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -601,9 +601,9 @@ model OperatorMergeDecision {
   // legal-suffix stripped). Stable key so a decided cluster stops
   // surfacing as a candidate.
   clusterKey      String
-  decision        String   // "merge" | "dismiss"
-  canonicalName   String?  // chosen display name (merge only)
-  survivorSlug    String?  // operator whose slug the merged group keeps (merge only)
+  decision        String // "merge" | "dismiss"
+  canonicalName   String? // chosen display name (merge only)
+  survivorSlug    String? // operator whose slug the merged group keeps (merge only)
   memberSlugs     String   @default("[]") // JSON array of member PM slugs
   decidedByUserId String
   createdAt       DateTime @default(now())
@@ -622,12 +622,52 @@ model OperatorMergeDecision {
 // survive reseeds — same trick as OperatorMergeDecision / AppSetting.
 //   targetKind "pm"        — targetKey is a PM slug (one market).
 //   targetKind "canonical" — targetKey is a canonicalSlug (the group).
+/// Operator-reported unit counts — ground truth for calibrating the size
+/// estimator, captured when an operator tells us their own number.
+///
+/// Deliberately INERT: nothing reads this to change a displayed figure, a size
+/// band, a cohort, a rank, or a peer set. Three reasons. It is unverified
+/// self-report, and operators have every reason to round up. Feeding it would
+/// split the book into operators we have spoken to and everyone else, sized on
+/// different bases, which quietly breaks every cohort comparison the product
+/// rests on. And a number fed into the estimator can no longer validate it —
+/// being ground truth IS the job.
+///
+/// Recalibration becomes arithmetic rather than archaeology at roughly fifteen
+/// of these. Today there are three, and they live in a chat transcript.
+model OperatorReportedSize {
+  id              String   @id @default(cuid())
+  /// "pm" (single-market slug) | "canonical" (the operating company).
+  /// Canonical matters: a count like "950 units across four markets" belongs
+  /// to the group, not to any one of its market rows.
+  targetKind      String
+  targetKey       String
+  /// Total units the operator says they manage under this target.
+  reportedUnits   Int
+  /// When the OPERATOR said it — not when we typed it in. A count from a call
+  /// six months ago is weaker evidence than today's, and the calibration has
+  /// to be able to tell the difference.
+  reportedAsOf    DateTime
+  /// "ceo_call" | "operator_email" | "public_filing" | "website" | "other".
+  /// Enumerated so sources can be weighted later (a filing outranks a phone
+  /// call) without having to re-read every note to do it.
+  sourceKind      String
+  /// Free text for the context an enum can't hold — the actual quote, the
+  /// caveat, who said it.
+  sourceNote      String?
+  decidedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([targetKind, targetKey])
+}
+
 model OperatorNameCorrection {
   id              String   @id @default(cuid())
-  targetKind      String   // "pm" | "canonical"
-  targetKey       String   // PM slug, or canonicalSlug/canonicalOperatorId
+  targetKind      String // "pm" | "canonical"
+  targetKey       String // PM slug, or canonicalSlug/canonicalOperatorId
   correctedName   String
-  originalName    String   // name at first correction — powers Undo + staleness
+  originalName    String // name at first correction — powers Undo + staleness
   decidedByUserId String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
