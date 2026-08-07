@@ -25,7 +25,7 @@ const PILLARS: Pillar[] = [
     eyebrow: "Scale",
     title: "How big is this operator really?",
     description:
-      "Portfolio size estimated from observed on-market turnover, split by unit type — house and apartment units re-list at different rates — with a low–high range that brackets the estimate. Applied uniformly to every operator; no self-reported counts.",
+      "Portfolio size estimated from observed on-market turnover, split by unit type — house and apartment units re-list at different rates — and reported as a band rather than a false-precision figure. Applied uniformly to every operator; no self-reported counts.",
     anchor: "/methodology/portfolio-estimator",
   },
   {

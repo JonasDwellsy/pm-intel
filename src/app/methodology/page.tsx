@@ -296,7 +296,7 @@ const GLOSSARY: GlossaryRow[] = [
   {
     term: "Estimated managed units",
     definition:
-      "A portfolio-size estimate from observed on-market turnover, split by unit type: house URUs (T12) × 3.3 + apartment URUs (T12) × 2.6, with the two turnover multipliers admin-tunable. A low–high band brackets it using plausible per-type turnover ranges. Context only — not in the composite. See the portfolio-estimator methodology page.",
+      "A portfolio-size estimate from observed on-market turnover, split by unit type: house URUs (T12) × 3.3 + apartment URUs (T12) × 2.6, with the two turnover multipliers admin-tunable. Reported as one of seven size bands (<50 through 1,600+), never as a point figure — calibration against operator-reported counts showed the estimate runs materially low for apartment-heavy operators, and that the residual is coverage (units that never list with us) rather than a mis-tuned multiplier. Read it as a floor, not a census. Context only — not in the composite. See the portfolio-estimator methodology page.",
     ref: "§10",
   },
 ];
@@ -1764,9 +1764,16 @@ export default async function MethodologyPage() {
                 undercount an operator&rsquo;s book — a unit only surfaces when
                 it lists, on turnover — we also publish a portfolio-size estimate
                 that scales observed urus back up by unit-type turnover (house
-                urus × 3.3 + apartment urus × 2.6), shown with a low–high band.
-                It is an explicit estimate, labeled as such, never fed into the
-                composite, and documented in full on the{" "}
+                urus × 3.3 + apartment urus × 2.6). We report it as a{" "}
+                <strong>band</strong>{" "}— &lt;50 through 1,600+ — and never as a
+                point figure. Calibration against operators who told us their
+                own count showed the estimate runs materially low for
+                apartment-heavy books, and that what remains after every
+                available signal is <em>coverage</em>: units that never list
+                with us at all. No multiplier recovers those, so the estimate is
+                a floor rather than a census, and a band is the most we can
+                honestly claim. It is never fed into the composite, and is
+                documented in full on the{" "}
                 <Link
                   href="/methodology/portfolio-estimator"
                   className="text-teal hover:underline"
