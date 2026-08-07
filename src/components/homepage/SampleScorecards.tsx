@@ -33,15 +33,22 @@ import type { StarLevel } from "@/lib/types";
 //        - Marketing Discipline (score / 100 + percentile)
 //      Mobile: stacks to a single column at the sm breakpoint.
 
-export interface PortfolioBand {
-  /** "1,200" — the point estimate. */
-  point: string;
-  /** "(900–1,500 units)" or null when the estimator returned a bare
-   *  point with no low/high. */
-  range: string | null;
-  /** "Medium confidence · SFR Independent (national)" — confidence
-   *  tier + cohort qualifier. */
-  caveat: string;
+/** v0.8 — the card no longer carries a size ESTIMATE at all.
+ *
+ *  It used to lead with "Estimated Portfolio Size" as a full-width 24px band,
+ *  making the least defensible number on the card the loudest. Calibration
+ *  against operator-reported counts showed the estimate running 2-4x low for
+ *  apartment-heavy operators, largely because operators don't list their whole
+ *  portfolio with us — a gap no multiplier closes. Leading with it invited a
+ *  credibility hit in the first seconds of a sales conversation.
+ *
+ *  What survives is the observed count: distinct units we actually saw
+ *  on-market in the trailing 12 months. It's a hard fact, it's uniquely ours,
+ *  and no operator can dispute it. The banded estimate still lives on the
+ *  scorecard, where there's room to qualify it. */
+export interface ObservedScale {
+  /** "309" — distinct units observed on-market in T12. */
+  unitsObserved: string;
 }
 
 export interface MetricCell {
@@ -70,7 +77,7 @@ export interface SampleCard {
   /** True when the canonical entity is marked as claimed in the
    *  upstream data — surfaces a small "Claimed" pill on the card. */
   claimed?: boolean;
-  portfolio: PortfolioBand;
+  observedScale: ObservedScale;
   /** Four cohort-relative metrics. Order matches the live scorecard
    *  page's Synthesis Layer headline tiles. */
   leaseUp: MetricCell;
@@ -246,26 +253,15 @@ export function ScorecardCard({
         ))}
       </div>
 
-      {/* Portfolio band — full-width header treatment, not a grid cell.
-          Mirrors the EstPortfolioTile from the scorecard SynthesisLayer
-          but at the homepage-card type scale. */}
-      <div className="mt-5 rounded-md border border-grid bg-surface-soft px-4 py-3">
-        <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Estimated Portfolio Size
-        </p>
-        <p className="mt-1 flex items-baseline gap-2 leading-none">
-          <span className="dq-tnum text-[24px] font-bold tracking-[-0.012em] text-navy">
-            {card.portfolio.point}
-          </span>
-          <span className="text-[12px] font-medium text-muted-foreground">
-            units
-          </span>
-        </p>
-        <p className="mt-1.5 text-[12px] leading-[1.45] text-muted-foreground">
-          {card.portfolio.range && <span>{card.portfolio.range} · </span>}
-          {card.portfolio.caveat}
-        </p>
-      </div>
+      {/* Observed scale — one quiet line, not a headline block. The metric grid
+          below is what the product is actually about, so it owns the card's
+          visual centre now. */}
+      <p className="mt-4 text-[12.5px] text-muted-foreground">
+        <span className="dq-tnum font-semibold text-navy">
+          {card.observedScale.unitsObserved}
+        </span>{" "}
+        units observed on-market · past 12 months
+      </p>
 
       {/* 2×2 cohort-metric grid. Collapses to a single column at sm
           per the v0.14 mobile rule. */}

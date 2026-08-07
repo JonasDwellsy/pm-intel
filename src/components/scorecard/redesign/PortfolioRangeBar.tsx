@@ -2,6 +2,7 @@
 // Pure server component; no client hooks.
 // Matches the mockup .rangewrap/.track/.band layout.
 
+import { sizeBandLabel, SIZE_COVERAGE_CAVEAT } from "@/lib/operator-size-bands";
 import type { ScaleFitView } from "@/lib/scorecard/view-model";
 
 interface PortfolioRangeBarProps {
@@ -95,6 +96,26 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
         >
           Portfolio size
         </span>
+        {/* v0.8 — band label alongside the range bar. The bar still shows the
+            point and its turnover band, but the band label is what we lead with
+            in copy and comparison tables: calibration against operator-reported
+            counts showed the point running 2-4x low for apartment-heavy
+            operators, so a banded claim is the one we can actually defend. */}
+        {sizeBandLabel(point) != null && (
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "#155772",
+              background: "#eef5f8",
+              border: "1px solid #d6e5ec",
+              borderRadius: "999px",
+              padding: "1px 8px",
+            }}
+          >
+            {sizeBandLabel(point)} units
+          </span>
+        )}
       </div>
 
       {/* The track */}
@@ -247,6 +268,21 @@ export function PortfolioRangeBar({ estimate, observedUnits }: PortfolioRangeBar
         {hasBand
           ? "Green = directly observed units (T12). Shaded band = plausible range from unit-turnover uncertainty. Point = best estimate (turnover-adjusted)."
           : "Green = directly observed units (T12). Point = estimated managed units (turnover-adjusted for SFR; declared units for multifamily)."}
+      </p>
+      {/* The coverage limit, stated rather than implied. We only see what an
+          operator lists with Dwellsy, and calibration against operator-reported
+          counts shows that gap is the dominant source of error — larger than
+          anything the multipliers control. Saying so is what keeps the number
+          credible when an operator knows their own count. */}
+      <p
+        style={{
+          fontSize: "10.5px",
+          color: "#8894ac",
+          margin: "0",
+          fontStyle: "italic",
+        }}
+      >
+        {SIZE_COVERAGE_CAVEAT}
       </p>
     </div>
   );
