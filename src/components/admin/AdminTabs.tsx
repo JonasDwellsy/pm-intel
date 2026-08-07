@@ -16,6 +16,7 @@ const TABS = [
   { href: "/admin/digests", label: "Digests" },
   { href: "/admin/merges", label: "Merges" },
   { href: "/admin/names", label: "Names" },
+  { href: "/admin/sizes", label: "Reported sizes" },
   { href: "/admin/exclusions", label: "Exclusions" },
   { href: "/admin/settings", label: "Settings" },
 ] as const;
