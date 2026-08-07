@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { TrackEvent } from "@/components/analytics/TrackEvent";
 import { Hero } from "@/components/homepage/Hero";
-import { SelectScreenMonitor } from "@/components/homepage/SelectScreenMonitor";
+import { BlindSpot } from "@/components/homepage/BlindSpot";
+import { OwnerQuestions } from "@/components/homepage/OwnerQuestions";
+import { SelectEvaluateMonitor } from "@/components/homepage/SelectEvaluateMonitor";
+import { FinalCta } from "@/components/homepage/FinalCta";
 import { MethodologyPillars } from "@/components/homepage/MethodologyPillars";
 import {
   CoveredMarkets,
@@ -23,14 +26,17 @@ import { marketingDataSuppressed } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
 import type { ScorecardData } from "@/lib/types";
 
+const HOME_TITLE =
+  "Operator IQ — Independent performance intelligence on property managers";
+const HOME_DESCRIPTION =
+  "The best operators drive the best yield. Operator IQ independently benchmarks the property managers running your assets, measuring 30,000+ operators from Dwellsy's nationwide listing record so owners can select, evaluate, and monitor them against real peers. Observed, not self-reported.";
+
 export const metadata: Metadata = {
-  title: "Operator IQ — Select, screen & monitor property managers",
-  description:
-    "Select, screen, and monitor property managers. Operator IQ turns Dwellsy's nationwide listing record into observed, reproducible scorecards on 20,000+ property managers — shortlist the right operator, vet it before you sign, and get alerted when performance moves.",
+  title: HOME_TITLE,
+  description: HOME_DESCRIPTION,
   openGraph: {
-    title: "Operator IQ — Select, screen & monitor property managers",
-    description:
-      "Select, screen, and monitor property managers. Operator IQ turns Dwellsy's nationwide listing record into observed, reproducible scorecards on 20,000+ property managers — shortlist the right operator, vet it before you sign, and get alerted when performance moves.",
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
     type: "website",
   },
 };
@@ -390,11 +396,21 @@ export default async function HomePage() {
         event="market_page_view"
         properties={{ source: "homepage", page: "home" }}
       />
+      {/* Narrative order (2026-08 reposition): problem → proof → jobs →
+          why-us → method → close. The hero states the stake, BlindSpot names
+          the information gap it closes, then OwnerQuestions + SampleScorecards
+          show real scorecards answering real questions before we describe any
+          product mechanics. CoveredMarkets now argues scale-as-moat rather
+          than database breadth, and methodology moved below the proof it
+          underwrites. */}
       <Hero heroCard={heroSampleCard} marketCount={liveMarkets.length} />
-      <SelectScreenMonitor />
-      <MethodologyPillars />
-      <CoveredMarkets markets={liveMarkets} />
+      <BlindSpot />
+      <OwnerQuestions />
       <SampleScorecards cards={sampleCards} />
+      <SelectEvaluateMonitor />
+      <CoveredMarkets markets={liveMarkets} />
+      <MethodologyPillars />
+      <FinalCta />
       <MethodologyFooter
         version={METHODOLOGY_VERSION.replace(/^v/, "")}
         designVersion={DESIGN_VERSION}

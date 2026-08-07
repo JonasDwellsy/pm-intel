@@ -31,7 +31,7 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
         {/* Left: copy + CTAs */}
         <div>
           <p className="dq-eyebrow tracking-[0.16em]">
-            Operator IQ · part of Dwellsy IQ
+            Independent operator performance intelligence
           </p>
           {/* PR #52 — eyebrow → H1 gap is owned by `.dq-eyebrow`'s
               `margin-bottom: 0.875rem` rule in globals.css, not by
@@ -41,59 +41,50 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
               `.dq-h1`'s `margin: 0`. Removing the no-op utility
               now keeps the markup honest about where the spacing
               comes from. */}
-          <h1 className="dq-h1 max-w-[14ch] text-balance text-[44px] leading-[1.04] tracking-[-0.018em] sm:text-[52px] lg:text-[60px]">
-            Select, screen, and monitor property managers.
+          <h1 className="dq-h1 max-w-[17ch] text-balance text-[42px] leading-[1.05] tracking-[-0.018em] sm:text-[50px] lg:text-[57px]">
+            The best operators drive the best yield.{" "}
+            <span className="text-teal">Know where yours stand.</span>
           </h1>
           <p className="mt-6 max-w-[60ch] text-[17px] leading-[1.55] text-foreground/85 sm:text-[19px]">
-            Operator IQ turns Dwellsy&apos;s nationwide listing record into
-            observed, reproducible scorecards on 20,000+ property managers — so
-            you can shortlist the right operator, vet it before you sign, and
-            get alerted when performance moves. Every figure is measured,
-            not self-reported.
+            Your property managers report on your assets. Operator IQ
+            independently benchmarks the managers themselves, measuring how
+            operators across the country actually perform in the market, so you
+            can choose the right one, get more from the ones you have, and
+            protect your yield.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            {/* Primary CTA — "Request access" (mailto sales). Operator IQ
-                is enterprise/invite-only, so the marketing hero leads with
-                the real conversion path rather than the self-serve
-                watch-list builder (that stays the signed-in nav CTA). */}
+            {/* Primary CTA — the sample scorecard. With no public operator
+                lookup, seeing a real, complete scorecard is what creates the
+                "I need this" moment; Request access is the conversion that
+                follows it, so the proof path leads and sales sits second. */}
             <TrackedLink
               event="pm_card_click"
-              properties={{ source: "homepage_hero", cta: "request_access" }}
-              href="mailto:sales@dwellsy.com?subject=Operator%20IQ%20access"
+              properties={{ source: "homepage_hero", cta: "view_sample_scorecard" }}
+              href="/sample"
               className={
                 buttonVariants() +
                 " h-11 bg-navy px-6 text-[14.5px] font-semibold text-white hover:bg-navy-700"
               }
             >
-              Request access →
+              See a sample scorecard →
             </TrackedLink>
-            {/* Secondary CTA — the one full scorecard a logged-out visitor
-                can open (public /sample route). Gives prospects an explicit
-                "here's a complete example" proof path, in outline style. */}
             <TrackedLink
               event="pm_card_click"
-              properties={{ source: "homepage_hero", cta: "view_sample_scorecard" }}
-              href="/sample"
+              properties={{ source: "homepage_hero", cta: "request_access" }}
+              href="mailto:sales@dwellsy.com?subject=Operator%20IQ%20access"
               className="inline-flex h-11 items-center justify-center rounded-md border border-navy bg-white px-6 text-[14.5px] font-semibold text-navy transition-colors hover:bg-navy-soft"
             >
-              See a full sample scorecard →
+              Request access
             </TrackedLink>
           </div>
-          {/* Tertiary CTA — Browse markets keeps the per-MSA explorer one
-              click away for visitors who want to start from geography. */}
-          <p className="mt-4">
-            <TrackedLink
-              event="pm_card_click"
-              properties={{ source: "homepage_hero", cta: "browse_markets" }}
-              href="/property-managers"
-              className="inline-flex items-center gap-1 text-[14.5px] font-semibold text-navy underline-offset-4 hover:underline"
-            >
-              Browse markets →
-            </TrackedLink>
+          <p className="mt-6 text-[14.5px] text-muted-foreground">
+            Observed from Dwellsy&apos;s nationwide listing record, not
+            self-reported. 30,000+ operators measured across {marketCount}{" "}
+            metros.
           </p>
-          <p className="mt-6 text-[14.5px] italic text-muted-foreground">
-            Methodology {METHODOLOGY_VERSION} · Design {DESIGN_VERSION} ·{" "}
-            {marketCount} markets live · Any top-200 US market on request.
+          <p className="mt-2 text-[13.5px] italic text-muted-foreground">
+            Methodology {METHODOLOGY_VERSION} · Design {DESIGN_VERSION} · Any
+            top-200 US market on request.
           </p>
         </div>
 

@@ -30,9 +30,9 @@ export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
     <section className="border-t border-grid">
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
-          eyebrow="Coverage"
-          title={`${countWord} markets currently live in Operator IQ.`}
-          context={`We launch a market when the underlying Dwellsy listing record is deep enough to support cohort-relative ranking with a defensible eligibility threshold. ${countWord} MSAs are live today, and we can stand up any of the top 200 US markets on request — no waiting.`}
+          eyebrow="Why this couldn't be done before"
+          title="Benchmarking operators takes a view no single owner has."
+          context={`To compare operators independently you need rental activity across many of them, consistent operator identity over time, years of observation, market-level normalization, and enough scale to build real peer groups. Dwellsy sees all five: 30,000+ operators measured across ${countWord} live metros, with any of the top 200 US markets available on request.`}
         />
 
         {/* Desktop: the interactive coverage map (the component hides

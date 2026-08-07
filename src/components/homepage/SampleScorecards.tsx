@@ -289,8 +289,8 @@ export function SampleScorecards({ cards }: { cards: SampleCard[] }) {
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
           eyebrow="Inside a scorecard"
-          title="Institutional-grade analysis on every operator."
-          context="Three real operators from our coverage. Every figure shown is produced by the same methodology applied to every PM — no curation, no narrative. Per-metric stars, portfolio estimates, and cohort comparisons pull directly from the live scorecard layer."
+          title="This is what the answers look like."
+          context="Three real operators from our coverage, at three different scales. Every figure comes from the same methodology applied to every operator, with no curation and no narrative. Per-metric stars, portfolio estimates, and cohort comparisons pull directly from the live scorecard layer."
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {cards.map((c) => (
