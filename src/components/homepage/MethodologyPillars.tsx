@@ -59,9 +59,9 @@ export function MethodologyPillars() {
     <section className="border-t border-grid">
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
-          eyebrow="The rigor behind it"
-          title="How every score is measured."
-          context="Scale, type, operating signals, and footprint — applied identically across every market we cover. Each metric is observed, cohort-relative, and reproducible from the underlying Dwellsy listing record. No operator self-reporting."
+          eyebrow="How we measure"
+          title="Observed, not self-reported."
+          context="Every score is built from what operators actually did in the market: listings, days on market, rent, retention signals. Nothing is self-reported. The full methodology is public, including what the listing record can and cannot see."
         />
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {PILLARS.map((p) => (

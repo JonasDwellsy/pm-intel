@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     template: "%s · Operator IQ",
   },
   description:
-    "Operator IQ helps institutional teams select, screen, and monitor property managers — observed, reproducible scorecards on 20,000+ operators across U.S. rental markets. Part of Dwellsy IQ.",
+    "Independent performance intelligence on the property managers running your assets. Operator IQ measures 30,000+ operators across U.S. rental markets from observed listing activity, so owners can select, evaluate, and monitor them against real peers. Part of Dwellsy IQ.",
 };
 
 export default function RootLayout({

@@ -8,7 +8,7 @@
 - **Precision (non-negotiable copy discipline):** we measure **market-observed** performance from Dwellsy's listing record (lease-up speed, rent realization, marketing discipline, a survival-based retention signal, portfolio scale/trajectory). We do **not** claim to see the owner's P&L (occupancy, collections, NOI). Language stays on "independent, market-observed signals," and methodology carries the trust.
 - **ICP:** owners / asset managers hiring third-party PMs. Not PMs, not renters.
 - **Category language:** "operator performance intelligence" (use consistently; Morningstar analogy is an internal north star, not on the page).
-- **Scale:** 20,000+ operators across 43 metros — framed as *what makes independent benchmarking possible*, never as database breadth.
+- **Scale:** 30,000+ operators across 43 metros — framed as *what makes independent benchmarking possible*, never as database breadth.
 - **Banned phrases:** data-driven, actionable insights, powerful/seamless/game-changing, unlock, empower, optimize your portfolio, one platform, take it to the next level.
 
 ## Section architecture (7) — disposition vs. today
@@ -73,7 +73,7 @@ Three jobs, one independent standard — ordered to match how owners work (selec
 ## Section 5 — Why this couldn't be done before  (REFRAME `CoveredMarkets`)
 **H2:** Why hasn't this existed?
 
-**Body:** To benchmark operators independently you need rental activity across many of them, consistent operator identity over time, historical observations, market-level normalization, and enough scale to build real peer groups. Dwellsy observes rental activity across **20,000+ operators in [live market count] metros** — enough to compare any operator against true peers. The scale is the point: it's what makes independent benchmarking possible.
+**Body:** To benchmark operators independently you need rental activity across many of them, consistent operator identity over time, historical observations, market-level normalization, and enough scale to build real peer groups. Dwellsy observes rental activity across **30,000+ operators in [live market count] metros** — enough to compare any operator against true peers. The scale is the point: it's what makes independent benchmarking possible.
 
 Then the existing covered-markets list as proof.
 
