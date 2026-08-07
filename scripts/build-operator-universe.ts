@@ -325,6 +325,13 @@ for (const pm of seed.pms) {
 // canonicalOperatorId resolves to a multi-market entity in canonicalMap.
 const ranked: OutputRankedEntry[] = [];
 for (const { pm, m, gold, silver } of allRankedCandidates) {
+  // v0.8 dormant tier, phase 1 — dormant operators live in the seed (so their
+  // scorecard resolves by direct URL) but must NOT enter the ranked search tier
+  // yet. Search has no way to show their status until phase 2 adds the chip, and
+  // listing them beside ranked operators with no label would read as a claim
+  // they're currently active. Phase 2 surfaces them deliberately, with the
+  // "no listings observed since <date>" treatment.
+  if ((pm as { operatorStatus?: string }).operatorStatus === "dormant") continue;
   const canonSlug = pm.canonicalOperatorId ?? "";
   if (canonSlug && canonicalMap[canonSlug]) {
     // Skip — this PM rolls up into the canonical entry built below.

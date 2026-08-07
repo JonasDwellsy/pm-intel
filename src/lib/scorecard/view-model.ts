@@ -47,6 +47,14 @@ export interface HeaderView {
    *  that omit it; real seeded scorecards always carry a value (worst case
    *  {model:"unknown", confidence:null, ...}). */
   managementModel: ManagementModel | null;
+  /** v0.8 dormant-operator tier. A dormant operator has no listing event inside
+   *  the recency window: its scorecard still renders (the T12 record is real)
+   *  but it holds no market rank and never joins a peer cohort. The header
+   *  states the observed fact — "no listings observed since <date>" — and never
+   *  implies the operator left the market or stopped operating, because listing
+   *  activity is the only thing we can see. Undefined status = active. */
+  operatorStatus: "active" | "dormant";
+  lastListingDate: string | null;
 }
 
 export interface ReadoutRow {
@@ -266,6 +274,8 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     website: scorecard.pm.website ?? null,
     canonicalOperatorId: scorecard.canonicalOperatorId ?? null,
     managementModel: scorecard.managementModel ?? null,
+    operatorStatus: scorecard.pm.operatorStatus === "dormant" ? "dormant" : "active",
+    lastListingDate: scorecard.pm.lastListingDate ?? null,
   };
 
   const opLabel = operatingPerformanceLabel(scorecard);

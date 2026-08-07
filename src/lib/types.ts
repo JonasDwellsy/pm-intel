@@ -78,6 +78,17 @@ export interface ScorecardData {
     // in the redesigned scorecard header; populated into the blob at seed time).
     companyId?: string;
     website?: string;
+    // v0.8 dormant-operator tier. "dormant" means no listing event inside the
+    // recency window — the operator keeps its scorecard, holds no market rank,
+    // and never enters a peer cohort. Absent on scorecards seeded before the
+    // tier existed, so treat undefined as "active".
+    operatorStatus?: "active" | "dormant";
+    /** ISO date of the operator's most recent observed listing event. Shown as
+     *  "No listings observed on Dwellsy since <date>" — we only ever observe
+     *  listing behaviour, so never phrase this as the operator leaving the
+     *  market or ceasing to operate. */
+    lastListingDate?: string | null;
+    daysSinceLastListing?: number | null;
   };
   // v0.6.4 Patch 1 — canonical operator identity. Every PM carries
   // these; multi-market operators share the same id across markets.
