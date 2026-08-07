@@ -385,8 +385,8 @@
       "name": "Milwaukee",
       "state": "WI",
       "primaryCity": "Milwaukee",
-      "csvFile": "merged_milwaukee-waukesha-west-allis-wi_20260715.csv",
-      "dataAsOf": "2026-07-15"
+      "csvFile": "merged_milwaukee-waukesha-west-allis-wi_20260807.csv",
+      "dataAsOf": "2026-08-07"
     },
     {
       "id": "sacramento-arden-arcade-roseville-ca",
