@@ -16,6 +16,12 @@ MONTH_DAYS = 30.44
 FLOOR_MONTHS = 3.0
 QUALIFY_MIN_ATRISK18 = 25
 QUALIFY_MIN_EVENTS = 5
+# Raised 60 -> 90 (2026-08-07, dormant-operator tier). At 60 days a 73-operator
+# band (median 58 T12 listings) was being dropped for ordinary cadence gaps
+# rather than genuine dormancy — and the rule perversely punished retention,
+# since an operator with few turnovers lists rarely. Operators past this gate
+# are no longer deleted; they are classified `dormant` and kept with an
+# explicit last-listing date (see pipeline.py's ranked/dormant split).
 RECENCY_GATE_DAYS = 60
 
 

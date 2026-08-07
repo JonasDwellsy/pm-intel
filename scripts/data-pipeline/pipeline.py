@@ -841,18 +841,49 @@ name_last_event = group_last_events(
     for norm, d in pm_rich.items()
 )
 
-eligible_norms = set()
+# v0.8 — dormant-operator tier. The recency gate used to DELETE an operator
+# that hadn't listed recently: no scorecard, no ranking, no cross-market
+# entity, nothing. That threw away 254 operators carrying 51,794 T12 listings,
+# including Bridge Property Management (4,126 listings in Dallas-Fort Worth).
+# An owner asking "who operates at scale here?" got a list with them silently
+# missing.
+#
+# Split the decision in two instead:
+#   ranked_norms  — cleared every gate, including recent listing activity.
+#                   These and ONLY these form cohorts, medians, percentile
+#                   baselines and the market's eligible counts.
+#   dormant_norms — cleared the size + address gates and still have a real T12
+#                   record, but no listing event inside RECENCY_GATE_DAYS.
+#                   They keep a scorecard, carry an explicit lastListingDate,
+#                   and are scored AGAINST the active cohort without being a
+#                   member of it (see cohort_members / percentile_for_metric).
+#
+# Keeping dormant operators out of the cohort baselines is what makes this
+# purely additive: no currently-ranked operator's metrics, percentiles or
+# stars may move because some other operator went quiet.
+ranked_norms = set()
+dormant_norms = set()
+operator_last_event = {}
 for norm, d in pm_rich.items():
-    if is_departed(name_last_event.get(name_key(pm_display_name.get(norm, norm))),
-                   NOW, RECENCY_GATE_DAYS): continue
+    last_evt = name_last_event.get(name_key(pm_display_name.get(norm, norm)))
+    operator_last_event[norm] = last_evt
     if d["t12_listings"] < ELIG_T12_MIN: continue
     if len(d["address_t12"]) < ELIG_ADDR_MIN and not has_big_community(d): continue
     if d["active_listings"] < 1 and d["t12_listings"] < 1: continue
-    eligible_norms.add(norm)
+    if is_departed(last_evt, NOW, RECENCY_GATE_DAYS):
+        dormant_norms.add(norm)
+    else:
+        ranked_norms.add(norm)
+
+# Everything that gets features derived and a scorecard emitted. `eligible_norms`
+# keeps its old name where it means "has a scorecard" (the feature-derivation and
+# output loops); cohort math uses RANKED_NORMS explicitly.
+eligible_norms = ranked_norms | dormant_norms
 
 active_op_norms = {norm for norm, n in pm_t12_listings.items() if n >= ACTIVE_OP_T12_MIN}
 
-log(f"Eligible PMs (T12 >=30): {len(eligible_norms)}")
+log(f"Ranked PMs (active, T12 >={ELIG_T12_MIN}): {len(ranked_norms)}")
+log(f"Dormant PMs (no listing event in {RECENCY_GATE_DAYS}d, kept with lastListingDate): {len(dormant_norms)}")
 log(f"Active operators (T12 >=3): {len(active_op_norms)}")
 log(f"Total operators in T12 window: {sum(1 for v in pm_t12_listings.values() if v >= 1)}")
 
@@ -1215,8 +1246,13 @@ for norm, feats in pm_features.items():
 # market-headline count below is PM-only; brokers are scored within their
 # own broker cohort and never enter the PM math. PM_NORMS / BROKER_NORMS
 # are the eligible (T12>=30) operators in each bucket.
-PM_NORMS = {n for n, f in pm_features.items() if f["operator_type"] == "pm"}
-BROKER_NORMS = {n for n, f in pm_features.items() if f["operator_type"] == "broker"}
+# RANKED-ONLY. pm_features now also holds dormant operators (they get a
+# scorecard), so every cohort/median/market-count consumer must filter to the
+# active set or dormant operators would silently shift active operators' numbers.
+PM_NORMS = {n for n, f in pm_features.items()
+            if f["operator_type"] == "pm" and n in ranked_norms}
+BROKER_NORMS = {n for n, f in pm_features.items()
+               if f["operator_type"] == "broker" and n in ranked_norms}
 log(f"Eligible PMs: {len(PM_NORMS)} · eligible brokers: {len(BROKER_NORMS)}")
 
 for norm, feats in pm_features.items():
@@ -1274,6 +1310,13 @@ def cohort_members(level, focal_norm):
     f_optype = pm_features[focal_norm]["operator_type"]
     out = []
     for n, f in pm_features.items():
+        # v0.8 — a cohort is made of ACTIVE operators only. Dormant operators
+        # are measured against the cohort but never contribute to it, so one
+        # operator going quiet can't shift another operator's percentile. The
+        # focal operator may itself be dormant and therefore absent from
+        # `out`; percentile_for_metric handles that case.
+        if n not in ranked_norms:
+            continue
         if f["operator_type"] != f_optype:
             continue
         if level == "primary":
@@ -1297,8 +1340,14 @@ def cohort_name(level, focal_norm):
 def percentile_for_metric(metric, focal_norm, members):
     vals = [(m, metric_values[metric].get(m)) for m in members if metric_values[metric].get(m) is not None]
     member_dict = dict(vals)
-    if focal_norm not in member_dict: return None, len(vals)
-    focal_v = member_dict[focal_norm]
+    # v0.8 — a dormant operator is scored AGAINST this cohort without being a
+    # member of it, so fall back to its own metric value when it isn't in
+    # `members`. `vals` (the distribution) stays active-only either way, which
+    # is what keeps dormancy from moving anyone else's percentile.
+    focal_v = member_dict.get(focal_norm)
+    if focal_v is None:
+        focal_v = metric_values[metric].get(focal_norm)
+    if focal_v is None: return None, len(vals)
     only_vals = [v for _, v in vals]
     if metric == "dom":
         sorted_neg = sorted(-v for v in only_vals)
@@ -1398,7 +1447,11 @@ for _optype in ("pm", "broker"):
     group = [
         (n, composite_values[n])
         for n in pm_features
-        if pm_features[n]["operator_type"] == _optype
+        # v0.8 — ranked operators only. Dormant operators are shown with their
+        # metrics but hold no market rank, and must not inflate the denominator
+        # every active operator's "#N of M" is drawn from.
+        if n in ranked_norms
+        and pm_features[n]["operator_type"] == _optype
         and composite_values.get(n) is not None
     ]
     group.sort(key=lambda x: (-x[1], x[0]))
@@ -1668,6 +1721,10 @@ log(f"activeOperatorCount: {active_operator_count}")
 # Listing trajectory cohort median
 trajectories = []
 for norm in pm_features:
+    # v0.8 — market-level median over ACTIVE operators only; a dormant
+    # operator's trailing trajectory must not move the market's headline.
+    if norm not in ranked_norms:
+        continue
     t12 = pm_t12_listings.get(norm, 0)
     t24t12 = pm_t24t12_listings.get(norm, 0)
     if t24t12 > 0:
@@ -1888,7 +1945,7 @@ for norm in sorted(eligible_norms):
         "totalObservedUnits": feats["urus_t12_count"],
         "nationalObservedUnitsT12": feats["national_count"],
         "citiesObserved": len(feats["top_cities"]),
-        "dataTier": "Full ranking",
+        "dataTier": "Full ranking" if norm in ranked_norms else "Dormant",
         "observedCommunities": feats["observed_communities"],
         "observedCommunityTotalUnits": feats["observed_community_total_units"],
         "yearsVisible": feats["years_visible"],
@@ -2000,6 +2057,20 @@ for norm in sorted(eligible_norms):
         # "broker" (hidden from ranked lists by default; scored in its own
         # cohort). The data layer + UI key the broker filter off this.
         "operatorType": feats["operator_type"],
+        # v0.8 dormant-operator tier. Top-level because every surface reads it
+        # (scorecard header, search, watch lists, change alerts). We only ever
+        # observe listing behaviour, so `lastListingDate` is phrased downstream
+        # as "no listings observed on Dwellsy since <date>" — never as a claim
+        # that the operator left the market or stopped operating.
+        "operatorStatus": "active" if norm in ranked_norms else "dormant",
+        "lastListingDate": (
+            operator_last_event[norm].isoformat()[:10]
+            if operator_last_event.get(norm) is not None else None
+        ),
+        "daysSinceLastListing": (
+            (NOW - operator_last_event[norm]).days
+            if operator_last_event.get(norm) is not None else None
+        ),
         "newlyEligibleInV063": False,
         "rank": {
             "overall": overall_rank.get(norm),
