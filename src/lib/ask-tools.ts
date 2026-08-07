@@ -22,6 +22,7 @@ import { loadOperatorView } from "@/lib/operator-data";
 import type { ScorecardData, StarLevel } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
 import { roundPortfolioUnits } from "@/lib/format";
+import { sanitizeClassificationRationale } from "@/lib/scorecard/classification-rationale";
 import {
   ALL_MARKETS,
   isMarketEntitled,
@@ -412,7 +413,13 @@ export async function getOperatorScorecard(
       quadrant: sc.pm.quadrant,
       quadrant7Cell: sc.pm.quadrant7Cell ?? null,
       institutional: sc.pm.institutional,
-      rationale: sc.classificationRationale,
+      // Sanitized: the raw blob names a retired taxonomy and, on ~1,900
+      // operators, leaks the composite rank. The assistant quotes this
+      // verbatim to clients, so it must be the corrected text.
+      rationale: sanitizeClassificationRationale(
+        sc.classificationRationale,
+        sc.pm.quadrant7Cell ?? null
+      ),
     },
     rank: {
       compositeStar: starLabel(sc.rank.compositeStar),

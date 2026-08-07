@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { sanitizeClassificationRationale } from "@/lib/scorecard/classification-rationale";
 import type { ScorecardData } from "@/lib/types";
 import { fmtDate, fmtInt, fmtPct } from "@/lib/format";
 import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
@@ -84,7 +85,10 @@ export function MethodologyFooter({
         <div className="mt-6 max-w-[820px]">
           <p className="dq-eyebrow-muted mb-2">Classification rationale</p>
           <p className="text-[14px] leading-[1.65] text-foreground text-pretty">
-            {scorecard.classificationRationale}
+            {sanitizeClassificationRationale(
+              scorecard.classificationRationale,
+              scorecard.pm.quadrant7Cell
+            )}
           </p>
         </div>
       )}

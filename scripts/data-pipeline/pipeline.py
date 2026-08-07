@@ -1952,31 +1952,33 @@ for norm in sorted(eligible_norms):
     }
 
     cs_pct = int(round(feats["concentrated_share"] * 100))
-    scale = "Institutional" if feats["institutional"] else "Independent"
+    # The rationale closes with the operator's 7-CELL classification. It used to
+    # print legacy_q ("Scattered / Independent") plus "at the {scale} scale",
+    # which disagreed with quadrant7Cell on every operator, collapsed Small and
+    # Large MF/BTR into one label, and repeated the scale word. The 7-cell label
+    # already encodes scale for every cell except Hybrid.
+    classified = f", classified as {q7}."
     if q7 == "Hybrid":
         rationale = (f"{name} operates a mix of multi-unit community holdings and scattered-site inventory. "
                      f"{cs_pct}% of observed inventory is in concentrated communities — between the 30% and 70% thresholds. "
-                     f"Total observed managed units in {MARKET_NAME} MSA: {feats['urus_t12_count']}, at the {scale} scale.")
+                     f"Total observed managed units in {MARKET_NAME} MSA: {feats['urus_t12_count']}{classified}")
     elif q7.startswith("SFR"):
         rationale = (f"{name} operates predominantly scattered single-family inventory. "
                      f"{cs_pct}% of observed inventory sits in concentrated communities. "
-                     f"Total observed managed units in {MARKET_NAME} MSA: {feats['urus_t12_count']}, "
-                     f"classified as {legacy_q} at the {scale} scale.")
+                     f"Total observed managed units in {MARKET_NAME} MSA: {feats['urus_t12_count']}{classified}")
     elif feats.get("apartment_dominant"):
         # Reclassified to multifamily on unit type, not concentration: nearly
         # all observed units are apartments, however scattered.
         ap_pct = int(round((1 - (feats.get("house_share") or 0)) * 100))
         rationale = (f"{name} operates predominantly apartment inventory "
                      f"({ap_pct}% of observed units are apartments), across both community and scattered holdings. "
-                     f"Total observed managed units in {MARKET_NAME} MSA: {feats['urus_t12_count']}, "
-                     f"classified as {legacy_q} at the {scale} scale.")
+                     f"Total observed managed units in {MARKET_NAME} MSA: {feats['urus_t12_count']}{classified}")
     else:
         rationale = (f"{name} operates predominantly in multi-unit communities. "
                      f"{cs_pct}% of observed inventory sits in communities where the operator manages 10+ units. "
-                     f"Total observed managed units in {MARKET_NAME} MSA: {feats['urus_t12_count']}, "
-                     f"classified as {legacy_q} at the {scale} scale.")
+                     f"Total observed managed units in {MARKET_NAME} MSA: {feats['urus_t12_count']}{classified}")
     if feats["urus_t12_count"] < 50:
-        rationale += " Composite rank computed on thin sample — consider with caution."
+        rationale += " Based on a thin sample of observed listings — read with caution."
 
     t3 = top3_share_all.get(norm)
     gc_levels = {}
