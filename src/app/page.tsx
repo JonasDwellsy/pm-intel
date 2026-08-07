@@ -15,12 +15,12 @@ import {
   SampleScorecards,
   type SampleCard,
   type MetricCell,
-  type PortfolioBand,
+  type ObservedScale,
 } from "@/components/homepage/SampleScorecards";
 import { MethodologyFooter } from "@/components/homepage/MethodologyFooter";
 import { countOperatorStars } from "@/lib/operators/stars";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
-import { fmtInt, fmtNumber, fmtPct, roundPortfolioUnits } from "@/lib/format";
+import { fmtInt, fmtNumber, fmtPct } from "@/lib/format";
 import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
 import { marketingDataSuppressed } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
@@ -113,33 +113,19 @@ type PmForSampleCard = {
   market: { city: string; state: string };
 };
 
-/** Compose the full-width Portfolio band shown above the metric
- *  grid. Mirrors the scorecard SynthesisLayer's EstPortfolioTile —
- *  point + range + confidence tier. The cohort qualifier the
- *  scorecard tile prints is omitted here on purpose; the 7-cell
- *  badge directly above the band already names the cohort and the
- *  third segment was reading as repetition. */
-function buildPortfolioBand(
-  portfolio: ScorecardData["portfolioEstimate"]
-): PortfolioBand {
-  if (
-    portfolio?.status === "estimated" &&
-    typeof portfolio.point === "number"
-  ) {
-    const range =
-      typeof portfolio.low === "number" && typeof portfolio.high === "number"
-        ? `${fmtInt(roundPortfolioUnits(portfolio.low))}–${fmtInt(roundPortfolioUnits(portfolio.high))} units`
-        : null;
-    return {
-      point: fmtInt(roundPortfolioUnits(portfolio.point)),
-      range,
-      caveat: range ? "Estimated range" : "Point estimate",
-    };
-  }
+/** v0.8 — the card shows OBSERVED units, not an estimate.
+ *
+ *  `urusT12` is the count of distinct units we actually saw on-market over the
+ *  trailing 12 months. Unlike the modelled portfolio estimate it can't be
+ *  argued with, which is the point: calibration against operator-reported
+ *  counts showed the estimate running 2-4x low for apartment-heavy operators,
+ *  and a wrong number in the card's most prominent slot is a credibility
+ *  problem rather than a precision one. The banded estimate stays on the
+ *  scorecard where it can carry its caveat. */
+function buildObservedScale(coverage: ScorecardData["coverage"]): ObservedScale {
+  const u = coverage?.urusT12;
   return {
-    point: "—",
-    range: null,
-    caveat: portfolio?.message ?? "Insufficient data",
+    unitsObserved: typeof u === "number" && u > 0 ? fmtInt(u) : "—",
   };
 }
 
@@ -286,7 +272,7 @@ function buildSampleCard(
     silverCount,
     badges,
     claimed: pm.claimed,
-    portfolio: buildPortfolioBand(sc.portfolioEstimate),
+    observedScale: buildObservedScale(sc.coverage),
     leaseUp: buildLeaseUpCell(sc.performance),
     tenantRetention: buildRetentionCell(sc.tenancy),
     rentPerformance: buildRentCell(sc.rentPerformance),

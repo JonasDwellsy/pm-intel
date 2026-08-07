@@ -11,6 +11,7 @@ import { ConcentrationBar } from "./ConcentrationBar";
 import { RentTierMarker } from "./RentTierMarker";
 import { CoverageMapClient } from "@/components/scorecard/CoverageMapClient";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
+import { sizeBandLabel } from "@/lib/operator-size-bands";
 
 const MAX_MEMBER_MARKETS_SHOWN = 4;
 
@@ -663,9 +664,10 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
                       background: peer.isFocal ? "#eef4f7" : "transparent",
                     }}
                   >
-                    {peer.estimatedUnits != null
-                      ? peer.estimatedUnits.toLocaleString()
-                      : "—"}
+                    {/* Band, not a point. Peer sizes are the least defensible
+                        numbers in this table and a column of exact figures
+                        invites comparisons the estimator can't support. */}
+                    {sizeBandLabel(peer.estimatedUnits) ?? "—"}
                   </td>
 
                   {/* Property type */}

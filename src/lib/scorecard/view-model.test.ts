@@ -107,8 +107,11 @@ test("scaleFit reads the single seeded portfolioEstimate point, fills readout", 
   assert.equal(v.scaleFit.observedUnits, 318);
   assert.equal(v.scaleFit.top3Share, 0.84);
   const row = v.readout.find((r) => r.area === "Scale & Fit")!;
-  assert.match(row.value, /640/);
-  assert.match(row.value, /managed units \(est\.\)/i);
+  // v0.8 — the readout leads with the observed count and bands the estimate;
+  // it no longer prints the point (640 lands in the 400–800 band).
+  assert.match(row.value, /318 units observed/);
+  assert.match(row.value, /est\. 400–800 managed units/i);
+  assert.doesNotMatch(row.value, /640/);
   assert.match(row.value, /SFR Independent/i); // type label included
   assert.match(row.value, /Chattanooga/i); // market name included
 });
@@ -456,7 +459,8 @@ test("readout[0] Scale & Fit includes type label and market name", () => {
   const row = v.readout.find((r) => r.area === "Scale & Fit")!;
   assert.match(row.value, /SFR Independent/i); // typeLabel from quadrant7Cell
   assert.match(row.value, /Chattanooga/i);      // mktShort from market.name
-  assert.match(row.value, /330/);               // seeded portfolioEstimate point
+  // The seeded point (330) is banded, not printed — see operator-size-bands.ts.
+  assert.match(row.value, /est\. 200–400 managed units/i);
 });
 
 test("readout[2] Momentum gives nuanced phrase for growing trajectory", () => {
@@ -638,7 +642,9 @@ test("scaleFit reads the seeded portfolioEstimate point (point-only)", () => {
   assert.equal(v.scaleFit.estimate.status, "estimated");
   assert.equal(v.scaleFit.estimate.low, null); // no band inputs in this fixture
   const scaleRow = v.readout.find((r) => r.area === "Scale & Fit")!;
-  assert.match(scaleRow.value, /managed units \(est\.\)/i);
+  // 980 bands to 800–1,600; the point itself is not printed.
+  assert.match(scaleRow.value, /est\. 800–1,600 managed units/i);
+  assert.doesNotMatch(scaleRow.value, /980/);
 });
 
 test("no seeded point → no estimate point", () => {
