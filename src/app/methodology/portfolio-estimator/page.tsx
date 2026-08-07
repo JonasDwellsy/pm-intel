@@ -15,12 +15,12 @@ export const metadata: Metadata = {
   // double-brand ("… Operator IQ Methodology · Operator IQ").
   title: { absolute: "Portfolio Size Estimator — Operator IQ Methodology" },
   description:
-    "How Operator IQ estimates an operator's total managed units from observed on-market turnover: house URUs × 3.3 + apartment URUs × 2.6, applied uniformly with admin-tunable multipliers and a low–high confidence band.",
+    "How Operator IQ estimates an operator's total managed units from observed on-market turnover: house URUs × 3.3 + apartment URUs × 2.6, reported as a size band rather than a point estimate — and what calibration against operator-reported counts showed about the limits of any listing-derived estimate.",
   alternates: { canonical: "/methodology/portfolio-estimator" },
   openGraph: {
     title: "Portfolio Size Estimator — Operator IQ Methodology",
     description:
-      "Unit-type turnover model: house and apartment URUs scaled to estimated managed units, with a plausible-turnover confidence band and known limitations.",
+      "Unit-type turnover model, reported as a band. Includes the calibration study against operator-reported counts and why coverage — not the multipliers — is the dominant source of error.",
     type: "article",
   },
 };
@@ -87,16 +87,140 @@ export default function PortfolioEstimatorPage() {
         </p>
 
         <h2 className="mt-10 text-[22px] font-semibold leading-[1.2] tracking-[-0.012em] text-navy">
-          Confidence band
+          Why we report a band, not a number
         </h2>
         <p className="mt-3 text-[15.5px] leading-[1.6] text-foreground/85">
-          Turnover rates aren&rsquo;t exact, so the estimate is a range rather
-          than a single number. Plausible low and high turnover multipliers
-          bracket the defaults — houses roughly 2.5–4.2, apartments roughly
-          2.0–3.3:
+          The formula produces a single number, but we don&rsquo;t show you one.
+          Every surface — scorecard, PDF, comparison table, rankings, export —
+          reports the estimate as one of seven bands:
+        </p>
+        <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1.5 text-[15px] leading-[1.5] text-foreground/85 sm:grid-cols-4">
+          <li className="dq-mono">&lt;50</li>
+          <li className="dq-mono">50–100</li>
+          <li className="dq-mono">100–200</li>
+          <li className="dq-mono">200–400</li>
+          <li className="dq-mono">400–800</li>
+          <li className="dq-mono">800–1,600</li>
+          <li className="dq-mono">1,600+</li>
+        </ul>
+        <p className="mt-4 text-[15.5px] leading-[1.6] text-foreground/85">
+          The edges are log-scaled and drawn from the actual distribution of
+          estimates across the tracked book — median 170 units, 75th percentile
+          331 — rather than from round numbers. They spread operators
+          2.7 / 20.5 / 33.8 / 22.4 / 12.3 / 5.0 / 3.3 percent across the seven
+          bands, so the discrimination sits where operators actually are. The
+          bands do not overlap: every operator falls in exactly one, which is
+          what lets them sort and filter without ambiguity.
+        </p>
+        <p className="mt-3 text-[15.5px] leading-[1.6] text-foreground/85">
+          Banding is not a presentation preference. It is what the evidence
+          below supports. A point estimate implies a precision this model
+          cannot deliver, and stating one would be a claim we can&rsquo;t
+          defend to an operator who knows their own count.
+        </p>
+
+        <h2 className="mt-10 text-[22px] font-semibold leading-[1.2] tracking-[-0.012em] text-navy">
+          What calibration showed
+        </h2>
+        <p className="mt-3 text-[15.5px] leading-[1.6] text-foreground/85">
+          We tested the estimator two ways: across the full book of 4,219
+          actively-listing operators, and against operators who told us their
+          own unit count directly.
+        </p>
+        <p className="mt-4 text-[15.5px] leading-[1.6] text-foreground/85">
+          <strong>The bias is not one bias — it splits by archetype.</strong>{" "}
+          Measuring declared building sizes against what we observe, a
+          scattered single-family operator shows{" "}
+          <strong>1.4 units per building</strong> — a house is its own building,
+          so the declared figure adds nothing we didn&rsquo;t already see. An
+          apartment-heavy operator shows <strong>37.4</strong>, because one
+          observed listing stands for a whole property. Declared unit counts are
+          therefore an informative size signal only for apartment operators, and
+          those are exactly the operators the turnover model handles worst.
+        </p>
+        <p className="mt-4 text-[15.5px] leading-[1.6] text-foreground/85">
+          Against operator-reported counts, both apartment-heavy:
+        </p>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[520px] border-collapse text-[14.5px]">
+            <thead>
+              <tr className="border-b border-grid text-left text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                <th className="py-2 pr-4 font-semibold">Signal</th>
+                <th className="py-2 pr-4 font-semibold text-right">
+                  Operator A (78% apt)
+                </th>
+                <th className="py-2 font-semibold text-right">
+                  Operator B (100% apt)
+                </th>
+              </tr>
+            </thead>
+            <tbody className="text-foreground/85">
+              <tr className="border-b border-grid/60">
+                <td className="py-2 pr-4">Operator reports</td>
+                <td className="dq-mono py-2 pr-4 text-right">1,400</td>
+                <td className="dq-mono py-2 text-right">3,000</td>
+              </tr>
+              <tr className="border-b border-grid/60">
+                <td className="py-2 pr-4">Units observed (T12)</td>
+                <td className="dq-mono py-2 pr-4 text-right">287</td>
+                <td className="dq-mono py-2 text-right">309</td>
+              </tr>
+              <tr className="border-b border-grid/60">
+                <td className="py-2 pr-4">Units observed (lifetime)</td>
+                <td className="dq-mono py-2 pr-4 text-right">502</td>
+                <td className="dq-mono py-2 text-right">1,334</td>
+              </tr>
+              <tr className="border-b border-grid/60">
+                <td className="py-2 pr-4">Declared building units</td>
+                <td className="dq-mono py-2 pr-4 text-right">898</td>
+                <td className="dq-mono py-2 text-right">1,500</td>
+              </tr>
+              <tr>
+                <td className="py-2 pr-4">Our estimate</td>
+                <td className="dq-mono py-2 pr-4 text-right">790</td>
+                <td className="dq-mono py-2 text-right">803</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-4 text-[15.5px] leading-[1.6] text-foreground/85">
+          The decisive result is the last two rows.{" "}
+          <strong>
+            Even the strongest signal we hold is roughly half the reported
+            count, on both operators.
+          </strong>{" "}
+          That residual is not a multiplier that needs tuning. It is{" "}
+          <strong>coverage</strong> — units that never list with Dwellsy at all,
+          because they sit with long-staying tenants, lease through channels we
+          don&rsquo;t see, or belong to a portfolio the operator only partly
+          markets publicly. No multiplier recovers a unit that was never
+          observable.
+        </p>
+        <p className="mt-3 text-[15.5px] leading-[1.6] text-foreground/85">
+          So the honest reading of any listing-derived size estimate, ours
+          included, is a <strong>floor rather than a census</strong>. We say so
+          on every surface that shows one.
+        </p>
+        <p className="mt-3 text-[15.5px] leading-[1.6] text-foreground/85">
+          We have deliberately <em>not</em> recalibrated the multipliers on this
+          evidence. Two ground-truth points, both apartment-heavy, cannot
+          justify moving a number that also governs the ~900 scattered-house
+          operators for whom we hold no validated count at all. Tuning to n=2
+          would replace a known bias with an unmeasured one. We are collecting
+          more reported counts and will revisit when there are enough to
+          separate archetypes.
+        </p>
+
+        <h2 className="mt-10 text-[22px] font-semibold leading-[1.2] tracking-[-0.012em] text-navy">
+          Turnover uncertainty, separately
+        </h2>
+        <p className="mt-3 text-[15.5px] leading-[1.6] text-foreground/85">
+          Turnover rates aren&rsquo;t exact either. Plausible low and high
+          multipliers bracket the defaults — houses roughly 2.5–4.2, apartments
+          roughly 2.0–3.3:
         </p>
         <div className="mt-4">
-          <FormulaBlock label="Formula · confidence band">
+          <FormulaBlock label="Formula · turnover range">
             <span className="text-navy">low</span> <Op>=</Op> house URUs{" "}
             <Op>×</Op> 2.5 <Op>+</Op> apartment URUs <Op>×</Op> 2.0
             <br />
@@ -105,10 +229,13 @@ export default function PortfolioEstimatorPage() {
           </FormulaBlock>
         </div>
         <p className="mt-3 text-[15.5px] leading-[1.6] text-foreground/85">
-          The band is type-aware: an apartment-heavy operator&rsquo;s band
-          reflects apartment-turnover uncertainty, a house-heavy
-          operator&rsquo;s reflects house-turnover uncertainty. The point
-          estimate always sits inside the displayed range.
+          This range is type-aware, and it drives the shaded region on the
+          scorecard&rsquo;s size bar. It is worth being precise about what it
+          does <em>not</em> represent: it captures variation in how fast units
+          turn over, not the coverage gap above. The coverage gap is larger, and
+          it runs in one direction — down. Read the shaded region as the
+          model&rsquo;s internal uncertainty, not as a claim about how close the
+          estimate is to the truth.
         </p>
 
         <h2 className="mt-10 text-[22px] font-semibold leading-[1.2] tracking-[-0.012em] text-navy">
@@ -141,6 +268,21 @@ export default function PortfolioEstimatorPage() {
         </h2>
         <ul className="mt-3 space-y-3 text-[15.5px] leading-[1.6] text-foreground/85">
           <li>
+            <strong>Coverage is the big one, and it only runs one way.</strong>{" "}
+            We can scale what we observe; we cannot scale what never listed. On
+            both operators we have checked against a reported count, the gap
+            after every available signal was roughly 2×, and it was always in
+            the same direction — we were low. Treat the estimate as a floor.
+            This limitation is structural, not a bug we intend to fix, because
+            no model can recover a unit it never saw.
+          </li>
+          <li>
+            <strong>Apartment-heavy operators are understated the most.</strong>{" "}
+            A single observed listing can stand for a large building. The
+            turnover model scales that one listing by 2.6, which is right for
+            one unit and badly short for a property.
+          </li>
+          <li>
             <strong>Mixed-type edge case.</strong> A lone apartment or condo
             held by an otherwise-scattered single-family operator gets the
             faster apartment multiplier even though it likely turns over slowly.
@@ -148,31 +290,36 @@ export default function PortfolioEstimatorPage() {
             overwhelmingly one type.
           </li>
           <li>
-            <strong>Invisible long-hold units.</strong> A unit under a
-            long-staying tenant that never re-lists in the window is invisible
-            to any listing-based estimate — the model can only scale what it
-            observes.
-          </li>
-          <li>
             <strong>Turnover drift.</strong> The multipliers are population
             averages. An operator that turns over faster or slower than the norm
-            will be over- or under-stated in that direction; the confidence band
-            is meant to absorb ordinary variation, not extremes.
+            will be over- or under-stated in that direction; the turnover range
+            absorbs ordinary variation, not extremes.
           </li>
           <li>
             <strong>Context only — not in ranking.</strong> The estimate never
             feeds the composite or star assignments. It exists to give readers a
-            back-of-envelope scale anchor, not a precision figure.
+            scale anchor, not a precision figure.
           </li>
         </ul>
 
         <h2 className="mt-10 text-[22px] font-semibold leading-[1.2] tracking-[-0.012em] text-navy">
-          Operator override
+          Operator-reported counts
         </h2>
         <p className="mt-3 text-[15.5px] leading-[1.6] text-foreground/85">
-          Operators can claim their scorecard and supply a verified
-          self-reported portfolio size, which is displayed with attribution in
-          place of the estimate.
+          When an operator tells us their own unit count, we record it — dated,
+          attributed to how we heard it, and kept alongside what we observe.
+        </p>
+        <p className="mt-3 text-[15.5px] leading-[1.6] text-foreground/85">
+          <strong>It does not change anything you see.</strong> A reported count
+          never replaces the estimate, never moves the size band, and never
+          enters cohorts, peer sets, or rankings. Every operator on Operator IQ
+          is measured on the same observed basis, whether or not we have ever
+          spoken to them — the moment that stops being true, no two operators
+          are comparable.
+        </p>
+        <p className="mt-3 text-[15.5px] leading-[1.6] text-foreground/85">
+          Reported counts exist to be the yardstick the estimator is measured
+          against. A number folded into the estimate can no longer check it.
         </p>
 
         <p className="mt-12 border-t border-grid pt-5 text-[12.5px] leading-[1.5] text-muted-foreground">
