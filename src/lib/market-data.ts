@@ -32,6 +32,9 @@ export type LoadedMarket = {
   // default ranked list and surfaced behind the UI's "Show brokers"
   // toggle. Empty on markets not yet re-exported with company-type data.
   brokerPms: PMListItem[];
+  // v0.8 — dormant operators for this market: excluded from the ranked list
+  // and every cohort baseline above, surfaced behind an opt-in toggle.
+  dormantPms: PMListItem[];
   countsBySegment: Partial<Record<QuadrantSegment, number>>;
   hybridCount: number;
   state: string; // 2-letter
@@ -129,11 +132,29 @@ export async function loadMarketView({
   // staying reachable (scorecards + search are unaffected). Markets seeded
   // before the company-type columns existed have operatorType "pm" for
   // every operator, so brokerPms is empty and behavior is unchanged.
+  // v0.8 dormant tier — a second split, on the same principle as brokers.
+  //
+  // A dormant operator has no listing event inside the recency window. Their
+  // T12 record is real and their scorecard stands, but ranking them beside
+  // currently-active peers compares a stale window against a live one, and
+  // letting them into the cohort math would move every active operator's
+  // percentile as operators drift in and out of dormancy month to month.
+  //
+  // So `allPms` — which drives the ranked list, quadrant summaries, counts and
+  // submarket filtering — is ACTIVE operators only. Dormant ones come back
+  // through `dormantPms` behind an opt-in toggle, keeping them reachable
+  // without putting them in a "top operators" list.
+  //
+  // Broker classification is applied FIRST so a dormant broker stays in the
+  // broker section rather than being pulled into the dormant one; brokers
+  // already sit outside the PM cohort entirely.
   const mappedPms = marketRow.pms
     .map(toPmListItem)
     .sort(comparePmsByStarCount);
-  const allPms = mappedPms.filter((p) => p.operatorType !== "broker");
   const brokerPms = mappedPms.filter((p) => p.operatorType === "broker");
+  const nonBrokerPms = mappedPms.filter((p) => p.operatorType !== "broker");
+  const allPms = nonBrokerPms.filter((p) => p.operatorStatus !== "dormant");
+  const dormantPms = nonBrokerPms.filter((p) => p.operatorStatus === "dormant");
 
 
   // v0.6.2: the 4 newer markets (Memphis/Knoxville/Clarksville/Phoenix)
@@ -300,6 +321,7 @@ export async function loadMarketView({
     allPms,
     filteredPms,
     brokerPms,
+    dormantPms,
     countsBySegment,
     hybridCount,
     state: stateCode,

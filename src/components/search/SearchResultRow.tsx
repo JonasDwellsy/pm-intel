@@ -5,6 +5,19 @@ import type { PMSearchResult } from "@/lib/pm-search";
 import { AddToWatchList } from "@/components/watch-list/AddToWatchList";
 import { operatorMemberKey } from "@/lib/watch-list/operator-member-key";
 
+/** "May 27, 2026" from a plain YYYY-MM-DD, parsed as UTC so the date can't
+ *  slip a day for anyone west of GMT. */
+function fmtSearchDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 // Shared result-row primitive — rendered inside both the top-nav dropdown
 // (SearchInput) and the Cmd+K modal (SearchModal). Both surfaces share
 // the same row shape; the modal gets larger spacing via a `size` prop.
@@ -162,11 +175,29 @@ export function SearchResultRow({
                 Market
               </span>
             )}
+            {/* v0.8 dormant tier. The chip is what makes it safe to list a
+                dormant operator beside ranked ones — without it the row reads
+                as a claim they're currently active. Absent status = active, so
+                a search index built before this field renders exactly as
+                before rather than mislabelling anyone. */}
+            {result.tier === "ranked" && result.status === "dormant" && (
+              <span className="shrink-0 rounded-full border border-[#F3D7B3] bg-orange-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-orange-700">
+                Dormant
+              </span>
+            )}
           </p>
           <p
             className={`mt-0.5 truncate text-muted-foreground ${subSize}`}
           >
             {subtitle}
+            {result.tier === "ranked" &&
+              result.status === "dormant" &&
+              result.lastListingDate && (
+                <>
+                  <span className="mx-1.5 text-muted-2">·</span>
+                  no listings since {fmtSearchDate(result.lastListingDate)}
+                </>
+              )}
           </p>
           {matchedAlias && (
             <p className={`mt-0.5 truncate text-muted-2 ${subSize}`}>

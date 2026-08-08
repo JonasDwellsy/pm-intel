@@ -72,6 +72,13 @@ interface OutputRankedEntry {
   silverCount: number;
   t12Listings: number;
   aliases?: string[];
+  /** v0.8 dormant tier (phase 2). Present only when the operator is dormant,
+   *  so every existing row is byte-identical and the renderer can treat
+   *  "absent" as active. lastListingDate is the plain YYYY-MM-DD of the last
+   *  observed listing — the search chip states that date rather than any
+   *  claim about the business. */
+  status?: "dormant";
+  lastListingDate?: string | null;
 }
 
 // v0.6.4 Patch 1 — search index entry for a multi-market canonical
@@ -325,13 +332,12 @@ for (const pm of seed.pms) {
 // canonicalOperatorId resolves to a multi-market entity in canonicalMap.
 const ranked: OutputRankedEntry[] = [];
 for (const { pm, m, gold, silver } of allRankedCandidates) {
-  // v0.8 dormant tier, phase 1 — dormant operators live in the seed (so their
-  // scorecard resolves by direct URL) but must NOT enter the ranked search tier
-  // yet. Search has no way to show their status until phase 2 adds the chip, and
-  // listing them beside ranked operators with no label would read as a claim
-  // they're currently active. Phase 2 surfaces them deliberately, with the
-  // "no listings observed since <date>" treatment.
-  if ((pm as { operatorStatus?: string }).operatorStatus === "dormant") continue;
+  // v0.8 dormant tier, phase 2 — dormant operators now DO enter the ranked
+  // search tier, carrying a status so the result row can label them. Phase 1
+  // held them out because an unlabelled row beside ranked operators reads as a
+  // claim they're currently active; the chip is what makes them safe to list.
+  const isDormant =
+    (pm as { operatorStatus?: string }).operatorStatus === "dormant";
   const canonSlug = pm.canonicalOperatorId ?? "";
   if (canonSlug && canonicalMap[canonSlug]) {
     // Skip — this PM rolls up into the canonical entry built below.
@@ -350,9 +356,21 @@ for (const { pm, m, gold, silver } of allRankedCandidates) {
     silverCount: silver,
     t12Listings: pm.coverage?.t12Listings ?? 0,
     aliases: (() => { const a: string[] = []; addAlias(a, dbaAlias(pm.name, pm.canonicalOperatorName), pm.name); return a.length ? a : undefined; })(),
+    // Emitted only when dormant, so active rows keep their exact prior shape.
+    ...(isDormant
+      ? {
+          status: "dormant" as const,
+          lastListingDate:
+            (pm as { lastListingDate?: string | null }).lastListingDate ?? null,
+        }
+      : {}),
   });
 }
-console.log(`Tier 1 ranked PMs (single-market only): ${ranked.length}`);
+const dormantInSearch = ranked.filter((r) => r.status === "dormant").length;
+console.log(
+  `Tier 1 ranked PMs (single-market only): ${ranked.length}` +
+    (dormantInSearch ? ` (${dormantInSearch} dormant, chipped in search)` : "")
+);
 
 // Third pass: build canonical entries.
 const canonical: OutputCanonicalEntry[] = [];

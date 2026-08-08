@@ -510,6 +510,13 @@ export interface PMListItem {
    *  on the market landing operator cards. */
   compositeStar: StarLevel;
   compositeCohortName: string | null;
+  /** v0.8 dormant tier. "dormant" = no listing event inside the recency
+   *  window. Dormant operators are excluded from the ranked list and from
+   *  every cohort baseline; they surface behind an opt-in toggle with the
+   *  date of their last observed listing. Optional so hand-built fixtures
+   *  and any consumer constructing a PMListItem directly stay valid. */
+  operatorStatus?: "active" | "dormant";
+  lastListingDate?: string | null;
   /** Slugified top-city names (geographicCoverage.topCities → submarketSlug),
    *  used by the market landing page's `?submarket=` filter. Optional for
    *  back-compat with any consumer that constructs PMListItem manually. */

@@ -240,6 +240,11 @@ export function toPmListItem(row: PmRowForList): PMListItem {
     // landing operator cards alongside the legacy rank.
     compositeStar: sc.rank.compositeStar ?? null,
     compositeCohortName: sc.rank.compositeCohortName ?? null,
+    // v0.8 dormant tier — carried onto the list row so market-data.ts can
+    // split dormant operators out of the ranked universe, and so the row can
+    // state when the operator was last observed listing.
+    operatorStatus: sc.pm.operatorStatus === "dormant" ? "dormant" : "active",
+    lastListingDate: sc.pm.lastListingDate ?? null,
     // Submarket index — geographicCoverage.topCities mapped through the same
     // slugifier the scorecard's Layer 5B link uses, so the market landing
     // ?submarket= filter (loadMarketView in market-data.ts) matches by exact
