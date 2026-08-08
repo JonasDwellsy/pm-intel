@@ -270,9 +270,9 @@ const GLOSSARY: GlossaryRow[] = [
     ref: "§05",
   },
   {
-    term: "Departed-operator gate",
+    term: "Dormant operator",
     definition:
-      "Operators whose most recent listing event (creation or deactivation) is more than 60 days old are treated as departed and dropped from the ranked set entirely, so a wound-down operator's stale data can't distort cohort statistics. Departure is judged at the operator-name level, across a name's id fragments.",
+      "An operator that clears both eligibility tests but has no listing event (creation or deactivation) inside the 60-day recency window. It keeps a scorecard carrying the date of the last listing we observed, and is held out of ranked lists and every cohort baseline so a stale 12-month window is never compared against currently-listing peers. The label describes our listing record, not the state of the business. Judged at the operator-name level, across a name's id fragments.",
     ref: "§01, §05",
   },
   {
@@ -408,16 +408,110 @@ export default async function MethodologyPage() {
                 single-asset multifamily operators (who hit it through depth at
                 a single community).
               </p>
+              <h3
+                id="operator-states"
+                className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
+              >
+                Three operator states.
+              </h3>
               <p>
-                <strong>Departed-operator gate.</strong> An operator whose most
-                recent listing activity — creation or deactivation — predates a{" "}
-                <span className="dq-chip dq-tnum">60-day</span> recency cutoff
-                is excluded even if it clears the listing and diversity tests,
-                so a scorecard never reflects an operator that has wound down or
-                left the market. Departure is judged at the operator-name level,
-                aggregating the newest event across the id fragments an operator
-                churns through over time (see §07), so a still-active operator
-                is never dropped on a single stale fragment.
+                Clearing the two tests above is not the whole story. An operator
+                can qualify on size and still have stopped appearing in our
+                listing data — and those two facts deserve different treatment.
+                Every operator we observe therefore sits in exactly one of three
+                states.
+              </p>
+              <table className="dq-table">
+                <thead>
+                  <tr>
+                    <th>State</th>
+                    <th>What it means</th>
+                    <th>How it appears</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <strong>Ranked</strong>
+                    </td>
+                    <td>
+                      Clears both eligibility tests and has listing activity
+                      inside the recency window.
+                    </td>
+                    <td>
+                      Scorecard, ranked lists, and a seat in every cohort
+                      baseline.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>Dormant</strong>
+                    </td>
+                    <td>
+                      Clears both eligibility tests and has a real 12-month
+                      record, but no listing event — creation or deactivation —
+                      inside the recency window.
+                    </td>
+                    <td>
+                      Scorecard, labeled <em>Dormant</em> with the date of the
+                      last listing we observed. Held out of ranked lists and
+                      cohort baselines; reachable behind a toggle on the market
+                      page.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>Not eligible</strong>
+                    </td>
+                    <td>
+                      Falls short on listing count or address diversity, or is
+                      removed by a category exclusion (below).
+                    </td>
+                    <td>No scorecard.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The recency window is{" "}
+                <span className="dq-chip dq-tnum">60 days</span>, measured from
+                the market&apos;s data refresh date. It is judged at the
+                operator-name level, aggregating the newest event across the id
+                fragments an operator churns through over time (see §07), so an
+                operator that is still listing is never called dormant on the
+                strength of one stale fragment.
+              </p>
+              <p>
+                <strong>What dormant does and does not claim.</strong> It is a
+                statement about our listing record, not about the business. We
+                can see that an operator stopped posting listings with us on a
+                particular date; we cannot see why. A portfolio may have
+                changed hands, syndication may have moved elsewhere, or the
+                operator may simply be between lease-ups. So we report the
+                observed fact — the date of the last listing we saw — and stop
+                there.
+              </p>
+              <p>
+                {/* Explicit {" "} — JSX drops the space when the text after a
+                    run-in bold breaks the line immediately after one word. */}
+                <strong>Why they are held out of the baselines.</strong>{" "}
+                A dormant operator&apos;s twelve-month window ended whenever their
+                listings did, so ranking it against operators whose window ends
+                today compares two different things. Dormant operators are still{" "}
+                <em>scored against</em> the ranked cohort — their metrics and
+                stars are computed on the same scale — but they are not{" "}
+                <em>members</em> of it, and they are absent from every median,
+                percentile, and eligible-operator count. That separation is what
+                makes the state purely additive: no ranked operator&apos;s
+                numbers move because some other operator went quiet.
+              </p>
+              <p>
+                Earlier versions of this methodology deleted these operators
+                outright. That silently discarded real market presence — in one
+                market, an operator carrying more than four thousand listings in
+                the trailing year simply vanished from the answer to
+                &ldquo;who operates at scale here?&rdquo; Keeping them visible
+                and clearly labeled is more useful than pretending we never saw
+                them.
               </p>
               <p className="text-[13.5px] italic text-muted-foreground">
                 Earlier methodology versions labeled this window
@@ -871,8 +965,11 @@ export default async function MethodologyPage() {
                   weight is redistributed, not scored as zero). The card instead
                   reads &ldquo;Too early to assess renewal — this operator has
                   been tracked N years.&rdquo; Separately, operators whose most
-                  recent listing event is more than 60 days old are treated as
-                  departed and dropped from the ranked set entirely (see §01).
+                  recent listing event is more than 60 days old are classified{" "}
+                  <strong>dormant</strong>: they keep a scorecard but are held
+                  out of the ranked set and every cohort baseline, so a stale
+                  window never sets the bar for currently-listing peers (see
+                  §01).
                 </p>
               </div>
             </SectionAnchor>
@@ -1181,9 +1278,12 @@ export default async function MethodologyPage() {
                 neutralized if pipeline improvements affected all
                 continuing operators uniformly — non-uniform improvement
                 (e.g., a new ingestion source biased toward aggregators)
-                would still distort. Survivor bias persists for operators
-                that shrank to zero between periods; v0.7 backlog includes
-                a &ldquo;departed&rdquo; classification to surface them.
+                would still distort. Survivor bias is now partly addressed:
+                an operator that stops listing is classified{" "}
+                <strong>dormant</strong> rather than deleted, so it stays
+                visible with the date of its last observed listing (see §01).
+                Bias persists for operators that shrank toward zero without
+                crossing the recency window.
                 Listing-level re-listing methodology affects numerator and
                 denominator alike but is a counting artifact worth
                 acknowledging. The metric is shown for context and is{" "}
@@ -1901,7 +2001,10 @@ export default async function MethodologyPage() {
                       S(18), the share of tenancies reaching 18 months — with a
                       qualification gate (≥25 observations reaching 18 months, ≥5
                       turnover events), suppress-and-reweight when unqualified,
-                      and a 60-day departed-operator exclusion.{" "}
+                      and a 60-day recency gate that dropped stale operators
+                      outright — since replaced by the dormant tier, which keeps
+                      them visible and labeled instead (see{" "}
+                      <a href="#operator-states">§01</a>).{" "}
                       <strong>Rent Stability</strong> was removed entirely.{" "}
                       <strong>Operator classification</strong> gained an
                       apartment-dominant override (house share ≤ 10% → MF/BTR,
