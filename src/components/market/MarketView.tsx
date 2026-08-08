@@ -6,6 +6,7 @@ import {
 } from "./MarketCompositionStrip";
 import { FilterChips } from "./FilterChips";
 import { RankedOperatorList } from "./RankedOperatorList";
+import { DormantToggleSection } from "@/components/market/DormantToggleSection";
 import { BrokerToggleSection } from "./BrokerToggleSection";
 import { MarketMap } from "./MarketMap";
 import { TrackedOperatorBanner } from "./TrackedOperatorBanner";
@@ -218,6 +219,7 @@ export function MarketView({
     allPms,
     filteredPms,
     brokerPms,
+    dormantPms,
     countsBySegment,
     stateSlug,
     citySlug,
@@ -408,6 +410,11 @@ export function MarketView({
               nothing when the market has no brokers. */}
           <BrokerToggleSection
             brokers={brokerPms}
+            stateSlug={stateSlug}
+            citySlug={citySlug}
+          />
+          <DormantToggleSection
+            dormant={dormantPms}
             stateSlug={stateSlug}
             citySlug={citySlug}
           />

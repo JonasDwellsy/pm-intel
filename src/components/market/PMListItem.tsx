@@ -6,6 +6,19 @@ import { StarSummaryChip } from "@/components/scorecard/StarSummaryChip";
 import { AddToWatchList } from "@/components/watch-list/AddToWatchList";
 import type { PMListItem as PMListItemData } from "@/lib/types";
 
+/** "May 27, 2026" from a plain YYYY-MM-DD, parsed as UTC so it can't slip a
+ *  day for anyone west of GMT. */
+function fmtListingDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function fmtSignedPct(n: number | null): {
   text: string;
   tone: "good" | "bad" | "flat";
@@ -171,6 +184,14 @@ export function PMListItem({
               <span className="text-[22px] font-semibold leading-tight text-navy tracking-[-0.012em]">
                 {pm.displayName ?? pm.name}
               </span>
+              {/* v0.8 dormant tier — states the observed fact only. The row
+                  otherwise renders identically, because the operator's T12
+                  record is real; what changed is that it stopped updating. */}
+              {pm.operatorStatus === "dormant" && (
+                <span className="dq-badge inline-flex items-center rounded-full border border-[#F3D7B3] bg-orange-soft px-2.5 py-1 text-[11px] font-semibold tracking-[0.02em] text-orange-700">
+                  Dormant
+                </span>
+              )}
               <span
                 className="dq-badge inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-[0.02em]"
                 style={{ color: color.fg, backgroundColor: color.soft }}
@@ -208,6 +229,14 @@ export function PMListItem({
                   fmtInt(pm.estManagedUnits ?? pm.totalObservedUnits)}
               </span>{" "}
               managed units
+              {pm.operatorStatus === "dormant" && pm.lastListingDate && (
+                <>
+                  <span className="mx-1.5 text-muted-2">·</span>
+                  <span className="whitespace-nowrap">
+                    last listing {fmtListingDate(pm.lastListingDate)}
+                  </span>
+                </>
+              )}
             </p>
           </div>
 

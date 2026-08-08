@@ -53,6 +53,11 @@ export type PMSearchResult =
       t12Listings: number;
       /** DBA / former-name aliases folded into the Fuse "aliases" key. */
       aliases?: string[];
+      /** v0.8 dormant tier. Present only when dormant, so an index built
+       *  before this field simply renders no chip — the row is unchanged
+       *  rather than mislabelled. */
+      status?: "dormant";
+      lastListingDate?: string | null;
       href: string;
       /** Fuse match score, 0 (perfect) to 1 (no match). Lower is better. */
       score: number;
