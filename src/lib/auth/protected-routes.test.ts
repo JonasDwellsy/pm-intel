@@ -63,6 +63,12 @@ test("anonymous users are gated off /watch-lists (saved list)", () => {
   assert.equal(isGated("/watch-lists"), true);
 });
 
+test("Market IQ preview routes require a Clerk session", () => {
+  assert.equal(isGated("/market-iq"), true);
+  assert.equal(isGated("/market-iq/markets/cleveland-elyria-mentor-oh"), true);
+  assert.equal(isGated("/api/market-iq/watchlists"), true);
+});
+
 test("anonymous users are gated off /watch-lists/:id/edit", () => {
   assert.equal(isGated("/watch-lists/cuid_abc123/edit"), true);
 });

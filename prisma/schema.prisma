@@ -499,11 +499,29 @@ model Organization {
   watchLists      WatchList[]
   pendingWelcomes PendingWelcome[]
   marketAccess    OrganizationMarketAccess[]
+  productAccess   OrganizationProductAccess[]
 
   // Hot lookups: "find personal org for user X" (already covered by
   // the @unique on personalForUserId) and "find org by Clerk id"
   // (covered by the @unique on clerkOrgId). No additional indexes
   // needed for Phase 1.
+}
+
+// Dwellsy IQ Online product-level entitlement. This sits above the existing
+// per-market grants: a viewer must have the product module AND the market.
+// Operator IQ does not consult this table yet, so adding it cannot change an
+// existing customer's access path. The migration records operator_iq for all
+// existing organizations as bookkeeping while Market IQ remains fail-closed.
+model OrganizationProductAccess {
+  id             String   @id @default(cuid())
+  organizationId String
+  productKey     String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, productKey])
+  @@index([organizationId])
 }
 
 // v0.22 — explicit per-market grants for an organization. One row per

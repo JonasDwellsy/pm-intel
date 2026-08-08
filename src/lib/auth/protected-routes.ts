@@ -45,6 +45,13 @@ export const PROTECTED_ROUTE_PATTERNS = [
   "/api/watch-lists",
   "/api/watch-lists/:id",
 
+  // Market IQ is a production-inert preview module. The page itself also
+  // requires an explicit feature flag plus product and market entitlement.
+  // Adding new route patterns cannot change any existing Operator IQ path.
+  "/market-iq",
+  "/market-iq/:path*",
+  "/api/market-iq/:path*",
+
   // v0.21 — premium content. Per-operator scorecards, operator
   // profiles, and the AI /ask tool are the paid surface. State/market
   // LANDING pages stay public as a marketing wedge; the per-operator
