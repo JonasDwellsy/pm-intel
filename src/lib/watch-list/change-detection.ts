@@ -43,7 +43,9 @@ export type ChangeType =
   | "submarket_dropped"
   | "concession_transition"
   | "concession_shift"
-  | "eligibility_flip";
+  | "eligibility_flip"
+  | "dormancy"
+  | "coverage_note";
 
 /** Discriminated union — one variant per change type. The detail-row
  *  renderer pattern-matches on `type` and reads the right "before /
@@ -70,7 +72,30 @@ export type OperatorChange =
       after: number | null;
     }
   | { type: "concession_shift"; before: number; after: number; deltaPp: number }
-  | { type: "eligibility_flip"; direction: "entered" | "exited" };
+  | { type: "eligibility_flip"; direction: "entered" | "exited" }
+  /** v0.8 dormant tier (phase 3). "entered" = the operator stopped listing in
+   *  this market; "resumed" = listings reappeared. States the observed fact
+   *  and its date — never that the operator left the market or shut down. */
+  | {
+      type: "dormancy";
+      direction: "entered" | "resumed";
+      lastListingDate: string | null;
+      /** Days from the last observed listing to the snapshot that recorded the
+       *  transition. Derived from the two snapshots, never a wall clock, so
+       *  the same pair always yields the same number. */
+      daysQuiet: number | null;
+    }
+  /** Collapsed replacement for simultaneous per-market dormancy. When every
+   *  market an operator is watched in goes quiet at once, that is almost
+   *  always a syndication or feed change on our side, not the operator
+   *  changing behaviour in a dozen places in the same week. Reported as a
+   *  neutral coverage note, never as performance. */
+  | {
+      type: "coverage_note";
+      marketsQuiet: number;
+      windowDays: number;
+      lastListingDate: string | null;
+    };
 
 type StarLevel = "gold" | "silver" | null;
 
@@ -237,6 +262,31 @@ export function diffSnapshots(
     });
   }
 
+  // Dormancy transition. Guarded on methodology like stars and the size band:
+  // the recency gate that defines dormancy is a methodology parameter, so a
+  // change to it would flip status for a whole cohort at once with no operator
+  // having done anything.
+  //
+  // An unknown PRIOR status yields nothing. Rows written before phase 3 carry
+  // null, and treating null as "active" would fire a dormancy alert for every
+  // already-dormant operator on the first digest after deploy.
+  if (
+    !methodologyChanged &&
+    prior.operatorStatus !== null &&
+    current.operatorStatus !== null &&
+    prior.operatorStatus !== current.operatorStatus
+  ) {
+    changes.push({
+      type: "dormancy",
+      direction: current.operatorStatus === "dormant" ? "entered" : "resumed",
+      lastListingDate: current.lastListingDate,
+      daysQuiet:
+        current.operatorStatus === "dormant"
+          ? daysBetween(current.lastListingDate, current.snapshotDate)
+          : null,
+    });
+  }
+
   return changes;
 }
 
@@ -244,6 +294,22 @@ export function diffSnapshots(
  *  since your last visit · 2 star changes, 1 portfolio shift, 1 new
  *  market entry"). Drives both the headline operator count and the
  *  per-type breakdown below it. */
+/** Whole days from a YYYY-MM-DD listing date to a snapshot date. UTC on both
+ *  sides so it cannot come out a day short for a reader west of GMT. Null when
+ *  either side is missing or unparseable. */
+function daysBetween(iso: string | null, snapshot: Date): number | null {
+  if (!iso) return null;
+  const from = Date.parse(`${iso}T00:00:00Z`);
+  if (Number.isNaN(from)) return null;
+  const to = Date.UTC(
+    snapshot.getUTCFullYear(),
+    snapshot.getUTCMonth(),
+    snapshot.getUTCDate()
+  );
+  const days = Math.round((to - from) / 86_400_000);
+  return days >= 0 ? days : null;
+}
+
 export interface ChangeBreakdown {
   /** Distinct operators with at least one change. */
   operatorCount: number;
@@ -263,6 +329,11 @@ export interface ChangeBreakdown {
   submarketChanges: number;
   concessionChanges: number;
   eligibilityChanges: number;
+  /** Dormancy transitions + collapsed coverage notes. Counted together and
+   *  reported LAST in the roll-up: a listing record going quiet is a coverage
+   *  fact about what we can see, not a performance move, and it should never
+   *  lead the summary line ahead of an actual star change. */
+  dormancyChanges: number;
 }
 
 /** Roll a Map<pmSlug, OperatorChange[]> up into the banner-shaped
@@ -280,6 +351,7 @@ export function summariseChanges(
   let submarketChanges = 0;
   let concessionChanges = 0;
   let eligibilityChanges = 0;
+  let dormancyChanges = 0;
 
   for (const changes of changesByOperator.values()) {
     if (changes.length === 0) continue;
@@ -311,6 +383,10 @@ export function summariseChanges(
         case "eligibility_flip":
           eligibilityChanges++;
           break;
+        case "dormancy":
+        case "coverage_note":
+          dormancyChanges++;
+          break;
       }
     }
   }
@@ -325,5 +401,6 @@ export function summariseChanges(
     submarketChanges,
     concessionChanges,
     eligibilityChanges,
+    dormancyChanges,
   };
 }

@@ -1878,6 +1878,8 @@ async function captureOperatorSnapshots(
     isEligibleForRanking: boolean;
     t12ListingsCount: number | null;
     quadrant7Cell: string | null;
+    operatorStatus: string | null;
+    lastListingDate: string | null;
   }> = [];
 
   for (const pm of pms) {
@@ -1895,6 +1897,7 @@ async function captureOperatorSnapshots(
       };
       coverage?: { t12Listings?: number };
       quadrant7Cell?: string;
+      pm?: { operatorStatus?: string; lastListingDate?: string };
     };
     let sc: ScorecardShape;
     try {
@@ -1976,6 +1979,11 @@ async function captureOperatorSnapshots(
       isEligibleForRanking: t12Listings >= 30,
       t12ListingsCount: t12Listings,
       quadrant7Cell: sc.quadrant7Cell ?? null,
+      // v0.8 dormant tier (phase 3) — captured so the monthly digest can spot
+      // the TRANSITION. A watch-listed operator going quiet used to produce
+      // silence; two snapshots are what turn it into a signal.
+      operatorStatus: sc.pm?.operatorStatus === "dormant" ? "dormant" : "active",
+      lastListingDate: sc.pm?.lastListingDate ?? null,
     });
   }
 

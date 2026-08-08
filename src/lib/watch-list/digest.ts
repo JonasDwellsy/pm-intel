@@ -41,6 +41,11 @@ const SALIENCE: Record<ChangeType, number> = {
   concession_shift: 5,
   submarket_added: 6,
   submarket_dropped: 6,
+  // Last. A quiet listing record is a fact about our coverage of an operator,
+  // not a move they made — it must never head an operator's change list ahead
+  // of an actual performance shift.
+  dormancy: 7,
+  coverage_note: 7,
 };
 
 const METRIC_LABEL: Record<string, string> = {
@@ -54,6 +59,15 @@ const METRIC_LABEL: Record<string, string> = {
 function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
 }
+/** "May 27, 2026" from YYYY-MM-DD, parsed as UTC so it cannot slip a day. */
+function fmtDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", {
+    year: "numeric", month: "long", day: "numeric", timeZone: "UTC",
+  });
+}
+
 function star(s: "gold" | "silver" | null): string {
   return s === null ? "no star" : s;
 }
@@ -91,6 +105,24 @@ export function describeChange(c: OperatorChange): string {
       return `Active in a new submarket (${c.submarketSlug})`;
     case "submarket_dropped":
       return `Left a submarket (${c.submarketSlug})`;
+    case "dormancy": {
+      if (c.direction === "resumed") return "New listings observed again";
+      // The observed fact and nothing beyond it. We know the listing record
+      // went quiet; we do not know whether the operator lost the portfolio,
+      // switched syndication, or is simply between lease-ups — and a client
+      // may forward this line to the operator.
+      const since = c.lastListingDate ? fmtDate(c.lastListingDate) : null;
+      const days = c.daysQuiet != null ? ` (${c.daysQuiet} days)` : "";
+      return since
+        ? `No new listings observed since ${since}${days}`
+        : "No new listings observed in the recency window";
+    }
+    case "coverage_note": {
+      const since = c.lastListingDate ? fmtDate(c.lastListingDate) : null;
+      return `Listings stopped appearing across ${c.marketsQuiet} watched markets at once${
+        since ? `, last on ${since}` : ""
+      } — most often a change in how this operator syndicates to us rather than a change in their business`;
+    }
   }
 }
 
@@ -110,6 +142,7 @@ function summaryLine(b: ChangeBreakdown): string {
   add(b.submarketChanges, "submarket change");
   add(b.concessionChanges, "concession change");
   add(b.eligibilityChanges, "eligibility change");
+  add(b.dormancyChanges, "listing-activity change");
   return parts.join(" · ");
 }
 

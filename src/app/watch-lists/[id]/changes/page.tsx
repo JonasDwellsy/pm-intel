@@ -245,6 +245,14 @@ function describeChangeType(change: OperatorChange): string {
       return change.direction === "entered"
         ? "Eligibility · entered ranking"
         : "Eligibility · exited ranking";
+    // v0.8 dormant tier — the label names the listing record, not the
+    // operator's business, because the listing record is all we observed.
+    case "dormancy":
+      return change.direction === "entered"
+        ? "Listings · stopped appearing"
+        : "Listings · reappeared";
+    case "coverage_note":
+      return "Listings · coverage change";
   }
 }
 
@@ -277,6 +285,12 @@ function describeBeforeAfter(change: OperatorChange): string {
     }
     case "eligibility_flip":
       return change.direction === "entered" ? "below → ranked" : "ranked → below";
+    case "dormancy":
+      return change.direction === "entered"
+        ? `last observed ${change.lastListingDate ?? "—"}`
+        : "listings observed again";
+    case "coverage_note":
+      return `${change.marketsQuiet} watched markets, within ${change.windowDays} days`;
   }
 }
 
