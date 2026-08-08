@@ -4,6 +4,8 @@
 // client web map (CoverageMapClient.tsx). All Web-Mercator math uses tileSize
 // 512 (Mapbox GL convention) so PDF framing matches the web map's zoom levels.
 
+import { readCoveragePoints, type CoverageMapPoint } from "./coverage-points";
+
 export type LatLon = { lat: number; lon: number };
 export type Bounds = { west: number; south: number; east: number; north: number };
 export type Pixel = { x: number; y: number };
@@ -17,7 +19,7 @@ export type CoverageRenderModel =
 // Minimal structural shape of ScorecardData["geographicCoverage"] this module
 // needs — kept local so the module has no app-type dependency.
 type GeoInput = {
-  coverageMapPoints: Array<{ lat: number; lon: number; n: number; city?: string }>;
+  coverageMapPoints: CoverageMapPoint[];
   msaBackdropPoints?: Array<{ lat: number; lon: number }>;
   mapBounds?: { north: number; south: number; east: number; west: number };
 };
@@ -152,8 +154,10 @@ export function buildFallbackCircles(
   geo: GeoInput,
   opts: { width: number; height: number; padding: number; maxBackdrop: number }
 ): { coverage: PixelN[]; backdrop: Pixel[] } | null {
+  // Decode once at the boundary; everything below works on plain {lat,lon,n}.
+  const pts = readCoveragePoints(geo.coverageMapPoints);
   const bounds =
-    footprintBounds(geo.coverageMapPoints) ??
+    footprintBounds(pts) ??
     (geo.mapBounds
       ? {
           west: geo.mapBounds.west,
@@ -172,7 +176,7 @@ export function buildFallbackCircles(
     padding + ((bounds.north - lat) / spanLat) * (height - 2 * padding);
   const inBox = (x: number, y: number) =>
     x >= 0 && x <= width && y >= 0 && y <= height;
-  const coverage: PixelN[] = (geo.coverageMapPoints ?? [])
+  const coverage: PixelN[] = pts
     .map((p) => ({ x: lonToX(p.lon), y: latToY(p.lat), n: p.n }))
     .filter((p) => inBox(p.x, p.y));
   const backdrop: Pixel[] = thinBackdrop(geo.msaBackdropPoints ?? [], opts.maxBackdrop)

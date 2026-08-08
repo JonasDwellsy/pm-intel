@@ -1,4 +1,5 @@
 import { MarketMapClient } from "./MarketMapClient";
+import { readCoveragePoints } from "@/lib/scorecard/coverage-points";
 import { quadrantColor, quadrantColorKey, type QuadrantColorKey } from "@/lib/quadrant-colors";
 import type { LoadedMarket } from "@/lib/market-data";
 import { fmtInt } from "@/lib/format";
@@ -15,7 +16,8 @@ export function MarketMap({ view }: { view: LoadedMarket }) {
       quadrant: pm.quadrant,
       colorKey: quadrantColorKey(pm.quadrant),
       color: color.fg,
-      points: pm.coverageMapPoints ?? [],
+      // Decoded here so MarketMapClient keeps its plain {lat,lon,n} contract.
+      points: readCoveragePoints(pm.coverageMapPoints),
     };
   });
 

@@ -120,26 +120,36 @@ COORD_DECIMALS = 4
 
 
 def normalize_coverage_points(points):
+    """Emit compact [lat, lon, n] tuples.
+
+    These are the heaviest thing in the seed: 366k+ points across the book.
+    The old dict form spent 56 bytes each repeating four keys; the tuple
+    spends 19. That is ~13 MB off a 54 MB committed file, which matters
+    because GitHub hard-rejects anything over 100 MB and the file was a few
+    refreshes away from it.
+
+    `city` is dropped. A comment here used to claim OperatorProfilePDF.tsx
+    grouped points by city to place map labels — it does not, and no reader
+    has ever touched the field. The PDF draws bare circles and takes its
+    place names from the Mapbox basemap.
+
+    Accepts dicts (older per-market pipeline output) or tuples (current), so
+    a re-merge over mixed vintages is safe.
+    """
     out = []
     for p in points or []:
-        lat = p.get("lat")
-        lon = p.get("lon", p.get("lng"))
+        if isinstance(p, (list, tuple)):
+            if len(p) < 2:
+                continue
+            lat, lon = p[0], p[1]
+            n = p[2] if len(p) > 2 else 1
+        else:
+            lat = p.get("lat")
+            lon = p.get("lon", p.get("lng"))
+            n = p.get("n", 1)
         if lat is None or lon is None:
             continue  # drop malformed points
-        n = p.get("n", 1)
-        point = {
-            "lat": round(lat, COORD_DECIMALS),
-            "lon": round(lon, COORD_DECIMALS),
-            "n": n,
-        }
-        # Keep `city` when present — OperatorProfilePDF.tsx groups points
-        # by city to compute centroids for the PDF map's city labels.
-        # Dropping it would silently kill city labels on PDF maps for the
-        # markets that previously had them.
-        city = p.get("city")
-        if city:
-            point["city"] = city
-        out.append(point)
+        out.append([round(lat, COORD_DECIMALS), round(lon, COORD_DECIMALS), n])
     return out
 
 

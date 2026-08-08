@@ -4,6 +4,7 @@
 // returns null on any failure so the PDF always generates (SVG fallback).
 
 import type { ScorecardData } from "@/lib/types";
+import { readCoveragePoints } from "./coverage-points";
 import {
   footprintBounds,
   fitBoundsToCenterZoom,
@@ -67,8 +68,9 @@ export async function fetchCoverageMapImage(
   };
   if (!token) return fail({ reason: "no_token" });
 
+  const pts = readCoveragePoints(geo.coverageMapPoints);
   const bounds: Bounds | null =
-    footprintBounds(geo.coverageMapPoints) ??
+    footprintBounds(pts) ??
     (geo.mapBounds
       ? {
           west: geo.mapBounds.west,
@@ -110,7 +112,7 @@ export async function fetchCoverageMapImage(
       const view = { center, zoom, width, height };
       const inBox = (x: number, y: number) =>
         x >= 0 && x <= width && y >= 0 && y <= height;
-      const coveragePx: PixelN[] = (geo.coverageMapPoints ?? [])
+      const coveragePx: PixelN[] = pts
         .map((p) => {
           const { x, y } = projectToPixel({ lat: p.lat, lon: p.lon }, view);
           return { x, y, n: p.n };

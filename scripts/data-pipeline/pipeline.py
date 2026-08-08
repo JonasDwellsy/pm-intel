@@ -1131,25 +1131,25 @@ for norm in sorted(eligible_norms):
     else:
         cities_text = f"No cities observed in T12 for {MARKET_NAME} MSA"
 
-    # v0.6.4 Patch 5 — emit only the fields downstream consumers actually
-    # read: lat, lon (NOT lng — the in-page Mapbox map reads `p.lon`;
-    # emitting `lng` historically meant 63% of coverage dots silently
-    # failed to render), n (listing count at this point; defaults to 1
-    # per uru), and city (OperatorProfilePDF.tsx groups points by city
-    # to position the PDF map's city labels). Dropped: address
-    # (debug-only, never rendered) and type (assigned to GeoJSON
-    # properties but never read by any paint / tooltip / hover).
+    # Compact [lat, lon, n] tuples. Position, then the count at that point
+    # (always 1 per uru here; merge.py may coalesce). Nothing else is emitted.
+    #
+    # Dropped over time as verified-unused: address and type (v0.6.4), and now
+    # city. A long-lived comment here claimed city positioned "city labels" on
+    # the PDF map — that feature does not exist; the PDF draws bare circles and
+    # takes place names from the Mapbox basemap. Checked every reader before
+    # removing it.
+    #
+    # The tuple encoding is worth ~13 MB across the book — see
+    # normalize_coverage_points in merge.py for the full reasoning.
+    #
+    # NOTE the key is lon, not lng: the in-page Mapbox map reads `p.lon`, and
+    # emitting `lng` once meant 63% of coverage dots silently failed to render.
+    # Tuples make that class of mistake impossible.
     coverage_map_points = []
     for uru, meta in list(d["uru_meta"].items())[:200]:
         if meta["lat"] is not None and meta["lng"] is not None:
-            pt = {
-                "lat": meta["lat"],
-                "lon": meta["lng"],
-                "n": 1,
-            }
-            if meta.get("city"):
-                pt["city"] = meta["city"]
-            coverage_map_points.append(pt)
+            coverage_map_points.append([meta["lat"], meta["lng"], 1])
 
     pm_features[norm] = {
         "urus_t12_count": total_units,
