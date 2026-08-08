@@ -171,7 +171,7 @@ async function buildOrgListContext(orgId: string, base: string): Promise<OrgList
     for (const row of marketRows) {
       for (const dt of row.drillTargets) {
         metaBySlug.set(dt.pmSlug, {
-          name: row.name, marketLabel: dt.marketName,
+          name: row.name, marketLabel: dt.marketName, operatorKey: row.id,
           scorecardUrl: dt.href.startsWith("http") ? dt.href : `${base}${dt.href}`,
         });
       }

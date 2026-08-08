@@ -250,5 +250,6 @@ function emptyBreakdown(): ChangeBreakdown {
     submarketChanges: 0,
     concessionChanges: 0,
     eligibilityChanges: 0,
+    dormancyChanges: 0,
   };
 }

@@ -52,6 +52,12 @@ export interface SnapshotRow {
   topSubmarkets: string[];
   concessionRate: number | null;
   isEligibleForRanking: boolean;
+  /** v0.8 dormant tier (phase 3). Status at this snapshot and the plain
+   *  YYYY-MM-DD of the last observed listing. null on rows written before the
+   *  columns existed — the diff treats an unknown PRIOR status as "nothing to
+   *  report" so the first run after deploy doesn't fire for everyone at once. */
+  operatorStatus: "active" | "dormant" | null;
+  lastListingDate: string | null;
   /** 7-cell classification at this snapshot. null on rows written before the
    *  column existed. Read by the market-brief change block for cohort moves;
    *  the watch-list diff ignores it. */
@@ -180,6 +186,8 @@ export interface RawSnapshotRow {
   concessionRate: number | null;
   isEligibleForRanking: boolean;
   quadrant7Cell?: string | null;
+  operatorStatus?: string | null;
+  lastListingDate?: string | null;
 }
 
 /** Convert a Prisma OperatorSnapshot row into the SnapshotRow shape the pure
@@ -199,6 +207,16 @@ export function toSnapshotRow(row: RawSnapshotRow): SnapshotRow {
     concessionRate: row.concessionRate,
     isEligibleForRanking: row.isEligibleForRanking,
     quadrant7Cell: row.quadrant7Cell ?? null,
+    // Anything that isn't exactly "dormant" reads as unknown rather than
+    // active: an old row genuinely doesn't know, and claiming "active" would
+    // manufacture a resumed-listing alert the moment the column fills in.
+    operatorStatus:
+      row.operatorStatus === "dormant"
+        ? "dormant"
+        : row.operatorStatus === "active"
+          ? "active"
+          : null,
+    lastListingDate: row.lastListingDate ?? null,
   };
 }
 

@@ -40,6 +40,8 @@ function makeSnapshot(overrides: Partial<SnapshotRow> = {}): SnapshotRow {
     concessionRate: null,
     isEligibleForRanking: false,
     quadrant7Cell: null,
+    operatorStatus: "active" as const,
+    lastListingDate: null,
     ...overrides,
   };
 }

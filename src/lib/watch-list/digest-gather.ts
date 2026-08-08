@@ -1,7 +1,8 @@
 // Pure digest-gathering helpers — NO I/O, NO server-only imports, so they stay
 // unit-testable. The impure orchestration (Prisma + Clerk + SendGrid) lives in
 // digest-run.ts and imports these.
-import { diffSnapshots } from "./change-detection";
+import { diffSnapshots, type OperatorChange } from "./change-detection";
+import { applySimultaneityGuardrail, type DormancyEvent } from "./dormancy-guardrail";
 import type { SnapshotRow } from "./snapshot";
 import type { DigestListInput, DigestOperatorInput } from "./digest";
 import { canViewList, type ListAuthShape } from "./visibility";
@@ -16,6 +17,10 @@ export interface OperatorMeta {
   name: string;
   marketLabel: string;
   scorecardUrl: string;
+  /** Canonical operator id — the same operator across its markets. Only the
+   *  dormancy guardrail reads it, to tell "one market went quiet" apart from
+   *  "every market went quiet at once". */
+  operatorKey: string;
 }
 
 export function buildListChanges(args: {
@@ -25,7 +30,9 @@ export function buildListChanges(args: {
   priorBySlug: Map<string, SnapshotRow>;
   metaBySlug: Map<string, OperatorMeta>;
 }): DigestListInput {
-  const operators: DigestOperatorInput[] = [];
+  const draft: { pmSlug: string; meta: OperatorMeta; changes: OperatorChange[] }[] = [];
+  const dormancyEvents: DormancyEvent[] = [];
+
   for (const slug of args.matchedPmSlugs) {
     const cur = args.latestBySlug.get(slug);
     const prev = args.priorBySlug.get(slug);
@@ -33,7 +40,48 @@ export function buildListChanges(args: {
     if (!cur || !prev || !meta) continue; // need both snapshots + display meta
     const changes = diffSnapshots(prev, cur);
     if (changes.length === 0) continue;
-    operators.push({ pmSlug: slug, ...meta, changes });
+    draft.push({ pmSlug: slug, meta, changes });
+    for (const c of changes) {
+      if (c.type === "dormancy" && c.direction === "entered") {
+        dormancyEvents.push({
+          operatorKey: meta.operatorKey,
+          pmSlug: slug,
+          lastListingDate: c.lastListingDate,
+        });
+      }
+    }
+  }
+
+  // An operator whose markets ALL went quiet in the same fortnight is a
+  // coverage event, not thirteen separate operator decisions. Collapse those
+  // into one neutral note; leave genuinely per-market quiet alone.
+  const { suppressedPmSlugs, coverageNotes } =
+    applySimultaneityGuardrail(dormancyEvents);
+  // The note lands on one row per operator — the first by slug, so the same
+  // input always produces the same digest.
+  const noteCarrier = new Map<string, string>();
+  for (const e of [...dormancyEvents].sort((a, b) => a.pmSlug.localeCompare(b.pmSlug))) {
+    if (suppressedPmSlugs.has(e.pmSlug) && !noteCarrier.has(e.operatorKey)) {
+      noteCarrier.set(e.operatorKey, e.pmSlug);
+    }
+  }
+
+  const operators: DigestOperatorInput[] = [];
+  for (const d of draft) {
+    let changes = d.changes;
+    if (suppressedPmSlugs.has(d.pmSlug)) {
+      changes = changes.filter(
+        (c) => !(c.type === "dormancy" && c.direction === "entered")
+      );
+      const note = coverageNotes.get(d.meta.operatorKey);
+      if (note && noteCarrier.get(d.meta.operatorKey) === d.pmSlug) {
+        changes = [...changes, note];
+      }
+    }
+    // An operator whose ONLY change was a suppressed dormancy event now has
+    // nothing to report and drops out of the digest entirely.
+    if (changes.length === 0) continue;
+    operators.push({ pmSlug: d.pmSlug, ...d.meta, changes });
   }
   return { watchListName: args.watchListName, operators };
 }

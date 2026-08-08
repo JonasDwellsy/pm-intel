@@ -14,6 +14,8 @@ function snap(pmSlug: string, date: string, over: Partial<SnapshotRow> = {}): Sn
     estimatedPortfolioPoint: 100, estimatedPortfolioBand: "Low",
     topMSAs: [], topSubmarkets: [], concessionRate: null, isEligibleForRanking: true,
     quadrant7Cell: null,
+    operatorStatus: "active" as const,
+    lastListingDate: null,
     ...over,
   };
 }
@@ -41,9 +43,9 @@ test("buildListChanges diffs both-snapshot operators and drops no-change / half-
     ["b", snap("b", "2026-05-31")],
   ]);
   const meta = new Map([
-    ["a", { name: "Acme", marketLabel: "Chattanooga", scorecardUrl: "https://x/a" }],
-    ["b", { name: "Beta", marketLabel: "Nashville", scorecardUrl: "https://x/b" }],
-    ["c", { name: "Gamma", marketLabel: "Memphis", scorecardUrl: "https://x/c" }],
+    ["a", { name: "Acme", marketLabel: "Chattanooga", scorecardUrl: "https://x/a", operatorKey: "op-Acme" }],
+    ["b", { name: "Beta", marketLabel: "Nashville", scorecardUrl: "https://x/b", operatorKey: "op-Beta" }],
+    ["c", { name: "Gamma", marketLabel: "Memphis", scorecardUrl: "https://x/c", operatorKey: "op-Gamma" }],
   ]);
   const out = buildListChanges({
     watchListName: "L1", matchedPmSlugs: ["a", "b", "c"],

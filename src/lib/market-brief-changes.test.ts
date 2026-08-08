@@ -28,6 +28,8 @@ function snap(
     concessionRate: null,
     isEligibleForRanking: true,
     quadrant7Cell: null,
+    operatorStatus: "active" as const,
+    lastListingDate: null,
     ...o,
   };
 }

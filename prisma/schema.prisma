@@ -327,6 +327,18 @@ model OperatorSnapshot {
   // re-run populates them. Feeds the Momentum "Listing share" sparkline —
   // share per date = this ÷ the market's summed t12ListingsCount that date.
   t12ListingsCount     Int?
+  /// v0.8 dormant tier (phase 3). "active" | "dormant" at this snapshot, and
+  /// the plain YYYY-MM-DD of the operator's last observed listing. Stored so
+  /// the monthly digest can tell that an operator WENT quiet — a transition is
+  /// only visible by comparing two snapshots, and a watch-listed operator
+  /// going quiet used to produce silence, which is the worst possible outcome
+  /// for a monitoring product.
+  ///
+  /// Nullable: rows written before this existed carry null, and the diff
+  /// treats an unknown prior status as "no transition to report" rather than
+  /// inventing one on the first run after deploy.
+  operatorStatus       String?
+  lastListingDate      String?
   // 7-cell classification (quadrant7Cell) at this snapshot. Nullable: rows
   // written before this column lack it. Lets the market brief's "since last
   // period" change block detect cohort moves (e.g. Hybrid → Small MF/BTR)
