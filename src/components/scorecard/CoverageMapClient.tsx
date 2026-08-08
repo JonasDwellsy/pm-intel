@@ -5,7 +5,12 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import type { ScorecardData } from "@/lib/types";
 import { footprintBounds } from "@/lib/scorecard/coverage-map-geo";
 
-type CoveragePoint = ScorecardData["geographicCoverage"]["coverageMapPoints"][number];
+// Decoded shape — the raw prop may be tuples or legacy objects.
+import {
+  readCoveragePoints,
+  type CoveragePoint,
+  type CoverageMapPoint,
+} from "@/lib/scorecard/coverage-points";
 type BackdropPoint = { lat: number; lon: number };
 type MapBounds = NonNullable<ScorecardData["geographicCoverage"]["mapBounds"]>;
 
@@ -91,7 +96,8 @@ export function CoverageMapClient({
   fallbackMsa,
   fill = false,
 }: {
-  coveragePoints: CoveragePoint[];
+  /** Raw wire points (tuples, or legacy objects pre-reseed). */
+  coveragePoints: CoverageMapPoint[];
   backdropPoints: BackdropPoint[];
   mapBounds: MapBounds | undefined;
   accentColor: string;
@@ -138,7 +144,8 @@ export function CoverageMapClient({
 
     // Frame to the operator footprint; fall back to MSA bounds if the PM
     // has no plotted coverage points.
-    const fitTo = footprintBounds(coveragePoints) ?? mapBounds;
+    const decodedPoints = readCoveragePoints(coveragePoints);
+    const fitTo = footprintBounds(decodedPoints) ?? mapBounds;
 
     (async () => {
       try {
@@ -207,10 +214,10 @@ export function CoverageMapClient({
           }
 
           // Operator coverage on top
-          if (coveragePoints?.length) {
+          if (decodedPoints.length) {
             m.addSource("operator-coverage", {
               type: "geojson",
-              data: pointsToGeoJSON(coveragePoints, true),
+              data: pointsToGeoJSON(decodedPoints, true),
             });
             m.addLayer({
               id: "operator-coverage-circles",

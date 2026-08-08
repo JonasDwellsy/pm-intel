@@ -19,8 +19,19 @@
 //   FORCE_SEED=true npx prisma db seed       # always re-seed
 
 import crypto from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { PrismaClient } from "@prisma/client";
-import seedData from "../src/data/scorecard_data.json";
+// The seed blob is READ AT RUNTIME, not imported.
+//
+// `import seedData from "…/scorecard_data.json"` made TypeScript infer the
+// full literal type of a 42 MB JSON document on every type-check — enough to
+// exhaust the default heap, which is why CI carries
+// NODE_OPTIONS=--max-old-space-size=8192. Nothing downstream benefited: the
+// value is immediately cast (`as unknown as InputFile`), so the inferred type
+// was computed and thrown away.
+//
+// Reading it here costs one file read at seed time and returns the heap.
 // v0.24 — operator website enrichment (companyId → {website,phone,name}),
 // scraped from Dwellsy company pages by scripts/data-pipeline/enrich_company_websites.py.
 // Keyed by the same companyId the scorecard blob carries; missing/empty websites
@@ -176,7 +187,9 @@ type InputFile = {
   canonicalOperators?: Record<string, InputCanonicalOperator>;
 };
 
-const data = seedData as unknown as InputFile;
+const data = JSON.parse(
+  readFileSync(path.join(__dirname, "../src/data/scorecard_data.json"), "utf8")
+) as InputFile;
 
 // companyId → operator website, from the enrichment scrape. Normalized to an
 // absolute https URL so the scorecard header can use it as an href directly.

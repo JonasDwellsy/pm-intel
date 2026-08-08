@@ -9,6 +9,7 @@
 // canonical shape; downstream components read only from this shape.
 
 import type { ManagementModel } from "@/lib/management-model/resolve";
+import type { CoverageMapPoint } from "@/lib/scorecard/coverage-points";
 
 // 5-cell legacy taxonomy (v0.6.1 form). Kept for route segment back-compat.
 export type QuadrantKey =
@@ -266,12 +267,9 @@ export interface ScorecardData {
     // the PDF map's city-label centroid computation). See the
     // normalize_coverage_points() helper in scripts/data-pipeline/merge.py
     // for the migration logic.
-    coverageMapPoints: Array<{
-      lat: number;
-      lon: number;
-      n: number;
-      city?: string;
-    }>;
+    /** Compact [lat, lon, n] tuples. Legacy objects still decode — see
+     *  lib/scorecard/coverage-points.ts for why both shapes are read. */
+    coverageMapPoints: CoverageMapPoint[];
     mapCenter?: { lat: number; lon: number };
     mapBounds?: { north: number; south: number; east: number; west: number };
     msaBackdropPoints?: Array<{ lat: number; lon: number }>;
@@ -507,7 +505,7 @@ export interface PMListItem {
   rentVsComp: number | null;
   concessionRate: number | null;
   accentColor: string | null;
-  coverageMapPoints: Array<{ lat: number; lon: number; n: number }>;
+  coverageMapPoints: CoverageMapPoint[];
   /** v0.6.2 composite star (gold/silver/null) and cohort label — surfaced
    *  on the market landing operator cards. */
   compositeStar: StarLevel;
