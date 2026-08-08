@@ -45,7 +45,7 @@ import {
   getCoverageMarkets,
   type MarketCoverageEntry,
 } from "@/lib/markets-coverage";
-import { project, MAP_VIEWBOX } from "@/lib/markets-map-projection";
+import { project, snapToSvgPrecision, MAP_VIEWBOX } from "@/lib/markets-map-projection";
 
 const MARKER_RADIUS = 6;
 
@@ -167,6 +167,18 @@ function layoutMarkers(markets: MarketCoverageEntry[]): MarkerLayout[] {
       b.x += ux * push;
       b.y += uy * push;
     }
+  }
+
+  // Re-snap after the separation pass. project() rounds its own output, but
+  // this loop derives NEW coordinates from it and hands back full-precision
+  // floats — which is how 20 of 80 markers (the dense east-coast cluster)
+  // still carried 15-decimal cx/cy after the projection was fixed. Arithmetic
+  // here is IEEE-deterministic so those did not actually mismatch, but relying
+  // on that is a trap for whoever adds a trig-based layout tweak later. One
+  // grid, every marker, no exceptions.
+  for (const m of initial) {
+    m.x = snapToSvgPrecision(m.x);
+    m.y = snapToSvgPrecision(m.y);
   }
   return initial;
 }
