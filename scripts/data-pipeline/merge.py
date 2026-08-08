@@ -588,6 +588,46 @@ def propose_canonicals(merged, new_market_ids, baseline_canonical_path=None):
 # I/O
 # ---------------------------------------------------------------------------
 
+# How many timestamped snapshots of a given target to keep. Three covers the
+# realistic recovery need — "undo this merge", "undo the one before it" — while
+# staying bounded. Without a cap these accumulated to 1.6 GB of a 42 MB file
+# copied on every --apply, which is a slow-motion disk leak nobody notices
+# because .backups/ is gitignored and therefore invisible in git status.
+KEEP_BACKUPS = 3
+
+
+def prune_backups(backup_dir, base_name, keep=KEEP_BACKUPS):
+    """Delete all but the newest `keep` snapshots of one target file.
+
+    Sorted by the embedded timestamp via the filename, not mtime: a copied or
+    restored file can carry a misleading mtime, and the name is the thing that
+    actually records when the snapshot was taken.
+
+    Only ever touches files matching this exact target's snapshot pattern, so a
+    directory shared with other backups is left alone.
+    """
+    if not os.path.isdir(backup_dir):
+        return []
+    prefix, suffix = f"{base_name}.", ".bak"
+    snaps = sorted(
+        f for f in os.listdir(backup_dir)
+        if f.startswith(prefix) and f.endswith(suffix)
+    )
+    stale = snaps[:-keep] if keep > 0 else snaps
+    removed = []
+    for f in stale:
+        path = os.path.join(backup_dir, f)
+        try:
+            freed = os.path.getsize(path)
+            os.remove(path)
+            removed.append((f, freed))
+        except OSError as e:
+            # Never let cleanup fail a merge — the snapshot already succeeded
+            # and the merge output is what matters.
+            print(f"[merge] warn: could not remove old snapshot {f}: {e}")
+    return removed
+
+
 def snapshot_and_write(merged, target_path):
     if os.path.isfile(target_path):
         ts = time.strftime("%Y%m%dT%H%M%S")
@@ -596,10 +636,20 @@ def snapshot_and_write(merged, target_path):
         # accumulate 27MB cruft files between merges. Still gitignored.
         backup_dir = os.path.join(os.path.dirname(target_path), ".backups")
         os.makedirs(backup_dir, exist_ok=True)
-        backup_name = f"{os.path.basename(target_path)}.{ts}.bak"
+        base_name = os.path.basename(target_path)
+        backup_name = f"{base_name}.{ts}.bak"
         backup = os.path.join(backup_dir, backup_name)
         shutil.copyfile(target_path, backup)
         print(f"[merge] snapshot: {backup} ({os.path.getsize(backup):,} bytes)")
+        # Prune AFTER the new snapshot lands, so a failure above never leaves
+        # us having deleted history without writing a replacement.
+        removed = prune_backups(backup_dir, base_name)
+        if removed:
+            freed = sum(sz for _, sz in removed)
+            print(
+                f"[merge] pruned {len(removed)} old snapshot(s), "
+                f"freed {freed:,} bytes (keeping newest {KEEP_BACKUPS})"
+            )
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
     # Strip internal _merge_warnings before writing.
     out = {k: v for k, v in merged.items() if not k.startswith("_")}
