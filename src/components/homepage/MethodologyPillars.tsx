@@ -41,7 +41,7 @@ const PILLARS: Pillar[] = [
     eyebrow: "Operating signals",
     title: "Are they stressed or growing?",
     description:
-      "Days on market, tenant retention, rent trajectory, and concession use — leading indicators that signal whether an operator is positioned for growth, holding steady, or under stress. All metrics cohort-relative and reproducible from the underlying Dwellsy listing record.",
+      "Days on market, tenant retention, rent trajectory, and concession use — what an operator is doing in the market, visible without waiting to be told. All metrics cohort-relative and reproducible from the underlying Dwellsy listing record.",
     anchor: "/methodology#tenancy",
   },
   {
@@ -49,7 +49,7 @@ const PILLARS: Pillar[] = [
     eyebrow: "Footprint",
     title: "Where do they operate, and how concentrated?",
     description:
-      "Multi-market presence detection, top-city concentration, and canonical operator identity across markets. Critical for assessing geographic risk and platform fit.",
+      "Multi-market presence, top-city concentration, and canonical identity across markets — enough to tell a specialist with 80% of its units in one city from a platform stretched across nine. Both are real businesses; only one of them is deep in your market.",
     anchor: "/methodology#footprint",
   },
 ];
