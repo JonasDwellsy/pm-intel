@@ -29,7 +29,7 @@ const JOBS: Job[] = [
   },
   {
     eyebrow: "Evaluate",
-    title: "Know whether performance is actually good.",
+    title: "Know whether those numbers are good for this kind of operator.",
     description:
       "Benchmark an operator against peers facing the same market conditions, so every number arrives with the context to judge it.",
     linkLabel: "See a sample scorecard →",
@@ -52,8 +52,8 @@ export function SelectEvaluateMonitor() {
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">
         <HomepageSectionHead
           eyebrow="Three jobs, one independent standard"
-          title="Select the right operator. Evaluate it honestly. Monitor it continuously."
-          context="The same observed record answers all three, so the operator you shortlist is measured the same way as the one already running your assets."
+          title="The operator you might hire and the one already running your assets, measured the same way."
+          context="One observed record answers all three questions, so a shortlist and a performance review are never arguing from different numbers."
         />
         <div className="grid gap-6 md:grid-cols-3">
           {JOBS.map((job) => (

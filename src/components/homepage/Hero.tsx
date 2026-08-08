@@ -46,11 +46,10 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
             <span className="text-teal">Know where yours stand.</span>
           </h1>
           <p className="mt-6 max-w-[60ch] text-[17px] leading-[1.55] text-foreground/85 sm:text-[19px]">
-            Your property managers report on your assets. Operator IQ
-            independently benchmarks the managers themselves, measuring how
-            operators across the country actually perform in the market, so you
-            can choose the right one, get more from the ones you have, and
-            protect your yield.
+            Your property managers report on your assets. Operator IQ measures
+            the managers themselves — lease-up speed, tenant retention, rent
+            performance — for every operator in your market, from the listings
+            they ran.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             {/* Primary CTA — the sample scorecard. With no public operator
