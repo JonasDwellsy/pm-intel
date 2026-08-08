@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Market IQ Integration Plan · Dwellsy IQ Online</title>
+  <style>
+    :root{--navy:#0f1f3f;--navy2:#1a2d54;--teal:#1b6e8c;--teal-soft:#e1eef3;--orange:#d97834;--orange-soft:#fbeedf;--ink:#1a1a1a;--muted:#5c6573;--grid:#d5dbe3;--soft:#f2f5f8;--white:#fff;--good:#3e7c3e;--bad:#a63a2a}*{box-sizing:border-box}body{margin:0;background:var(--soft);color:var(--ink);font:15px/1.55 Inter,Arial,Helvetica,sans-serif}.top{background:linear-gradient(135deg,var(--navy),#173c5a);color:#fff;padding:52px 28px 64px}.top>div,.page{width:min(1180px,calc(100% - 40px));margin:auto}.brand{display:flex;align-items:center;gap:14px;font-weight:800;letter-spacing:-.02em}.brand i{color:#f2c528;font-style:normal}.brand span{width:1px;height:22px;background:#ffffff55}.brand small{font-size:13px;font-weight:600;color:#d7e1e8}.eyebrow{margin:50px 0 12px;color:#75c0d7;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.top h1{max-width:840px;margin:0;font-size:clamp(38px,6vw,68px);line-height:1.02;letter-spacing:-.05em}.top .lede{max-width:760px;margin:22px 0 0;color:#d8e3e9;font-size:18px}.decision{display:inline-flex;gap:9px;align-items:center;margin-top:28px;padding:9px 13px;border:1px solid #ffffff35;border-radius:999px;background:#ffffff12;font-size:12px;font-weight:700}.decision b{width:8px;height:8px;border-radius:50%;background:#65d29d}.page{padding:36px 0 80px}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}.card{background:#fff;border:1px solid var(--grid);border-radius:12px;padding:25px}.span4{grid-column:span 4}.span5{grid-column:span 5}.span7{grid-column:span 7}.span8{grid-column:span 8}.span12{grid-column:1/-1}.card h2{margin:0 0 7px;color:var(--navy);font-size:22px;letter-spacing:-.025em}.card h3{margin:0 0 6px;color:var(--navy);font-size:15px}.card p{margin:0;color:var(--muted)}.metric{display:flex;justify-content:space-between;align-items:flex-start}.metric strong{font-size:28px;color:var(--navy)}.pill{padding:6px 9px;border-radius:999px;background:var(--teal-soft);color:var(--teal);font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.pill.orange{background:var(--orange-soft);color:var(--orange)}.section-title{grid-column:1/-1;margin:30px 0 2px}.section-title span{display:block;color:var(--teal);font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.section-title h2{margin:5px 0 0;color:var(--navy);font-size:30px;letter-spacing:-.035em}.stack{display:grid;gap:9px;margin-top:17px}.stack div{display:grid;grid-template-columns:120px 1fr;gap:14px;padding-top:9px;border-top:1px solid #e7eaf0}.stack b{color:var(--navy);font-size:12px}.stack span{color:var(--muted);font-size:13px}.architecture{display:grid;grid-template-columns:1fr 46px 1fr 46px 1fr;align-items:stretch;margin-top:20px}.layer{padding:19px;border:1px solid var(--grid);border-radius:10px;background:#fff}.layer b{display:block;color:var(--navy);font-size:13px}.layer small{display:block;margin-top:6px;color:var(--muted)}.arrow{display:grid;place-items:center;color:var(--teal);font-size:20px}.module-list{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:16px}.module{padding:14px;border-radius:9px;background:var(--soft)}.module b{display:block;color:var(--navy);font-size:12px}.module small{display:block;margin-top:4px;color:var(--muted)}table{width:100%;border-collapse:collapse;margin-top:18px;font-size:13px}th{padding:10px 12px;background:var(--navy);color:#fff;text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase}td{padding:11px 12px;border-bottom:1px solid var(--grid);vertical-align:top}td:first-child{color:var(--navy);font-weight:700}.yes{color:var(--good);font-weight:800}.partial{color:var(--orange);font-weight:800}.no{color:var(--bad);font-weight:800}.route{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--teal);font-size:12px}.timeline{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}.phase{position:relative;padding:18px;border-top:3px solid var(--teal);background:var(--soft);border-radius:0 0 9px 9px}.phase:nth-child(2){border-color:#408ca5}.phase:nth-child(3){border-color:var(--orange)}.phase:nth-child(4){border-color:var(--good)}.phase span{font-size:10px;font-weight:800;color:var(--teal);letter-spacing:.1em}.phase h3{margin:7px 0}.phase p{font-size:12px}.guardrails{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}.guardrail{padding:15px;border-left:3px solid var(--orange);background:var(--orange-soft)}.guardrail b{display:block;color:var(--navy);font-size:12px}.guardrail small{display:block;margin-top:5px;color:#715337}.first-slice{background:linear-gradient(135deg,#f8fbfc,var(--teal-soft));border-color:#bdd5de}.first-slice ol{margin:18px 0 0;padding-left:20px;color:var(--muted)}.first-slice li{padding:5px 0}.footer{margin-top:32px;padding-top:18px;border-top:1px solid var(--grid);display:flex;justify-content:space-between;gap:20px;color:var(--muted);font-size:11px}@media(max-width:850px){.span4,.span5,.span7,.span8{grid-column:1/-1}.architecture{grid-template-columns:1fr}.arrow{height:38px;transform:rotate(90deg)}.timeline,.guardrails{grid-template-columns:1fr 1fr}}@media(max-width:560px){.top{padding:36px 10px 48px}.page{width:min(100% - 24px,1180px)}.module-list,.timeline,.guardrails{grid-template-columns:1fr}.stack div{grid-template-columns:1fr}.footer{display:block}}
+  </style>
+</head>
+<body>
+  <header class="top"><div>
+    <div class="brand">Dwellsy <i>IQ</i><span></span><small>Online platform architecture</small></div>
+    <p class="eyebrow">Integration decision · August 2026</p>
+    <h1>Market IQ becomes a native Dwellsy IQ Online module.</h1>
+    <p class="lede">Operator IQ is the platform foundation. Market IQ will reuse its identity, organizations, market entitlements, database, delivery infrastructure, design system, and operating controls while remaining a distinct decision workflow.</p>
+    <div class="decision"><b></b>Decision: consolidate, do not maintain a parallel application stack</div>
+  </div></header>
+
+  <main class="page"><div class="grid">
+    <section class="card span4"><div class="metric"><div><strong>1</strong><p>customer identity</p></div><span class="pill">Clerk</span></div></section>
+    <section class="card span4"><div class="metric"><div><strong>1</strong><p>organization workspace</p></div><span class="pill">Shared</span></div></section>
+    <section class="card span4"><div class="metric"><div><strong>2+</strong><p>intelligence modules</p></div><span class="pill orange">Entitled</span></div></section>
+
+    <div class="section-title"><span>Source of truth</span><h2>What the existing platform already provides</h2></div>
+    <section class="card span7">
+      <h2>Operator IQ production foundation</h2><p>The current application already solves the hard platform problems that Market IQ should not duplicate.</p>
+      <div class="stack">
+        <div><b>Application</b><span>Next.js 16 App Router, React 19, TypeScript, Vercel</span></div>
+        <div><b>Identity</b><span>Clerk users, organizations, invitations, middleware, webhook mirror</span></div>
+        <div><b>Data</b><span>Neon Postgres, Prisma schema and production migrations</span></div>
+        <div><b>Delivery</b><span>SendGrid composition, preferences, unsubscribe controls, Vercel Cron</span></div>
+        <div><b>Operations</b><span>Sentry, PostHog, Vercel Analytics, Speed Insights, admin controls</span></div>
+        <div><b>Experience</b><span>Dwellsy IQ tokens, shared header and footer, shadcn, Base UI, Radix</span></div>
+      </div>
+    </section>
+    <section class="card span5">
+      <h2>Verified access</h2><p>The integration branch is based on the current production source.</p>
+      <table><tbody>
+        <tr><td>Git source</td><td class="yes">Available</td></tr>
+        <tr><td>Vercel project</td><td class="yes">Available</td></tr>
+        <tr><td>Production domain</td><td>intel.iq.dwellsy.com</td></tr>
+        <tr><td>Neon configuration</td><td class="partial">Via Vercel, not pulled</td></tr>
+        <tr><td>Production mutation</td><td class="no">Intentionally untouched</td></tr>
+      </tbody></table>
+    </section>
+
+    <div class="section-title"><span>Target model</span><h2>One platform, several decision surfaces</h2></div>
+    <section class="card span12">
+      <div class="architecture">
+        <div class="layer"><b>Dwellsy IQ Online</b><small>Shared shell, identity, organizations, billing, administration, analytics</small></div><div class="arrow">→</div>
+        <div class="layer"><b>Product entitlement</b><small>Which IQ modules an organization can use</small></div><div class="arrow">→</div>
+        <div class="layer"><b>Market entitlement</b><small>Which geographies the organization can analyze</small></div>
+      </div>
+      <div class="module-list">
+        <div class="module"><b>Operator IQ</b><small>Select, screen, and monitor rental operators.</small></div>
+        <div class="module"><b>Market IQ</b><small>Monitor asking rents, supply, listing velocity, and segments.</small></div>
+        <div class="module"><b>Trends IQ</b><small>Provide authoritative market, city, and ZIP asking-rent trends.</small></div>
+        <div class="module"><b>Future IQ modules</b><small>Reuse the same organization and entitlement contract.</small></div>
+      </div>
+    </section>
+
+    <div class="section-title"><span>Boundaries</span><h2>Shared platform versus module-specific logic</h2></div>
+    <section class="card span6 span7">
+      <h2>Shared once</h2>
+      <table><thead><tr><th>Capability</th><th>Owner</th></tr></thead><tbody>
+        <tr><td>Users and sessions</td><td>Clerk</td></tr><tr><td>Organizations and membership</td><td>Clerk + Prisma mirror</td></tr><tr><td>Market grants</td><td>OrganizationMarketAccess</td></tr><tr><td>Email delivery</td><td>SendGrid service</td></tr><tr><td>Scheduled execution</td><td>Vercel Cron</td></tr><tr><td>Brand and navigation</td><td>Dwellsy IQ shell</td></tr><tr><td>Telemetry</td><td>Sentry + PostHog + Vercel</td></tr>
+      </tbody></table>
+    </section>
+    <section class="card span5">
+      <h2>Owned by Market IQ</h2>
+      <table><thead><tr><th>Capability</th><th>Boundary</th></tr></thead><tbody>
+        <tr><td>Trend observations</td><td>Source-dated by geography and segment</td></tr><tr><td>Listing observations</td><td>Live only when listing source is healthy</td></tr><tr><td>Watchlists</td><td>Organization-owned decision scopes</td></tr><tr><td>Market alerts</td><td>Material change detection</td></tr><tr><td>Briefings</td><td>Role-aware market narratives</td></tr><tr><td>Operator context</td><td>Teaser plus entitled Operator IQ deep links</td></tr>
+      </tbody></table>
+    </section>
+
+    <div class="section-title"><span>Information architecture</span><h2>Proposed native routes</h2></div>
+    <section class="card span12">
+      <table><thead><tr><th>Route</th><th>Purpose</th><th>Access</th></tr></thead><tbody>
+        <tr><td class="route">/market-iq</td><td>Opinionated market watchlist and current priorities</td><td>Market IQ product + at least one market</td></tr>
+        <tr><td class="route">/market-iq/markets/[marketId]</td><td>Market, city, ZIP, and segment analysis</td><td>Entitled market only</td></tr>
+        <tr><td class="route">/market-iq/watchlists</td><td>Saved geographies, segments, thresholds, and alert policies</td><td>Organization workspace</td></tr>
+        <tr><td class="route">/market-iq/briefings</td><td>Decision digest, delivery controls, and source history</td><td>Organization workspace</td></tr>
+        <tr><td class="route">/admin/products</td><td>Grant product modules to organizations</td><td>Dwellsy administrators</td></tr>
+      </tbody></table>
+    </section>
+
+    <div class="section-title"><span>Data contract</span><h2>Additive Prisma models, not a parallel database</h2></div>
+    <section class="card span12">
+      <table><thead><tr><th>Model</th><th>Responsibility</th><th>Important key</th></tr></thead><tbody>
+        <tr><td>OrganizationProductAccess</td><td>Module entitlement such as operator_iq or market_iq</td><td>organizationId + productKey</td></tr>
+        <tr><td>MarketWatchlist</td><td>Organization-owned geography and segment scope</td><td>organizationId + geography + segment</td></tr>
+        <tr><td>MarketSourceRun</td><td>Source health, dates, counts, and errors</td><td>source + observedAt</td></tr>
+        <tr><td>MarketObservation</td><td>Trend and historical metric series</td><td>geography + segment + metric + period</td></tr>
+        <tr><td>MarketAlert</td><td>Material supported change with provenance</td><td>alertKey</td></tr>
+        <tr><td>MarketBriefing</td><td>Source-signature-deduped role-aware edition</td><td>watchlistId + sourceSignature</td></tr>
+        <tr><td>MarketDigestPreference</td><td>Cadence, thresholds, recipient policy, and unsubscribe state</td><td>userId + organizationId</td></tr>
+      </tbody></table>
+    </section>
+
+    <div class="section-title"><span>Migration</span><h2>Move the validated product without carrying prototype constraints</h2></div>
+    <section class="card span12">
+      <div class="timeline">
+        <div class="phase"><span>PHASE 1</span><h3>Platform seam</h3><p>Product switcher, product grants, protected route, shared page shell, Cleveland seed.</p></div>
+        <div class="phase"><span>PHASE 2</span><h3>Decision core</h3><p>Watchlists, market metrics, rankings, segment comparisons, alert engine.</p></div>
+        <div class="phase"><span>PHASE 3</span><h3>Recurring value</h3><p>Briefing archive, role lens, SendGrid digest, Vercel Cron, delivery records.</p></div>
+        <div class="phase"><span>PHASE 4</span><h3>Live operations</h3><p>Listing ingestion after MCP health is proven, event persistence, monitoring.</p></div>
+      </div>
+    </section>
+
+    <div class="section-title"><span>Guardrails</span><h2>What the consolidation must not blur</h2></div>
+    <section class="card span12">
+      <div class="guardrails">
+        <div class="guardrail"><b>Source honesty</b><small>Trends, historical export, operator snapshots, and live listings keep separate source dates and claims.</small></div>
+        <div class="guardrail"><b>Operator IQ depth</b><small>Market IQ provides context and a teaser, never a second implementation of Operator IQ scorecards.</small></div>
+        <div class="guardrail"><b>Fail-closed access</b><small>Every premium read requires both product and market entitlement.</small></div>
+        <div class="guardrail"><b>No fabricated live feed</b><small>The listing ticker remains unavailable until the listing source succeeds and persisted events are verified.</small></div>
+        <div class="guardrail"><b>No production-first migration</b><small>Schema and UI changes land in a preview deployment before production data is touched.</small></div>
+        <div class="guardrail"><b>One delivery system</b><small>Market IQ reuses SendGrid and existing unsubscribe conventions instead of adding Resend.</small></div>
+      </div>
+    </section>
+
+    <div class="section-title"><span>Recommended first build</span><h2>A narrow slice that proves the architecture</h2></div>
+    <section class="card span12 first-slice">
+      <h2>Market IQ platform seam</h2><p>The first preview should prove shared identity, entitlement, navigation, design, and data access before porting the full dashboard.</p>
+      <ol>
+        <li>Add product entitlements with an additive Prisma migration and admin grant control.</li>
+        <li>Add a Dwellsy IQ product switcher that identifies Operator IQ and Market IQ without renaming stable Operator IQ routes.</li>
+        <li>Add a protected <span class="route">/market-iq</span> route using the current Clerk organization and market grants.</li>
+        <li>Render the Cleveland MSA overview using source-dated Dwellsy IQ trend and July historical baseline data.</li>
+        <li>Add source-health and methodology disclosures before any account-owned workflow.</li>
+        <li>Ship to a Vercel preview deployment with no production database mutation.</li>
+      </ol>
+    </section>
+
+    <div class="footer"><span>Dwellsy IQ Online · Market IQ integration specification</span><span>Branch: codex/market-iq-integration · Production untouched</span></div>
+  </div></main>
+</body>
+</html>
