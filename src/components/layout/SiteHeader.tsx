@@ -59,11 +59,11 @@ export async function SiteHeader() {
   const isSignedIn = await resolveSignedIn();
   return (
     <header className="sticky top-0 z-50 border-b border-grid bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
-      <div className="mx-auto flex h-[76px] max-w-[1440px] flex-nowrap items-center justify-between gap-4 px-6 sm:px-10">
+      <div className="mx-auto flex h-[60px] max-w-[1440px] flex-nowrap items-center justify-between gap-3 px-4 sm:h-[76px] sm:gap-4 sm:px-6 lg:px-10">
         <Link
           href="/"
           aria-label="Dwellsy IQ — Operator IQ"
-          className="flex shrink-0 items-center gap-4 whitespace-nowrap text-navy"
+          className="flex min-w-0 shrink items-center gap-2.5 whitespace-nowrap text-navy sm:shrink-0 sm:gap-4"
         >
           {/* Real Dwellsy IQ brand logo. Native asset is 1000×313 (3.2:1
               aspect); displayed at 48px height (h-12) so the "IQ"
@@ -85,12 +85,14 @@ export async function SiteHeader() {
             width={153}
             height={48}
             priority
-            className="h-12 w-auto"
+            className="h-9 w-auto sm:h-12"
           />
-          <span aria-hidden className="h-5 w-px bg-grid" />
-          <span className="text-sm font-semibold text-navy">Operator IQ</span>
+          <span aria-hidden className="hidden h-5 w-px bg-grid sm:block" />
+          <span className="hidden text-sm font-semibold text-navy sm:inline">
+            Operator IQ
+          </span>
         </Link>
-        <nav className="flex shrink-0 items-center gap-5">
+        <nav className="flex shrink-0 items-center gap-2 sm:gap-5">
           {/* Nav items render in the order declared by NAV_ITEMS
               (src/lib/nav.ts) — single source of truth shared with
               the footer. Watch Lists leads the order to surface the
@@ -229,14 +231,14 @@ export async function SiteHeader() {
           {isSignedIn ? (
             <Link
               href={PRIMARY_CTA.href}
-              className="inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-navy px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-navy-700"
+              className="inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-navy px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-navy-700 sm:px-3.5 sm:text-[13px]"
             >
               {PRIMARY_CTA.label}
             </Link>
           ) : (
             <a
               href="mailto:sales@dwellsy.com?subject=Operator%20IQ%20enterprise%20access"
-              className="inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-navy px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-navy-700"
+              className="inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-navy px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-navy-700 sm:px-3.5 sm:text-[13px]"
             >
               Request access →
             </a>

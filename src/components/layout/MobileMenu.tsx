@@ -66,20 +66,23 @@ export function MobileMenu({ isSignedIn }: { isSignedIn: boolean }) {
         aria-expanded={open}
         aria-controls="mobile-nav"
         aria-label={open ? "Close menu" : "Open menu"}
-        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-navy transition-colors hover:bg-surface-soft lg:hidden"
+        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-navy transition-colors hover:bg-surface-soft lg:hidden"
       >
         {open ? <CloseIcon /> : <HamburgerIcon />}
       </button>
 
       {open && (
         <>
-          {/* Backdrop covers everything BELOW the header (top: 76px
-              matches the header's h-[76px] frame). z-30 sits under
-              the menu panel's z-40 but over normal page content. */}
+          {/* Backdrop covers everything BELOW the header. The offset
+              tracks the header's own responsive height (60px on phones,
+              76px from sm up) — it used to hardcode 76px in two places,
+              which silently broke the moment the header got shorter on
+              mobile. z-30 sits under the menu panel's z-40 but over
+              normal page content. */}
           <div
             onClick={() => setOpen(false)}
             aria-hidden
-            className="fixed inset-0 top-[76px] z-30 bg-navy/30 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 top-[60px] z-30 bg-navy/30 backdrop-blur-sm sm:top-[76px] lg:hidden"
           />
 
           {/* Menu panel — drops down from below the header, full
@@ -88,7 +91,7 @@ export function MobileMenu({ isSignedIn }: { isSignedIn: boolean }) {
           <nav
             id="mobile-nav"
             aria-label="Primary navigation"
-            className="fixed inset-x-0 top-[76px] z-40 border-b border-grid bg-white shadow-lg lg:hidden"
+            className="fixed inset-x-0 top-[60px] z-40 max-h-[calc(100dvh-60px)] overflow-y-auto border-b border-grid bg-white shadow-lg sm:top-[76px] sm:max-h-[calc(100dvh-76px)] lg:hidden"
           >
             <div className="flex flex-col gap-1 px-6 py-4 sm:px-10">
               {NAV_ITEMS.map((item) => (
