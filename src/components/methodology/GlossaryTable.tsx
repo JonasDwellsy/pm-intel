@@ -1,6 +1,10 @@
 // Three-column definitional table used by the Glossary section (10). Reuses
 // the dq-table chrome but lets the table break the 680px reading measure
-// since terms + definitions read better with a wider column.
+// since terms + definitions read better with a wider column — TableScroll
+// keeps that extra width inside its own scroll box so the page itself never
+// scrolls sideways.
+
+import { TableScroll } from "./TableScroll";
 
 export type GlossaryRow = {
   term: string;
@@ -10,7 +14,7 @@ export type GlossaryRow = {
 
 export function GlossaryTable({ rows }: { rows: GlossaryRow[] }) {
   return (
-    <div className="-mx-1 overflow-x-auto">
+    <TableScroll bleed>
       <table className="dq-table">
         <thead>
           <tr>
@@ -33,6 +37,6 @@ export function GlossaryTable({ rows }: { rows: GlossaryRow[] }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </TableScroll>
   );
 }
