@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { TrackEvent } from "@/components/analytics/TrackEvent";
 import { Hero } from "@/components/homepage/Hero";
@@ -24,6 +25,7 @@ import { fmtInt, fmtNumber, fmtPct } from "@/lib/format";
 import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
 import { marketingDataSuppressed } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
+import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import type { ScorecardData } from "@/lib/types";
 
 const HOME_TITLE =
@@ -340,6 +342,13 @@ async function loadHeroCard(): Promise<SampleCard | null> {
 }
 
 export default async function HomePage() {
+  // The Market IQ integration branch should open on the module being
+  // reviewed. The environment flag is scoped to that one Vercel Preview
+  // branch, so production and every normal Operator IQ deployment continue
+  // to render this homepage exactly as before. Keep this before all Prisma
+  // reads so the preview redirect adds no Operator IQ database work.
+  if (marketIqPreviewEnabled()) redirect("/market-iq");
+
   const marketRows = await prisma.market.findMany({
     orderBy: { city: "asc" },
     include: {
