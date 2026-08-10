@@ -1,4 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import { auth } from "@clerk/nextjs/server";
+import { isAdminUser } from "@/lib/auth/is-admin";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { prisma } from "@/lib/prisma";
 
@@ -6,17 +8,20 @@ export const dynamic = "force-dynamic";
 const MARKET_ID = "cleveland-elyria-mentor-oh";
 const VALID_GEOGRAPHIES = new Set(["msa", "city", "zip"]);
 
-function authorized(request: Request) {
+async function authorized(request: Request) {
   const configured = process.env.MARKET_IQ_IMPORT_TOKEN;
   const supplied = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!configured || !supplied) return false;
-  const left = Buffer.from(configured);
-  const right = Buffer.from(supplied);
-  return left.length === right.length && timingSafeEqual(left, right);
+  if (configured && supplied) {
+    const left = Buffer.from(configured);
+    const right = Buffer.from(supplied);
+    if (left.length === right.length && timingSafeEqual(left, right)) return true;
+  }
+  const { userId } = await auth();
+  return isAdminUser(userId);
 }
 
 export async function POST(request: Request) {
-  if (!marketIqPreviewEnabled() || !authorized(request)) {
+  if (!marketIqPreviewEnabled() || !(await authorized(request))) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;

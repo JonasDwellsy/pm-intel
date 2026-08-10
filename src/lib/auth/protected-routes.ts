@@ -95,9 +95,9 @@ export const PUBLIC_BUYBOX_PATTERNS = [
   // /sign-in.
   "/watch-lists/new",
   "/api/watch-lists/preview",
-  // Machine-to-machine historical ingestion. The route is public only at the
-  // Clerk middleware layer because it uses a separate constant-time bearer
-  // secret, is preview-flagged, and is unavailable when that secret is absent.
+  // Preview-only ingestion. These routes are public only at the Clerk
+  // middleware layer so machine imports can use a constant-time bearer secret;
+  // the trends route also permits the existing signed-in admin allowlist.
   "/api/market-iq/import/history",
   "/api/market-iq/import/trends",
   // NOTE: the per-market brief (/property-managers/:state/:city/brief) used
