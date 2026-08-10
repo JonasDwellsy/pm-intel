@@ -39,6 +39,7 @@ export async function seedClevelandPilotPortfolio(formData: FormData): Promise<v
         isSynthetic: true,
       },
       update: {
+        marketId: CLEVELAND_PILOT_PORTFOLIO.marketId,
         name: CLEVELAND_PILOT_PORTFOLIO.name,
         ownerLabel: CLEVELAND_PILOT_PORTFOLIO.ownerLabel,
       },

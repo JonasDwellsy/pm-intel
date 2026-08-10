@@ -5,6 +5,7 @@ import test from "node:test";
 import { CLEVELAND_PILOT_PORTFOLIO } from "@/data/portfolio-iq/cleveland-pilot";
 
 test("Cleveland owner pilot contains five multifamily assets and four SFRs", () => {
+  assert.equal(CLEVELAND_PILOT_PORTFOLIO.marketId, "cleveland-elyria-mentor-oh");
   const multifamily = CLEVELAND_PILOT_PORTFOLIO.assets.filter((asset) => asset.assetType === "multifamily");
   const sfr = CLEVELAND_PILOT_PORTFOLIO.assets.filter((asset) => asset.assetType === "single_family");
   assert.equal(CLEVELAND_PILOT_PORTFOLIO.assets.length, 9);

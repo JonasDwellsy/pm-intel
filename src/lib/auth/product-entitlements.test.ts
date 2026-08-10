@@ -8,6 +8,7 @@ test("product entitlement grants only explicit modules", () => {
   const input = { isAdmin: false, grantedProductKeys: ["operator_iq"] };
   assert.equal(hasProductAccess(input, "operator_iq"), true);
   assert.equal(hasProductAccess(input, "market_iq"), false);
+  assert.equal(hasProductAccess(input, "portfolio_iq"), false);
 });
 
 test("product entitlement fails closed with no grants", () => {
@@ -20,6 +21,10 @@ test("product entitlement fails closed with no grants", () => {
 test("Dwellsy admins can preview every product", () => {
   assert.equal(
     hasProductAccess({ isAdmin: true, grantedProductKeys: [] }, "market_iq"),
+    true
+  );
+  assert.equal(
+    hasProductAccess({ isAdmin: true, grantedProductKeys: [] }, "portfolio_iq"),
     true
   );
 });

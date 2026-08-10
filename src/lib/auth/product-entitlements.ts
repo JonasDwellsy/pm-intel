@@ -1,4 +1,4 @@
-export const PRODUCT_KEYS = ["operator_iq", "market_iq"] as const;
+export const PRODUCT_KEYS = ["operator_iq", "market_iq", "portfolio_iq"] as const;
 export type ProductKey = (typeof PRODUCT_KEYS)[number];
 
 export function hasProductAccess(input: {

@@ -74,7 +74,7 @@ export const CLEVELAND_PILOT_PORTFOLIO: {
   slug: "synthetic-cleveland-owner-pilot",
   name: "Cleveland Owner Pilot",
   ownerLabel: "Synthetic owner scenario",
-  marketId: "cleveland-oh",
+  marketId: "cleveland-elyria-mentor-oh",
   assets: [
     {
       slug: "acadian-apartments",

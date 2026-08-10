@@ -52,6 +52,11 @@ export const PROTECTED_ROUTE_PATTERNS = [
   "/market-iq/:path*",
   "/api/market-iq/:path*",
 
+  // Portfolio IQ is the owner-scoped portfolio lens. It is separately
+  // entitled and remains invisible when its preview flag is disabled.
+  "/portfolio-iq",
+  "/portfolio-iq/:path*",
+
   // v0.21 — premium content. Per-operator scorecards, operator
   // profiles, and the AI /ask tool are the paid surface. State/market
   // LANDING pages stay public as a marketing wedge; the per-operator
