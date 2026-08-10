@@ -587,150 +587,165 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
             Similar local players
           </div>
 
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: "12px",
-            }}
-          >
-            <thead>
-              <tr>
-                {(["Operator", "Est. size", "Type", "Relative size", "Operating perf."] as const).map(
-                  (heading) => (
-                    <th
-                      key={heading}
-                      style={{
-                        textAlign: "left",
-                        fontSize: "9.5px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
-                        color: "#8894ac",
-                        padding: "5px 8px",
-                        borderBottom: "1px solid #e6eaf1",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {heading}
-                    </th>
-                  )
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {peers.map((peer) => (
-                <tr key={peer.slug}>
-                  {/* Operator name — links to that operator's scorecard
-                      (same MSA). The focal row stays plain text. */}
-                  <td
-                    style={{
-                      padding: "7px 8px",
-                      borderBottom: "1px solid #f0f2f6",
-                      color: peer.isFocal ? "#0f1f3f" : "#374356",
-                      fontWeight: peer.isFocal ? 600 : 400,
-                      background: peer.isFocal ? "#eef4f7" : "transparent",
-                    }}
-                  >
-                    {peer.isFocal ? (
-                      <>
-                        {peer.name}
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            color: "#8894ac",
-                            marginLeft: "6px",
-                          }}
-                        >
-                          (this operator)
-                        </span>
-                      </>
-                    ) : (
-                      <a
-                        href={peerHref(peer.slug)}
-                        style={{ color: "#155772", textDecoration: "none", fontWeight: 500 }}
+          {/* Five columns of peer data have a min-content width of ~412px,
+              which beats the table's `width: 100%` and used to drag the whole
+              page sideways on a 375px phone — the scorecard shifted, not just
+              the table. A table box cannot scroll itself; it needs a block
+              parent that clips.
+
+              Safe here because nothing inside escapes its own cell (the
+              relative-size bar is absolutely positioned inside a fixed
+              64x6 span). That matters: overflow-x:auto also computes
+              overflow-y to auto, which clips an in-flow popover — see
+              ColumnInfoTip, which portals to <body> for exactly that
+              reason. Anything popover-shaped added to this table must
+              portal out too. */}
+          <div style={{ overflowX: "auto" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: "12px",
+              }}
+            >
+              <thead>
+                <tr>
+                  {(["Operator", "Est. size", "Type", "Relative size", "Operating perf."] as const).map(
+                    (heading) => (
+                      <th
+                        key={heading}
+                        style={{
+                          textAlign: "left",
+                          fontSize: "9.5px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.04em",
+                          color: "#8894ac",
+                          padding: "5px 8px",
+                          borderBottom: "1px solid #e6eaf1",
+                          fontWeight: 600,
+                        }}
                       >
-                        {peer.name}
-                      </a>
-                    )}
-                  </td>
-
-                  {/* Estimated size */}
-                  <td
-                    style={{
-                      padding: "7px 8px",
-                      borderBottom: "1px solid #f0f2f6",
-                      color: peer.isFocal ? "#0f1f3f" : "#374356",
-                      fontWeight: peer.isFocal ? 600 : 400,
-                      background: peer.isFocal ? "#eef4f7" : "transparent",
-                    }}
-                  >
-                    {/* Band, not a point. Peer sizes are the least defensible
-                        numbers in this table and a column of exact figures
-                        invites comparisons the estimator can't support. */}
-                    {sizeBandLabel(peer.estimatedUnits) ?? "—"}
-                  </td>
-
-                  {/* Property type */}
-                  <td
-                    style={{
-                      padding: "7px 8px",
-                      borderBottom: "1px solid #f0f2f6",
-                      color: peer.isFocal ? "#0f1f3f" : "#374356",
-                      fontWeight: peer.isFocal ? 600 : 400,
-                      background: peer.isFocal ? "#eef4f7" : "transparent",
-                    }}
-                  >
-                    {peer.quadrant7Cell ?? "—"}
-                  </td>
-
-                  {/* Relative size bar */}
-                  <td
-                    style={{
-                      padding: "7px 8px",
-                      borderBottom: "1px solid #f0f2f6",
-                      background: peer.isFocal ? "#eef4f7" : "transparent",
-                    }}
-                  >
-                    {/* .simbar */}
-                    <span
+                        {heading}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {peers.map((peer) => (
+                  <tr key={peer.slug}>
+                    {/* Operator name — links to that operator's scorecard
+                        (same MSA). The focal row stays plain text. */}
+                    <td
                       style={{
-                        display: "inline-block",
-                        width: "64px",
-                        height: "6px",
-                        background: "#e6eef2",
-                        borderRadius: "4px",
-                        position: "relative",
-                        verticalAlign: "middle",
+                        padding: "7px 8px",
+                        borderBottom: "1px solid #f0f2f6",
+                        color: peer.isFocal ? "#0f1f3f" : "#374356",
+                        fontWeight: peer.isFocal ? 600 : 400,
+                        background: peer.isFocal ? "#eef4f7" : "transparent",
                       }}
                     >
+                      {peer.isFocal ? (
+                        <>
+                          {peer.name}
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              color: "#8894ac",
+                              marginLeft: "6px",
+                            }}
+                          >
+                            (this operator)
+                          </span>
+                        </>
+                      ) : (
+                        <a
+                          href={peerHref(peer.slug)}
+                          style={{ color: "#155772", textDecoration: "none", fontWeight: 500 }}
+                        >
+                          {peer.name}
+                        </a>
+                      )}
+                    </td>
+
+                    {/* Estimated size */}
+                    <td
+                      style={{
+                        padding: "7px 8px",
+                        borderBottom: "1px solid #f0f2f6",
+                        color: peer.isFocal ? "#0f1f3f" : "#374356",
+                        fontWeight: peer.isFocal ? 600 : 400,
+                        background: peer.isFocal ? "#eef4f7" : "transparent",
+                      }}
+                    >
+                      {/* Band, not a point. Peer sizes are the least defensible
+                          numbers in this table and a column of exact figures
+                          invites comparisons the estimator can't support. */}
+                      {sizeBandLabel(peer.estimatedUnits) ?? "—"}
+                    </td>
+
+                    {/* Property type */}
+                    <td
+                      style={{
+                        padding: "7px 8px",
+                        borderBottom: "1px solid #f0f2f6",
+                        color: peer.isFocal ? "#0f1f3f" : "#374356",
+                        fontWeight: peer.isFocal ? 600 : 400,
+                        background: peer.isFocal ? "#eef4f7" : "transparent",
+                      }}
+                    >
+                      {peer.quadrant7Cell ?? "—"}
+                    </td>
+
+                    {/* Relative size bar */}
+                    <td
+                      style={{
+                        padding: "7px 8px",
+                        borderBottom: "1px solid #f0f2f6",
+                        background: peer.isFocal ? "#eef4f7" : "transparent",
+                      }}
+                    >
+                      {/* .simbar */}
                       <span
                         style={{
-                          position: "absolute",
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: `${Math.round(peer.relativeSize * 100)}%`,
-                          background: "#1b6e8c",
+                          display: "inline-block",
+                          width: "64px",
+                          height: "6px",
+                          background: "#e6eef2",
                           borderRadius: "4px",
+                          position: "relative",
+                          verticalAlign: "middle",
                         }}
-                      />
-                    </span>
-                  </td>
+                      >
+                        <span
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            top: 0,
+                            bottom: 0,
+                            width: `${Math.round(peer.relativeSize * 100)}%`,
+                            background: "#1b6e8c",
+                            borderRadius: "4px",
+                          }}
+                        />
+                      </span>
+                    </td>
 
-                  {/* Operating performance chip */}
-                  <td
-                    style={{
-                      padding: "7px 8px",
-                      borderBottom: "1px solid #f0f2f6",
-                      background: peer.isFocal ? "#eef4f7" : "transparent",
-                    }}
-                  >
-                    <LabelChip label={peer.operatingLabel} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {/* Operating performance chip */}
+                    <td
+                      style={{
+                        padding: "7px 8px",
+                        borderBottom: "1px solid #f0f2f6",
+                        background: peer.isFocal ? "#eef4f7" : "transparent",
+                      }}
+                    >
+                      <LabelChip label={peer.operatingLabel} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
