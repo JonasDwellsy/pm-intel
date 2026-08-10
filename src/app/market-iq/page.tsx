@@ -5,6 +5,7 @@ import { isMarketEntitled, resolveViewerEntitlement } from "@/lib/auth/market-en
 import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
+import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server";
 import { parseJsonArray, type MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
 import { prisma } from "@/lib/prisma";
 
@@ -22,7 +23,10 @@ export default async function MarketIqPage() {
   const marketEntitlement = await resolveViewerEntitlement();
   if (!isMarketEntitled(marketEntitlement, CLEVELAND_MARKET_ID)) notFound();
 
-  const { organizationId } = await getActiveOrgContext();
+  const [{ organizationId }, historicalPulse] = await Promise.all([
+    getActiveOrgContext(),
+    loadClevelandHistoricalPulse(),
+  ]);
   let initialWatchlists: MarketIqWatchlistView[] = [];
   if (organizationId) {
     const rows = await prisma.marketIqWatchlist.findMany({
@@ -43,5 +47,5 @@ export default async function MarketIqPage() {
     }));
   }
 
-  return <ClevelandPilot initialWatchlists={initialWatchlists} />;
+  return <ClevelandPilot historicalPulse={historicalPulse} initialWatchlists={initialWatchlists} />;
 }

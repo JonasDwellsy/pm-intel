@@ -2,6 +2,7 @@ import Link from "next/link";
 import { clevelandPilot } from "@/data/market-iq/cleveland-pilot";
 import { fmtDate, fmtInt, fmtPct } from "@/lib/format";
 import type { MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
+import type { HistoricalListingPulse } from "@/lib/market-iq/historical";
 import { MarketWatchlistBuilder } from "@/components/market-iq/MarketWatchlistBuilder";
 
 function MetricCard({
@@ -24,8 +25,14 @@ function MetricCard({
   );
 }
 
-export function ClevelandPilot({ initialWatchlists = [] }: { initialWatchlists?: MarketIqWatchlistView[] }) {
-  const data = clevelandPilot;
+export function ClevelandPilot({
+  historicalPulse,
+  initialWatchlists = [],
+}: {
+  historicalPulse: HistoricalListingPulse;
+  initialWatchlists?: MarketIqWatchlistView[];
+}) {
+  const data = { ...clevelandPilot, ...historicalPulse };
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -56,7 +63,7 @@ export function ClevelandPilot({ initialWatchlists = [] }: { initialWatchlists?:
           </p>
         </div>
         <div className="rounded-lg border border-teal/25 bg-teal-soft px-4 py-3 text-sm text-navy">
-          <span className="font-semibold">Decision read:</span> entry-level apartments lead rent growth while new listing volume rose into the July cutoff.
+          <span className="font-semibold">Decision read:</span> {data.decisionRead}
         </div>
       </header>
 
@@ -71,10 +78,10 @@ export function ClevelandPilot({ initialWatchlists = [] }: { initialWatchlists?:
           </p>
         </div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Active at cutoff" value={fmtInt(data.historical.activeAtCutoff)} detail="Active listing records" />
-          <MetricCard label="New listings · 30d" value={fmtInt(data.historical.newListings30d)} detail={`${fmtPct(data.historical.newListingsChange, 1, true)} versus prior period`} />
-          <MetricCard label="Median days on market" value={`${data.historical.medianDom.toFixed(0)} days`} detail="Historical listing lifecycle" />
-          <MetricCard label="Median asking rent / sf" value={`$${data.historical.medianRentPerSqFt.toFixed(2)}`} detail="Listings with valid square footage" />
+          <MetricCard label="Active at cutoff" value={fmtInt(data.historical.activeAtCutoff)} detail="Active apartments and houses" />
+          <MetricCard label="New listings · 30d" value={fmtInt(data.historical.newListings30d)} detail={`${fmtPct(data.historical.newListingsChange, 1, true)} versus prior 30 days`} />
+          <MetricCard label="Median days on market" value={`${data.historical.medianDom.toFixed(0)} days`} detail="Active listings at export cutoff" />
+          <MetricCard label="Median asking rent / sf" value={`$${data.historical.medianRentPerSqFt.toFixed(2)}`} detail="Active listings with square footage" />
         </div>
       </section>
 
