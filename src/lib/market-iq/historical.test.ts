@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildHistoricalListingPulse, historicalWindows } from "./historical";
+import { buildHistoricalListingPulse, historicalWindows, resolveHistoricalAnalysisCutoff } from "./historical";
+
+test("uses the declared analysis cutoff instead of the later download date", () => {
+  const downloadDate = new Date("2026-08-07T00:00:00.000Z");
+  assert.equal(
+    resolveHistoricalAnalysisCutoff(downloadDate, '{"analysisCutoff":"2026-07-31"}').toISOString(),
+    "2026-07-31T00:00:00.000Z"
+  );
+  assert.equal(resolveHistoricalAnalysisCutoff(downloadDate, "{}").toISOString(), downloadDate.toISOString());
+  assert.equal(resolveHistoricalAnalysisCutoff(downloadDate, "invalid").toISOString(), downloadDate.toISOString());
+});
 
 test("uses an inclusive 30-day UTC window", () => {
   const windows = historicalWindows(new Date("2026-08-07T00:00:00.000Z"));

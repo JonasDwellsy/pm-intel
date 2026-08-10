@@ -51,6 +51,20 @@ function startOfUtcDay(value: Date) {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
 }
 
+export function resolveHistoricalAnalysisCutoff(availableThrough: Date, metadata: string): Date {
+  try {
+    const parsed = JSON.parse(metadata) as { analysisCutoff?: unknown };
+    if (typeof parsed.analysisCutoff !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(parsed.analysisCutoff)) {
+      return availableThrough;
+    }
+    const declared = new Date(`${parsed.analysisCutoff}T00:00:00.000Z`);
+    if (Number.isNaN(declared.getTime())) return availableThrough;
+    return declared < availableThrough ? declared : availableThrough;
+  } catch {
+    return availableThrough;
+  }
+}
+
 export function historicalWindows(availableThrough: Date) {
   const cutoffStart = startOfUtcDay(availableThrough);
   const cutoffEnd = new Date(cutoffStart.getTime() + 86_400_000 - 1);

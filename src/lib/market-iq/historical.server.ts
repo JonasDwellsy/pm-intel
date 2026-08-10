@@ -1,7 +1,7 @@
 import "server-only";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { prisma } from "@/lib/prisma";
-import { buildHistoricalListingPulse, historicalWindows } from "@/lib/market-iq/historical";
+import { buildHistoricalListingPulse, historicalWindows, resolveHistoricalAnalysisCutoff } from "@/lib/market-iq/historical";
 
 const CORE_PROPERTY_TYPES = ["apartment", "house"];
 
@@ -13,19 +13,21 @@ export async function loadClevelandHistoricalPulse() {
       status: "complete",
     },
     orderBy: { importedAt: "desc" },
-    select: { id: true, availableThrough: true, recordCount: true },
+    select: { id: true, availableThrough: true, recordCount: true, metadata: true },
   });
   if (!dataImport?.availableThrough) {
     throw new Error("Market IQ has no completed Cleveland historical import.");
   }
 
-  const { cutoffEnd, priorStart } = historicalWindows(dataImport.availableThrough);
+  const analysisCutoff = resolveHistoricalAnalysisCutoff(dataImport.availableThrough, dataImport.metadata);
+  const { cutoffEnd, priorStart } = historicalWindows(analysisCutoff);
   const [activeListings, recentListings] = await Promise.all([
     prisma.marketIqListing.findMany({
       where: {
         importId: dataImport.id,
         propertyType: { in: CORE_PROPERTY_TYPES },
-        listingStatus: "active",
+        activatedAt: { lte: cutoffEnd },
+        OR: [{ deactivatedAt: null }, { deactivatedAt: { gt: cutoffEnd } }],
       },
       select: { city: true, askingRent: true, squareFeet: true, activatedAt: true },
     }),
@@ -40,7 +42,7 @@ export async function loadClevelandHistoricalPulse() {
   ]);
 
   return buildHistoricalListingPulse({
-    availableThrough: dataImport.availableThrough,
+    availableThrough: analysisCutoff,
     recordCount: dataImport.recordCount,
     activeListings,
     recentListings,
