@@ -144,14 +144,15 @@ model PM {
 // the existing JSON-as-String pattern used for scorecardData on PM and
 // the quadrant summaries on Market — application code parses on read).
 model CanonicalOperator {
-  id             String   @id @default(cuid())
-  canonicalSlug  String   @unique
-  canonicalName  String
-  marketIds      String // JSON array of market ids
-  pmSlugs        String // JSON array of PM slugs
-  marketCount    Int
-  aggregateStats String // JSON blob with sum stats
-  createdAt      DateTime @default(now())
+  id                   String                          @id @default(cuid())
+  canonicalSlug        String                          @unique
+  canonicalName        String
+  marketIds            String // JSON array of market ids
+  pmSlugs              String // JSON array of PM slugs
+  marketCount          Int
+  aggregateStats       String // JSON blob with sum stats
+  createdAt            DateTime                        @default(now())
+  portfolioAssignments PortfolioIqOperatorAssignment[]
 }
 
 model Lead {
@@ -495,12 +496,13 @@ model Organization {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  memberships        OrganizationMembership[]
-  watchLists         WatchList[]
-  pendingWelcomes    PendingWelcome[]
-  marketAccess       OrganizationMarketAccess[]
-  productAccess      OrganizationProductAccess[]
-  marketIqWatchlists MarketIqWatchlist[]
+  memberships           OrganizationMembership[]
+  watchLists            WatchList[]
+  pendingWelcomes       PendingWelcome[]
+  marketAccess          OrganizationMarketAccess[]
+  productAccess         OrganizationProductAccess[]
+  marketIqWatchlists    MarketIqWatchlist[]
+  portfolioIqPortfolios PortfolioIqPortfolio[]
 
   // Hot lookups: "find personal org for user X" (already covered by
   // the @unique on personalForUserId) and "find org by Clerk id"
@@ -651,6 +653,133 @@ model MarketIqListing {
   @@index([marketId, activatedAt])
   @@index([marketId, city, postalCode])
   @@index([marketId, propertyType, bedrooms])
+}
+
+// Portfolio IQ is the connective owner/asset layer across Market IQ and
+// Operator IQ. These records are additive: they do not alter the operator
+// scorecards, rankings, or customer access paths used by Operator IQ.
+model PortfolioIqPortfolio {
+  id             String   @id @default(cuid())
+  organizationId String
+  marketId       String
+  slug           String
+  name           String
+  ownerLabel     String?
+  status         String   @default("activating") // activating | ready | archived
+  onboardingMode String   @default("assisted")
+  isSynthetic    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assets       PortfolioIqAsset[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, updatedAt(sort: Desc)])
+  @@index([marketId])
+}
+
+// One economic asset in an owner's portfolio. A multifamily community may
+// contain several physical buildings, while a single-family home is an asset
+// with one building. Dwellsy community and URU fields record real matching
+// state; the pilot never invents an identifier when one is not known.
+model PortfolioIqAsset {
+  id                         String   @id @default(cuid())
+  portfolioId                String
+  slug                       String
+  name                       String
+  assetType                  String // multifamily | single_family
+  suppliedAddress            String
+  canonicalAddress           String?
+  city                       String
+  state                      String
+  postalCode                 String
+  unitCount                  Int?
+  dwellsyCommunityId         String?
+  matchStatus                String   @default("needs_review") // matched | needs_review | unmatched
+  matchConfidence            Float?
+  readinessStatus            String   @default("needs_confirmation")
+  uruStatus                  String   @default("unknown") // observed | partial | needs_issuance | unknown
+  compSetStatus              String   @default("not_started") // ready | review | not_started
+  observedOperatorName       String?
+  operatorRelationshipStatus String   @default("observed")
+  sourceNote                 String?
+  sortOrder                  Int      @default(0)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  portfolio           PortfolioIqPortfolio            @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  buildings           PortfolioIqBuilding[]
+  operatorAssignments PortfolioIqOperatorAssignment[]
+  activationTasks     PortfolioIqActivationTask[]
+
+  @@unique([portfolioId, slug])
+  @@index([portfolioId, sortOrder])
+  @@index([dwellsyCommunityId])
+}
+
+model PortfolioIqBuilding {
+  id                 String   @id @default(cuid())
+  assetId            String
+  label              String?
+  suppliedAddress    String
+  canonicalAddress   String
+  city               String
+  state              String
+  postalCode         String
+  latitude           Float?
+  longitude          Float?
+  dwellsyCommunityId String?
+  isPrimary          Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  asset PortfolioIqAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, canonicalAddress])
+  @@index([assetId])
+}
+
+// Operator assignments are dated because a change in property manager is an
+// owner signal. The canonical link is optional: an observed source name can be
+// retained while the internal team resolves it to Operator IQ.
+model PortfolioIqOperatorAssignment {
+  id                   String    @id @default(cuid())
+  assetId              String
+  canonicalOperatorId  String?
+  observedOperatorName String
+  sourceKind           String    @default("dwellsy_observation")
+  verificationStatus   String    @default("observed")
+  effectiveFrom        DateTime?
+  effectiveTo          DateTime?
+  isCurrent            Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+
+  asset             PortfolioIqAsset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  canonicalOperator CanonicalOperator? @relation(fields: [canonicalOperatorId], references: [id], onDelete: SetNull)
+
+  @@index([assetId, isCurrent])
+  @@index([canonicalOperatorId])
+}
+
+// Internal assisted-onboarding queue. The customer sees a simple readiness
+// state; staff work these concrete tasks behind the scenes.
+model PortfolioIqActivationTask {
+  id           String    @id @default(cuid())
+  assetId      String
+  taskType     String // match_review | issue_uru | operator_outreach | comp_setup | customer_confirmation
+  status       String    @default("open") // open | in_progress | blocked | complete
+  assignedLane String    @default("activation_ops")
+  note         String?
+  dueAt        DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  asset PortfolioIqAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, taskType])
+  @@index([status, assignedLane])
+  @@index([assetId])
 }
 
 // v0.22 — explicit per-market grants for an organization. One row per
