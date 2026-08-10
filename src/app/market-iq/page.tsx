@@ -6,7 +6,7 @@ import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server";
-import { loadClevelandTrendPulse } from "@/lib/market-iq/trends.server";
+import { loadClevelandTrendPulses } from "@/lib/market-iq/trends.server";
 import { parseJsonArray, type MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
 import { prisma } from "@/lib/prisma";
 
@@ -24,10 +24,10 @@ export default async function MarketIqPage() {
   const marketEntitlement = await resolveViewerEntitlement();
   if (!isMarketEntitled(marketEntitlement, CLEVELAND_MARKET_ID)) notFound();
 
-  const [{ organizationId }, historicalPulse, trendPulse] = await Promise.all([
+  const [{ organizationId }, historicalPulse, trendPulses] = await Promise.all([
     getActiveOrgContext(),
     loadClevelandHistoricalPulse(),
-    loadClevelandTrendPulse(),
+    loadClevelandTrendPulses(),
   ]);
   let initialWatchlists: MarketIqWatchlistView[] = [];
   if (organizationId) {
@@ -49,5 +49,5 @@ export default async function MarketIqPage() {
     }));
   }
 
-  return <ClevelandPilot historicalPulse={historicalPulse} trendPulse={trendPulse} initialWatchlists={initialWatchlists} />;
+  return <ClevelandPilot historicalPulse={historicalPulse} trendPulses={trendPulses} initialWatchlists={initialWatchlists} />;
 }

@@ -17,14 +17,16 @@ function scopeLabel(watchlist: MarketIqWatchlistView) {
 
 export function MarketWatchlistBuilder({
   initialWatchlists,
+  selectedGeography,
 }: {
   initialWatchlists: MarketIqWatchlistView[];
+  selectedGeography?: { type: MarketIqGeographyType; value: string; label: string };
 }) {
   const [watchlists, setWatchlists] = useState(initialWatchlists);
   const [open, setOpen] = useState(initialWatchlists.length === 0);
-  const [name, setName] = useState("Cleveland core apartments");
-  const [geographyType, setGeographyType] = useState<MarketIqGeographyType>("msa");
-  const [geographyText, setGeographyText] = useState("");
+  const [name, setName] = useState(selectedGeography ? `${selectedGeography.label} market watch` : "Cleveland core apartments");
+  const [geographyType, setGeographyType] = useState<MarketIqGeographyType>(selectedGeography?.type ?? "msa");
+  const [geographyText, setGeographyText] = useState(selectedGeography?.type === "msa" ? "" : selectedGeography?.value ?? "");
   const [propertyTypes, setPropertyTypes] = useState<MarketIqPropertyType[]>(["apartment", "house"]);
   const [bedrooms, setBedrooms] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);

@@ -596,6 +596,29 @@ model MarketIqTrendObservation {
   @@index([marketId, propertyType, bedrooms, month])
 }
 
+// Material changes derived from authoritative trend snapshots. Alerts are
+// market-level facts and are filtered against organization watchlists at read
+// time, keeping one canonical event instead of duplicating it per customer.
+model MarketIqAlert {
+  id             String   @id @default(cuid())
+  fingerprint    String   @unique
+  marketId       String
+  sourceImportId String
+  geographyType  String
+  geographyValue String
+  propertyType   String
+  bedrooms       Int
+  signalType     String // yoy_growth | yoy_softening | monthly_move
+  severity       String // watch | material
+  headline       String
+  narrative      String
+  observedMonth  DateTime
+  createdAt      DateTime @default(now())
+
+  @@index([marketId, geographyType, geographyValue, observedMonth(sort: Desc)])
+  @@index([sourceImportId])
+}
+
 // Normalized asking-listing observation from an immutable Market IQ import.
 // This is not a lease, occupancy, or effective-rent record.
 model MarketIqListing {

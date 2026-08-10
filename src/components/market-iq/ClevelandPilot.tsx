@@ -1,10 +1,14 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { clevelandPilot } from "@/data/market-iq/cleveland-pilot";
 import { fmtDate, fmtInt, fmtPct } from "@/lib/format";
 import type { MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
 import type { HistoricalListingPulse } from "@/lib/market-iq/historical";
 import type { MarketIqTrendPulse } from "@/lib/market-iq/trends";
 import { MarketWatchlistBuilder } from "@/components/market-iq/MarketWatchlistBuilder";
+import { MarketIqDigestPanel } from "@/components/market-iq/MarketIqDigestPanel";
 
 function MetricCard({
   label,
@@ -28,14 +32,27 @@ function MetricCard({
 
 export function ClevelandPilot({
   historicalPulse,
-  trendPulse,
+  trendPulses,
   initialWatchlists = [],
 }: {
   historicalPulse: HistoricalListingPulse;
-  trendPulse: MarketIqTrendPulse | null;
+  trendPulses: MarketIqTrendPulse[];
   initialWatchlists?: MarketIqWatchlistView[];
 }) {
   const data = { ...clevelandPilot, ...historicalPulse };
+  const [selectedKey, setSelectedKey] = useState(
+    trendPulses[0] ? `${trendPulses[0].trendSource.geographyType}:${trendPulses[0].trendSource.geographyValue}` : ""
+  );
+  const trendPulse = trendPulses.find(
+    (pulse) => `${pulse.trendSource.geographyType}:${pulse.trendSource.geographyValue}` === selectedKey
+  ) ?? trendPulses[0] ?? null;
+  const selectedType = trendPulse?.trendSource.geographyType ?? "msa";
+  const typePulses = trendPulses.filter((pulse) => pulse.trendSource.geographyType === selectedType);
+
+  function selectType(type: string) {
+    const first = trendPulses.find((pulse) => pulse.trendSource.geographyType === type);
+    if (first) setSelectedKey(`${first.trendSource.geographyType}:${first.trendSource.geographyValue}`);
+  }
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -97,6 +114,25 @@ export function ClevelandPilot({
             </div>
             <p className="text-xs text-muted-foreground">Through {fmtDate(trendPulse.trendSource.availableThrough)}</p>
           </div>
+          <div className="mt-5 grid gap-3 rounded-lg border border-grid bg-surface-soft p-4 sm:grid-cols-2">
+            <label className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+              Geography level
+              <select value={selectedType} onChange={(event) => selectType(event.target.value)} className="mt-2 w-full rounded-md border border-grid bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-navy">
+                <option value="msa">Full market</option>
+                <option value="city">City</option>
+                <option value="zip">ZIP code</option>
+              </select>
+            </label>
+            <label className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+              Area
+              <select value={selectedKey} onChange={(event) => setSelectedKey(event.target.value)} className="mt-2 w-full rounded-md border border-grid bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-navy">
+                {typePulses.map((pulse) => {
+                  const key = `${pulse.trendSource.geographyType}:${pulse.trendSource.geographyValue}`;
+                  return <option key={key} value={key}>{pulse.trendSource.displayLabel}</option>;
+                })}
+              </select>
+            </label>
+          </div>
           <div className="mt-6 divide-y divide-grid">
             {trendPulse.segments.map((segment) => (
               <div key={segment.label} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-4 first:pt-0 last:pb-0">
@@ -123,6 +159,18 @@ export function ClevelandPilot({
             Alert status is based on the latest available Dwellsy IQ trend month, not the historical listing-export cutoff.
           </p>
         </aside>
+        {trendPulse.alerts.length > 0 && <div className="lg:col-span-2 rounded-lg border border-orange/25 bg-orange-soft p-5 sm:p-6">
+          <p className="dq-eyebrow text-orange-700">Material changes</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {trendPulse.alerts.map((alert) => <article key={alert.id} className="rounded-md border border-orange/20 bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="font-semibold text-navy">{alert.headline}</h3>
+                <span className="rounded-full bg-orange-soft px-2 py-1 text-[10px] font-bold uppercase text-orange-700">{alert.severity}</span>
+              </div>
+              <p className="mt-2 text-sm leading-5 text-foreground/75">{alert.narrative}</p>
+            </article>)}
+          </div>
+        </div>}
       </section> : <section aria-labelledby="segments-heading" className="mt-10 rounded-lg border border-grid bg-surface-soft p-6">
         <p className="dq-eyebrow">Asking-rent trends</p>
         <h2 id="segments-heading" className="dq-h2">Trend snapshot refresh in progress</h2>
@@ -162,7 +210,17 @@ export function ClevelandPilot({
         </div>
       </section>
 
-      <MarketWatchlistBuilder initialWatchlists={initialWatchlists} />
+      <MarketWatchlistBuilder
+        key={selectedKey || "market-iq-watchlist"}
+        initialWatchlists={initialWatchlists}
+        selectedGeography={trendPulse ? {
+          type: trendPulse.trendSource.geographyType as "msa" | "city" | "zip",
+          value: trendPulse.trendSource.geographyValue,
+          label: trendPulse.trendSource.displayLabel,
+        } : undefined}
+      />
+
+      <MarketIqDigestPanel />
 
       <section aria-labelledby="source-heading" className="mt-10 rounded-lg border border-orange/30 bg-orange-soft p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
