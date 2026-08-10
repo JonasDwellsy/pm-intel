@@ -566,9 +566,34 @@ model MarketIqDataImport {
   metadata         String    @default("{}")
   importedAt       DateTime  @default(now())
 
-  listings MarketIqListing[]
+  listings          MarketIqListing[]
+  trendObservations MarketIqTrendObservation[]
 
   @@index([marketId, importedAt(sort: Desc)])
+}
+
+// Normalized Dwellsy IQ rent-trend point. These observations come from the
+// authoritative rent-trends product, never from the historical listing export.
+// Geography is explicit so the same model supports MSA, city, and ZIP views.
+model MarketIqTrendObservation {
+  id              String   @id @default(cuid())
+  importId        String
+  marketId        String
+  geographyType   String // msa | city | zip
+  geographyValue  String
+  month           DateTime
+  propertyType    String // apartment | house
+  bedrooms        Int
+  observations    Int
+  askingRent      Float
+  yearOverYearPct Float?
+  createdAt       DateTime @default(now())
+
+  dataImport MarketIqDataImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@unique([importId, geographyType, geographyValue, month, propertyType, bedrooms])
+  @@index([marketId, geographyType, geographyValue, month])
+  @@index([marketId, propertyType, bedrooms, month])
 }
 
 // Normalized asking-listing observation from an immutable Market IQ import.

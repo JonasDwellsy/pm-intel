@@ -69,8 +69,9 @@ test("Market IQ preview routes require a Clerk session", () => {
   assert.equal(isGated("/api/market-iq/watchlists"), true);
 });
 
-test("Market IQ historical ingestion bypasses Clerk for bearer-token auth", () => {
+test("Market IQ ingestion bypasses Clerk only for bearer-token auth routes", () => {
   assert.equal(isGated("/api/market-iq/import/history"), false);
+  assert.equal(isGated("/api/market-iq/import/trends"), false);
   assert.equal(isGated("/api/market-iq/watchlists"), true);
 });
 

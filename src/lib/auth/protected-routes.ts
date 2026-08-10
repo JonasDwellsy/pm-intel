@@ -99,6 +99,7 @@ export const PUBLIC_BUYBOX_PATTERNS = [
   // Clerk middleware layer because it uses a separate constant-time bearer
   // secret, is preview-flagged, and is unavailable when that secret is absent.
   "/api/market-iq/import/history",
+  "/api/market-iq/import/trends",
   // NOTE: the per-market brief (/property-managers/:state/:city/brief) used
   // to be carved out here as public. It's now intentionally GATED — it falls
   // through to the protected :slug pattern above. Logged-out visitors get the

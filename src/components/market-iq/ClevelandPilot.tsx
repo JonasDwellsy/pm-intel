@@ -3,6 +3,7 @@ import { clevelandPilot } from "@/data/market-iq/cleveland-pilot";
 import { fmtDate, fmtInt, fmtPct } from "@/lib/format";
 import type { MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
 import type { HistoricalListingPulse } from "@/lib/market-iq/historical";
+import type { MarketIqTrendPulse } from "@/lib/market-iq/trends";
 import { MarketWatchlistBuilder } from "@/components/market-iq/MarketWatchlistBuilder";
 
 function MetricCard({
@@ -27,9 +28,11 @@ function MetricCard({
 
 export function ClevelandPilot({
   historicalPulse,
+  trendPulse,
   initialWatchlists = [],
 }: {
   historicalPulse: HistoricalListingPulse;
+  trendPulse: MarketIqTrendPulse | null;
   initialWatchlists?: MarketIqWatchlistView[];
 }) {
   const data = { ...clevelandPilot, ...historicalPulse };
@@ -85,17 +88,17 @@ export function ClevelandPilot({
         </div>
       </section>
 
-      <section aria-labelledby="segments-heading" className="mt-10 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
+      {trendPulse ? <section aria-labelledby="segments-heading" className="mt-10 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
         <div className="rounded-lg border border-grid bg-white p-5 sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="dq-eyebrow">Asking-rent trends</p>
               <h2 id="segments-heading" className="dq-h2">Apartments versus houses</h2>
             </div>
-            <p className="text-xs text-muted-foreground">Through {fmtDate(data.trendSource.availableThrough)}</p>
+            <p className="text-xs text-muted-foreground">Through {fmtDate(trendPulse.trendSource.availableThrough)}</p>
           </div>
           <div className="mt-6 divide-y divide-grid">
-            {data.segments.map((segment) => (
+            {trendPulse.segments.map((segment) => (
               <div key={segment.label} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-4 first:pt-0 last:pb-0">
                 <div>
                   <p className="font-medium text-navy">{segment.label}</p>
@@ -112,15 +115,19 @@ export function ClevelandPilot({
 
         <aside className="rounded-lg border border-grid bg-surface-soft p-5 sm:p-6">
           <p className="dq-eyebrow">Watch signal</p>
-          <h2 className="text-xl font-semibold tracking-tight text-navy">One-bedroom apartments are tightening</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-navy">{trendPulse.signal.heading}</h2>
           <p className="mt-3 text-sm leading-6 text-foreground/75">
-            Median asking rent reached $950, up 6.2% year over year. That is the strongest growth among the four pilot segments and is supported by 204 monthly observations.
+            {trendPulse.signal.narrative}
           </p>
           <p className="mt-5 border-t border-grid pt-4 text-xs leading-5 text-muted-foreground">
             Alert status is based on the latest available Dwellsy IQ trend month, not the historical listing-export cutoff.
           </p>
         </aside>
-      </section>
+      </section> : <section aria-labelledby="segments-heading" className="mt-10 rounded-lg border border-grid bg-surface-soft p-6">
+        <p className="dq-eyebrow">Asking-rent trends</p>
+        <h2 id="segments-heading" className="dq-h2">Trend snapshot refresh in progress</h2>
+        <p className="mt-2 text-sm text-muted-foreground">No trend values are substituted while the authoritative Dwellsy IQ snapshot is being loaded.</p>
+      </section>}
 
       <section aria-labelledby="places-heading" className="mt-10">
         <div>
