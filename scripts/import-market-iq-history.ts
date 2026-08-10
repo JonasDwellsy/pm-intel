@@ -2,10 +2,10 @@
  * Repeatable Market IQ historical-export loader.
  *
  * Dry run and schema profile (default):
- *   npm run market-iq:import-history -- --file /path/to/export.csv.zip --available-through 2026-07-31
+ *   npm run market-iq:import-history -- --file /path/to/export.csv.zip --available-through 2026-08-07 --analysis-cutoff 2026-07-31
  *
  * Apply to the currently configured database only after reviewing the profile:
- *   npm run market-iq:import-history -- --file /path/to/export.csv.zip --available-through 2026-07-31 --apply
+ *   npm run market-iq:import-history -- --file /path/to/export.csv.zip --available-through 2026-08-07 --analysis-cutoff 2026-07-31 --apply
  */
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -19,21 +19,23 @@ const BATCH_SIZE = 750;
 
 const aliases = {
   sourceRecordId: ["listing_id", "listingid", "id", "record_id", "rental_id", "property_listing_id"],
-  listingStatus: ["status", "listing_status", "active_status", "is_active"],
+  listingStatus: ["property_listing_status", "status", "listing_status", "active_status", "is_active"],
   address: ["address", "street_address", "full_address", "address_1", "street"],
-  city: ["city", "municipality", "locality"],
-  state: ["state", "state_code", "state_abbreviation"],
-  postalCode: ["zip", "zipcode", "zip_code", "postal_code"],
+  address2: ["address_2", "unit", "unit_number"],
+  city: ["address_city", "city", "municipality", "locality"],
+  state: ["address_state", "state", "state_code", "state_abbreviation"],
+  postalCode: ["address_zip", "zip", "zipcode", "zip_code", "postal_code"],
   latitude: ["latitude", "lat"],
   longitude: ["longitude", "lon", "lng"],
   askingRent: ["rent", "asking_rent", "price", "monthly_rent", "rent_amount"],
   squareFeet: ["square_feet", "squarefeet", "sqft", "square_footage", "living_area"],
   bedrooms: ["bedrooms", "beds", "bedroom_count"],
-  bathrooms: ["bathrooms", "baths", "bathroom_count"],
-  propertyType: ["property_type", "propertytype", "home_type", "listing_type", "rental_type"],
+  bathrooms: ["full_baths", "bathrooms", "baths", "bathroom_count"],
+  halfBathrooms: ["half_baths", "half_bathrooms"],
+  propertyType: ["uru_type", "address_type", "property_type", "propertytype", "home_type", "listing_type", "rental_type"],
   communityName: ["community", "community_name", "property_name", "building_name"],
   ownerName: ["owner", "owner_name", "ownership", "management_company", "company_name"],
-  activatedAt: ["activated_at", "activation_time", "active_date", "listed_at", "date_listed", "created_at"],
+  activatedAt: ["creation_time", "activated_at", "activation_time", "active_date", "listed_at", "date_listed", "created_at"],
   deactivatedAt: ["deactivated_at", "deactivation_time", "inactive_date", "delisted_at", "date_removed"],
 } as const;
 
@@ -46,7 +48,12 @@ function args() {
     const index = values.indexOf(flag);
     return index >= 0 ? values[index + 1] : undefined;
   };
-  return { file: read("--file"), availableThrough: read("--available-through"), apply: values.includes("--apply") };
+  return {
+    file: read("--file"),
+    availableThrough: read("--available-through"),
+    analysisCutoff: read("--analysis-cutoff"),
+    apply: values.includes("--apply"),
+  };
 }
 
 function normalizedHeader(value: string) {
@@ -94,8 +101,15 @@ function date(value: unknown) {
 function propertyType(value: unknown) {
   const result = (text(value) || "other").toLowerCase();
   if (/apartment|multifamily|multi_family|unit/.test(result)) return "apartment";
-  if (/house|single.family|sfr|home/.test(result)) return "house";
+  if (/^(house|single.family|sfr|home)$/.test(result)) return "house";
   return "other";
+}
+
+function bathrooms(row: RawRow, columns: Record<Field, string | undefined>) {
+  const full = number(value(row, columns, "bathrooms"));
+  const half = number(value(row, columns, "halfBathrooms"));
+  if (full === null && half === null) return null;
+  return (full || 0) + (half || 0) * 0.5;
 }
 
 function value(row: RawRow, columns: Record<Field, string | undefined>, field: Field) {
@@ -109,10 +123,123 @@ function sourceRecordId(row: RawRow, columns: Record<Field, string | undefined>)
   return createHash("sha256").update(JSON.stringify(row)).digest("hex");
 }
 
+function compactRawData(row: RawRow) {
+  const keys = [
+    "dwellsy_address_id",
+    "address1_id",
+    "address2_id",
+    "data_source_external_id",
+    "listing_id",
+    "community_id",
+    "uru_id",
+    "uru_type",
+    "address_type",
+    "msa_code",
+    "msa_name",
+    "year_built",
+    "full_baths",
+    "half_baths",
+  ];
+  return Object.fromEntries(keys.filter((key) => row[key] !== null && row[key] !== undefined).map((key) => [key, row[key]]));
+}
+
+function median(values: number[]) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function profile(rows: RawRow[], columns: Record<Field, string | undefined>, analysisCutoff?: string) {
+  const counts = (field: Field) => {
+    const result = new Map<string, number>();
+    for (const row of rows) {
+      const item = text(value(row, columns, field)) || "(blank)";
+      result.set(item, (result.get(item) || 0) + 1);
+    }
+    return Object.fromEntries([...result.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25));
+  };
+  const sourceIds = rows.map((row) => sourceRecordId(row, columns));
+  const activatedDates = rows.map((row) => date(value(row, columns, "activatedAt"))).filter((item): item is Date => item !== null);
+  const deactivatedDates = rows.map((row) => date(value(row, columns, "deactivatedAt"))).filter((item): item is Date => item !== null);
+  const cutoff = analysisCutoff ? new Date(`${analysisCutoff}T23:59:59.999Z`) : null;
+  const coreRows = rows.filter((row) => propertyType(value(row, columns, "propertyType")) !== "other");
+  const activeAtCutoff = cutoff
+    ? coreRows.filter((row) => {
+        const activated = date(value(row, columns, "activatedAt"));
+        const deactivated = date(value(row, columns, "deactivatedAt"));
+        return activated && activated <= cutoff && (!deactivated || deactivated > cutoff);
+      })
+    : [];
+  const cutoffDayStart = cutoff
+    ? new Date(Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth(), cutoff.getUTCDate()))
+    : null;
+  const currentPeriodStart = cutoffDayStart ? new Date(cutoffDayStart.getTime() - 29 * 86_400_000) : null;
+  const priorPeriodStart = currentPeriodStart ? new Date(currentPeriodStart.getTime() - 30 * 86_400_000) : null;
+  const currentNewListings = cutoff && currentPeriodStart
+    ? coreRows.filter((row) => {
+        const activated = date(value(row, columns, "activatedAt"));
+        return activated && activated >= currentPeriodStart && activated <= cutoff;
+      }).length
+    : null;
+  const priorNewListings = currentPeriodStart && priorPeriodStart
+    ? coreRows.filter((row) => {
+        const activated = date(value(row, columns, "activatedAt"));
+        return activated && activated >= priorPeriodStart && activated < currentPeriodStart;
+      }).length
+    : null;
+  const lifecycleDays = rows.flatMap((row) => {
+    const activated = date(value(row, columns, "activatedAt"));
+    const deactivated = date(value(row, columns, "deactivatedAt"));
+    return activated && deactivated && deactivated >= activated
+      ? [(deactivated.getTime() - activated.getTime()) / 86_400_000]
+      : [];
+  });
+  const activeRentPerSqFt = activeAtCutoff.flatMap((row) => {
+    const rent = number(value(row, columns, "askingRent"));
+    const squareFeet = number(value(row, columns, "squareFeet"));
+    return rent !== null && squareFeet !== null && squareFeet > 0 ? [rent / squareFeet] : [];
+  });
+  const activeDaysOnMarket = cutoff
+    ? activeAtCutoff.flatMap((row) => {
+        const activated = date(value(row, columns, "activatedAt"));
+        return activated ? [(cutoff.getTime() - activated.getTime()) / 86_400_000] : [];
+      })
+    : [];
+  return {
+    uniqueSourceRecordIds: new Set(sourceIds).size,
+    duplicateSourceRecordRows: rows.length - new Set(sourceIds).size,
+    propertyTypes: counts("propertyType"),
+    listingStatuses: counts("listingStatus"),
+    leadingCities: counts("city"),
+    activatedRange: activatedDates.length
+      ? [new Date(Math.min(...activatedDates.map(Number))).toISOString(), new Date(Math.max(...activatedDates.map(Number))).toISOString()]
+      : null,
+    deactivatedRange: deactivatedDates.length
+      ? [new Date(Math.min(...deactivatedDates.map(Number))).toISOString(), new Date(Math.max(...deactivatedDates.map(Number))).toISOString()]
+      : null,
+    validAskingRent: rows.filter((row) => number(value(row, columns, "askingRent")) !== null).length,
+    validSquareFeet: rows.filter((row) => number(value(row, columns, "squareFeet")) !== null).length,
+    validCoordinates: rows.filter((row) => number(value(row, columns, "latitude")) !== null && number(value(row, columns, "longitude")) !== null).length,
+    analysisCutoff: cutoff?.toISOString() || null,
+    rowsActivatedAfterCutoff: cutoff ? activatedDates.filter((item) => item > cutoff).length : null,
+    activeAtCutoff: activeAtCutoff.length,
+    newListings30d: currentNewListings,
+    priorNewListings30d: priorNewListings,
+    newListingsChangePct:
+      currentNewListings !== null && priorNewListings ? ((currentNewListings - priorNewListings) / priorNewListings) * 100 : null,
+    medianCompletedLifecycleDays: median(lifecycleDays),
+    medianActiveDaysOnMarket: median(activeDaysOnMarket),
+    medianActiveRentPerSqFt: median(activeRentPerSqFt),
+  };
+}
+
 async function main() {
   const options = args();
   if (!options.file) throw new Error("--file is required.");
-  if (options.apply && !options.availableThrough) throw new Error("--available-through is required with --apply.");
+  if (options.apply && (!options.availableThrough || !options.analysisCutoff)) {
+    throw new Error("--available-through and --analysis-cutoff are required with --apply.");
+  }
 
   const archive = readFileSync(options.file);
   const checksum = createHash("sha256").update(archive).digest("hex");
@@ -133,7 +260,21 @@ async function main() {
     headers,
     mappedColumns: columns,
     missingRequired,
-    sample: rows.slice(0, 2),
+    profile: profile(rows, columns, options.analysisCutoff),
+    sample: rows.slice(0, 2).map((row) => ({
+      listing_id: row.listing_id,
+      city: row.address_city,
+      zip: row.address_zip,
+      property_type: row.uru_type,
+      status: row.property_listing_status,
+      rent: row.rent_amount,
+      square_feet: row.square_feet,
+      bedrooms: row.bedrooms,
+      full_baths: row.full_baths,
+      half_baths: row.half_baths,
+      creation_time: row.creation_time,
+      deactivation_time: row.deactivation_time,
+    })),
   }, null, 2));
 
   if (missingRequired.length) {
@@ -157,7 +298,7 @@ async function main() {
         marketId: MARKET_ID,
         availableThrough: new Date(`${options.availableThrough}T00:00:00.000Z`),
         status: "loading",
-        metadata: JSON.stringify({ headers, mappedColumns: columns }),
+        metadata: JSON.stringify({ headers, mappedColumns: columns, analysisCutoff: options.analysisCutoff }),
       },
     });
 
@@ -168,7 +309,7 @@ async function main() {
           sourceRecordId: sourceRecordId(row, columns),
           marketId: MARKET_ID,
           listingStatus: text(value(row, columns, "listingStatus")),
-          address: text(value(row, columns, "address")),
+          address: [text(value(row, columns, "address")), text(value(row, columns, "address2"))].filter(Boolean).join(", ") || null,
           city: text(value(row, columns, "city")),
           state: text(value(row, columns, "state")),
           postalCode: text(value(row, columns, "postalCode")),
@@ -177,13 +318,13 @@ async function main() {
           askingRent: number(value(row, columns, "askingRent")),
           squareFeet: number(value(row, columns, "squareFeet")),
           bedrooms: number(value(row, columns, "bedrooms")),
-          bathrooms: number(value(row, columns, "bathrooms")),
+          bathrooms: bathrooms(row, columns),
           propertyType: propertyType(value(row, columns, "propertyType")),
           communityName: text(value(row, columns, "communityName")),
           ownerName: text(value(row, columns, "ownerName")),
           activatedAt: date(value(row, columns, "activatedAt")),
           deactivatedAt: date(value(row, columns, "deactivatedAt")),
-          rawData: JSON.stringify(row),
+          rawData: JSON.stringify(compactRawData(row)),
         }));
         await prisma.marketIqListing.createMany({ data: batch, skipDuplicates: true });
         console.log(`Loaded ${Math.min(start + batch.length, rows.length)} of ${rows.length}`);
