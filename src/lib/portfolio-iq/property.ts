@@ -79,7 +79,7 @@ export function propertyDecisionRead(input: {
   }
   const parts: string[] = [];
   if (input.askingRentVsComps !== null) {
-    parts.push(`observed asking rent is ${Math.abs(input.askingRentVsComps).toFixed(1)}% ${input.askingRentVsComps >= 0 ? "above" : "below"} the proposed comp median`);
+    parts.push(`observed asking rent is ${Math.abs(input.askingRentVsComps).toFixed(1)}% ${input.askingRentVsComps >= 0 ? "above" : "below"} the approved comp median`);
   }
   if (input.askingRentChange90d !== null) {
     parts.push(`recent asking rent is ${input.askingRentChange90d >= 0 ? "up" : "down"} ${Math.abs(input.askingRentChange90d).toFixed(1)}% versus the prior 90-day window`);

@@ -189,7 +189,7 @@ export default async function PortfolioIqPropertyPage({ params }: { params: Prom
       <section aria-labelledby="comparison-heading" className="mt-10 grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="rounded-lg border border-grid bg-white p-5 sm:p-6">
           <p className="dq-eyebrow">Portfolio IQ comparison</p>
-          <h2 id="comparison-heading" className="dq-h2">Subject versus proposed comps</h2>
+          <h2 id="comparison-heading" className="dq-h2">Subject versus {compEvidenceLocked ? "approved" : "proposed"} comps</h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <article className="rounded-lg border border-grid bg-surface-soft p-5">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Subject property</p>
