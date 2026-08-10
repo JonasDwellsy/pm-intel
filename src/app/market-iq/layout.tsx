@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Market IQ preview",
+  title: { absolute: "Market IQ preview · Dwellsy IQ" },
   description: "High-frequency asking-market intelligence from Dwellsy IQ.",
   robots: { index: false, follow: false },
 };

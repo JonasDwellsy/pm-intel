@@ -6,6 +6,7 @@ import * as Sentry from "@sentry/nextjs";
 import { MobileMenu } from "@/components/layout/MobileMenu";
 import { SearchInput } from "@/components/search/SearchInput";
 import { NAV_ITEMS, PRIMARY_CTA } from "@/lib/nav";
+import { ProductContextLabel } from "@/components/layout/ProductContextLabel";
 
 // v0.18 PR #72 hotfix — Resolve signed-in state via try/catch'd
 // `auth()` rather than Clerk's `<Show when="…">` server component.
@@ -89,7 +90,7 @@ export async function SiteHeader() {
           />
           <span aria-hidden className="hidden h-5 w-px bg-grid sm:block" />
           <span className="hidden text-sm font-semibold text-navy sm:inline">
-            Operator IQ
+            <ProductContextLabel />
           </span>
         </Link>
         <nav className="flex shrink-0 items-center gap-2 sm:gap-5">
