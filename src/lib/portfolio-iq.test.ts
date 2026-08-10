@@ -5,6 +5,8 @@ import test from "node:test";
 import { CLEVELAND_PILOT_PORTFOLIO } from "@/data/portfolio-iq/cleveland-pilot";
 import { proposeCompMembers } from "@/lib/portfolio-iq/comp-generator";
 import { buildSubjectPerformance, propertyDecisionRead } from "@/lib/portfolio-iq/property";
+import { buildPortfolioWatchDrafts } from "@/lib/portfolio-iq/watch";
+import { buildPortfolioIqDigest } from "@/lib/portfolio-iq/digest";
 
 test("Cleveland owner pilot contains five multifamily assets and four SFRs", () => {
   assert.equal(CLEVELAND_PILOT_PORTFOLIO.marketId, "cleveland-elyria-mentor-oh");
@@ -133,4 +135,47 @@ test("comp-review migration is additive and preserves every IQ source table", ()
   assert.match(sql, /ADD COLUMN "reviewedBy"/);
   assert.doesNotMatch(sql, /DROP\s+(TABLE|COLUMN)/i);
   assert.doesNotMatch(sql, /ALTER TABLE\s+"(?:PM|Market|WatchList|MarketIqListing)"/i);
+});
+
+test("Portfolio Watch gates comp-relative conclusions on locked evidence", () => {
+  const base = {
+    portfolioId: "p1", assetId: "a1", assetSlug: "asset", assetName: "Asset",
+    matchStatus: "matched", uruStatus: "observed", observationCount: 4,
+    askingRentVsComps: -12, askingRentChange90d: -4, medianDom: 55,
+    marketAlert: null, observedAt: new Date("2026-07-31"),
+  };
+  const proposed = buildPortfolioWatchDrafts({ ...base, compStatus: "proposed" });
+  assert.equal(proposed.some((signal) => signal.category === "performance"), false);
+  assert.equal(proposed.some((signal) => signal.signalType === "comp_review_pending"), true);
+  const locked = buildPortfolioWatchDrafts({ ...base, compStatus: "locked" });
+  assert.equal(locked.some((signal) => signal.signalType === "rent_below_comps"), true);
+  assert.equal(locked.some((signal) => signal.signalType === "rent_softening"), true);
+  assert.equal(locked.some((signal) => signal.signalType === "listing_velocity_slow"), true);
+});
+
+test("Portfolio Watch migration is additive and isolated from other IQ products", () => {
+  const sql = readFileSync(join(process.cwd(), "prisma/migrations/20260810240000_portfolio_iq_watch/migration.sql"), "utf8");
+  assert.match(sql, /CREATE TABLE "PortfolioIqSignal"/);
+  assert.match(sql, /CREATE TABLE "PortfolioIqDigestPreference"/);
+  assert.doesNotMatch(sql, /DROP\s+(TABLE|COLUMN)/i);
+  assert.doesNotMatch(sql, /ALTER TABLE\s+"(?:PM|Market|WatchList|MarketIqListing)"/i);
+});
+
+test("Portfolio IQ digest uses the same ranked signals and preserves asking-market limits", () => {
+  const digest = buildPortfolioIqDigest({
+    portfolioName: "Owner Portfolio",
+    recipientName: "Owner",
+    dashboardUrl: "https://example.com/portfolio-iq",
+    preview: true,
+    signals: [{
+      severity: "high", category: "performance", headline: "Rent is below comps",
+      narrative: "Observed asking rent is 10% below the locked comp median.",
+      ownerQuestion: "Should the manager test a higher asking rent?",
+      asset: { slug: "asset", name: "Asset" },
+    }],
+  });
+  assert.match(digest.subject, /^\[preview\] Portfolio IQ:/);
+  assert.match(digest.text, /Rent is below comps/);
+  assert.match(digest.text, /does not measure occupancy, signed leases, or effective rent/);
+  assert.equal(digest.signalCount, 1);
 });

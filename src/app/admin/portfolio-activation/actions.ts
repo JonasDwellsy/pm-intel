@@ -10,6 +10,7 @@ import {
   normalizedAddress,
   proposeCompMembers,
 } from "@/lib/portfolio-iq/comp-generator";
+import { refreshPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
 
 async function requireAdmin(): Promise<string> {
   const { userId } = await auth();
@@ -239,6 +240,25 @@ export async function seedClevelandPilotPortfolio(formData: FormData): Promise<v
 
   revalidatePath("/admin/portfolio-activation");
   revalidatePath("/portfolio-iq");
+  await refreshPortfolioWatchSignals(await portfolioIdForOrganization(organizationId));
+}
+
+async function portfolioIdForOrganization(organizationId: string): Promise<string> {
+  const portfolio = await prisma.portfolioIqPortfolio.findFirst({
+    where: { organizationId, slug: CLEVELAND_PILOT_PORTFOLIO.slug },
+    select: { id: true },
+  });
+  if (!portfolio) throw new Error("Portfolio not found after activation.");
+  return portfolio.id;
+}
+
+export async function refreshPortfolioWatch(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const portfolioId = String(formData.get("portfolioId") ?? "");
+  if (!portfolioId) throw new Error("Portfolio not found.");
+  await refreshPortfolioWatchSignals(portfolioId);
+  revalidatePath("/admin/portfolio-activation");
+  revalidatePath("/portfolio-iq");
 }
 
 const READINESS_STATUSES = new Set([
@@ -287,8 +307,9 @@ const COMP_EXCLUSION_REASONS = new Set([
 async function revalidateCompReview(assetId: string): Promise<void> {
   const asset = await prisma.portfolioIqAsset.findUnique({
     where: { id: assetId },
-    select: { slug: true },
+    select: { slug: true, portfolioId: true },
   });
+  if (asset) await refreshPortfolioWatchSignals(asset.portfolioId);
   revalidatePath("/admin/portfolio-activation");
   revalidatePath(`/admin/portfolio-activation/${assetId}`);
   revalidatePath("/portfolio-iq");

@@ -673,6 +673,8 @@ model PortfolioIqPortfolio {
 
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assets       PortfolioIqAsset[]
+  signals      PortfolioIqSignal[]
+  digestPreferences PortfolioIqDigestPreference[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -713,6 +715,7 @@ model PortfolioIqAsset {
   operatorAssignments PortfolioIqOperatorAssignment[]
   activationTasks     PortfolioIqActivationTask[]
   compSet             PortfolioIqCompSet?
+  signals             PortfolioIqSignal[]
 
   @@unique([portfolioId, slug])
   @@index([portfolioId, sortOrder])
@@ -835,6 +838,74 @@ model PortfolioIqCompMember {
   @@index([compSetId])
   @@index([compSetId, reviewStatus])
   @@index([sourceRecordId])
+}
+
+// Ranked, evidence-gated owner signals. Fingerprints make refreshes
+// idempotent and status preserves when an issue first appeared or resolved.
+model PortfolioIqSignal {
+  id            String    @id @default(cuid())
+  portfolioId   String
+  assetId       String?
+  fingerprint   String    @unique
+  signalType    String
+  category      String // performance | market | readiness
+  severity      String // high | medium | info
+  confidence    String // high | medium | setup
+  rankScore     Int
+  headline      String
+  narrative     String
+  ownerQuestion String?
+  evidence      String    @default("{}")
+  status        String    @default("active") // active | resolved
+  observedAt    DateTime
+  firstSeenAt   DateTime  @default(now())
+  lastSeenAt    DateTime  @default(now())
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  asset     PortfolioIqAsset?     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, status, rankScore(sort: Desc)])
+  @@index([assetId, status])
+  @@index([observedAt(sort: Desc)])
+}
+
+model PortfolioIqDigestPreference {
+  id              String    @id @default(cuid())
+  portfolioId     String
+  organizationId  String
+  userId          String
+  enabled         Boolean   @default(false)
+  cadence         String    @default("weekly")
+  lastDeliveredAt DateTime?
+  lastSignalAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  portfolio PortfolioIqPortfolio        @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  deliveries PortfolioIqDigestDelivery[]
+
+  @@unique([portfolioId, userId])
+  @@index([organizationId, enabled])
+}
+
+model PortfolioIqDigestDelivery {
+  id             String    @id @default(cuid())
+  preferenceId   String
+  signalCutoff   DateTime
+  email          String
+  status         String
+  providerId     String?
+  error          String?
+  deliveredAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  preference PortfolioIqDigestPreference @relation(fields: [preferenceId], references: [id], onDelete: Cascade)
+
+  @@unique([preferenceId, signalCutoff])
+  @@index([status, createdAt(sort: Desc)])
 }
 
 // v0.22 — explicit per-market grants for an organization. One row per

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   seedClevelandPilotPortfolio,
+  refreshPortfolioWatch,
   updateActivationTaskStatus,
   updateAssetReadiness,
 } from "./actions";
@@ -146,6 +147,10 @@ export default async function PortfolioActivationPage() {
                   <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-sky-800">
                     {portfolio.status}
                   </span>
+                  <form action={refreshPortfolioWatch}>
+                    <input type="hidden" name="portfolioId" value={portfolio.id} />
+                    <button className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy hover:bg-surface-soft">Refresh Portfolio Watch</button>
+                  </form>
                 </div>
               </div>
 

@@ -9,6 +9,10 @@ import { portfolioIqPreviewEnabled } from "@/lib/portfolio-iq/feature";
 import { loadPortfolioIqHome } from "@/lib/portfolio-iq/home.server";
 import type { HistoricalListingPulse, MarketIqPlacePulse } from "@/lib/market-iq/historical";
 import type { MarketIqTrendPulse } from "@/lib/market-iq/trends";
+import { loadPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
+import { prisma } from "@/lib/prisma";
+import { updatePortfolioDigestPreference } from "./actions";
+import { PortfolioWatchDigestPanel } from "@/components/portfolio-iq/PortfolioWatchDigestPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -79,9 +83,13 @@ export default async function PortfolioIqPage() {
   const entitlement = await resolveViewerEntitlement();
   if (!isMarketEntitled(entitlement, portfolio.marketId)) notFound();
 
-  const [historicalPulse, trendPulses] = await Promise.all([
+  const [historicalPulse, trendPulses, portfolioSignals, digestPreference] = await Promise.all([
     loadClevelandHistoricalPulse().catch(() => null as HistoricalListingPulse | null),
     loadClevelandTrendPulses().catch(() => [] as MarketIqTrendPulse[]),
+    loadPortfolioWatchSignals(portfolio.id),
+    prisma.portfolioIqDigestPreference.findUnique({
+      where: { portfolioId_userId: { portfolioId: portfolio.id, userId } },
+    }),
   ]);
 
   const assets = portfolio.assets;
@@ -185,6 +193,43 @@ export default async function PortfolioIqPage() {
             </ol>
           </div>
         </div>
+      </section>
+
+      <section id="portfolio-watch" aria-labelledby="portfolio-watch-heading" className="mt-10 scroll-mt-24">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="dq-eyebrow">Portfolio Watch</p>
+            <h2 id="portfolio-watch-heading" className="dq-h2">What needs a decision</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Signals are ranked by owner relevance. Performance conclusions require matched subject observations and a locked comp set; setup gaps remain clearly labeled as readiness items.</p>
+          </div>
+          <div className="flex gap-2 text-xs">
+            <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 font-semibold text-rose-800">{portfolioSignals.filter((signal) => signal.severity === "high").length} high priority</span>
+            <span className="rounded-full border border-grid bg-surface-soft px-3 py-1 font-semibold text-navy">{portfolioSignals.length} active</span>
+          </div>
+        </div>
+        {portfolioSignals.length ? (
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {portfolioSignals.slice(0, 8).map((signal) => {
+              const isNew = !digestPreference?.lastSignalAt || signal.firstSeenAt > digestPreference.lastSignalAt;
+              const severityClass = signal.severity === "high" ? "border-rose-200 bg-rose-50/40" : signal.severity === "medium" ? "border-amber-200 bg-amber-50/35" : "border-grid bg-white";
+              return (
+                <article key={signal.id} className={`rounded-xl border p-5 ${severityClass}`}>
+                  <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.1em]">
+                    <span className={signal.severity === "high" ? "text-rose-800" : "text-teal-700"}>{signal.category}</span>
+                    <span className="text-muted-foreground">{signal.confidence === "setup" ? "Setup signal" : `${signal.confidence} confidence`}</span>
+                    {isNew && <span className="rounded-full bg-navy px-2 py-0.5 text-white">New</span>}
+                  </div>
+                  <h3 className="mt-2 text-lg font-semibold leading-6 text-navy">{signal.headline}</h3>
+                  <p className="mt-2 text-sm leading-6 text-foreground/75">{signal.narrative}</p>
+                  {signal.ownerQuestion && <p className="mt-3 border-t border-grid pt-3 text-sm font-medium leading-6 text-navy"><span className="font-bold">Question for your team:</span> {signal.ownerQuestion}</p>}
+                  {signal.asset && <Link href={`/portfolio-iq/properties/${signal.asset.slug}`} className="mt-4 inline-flex text-sm font-semibold text-teal-700 hover:underline">Open {signal.asset.name} →</Link>}
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-5 rounded-xl border border-dashed border-grid px-6 py-10 text-center text-sm text-muted-foreground">Portfolio Watch is awaiting its first evidence refresh.</div>
+        )}
       </section>
 
       <section aria-label="Portfolio summary" className="mt-8 overflow-hidden rounded-lg border border-grid bg-white shadow-sm">
@@ -344,6 +389,25 @@ export default async function PortfolioIqPage() {
             <Link href="/market-iq" className="rounded-md border border-grid bg-white px-4 py-2 text-sm font-semibold text-navy hover:bg-surface-soft">Market IQ</Link>
             <Link href="/property-managers" className="rounded-md border border-grid bg-white px-4 py-2 text-sm font-semibold text-navy hover:bg-surface-soft">Operator IQ</Link>
           </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="portfolio-digest-heading" className="mt-10 rounded-xl border border-teal/25 bg-teal-soft p-5 sm:p-6">
+        <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div>
+            <p className="dq-eyebrow">Weekly narrative</p>
+            <h2 id="portfolio-digest-heading" className="dq-h2">Bring the decisions to your inbox</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Portfolio IQ sends only when a new signal appears and the weekly cadence is due. The email uses the same ranked evidence shown above.</p>
+            <form action={updatePortfolioDigestPreference} className="mt-4 flex flex-wrap items-center gap-3">
+              <input type="hidden" name="portfolioId" value={portfolio.id} />
+              <label className="flex items-center gap-2 text-sm font-medium text-navy">
+                <input type="checkbox" name="enabled" defaultChecked={digestPreference?.enabled ?? false} />
+                Email me the weekly Portfolio Watch
+              </label>
+              <button className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white">Save preference</button>
+            </form>
+          </div>
+          <PortfolioWatchDigestPanel />
         </div>
       </section>
     </main>
