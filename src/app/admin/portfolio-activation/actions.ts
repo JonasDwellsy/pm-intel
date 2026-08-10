@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { prisma } from "@/lib/prisma";
 import { CLEVELAND_PILOT_PORTFOLIO } from "@/data/portfolio-iq/cleveland-pilot";
+import { proposeCompMembers } from "@/lib/portfolio-iq/comp-generator";
 
 async function requireAdmin(): Promise<void> {
   const { userId } = await auth();
@@ -21,6 +22,45 @@ export async function seedClevelandPilotPortfolio(formData: FormData): Promise<v
     select: { id: true },
   });
   if (!organization) throw new Error("Organization not found.");
+
+  const historicalImport = await prisma.marketIqDataImport.findFirst({
+    where: {
+      marketId: CLEVELAND_PILOT_PORTFOLIO.marketId,
+      sourceKind: "historical_export",
+      status: "complete",
+    },
+    orderBy: { importedAt: "desc" },
+    select: { id: true },
+  });
+  const candidateSelect = {
+    sourceRecordId: true,
+    address: true,
+    communityName: true,
+    city: true,
+    state: true,
+    postalCode: true,
+    propertyType: true,
+    bedrooms: true,
+    bathrooms: true,
+    askingRent: true,
+    squareFeet: true,
+    activatedAt: true,
+  } as const;
+  const historicalCandidates = historicalImport
+    ? (await Promise.all(["apartment", "house"].map((propertyType) =>
+        prisma.marketIqListing.findMany({
+          where: {
+            importId: historicalImport.id,
+            propertyType,
+            address: { not: null },
+            askingRent: { not: null },
+          },
+          orderBy: { activatedAt: "desc" },
+          take: 3000,
+          select: candidateSelect,
+        })
+      ))).flat()
+    : [];
 
   await prisma.$transaction(async (tx) => {
     const portfolio = await tx.portfolioIqPortfolio.upsert({
@@ -137,10 +177,63 @@ export async function seedClevelandPilotPortfolio(formData: FormData): Promise<v
           update: { note: task.note },
         });
       }
+
+      if (historicalImport) {
+        const existingCompSet = await tx.portfolioIqCompSet.findUnique({
+          where: { assetId: asset.id },
+          select: { id: true },
+        });
+        if (!existingCompSet) {
+          const propertyType = source.assetType === "single_family" ? "house" : "apartment";
+          const members = proposeCompMembers({
+            subjectAddresses: source.buildings.flatMap((building) => [
+              building.suppliedAddress,
+              building.canonicalAddress,
+            ]),
+            city: source.city,
+            postalCode: source.postalCode,
+            candidates: historicalCandidates.filter((candidate) => candidate.propertyType === propertyType),
+          });
+          if (members.length > 0) {
+            await tx.portfolioIqCompSet.create({
+              data: {
+                assetId: asset.id,
+                name: `${source.name} proposed comp set`,
+                status: "proposed",
+                methodology: "Latest distinct asking listings prioritized by same ZIP, then same city, then Cleveland MSA fallback.",
+                sourceImportId: historicalImport.id,
+                members: {
+                  create: members.map((member) => ({
+                    comparisonKey: member.comparisonKey,
+                    sourceRecordId: member.sourceRecordId,
+                    propertyLabel: member.propertyLabel,
+                    address: member.address as string,
+                    city: member.city,
+                    state: member.state,
+                    postalCode: member.postalCode,
+                    propertyType: member.propertyType,
+                    bedrooms: member.bedrooms,
+                    bathrooms: member.bathrooms,
+                    askingRent: member.askingRent,
+                    squareFeet: member.squareFeet,
+                    activatedAt: member.activatedAt,
+                    selectionReason: member.selectionReason,
+                  })),
+                },
+              },
+            });
+            await tx.portfolioIqAsset.update({
+              where: { id: asset.id },
+              data: { compSetStatus: "review" },
+            });
+          }
+        }
+      }
     }
   });
 
   revalidatePath("/admin/portfolio-activation");
+  revalidatePath("/portfolio-iq");
 }
 
 const READINESS_STATUSES = new Set([

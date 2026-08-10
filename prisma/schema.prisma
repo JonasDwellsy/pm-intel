@@ -712,6 +712,7 @@ model PortfolioIqAsset {
   buildings           PortfolioIqBuilding[]
   operatorAssignments PortfolioIqOperatorAssignment[]
   activationTasks     PortfolioIqActivationTask[]
+  compSet             PortfolioIqCompSet?
 
   @@unique([portfolioId, slug])
   @@index([portfolioId, sortOrder])
@@ -780,6 +781,53 @@ model PortfolioIqActivationTask {
   @@unique([assetId, taskType])
   @@index([status, assignedLane])
   @@index([assetId])
+}
+
+// One current proposed or reviewed comp set per portfolio asset. Members are
+// snapshots of asking listings from an immutable Market IQ source import, so
+// an owner can see exactly what evidence supported a comparison at that time.
+model PortfolioIqCompSet {
+  id             String    @id @default(cuid())
+  assetId        String    @unique
+  name           String
+  status         String    @default("proposed") // proposed | reviewed | locked
+  methodology    String
+  sourceImportId String
+  generatedAt    DateTime  @default(now())
+  reviewedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  asset   PortfolioIqAsset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  members PortfolioIqCompMember[]
+
+  @@index([sourceImportId])
+}
+
+model PortfolioIqCompMember {
+  id              String    @id @default(cuid())
+  compSetId       String
+  comparisonKey   String
+  sourceRecordId  String
+  propertyLabel   String
+  address         String
+  city            String?
+  state           String?
+  postalCode      String?
+  propertyType    String
+  bedrooms        Float?
+  bathrooms       Float?
+  askingRent      Float?
+  squareFeet      Float?
+  activatedAt     DateTime?
+  selectionReason String
+  createdAt       DateTime  @default(now())
+
+  compSet PortfolioIqCompSet @relation(fields: [compSetId], references: [id], onDelete: Cascade)
+
+  @@unique([compSetId, comparisonKey])
+  @@index([compSetId])
+  @@index([sourceRecordId])
 }
 
 // v0.22 — explicit per-market grants for an organization. One row per

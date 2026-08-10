@@ -256,7 +256,9 @@ export default async function PortfolioIqPage() {
                   return (
                     <tr key={asset.id} className="align-top hover:bg-surface-soft/50">
                       <td className="px-5 py-4">
-                        <p className="font-semibold text-navy">{asset.name}</p>
+                        <Link href={`/portfolio-iq/properties/${asset.slug}`} className="font-semibold text-navy hover:text-teal-700 hover:underline">
+                          {asset.name}
+                        </Link>
                         <p className="mt-1 text-xs text-muted-foreground">{asset.canonicalAddress}, {asset.city} {asset.postalCode}</p>
                         {asset.buildings.length > 1 && <p className="mt-1 text-xs text-teal-700">{asset.buildings.length} buildings in this community</p>}
                       </td>

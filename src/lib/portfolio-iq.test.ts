@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { CLEVELAND_PILOT_PORTFOLIO } from "@/data/portfolio-iq/cleveland-pilot";
+import { proposeCompMembers } from "@/lib/portfolio-iq/comp-generator";
+import { buildSubjectPerformance, propertyDecisionRead } from "@/lib/portfolio-iq/property";
 
 test("Cleveland owner pilot contains five multifamily assets and four SFRs", () => {
   assert.equal(CLEVELAND_PILOT_PORTFOLIO.marketId, "cleveland-elyria-mentor-oh");
@@ -54,4 +56,70 @@ test("Portfolio IQ migration is additive and does not alter Operator IQ tables",
   assert.doesNotMatch(sql, /ALTER TABLE\s+"(?:PM|Market|WatchList|PropertyHome)"/i);
   assert.match(sql, /CREATE TABLE "PortfolioIqPortfolio"/);
   assert.match(sql, /CREATE TABLE "PortfolioIqActivationTask"/);
+});
+
+test("comp proposal excludes the subject, dedupes units, and prioritizes same ZIP", () => {
+  const base = {
+    communityName: null,
+    state: "OH",
+    propertyType: "apartment",
+    bedrooms: 2,
+    bathrooms: 1,
+    askingRent: 1200,
+    squareFeet: 900,
+  };
+  const proposed = proposeCompMembers({
+    subjectAddresses: ["221 E 244th St"],
+    city: "Euclid",
+    postalCode: "44123",
+    candidates: [
+      { ...base, sourceRecordId: "subject", address: "221 E 244th St Apt 2", city: "Euclid", postalCode: "44123", activatedAt: new Date("2026-07-01") },
+      { ...base, sourceRecordId: "near-old", address: "300 E 250th St Unit 1", city: "Euclid", postalCode: "44123", activatedAt: new Date("2026-05-01") },
+      { ...base, sourceRecordId: "near-new", address: "300 E 250th St Unit 4", city: "Euclid", postalCode: "44123", activatedAt: new Date("2026-07-15") },
+      { ...base, sourceRecordId: "msa", address: "100 Main St", city: "Cleveland", postalCode: "44114", activatedAt: new Date("2026-07-20") },
+    ],
+  });
+  assert.equal(proposed.length, 2);
+  assert.equal(proposed[0].sourceRecordId, "near-new");
+  assert.equal(proposed[0].selectionReason, "Same ZIP code");
+  assert.equal(proposed[1].selectionReason, "Cleveland MSA fallback");
+});
+
+test("subject performance compares observed asking rent with comp evidence", () => {
+  const performance = buildSubjectPerformance({
+    availableThrough: new Date("2026-07-31T00:00:00Z"),
+    observations: [
+      { askingRent: 1200, squareFeet: 800, bedrooms: 2, activatedAt: new Date("2026-07-01"), deactivatedAt: new Date("2026-07-21") },
+      { askingRent: 1100, squareFeet: 800, bedrooms: 2, activatedAt: new Date("2026-03-01"), deactivatedAt: new Date("2026-04-01") },
+    ],
+    compAskingRents: [1000, 1100],
+    compRentPerSqFt: [1.25, 1.375],
+  });
+  assert.equal(performance.observationCount, 2);
+  assert.equal(performance.askingRent, 1150);
+  assert.equal(performance.medianDom, 25.5);
+  assert.ok(performance.askingRentVsComps !== null && performance.askingRentVsComps > 9);
+});
+
+test("property decision read preserves an explicit evidence gap", () => {
+  assert.match(
+    propertyDecisionRead({
+      propertyName: "Test Property",
+      observationCount: 0,
+      askingRentVsComps: null,
+      askingRentChange90d: null,
+    }),
+    /does not yet have enough matched subject listing observations/
+  );
+});
+
+test("comp-set migration remains additive", () => {
+  const sql = readFileSync(
+    join(process.cwd(), "prisma/migrations/20260810220000_portfolio_iq_comp_sets/migration.sql"),
+    "utf8"
+  );
+  assert.match(sql, /CREATE TABLE "PortfolioIqCompSet"/);
+  assert.match(sql, /CREATE TABLE "PortfolioIqCompMember"/);
+  assert.doesNotMatch(sql, /DROP\s+(TABLE|COLUMN)/i);
+  assert.doesNotMatch(sql, /ALTER TABLE\s+"(?:PM|Market|WatchList|MarketIqListing)"/i);
 });
