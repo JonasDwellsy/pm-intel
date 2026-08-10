@@ -269,7 +269,7 @@ export default async function PortfolioIqPropertyPage({ params }: { params: Prom
         <p className="dq-eyebrow">Sources and limits</p>
         <h2 className="dq-h2">High-frequency asking-market intelligence</h2>
         <p className="mt-3 max-w-4xl text-sm leading-6 text-muted-foreground">
-          Subject and comp observations come from {property.dataImport?.sourceName ?? "the Cleveland historical listing export"}, available through {dateLabel(property.dataImport?.availableThrough)}. Market direction and alerts come from the separate Dwellsy IQ trends source. These measures describe advertised asking activity, not occupancy, signed leases, concessions, or effective rent.
+          Subject and comp observations come from {property.dataImport?.sourceName ?? "the Cleveland historical listing export"}, available through {dateLabel(property.availableThrough)}. Market direction and alerts come from the separate Dwellsy IQ trends source. These measures describe advertised asking activity, not occupancy, signed leases, concessions, or effective rent.
         </p>
       </section>
     </main>
