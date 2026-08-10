@@ -2,10 +2,7 @@ import test from "node:test";
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  marketIqPreviewEnabled,
-  marketIqPublicReviewEnabled,
-} from "./feature";
+import { marketIqPreviewEnabled } from "./feature";
 
 test("Market IQ is disabled by default", () => {
   assert.equal(marketIqPreviewEnabled(undefined), false);
@@ -15,12 +12,6 @@ test("Market IQ is disabled by default", () => {
 
 test("Market IQ requires the explicit preview value", () => {
   assert.equal(marketIqPreviewEnabled("1"), true);
-});
-
-test("public review requires both the branch flag and Vercel Preview", () => {
-  assert.equal(marketIqPublicReviewEnabled("1", "preview"), true);
-  assert.equal(marketIqPublicReviewEnabled("1", "production"), false);
-  assert.equal(marketIqPublicReviewEnabled(undefined, "preview"), false);
 });
 
 test("the Market IQ route checks the disabled-by-default flag before auth or database access", () => {

@@ -3,7 +3,6 @@ import {
   PROTECTED_ROUTE_PATTERNS,
   PUBLIC_BUYBOX_PATTERNS,
 } from "@/lib/auth/protected-routes";
-import { marketIqPublicReviewEnabled } from "@/lib/market-iq/feature";
 
 // v0.21 — Clerk-only middleware.
 //
@@ -29,18 +28,7 @@ const isProtectedRoute = createRouteMatcher([...PROTECTED_ROUTE_PATTERNS]);
 const isPublicWatchListRoute = createRouteMatcher([...PUBLIC_BUYBOX_PATTERNS]);
 
 export default clerkMiddleware(async (auth, req) => {
-  // The isolated Market IQ integration branch is intentionally reviewable
-  // without a Clerk session. This bypass is impossible in Production because
-  // it requires VERCEL_ENV=preview as well as a branch-scoped feature flag.
-  // Market IQ API routes are never included in the bypass.
-  const isMarketIqPublicReview =
-    req.nextUrl.pathname === "/market-iq" && marketIqPublicReviewEnabled();
-
-  if (
-    isProtectedRoute(req) &&
-    !isPublicWatchListRoute(req) &&
-    !isMarketIqPublicReview
-  ) {
+  if (isProtectedRoute(req) && !isPublicWatchListRoute(req)) {
     await auth.protect();
   }
 });
