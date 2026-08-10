@@ -5,9 +5,11 @@ import { isMarketEntitled, resolveViewerEntitlement } from "@/lib/auth/market-en
 import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
+import { loadMarketIqAlertHistory } from "@/lib/market-iq/alert-history.server";
 import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server";
 import { loadClevelandTrendPulses } from "@/lib/market-iq/trends.server";
-import { parseJsonArray, type MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
+import type { MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
+import { marketIqWatchlistView } from "@/lib/market-iq/watchlists.server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -35,19 +37,9 @@ export default async function MarketIqPage() {
       where: { organizationId, marketId: CLEVELAND_MARKET_ID },
       orderBy: { updatedAt: "desc" },
     });
-    initialWatchlists = rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      marketId: row.marketId,
-      geographyType: row.geographyType as MarketIqWatchlistView["geographyType"],
-      geographyValues: parseJsonArray<string>(row.geographyValues),
-      propertyTypes: parseJsonArray<MarketIqWatchlistView["propertyTypes"][number]>(row.propertyTypes),
-      bedroomCounts: parseJsonArray<number>(row.bedroomCounts),
-      alertsEnabled: row.alertsEnabled,
-      alertCadence: row.alertCadence as MarketIqWatchlistView["alertCadence"],
-      updatedAt: row.updatedAt.toISOString(),
-    }));
+    initialWatchlists = rows.map(marketIqWatchlistView);
   }
+  const alertHistory = await loadMarketIqAlertHistory(initialWatchlists);
 
-  return <ClevelandPilot historicalPulse={historicalPulse} trendPulses={trendPulses} initialWatchlists={initialWatchlists} />;
+  return <ClevelandPilot historicalPulse={historicalPulse} trendPulses={trendPulses} initialWatchlists={initialWatchlists} alertHistory={alertHistory} />;
 }

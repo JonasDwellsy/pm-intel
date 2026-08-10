@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseMarketIqWatchlistInput } from "./watchlists";
+import { marketIqAlertMatchesWatchlist, parseMarketIqWatchlistInput } from "./watchlists";
 
 const marketId = "cleveland-elyria-mentor-oh";
 
@@ -57,4 +57,31 @@ test("requires a value for city and zip scopes", () => {
     marketId
   );
   assert.equal(result.ok, false);
+});
+
+test("matches alerts against geography and product scope", () => {
+  const watchlist = {
+    id: "watch-1",
+    name: "Lakewood one-bed apartments",
+    marketId,
+    geographyType: "city" as const,
+    geographyValues: ["Lakewood, OH"],
+    propertyTypes: ["apartment" as const],
+    bedroomCounts: [1],
+    alertsEnabled: true,
+    alertCadence: "weekly" as const,
+    updatedAt: "2026-08-10T00:00:00.000Z",
+  };
+  assert.equal(marketIqAlertMatchesWatchlist({
+    geographyType: "city",
+    geographyValue: "Lakewood, OH",
+    propertyType: "apartment",
+    bedrooms: 1,
+  }, watchlist), true);
+  assert.equal(marketIqAlertMatchesWatchlist({
+    geographyType: "city",
+    geographyValue: "Lakewood, OH",
+    propertyType: "house",
+    bedrooms: 1,
+  }, watchlist), false);
 });

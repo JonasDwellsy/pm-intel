@@ -22,6 +22,29 @@ export interface MarketIqWatchlistView extends MarketIqWatchlistInput {
   updatedAt: string;
 }
 
+export interface MarketIqAlertScope {
+  geographyType: string;
+  geographyValue: string;
+  propertyType: string;
+  bedrooms: number;
+}
+
+export function marketIqAlertMatchesWatchlist(
+  alert: MarketIqAlertScope,
+  watchlist: MarketIqWatchlistView
+) {
+  if (alert.geographyType !== watchlist.geographyType) return false;
+  const geographyMatches = watchlist.geographyType === "msa" || watchlist.geographyValues.some(
+    (value) => value.toLowerCase() === alert.geographyValue.toLowerCase()
+  );
+  const propertyMatches = watchlist.propertyTypes.includes(
+    alert.propertyType as MarketIqPropertyType
+  );
+  const bedroomMatches = watchlist.bedroomCounts.length === 0 ||
+    watchlist.bedroomCounts.includes(alert.bedrooms);
+  return geographyMatches && propertyMatches && bedroomMatches;
+}
+
 function isOneOf<T extends string>(value: unknown, allowed: readonly T[]): value is T {
   return typeof value === "string" && allowed.includes(value as T);
 }

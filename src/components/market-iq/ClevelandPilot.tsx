@@ -9,6 +9,8 @@ import type { HistoricalListingPulse } from "@/lib/market-iq/historical";
 import type { MarketIqTrendPulse } from "@/lib/market-iq/trends";
 import { MarketWatchlistBuilder } from "@/components/market-iq/MarketWatchlistBuilder";
 import { MarketIqDigestPanel } from "@/components/market-iq/MarketIqDigestPanel";
+import { MarketIqAlertHistory } from "@/components/market-iq/MarketIqAlertHistory";
+import type { MarketIqAlertHistoryItem } from "@/lib/market-iq/alert-history.server";
 
 function MetricCard({
   label,
@@ -34,10 +36,12 @@ export function ClevelandPilot({
   historicalPulse,
   trendPulses,
   initialWatchlists = [],
+  alertHistory = [],
 }: {
   historicalPulse: HistoricalListingPulse;
   trendPulses: MarketIqTrendPulse[];
   initialWatchlists?: MarketIqWatchlistView[];
+  alertHistory?: MarketIqAlertHistoryItem[];
 }) {
   const data = { ...clevelandPilot, ...historicalPulse };
   const [selectedKey, setSelectedKey] = useState(
@@ -219,6 +223,8 @@ export function ClevelandPilot({
           label: trendPulse.trendSource.displayLabel,
         } : undefined}
       />
+
+      <MarketIqAlertHistory alerts={alertHistory} />
 
       <MarketIqDigestPanel />
 

@@ -1,4 +1,4 @@
-import type { MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
+import { marketIqAlertMatchesWatchlist, type MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
 
 export type MarketIqDigestAlert = {
   id: string;
@@ -21,19 +21,6 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#039;");
 }
 
-function matchesWatchlist(alert: MarketIqDigestAlert, watchlist: MarketIqWatchlistView) {
-  if (alert.geographyType !== watchlist.geographyType) return false;
-  const geographyMatches = watchlist.geographyType === "msa" || watchlist.geographyValues.some(
-    (value) => value.toLowerCase() === alert.geographyValue.toLowerCase()
-  );
-  const propertyMatches = watchlist.propertyTypes.includes(
-    alert.propertyType as MarketIqWatchlistView["propertyTypes"][number]
-  );
-  const bedroomMatches = watchlist.bedroomCounts.length === 0 ||
-    watchlist.bedroomCounts.includes(alert.bedrooms);
-  return geographyMatches && propertyMatches && bedroomMatches;
-}
-
 export function buildMarketIqDigest({
   recipientName,
   watchlists,
@@ -46,7 +33,7 @@ export function buildMarketIqDigest({
   dashboardUrl: string;
 }) {
   const scopedAlerts = alerts
-    .filter((alert) => watchlists.some((watchlist) => matchesWatchlist(alert, watchlist)))
+    .filter((alert) => watchlists.some((watchlist) => marketIqAlertMatchesWatchlist(alert, watchlist)))
     .sort((a, b) =>
       b.observedMonth.getTime() - a.observedMonth.getTime() ||
       Number(b.severity === "material") - Number(a.severity === "material")

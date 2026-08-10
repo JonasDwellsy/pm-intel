@@ -1,44 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
-import { isMarketEntitled, resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
-import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
-import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { parseJsonArray, parseMarketIqWatchlistInput } from "@/lib/market-iq/watchlists";
+import { parseMarketIqWatchlistInput } from "@/lib/market-iq/watchlists";
+import { canUseClevelandMarketIq, marketIqWatchlistView } from "@/lib/market-iq/watchlists.server";
 import { prisma } from "@/lib/prisma";
-
-async function canUseClevelandMarketIq() {
-  if (!marketIqPreviewEnabled()) return false;
-  if (!(await viewerHasProductAccess("market_iq"))) return false;
-  const entitlement = await resolveViewerEntitlement();
-  return isMarketEntitled(entitlement, CLEVELAND_MARKET_ID);
-}
-
-function view(row: {
-  id: string;
-  name: string;
-  marketId: string;
-  geographyType: string;
-  geographyValues: string;
-  propertyTypes: string;
-  bedroomCounts: string;
-  alertsEnabled: boolean;
-  alertCadence: string;
-  updatedAt: Date;
-}) {
-  return {
-    id: row.id,
-    name: row.name,
-    marketId: row.marketId,
-    geographyType: row.geographyType,
-    geographyValues: parseJsonArray<string>(row.geographyValues),
-    propertyTypes: parseJsonArray<string>(row.propertyTypes),
-    bedroomCounts: parseJsonArray<number>(row.bedroomCounts),
-    alertsEnabled: row.alertsEnabled,
-    alertCadence: row.alertCadence,
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
 
 export async function GET() {
   const { userId } = await auth();
@@ -50,7 +15,7 @@ export async function GET() {
     where: { organizationId, marketId: CLEVELAND_MARKET_ID },
     orderBy: { updatedAt: "desc" },
   });
-  return Response.json({ watchlists: rows.map(view) });
+  return Response.json({ watchlists: rows.map(marketIqWatchlistView) });
 }
 
 export async function POST(request: Request) {
@@ -84,5 +49,5 @@ export async function POST(request: Request) {
       alertCadence: input.alertCadence,
     },
   });
-  return Response.json({ watchlist: view(row) }, { status: 201 });
+  return Response.json({ watchlist: marketIqWatchlistView(row) }, { status: 201 });
 }
