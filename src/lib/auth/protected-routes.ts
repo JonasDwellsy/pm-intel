@@ -56,6 +56,8 @@ export const PROTECTED_ROUTE_PATTERNS = [
   // entitled and remains invisible when its preview flag is disabled.
   "/portfolio-iq",
   "/portfolio-iq/:path*",
+  "/today",
+  "/today/:path*",
 
   // v0.21 — premium content. Per-operator scorecards, operator
   // profiles, and the AI /ask tool are the paid surface. State/market

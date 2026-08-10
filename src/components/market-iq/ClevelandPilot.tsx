@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { clevelandPilot } from "@/data/market-iq/cleveland-pilot";
 import { fmtDate, fmtInt, fmtPct } from "@/lib/format";
@@ -11,6 +10,7 @@ import { MarketWatchlistBuilder } from "@/components/market-iq/MarketWatchlistBu
 import { MarketIqDigestPanel } from "@/components/market-iq/MarketIqDigestPanel";
 import { MarketIqAlertHistory } from "@/components/market-iq/MarketIqAlertHistory";
 import type { MarketIqAlertHistoryItem } from "@/lib/market-iq/alert-history.server";
+import { DwellsyIqWorkspaceNav } from "@/components/dwellsy-iq/DwellsyIqWorkspaceNav";
 
 function MetricCard({
   label,
@@ -60,23 +60,7 @@ export function ClevelandPilot({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <nav
-        aria-label="Dwellsy IQ products"
-        className="mb-8 flex flex-wrap items-center gap-2 border-b border-grid pb-4"
-      >
-        <Link
-          href="/property-managers"
-          className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-soft hover:text-navy"
-        >
-          Operator IQ
-        </Link>
-        <span className="rounded-md bg-navy px-3 py-2 text-sm font-semibold text-white">
-          Market IQ
-        </span>
-        <span className="ml-auto rounded-full bg-orange-soft px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-orange-700">
-          Internal preview
-        </span>
-      </nav>
+      <DwellsyIqWorkspaceNav />
 
       <header className="grid gap-6 border-b border-grid pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>

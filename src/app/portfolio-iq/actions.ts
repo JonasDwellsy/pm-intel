@@ -19,6 +19,7 @@ export async function updatePortfolioDigestPreference(formData: FormData): Promi
     create: { portfolioId, organizationId: portfolio.organizationId, userId, enabled },
     update: { enabled, cadence: "weekly" },
   });
+  revalidatePath("/today");
   revalidatePath("/portfolio-iq");
 }
 
@@ -70,6 +71,7 @@ export async function updatePortfolioSignalDecision(formData: FormData): Promise
   });
 
   await refreshPortfolioWatchSignals(signal.portfolioId);
+  revalidatePath("/today");
   revalidatePath("/portfolio-iq");
   if (signal.asset?.slug) revalidatePath(`/portfolio-iq/properties/${signal.asset.slug}`);
 }

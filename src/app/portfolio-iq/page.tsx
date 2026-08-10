@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { updatePortfolioDigestPreference, updatePortfolioSignalDecision } from "./actions";
 import { PortfolioWatchDigestPanel } from "@/components/portfolio-iq/PortfolioWatchDigestPanel";
 import { portfolioDecisionLabel } from "@/lib/portfolio-iq/decision";
+import { DwellsyIqWorkspaceNav } from "@/components/dwellsy-iq/DwellsyIqWorkspaceNav";
 
 export const dynamic = "force-dynamic";
 
@@ -128,18 +129,7 @@ export default async function PortfolioIqPage() {
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <nav aria-label="Dwellsy IQ products" className="mb-8 flex flex-wrap items-center gap-2 border-b border-grid pb-4">
-        <Link href="/property-managers" className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-soft hover:text-navy">
-          Operator IQ
-        </Link>
-        <Link href="/market-iq" className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-soft hover:text-navy">
-          Market IQ
-        </Link>
-        <span className="rounded-md bg-navy px-3 py-2 text-sm font-semibold text-white">Portfolio IQ</span>
-        <span className="ml-auto rounded-full bg-orange-soft px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-orange-700">
-          Internal preview
-        </span>
-      </nav>
+      <DwellsyIqWorkspaceNav />
 
       <header className="grid gap-7 border-b border-grid pb-8 lg:grid-cols-[1fr_390px] lg:items-end">
         <div>
@@ -149,7 +139,8 @@ export default async function PortfolioIqPage() {
             One view of the properties you own, the markets around them, and the operators running them. Portfolio IQ uses observed asking-market activity and does not represent occupancy, signed leases, or effective rent.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <a href="#properties" className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-700">Review properties</a>
+            <Link href="/today" className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-700">Open Today</Link>
+            <a href="#properties" className="rounded-md border border-navy px-4 py-2.5 text-sm font-semibold text-navy hover:bg-surface-soft">Review properties</a>
             <Link href="/market-iq" className="rounded-md border border-navy px-4 py-2.5 text-sm font-semibold text-navy hover:bg-surface-soft">Open Market IQ</Link>
           </div>
         </div>

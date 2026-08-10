@@ -8,6 +8,7 @@ import { portfolioIqPreviewEnabled } from "@/lib/portfolio-iq/feature";
 import { loadPortfolioIqProperty } from "@/lib/portfolio-iq/property.server";
 import { portfolioDecisionLabel } from "@/lib/portfolio-iq/decision";
 import { updatePortfolioSignalDecision } from "../../actions";
+import { DwellsyIqWorkspaceNav } from "@/components/dwellsy-iq/DwellsyIqWorkspaceNav";
 
 export const dynamic = "force-dynamic";
 
@@ -84,12 +85,7 @@ export default async function PortfolioIqPropertyPage({ params }: { params: Prom
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <nav aria-label="Dwellsy IQ products" className="mb-7 flex flex-wrap items-center gap-2 border-b border-grid pb-4">
-        <Link href="/property-managers" className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-surface-soft hover:text-navy">Operator IQ</Link>
-        <Link href="/market-iq" className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-surface-soft hover:text-navy">Market IQ</Link>
-        <Link href="/portfolio-iq" className="rounded-md bg-navy px-3 py-2 text-sm font-semibold text-white">Portfolio IQ</Link>
-        <span className="ml-auto rounded-full bg-orange-soft px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-orange-700">Internal preview</span>
-      </nav>
+      <DwellsyIqWorkspaceNav />
 
       <p className="mb-4 text-sm text-muted-foreground">
         <Link href="/portfolio-iq" className="font-medium text-teal-700 hover:underline">← {property.portfolio.name}</Link>

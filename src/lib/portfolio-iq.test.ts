@@ -9,6 +9,7 @@ import { buildPortfolioWatchDrafts } from "@/lib/portfolio-iq/watch";
 import { buildPortfolioIqDigest } from "@/lib/portfolio-iq/digest";
 import { isPortfolioSignalActionable, portfolioDecisionLabel } from "@/lib/portfolio-iq/decision";
 import { buildBedroomSegments } from "@/lib/portfolio-iq/segments";
+import { parseTodaySignalEvidence, selectTodaySignals } from "@/lib/portfolio-iq/today";
 
 test("Cleveland owner pilot contains five multifamily assets and four SFRs", () => {
   assert.equal(CLEVELAND_PILOT_PORTFOLIO.marketId, "cleveland-elyria-mentor-oh");
@@ -245,4 +246,29 @@ test("bedroom-segment migration is additive", () => {
 test("Portfolio Watch market alerts require a bedroom observed at the subject", () => {
   const source = readFileSync(join(process.cwd(), "src/lib/portfolio-iq/watch.server.ts"), "utf8");
   assert.match(source, /observations\.some\(\(row\) => row\.bedrooms === alert\.bedrooms\)/);
+});
+
+test("Today ranks one issue per asset and keeps readiness from crowding out decisions", () => {
+  const candidates = [
+    { id: "a-performance", assetId: "a", category: "performance", severity: "high", rankScore: 96, evidence: "{}" },
+    { id: "a-market", assetId: "a", category: "market", severity: "high", rankScore: 92, evidence: "{}" },
+    { id: "b-market", assetId: "b", category: "market", severity: "high", rankScore: 90, evidence: "{}" },
+    { id: "c-ready", assetId: "c", category: "readiness", severity: "info", rankScore: 80, evidence: "{}" },
+    { id: "d-ready", assetId: "d", category: "readiness", severity: "info", rankScore: 79, evidence: "{}" },
+    { id: "e-market", assetId: "e", category: "market", severity: "medium", rankScore: 70, evidence: "{}" },
+  ];
+  assert.deepEqual(selectTodaySignals(candidates, 4).map((signal) => signal.id), ["a-performance", "b-market", "c-ready", "e-market"]);
+});
+
+test("Today safely reads segment evidence without trusting malformed JSON", () => {
+  assert.deepEqual(parseTodaySignalEvidence('{"bedrooms":2,"observations":50,"alertId":"alert-1"}'), {
+    bedrooms: 2, observations: 50, alertId: "alert-1",
+  });
+  assert.deepEqual(parseTodaySignalEvidence("not-json"), { bedrooms: null, observations: null, alertId: null });
+});
+
+test("Today is protected alongside the existing owner workspace", () => {
+  const source = readFileSync(join(process.cwd(), "src/lib/auth/protected-routes.ts"), "utf8");
+  assert.match(source, /"\/today"/);
+  assert.match(source, /"\/today\/:path\*"/);
 });
