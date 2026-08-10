@@ -64,6 +64,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const allowedRedirectOrigins = ["https://portfolio.iq.dwellsy.com"];
+  if (process.env.MARKET_IQ_PREVIEW_ENABLED === "true") {
+    allowedRedirectOrigins.push(
+      "https://pm-intel-git-codex-market-iq-integration-dwellsybordo.vercel.app"
+    );
+  }
   // ClerkProvider wraps the entire tree so <SignedIn> / <SignedOut>,
   // <UserButton>, useUser(), useAuth(), and the server-side auth()
   // helper all have a session context to consult. It must sit OUTSIDE
@@ -79,7 +85,7 @@ export default function RootLayout({
   return (
     <ClerkProvider
       appearance={clerkAppearance}
-      allowedRedirectOrigins={["https://portfolio.iq.dwellsy.com"]}
+      allowedRedirectOrigins={allowedRedirectOrigins}
     >
       <html
         lang="en"
