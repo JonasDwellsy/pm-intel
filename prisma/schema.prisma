@@ -503,6 +503,7 @@ model Organization {
   productAccess         OrganizationProductAccess[]
   marketIqWatchlists    MarketIqWatchlist[]
   portfolioIqPortfolios PortfolioIqPortfolio[]
+  dwellsyIqInsights     DwellsyIqInsight[]
 
   // Hot lookups: "find personal org for user X" (already covered by
   // the @unique on personalForUserId) and "find org by Clerk id"
@@ -675,6 +676,7 @@ model PortfolioIqPortfolio {
   assets       PortfolioIqAsset[]
   signals      PortfolioIqSignal[]
   digestPreferences PortfolioIqDigestPreference[]
+  unifiedInsights DwellsyIqInsight[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -716,6 +718,7 @@ model PortfolioIqAsset {
   activationTasks     PortfolioIqActivationTask[]
   compSet             PortfolioIqCompSet?
   signals             PortfolioIqSignal[]
+  insightExposures    DwellsyIqInsightExposure[]
 
   @@unique([portfolioId, slug])
   @@index([portfolioId, sortOrder])
@@ -884,10 +887,76 @@ model PortfolioIqSignal {
   portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   asset     PortfolioIqAsset?     @relation(fields: [assetId], references: [id], onDelete: Cascade)
   decision  PortfolioIqSignalDecision?
+  unifiedInsight DwellsyIqInsight?
 
   @@index([portfolioId, status, rankScore(sort: Desc)])
   @@index([assetId, status])
   @@index([observedAt(sort: Desc)])
+}
+
+// One customer-facing finding across the Dwellsy IQ Online decision system.
+// Existing analytical engines remain authoritative, while this shared layer
+// records how a finding connects market evidence, portfolio exposure, comps,
+// and observed operator context for a specific owner organization.
+model DwellsyIqInsight {
+  id                String    @id @default(cuid())
+  organizationId    String
+  portfolioId       String
+  sourceSignalId    String    @unique
+  sourceAlertId     String?
+  fingerprint       String    @unique
+  insightType       String
+  category          String
+  severity          String
+  confidence        String
+  rankScore         Int
+  headline          String
+  narrative         String
+  suggestedFollowup String?
+  marketId          String
+  geographyType     String?
+  geographyValue    String?
+  propertyType      String?
+  bedrooms          Int?
+  evidenceSources   String    @default("[]")
+  status            String    @default("active")
+  observedAt        DateTime
+  firstSeenAt       DateTime
+  lastSeenAt        DateTime
+  resolvedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  portfolio    PortfolioIqPortfolio   @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  sourceSignal PortfolioIqSignal      @relation(fields: [sourceSignalId], references: [id], onDelete: Cascade)
+  exposures    DwellsyIqInsightExposure[]
+
+  @@index([organizationId, status, rankScore(sort: Desc)])
+  @@index([portfolioId, status, rankScore(sort: Desc)])
+  @@index([marketId, geographyType, geographyValue, observedAt(sort: Desc)])
+  @@index([sourceAlertId])
+}
+
+// An insight can affect several owner assets over time. The first Cleveland
+// pilot creates one direct exposure per source signal, while the model already
+// supports a single market event expanding to multiple properties and operators.
+model DwellsyIqInsightExposure {
+  id             String   @id @default(cuid())
+  insightId      String
+  assetId        String
+  exposureKind   String   @default("direct")
+  relevanceScore Int
+  operatorName   String?
+  evidence       String   @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  insight DwellsyIqInsight @relation(fields: [insightId], references: [id], onDelete: Cascade)
+  asset   PortfolioIqAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([insightId, assetId])
+  @@index([assetId, relevanceScore(sort: Desc)])
 }
 
 // The analytical signal remains immutable from the owner's perspective.

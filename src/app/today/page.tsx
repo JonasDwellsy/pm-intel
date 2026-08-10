@@ -38,6 +38,15 @@ function sourceDate(value: Date | string | null | undefined): string {
   return `Through ${date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`;
 }
 
+function evidenceSourceCount(value: string): number {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export default async function TodayPage() {
   if (!portfolioIqPreviewEnabled()) notFound();
   if (!(await viewerHasProductAccess("portfolio_iq"))) notFound();
@@ -126,6 +135,7 @@ export default async function TodayPage() {
             const isNew = !today.digestPreference?.lastSignalAt || signal.firstSeenAt > today.digestPreference.lastSignalAt;
             const compCount = segment?.compPropertyCount ?? property?.compSet?.members.length ?? 0;
             const compStatus = segment ? segment.evidenceStatus : property?.compSet?.status ?? "not started";
+            const connectedSourceCount = evidenceSourceCount(signal.evidenceSources);
 
             return (
               <article key={signal.id} className={`overflow-hidden rounded-xl border ${severityStyle(signal.severity)}`}>
@@ -136,6 +146,7 @@ export default async function TodayPage() {
                       <span className={signal.severity === "high" ? "text-rose-800" : "text-teal-700"}>{signal.category}</span>
                       <span className="text-muted-foreground">{signal.confidence === "setup" ? "Setup signal" : `${signal.confidence} confidence`}</span>
                       {isNew && <span className="rounded-full bg-navy px-2 py-0.5 text-white">New</span>}
+                      {signal.unifiedInsightId && <span className="rounded-full border border-teal/25 bg-teal-soft px-2 py-0.5 text-teal-800">Connected insight</span>}
                       {signal.decision && <span className="rounded-full border border-grid bg-white px-2 py-0.5 text-navy">{portfolioDecisionLabel(signal.decision.state)}</span>}
                     </div>
                     <h3 className="mt-2 text-xl font-semibold leading-7 text-navy">{signal.headline}</h3>
@@ -155,7 +166,7 @@ export default async function TodayPage() {
 
                 <details className="group border-t border-grid bg-white/85">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-navy sm:px-6">
-                    <span>Open the full diagnosis</span>
+                    <span>Open the full diagnosis{connectedSourceCount ? ` · ${connectedSourceCount} evidence sources` : ""}</span>
                     <span className="text-lg text-teal-700 transition-transform group-open:rotate-45" aria-hidden>+</span>
                   </summary>
                   <div className="grid gap-px border-t border-grid bg-grid lg:grid-cols-4">

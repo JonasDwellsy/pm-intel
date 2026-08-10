@@ -4,6 +4,7 @@ import { buildSubjectPerformance } from "@/lib/portfolio-iq/property";
 import { buildPortfolioWatchDrafts } from "@/lib/portfolio-iq/watch";
 import { isPortfolioSignalActionable } from "@/lib/portfolio-iq/decision";
 import { buildBedroomSegments } from "@/lib/portfolio-iq/segments";
+import { syncDwellsyIqInsights } from "@/lib/dwellsy-iq/insights.server";
 
 function communityToken(name: string): string | undefined {
   const generic = new Set(["apartments", "apartment", "villas", "villa", "the", "road"]);
@@ -150,6 +151,7 @@ export async function refreshPortfolioWatchSignals(portfolioId: string) {
       data: { status: "resolved", resolvedAt: now },
     });
   });
+  await syncDwellsyIqInsights(portfolioId);
   return loadPortfolioWatchSignals(portfolioId);
 }
 

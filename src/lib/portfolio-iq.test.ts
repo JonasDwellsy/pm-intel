@@ -10,6 +10,7 @@ import { buildPortfolioIqDigest } from "@/lib/portfolio-iq/digest";
 import { isPortfolioSignalActionable, portfolioDecisionLabel } from "@/lib/portfolio-iq/decision";
 import { buildBedroomSegments } from "@/lib/portfolio-iq/segments";
 import { parseTodaySignalEvidence, selectTodaySignals } from "@/lib/portfolio-iq/today";
+import { buildSharedExposureDraft, buildSharedInsightDraft } from "@/lib/dwellsy-iq/insights";
 
 test("Cleveland owner pilot contains five multifamily assets and four SFRs", () => {
   assert.equal(CLEVELAND_PILOT_PORTFOLIO.marketId, "cleveland-elyria-mentor-oh");
@@ -271,4 +272,54 @@ test("Today is protected alongside the existing owner workspace", () => {
   const source = readFileSync(join(process.cwd(), "src/lib/auth/protected-routes.ts"), "utf8");
   assert.match(source, /"\/today"/);
   assert.match(source, /"\/today\/:path\*"/);
+});
+
+test("shared insight connects market, asset, comp, and operator evidence", () => {
+  const signal = {
+    id: "signal-1", fingerprint: "portfolio:asset:segment:2", signalType: "segment_rent_psf_above_comps",
+    category: "performance", severity: "medium", confidence: "high", rankScore: 84,
+    headline: "Acadian 2-bedroom rent per square foot is above approved comps",
+    narrative: "Observed asking rent per square foot is above the same-bedroom comparable median.",
+    ownerQuestion: "Is the premium supported?", evidence: '{"bedrooms":2,"observations":50}',
+    status: "active", observedAt: new Date("2026-07-31"), firstSeenAt: new Date("2026-08-10"),
+    lastSeenAt: new Date("2026-08-10"), resolvedAt: null,
+  };
+  const asset = {
+    id: "asset-1", name: "The Acadian Apartments", city: "Brook Park", postalCode: "44142",
+    assetType: "multifamily", observedOperatorName: "950 Management",
+  };
+  const insight = buildSharedInsightDraft({ organizationId: "org-1", portfolioId: "portfolio-1", marketId: "cleveland", signal, asset, alert: null });
+  assert.equal(insight.bedrooms, 2);
+  assert.equal(insight.propertyType, "apartment");
+  assert.deepEqual(JSON.parse(insight.evidenceSources), ["owner_portfolio", "historical_listing_export", "approved_comps", "observed_operator_activity"]);
+  const exposure = buildSharedExposureDraft({ insightId: "insight-1", signalId: signal.id, asset, relevanceScore: signal.rankScore });
+  assert.equal(exposure.operatorName, "950 Management");
+  assert.equal(exposure.assetId, "asset-1");
+});
+
+test("market-backed shared insight retains its canonical alert geography", () => {
+  const insight = buildSharedInsightDraft({
+    organizationId: "org-1", portfolioId: "portfolio-1", marketId: "cleveland",
+    signal: {
+      id: "signal-2", fingerprint: "market-signal", signalType: "local_market_change", category: "market",
+      severity: "high", confidence: "high", rankScore: 86, headline: "Rents are rising", narrative: "One-bedroom rents rose.",
+      ownerQuestion: "Review pricing", evidence: '{"alertId":"alert-1"}', status: "active",
+      observedAt: new Date("2026-06-01"), firstSeenAt: new Date("2026-08-10"), lastSeenAt: new Date("2026-08-10"), resolvedAt: null,
+    },
+    asset: null,
+    alert: { id: "alert-1", geographyType: "zip", geographyValue: "44113", propertyType: "apartment", bedrooms: 1 },
+  });
+  assert.equal(insight.sourceAlertId, "alert-1");
+  assert.equal(insight.geographyType, "zip");
+  assert.equal(insight.geographyValue, "44113");
+  assert.equal(insight.bedrooms, 1);
+});
+
+test("shared insight migration is additive and backfills current owner signals", () => {
+  const sql = readFileSync(join(process.cwd(), "prisma/migrations/20260810270000_dwellsy_iq_shared_insights/migration.sql"), "utf8");
+  assert.match(sql, /CREATE TABLE "DwellsyIqInsight"/);
+  assert.match(sql, /CREATE TABLE "DwellsyIqInsightExposure"/);
+  assert.match(sql, /INSERT INTO "DwellsyIqInsight"/);
+  assert.doesNotMatch(sql, /DROP\s+(TABLE|COLUMN)/i);
+  assert.doesNotMatch(sql, /ALTER TABLE "(?:PM|Market|WatchList|CanonicalOperator)"/i);
 });
