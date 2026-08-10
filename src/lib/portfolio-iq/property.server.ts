@@ -3,6 +3,7 @@ import { loadPortfolioIqHome } from "@/lib/portfolio-iq/home.server";
 import { buildSubjectPerformance, propertyDecisionRead } from "@/lib/portfolio-iq/property";
 import { prisma } from "@/lib/prisma";
 import { loadPortfolioDecisionHistory, loadPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
+import { buildBedroomSegments } from "@/lib/portfolio-iq/segments";
 
 export async function loadPortfolioIqProperty(input: {
   organizationId: string;
@@ -32,6 +33,7 @@ export async function loadPortfolioIqProperty(input: {
           where: { reviewStatus: { not: "excluded" } },
           orderBy: [{ selectionReason: "asc" }, { propertyLabel: "asc" }],
         },
+        segments: { orderBy: { bedrooms: "asc" } },
       },
     }),
     prisma.marketIqAlert.findMany({
@@ -92,6 +94,14 @@ export async function loadPortfolioIqProperty(input: {
         : []
     ),
   });
+  const segments = buildBedroomSegments({
+    observations: subjectListings,
+    availableThrough,
+    compMembers: members,
+    reviews: compSet?.segments ?? [],
+  });
+  const observedBedrooms = new Set(segments.filter((segment) => segment.performance.observationCount > 0).map((segment) => segment.bedrooms));
+  const relevantAlerts = alerts.filter((alert) => observedBedrooms.has(alert.bedrooms));
 
   return {
     portfolio,
@@ -99,8 +109,9 @@ export async function loadPortfolioIqProperty(input: {
     dataImport,
     availableThrough,
     compSet,
-    alerts,
+    alerts: relevantAlerts,
     performance,
+    segments,
     signals: portfolioSignals.filter((signal) => signal.assetId === asset.id),
     decisionHistory,
     decisionRead: propertyDecisionRead({
@@ -108,7 +119,7 @@ export async function loadPortfolioIqProperty(input: {
       observationCount: performance.observationCount,
       askingRentVsComps: compSet?.status === "locked" ? performance.askingRentVsComps : null,
       askingRentChange90d: performance.askingRentChange90d,
-      alertHeadline: alerts[0]?.headline,
+      alertHeadline: relevantAlerts[0]?.headline,
     }),
   };
 }

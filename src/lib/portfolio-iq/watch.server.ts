@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { buildSubjectPerformance } from "@/lib/portfolio-iq/property";
 import { buildPortfolioWatchDrafts } from "@/lib/portfolio-iq/watch";
 import { isPortfolioSignalActionable } from "@/lib/portfolio-iq/decision";
+import { buildBedroomSegments } from "@/lib/portfolio-iq/segments";
 
 function communityToken(name: string): string | undefined {
   const generic = new Set(["apartments", "apartment", "villas", "villa", "the", "road"]);
@@ -18,7 +19,7 @@ export async function refreshPortfolioWatchSignals(portfolioId: string) {
       assets: {
         include: {
           buildings: true,
-          compSet: { include: { members: { where: { reviewStatus: { not: "excluded" } } } } },
+          compSet: { include: { members: { where: { reviewStatus: { not: "excluded" } } }, segments: true } },
         },
       },
     },
@@ -65,9 +66,10 @@ export async function refreshPortfolioWatchSignals(portfolioId: string) {
       compAskingRents: members.flatMap((member) => member.askingRent ? [member.askingRent] : []),
       compRentPerSqFt: members.flatMap((member) => member.askingRent && member.squareFeet ? [member.askingRent / member.squareFeet] : []),
     });
+    const bedroomSegments = buildBedroomSegments({ observations, availableThrough: observedAt, compMembers: members, reviews: asset.compSet?.segments ?? [] });
     const propertyType = asset.assetType === "single_family" ? "house" : "apartment";
     const relevantAlerts = alerts.filter((alert) =>
-      alert.propertyType === propertyType && (
+      alert.propertyType === propertyType && observations.some((row) => row.bedrooms === alert.bedrooms) && (
         alert.geographyType === "msa" ||
         (alert.geographyType === "zip" && alert.geographyValue === asset.postalCode) ||
         (alert.geographyType === "city" && [asset.city, `${asset.city}, OH`].includes(alert.geographyValue))
@@ -92,6 +94,14 @@ export async function refreshPortfolioWatchSignals(portfolioId: string) {
       rentPerSqFtVsComps: performance.rentPerSqFtVsComps,
       askingRentChange90d: performance.askingRentChange90d,
       medianDom: performance.medianDom,
+      segments: bedroomSegments.map((segment) => ({
+        bedrooms: segment.bedrooms, label: segment.label, isLocked: segment.isLocked,
+        observationCount: segment.performance.observationCount,
+        askingRentVsComps: segment.performance.askingRentVsComps,
+        rentPerSqFtVsComps: segment.performance.rentPerSqFtVsComps,
+        askingRentChange90d: segment.performance.askingRentChange90d,
+        medianDom: segment.performance.medianDom,
+      })),
       marketAlert: bestAlert ? {
         id: bestAlert.id,
         severity: bestAlert.severity,

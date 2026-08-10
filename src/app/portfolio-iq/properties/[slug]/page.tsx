@@ -131,6 +131,36 @@ export default async function PortfolioIqPropertyPage({ params }: { params: Prom
         />
       </section>
 
+      <section aria-labelledby="unit-segments-heading" className="mt-8">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div><p className="dq-eyebrow">Unit mix intelligence</p><h2 id="unit-segments-heading" className="dq-h2">Compare like with like</h2></div>
+          <p className="text-xs text-muted-foreground">Subject availability determines which bedroom segments are reportable</p>
+        </div>
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {property.segments.map((segment) => {
+            const marketSegment = marketTrend?.segments.find((candidate) => candidate.label.startsWith(`${segment.bedrooms}-bed`) && candidate.label.includes(subjectType));
+            const statusLabel = segment.evidenceStatus === "not_observed" ? "Not observed" : segment.isLocked ? "Approved evidence" : segment.evidenceStatus === "needs_comps" ? "Needs more comps" : "Ready for review";
+            return (
+              <article key={segment.bedrooms} className={`rounded-lg border p-5 ${segment.evidenceStatus === "not_observed" ? "border-grid bg-surface-soft" : segment.isLocked ? "border-teal/25 bg-teal-soft" : "border-amber-200 bg-amber-50/40"}`}>
+                <div className="flex items-start justify-between gap-2"><h3 className="font-semibold text-navy">{segment.label}</h3><span className="rounded-full border border-grid bg-white px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{statusLabel}</span></div>
+                {segment.performance.observationCount === 0 ? (
+                  <p className="mt-4 text-sm leading-6 text-muted-foreground">No matched Acadian listings in this bedroom segment. Market activity is not substituted for subject evidence.</p>
+                ) : (
+                  <dl className="mt-4 space-y-2 text-sm">
+                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Subject observations</dt><dd className="font-semibold text-navy">{segment.performance.observationCount}</dd></div>
+                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Subject rent</dt><dd className="font-semibold text-navy">{dollars(segment.performance.askingRent)}</dd></div>
+                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Subject rent / sf</dt><dd className="font-semibold text-navy">{decimalDollars(segment.performance.rentPerSqFt)}</dd></div>
+                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Approved comps</dt><dd className="font-semibold text-navy">{segment.compPropertyCount}</dd></div>
+                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Comp rent</dt><dd className="font-semibold text-navy">{segment.isLocked ? dollars(segment.performance.compAskingRent) : "Awaiting lock"}</dd></div>
+                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Local market</dt><dd className="font-semibold text-navy">{marketSegment ? dollars(marketSegment.rent) : "Not reportable"}</dd></div>
+                  </dl>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
       {property.signals.length > 0 && (
         <section aria-labelledby="property-decisions-heading" className="mt-8 rounded-xl border border-teal/25 bg-teal-soft p-5 sm:p-6">
           <p className="dq-eyebrow">Owner decision</p>

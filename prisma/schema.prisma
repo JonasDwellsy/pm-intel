@@ -804,8 +804,25 @@ model PortfolioIqCompSet {
 
   asset   PortfolioIqAsset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
   members PortfolioIqCompMember[]
+  segments PortfolioIqCompSegment[]
 
   @@index([sourceImportId])
+}
+
+model PortfolioIqCompSegment {
+  id         String    @id @default(cuid())
+  compSetId  String
+  bedrooms   Int
+  status     String    @default("proposed") // proposed | locked
+  reviewedAt DateTime?
+  reviewedBy String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  compSet PortfolioIqCompSet @relation(fields: [compSetId], references: [id], onDelete: Cascade)
+
+  @@unique([compSetId, bedrooms])
+  @@index([compSetId, status])
 }
 
 model PortfolioIqCompMember {

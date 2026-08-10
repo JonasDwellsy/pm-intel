@@ -2,9 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import { proposeCompMembers } from "@/lib/portfolio-iq/comp-generator";
+import { normalizedAddress, proposeCompMembers } from "@/lib/portfolio-iq/comp-generator";
 import {
+  addCompSegmentCandidate,
   finalizeCompSet,
+  lockCompSegment,
+  reopenCompSegment,
   reopenCompSet,
   replaceCompMember,
   updateCompMemberReview,
@@ -47,13 +50,13 @@ export default async function CompReviewPage({ params }: { params: Promise<{ ass
     include: {
       portfolio: { include: { organization: { select: { name: true } } } },
       buildings: { orderBy: [{ isPrimary: "desc" }, { canonicalAddress: "asc" }] },
-      compSet: { include: { members: { orderBy: [{ reviewStatus: "asc" }, { propertyLabel: "asc" }] } } },
+      compSet: { include: { members: { orderBy: [{ reviewStatus: "asc" }, { propertyLabel: "asc" }] }, segments: { orderBy: { bedrooms: "asc" } } } },
     },
   });
   if (!asset?.compSet) notFound();
 
   const propertyType = asset.assetType === "single_family" ? "house" : "apartment";
-  const candidates = await prisma.marketIqListing.findMany({
+  const [candidates, subjectRows] = await Promise.all([prisma.marketIqListing.findMany({
     where: {
       importId: asset.compSet.sourceImportId,
       propertyType,
@@ -77,7 +80,17 @@ export default async function CompReviewPage({ params }: { params: Promise<{ ass
       squareFeet: true,
       activatedAt: true,
     },
-  });
+  }), prisma.marketIqListing.findMany({
+    where: {
+      importId: asset.compSet.sourceImportId,
+      activatedAt: { gte: new Date("2025-08-01T00:00:00Z") },
+      OR: asset.buildings.flatMap((building) => [
+        { address: { startsWith: building.canonicalAddress, mode: "insensitive" as const } },
+        { address: { startsWith: building.suppliedAddress, mode: "insensitive" as const } },
+      ]),
+    },
+    select: { bedrooms: true },
+  })]);
   const existingKeys = new Set(asset.compSet.members.map((member) => member.comparisonKey));
   const alternatives = proposeCompMembers({
     subjectAddresses: asset.buildings.flatMap((building) => [building.suppliedAddress, building.canonicalAddress]),
@@ -85,13 +98,16 @@ export default async function CompReviewPage({ params }: { params: Promise<{ ass
     postalCode: asset.postalCode,
     candidates,
     limit: 25,
-  }).filter((candidate) => !existingKeys.has(candidate.comparisonKey)).slice(0, 10);
+  }).filter((candidate) => !existingKeys.has(candidate.comparisonKey)).slice(0, 20);
 
   const activeMembers = asset.compSet.members.filter((member) => member.reviewStatus !== "excluded");
   const includedCount = asset.compSet.members.filter((member) => member.reviewStatus === "included").length;
   const proposedCount = asset.compSet.members.filter((member) => member.reviewStatus === "proposed").length;
   const excludedCount = asset.compSet.members.filter((member) => member.reviewStatus === "excluded").length;
   const progress = asset.compSet.status === "locked" ? 100 : Math.round((includedCount / Math.max(activeMembers.length, 1)) * 100);
+  const subjectCounts = new Map<number, number>();
+  for (const row of subjectRows) if (row.bedrooms !== null && Number.isInteger(row.bedrooms)) subjectCounts.set(row.bedrooms, (subjectCounts.get(row.bedrooms) ?? 0) + 1);
+  const segmentReview = new Map(asset.compSet.segments.map((segment) => [segment.bedrooms, segment]));
 
   return (
     <div className="mx-auto max-w-[1100px] px-6 pb-20">
@@ -150,6 +166,44 @@ export default async function CompReviewPage({ params }: { params: Promise<{ ass
             </form>
           )}
         </aside>
+      </section>
+
+      <section className="mt-8">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-700">Bedroom quality gates</p>
+        <h2 className="mt-1 text-2xl font-bold text-navy">Lock only product segments Acadian actually offers</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-grey-600">Subject observations determine which segments exist. Each reportable segment needs three distinct approved comparable properties before it can drive an owner performance signal.</p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {[0, 1, 2, 3].map((bedrooms) => {
+            const observed = subjectCounts.get(bedrooms) ?? 0;
+            const comps = activeMembers.filter((member) => member.bedrooms === bedrooms);
+            const distinctCompCount = new Set(comps.map((member) => normalizedAddress(member.address))).size;
+            const review = segmentReview.get(bedrooms);
+            const candidatesForSegment = alternatives.filter((candidate) => candidate.bedrooms === bedrooms).slice(0, 4);
+            const label = bedrooms === 0 ? "Studio" : `${bedrooms}-bedroom`;
+            return (
+              <article key={bedrooms} className={`rounded-xl border p-5 ${observed ? "border-grid bg-white" : "border-grid bg-surface-soft"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div><h3 className="text-lg font-semibold text-navy">{label}</h3><p className="mt-1 text-xs text-grey-500">{observed ? `${observed} trailing-12-month subject observations` : "Not observed at this property"}</p></div>
+                  <span className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase ${review?.status === "locked" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : observed ? "border-amber-200 bg-amber-50 text-amber-800" : "border-grid bg-white text-grey-500"}`}>{review?.status === "locked" ? "Locked" : observed ? `${distinctCompCount}/3 comps` : "No subject"}</span>
+                </div>
+                {observed > 0 && (
+                  <>
+                    {review?.status === "locked" ? (
+                      <form action={reopenCompSegment} className="mt-4"><input type="hidden" name="segmentId" value={review.id} /><button className="rounded-md border border-navy bg-white px-3 py-2 text-xs font-semibold text-navy">Reopen segment</button></form>
+                    ) : (
+                      <form action={lockCompSegment} className="mt-4"><input type="hidden" name="compSetId" value={asset.compSet!.id} /><input type="hidden" name="bedrooms" value={bedrooms} /><button disabled={distinctCompCount < 3} className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Lock {label.toLowerCase()} evidence</button></form>
+                    )}
+                    {review?.status !== "locked" && distinctCompCount < 3 && candidatesForSegment.length > 0 && (
+                      <div className="mt-4 border-t border-grid pt-3"><p className="text-[10px] font-bold uppercase tracking-wider text-grey-500">Add approved candidates</p><div className="mt-2 space-y-2">{candidatesForSegment.map((candidate) => (
+                        <form key={candidate.sourceRecordId} action={addCompSegmentCandidate} className="flex items-center justify-between gap-3 rounded-md bg-surface-soft px-3 py-2 text-xs"><input type="hidden" name="compSetId" value={asset.compSet!.id} /><input type="hidden" name="sourceRecordId" value={candidate.sourceRecordId} /><input type="hidden" name="bedrooms" value={bedrooms} /><span><strong className="text-navy">{candidate.propertyLabel}</strong><span className="ml-2 text-grey-500">{money(candidate.askingRent)} · {rentPerSf(candidate.askingRent, candidate.squareFeet)}</span></span><button className="shrink-0 rounded-md border border-navy bg-white px-2 py-1 font-semibold text-navy">Add</button></form>
+                      ))}</div></div>
+                    )}
+                  </>
+                )}
+              </article>
+            );
+          })}
+        </div>
       </section>
 
       <section className="mt-8">

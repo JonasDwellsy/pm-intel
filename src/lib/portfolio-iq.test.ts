@@ -8,6 +8,7 @@ import { buildSubjectPerformance, propertyDecisionRead } from "@/lib/portfolio-i
 import { buildPortfolioWatchDrafts } from "@/lib/portfolio-iq/watch";
 import { buildPortfolioIqDigest } from "@/lib/portfolio-iq/digest";
 import { isPortfolioSignalActionable, portfolioDecisionLabel } from "@/lib/portfolio-iq/decision";
+import { buildBedroomSegments } from "@/lib/portfolio-iq/segments";
 
 test("Cleveland owner pilot contains five multifamily assets and four SFRs", () => {
   assert.equal(CLEVELAND_PILOT_PORTFOLIO.marketId, "cleveland-elyria-mentor-oh");
@@ -200,4 +201,48 @@ test("Portfolio IQ decision migration is additive and preserves signal evidence"
   assert.match(sql, /CREATE TABLE "PortfolioIqSignalDecisionEvent"/);
   assert.doesNotMatch(sql, /DROP\s+(TABLE|COLUMN)/i);
   assert.doesNotMatch(sql, /ALTER TABLE\s+"PortfolioIqSignal"\s+(?:DROP|ALTER COLUMN)/i);
+});
+
+test("bedroom segments never substitute market inventory for an unobserved subject product", () => {
+  const observations = Array.from({ length: 4 }, (_, index) => ({
+    askingRent: 1000 + index * 25, squareFeet: 700, bedrooms: 2,
+    activatedAt: new Date(`2026-0${index + 3}-01T00:00:00Z`), deactivatedAt: new Date(`2026-0${index + 3}-20T00:00:00Z`),
+  }));
+  const segments = buildBedroomSegments({
+    observations, availableThrough: new Date("2026-07-31T00:00:00Z"),
+    reviews: [{ bedrooms: 2, status: "locked" }],
+    compMembers: [
+      { propertyLabel: "Comp A", address: "1 Main St", bedrooms: 2, askingRent: 1000, squareFeet: 700, reviewStatus: "included" },
+      { propertyLabel: "Comp B", address: "2 Main St", bedrooms: 2, askingRent: 1050, squareFeet: 720, reviewStatus: "included" },
+      { propertyLabel: "Comp C", address: "3 Main St", bedrooms: 2, askingRent: 1100, squareFeet: 740, reviewStatus: "included" },
+    ],
+  });
+  assert.equal(segments.find((segment) => segment.bedrooms === 0)?.evidenceStatus, "not_observed");
+  assert.equal(segments.find((segment) => segment.bedrooms === 1)?.evidenceStatus, "not_observed");
+  assert.equal(segments.find((segment) => segment.bedrooms === 2)?.evidenceStatus, "locked");
+  assert.equal(segments.find((segment) => segment.bedrooms === 3)?.evidenceStatus, "not_observed");
+});
+
+test("segment signals name the bedroom product and suppress mixed property-wide conclusions", () => {
+  const drafts = buildPortfolioWatchDrafts({
+    portfolioId: "p1", assetId: "a1", assetSlug: "acadian", assetName: "Acadian",
+    matchStatus: "matched", uruStatus: "observed", compStatus: "locked", observationCount: 50,
+    askingRentVsComps: -20, rentPerSqFtVsComps: 12, askingRentChange90d: -5, medianDom: 60,
+    segments: [{ bedrooms: 2, label: "2-bedroom", isLocked: true, observationCount: 50, askingRentVsComps: 1, rentPerSqFtVsComps: 8, askingRentChange90d: 4, medianDom: 21 }],
+    marketAlert: null, observedAt: new Date("2026-07-31T00:00:00Z"),
+  });
+  assert.equal(drafts.some((signal) => signal.signalType === "rent_below_comps"), false);
+  assert.equal(drafts.some((signal) => signal.signalType === "segment_rent_psf_above_comps"), true);
+  assert.match(drafts.find((signal) => signal.category === "performance")?.headline ?? "", /2-bedroom/);
+});
+
+test("bedroom-segment migration is additive", () => {
+  const sql = readFileSync(join(process.cwd(), "prisma/migrations/20260810260000_portfolio_iq_comp_segments/migration.sql"), "utf8");
+  assert.match(sql, /CREATE TABLE "PortfolioIqCompSegment"/);
+  assert.doesNotMatch(sql, /DROP\s+(TABLE|COLUMN)/i);
+});
+
+test("Portfolio Watch market alerts require a bedroom observed at the subject", () => {
+  const source = readFileSync(join(process.cwd(), "src/lib/portfolio-iq/watch.server.ts"), "utf8");
+  assert.match(source, /observations\.some\(\(row\) => row\.bedrooms === alert\.bedrooms\)/);
 });

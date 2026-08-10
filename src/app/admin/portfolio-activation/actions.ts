@@ -497,3 +497,74 @@ export async function reopenCompSet(formData: FormData): Promise<void> {
   });
   await revalidateCompReview(compSet.assetId);
 }
+
+export async function addCompSegmentCandidate(formData: FormData): Promise<void> {
+  const userId = await requireAdmin();
+  const compSetId = String(formData.get("compSetId") ?? "");
+  const sourceRecordId = String(formData.get("sourceRecordId") ?? "");
+  const bedrooms = Number(formData.get("bedrooms"));
+  if (!compSetId || !sourceRecordId || !Number.isInteger(bedrooms) || bedrooms < 0 || bedrooms > 5) throw new Error("Invalid segment candidate.");
+  const compSet = await prisma.portfolioIqCompSet.findUnique({ where: { id: compSetId }, include: { asset: { include: { buildings: true } } } });
+  if (!compSet) throw new Error("Comp set not found.");
+  const listing = await prisma.marketIqListing.findFirst({ where: { importId: compSet.sourceImportId, sourceRecordId } });
+  if (!listing?.address || listing.bedrooms !== bedrooms) throw new Error("Candidate does not match the bedroom segment.");
+  const expectedType = compSet.asset.assetType === "single_family" ? "house" : "apartment";
+  if (listing.propertyType !== expectedType) throw new Error("Candidate property type does not match.");
+  const comparisonKey = normalizedAddress(listing.address);
+  if (compSet.asset.buildings.some((building) => {
+    const subjectKey = normalizedAddress(building.canonicalAddress);
+    return comparisonKey.startsWith(subjectKey) || subjectKey.startsWith(comparisonKey);
+  })) throw new Error("The subject property cannot be its own comp.");
+  const selectionReason = listing.postalCode === compSet.asset.postalCode
+    ? "Same ZIP code"
+    : listing.city?.trim().toLowerCase() === compSet.asset.city.trim().toLowerCase()
+      ? "Same city"
+      : "Cleveland MSA fallback";
+  await prisma.$transaction([
+    prisma.portfolioIqCompMember.upsert({
+      where: { compSetId_comparisonKey: { compSetId, comparisonKey } },
+      create: {
+        compSetId, comparisonKey, sourceRecordId: listing.sourceRecordId,
+        propertyLabel: listing.communityName?.trim() || comparisonAddress(listing.address),
+        address: listing.address, city: listing.city, state: listing.state, postalCode: listing.postalCode,
+        propertyType: listing.propertyType, bedrooms: listing.bedrooms, bathrooms: listing.bathrooms,
+        askingRent: listing.askingRent, squareFeet: listing.squareFeet, activatedAt: listing.activatedAt,
+        selectionReason, reviewStatus: "included", reviewNote: `Added for ${bedrooms}-bedroom segment`, reviewedAt: new Date(), reviewedBy: userId,
+      },
+      update: { reviewStatus: "included", exclusionReason: null, reviewNote: `Added for ${bedrooms}-bedroom segment`, reviewedAt: new Date(), reviewedBy: userId },
+    }),
+    prisma.portfolioIqCompSegment.upsert({
+      where: { compSetId_bedrooms: { compSetId, bedrooms } },
+      create: { compSetId, bedrooms, status: "proposed" },
+      update: { status: "proposed", reviewedAt: null, reviewedBy: null },
+    }),
+  ]);
+  await revalidateCompReview(compSet.assetId);
+}
+
+export async function lockCompSegment(formData: FormData): Promise<void> {
+  const userId = await requireAdmin();
+  const compSetId = String(formData.get("compSetId") ?? "");
+  const bedrooms = Number(formData.get("bedrooms"));
+  if (!compSetId || !Number.isInteger(bedrooms)) throw new Error("Invalid bedroom segment.");
+  const compSet = await prisma.portfolioIqCompSet.findUnique({
+    where: { id: compSetId },
+    include: { members: { where: { reviewStatus: { not: "excluded" }, bedrooms } } },
+  });
+  if (!compSet) throw new Error("Comp set not found.");
+  const distinctProperties = new Set(compSet.members.map((member) => normalizedAddress(member.address)));
+  if (distinctProperties.size < 3) throw new Error("A bedroom segment needs at least three distinct approved comparable properties.");
+  await prisma.portfolioIqCompSegment.upsert({
+    where: { compSetId_bedrooms: { compSetId, bedrooms } },
+    create: { compSetId, bedrooms, status: "locked", reviewedAt: new Date(), reviewedBy: userId },
+    update: { status: "locked", reviewedAt: new Date(), reviewedBy: userId },
+  });
+  await revalidateCompReview(compSet.assetId);
+}
+
+export async function reopenCompSegment(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const segmentId = String(formData.get("segmentId") ?? "");
+  const segment = await prisma.portfolioIqCompSegment.update({ where: { id: segmentId }, data: { status: "proposed", reviewedAt: null, reviewedBy: null }, select: { compSet: { select: { assetId: true } } } });
+  await revalidateCompReview(segment.compSet.assetId);
+}

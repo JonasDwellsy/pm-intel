@@ -14,6 +14,16 @@ export interface PortfolioWatchAssetInput {
   rentPerSqFtVsComps: number | null;
   askingRentChange90d: number | null;
   medianDom: number | null;
+  segments?: Array<{
+    bedrooms: number;
+    label: string;
+    isLocked: boolean;
+    observationCount: number;
+    askingRentVsComps: number | null;
+    rentPerSqFtVsComps: number | null;
+    askingRentChange90d: number | null;
+    medianDom: number | null;
+  }>;
   marketAlert?: {
     id: string;
     severity: string;
@@ -53,7 +63,7 @@ function draft(input: PortfolioWatchAssetInput, values: Omit<PortfolioWatchDraft
 
 export function buildPortfolioWatchDrafts(input: PortfolioWatchAssetInput): PortfolioWatchDraft[] {
   const signals: PortfolioWatchDraft[] = [];
-  const lockedEvidence = input.compStatus === "locked" && input.observationCount >= 2;
+  const lockedEvidence = !input.segments && input.compStatus === "locked" && input.observationCount >= 2;
 
   if (lockedEvidence && input.askingRentVsComps !== null && input.askingRentVsComps <= -5) {
     signals.push(draft(input, {
@@ -122,6 +132,62 @@ export function buildPortfolioWatchDrafts(input: PortfolioWatchAssetInput): Port
       ownerQuestion: "Are pricing, lead response, or unit readiness contributing to the slower listing velocity?",
       evidence: JSON.stringify({ medianDom: input.medianDom, observations: input.observationCount }),
     }));
+  }
+
+  for (const segment of input.segments ?? []) {
+    const sourceKey = `beds-${segment.bedrooms}`;
+    if (segment.observationCount >= 2 && !segment.isLocked) {
+      signals.push(draft(input, {
+        signalType: "segment_comp_review_pending", sourceKey, category: "readiness", severity: "info", confidence: "setup", rankScore: 48,
+        headline: `${input.assetName} ${segment.label.toLowerCase()} comparable evidence is in review`,
+        narrative: `The property has ${segment.observationCount} matched ${segment.label.toLowerCase()} observations, but the same-bedroom comparable set is not yet locked.`,
+        ownerQuestion: null,
+        evidence: JSON.stringify({ bedrooms: segment.bedrooms, observations: segment.observationCount }),
+      }));
+    }
+    if (!segment.isLocked || segment.observationCount < 2) continue;
+    if (segment.askingRentVsComps !== null && (segment.askingRentVsComps <= -5 || segment.askingRentVsComps >= 8)) {
+      const below = segment.askingRentVsComps < 0;
+      signals.push(draft(input, {
+        signalType: below ? "segment_rent_below_comps" : "segment_rent_above_comps", sourceKey,
+        category: "performance", severity: Math.abs(segment.askingRentVsComps) >= 10 ? "high" : "medium",
+        confidence: segment.observationCount >= 3 ? "high" : "medium", rankScore: Math.abs(segment.askingRentVsComps) >= 10 ? 96 : 86,
+        headline: `${input.assetName} ${segment.label.toLowerCase()} rent is ${below ? "below" : "above"} approved comps`,
+        narrative: `Observed ${segment.label.toLowerCase()} asking rent is ${Math.abs(segment.askingRentVsComps).toFixed(1)}% ${below ? "below" : "above"} the locked same-bedroom comparable median.`,
+        ownerQuestion: below ? "Should the property manager test a higher asking rent on the next matching unit?" : "Is the premium supported by condition, amenities, and listing velocity?",
+        evidence: JSON.stringify({ bedrooms: segment.bedrooms, askingRentVsComps: segment.askingRentVsComps, observations: segment.observationCount }),
+      }));
+    }
+    if (segment.rentPerSqFtVsComps !== null && Math.abs(segment.rentPerSqFtVsComps) >= 5) {
+      const above = segment.rentPerSqFtVsComps > 0;
+      signals.push(draft(input, {
+        signalType: above ? "segment_rent_psf_above_comps" : "segment_rent_psf_below_comps", sourceKey,
+        category: "performance", severity: Math.abs(segment.rentPerSqFtVsComps) >= 10 ? "high" : "medium",
+        confidence: segment.observationCount >= 3 ? "high" : "medium", rankScore: Math.abs(segment.rentPerSqFtVsComps) >= 10 ? 90 : 84,
+        headline: `${input.assetName} ${segment.label.toLowerCase()} rent per square foot is ${above ? "above" : "below"} approved comps`,
+        narrative: `Observed ${segment.label.toLowerCase()} asking rent per square foot is ${Math.abs(segment.rentPerSqFtVsComps).toFixed(1)}% ${above ? "above" : "below"} the locked same-bedroom comparable median.`,
+        ownerQuestion: above ? "Is the pricing premium supported by condition, amenities, and current listing velocity?" : "Is there room to test higher pricing without compromising listing velocity?",
+        evidence: JSON.stringify({ bedrooms: segment.bedrooms, rentPerSqFtVsComps: segment.rentPerSqFtVsComps, observations: segment.observationCount }),
+      }));
+    }
+    if (segment.askingRentChange90d !== null && segment.askingRentChange90d <= -3) {
+      signals.push(draft(input, {
+        signalType: "segment_rent_softening", sourceKey, category: "performance", severity: "high", confidence: "medium", rankScore: 93,
+        headline: `${input.assetName} ${segment.label.toLowerCase()} asking rent is softening`,
+        narrative: `Recent observed ${segment.label.toLowerCase()} asking rent is down ${Math.abs(segment.askingRentChange90d).toFixed(1)}% from the prior 90-day window.`,
+        ownerQuestion: "What changed in pricing, product mix, or leasing strategy during the latest quarter?",
+        evidence: JSON.stringify({ bedrooms: segment.bedrooms, askingRentChange90d: segment.askingRentChange90d }),
+      }));
+    }
+    if (segment.medianDom !== null && segment.medianDom >= 45) {
+      signals.push(draft(input, {
+        signalType: "segment_listing_velocity_slow", sourceKey, category: "performance", severity: "high", confidence: "medium", rankScore: 88,
+        headline: `${input.assetName} ${segment.label.toLowerCase()} listings are moving slowly`,
+        narrative: `Matched ${segment.label.toLowerCase()} listings show a median advertised-market duration of ${Math.round(segment.medianDom)} days.`,
+        ownerQuestion: "Are pricing, lead response, or unit readiness contributing to the slower listing velocity?",
+        evidence: JSON.stringify({ bedrooms: segment.bedrooms, medianDom: segment.medianDom, observations: segment.observationCount }),
+      }));
+    }
   }
 
   if (input.marketAlert) {
