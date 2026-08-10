@@ -2,9 +2,9 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isAdminUser } from "@/lib/auth/is-admin";
+import { sendEmail } from "@/lib/email/send";
 import { buildMarketIqDigest } from "@/lib/market-iq/digest";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { sendMarketIqEmail } from "@/lib/market-iq/resend.server";
 import { parseJsonArray, type MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
 import { prisma } from "@/lib/prisma";
 
@@ -58,7 +58,8 @@ export async function POST(request: Request) {
     dashboardUrl: `${origin}/market-iq`,
   });
   try {
-    const sent = await sendMarketIqEmail({ to: email, ...digest });
+    const sent = await sendEmail({ to: email, ...digest });
+    if (!sent.ok) throw new Error(sent.error);
     return Response.json({
       sent: true,
       messageId: sent.id,
