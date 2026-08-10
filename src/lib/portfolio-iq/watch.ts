@@ -11,6 +11,7 @@ export interface PortfolioWatchAssetInput {
   compStatus: string | null;
   observationCount: number;
   askingRentVsComps: number | null;
+  rentPerSqFtVsComps: number | null;
   askingRentChange90d: number | null;
   medianDom: number | null;
   marketAlert?: {
@@ -78,6 +79,22 @@ export function buildPortfolioWatchDrafts(input: PortfolioWatchAssetInput): Port
       narrative: `Observed asking rent is ${input.askingRentVsComps.toFixed(1)}% above the locked comparable-set median.`,
       ownerQuestion: "Is the premium supported by condition and amenities, or is it slowing leasing velocity?",
       evidence: JSON.stringify({ askingRentVsComps: input.askingRentVsComps, observations: input.observationCount }),
+    }));
+  }
+  if (lockedEvidence && input.rentPerSqFtVsComps !== null && Math.abs(input.rentPerSqFtVsComps) >= 5) {
+    const above = input.rentPerSqFtVsComps > 0;
+    signals.push(draft(input, {
+      signalType: above ? "rent_psf_above_comps" : "rent_psf_below_comps",
+      category: "performance",
+      severity: Math.abs(input.rentPerSqFtVsComps) >= 10 ? "high" : "medium",
+      confidence: input.observationCount >= 3 ? "high" : "medium",
+      rankScore: Math.abs(input.rentPerSqFtVsComps) >= 10 ? 90 : 84,
+      headline: `${input.assetName} rent per square foot is ${above ? "above" : "below"} approved comps`,
+      narrative: `Observed asking rent per square foot is ${Math.abs(input.rentPerSqFtVsComps).toFixed(1)}% ${above ? "above" : "below"} the locked comparable-set median.`,
+      ownerQuestion: above
+        ? "Is the pricing premium supported by condition, amenities, and current listing velocity?"
+        : "Is there room to test higher pricing without compromising listing velocity?",
+      evidence: JSON.stringify({ rentPerSqFtVsComps: input.rentPerSqFtVsComps, observations: input.observationCount }),
     }));
   }
   if (lockedEvidence && input.askingRentChange90d !== null && input.askingRentChange90d <= -3) {

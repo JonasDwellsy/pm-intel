@@ -89,6 +89,7 @@ export async function refreshPortfolioWatchSignals(portfolioId: string) {
       compStatus: asset.compSet?.status ?? null,
       observationCount: performance.observationCount,
       askingRentVsComps: performance.askingRentVsComps,
+      rentPerSqFtVsComps: performance.rentPerSqFtVsComps,
       askingRentChange90d: performance.askingRentChange90d,
       medianDom: performance.medianDom,
       marketAlert: bestAlert ? {

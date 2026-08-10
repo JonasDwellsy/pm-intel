@@ -142,7 +142,7 @@ test("Portfolio Watch gates comp-relative conclusions on locked evidence", () =>
   const base = {
     portfolioId: "p1", assetId: "a1", assetSlug: "asset", assetName: "Asset",
     matchStatus: "matched", uruStatus: "observed", observationCount: 4,
-    askingRentVsComps: -12, askingRentChange90d: -4, medianDom: 55,
+    askingRentVsComps: -12, rentPerSqFtVsComps: 8, askingRentChange90d: -4, medianDom: 55,
     marketAlert: null, observedAt: new Date("2026-07-31"),
   };
   const proposed = buildPortfolioWatchDrafts({ ...base, compStatus: "proposed" });
@@ -152,6 +152,7 @@ test("Portfolio Watch gates comp-relative conclusions on locked evidence", () =>
   assert.equal(locked.some((signal) => signal.signalType === "rent_below_comps"), true);
   assert.equal(locked.some((signal) => signal.signalType === "rent_softening"), true);
   assert.equal(locked.some((signal) => signal.signalType === "listing_velocity_slow"), true);
+  assert.equal(locked.some((signal) => signal.signalType === "rent_psf_above_comps"), true);
 });
 
 test("Portfolio Watch migration is additive and isolated from other IQ products", () => {
