@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { clevelandPilot } from "@/data/market-iq/cleveland-pilot";
 import { fmtDate, fmtInt, fmtPct } from "@/lib/format";
+import type { MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
+import { MarketWatchlistBuilder } from "@/components/market-iq/MarketWatchlistBuilder";
 
 function MetricCard({
   label,
@@ -22,7 +24,7 @@ function MetricCard({
   );
 }
 
-export function ClevelandPilot() {
+export function ClevelandPilot({ initialWatchlists = [] }: { initialWatchlists?: MarketIqWatchlistView[] }) {
   const data = clevelandPilot;
 
   return (
@@ -145,6 +147,8 @@ export function ClevelandPilot() {
           </div>
         </div>
       </section>
+
+      <MarketWatchlistBuilder initialWatchlists={initialWatchlists} />
 
       <section aria-labelledby="source-heading" className="mt-10 rounded-lg border border-orange/30 bg-orange-soft p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">

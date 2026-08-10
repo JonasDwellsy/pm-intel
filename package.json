@@ -13,7 +13,8 @@
     "test:components:watch": "vitest",
     "migrate:to-orgs": "tsx scripts/migrate-to-orgs.ts",
     "migrate:to-orgs:dry-run": "tsx scripts/migrate-to-orgs.ts --dry-run",
-    "audit:metrics": "tsx scripts/audit-metrics.ts"
+    "audit:metrics": "tsx scripts/audit-metrics.ts",
+    "market-iq:import-history": "tsx scripts/import-market-iq-history.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",

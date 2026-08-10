@@ -3,7 +3,10 @@ import { ClevelandPilot } from "@/components/market-iq/ClevelandPilot";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { isMarketEntitled, resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
 import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
+import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
+import { parseJsonArray, type MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -19,5 +22,26 @@ export default async function MarketIqPage() {
   const marketEntitlement = await resolveViewerEntitlement();
   if (!isMarketEntitled(marketEntitlement, CLEVELAND_MARKET_ID)) notFound();
 
-  return <ClevelandPilot />;
+  const { organizationId } = await getActiveOrgContext();
+  let initialWatchlists: MarketIqWatchlistView[] = [];
+  if (organizationId) {
+    const rows = await prisma.marketIqWatchlist.findMany({
+      where: { organizationId, marketId: CLEVELAND_MARKET_ID },
+      orderBy: { updatedAt: "desc" },
+    });
+    initialWatchlists = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      marketId: row.marketId,
+      geographyType: row.geographyType as MarketIqWatchlistView["geographyType"],
+      geographyValues: parseJsonArray<string>(row.geographyValues),
+      propertyTypes: parseJsonArray<MarketIqWatchlistView["propertyTypes"][number]>(row.propertyTypes),
+      bedroomCounts: parseJsonArray<number>(row.bedroomCounts),
+      alertsEnabled: row.alertsEnabled,
+      alertCadence: row.alertCadence as MarketIqWatchlistView["alertCadence"],
+      updatedAt: row.updatedAt.toISOString(),
+    }));
+  }
+
+  return <ClevelandPilot initialWatchlists={initialWatchlists} />;
 }

@@ -495,11 +495,12 @@ model Organization {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  memberships     OrganizationMembership[]
-  watchLists      WatchList[]
-  pendingWelcomes PendingWelcome[]
-  marketAccess    OrganizationMarketAccess[]
-  productAccess   OrganizationProductAccess[]
+  memberships        OrganizationMembership[]
+  watchLists         WatchList[]
+  pendingWelcomes    PendingWelcome[]
+  marketAccess       OrganizationMarketAccess[]
+  productAccess      OrganizationProductAccess[]
+  marketIqWatchlists MarketIqWatchlist[]
 
   // Hot lookups: "find personal org for user X" (already covered by
   // the @unique on personalForUserId) and "find org by Clerk id"
@@ -522,6 +523,86 @@ model OrganizationProductAccess {
 
   @@unique([organizationId, productKey])
   @@index([organizationId])
+}
+
+// Market IQ resources are deliberately separate from Operator IQ's WatchList
+// model. Operator IQ watch lists rank operators against acquisition criteria;
+// Market IQ watchlists monitor rental geographies and product segments. Keeping
+// the persistence paths separate prevents a Market IQ preview from changing any
+// existing customer workflow or query.
+model MarketIqWatchlist {
+  id              String   @id @default(cuid())
+  name            String
+  ownerId         String
+  organizationId  String
+  marketId        String
+  geographyType   String   @default("msa") // msa | city | zip
+  geographyValues String   @default("[]") // JSON array of labels/codes
+  propertyTypes   String   @default("[\"apartment\",\"house\"]")
+  bedroomCounts   String   @default("[]") // JSON array; [] means all
+  alertsEnabled   Boolean  @default(true)
+  alertCadence    String   @default("weekly")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, updatedAt(sort: Desc)])
+  @@index([marketId])
+}
+
+// One row per immutable source file. The checksum is the idempotency key, so a
+// historical export can be safely retried without duplicating its records.
+model MarketIqDataImport {
+  id               String    @id @default(cuid())
+  sourceKind       String // historical_export | trends | live_listing_feed
+  sourceName       String
+  sourceFilename   String?
+  sourceChecksum   String    @unique
+  marketId         String
+  availableThrough DateTime?
+  recordCount      Int       @default(0)
+  status           String    @default("pending")
+  metadata         String    @default("{}")
+  importedAt       DateTime  @default(now())
+
+  listings MarketIqListing[]
+
+  @@index([marketId, importedAt(sort: Desc)])
+}
+
+// Normalized asking-listing observation from an immutable Market IQ import.
+// This is not a lease, occupancy, or effective-rent record.
+model MarketIqListing {
+  id             String    @id @default(cuid())
+  importId       String
+  sourceRecordId String
+  marketId       String
+  listingStatus  String?
+  address        String?
+  city           String?
+  state          String?
+  postalCode     String?
+  latitude       Float?
+  longitude      Float?
+  askingRent     Float?
+  squareFeet     Float?
+  bedrooms       Float?
+  bathrooms      Float?
+  propertyType   String
+  communityName  String?
+  ownerName      String?
+  activatedAt    DateTime?
+  deactivatedAt  DateTime?
+  rawData        String    @default("{}")
+  createdAt      DateTime  @default(now())
+
+  dataImport MarketIqDataImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@unique([importId, sourceRecordId])
+  @@index([marketId, activatedAt])
+  @@index([marketId, city, postalCode])
+  @@index([marketId, propertyType, bedrooms])
 }
 
 // v0.22 — explicit per-market grants for an organization. One row per
