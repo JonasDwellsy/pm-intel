@@ -52,6 +52,7 @@ function args() {
     file: read("--file"),
     availableThrough: read("--available-through"),
     analysisCutoff: read("--analysis-cutoff"),
+    endpoint: read("--endpoint"),
     apply: values.includes("--apply"),
   };
 }
@@ -282,6 +283,57 @@ async function main() {
   }
   if (!options.apply) return;
 
+  const normalizedRows: Array<Omit<Prisma.MarketIqListingCreateManyInput, "importId">> = rows.map((row) => ({
+    sourceRecordId: sourceRecordId(row, columns),
+    marketId: MARKET_ID,
+    listingStatus: text(value(row, columns, "listingStatus")),
+    address: [text(value(row, columns, "address")), text(value(row, columns, "address2"))].filter(Boolean).join(", ") || null,
+    city: text(value(row, columns, "city")),
+    state: text(value(row, columns, "state")),
+    postalCode: text(value(row, columns, "postalCode")),
+    latitude: number(value(row, columns, "latitude")),
+    longitude: number(value(row, columns, "longitude")),
+    askingRent: number(value(row, columns, "askingRent")),
+    squareFeet: number(value(row, columns, "squareFeet")),
+    bedrooms: number(value(row, columns, "bedrooms")),
+    bathrooms: bathrooms(row, columns),
+    propertyType: propertyType(value(row, columns, "propertyType")),
+    communityName: text(value(row, columns, "communityName")),
+    ownerName: text(value(row, columns, "ownerName")),
+    activatedAt: date(value(row, columns, "activatedAt")),
+    deactivatedAt: date(value(row, columns, "deactivatedAt")),
+    rawData: JSON.stringify(compactRawData(row)),
+  }));
+
+  if (options.endpoint) {
+    const token = process.env.MARKET_IQ_IMPORT_TOKEN;
+    if (!token) throw new Error("MARKET_IQ_IMPORT_TOKEN is required with --endpoint.");
+    for (let start = 0; start < normalizedRows.length; start += BATCH_SIZE) {
+      const batch = normalizedRows.slice(start, start + BATCH_SIZE);
+      const final = start + batch.length >= normalizedRows.length;
+      const response = await fetch(options.endpoint, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          sourceChecksum: checksum,
+          sourceFilename: basename(options.file),
+          availableThrough: options.availableThrough,
+          analysisCutoff: options.analysisCutoff,
+          headers,
+          mappedColumns: columns,
+          expectedRecordCount: rows.length,
+          records: batch,
+          final,
+        }),
+      });
+      const result = (await response.json()) as { error?: string; persistedCount?: number; alreadyComplete?: boolean };
+      if (!response.ok) throw new Error(result.error || `Remote import failed with HTTP ${response.status}.`);
+      console.log(`Persisted ${result.persistedCount ?? rows.length} of ${rows.length}`);
+      if (result.alreadyComplete) break;
+    }
+    return;
+  }
+
   const prisma = new PrismaClient();
   try {
     const existing = await prisma.marketIqDataImport.findUnique({ where: { sourceChecksum: checksum } });
@@ -304,28 +356,9 @@ async function main() {
 
     try {
       for (let start = 0; start < rows.length; start += BATCH_SIZE) {
-        const batch: Prisma.MarketIqListingCreateManyInput[] = rows.slice(start, start + BATCH_SIZE).map((row) => ({
-          importId: dataImport.id,
-          sourceRecordId: sourceRecordId(row, columns),
-          marketId: MARKET_ID,
-          listingStatus: text(value(row, columns, "listingStatus")),
-          address: [text(value(row, columns, "address")), text(value(row, columns, "address2"))].filter(Boolean).join(", ") || null,
-          city: text(value(row, columns, "city")),
-          state: text(value(row, columns, "state")),
-          postalCode: text(value(row, columns, "postalCode")),
-          latitude: number(value(row, columns, "latitude")),
-          longitude: number(value(row, columns, "longitude")),
-          askingRent: number(value(row, columns, "askingRent")),
-          squareFeet: number(value(row, columns, "squareFeet")),
-          bedrooms: number(value(row, columns, "bedrooms")),
-          bathrooms: bathrooms(row, columns),
-          propertyType: propertyType(value(row, columns, "propertyType")),
-          communityName: text(value(row, columns, "communityName")),
-          ownerName: text(value(row, columns, "ownerName")),
-          activatedAt: date(value(row, columns, "activatedAt")),
-          deactivatedAt: date(value(row, columns, "deactivatedAt")),
-          rawData: JSON.stringify(compactRawData(row)),
-        }));
+        const batch: Prisma.MarketIqListingCreateManyInput[] = normalizedRows
+          .slice(start, start + BATCH_SIZE)
+          .map((row) => ({ ...row, importId: dataImport.id }));
         await prisma.marketIqListing.createMany({ data: batch, skipDuplicates: true });
         console.log(`Loaded ${Math.min(start + batch.length, rows.length)} of ${rows.length}`);
       }

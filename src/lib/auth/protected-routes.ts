@@ -95,6 +95,10 @@ export const PUBLIC_BUYBOX_PATTERNS = [
   // /sign-in.
   "/watch-lists/new",
   "/api/watch-lists/preview",
+  // Machine-to-machine historical ingestion. The route is public only at the
+  // Clerk middleware layer because it uses a separate constant-time bearer
+  // secret, is preview-flagged, and is unavailable when that secret is absent.
+  "/api/market-iq/import/history",
   // NOTE: the per-market brief (/property-managers/:state/:city/brief) used
   // to be carved out here as public. It's now intentionally GATED — it falls
   // through to the protected :slug pattern above. Logged-out visitors get the

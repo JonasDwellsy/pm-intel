@@ -69,6 +69,11 @@ test("Market IQ preview routes require a Clerk session", () => {
   assert.equal(isGated("/api/market-iq/watchlists"), true);
 });
 
+test("Market IQ historical ingestion bypasses Clerk for bearer-token auth", () => {
+  assert.equal(isGated("/api/market-iq/import/history"), false);
+  assert.equal(isGated("/api/market-iq/watchlists"), true);
+});
+
 test("anonymous users are gated off /watch-lists/:id/edit", () => {
   assert.equal(isGated("/watch-lists/cuid_abc123/edit"), true);
 });
