@@ -9,10 +9,11 @@ import { portfolioIqPreviewEnabled } from "@/lib/portfolio-iq/feature";
 import { loadPortfolioIqHome } from "@/lib/portfolio-iq/home.server";
 import type { HistoricalListingPulse, MarketIqPlacePulse } from "@/lib/market-iq/historical";
 import type { MarketIqTrendPulse } from "@/lib/market-iq/trends";
-import { loadPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
+import { loadPortfolioDecisionHistory, loadPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
 import { prisma } from "@/lib/prisma";
-import { updatePortfolioDigestPreference } from "./actions";
+import { updatePortfolioDigestPreference, updatePortfolioSignalDecision } from "./actions";
 import { PortfolioWatchDigestPanel } from "@/components/portfolio-iq/PortfolioWatchDigestPanel";
+import { portfolioDecisionLabel } from "@/lib/portfolio-iq/decision";
 
 export const dynamic = "force-dynamic";
 
@@ -83,13 +84,14 @@ export default async function PortfolioIqPage() {
   const entitlement = await resolveViewerEntitlement();
   if (!isMarketEntitled(entitlement, portfolio.marketId)) notFound();
 
-  const [historicalPulse, trendPulses, portfolioSignals, digestPreference] = await Promise.all([
+  const [historicalPulse, trendPulses, portfolioSignals, digestPreference, decisionHistory] = await Promise.all([
     loadClevelandHistoricalPulse().catch(() => null as HistoricalListingPulse | null),
     loadClevelandTrendPulses().catch(() => [] as MarketIqTrendPulse[]),
     loadPortfolioWatchSignals(portfolio.id),
     prisma.portfolioIqDigestPreference.findUnique({
       where: { portfolioId_userId: { portfolioId: portfolio.id, userId } },
     }),
+    loadPortfolioDecisionHistory(portfolio.id),
   ]);
 
   const assets = portfolio.assets;
@@ -218,11 +220,32 @@ export default async function PortfolioIqPage() {
                     <span className={signal.severity === "high" ? "text-rose-800" : "text-teal-700"}>{signal.category}</span>
                     <span className="text-muted-foreground">{signal.confidence === "setup" ? "Setup signal" : `${signal.confidence} confidence`}</span>
                     {isNew && <span className="rounded-full bg-navy px-2 py-0.5 text-white">New</span>}
+                    {signal.decision && <span className="rounded-full border border-grid bg-white px-2 py-0.5 text-navy">{portfolioDecisionLabel(signal.decision.state)}</span>}
                   </div>
                   <h3 className="mt-2 text-lg font-semibold leading-6 text-navy">{signal.headline}</h3>
                   <p className="mt-2 text-sm leading-6 text-foreground/75">{signal.narrative}</p>
                   {signal.ownerQuestion && <p className="mt-3 border-t border-grid pt-3 text-sm font-medium leading-6 text-navy"><span className="font-bold">Question for your team:</span> {signal.ownerQuestion}</p>}
-                  {signal.asset && <Link href={`/portfolio-iq/properties/${signal.asset.slug}`} className="mt-4 inline-flex text-sm font-semibold text-teal-700 hover:underline">Open {signal.asset.name} →</Link>}
+                  {signal.decision?.assignedTo && <p className="mt-3 text-xs font-semibold text-muted-foreground">Assigned to {signal.decision.assignedTo}</p>}
+                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-grid pt-4">
+                    <form action={updatePortfolioSignalDecision}>
+                      <input type="hidden" name="signalId" value={signal.id} />
+                      <button name="decisionAction" value="acknowledge" className="rounded-md border border-grid bg-white px-3 py-2 text-xs font-semibold text-navy hover:bg-surface-soft">Acknowledge</button>
+                    </form>
+                    <form action={updatePortfolioSignalDecision} className="flex gap-2">
+                      <input type="hidden" name="signalId" value={signal.id} />
+                      <input name="assignedTo" aria-label={`Assign ${signal.headline}`} defaultValue={signal.decision?.assignedTo ?? ""} placeholder="Person or team" className="w-32 rounded-md border border-grid bg-white px-3 py-2 text-xs text-navy" />
+                      <button name="decisionAction" value="assign" className="rounded-md border border-grid bg-white px-3 py-2 text-xs font-semibold text-navy hover:bg-surface-soft">Assign</button>
+                    </form>
+                    <form action={updatePortfolioSignalDecision}>
+                      <input type="hidden" name="signalId" value={signal.id} />
+                      <button name="decisionAction" value="snooze" className="rounded-md border border-grid bg-white px-3 py-2 text-xs font-semibold text-navy hover:bg-surface-soft">Snooze 7 days</button>
+                    </form>
+                    <form action={updatePortfolioSignalDecision}>
+                      <input type="hidden" name="signalId" value={signal.id} />
+                      <button name="decisionAction" value="resolve" className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white hover:bg-navy-700">Resolve</button>
+                    </form>
+                    {signal.asset && <Link href={`/portfolio-iq/properties/${signal.asset.slug}`} className="ml-auto inline-flex text-sm font-semibold text-teal-700 hover:underline">Open {signal.asset.name} →</Link>}
+                  </div>
                 </article>
               );
             })}
@@ -231,6 +254,29 @@ export default async function PortfolioIqPage() {
           <div className="mt-5 rounded-xl border border-dashed border-grid px-6 py-10 text-center text-sm text-muted-foreground">Portfolio Watch is awaiting its first evidence refresh.</div>
         )}
       </section>
+
+      {decisionHistory.length > 0 && (
+        <section aria-labelledby="decision-history-heading" className="mt-8 rounded-xl border border-grid bg-white p-5 sm:p-6">
+          <p className="dq-eyebrow">Decision history</p>
+          <h2 id="decision-history-heading" className="dq-h2">What your team has done</h2>
+          <div className="mt-4 divide-y divide-grid">
+            {decisionHistory.slice(0, 8).map((event) => (
+              <div key={event.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 text-sm">
+                <span className="font-semibold capitalize text-navy">{event.action}</span>
+                <span className="text-foreground/75">{event.decision.signal.headline}</span>
+                {event.assignedTo && <span className="rounded-full bg-surface-soft px-2 py-1 text-xs text-muted-foreground">{event.assignedTo}</span>}
+                {["resolved", "snoozed"].includes(event.decision.state) && (
+                  <form action={updatePortfolioSignalDecision}>
+                    <input type="hidden" name="signalId" value={event.decision.signal.id} />
+                    <button name="decisionAction" value="reopen" className="rounded-md border border-grid bg-white px-2 py-1 text-xs font-semibold text-navy">Reopen</button>
+                  </form>
+                )}
+                <time className="ml-auto text-xs text-muted-foreground">{event.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}</time>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section aria-label="Portfolio summary" className="mt-8 overflow-hidden rounded-lg border border-grid bg-white shadow-sm">
         <div className="grid sm:grid-cols-2 lg:grid-cols-5">

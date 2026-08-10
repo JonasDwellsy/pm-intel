@@ -866,10 +866,49 @@ model PortfolioIqSignal {
 
   portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   asset     PortfolioIqAsset?     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  decision  PortfolioIqSignalDecision?
 
   @@index([portfolioId, status, rankScore(sort: Desc)])
   @@index([assetId, status])
   @@index([observedAt(sort: Desc)])
+}
+
+// The analytical signal remains immutable from the owner's perspective.
+// Decision state is stored separately so acknowledging or resolving an item
+// never rewrites the evidence that caused it to appear.
+model PortfolioIqSignalDecision {
+  id             String    @id @default(cuid())
+  signalId       String    @unique
+  organizationId String
+  state          String    @default("open") // open | acknowledged | snoozed | resolved
+  assignedTo     String?
+  note           String?
+  snoozedUntil   DateTime?
+  decidedBy      String
+  decidedAt      DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  signal PortfolioIqSignal              @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  events PortfolioIqSignalDecisionEvent[]
+
+  @@index([organizationId, state, updatedAt(sort: Desc)])
+}
+
+model PortfolioIqSignalDecisionEvent {
+  id           String   @id @default(cuid())
+  decisionId   String
+  action       String
+  fromState    String?
+  toState      String
+  assignedTo   String?
+  note         String?
+  actorUserId  String
+  createdAt    DateTime @default(now())
+
+  decision PortfolioIqSignalDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  @@index([decisionId, createdAt(sort: Desc)])
 }
 
 model PortfolioIqDigestPreference {

@@ -7,6 +7,7 @@ import { proposeCompMembers } from "@/lib/portfolio-iq/comp-generator";
 import { buildSubjectPerformance, propertyDecisionRead } from "@/lib/portfolio-iq/property";
 import { buildPortfolioWatchDrafts } from "@/lib/portfolio-iq/watch";
 import { buildPortfolioIqDigest } from "@/lib/portfolio-iq/digest";
+import { isPortfolioSignalActionable, portfolioDecisionLabel } from "@/lib/portfolio-iq/decision";
 
 test("Cleveland owner pilot contains five multifamily assets and four SFRs", () => {
   assert.equal(CLEVELAND_PILOT_PORTFOLIO.marketId, "cleveland-elyria-mentor-oh");
@@ -172,10 +173,30 @@ test("Portfolio IQ digest uses the same ranked signals and preserves asking-mark
       narrative: "Observed asking rent is 10% below the locked comp median.",
       ownerQuestion: "Should the manager test a higher asking rent?",
       asset: { slug: "asset", name: "Asset" },
+      decision: { state: "acknowledged", assignedTo: "Asset manager" },
     }],
   });
   assert.match(digest.subject, /^\[preview\] Portfolio IQ:/);
   assert.match(digest.text, /Rent is below comps/);
+  assert.match(digest.text, /Assigned to: Asset manager/);
   assert.match(digest.text, /does not measure occupancy, signed leases, or effective rent/);
   assert.equal(digest.signalCount, 1);
+});
+
+test("Portfolio Watch decision visibility respects resolve and seven-day snooze", () => {
+  const now = new Date("2026-08-10T12:00:00Z");
+  assert.equal(isPortfolioSignalActionable(null, now), true);
+  assert.equal(isPortfolioSignalActionable({ state: "acknowledged", snoozedUntil: null }, now), true);
+  assert.equal(isPortfolioSignalActionable({ state: "resolved", snoozedUntil: null }, now), false);
+  assert.equal(isPortfolioSignalActionable({ state: "snoozed", snoozedUntil: new Date("2026-08-17T12:00:00Z") }, now), false);
+  assert.equal(isPortfolioSignalActionable({ state: "snoozed", snoozedUntil: new Date("2026-08-09T12:00:00Z") }, now), true);
+  assert.equal(portfolioDecisionLabel("acknowledged"), "Acknowledged");
+});
+
+test("Portfolio IQ decision migration is additive and preserves signal evidence", () => {
+  const sql = readFileSync(join(process.cwd(), "prisma/migrations/20260810250000_portfolio_iq_decisions/migration.sql"), "utf8");
+  assert.match(sql, /CREATE TABLE "PortfolioIqSignalDecision"/);
+  assert.match(sql, /CREATE TABLE "PortfolioIqSignalDecisionEvent"/);
+  assert.doesNotMatch(sql, /DROP\s+(TABLE|COLUMN)/i);
+  assert.doesNotMatch(sql, /ALTER TABLE\s+"PortfolioIqSignal"\s+(?:DROP|ALTER COLUMN)/i);
 });

@@ -6,6 +6,8 @@ import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
 import { loadClevelandTrendPulses } from "@/lib/market-iq/trends.server";
 import { portfolioIqPreviewEnabled } from "@/lib/portfolio-iq/feature";
 import { loadPortfolioIqProperty } from "@/lib/portfolio-iq/property.server";
+import { portfolioDecisionLabel } from "@/lib/portfolio-iq/decision";
+import { updatePortfolioSignalDecision } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +80,7 @@ export default async function PortfolioIqPropertyPage({ params }: { params: Prom
   const { asset, performance, compSet, alerts } = property;
   const compMembers = compSet?.members ?? [];
   const hasSubjectEvidence = performance.observationCount > 0;
+  const compEvidenceLocked = compSet?.status === "locked";
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -122,11 +125,56 @@ export default async function PortfolioIqPropertyPage({ params }: { params: Prom
         <MetricCard label="Median listing velocity" value={performance.medianDom === null ? "Insufficient data" : `${Math.round(performance.medianDom)} days`} detail="Activation to deactivation or export cutoff" />
         <MetricCard
           label="Asking rent vs comps"
-          value={percent(performance.askingRentVsComps)}
-          detail={performance.compAskingRent === null ? "Proposed comp rent unavailable" : `Proposed comp median ${dollars(performance.compAskingRent)}`}
-          tone={comparisonTone(performance.askingRentVsComps)}
+          value={compEvidenceLocked ? percent(performance.askingRentVsComps) : "Awaiting comp lock"}
+          detail={compEvidenceLocked ? `Locked comp median ${dollars(performance.compAskingRent)}` : "No performance conclusion until staff review is complete"}
+          tone={compEvidenceLocked ? comparisonTone(performance.askingRentVsComps) : "text-muted-foreground"}
         />
       </section>
+
+      {property.signals.length > 0 && (
+        <section aria-labelledby="property-decisions-heading" className="mt-8 rounded-xl border border-teal/25 bg-teal-soft p-5 sm:p-6">
+          <p className="dq-eyebrow">Owner decision</p>
+          <h2 id="property-decisions-heading" className="dq-h2">What needs attention at {asset.name}</h2>
+          <div className="mt-4 space-y-3">
+            {property.signals.slice(0, 3).map((signal) => (
+              <article key={signal.id} className="rounded-lg border border-grid bg-white p-5">
+                <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-wider">
+                  <span className={signal.severity === "high" ? "text-rose-800" : "text-teal-700"}>{signal.category} · {signal.severity}</span>
+                  {signal.decision && <span className="rounded-full bg-surface-soft px-2 py-1 text-navy">{portfolioDecisionLabel(signal.decision.state)}</span>}
+                </div>
+                <h3 className="mt-2 text-lg font-semibold text-navy">{signal.headline}</h3>
+                <p className="mt-2 text-sm leading-6 text-foreground/75">{signal.narrative}</p>
+                {signal.ownerQuestion && <p className="mt-3 text-sm font-medium text-navy"><strong>Question for your team:</strong> {signal.ownerQuestion}</p>}
+                {signal.decision?.assignedTo && <p className="mt-2 text-xs font-semibold text-muted-foreground">Assigned to {signal.decision.assignedTo}</p>}
+                <div className="mt-4 flex flex-wrap gap-2 border-t border-grid pt-4">
+                  <form action={updatePortfolioSignalDecision}><input type="hidden" name="signalId" value={signal.id} /><button name="decisionAction" value="acknowledge" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy">Acknowledge</button></form>
+                  <form action={updatePortfolioSignalDecision} className="flex gap-2"><input type="hidden" name="signalId" value={signal.id} /><input name="assignedTo" aria-label={`Assign ${signal.headline}`} defaultValue={signal.decision?.assignedTo ?? ""} placeholder="Person or team" className="w-36 rounded-md border border-grid px-3 py-2 text-xs" /><button name="decisionAction" value="assign" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy">Assign</button></form>
+                  <form action={updatePortfolioSignalDecision}><input type="hidden" name="signalId" value={signal.id} /><button name="decisionAction" value="snooze" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy">Snooze 7 days</button></form>
+                  <form action={updatePortfolioSignalDecision}><input type="hidden" name="signalId" value={signal.id} /><button name="decisionAction" value="resolve" className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white">Resolve</button></form>
+                </div>
+              </article>
+            ))}
+          </div>
+          {property.decisionHistory.length > 0 && (
+            <div className="mt-5 border-t border-teal/25 pt-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-teal-700">Activity</p>
+              <div className="mt-2 space-y-2">
+                {property.decisionHistory.slice(0, 5).map((event) => (
+                  <div key={event.id} className="flex flex-wrap items-center gap-2 text-xs text-foreground/75">
+                    <span><span className="font-semibold capitalize text-navy">{event.action}</span> · {event.decision.signal.headline}{event.assignedTo ? ` · ${event.assignedTo}` : ""}</span>
+                    {["resolved", "snoozed"].includes(event.decision.state) && (
+                      <form action={updatePortfolioSignalDecision}>
+                        <input type="hidden" name="signalId" value={event.decision.signal.id} />
+                        <button name="decisionAction" value="reopen" className="rounded-md border border-grid bg-white px-2 py-1 font-semibold text-navy">Reopen</button>
+                      </form>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {!hasSubjectEvidence && (
         <section className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-5">
@@ -154,7 +202,7 @@ export default async function PortfolioIqPropertyPage({ params }: { params: Prom
               </dl>
             </article>
             <article className="rounded-lg border border-grid bg-surface-soft p-5">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Proposed comp set</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{compEvidenceLocked ? "Locked comp set" : "Proposed comp set"}</p>
               <p className="mt-3 text-2xl font-semibold text-navy">{dollars(performance.compAskingRent)}</p>
               <p className="mt-1 text-xs text-muted-foreground">Median latest asking rent</p>
               <dl className="mt-4 space-y-2 border-t border-grid pt-4 text-sm">
@@ -186,7 +234,7 @@ export default async function PortfolioIqPropertyPage({ params }: { params: Prom
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="dq-eyebrow">Comparable evidence</p>
-            <h2 id="comps-heading" className="dq-h2">Dwellsy-proposed comp set</h2>
+            <h2 id="comps-heading" className="dq-h2">{compEvidenceLocked ? "Approved comparable set" : "Dwellsy-proposed comp set"}</h2>
           </div>
           <p className="text-xs text-muted-foreground">Generated {dateLabel(compSet?.generatedAt)} · {compSet?.status ?? "Unavailable"}</p>
         </div>

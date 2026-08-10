@@ -2,6 +2,7 @@ import "server-only";
 import { loadPortfolioIqHome } from "@/lib/portfolio-iq/home.server";
 import { buildSubjectPerformance, propertyDecisionRead } from "@/lib/portfolio-iq/property";
 import { prisma } from "@/lib/prisma";
+import { loadPortfolioDecisionHistory, loadPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
 
 export async function loadPortfolioIqProperty(input: {
   organizationId: string;
@@ -18,7 +19,7 @@ export async function loadPortfolioIqProperty(input: {
     .filter((word) => word.length >= 4 && !genericCommunityWords.has(word.toLowerCase()))
     .sort((left, right) => right.length - left.length)[0];
 
-  const [dataImport, compSet, alerts] = await Promise.all([
+  const [dataImport, compSet, alerts, portfolioSignals, decisionHistory] = await Promise.all([
     prisma.marketIqDataImport.findFirst({
       where: { marketId: portfolio.marketId, sourceKind: "historical_export", status: "complete" },
       orderBy: { importedAt: "desc" },
@@ -46,6 +47,8 @@ export async function loadPortfolioIqProperty(input: {
       orderBy: [{ observedMonth: "desc" }, { createdAt: "desc" }],
       take: 6,
     }),
+    loadPortfolioWatchSignals(portfolio.id),
+    loadPortfolioDecisionHistory(portfolio.id, asset.id),
   ]);
 
   const subjectListings = dataImport
@@ -98,10 +101,12 @@ export async function loadPortfolioIqProperty(input: {
     compSet,
     alerts,
     performance,
+    signals: portfolioSignals.filter((signal) => signal.assetId === asset.id),
+    decisionHistory,
     decisionRead: propertyDecisionRead({
       propertyName: asset.name,
       observationCount: performance.observationCount,
-      askingRentVsComps: performance.askingRentVsComps,
+      askingRentVsComps: compSet?.status === "locked" ? performance.askingRentVsComps : null,
       askingRentChange90d: performance.askingRentChange90d,
       alertHeadline: alerts[0]?.headline,
     }),

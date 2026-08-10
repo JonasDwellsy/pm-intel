@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { buildSubjectPerformance } from "@/lib/portfolio-iq/property";
 import { buildPortfolioWatchDrafts } from "@/lib/portfolio-iq/watch";
+import { isPortfolioSignalActionable } from "@/lib/portfolio-iq/decision";
 
 function communityToken(name: string): string | undefined {
   const generic = new Set(["apartments", "apartment", "villas", "villa", "the", "road"]);
@@ -142,9 +143,27 @@ export async function refreshPortfolioWatchSignals(portfolioId: string) {
 }
 
 export async function loadPortfolioWatchSignals(portfolioId: string) {
-  return prisma.portfolioIqSignal.findMany({
+  const signals = await prisma.portfolioIqSignal.findMany({
     where: { portfolioId, status: "active" },
-    include: { asset: { select: { slug: true, name: true, city: true, postalCode: true } } },
+    include: {
+      asset: { select: { slug: true, name: true, city: true, postalCode: true } },
+      decision: { include: { events: { orderBy: { createdAt: "desc" }, take: 5 } } },
+    },
     orderBy: [{ rankScore: "desc" }, { observedAt: "desc" }],
+  });
+  const now = new Date();
+  return signals.filter((signal) => isPortfolioSignalActionable(signal.decision, now));
+}
+
+export async function loadPortfolioDecisionHistory(portfolioId: string, assetId?: string) {
+  return prisma.portfolioIqSignalDecisionEvent.findMany({
+    where: { decision: { signal: { portfolioId, ...(assetId ? { assetId } : {}) } } },
+    include: {
+      decision: {
+        include: { signal: { select: { id: true, headline: true, asset: { select: { name: true, slug: true } } } } },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 12,
   });
 }

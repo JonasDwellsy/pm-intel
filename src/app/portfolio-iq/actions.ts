@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isAdminUser } from "@/lib/auth/is-admin";
+import { refreshPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
 
 export async function updatePortfolioDigestPreference(formData: FormData): Promise<void> {
   const { userId } = await auth();
@@ -19,4 +20,56 @@ export async function updatePortfolioDigestPreference(formData: FormData): Promi
     update: { enabled, cadence: "weekly" },
   });
   revalidatePath("/portfolio-iq");
+}
+
+const DECISION_ACTIONS = new Set(["acknowledge", "assign", "snooze", "resolve", "reopen"]);
+
+export async function updatePortfolioSignalDecision(formData: FormData): Promise<void> {
+  const { userId } = await auth();
+  const { organizationId } = await getActiveOrgContext();
+  const signalId = String(formData.get("signalId") ?? "");
+  const action = String(formData.get("decisionAction") ?? "");
+  const assignedTo = String(formData.get("assignedTo") ?? "").trim().slice(0, 120) || null;
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500) || null;
+  if (!userId || !organizationId || !signalId || !DECISION_ACTIONS.has(action)) throw new Error("Decision update is invalid.");
+
+  const signal = await prisma.portfolioIqSignal.findUnique({
+    where: { id: signalId },
+    include: { portfolio: { select: { organizationId: true, isSynthetic: true } }, asset: { select: { slug: true } }, decision: true },
+  });
+  if (!signal || (signal.portfolio.organizationId !== organizationId && !(signal.portfolio.isSynthetic && isAdminUser(userId)))) {
+    throw new Error("Signal not found.");
+  }
+  if (action === "assign" && !assignedTo) throw new Error("Enter the person or team responsible.");
+
+  const now = new Date();
+  const fromState = signal.decision?.state ?? "open";
+  const toState = action === "acknowledge" || action === "assign"
+    ? "acknowledged"
+    : action === "snooze"
+      ? "snoozed"
+      : action === "resolve"
+        ? "resolved"
+        : "open";
+  const snoozedUntil = action === "snooze" ? new Date(now.getTime() + 7 * 86_400_000) : null;
+  const nextAssignedTo = action === "assign" ? assignedTo : signal.decision?.assignedTo ?? null;
+  const nextNote = note ?? signal.decision?.note ?? null;
+
+  await prisma.$transaction(async (tx) => {
+    const decision = signal.decision
+      ? await tx.portfolioIqSignalDecision.update({
+          where: { id: signal.decision.id },
+          data: { state: toState, assignedTo: nextAssignedTo, note: nextNote, snoozedUntil, decidedBy: userId, decidedAt: now },
+        })
+      : await tx.portfolioIqSignalDecision.create({
+          data: { signalId, organizationId: signal.portfolio.organizationId, state: toState, assignedTo: nextAssignedTo, note: nextNote, snoozedUntil, decidedBy: userId, decidedAt: now },
+        });
+    await tx.portfolioIqSignalDecisionEvent.create({
+      data: { decisionId: decision.id, action, fromState, toState, assignedTo: nextAssignedTo, note, actorUserId: userId, createdAt: now },
+    });
+  });
+
+  await refreshPortfolioWatchSignals(signal.portfolioId);
+  revalidatePath("/portfolio-iq");
+  if (signal.asset?.slug) revalidatePath(`/portfolio-iq/properties/${signal.asset.slug}`);
 }
