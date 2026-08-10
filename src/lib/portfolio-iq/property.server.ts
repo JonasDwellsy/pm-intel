@@ -26,7 +26,12 @@ export async function loadPortfolioIqProperty(input: {
     }),
     prisma.portfolioIqCompSet.findUnique({
       where: { assetId: asset.id },
-      include: { members: { orderBy: [{ selectionReason: "asc" }, { propertyLabel: "asc" }] } },
+      include: {
+        members: {
+          where: { reviewStatus: { not: "excluded" } },
+          orderBy: [{ selectionReason: "asc" }, { propertyLabel: "asc" }],
+        },
+      },
     }),
     prisma.marketIqAlert.findMany({
       where: {

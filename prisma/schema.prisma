@@ -795,6 +795,7 @@ model PortfolioIqCompSet {
   sourceImportId String
   generatedAt    DateTime  @default(now())
   reviewedAt     DateTime?
+  reviewedBy     String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -821,12 +822,18 @@ model PortfolioIqCompMember {
   squareFeet      Float?
   activatedAt     DateTime?
   selectionReason String
+  reviewStatus    String    @default("proposed") // proposed | included | excluded
+  exclusionReason String?
+  reviewNote      String?
+  reviewedAt      DateTime?
+  reviewedBy      String?
   createdAt       DateTime  @default(now())
 
   compSet PortfolioIqCompSet @relation(fields: [compSetId], references: [id], onDelete: Cascade)
 
   @@unique([compSetId, comparisonKey])
   @@index([compSetId])
+  @@index([compSetId, reviewStatus])
   @@index([sourceRecordId])
 }
 

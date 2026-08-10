@@ -88,6 +88,14 @@ export default async function PortfolioIqPage() {
   const buildingCount = assets.reduce((sum, asset) => sum + asset.buildings.length, 0);
   const monitoredCount = assets.filter((asset) => ["ready", "monitoring"].includes(asset.readinessStatus)).length;
   const matchedCount = assets.filter((asset) => asset.matchStatus === "matched").length;
+  const uruCoveredCount = assets.filter((asset) => ["observed", "partial"].includes(asset.uruStatus)).length;
+  const lockedCompCount = assets.filter((asset) => asset.compSet?.status === "locked").length;
+  const activationTasks = assets.flatMap((asset) => asset.activationTasks);
+  const openActivationTasks = activationTasks.filter((task) => task.status !== "complete");
+  const launchReady = assets.length > 0 && assets.every((asset) => ["ready", "monitoring"].includes(asset.readinessStatus));
+  const onboardingTotal = 2 + assets.length * 3;
+  const onboardingComplete = 1 + matchedCount + uruCoveredCount + lockedCompCount + (launchReady ? 1 : 0);
+  const onboardingProgress = Math.round((onboardingComplete / onboardingTotal) * 100);
   const operators = [...new Set(assets.flatMap((asset) => asset.observedOperatorName ? [asset.observedOperatorName] : []))];
   const multifamilyCount = assets.filter((asset) => asset.assetType === "multifamily").length;
   const sfrCount = assets.length - multifamilyCount;
@@ -100,6 +108,13 @@ export default async function PortfolioIqPage() {
   const rentDirection = historicalPulse
     ? `${formatChange(historicalPulse.historical.newListingsChange)} new listings versus the prior 30 days`
     : "Market listing refresh in progress";
+  const onboardingMilestones = [
+    { label: "Portfolio received", complete: true, detail: `${assets.length} properties loaded` },
+    { label: "Property identity", complete: matchedCount === assets.length, detail: `${matchedCount} of ${assets.length} confirmed` },
+    { label: "Dwellsy listing coverage", complete: uruCoveredCount === assets.length, detail: `${uruCoveredCount} of ${assets.length} covered` },
+    { label: "Comparable review", complete: lockedCompCount === assets.length, detail: `${lockedCompCount} of ${assets.length} locked` },
+    { label: "Launch review", complete: launchReady, detail: launchReady ? "Ready to schedule" : "Follows data review" },
+  ];
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -138,6 +153,39 @@ export default async function PortfolioIqPage() {
           </p>
         </aside>
       </header>
+
+      <section aria-labelledby="onboarding-heading" className="mt-8 overflow-hidden rounded-xl border border-teal/25 bg-teal-soft">
+        <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_360px] lg:items-center">
+          <div>
+            <p className="dq-eyebrow">Assisted onboarding</p>
+            <h2 id="onboarding-heading" className="dq-h2">Dwellsy is preparing your portfolio</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-foreground/75">
+              Your onboarding specialist is resolving property identity, Dwellsy listing coverage, operator relationships, and comparable sets. You do not need to clean the data yourself. We will contact you only when an ownership or operating detail needs confirmation.
+            </p>
+            <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/80">
+              <div className="h-full rounded-full bg-teal-700" style={{ width: `${onboardingProgress}%` }} />
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-4 text-xs text-foreground/70">
+              <span>{onboardingProgress}% prepared</span>
+              <span>{openActivationTasks.length} internal tasks remaining</span>
+            </div>
+          </div>
+          <div className="rounded-lg border border-grid bg-white p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Setup milestones</p>
+            <ol className="mt-3 space-y-2.5 text-sm">
+              {onboardingMilestones.map(({ label, complete, detail }) => (
+                <li key={label} className="flex items-center gap-3">
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${complete ? "bg-emerald-600 text-white" : "border border-grid bg-surface-soft text-grey-500"}`}>
+                    {complete ? "✓" : ""}
+                  </span>
+                  <span className="min-w-0 flex-1 font-medium text-navy">{label}</span>
+                  <span className="text-xs text-muted-foreground">{detail}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </section>
 
       <section aria-label="Portfolio summary" className="mt-8 overflow-hidden rounded-lg border border-grid bg-white shadow-sm">
         <div className="grid sm:grid-cols-2 lg:grid-cols-5">

@@ -16,6 +16,13 @@ export async function loadPortfolioIqHome(input: {
           orderBy: { createdAt: "desc" as const },
           take: 1,
         },
+        activationTasks: {
+          select: { id: true, taskType: true, status: true },
+          orderBy: { taskType: "asc" as const },
+        },
+        compSet: {
+          select: { id: true, status: true, reviewedAt: true },
+        },
       },
       orderBy: { sortOrder: "asc" as const },
     },

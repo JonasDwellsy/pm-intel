@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   seedClevelandPilotPortfolio,
   updateActivationTaskStatus,
@@ -55,6 +56,7 @@ export default async function PortfolioActivationPage() {
           include: {
             buildings: { orderBy: [{ isPrimary: "desc" }, { canonicalAddress: "asc" }] },
             activationTasks: { orderBy: [{ status: "asc" }, { taskType: "asc" }] },
+            compSet: { include: { members: { select: { reviewStatus: true } } } },
           },
           orderBy: { sortOrder: "asc" },
         },
@@ -122,6 +124,7 @@ export default async function PortfolioActivationPage() {
           const matchedCount = portfolio.assets.filter((asset) => asset.matchStatus === "matched").length;
           const mfCount = portfolio.assets.filter((asset) => asset.assetType === "multifamily").length;
           const sfrCount = portfolio.assets.length - mfCount;
+          const lockedCompCount = portfolio.assets.filter((asset) => asset.compSet?.status === "locked").length;
 
           return (
             <section key={portfolio.id} className="mt-8 overflow-hidden rounded-xl border border-grid bg-white">
@@ -146,12 +149,13 @@ export default async function PortfolioActivationPage() {
                 </div>
               </div>
 
-              <div className="grid border-b border-grid sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid border-b border-grid sm:grid-cols-2 lg:grid-cols-6">
                 {[
                   ["Assets", portfolio.assets.length],
                   ["Physical buildings", buildingCount],
                   ["Matched", `${matchedCount}/${portfolio.assets.length}`],
                   ["Product mix", `${mfCount} MF · ${sfrCount} SFR`],
+                  ["Comp sets locked", `${lockedCompCount}/${portfolio.assets.length}`],
                   ["Open activation tasks", openTasks.length],
                 ].map(([label, value]) => (
                   <div key={label} className="border-b border-grid px-5 py-4 last:border-b-0 sm:border-r lg:border-b-0">
@@ -176,6 +180,7 @@ export default async function PortfolioActivationPage() {
                         <th className="px-3 py-3">Operator observed</th>
                         <th className="px-3 py-3">Buildings</th>
                         <th className="px-3 py-3">URU</th>
+                        <th className="px-3 py-3">Comp review</th>
                         <th className="px-3 py-3">Readiness</th>
                       </tr>
                     </thead>
@@ -209,6 +214,23 @@ export default async function PortfolioActivationPage() {
                             )}
                           </td>
                           <td className="px-3 py-3 capitalize text-grey-600">{asset.uruStatus.replaceAll("_", " ")}</td>
+                          <td className="px-3 py-3">
+                            {asset.compSet ? (
+                              <div>
+                                <span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-semibold ${badgeClass(asset.compSet.status === "locked" ? "ready" : "needs_confirmation")}`}>
+                                  {asset.compSet.status === "locked" ? "Locked" : "Review"}
+                                </span>
+                                <p className="mt-1 text-[10px] text-grey-500">
+                                  {asset.compSet.members.filter((member) => member.reviewStatus === "included").length} approved · {asset.compSet.members.filter((member) => member.reviewStatus === "proposed").length} proposed
+                                </p>
+                                <Link href={`/admin/portfolio-activation/${asset.id}`} className="mt-1 inline-flex text-[11px] font-semibold text-teal-700 hover:underline">
+                                  Review comps →
+                                </Link>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-grey-500">Not generated</span>
+                            )}
+                          </td>
                           <td className="px-3 py-3">
                             <form action={updateAssetReadiness} className="flex items-center gap-2">
                               <input type="hidden" name="assetId" value={asset.id} />

@@ -123,3 +123,14 @@ test("comp-set migration remains additive", () => {
   assert.doesNotMatch(sql, /DROP\s+(TABLE|COLUMN)/i);
   assert.doesNotMatch(sql, /ALTER TABLE\s+"(?:PM|Market|WatchList|MarketIqListing)"/i);
 });
+
+test("comp-review migration is additive and preserves every IQ source table", () => {
+  const sql = readFileSync(
+    join(process.cwd(), "prisma/migrations/20260810230000_portfolio_iq_comp_review/migration.sql"),
+    "utf8"
+  );
+  assert.match(sql, /ADD COLUMN "reviewStatus"/);
+  assert.match(sql, /ADD COLUMN "reviewedBy"/);
+  assert.doesNotMatch(sql, /DROP\s+(TABLE|COLUMN)/i);
+  assert.doesNotMatch(sql, /ALTER TABLE\s+"(?:PM|Market|WatchList|MarketIqListing)"/i);
+});

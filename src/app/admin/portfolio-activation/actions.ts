@@ -5,11 +5,16 @@ import { revalidatePath } from "next/cache";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { prisma } from "@/lib/prisma";
 import { CLEVELAND_PILOT_PORTFOLIO } from "@/data/portfolio-iq/cleveland-pilot";
-import { proposeCompMembers } from "@/lib/portfolio-iq/comp-generator";
+import {
+  comparisonAddress,
+  normalizedAddress,
+  proposeCompMembers,
+} from "@/lib/portfolio-iq/comp-generator";
 
-async function requireAdmin(): Promise<void> {
+async function requireAdmin(): Promise<string> {
   const { userId } = await auth();
   if (!userId || !isAdminUser(userId)) throw new Error("Not found.");
+  return userId;
 }
 
 export async function seedClevelandPilotPortfolio(formData: FormData): Promise<void> {
@@ -267,4 +272,207 @@ export async function updateActivationTaskStatus(formData: FormData): Promise<vo
     data: { status, completedAt: status === "complete" ? new Date() : null },
   });
   revalidatePath("/admin/portfolio-activation");
+}
+
+const COMP_MEMBER_STATUSES = new Set(["included", "excluded"]);
+const COMP_EXCLUSION_REASONS = new Set([
+  "wrong_property_type",
+  "wrong_bedroom_mix",
+  "poor_location_match",
+  "unusual_condition",
+  "duplicate_community",
+  "other",
+]);
+
+async function revalidateCompReview(assetId: string): Promise<void> {
+  const asset = await prisma.portfolioIqAsset.findUnique({
+    where: { id: assetId },
+    select: { slug: true },
+  });
+  revalidatePath("/admin/portfolio-activation");
+  revalidatePath(`/admin/portfolio-activation/${assetId}`);
+  revalidatePath("/portfolio-iq");
+  if (asset) revalidatePath(`/portfolio-iq/properties/${asset.slug}`);
+}
+
+export async function updateCompMemberReview(formData: FormData): Promise<void> {
+  const userId = await requireAdmin();
+  const memberId = String(formData.get("memberId") ?? "");
+  const reviewStatus = String(formData.get("reviewStatus") ?? "");
+  const exclusionReason = String(formData.get("exclusionReason") ?? "");
+  const reviewNote = String(formData.get("reviewNote") ?? "").trim().slice(0, 500) || null;
+  if (!memberId || !COMP_MEMBER_STATUSES.has(reviewStatus)) throw new Error("Invalid comp decision.");
+  if (reviewStatus === "excluded" && !COMP_EXCLUSION_REASONS.has(exclusionReason)) {
+    throw new Error("Choose an exclusion reason.");
+  }
+
+  const member = await prisma.portfolioIqCompMember.update({
+    where: { id: memberId },
+    data: {
+      reviewStatus,
+      exclusionReason: reviewStatus === "excluded" ? exclusionReason : null,
+      reviewNote,
+      reviewedAt: new Date(),
+      reviewedBy: userId,
+      compSet: { update: { status: "proposed", reviewedAt: null, reviewedBy: null } },
+    },
+    select: { compSet: { select: { assetId: true } } },
+  });
+  await prisma.portfolioIqAsset.update({
+    where: { id: member.compSet.assetId },
+    data: { compSetStatus: "review" },
+  });
+  await prisma.portfolioIqActivationTask.updateMany({
+    where: { assetId: member.compSet.assetId, taskType: "comp_setup" },
+    data: { status: "in_progress", completedAt: null },
+  });
+  await revalidateCompReview(member.compSet.assetId);
+}
+
+export async function replaceCompMember(formData: FormData): Promise<void> {
+  const userId = await requireAdmin();
+  const memberId = String(formData.get("memberId") ?? "");
+  const sourceRecordId = String(formData.get("sourceRecordId") ?? "");
+  if (!memberId || !sourceRecordId) throw new Error("Choose a comp and its replacement.");
+
+  const current = await prisma.portfolioIqCompMember.findUnique({
+    where: { id: memberId },
+    include: { compSet: { include: { asset: { include: { buildings: true } } } } },
+  });
+  if (!current) throw new Error("Comp member not found.");
+  const listing = await prisma.marketIqListing.findFirst({
+    where: { importId: current.compSet.sourceImportId, sourceRecordId },
+  });
+  if (!listing?.address) throw new Error("Replacement listing not found.");
+  const replacementAddress = listing.address;
+  const comparisonKey = normalizedAddress(replacementAddress);
+  if (!comparisonKey) throw new Error("Replacement address is invalid.");
+  const asset = current.compSet.asset;
+  const expectedPropertyType = asset.assetType === "single_family" ? "house" : "apartment";
+  if (listing.propertyType !== expectedPropertyType) throw new Error("Replacement property type does not match the subject.");
+  const isSubjectAddress = asset.buildings.some((building) => {
+    const subjectKey = normalizedAddress(building.canonicalAddress);
+    return comparisonKey.startsWith(subjectKey) || subjectKey.startsWith(comparisonKey);
+  });
+  if (isSubjectAddress) throw new Error("The subject property cannot replace its own comp.");
+  const selectionReason = listing.postalCode === asset.postalCode
+    ? "Same ZIP code"
+    : listing.city?.trim().toLowerCase() === asset.city.trim().toLowerCase()
+      ? "Same city"
+      : "Cleveland MSA fallback";
+
+  await prisma.$transaction(async (tx) => {
+    await tx.portfolioIqCompMember.update({
+      where: { id: current.id },
+      data: {
+        reviewStatus: "excluded",
+        exclusionReason: "other",
+        reviewNote: `Replaced with ${comparisonAddress(replacementAddress)}`,
+        reviewedAt: new Date(),
+        reviewedBy: userId,
+      },
+    });
+    await tx.portfolioIqCompMember.upsert({
+      where: { compSetId_comparisonKey: { compSetId: current.compSetId, comparisonKey } },
+      create: {
+        compSetId: current.compSetId,
+        comparisonKey,
+        sourceRecordId: listing.sourceRecordId,
+        propertyLabel: listing.communityName?.trim() || comparisonAddress(replacementAddress),
+        address: replacementAddress,
+        city: listing.city,
+        state: listing.state,
+        postalCode: listing.postalCode,
+        propertyType: listing.propertyType,
+        bedrooms: listing.bedrooms,
+        bathrooms: listing.bathrooms,
+        askingRent: listing.askingRent,
+        squareFeet: listing.squareFeet,
+        activatedAt: listing.activatedAt,
+        selectionReason,
+        reviewStatus: "included",
+        reviewedAt: new Date(),
+        reviewedBy: userId,
+      },
+      update: {
+        sourceRecordId: listing.sourceRecordId,
+        propertyLabel: listing.communityName?.trim() || comparisonAddress(replacementAddress),
+        address: replacementAddress,
+        city: listing.city,
+        state: listing.state,
+        postalCode: listing.postalCode,
+        propertyType: listing.propertyType,
+        bedrooms: listing.bedrooms,
+        bathrooms: listing.bathrooms,
+        askingRent: listing.askingRent,
+        squareFeet: listing.squareFeet,
+        activatedAt: listing.activatedAt,
+        selectionReason,
+        reviewStatus: "included",
+        exclusionReason: null,
+        reviewNote: "Added during assisted comp review",
+        reviewedAt: new Date(),
+        reviewedBy: userId,
+      },
+    });
+    await tx.portfolioIqCompSet.update({
+      where: { id: current.compSetId },
+      data: { status: "proposed", reviewedAt: null, reviewedBy: null },
+    });
+    await tx.portfolioIqAsset.update({ where: { id: asset.id }, data: { compSetStatus: "review" } });
+    await tx.portfolioIqActivationTask.updateMany({
+      where: { assetId: asset.id, taskType: "comp_setup" },
+      data: { status: "in_progress", completedAt: null },
+    });
+  });
+  await revalidateCompReview(asset.id);
+}
+
+export async function finalizeCompSet(formData: FormData): Promise<void> {
+  const userId = await requireAdmin();
+  const compSetId = String(formData.get("compSetId") ?? "");
+  if (!compSetId) throw new Error("Comp set not found.");
+  const compSet = await prisma.portfolioIqCompSet.findUnique({
+    where: { id: compSetId },
+    include: { members: { select: { reviewStatus: true } } },
+  });
+  if (!compSet) throw new Error("Comp set not found.");
+  const includedCount = compSet.members.filter((member) => member.reviewStatus !== "excluded").length;
+  if (includedCount < 3) throw new Error("A locked comp set needs at least three included properties.");
+  const reviewedAt = new Date();
+  await prisma.$transaction([
+    prisma.portfolioIqCompMember.updateMany({
+      where: { compSetId, reviewStatus: "proposed" },
+      data: { reviewStatus: "included", reviewedAt, reviewedBy: userId },
+    }),
+    prisma.portfolioIqCompSet.update({
+      where: { id: compSetId },
+      data: { status: "locked", reviewedAt, reviewedBy: userId },
+    }),
+    prisma.portfolioIqAsset.update({
+      where: { id: compSet.assetId },
+      data: { compSetStatus: "ready" },
+    }),
+    prisma.portfolioIqActivationTask.updateMany({
+      where: { assetId: compSet.assetId, taskType: "comp_setup" },
+      data: { status: "complete", completedAt: reviewedAt },
+    }),
+  ]);
+  await revalidateCompReview(compSet.assetId);
+}
+
+export async function reopenCompSet(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const compSetId = String(formData.get("compSetId") ?? "");
+  const compSet = await prisma.portfolioIqCompSet.update({
+    where: { id: compSetId },
+    data: { status: "proposed", reviewedAt: null, reviewedBy: null },
+    select: { assetId: true },
+  });
+  await prisma.portfolioIqAsset.update({ where: { id: compSet.assetId }, data: { compSetStatus: "review" } });
+  await prisma.portfolioIqActivationTask.updateMany({
+    where: { assetId: compSet.assetId, taskType: "comp_setup" },
+    data: { status: "in_progress", completedAt: null },
+  });
+  await revalidateCompReview(compSet.assetId);
 }
