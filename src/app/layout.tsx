@@ -65,7 +65,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const allowedRedirectOrigins = ["https://portfolio.iq.dwellsy.com"];
-  if (process.env.MARKET_IQ_PREVIEW_ENABLED === "true") {
+  if (process.env.MARKET_IQ_PREVIEW_ENABLED === "1") {
     allowedRedirectOrigins.push(
       "https://pm-intel-git-codex-market-iq-integration-dwellsybordo.vercel.app"
     );
