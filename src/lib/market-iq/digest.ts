@@ -45,16 +45,19 @@ export function buildMarketIqDigest({
   alerts: MarketIqDigestAlert[];
   dashboardUrl: string;
 }) {
-  const scopedAlerts = alerts.filter((alert) =>
-    watchlists.some((watchlist) => matchesWatchlist(alert, watchlist))
-  );
+  const scopedAlerts = alerts
+    .filter((alert) => watchlists.some((watchlist) => matchesWatchlist(alert, watchlist)))
+    .sort((a, b) =>
+      b.observedMonth.getTime() - a.observedMonth.getTime() ||
+      Number(b.severity === "material") - Number(a.severity === "material")
+    );
   const includedAlerts = scopedAlerts.slice(0, 8);
   const greeting = recipientName ? `Hi ${recipientName},` : "Hello,";
   const subject = includedAlerts.length
     ? `Market IQ: ${includedAlerts.length} Cleveland market signal${includedAlerts.length === 1 ? "" : "s"}`
     : "Market IQ: your Cleveland watchlist is steady";
   const intro = includedAlerts.length
-    ? `${includedAlerts.length} material change${includedAlerts.length === 1 ? "" : "s"} matched your saved Market IQ watchlists.`
+    ? `${includedAlerts.length} market signal${includedAlerts.length === 1 ? "" : "s"} matched your saved Market IQ watchlists.`
     : "No material asking-rent changes matched your saved Market IQ watchlists in the latest trend update.";
   const alertText = includedAlerts.length
     ? includedAlerts.map((alert) => `• ${alert.headline}\n  ${alert.narrative}`).join("\n\n")

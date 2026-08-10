@@ -160,7 +160,7 @@ export function ClevelandPilot({
           </p>
         </aside>
         {trendPulse.alerts.length > 0 && <div className="lg:col-span-2 rounded-lg border border-orange/25 bg-orange-soft p-5 sm:p-6">
-          <p className="dq-eyebrow text-orange-700">Material changes</p>
+          <p className="dq-eyebrow text-orange-700">Latest alerts</p>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {trendPulse.alerts.map((alert) => <article key={alert.id} className="rounded-md border border-orange/20 bg-white p-4">
               <div className="flex items-start justify-between gap-3">

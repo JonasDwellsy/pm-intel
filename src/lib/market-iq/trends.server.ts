@@ -25,9 +25,9 @@ export async function loadClevelandTrendPulses() {
     seen.add(key);
     const alerts = await prisma.marketIqAlert.findMany({
       where: { sourceImportId: dataImport.id },
-      orderBy: [{ severity: "desc" }, { createdAt: "desc" }],
-      take: 4,
+      orderBy: { createdAt: "desc" },
     });
+    alerts.sort((a, b) => Number(b.severity === "material") - Number(a.severity === "material"));
     try {
       pulses.push(buildMarketIqTrendPulse({
         sourceName: dataImport.sourceName,
@@ -35,7 +35,7 @@ export async function loadClevelandTrendPulses() {
         geographyValue: first.geographyValue,
         displayLabel: displayLabel(first.geographyType, first.geographyValue),
         points: dataImport.trendObservations,
-        alerts: alerts.map((alert) => ({
+        alerts: alerts.slice(0, 4).map((alert) => ({
           id: alert.id,
           severity: alert.severity,
           headline: alert.headline,
