@@ -49,15 +49,18 @@ test("PM collaboration migration is additive and isolated from Operator IQ", asy
 
 test("public PM response route is token-scoped and does not require workspace access", async () => {
   const { readFile } = await import("node:fs/promises");
-  const [protectedRoutes, publicAction, ownerAction] = await Promise.all([
+  const [protectedRoutes, publicAction, ownerAction, composer] = await Promise.all([
     readFile("src/lib/auth/protected-routes.ts", "utf8"),
     readFile("src/app/pm-briefs/actions.ts", "utf8"),
     readFile("src/app/portfolio-iq/pm-brief-actions.ts", "utf8"),
+    readFile("src/lib/portfolio-iq/pm-brief.server.ts", "utf8"),
   ]);
   assert.doesNotMatch(protectedRoutes, /["']\/pm-briefs/);
   assert.match(publicAction, /publicToken/);
   assert.match(publicAction, /brief\.status !== "published"/);
   assert.match(publicAction, /honeypot/);
   assert.match(ownerAction, /randomBytes\(24\)/);
+  assert.match(ownerAction, /signalId, assetId: composer\.property\.asset\.id/);
+  assert.match(composer, /unifiedInsight: \{ exposures: \{ some: \{ assetId: property\.asset\.id \} \} \}/);
   assert.doesNotMatch(ownerAction, /sendEmail|SENDGRID/);
 });

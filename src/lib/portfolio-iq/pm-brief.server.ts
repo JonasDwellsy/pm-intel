@@ -6,9 +6,23 @@ import { buildPortfolioIqPmBriefSnapshot, parsePortfolioIqPmBriefSnapshot } from
 export async function loadPortfolioIqPmBriefComposer(input: { organizationId: string; userId: string; slug: string; signalId?: string | null }) {
   const property = await loadPortfolioIqProperty(input);
   if (!property) return null;
-  const signal = input.signalId
+  let signal = input.signalId
     ? property.signals.find((candidate) => candidate.id === input.signalId) ?? null
     : property.signals[0] ?? null;
+  if (input.signalId && !signal) {
+    signal = await prisma.portfolioIqSignal.findFirst({
+      where: {
+        id: input.signalId,
+        portfolioId: property.portfolio.id,
+        status: "active",
+        unifiedInsight: { exposures: { some: { assetId: property.asset.id } } },
+      },
+      include: {
+        asset: { select: { slug: true, name: true, city: true, postalCode: true } },
+        decision: { include: { events: { orderBy: { createdAt: "desc" }, take: 5 } } },
+      },
+    });
+  }
   const briefs = await prisma.portfolioIqPmBrief.findMany({
     where: { assetId: property.asset.id },
     include: { response: true, signal: { select: { headline: true } } },

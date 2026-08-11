@@ -27,7 +27,7 @@ export async function publishPortfolioIqPmBrief(formData: FormData): Promise<voi
   const signal = composer.signal;
   const allowed = composer.property.portfolio.organizationId === organizationId || (composer.property.portfolio.isSynthetic && isAdminUser(userId));
   if (!allowed) throw new Error("Property not found.");
-  const existing = await prisma.portfolioIqPmBrief.findFirst({ where: { signalId, status: { in: ["published", "responded"] } }, select: { id: true } });
+  const existing = await prisma.portfolioIqPmBrief.findFirst({ where: { signalId, assetId: composer.property.asset.id, status: { in: ["published", "responded"] } }, select: { id: true } });
   if (existing) {
     revalidatePath(`/portfolio-iq/properties/${slug}/pm-brief`);
     return;
@@ -55,7 +55,7 @@ export async function publishPortfolioIqPmBrief(formData: FormData): Promise<voi
     const decision = prior
       ? await tx.portfolioIqSignalDecision.update({ where: { id: prior.id }, data: { state: "acknowledged", assignedTo: "Property manager", decidedBy: userId, decidedAt: now } })
       : await tx.portfolioIqSignalDecision.create({ data: { signalId, organizationId: composer.property.portfolio.organizationId, state: "acknowledged", assignedTo: "Property manager", decidedBy: userId, decidedAt: now } });
-    await tx.portfolioIqSignalDecisionEvent.create({ data: { decisionId: decision.id, action: "share_with_pm", fromState: prior?.state ?? "open", toState: "acknowledged", assignedTo: "Property manager", note: "Property-scoped PM brief published", actorUserId: userId } });
+    await tx.portfolioIqSignalDecisionEvent.create({ data: { decisionId: decision.id, action: "share_with_pm", fromState: prior?.state ?? "open", toState: "acknowledged", assignedTo: "Property manager", note: `Property-scoped PM brief published for ${composer.property.asset.name}`, actorUserId: userId } });
   });
   revalidatePath(`/portfolio-iq/properties/${slug}/pm-brief`);
   revalidatePath(`/portfolio-iq/properties/${slug}`);

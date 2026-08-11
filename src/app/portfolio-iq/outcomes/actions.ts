@@ -23,8 +23,12 @@ export async function saveOutcomeReview(formData: FormData): Promise<void> {
   const baseline = parseDecisionBaseline(decision?.baselineEvidence);
   if (!caseData || !decision || !baseline) throw new Error("Decision baseline not found.");
   const current = caseData.property ? { availableThrough: caseData.property.availableThrough?.toISOString() ?? null, askingRent: caseData.property.performance.askingRent, askingRentChange90d: caseData.property.performance.askingRentChange90d, medianDom: caseData.property.performance.medianDom, observationCount: caseData.property.performance.observationCount } : null;
+  const currentExposures = caseData.exposureContexts.map((exposure) => ({
+    assetId: exposure.asset.id,
+    property: exposure.property ? { availableThrough: exposure.property.availableThrough?.toISOString() ?? null, askingRent: exposure.property.performance.askingRent, askingRentChange90d: exposure.property.performance.askingRentChange90d, medianDom: exposure.property.performance.medianDom, observationCount: exposure.property.performance.observationCount } : null,
+  }));
   const now = new Date();
-  const comparison = buildOutcomeComparison({ baseline, current, actionPlan: decision.actionPlan, successMeasure: decision.successMeasure, generatedAt: now });
+  const comparison = buildOutcomeComparison({ baseline, current, currentExposures, actionPlan: decision.actionPlan, successMeasure: decision.successMeasure, generatedAt: now });
   if (comparison.sourceHealth !== "healthy" && conclusion !== "inconclusive") throw new Error("Only an inconclusive review can be saved until the property source advances.");
   const periodKey = comparison.currentAvailableThrough?.slice(0, 10) ?? `unavailable-${now.toISOString().slice(0, 10)}`;
   await prisma.portfolioIqOutcomeReview.upsert({
@@ -34,4 +38,3 @@ export async function saveOutcomeReview(formData: FormData): Promise<void> {
   });
   revalidatePath("/portfolio-iq/outcomes"); revalidatePath("/today"); revalidatePath(`/today/cases/${signalId}`);
 }
-

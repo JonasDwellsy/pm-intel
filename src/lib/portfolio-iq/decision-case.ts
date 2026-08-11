@@ -1,5 +1,39 @@
 export const MONITORING_WINDOWS = [7, 14, 30, 60, 90] as const;
 
+export interface DecisionBaselinePropertySnapshot {
+  availableThrough: string | null;
+  askingRent: number | null;
+  askingRentChange90d: number | null;
+  medianDom: number | null;
+  observationCount: number;
+  compStatus: string | null;
+  compCount: number;
+}
+
+export interface DecisionBaselineOperatorSnapshot {
+  status: string;
+  operatorName: string | null;
+  dataAsOf: string | null;
+  overallRank: number | null;
+  overallRankTotal: number | null;
+  leaseUpDom: number | null;
+  t12Listings: number | null;
+}
+
+export interface DecisionBaselineExposureSnapshot {
+  asset: {
+    id: string;
+    slug: string;
+    name: string;
+    city: string;
+    postalCode: string;
+    observedOperatorName: string | null;
+  };
+  relevanceScore: number;
+  property: DecisionBaselinePropertySnapshot | null;
+  operator: DecisionBaselineOperatorSnapshot | null;
+}
+
 export interface DecisionBaselineSnapshot {
   version: 1;
   capturedAt: string;
@@ -19,24 +53,27 @@ export interface DecisionBaselineSnapshot {
     observedOperatorName: string | null;
   } | null;
   sources: string[];
-  property: {
-    availableThrough: string | null;
-    askingRent: number | null;
-    askingRentChange90d: number | null;
-    medianDom: number | null;
-    observationCount: number;
-    compStatus: string | null;
-    compCount: number;
-  } | null;
-  operator: {
-    status: string;
-    operatorName: string | null;
-    dataAsOf: string | null;
-    overallRank: number | null;
-    overallRankTotal: number | null;
-    leaseUpDom: number | null;
-    t12Listings: number | null;
-  } | null;
+  property: DecisionBaselinePropertySnapshot | null;
+  operator: DecisionBaselineOperatorSnapshot | null;
+  exposures?: DecisionBaselineExposureSnapshot[];
+}
+
+export function decisionBaselineExposures(baseline: DecisionBaselineSnapshot): DecisionBaselineExposureSnapshot[] {
+  if (baseline.exposures?.length) return baseline.exposures;
+  if (!baseline.asset) return [];
+  return [{
+    asset: {
+      id: "legacy-primary",
+      slug: "",
+      name: baseline.asset.name,
+      city: baseline.asset.city,
+      postalCode: baseline.asset.postalCode,
+      observedOperatorName: baseline.asset.observedOperatorName,
+    },
+    relevanceScore: 0,
+    property: baseline.property,
+    operator: baseline.operator,
+  }];
 }
 
 export function parseMonitoringWindow(value: unknown): number | null {
@@ -48,7 +85,7 @@ export function parseDecisionBaseline(value: string | null | undefined): Decisio
   if (!value) return null;
   try {
     const parsed = JSON.parse(value) as DecisionBaselineSnapshot;
-    return parsed?.version === 1 && parsed.signal && Array.isArray(parsed.sources) ? parsed : null;
+    return parsed?.version === 1 && parsed.signal && Array.isArray(parsed.sources) && (!parsed.exposures || Array.isArray(parsed.exposures)) ? parsed : null;
   } catch {
     return null;
   }

@@ -6,7 +6,7 @@ import { isMarketEntitled, resolveViewerEntitlement } from "@/lib/auth/market-en
 import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
 import { portfolioIqPreviewEnabled } from "@/lib/portfolio-iq/feature";
 import { buildDecisionBaseline, loadDecisionCase } from "@/lib/portfolio-iq/decision-case.server";
-import { monitoringStatus, parseDecisionBaseline, MONITORING_WINDOWS } from "@/lib/portfolio-iq/decision-case";
+import { decisionBaselineExposures, monitoringStatus, parseDecisionBaseline, MONITORING_WINDOWS } from "@/lib/portfolio-iq/decision-case";
 import { portfolioDecisionLabel } from "@/lib/portfolio-iq/decision";
 import { savePortfolioDecisionCase, updatePortfolioSignalDecision } from "@/app/portfolio-iq/actions";
 
@@ -64,10 +64,18 @@ export default async function DecisionCasePage({ params }: { params: Promise<{ s
   const decision = caseData.signal.decision;
   const savedBaseline = parseDecisionBaseline(decision?.baselineEvidence);
   const baseline = savedBaseline ?? buildDecisionBaseline(caseData, new Date());
+  const baselineExposures = decisionBaselineExposures(baseline);
   const caseStatus = monitoringStatus({ state: decision?.state, dueAt: decision?.dueAt, baselineCapturedAt: decision?.baselineCapturedAt });
   const latestTrend = caseData.trendPulses[0]?.trendSource ?? null;
-  const currentProperty = caseData.property?.performance ?? null;
-  const hasNewPropertyCut = Boolean(savedBaseline?.property?.availableThrough && caseData.property?.availableThrough && caseData.property.availableThrough.getTime() > new Date(savedBaseline.property.availableThrough).getTime());
+  const currentExposureById = new Map(caseData.exposureContexts.map((exposure) => [exposure.asset.id, exposure]));
+  const exposureUpdates = baselineExposures.map((exposure) => {
+    const current = currentExposureById.get(exposure.asset.id) ?? null;
+    const baselineCut = exposure.property?.availableThrough ? new Date(exposure.property.availableThrough).getTime() : null;
+    const currentCut = current?.property?.availableThrough?.getTime() ?? null;
+    return { exposure, current, hasNewCut: baselineCut !== null && currentCut !== null && currentCut > baselineCut };
+  });
+  const observedOperators = [...new Set(baselineExposures.flatMap((exposure) => exposure.asset.observedOperatorName ? [exposure.asset.observedOperatorName] : []))];
+  const multiAssetCase = baselineExposures.length > 1;
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -85,6 +93,7 @@ export default async function DecisionCasePage({ params }: { params: Promise<{ s
           </div>
           <h1 className="mt-3 max-w-4xl text-3xl font-semibold leading-tight tracking-tight text-navy sm:text-4xl">{caseData.signal.headline}</h1>
           <p className="mt-3 max-w-3xl text-[15px] leading-6 text-foreground/75">{caseData.signal.narrative}</p>
+          {multiAssetCase && <div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full border border-teal/25 bg-teal-soft px-3 py-1 text-xs font-semibold text-teal-800">{baselineExposures.length} exposed assets</span><span className="rounded-full border border-grid bg-white px-3 py-1 text-xs font-semibold text-navy">{observedOperators.length || "No"} observed operator{observedOperators.length === 1 ? "" : "s"}</span></div>}
         </div>
         <aside className="rounded-xl border border-grid bg-surface-soft p-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Case status</p>
@@ -107,31 +116,28 @@ export default async function DecisionCasePage({ params }: { params: Promise<{ s
                 {savedBaseline ? `Frozen on ${dateLabel(savedBaseline.capturedAt)}. Later source refreshes cannot rewrite this record.` : "This current evidence will be frozen when the action plan is saved."}
               </p>
             </div>
-            <div className="grid gap-px bg-grid sm:grid-cols-2">
-              <section className="bg-white p-5 sm:p-6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Property and comps</p>
-                <h3 className="mt-2 font-semibold text-navy">{baseline.asset?.name ?? "Market-level case"}</h3>
-                <dl className="mt-4 space-y-2 text-sm">
-                  <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Observed asking rent</dt><dd className="font-semibold text-navy">{dollars(baseline.property?.askingRent)}</dd></div>
-                  <div className="flex justify-between gap-3"><dt className="text-muted-foreground">90-day move</dt><dd className="font-semibold text-navy">{percent(baseline.property?.askingRentChange90d)}</dd></div>
-                  <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Listing velocity</dt><dd className="font-semibold text-navy">{days(baseline.property?.medianDom)}</dd></div>
-                  <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Comp evidence</dt><dd className="font-semibold capitalize text-navy">{baseline.property?.compStatus ?? "Not available"} · {baseline.property?.compCount ?? 0}</dd></div>
-                </dl>
-                {caseData.signal.asset && <Link href={`/portfolio-iq/properties/${caseData.signal.asset.slug}`} className="mt-4 inline-flex text-xs font-semibold text-teal-700 hover:underline">Open property evidence →</Link>}
-              </section>
-              <section className="bg-white p-5 sm:p-6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Operator context</p>
-                <h3 className="mt-2 font-semibold text-navy">{baseline.asset?.observedOperatorName ?? "Operator not observed"}</h3>
-                {baseline.operator?.status === "matched" ? (
-                  <dl className="mt-4 space-y-2 text-sm">
-                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Market rank</dt><dd className="font-semibold text-navy">#{baseline.operator.overallRank ?? "–"} of {baseline.operator.overallRankTotal ?? "–"}</dd></div>
-                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Lease-up speed</dt><dd className="font-semibold text-navy">{days(baseline.operator.leaseUpDom)}</dd></div>
-                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Listings · T12</dt><dd className="font-semibold text-navy">{baseline.operator.t12Listings?.toLocaleString("en-US") ?? "–"}</dd></div>
-                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Benchmark through</dt><dd className="font-semibold text-navy">{dateLabel(baseline.operator.dataAsOf)}</dd></div>
+            <div className="divide-y divide-grid">
+              {baselineExposures.length ? baselineExposures.map((exposure) => (
+                <section key={`${exposure.asset.id}:${exposure.asset.name}`} className="grid gap-5 bg-white p-5 sm:p-6 lg:grid-cols-[1.15fr_1fr_0.85fr]">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Exposed asset</p>
+                    <h3 className="mt-2 font-semibold text-navy">{exposure.asset.name}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">{exposure.asset.city} · {exposure.asset.postalCode}</p>
+                    {exposure.asset.slug && <Link href={`/portfolio-iq/properties/${exposure.asset.slug}`} className="mt-3 inline-flex text-xs font-semibold text-teal-700 hover:underline">Open property evidence →</Link>}
+                  </div>
+                  <dl className="grid grid-cols-2 gap-x-5 gap-y-3 text-sm">
+                    <div><dt className="text-xs text-muted-foreground">Asking rent</dt><dd className="mt-1 font-semibold text-navy">{dollars(exposure.property?.askingRent)}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">90-day move</dt><dd className="mt-1 font-semibold text-navy">{percent(exposure.property?.askingRentChange90d)}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">Listing velocity</dt><dd className="mt-1 font-semibold text-navy">{days(exposure.property?.medianDom)}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">Comp evidence</dt><dd className="mt-1 font-semibold capitalize text-navy">{exposure.property?.compStatus ?? "Not available"} · {exposure.property?.compCount ?? 0}</dd></div>
                   </dl>
-                ) : <p className="mt-3 text-sm leading-6 text-muted-foreground">No exact Operator IQ match was substituted for this observed assignment.</p>}
-                {caseData.operatorResponse?.scorecardHref && <Link href={caseData.operatorResponse.scorecardHref} className="mt-4 inline-flex text-xs font-semibold text-teal-700 hover:underline">Open Operator IQ scorecard →</Link>}
-              </section>
+                  <div className="rounded-lg bg-surface-soft p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Operator context</p>
+                    <p className="mt-2 text-sm font-semibold text-navy">{exposure.asset.observedOperatorName ?? "Operator not observed"}</p>
+                    {exposure.operator?.status === "matched" ? <p className="mt-2 text-xs leading-5 text-muted-foreground">Operator IQ rank <strong className="text-navy">#{exposure.operator.overallRank ?? "–"} of {exposure.operator.overallRankTotal ?? "–"}</strong><br />Lease-up speed {days(exposure.operator.leaseUpDom)}</p> : <p className="mt-2 text-xs leading-5 text-muted-foreground">Exact Operator IQ match pending.</p>}
+                  </div>
+                </section>
+              )) : <section className="bg-white p-6 text-sm text-muted-foreground">No portfolio asset is currently linked to this market-level case.</section>}
             </div>
             <div className="border-t border-grid bg-surface-soft px-5 py-4 sm:px-6">
               <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Connected sources</p>
@@ -142,7 +148,7 @@ export default async function DecisionCasePage({ params }: { params: Promise<{ s
           <article className="rounded-xl border border-grid bg-white p-5 shadow-sm sm:p-6">
             <p className="dq-eyebrow">Decide</p>
             <h2 className="dq-h2">Set the action plan</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Give the issue a responsible owner, a concrete action, and a measurable follow-up. Saving the first plan freezes the evidence above.</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Give the {multiAssetCase ? "portfolio exposure" : "issue"} a responsible owner, a concrete action, and a measurable follow-up. Saving the first plan freezes the evidence above for {multiAssetCase ? `all ${baselineExposures.length} assets` : "this asset"}.</p>
             <form action={savePortfolioDecisionCase} className="mt-6 grid gap-5 sm:grid-cols-2">
               <input type="hidden" name="signalId" value={caseData.signal.id} />
               <label className="text-sm font-semibold text-navy">Responsible owner
@@ -190,20 +196,16 @@ export default async function DecisionCasePage({ params }: { params: Promise<{ s
           <section className="rounded-xl border border-grid bg-white p-5 sm:p-6">
             <p className="dq-eyebrow">Current reading</p>
             <h2 className="dq-h2">Change since baseline</h2>
-            {!savedBaseline ? <p className="mt-3 text-sm leading-6 text-muted-foreground">Save the action plan to establish an immutable baseline.</p> : hasNewPropertyCut ? (
-              <dl className="mt-4 space-y-2 text-sm">
-                <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Asking rent</dt><dd className="font-semibold text-navy">{dollars(currentProperty?.askingRent)}</dd></div>
-                <div className="flex justify-between gap-3"><dt className="text-muted-foreground">90-day move</dt><dd className="font-semibold text-navy">{percent(currentProperty?.askingRentChange90d)}</dd></div>
-                <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Velocity</dt><dd className="font-semibold text-navy">{days(currentProperty?.medianDom)}</dd></div>
-              </dl>
-            ) : <p className="mt-3 text-sm leading-6 text-muted-foreground">No newer property-level source observation is available yet. The baseline remains the current reading.</p>}
+            {!savedBaseline ? <p className="mt-3 text-sm leading-6 text-muted-foreground">Save the action plan to establish an immutable baseline.</p> : exposureUpdates.some((item) => item.hasNewCut) ? (
+              <div className="mt-4 divide-y divide-grid">{exposureUpdates.map(({ exposure, current, hasNewCut }) => <div key={exposure.asset.id} className="py-3 first:pt-0 last:pb-0"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-navy">{exposure.asset.name}</p><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${hasNewCut ? "bg-teal-soft text-teal-800" : "bg-surface-soft text-muted-foreground"}`}>{hasNewCut ? "New evidence" : "No new cut"}</span></div>{hasNewCut && current?.property && <dl className="mt-2 grid grid-cols-3 gap-2 text-xs"><div><dt className="text-muted-foreground">Rent</dt><dd className="font-semibold text-navy">{dollars(current.property.performance.askingRent)}</dd></div><div><dt className="text-muted-foreground">90-day</dt><dd className="font-semibold text-navy">{percent(current.property.performance.askingRentChange90d)}</dd></div><div><dt className="text-muted-foreground">Velocity</dt><dd className="font-semibold text-navy">{days(current.property.performance.medianDom)}</dd></div></dl>}</div>)}</div>
+            ) : <p className="mt-3 text-sm leading-6 text-muted-foreground">No exposed asset has a newer property-level source observation yet. The frozen baseline remains the current reading.</p>}
             {decision?.successMeasure && <div className="mt-5 rounded-lg bg-surface-soft p-4"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Success measure</p><p className="mt-2 text-sm leading-6 text-navy">{decision.successMeasure}</p></div>}
           </section>
 
           <section className="rounded-xl border border-grid bg-white p-5 sm:p-6">
             <p className="dq-eyebrow">Case controls</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {caseData.signal.asset?.slug && <Link href={`/portfolio-iq/properties/${caseData.signal.asset.slug}/pm-brief?signalId=${signalId}`} className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy">Prepare PM brief</Link>}
+              {caseData.exposureContexts.map((exposure) => <Link key={exposure.asset.id} href={`/portfolio-iq/properties/${exposure.asset.slug}/pm-brief?signalId=${signalId}`} className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy">Brief {multiAssetCase ? exposure.asset.name : "PM"}</Link>)}
               <form action={updatePortfolioSignalDecision}><input type="hidden" name="signalId" value={signalId} /><button name="decisionAction" value="snooze" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy">Snooze 7 days</button></form>
               {decision?.state === "resolved" ? (
                 <form action={updatePortfolioSignalDecision}><input type="hidden" name="signalId" value={signalId} /><button name="decisionAction" value="reopen" className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white">Reopen</button></form>
