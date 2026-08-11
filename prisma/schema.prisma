@@ -1282,9 +1282,14 @@ model PortfolioIqDigestPreference {
 model PortfolioIqDigestDelivery {
   id             String    @id @default(cuid())
   preferenceId   String
+  deliveryKey    String    @unique
   signalCutoff   DateTime
   email          String
   status         String
+  triggerKind    String    @default("scheduled") // scheduled | preview
+  briefingVersion Int      @default(1)
+  materialFingerprint String?
+  snapshot       String?
   providerId     String?
   error          String?
   deliveredAt    DateTime?
@@ -1294,6 +1299,7 @@ model PortfolioIqDigestDelivery {
 
   @@unique([preferenceId, signalCutoff])
   @@index([status, createdAt(sort: Desc)])
+  @@index([preferenceId, materialFingerprint])
 }
 
 // v0.22 — explicit per-market grants for an organization. One row per

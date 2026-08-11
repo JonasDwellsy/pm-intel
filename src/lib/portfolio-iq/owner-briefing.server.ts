@@ -5,7 +5,7 @@ import { loadPortfolioIqCollaboration } from "@/lib/portfolio-iq/collaboration.s
 import { loadPortfolioIqOutcomes } from "@/lib/portfolio-iq/outcome-review.server";
 import { buildOwnerBriefingSnapshot } from "@/lib/portfolio-iq/owner-briefing";
 
-export async function loadOwnerBriefing(input: { organizationId: string; userId: string; now?: Date }) {
+export async function loadOwnerBriefing(input: { organizationId: string; userId: string; portfolioId?: string; now?: Date }) {
   const [today, collaboration, outcomes] = await Promise.all([
     loadOwnerToday(input),
     loadPortfolioIqCollaboration(input),
@@ -22,6 +22,7 @@ export async function loadOwnerBriefing(input: { organizationId: string; userId:
     exposedAssets: signal.exposures.length
       ? signal.exposures.map((exposure) => ({ name: exposure.asset.name, slug: exposure.asset.slug, operatorName: exposure.operatorName }))
       : signal.asset ? [{ name: signal.asset.name, slug: signal.asset.slug, operatorName: null }] : [],
+    decisionState: signal.decision?.state ?? null,
     assignedTo: signal.decision?.assignedTo ?? null,
     dueAt: signal.decision?.dueAt?.toISOString() ?? null,
   }));

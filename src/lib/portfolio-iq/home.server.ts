@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 export async function loadPortfolioIqHome(input: {
   organizationId: string;
   userId: string;
+  portfolioId?: string;
 }) {
   const include = {
     organization: { select: { name: true } },
@@ -29,7 +30,7 @@ export async function loadPortfolioIqHome(input: {
   };
 
   const organizationPortfolio = await prisma.portfolioIqPortfolio.findFirst({
-    where: { organizationId: input.organizationId, status: { not: "archived" } },
+    where: { id: input.portfolioId, organizationId: input.organizationId, status: { not: "archived" } },
     include,
     orderBy: { updatedAt: "desc" },
   });
@@ -39,7 +40,7 @@ export async function loadPortfolioIqHome(input: {
   // Clerk organization. Customer users never cross the organization boundary.
   if (!isAdminUser(input.userId)) return null;
   return prisma.portfolioIqPortfolio.findFirst({
-    where: { isSynthetic: true, status: { not: "archived" } },
+    where: { id: input.portfolioId, isSynthetic: true, status: { not: "archived" } },
     include,
     orderBy: { updatedAt: "desc" },
   });

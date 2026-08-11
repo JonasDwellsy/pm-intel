@@ -9,7 +9,7 @@ import { loadDwellsyIqInsights } from "@/lib/dwellsy-iq/insights.server";
 import { loadOperatorResponseContexts } from "@/lib/dwellsy-iq/operator-response.server";
 import { calculateFinancialImpact, financialImpactPriority } from "@/lib/portfolio-iq/financial";
 
-export async function loadOwnerToday(input: { organizationId: string; userId: string }) {
+export async function loadOwnerToday(input: { organizationId: string; userId: string; portfolioId?: string }) {
   const portfolio = await loadPortfolioIqHome(input);
   if (!portfolio) return null;
 

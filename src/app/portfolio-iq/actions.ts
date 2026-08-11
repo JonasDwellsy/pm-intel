@@ -25,6 +25,7 @@ export async function updatePortfolioDigestPreference(formData: FormData): Promi
   });
   revalidatePath("/today");
   revalidatePath("/portfolio-iq");
+  revalidatePath("/portfolio-iq/reports");
 }
 
 export async function approvePortfolioLaunchBriefing(formData: FormData): Promise<void> {

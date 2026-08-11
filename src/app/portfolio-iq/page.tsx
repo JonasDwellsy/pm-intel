@@ -437,12 +437,12 @@ export default async function PortfolioIqPage() {
           <div>
             <p className="dq-eyebrow">Weekly narrative</p>
             <h2 id="portfolio-digest-heading" className="dq-h2">Bring the decisions to your inbox</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Portfolio IQ sends only when a new signal appears and the weekly cadence is due. The email uses the same ranked evidence shown above.</p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Dwellsy IQ sends the unified owner briefing only when its market, asset, operator, or decision evidence materially changes and the weekly cadence is due.</p>
             <form action={updatePortfolioDigestPreference} className="mt-4 flex flex-wrap items-center gap-3">
               <input type="hidden" name="portfolioId" value={portfolio.id} />
               <label className="flex items-center gap-2 text-sm font-medium text-navy">
                 <input type="checkbox" name="enabled" defaultChecked={digestPreference?.enabled ?? false} />
-                Email me the weekly Portfolio Watch
+                Email me the weekly owner briefing
               </label>
               <button className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white">Save preference</button>
             </form>
