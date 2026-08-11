@@ -714,24 +714,36 @@ model PortfolioIqOnboardingRequest {
 }
 
 model PortfolioIqOnboardingProperty {
-  id             String   @id @default(cuid())
-  requestId      String
-  propertyName   String?
-  addressLine    String
-  city           String?
-  state          String?
-  postalCode     String?
-  unitCount      Int?
-  assetType      String?
-  sourceKind     String   @default("manual") // manual | spreadsheet
-  status         String   @default("received") // received | matching | matched | needs_customer | activated
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                   String    @id @default(cuid())
+  requestId            String
+  propertyName         String?
+  addressLine          String
+  canonicalAddress     String?
+  city                 String?
+  state                String?
+  postalCode           String?
+  unitCount            Int?
+  assetType            String?
+  sourceKind           String    @default("manual") // manual | spreadsheet
+  status               String    @default("received") // received | reviewed | needs_customer | activated
+  promotionMode        String? // new_asset | existing_asset
+  targetAssetId        String?
+  activatedAssetId     String?
+  dwellsyCommunityId   String?
+  observedOperatorName String?
+  matchConfidence      Float?
+  reviewNote           String?
+  reviewedAt           DateTime?
+  reviewedBy           String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  request PortfolioIqOnboardingRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  request        PortfolioIqOnboardingRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  activatedAsset PortfolioIqAsset?            @relation(fields: [activatedAssetId], references: [id], onDelete: SetNull)
 
   @@unique([requestId, addressLine])
   @@index([requestId, status])
+  @@index([activatedAssetId])
 }
 
 // One economic asset in an owner's portfolio. A multifamily community may
@@ -763,13 +775,14 @@ model PortfolioIqAsset {
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
 
-  portfolio           PortfolioIqPortfolio            @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
-  buildings           PortfolioIqBuilding[]
-  operatorAssignments PortfolioIqOperatorAssignment[]
-  activationTasks     PortfolioIqActivationTask[]
-  compSet             PortfolioIqCompSet?
-  signals             PortfolioIqSignal[]
-  insightExposures    DwellsyIqInsightExposure[]
+  portfolio            PortfolioIqPortfolio            @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  buildings            PortfolioIqBuilding[]
+  operatorAssignments  PortfolioIqOperatorAssignment[]
+  activationTasks      PortfolioIqActivationTask[]
+  compSet              PortfolioIqCompSet?
+  signals              PortfolioIqSignal[]
+  insightExposures     DwellsyIqInsightExposure[]
+  onboardingProperties PortfolioIqOnboardingProperty[]
 
   @@unique([portfolioId, slug])
   @@index([portfolioId, sortOrder])

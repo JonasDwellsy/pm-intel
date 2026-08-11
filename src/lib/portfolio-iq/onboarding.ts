@@ -70,3 +70,34 @@ export function onboardingStatusLabel(status: string | null | undefined): string
     complete: "Onboarding complete",
   } as Record<string, string>)[status ?? "started"] ?? "Getting started";
 }
+
+export function normalizeOnboardingAssetType(value: string | null | undefined): "multifamily" | "single_family" {
+  const normalized = String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  return ["single_family", "singlefamily", "sfr", "house", "home"].includes(normalized)
+    ? "single_family"
+    : "multifamily";
+}
+
+export function onboardingAssetSlug(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
+  return slug || "portfolio-property";
+}
+
+export function activationTaskTypes(input: {
+  matched: boolean;
+  hasObservedOperator: boolean;
+}): Array<"match_review" | "issue_uru" | "operator_outreach" | "comp_setup" | "customer_confirmation"> {
+  return [
+    ...(!input.matched ? ["match_review" as const] : []),
+    "issue_uru" as const,
+    ...(!input.hasObservedOperator ? ["operator_outreach" as const] : []),
+    "comp_setup" as const,
+    "customer_confirmation" as const,
+  ];
+}

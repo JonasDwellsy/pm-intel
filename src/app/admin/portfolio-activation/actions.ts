@@ -11,6 +11,11 @@ import {
   proposeCompMembers,
 } from "@/lib/portfolio-iq/comp-generator";
 import { refreshPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
+import {
+  activationTaskTypes,
+  normalizeOnboardingAssetType,
+  onboardingAssetSlug,
+} from "@/lib/portfolio-iq/onboarding";
 
 async function requireAdmin(): Promise<string> {
   const { userId } = await auth();
@@ -315,6 +320,170 @@ export async function updateOnboardingRequestStatus(formData: FormData): Promise
   });
   revalidatePath("/admin/portfolio-activation");
   revalidatePath("/onboarding");
+}
+
+const INTAKE_OUTCOMES = new Set(["reviewed", "needs_customer"]);
+const PROMOTION_MODES = new Set(["new_asset", "existing_asset"]);
+
+export async function reviewOnboardingProperty(formData: FormData): Promise<void> {
+  const userId = await requireAdmin();
+  const propertyId = String(formData.get("propertyId") ?? "").trim();
+  const propertyName = String(formData.get("propertyName") ?? "").trim().slice(0, 160) || null;
+  const addressLine = String(formData.get("addressLine") ?? "").trim().slice(0, 300);
+  const canonicalAddress = String(formData.get("canonicalAddress") ?? "").trim().slice(0, 300);
+  const city = String(formData.get("city") ?? "").trim().slice(0, 100);
+  const state = String(formData.get("state") ?? "").trim().toUpperCase().slice(0, 2);
+  const postalCode = String(formData.get("postalCode") ?? "").trim().slice(0, 12);
+  const unitCountRaw = String(formData.get("unitCount") ?? "").trim();
+  const unitCount = unitCountRaw ? Number(unitCountRaw) : null;
+  const assetType = normalizeOnboardingAssetType(String(formData.get("assetType") ?? ""));
+  const promotionMode = String(formData.get("promotionMode") ?? "");
+  const targetAssetId = String(formData.get("targetAssetId") ?? "").trim() || null;
+  const dwellsyCommunityId = String(formData.get("dwellsyCommunityId") ?? "").trim().slice(0, 100) || null;
+  const observedOperatorName = String(formData.get("observedOperatorName") ?? "").trim().slice(0, 200) || null;
+  const confidenceRaw = String(formData.get("matchConfidence") ?? "").trim();
+  const matchConfidence = confidenceRaw ? Number(confidenceRaw) : null;
+  const reviewNote = String(formData.get("reviewNote") ?? "").trim().slice(0, 1000) || null;
+  const outcome = String(formData.get("outcome") ?? "reviewed");
+
+  if (!propertyId || !addressLine || !canonicalAddress || !city || !state || !postalCode) throw new Error("Complete the property address before saving review.");
+  if (!PROMOTION_MODES.has(promotionMode) || !INTAKE_OUTCOMES.has(outcome)) throw new Error("Choose a valid intake decision.");
+  if (promotionMode === "existing_asset" && !targetAssetId) throw new Error("Choose the asset this building belongs to.");
+  if (unitCount !== null && (!Number.isInteger(unitCount) || unitCount < 1 || unitCount > 100000)) throw new Error("Enter a valid unit count.");
+  if (matchConfidence !== null && (!Number.isFinite(matchConfidence) || matchConfidence < 0 || matchConfidence > 1)) throw new Error("Choose a valid match confidence.");
+
+  const intake = await prisma.portfolioIqOnboardingProperty.findUnique({
+    where: { id: propertyId },
+    select: { request: { select: { portfolioId: true } } },
+  });
+  if (!intake) throw new Error("Intake property not found.");
+  if (targetAssetId) {
+    const target = await prisma.portfolioIqAsset.findFirst({ where: { id: targetAssetId, portfolioId: intake.request.portfolioId ?? "" }, select: { id: true } });
+    if (!target) throw new Error("Target asset does not belong to this onboarding portfolio.");
+  }
+
+  await prisma.portfolioIqOnboardingProperty.update({
+    where: { id: propertyId },
+    data: {
+      propertyName,
+      addressLine,
+      canonicalAddress,
+      city,
+      state,
+      postalCode,
+      unitCount,
+      assetType,
+      promotionMode,
+      targetAssetId,
+      dwellsyCommunityId,
+      observedOperatorName,
+      matchConfidence,
+      reviewNote,
+      status: outcome,
+      reviewedAt: new Date(),
+      reviewedBy: userId,
+    },
+  });
+  revalidatePath("/admin/portfolio-activation");
+  revalidatePath(`/admin/portfolio-activation/intake/${String(formData.get("requestId") ?? "")}`);
+}
+
+export async function connectOnboardingPortfolio(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const requestId = String(formData.get("requestId") ?? "").trim();
+  const portfolioId = String(formData.get("portfolioId") ?? "").trim();
+  const request = await prisma.portfolioIqOnboardingRequest.findUnique({ where: { id: requestId }, select: { organizationId: true } });
+  const portfolio = await prisma.portfolioIqPortfolio.findUnique({ where: { id: portfolioId }, select: { organizationId: true } });
+  if (!request || !portfolio || request.organizationId !== portfolio.organizationId) throw new Error("Choose a portfolio owned by this customer organization.");
+  await prisma.portfolioIqOnboardingRequest.update({ where: { id: requestId }, data: { portfolioId } });
+  revalidatePath("/admin/portfolio-activation");
+  revalidatePath(`/admin/portfolio-activation/intake/${requestId}`);
+}
+
+export async function promoteOnboardingProperty(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const propertyId = String(formData.get("propertyId") ?? "").trim();
+  const intake = await prisma.portfolioIqOnboardingProperty.findUnique({
+    where: { id: propertyId },
+    include: { request: { select: { id: true, portfolioId: true } } },
+  });
+  if (!intake || !intake.request.portfolioId) throw new Error("Connect this request to a portfolio before promotion.");
+  if (intake.status !== "reviewed" || !intake.promotionMode) throw new Error("Complete and approve the property review before promotion.");
+  if (!intake.canonicalAddress || !intake.city || !intake.state || !intake.postalCode) throw new Error("The reviewed address is incomplete.");
+
+  const portfolioId = intake.request.portfolioId;
+  const canonicalAddress = intake.canonicalAddress;
+  const city = intake.city;
+  const state = intake.state;
+  const postalCode = intake.postalCode;
+  const assetType = normalizeOnboardingAssetType(intake.assetType);
+  const matched = Boolean(intake.dwellsyCommunityId);
+  const displayName = intake.propertyName || canonicalAddress.split(",")[0] || "Portfolio property";
+
+  const assetId = await prisma.$transaction(async (tx) => {
+    let assetId: string;
+    if (intake.promotionMode === "existing_asset") {
+      const target = await tx.portfolioIqAsset.findFirst({ where: { id: intake.targetAssetId ?? "", portfolioId }, select: { id: true } });
+      if (!target) throw new Error("The selected target asset is no longer available.");
+      assetId = target.id;
+      await tx.portfolioIqBuilding.upsert({
+        where: { assetId_canonicalAddress: { assetId, canonicalAddress } },
+        create: { assetId, label: intake.propertyName, suppliedAddress: intake.addressLine, canonicalAddress, city, state, postalCode, dwellsyCommunityId: intake.dwellsyCommunityId, isPrimary: false },
+        update: { label: intake.propertyName, suppliedAddress: intake.addressLine, city, state, postalCode, dwellsyCommunityId: intake.dwellsyCommunityId },
+      });
+    } else {
+      const baseSlug = onboardingAssetSlug(displayName);
+      let slug = baseSlug;
+      let suffix = 2;
+      while (await tx.portfolioIqAsset.findUnique({ where: { portfolioId_slug: { portfolioId, slug } }, select: { id: true } })) slug = `${baseSlug}-${suffix++}`;
+      const sortOrder = await tx.portfolioIqAsset.count({ where: { portfolioId } });
+      const asset = await tx.portfolioIqAsset.create({
+        data: {
+          portfolioId,
+          slug,
+          name: displayName,
+          assetType,
+          suppliedAddress: intake.addressLine,
+          canonicalAddress,
+          city,
+          state,
+          postalCode,
+          unitCount: intake.unitCount,
+          dwellsyCommunityId: intake.dwellsyCommunityId,
+          matchStatus: matched ? "matched" : "needs_review",
+          matchConfidence: intake.matchConfidence,
+          observedOperatorName: intake.observedOperatorName,
+          sourceNote: `Promoted from assisted onboarding intake ${intake.id}.`,
+          sortOrder,
+          buildings: { create: { label: intake.propertyName, suppliedAddress: intake.addressLine, canonicalAddress, city, state, postalCode, dwellsyCommunityId: intake.dwellsyCommunityId, isPrimary: true } },
+        },
+        select: { id: true },
+      });
+      assetId = asset.id;
+    }
+
+    if (intake.observedOperatorName) {
+      const assignment = await tx.portfolioIqOperatorAssignment.findFirst({ where: { assetId, observedOperatorName: intake.observedOperatorName, isCurrent: true }, select: { id: true } });
+      if (!assignment) await tx.portfolioIqOperatorAssignment.create({ data: { assetId, observedOperatorName: intake.observedOperatorName, sourceKind: "assisted_onboarding", verificationStatus: "observed" } });
+    }
+    for (const taskType of activationTaskTypes({ matched, hasObservedOperator: Boolean(intake.observedOperatorName) })) {
+      await tx.portfolioIqActivationTask.upsert({
+        where: { assetId_taskType: { assetId, taskType } },
+        create: { assetId, taskType, note: taskType === "comp_setup" ? "Build and review the initial comparable set before customer launch." : `Created from assisted onboarding intake ${intake.id}.` },
+        update: {},
+      });
+    }
+    await tx.portfolioIqOnboardingProperty.update({ where: { id: intake.id }, data: { status: "activated", activatedAssetId: assetId } });
+    await tx.portfolioIqOnboardingRequest.update({ where: { id: intake.request.id }, data: { status: "activating" } });
+    return assetId;
+  });
+
+  await refreshPortfolioWatchSignals(portfolioId);
+  revalidatePath("/admin/portfolio-activation");
+  revalidatePath(`/admin/portfolio-activation/intake/${intake.request.id}`);
+  revalidatePath("/portfolio-iq");
+  const asset = await prisma.portfolioIqAsset.findUnique({ where: { id: assetId }, select: { slug: true } });
+  if (asset) revalidatePath(`/portfolio-iq/properties/${asset.slug}`);
 }
 
 const COMP_MEMBER_STATUSES = new Set(["included", "excluded"]);
