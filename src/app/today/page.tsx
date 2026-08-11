@@ -265,7 +265,12 @@ export default async function TodayPage() {
                   </form>
                   <form action={updatePortfolioSignalDecision}>
                     <input type="hidden" name="signalId" value={signal.id} />
-                    <button name="decisionAction" value="snooze" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy hover:bg-surface-soft">Snooze 7 days</button>
+                    <input type="hidden" name="assignedTo" value="Property manager" />
+                    <button name="decisionAction" value="assign" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy hover:bg-surface-soft">Discuss with PM</button>
+                  </form>
+                  <form action={updatePortfolioSignalDecision}>
+                    <input type="hidden" name="signalId" value={signal.id} />
+                    <button name="decisionAction" value="snooze" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy hover:bg-surface-soft">Watch 7 days</button>
                   </form>
                   <form action={updatePortfolioSignalDecision}>
                     <input type="hidden" name="signalId" value={signal.id} />

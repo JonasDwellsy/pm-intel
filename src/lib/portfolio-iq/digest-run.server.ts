@@ -18,12 +18,12 @@ export async function runPortfolioIqDigests(input: { dryRun?: boolean; baseUrl?:
     if (preference.portfolio.organization.excludeFromDigests) { skipped++; continue; }
     if (preference.lastDeliveredAt && now.getTime() - preference.lastDeliveredAt.getTime() < 6 * 86_400_000) { skipped++; continue; }
     const signals = await refreshPortfolioWatchSignals(preference.portfolioId);
-    const newSignals = signals.filter((signal) => !preference.lastSignalAt || signal.firstSeenAt > preference.lastSignalAt);
+    const newSignals = signals.filter((signal) => signal.severity !== "info" && (!preference.lastSignalAt || signal.firstSeenAt > preference.lastSignalAt));
     if (!newSignals.length) { skipped++; continue; }
     const user = await client.users.getUser(preference.userId);
     const email = user.emailAddresses.find((item) => item.id === user.primaryEmailAddressId)?.emailAddress ?? user.emailAddresses[0]?.emailAddress;
     if (!email) { failed++; continue; }
-    const digest = buildPortfolioIqDigest({ portfolioName: preference.portfolio.name, recipientName: user.firstName, dashboardUrl: `${baseUrl}/portfolio-iq`, signals: newSignals });
+    const digest = buildPortfolioIqDigest({ portfolioName: preference.portfolio.name, recipientName: user.firstName, dashboardUrl: `${baseUrl}/today`, signals: newSignals });
     const signalCutoff = new Date(Math.max(...newSignals.map((signal) => signal.lastSeenAt.getTime())));
     if (input.dryRun) { sent++; continue; }
     const result = await sendEmail({ to: email, subject: digest.subject, html: digest.html, text: digest.text });

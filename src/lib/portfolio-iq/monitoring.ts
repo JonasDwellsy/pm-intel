@@ -26,6 +26,69 @@ export interface PortfolioMonitoringComparison {
   executiveRead: string;
 }
 
+export type PortfolioMonitoringSourceHealth = "healthy" | "unchanged" | "unavailable";
+
+export function classifyMonitoringSourceHealth(currentAvailableThrough: string | null, priorAvailableThrough: string | null): PortfolioMonitoringSourceHealth {
+  if (!currentAvailableThrough) return "unavailable";
+  if (priorAvailableThrough && currentAvailableThrough === priorAvailableThrough) return "unchanged";
+  return "healthy";
+}
+
+export function selectAlertableMonitoringChanges(comparison: PortfolioMonitoringComparison, sourceHealth: PortfolioMonitoringSourceHealth): PortfolioMonitoringChange[] {
+  // Decision changes are already derived from persistent signals. Turning one
+  // back into another signal would create a recursive alert loop.
+  const material = comparison.changes.filter((change) => change.severity !== "info" && change.category !== "decision");
+  if (sourceHealth === "healthy") return material;
+  return material.filter((change) => change.category === "operator" || change.category === "readiness");
+}
+
+function ownerQuestion(change: PortfolioMonitoringChange): string {
+  if (change.category === "rent") return "What changed in pricing, unit mix, or leasing strategy since the approved baseline?";
+  if (change.category === "supply") return "Is this movement driven by competitive supply, property availability, or a change in source coverage?";
+  if (change.category === "comps") return "Does the current pricing plan still reflect the reviewed comparable set?";
+  if (change.category === "operator") return "Should the observed manager assignment or benchmark be confirmed before the next owner review?";
+  if (change.category === "decision") return "Who should own the investigation and report back to the asset-management team?";
+  return "Does this reflect a real portfolio change or an evidence-resolution issue?";
+}
+
+export function monitoringChangeSignalDraft(input: {
+  portfolioId: string;
+  baselineGeneratedAt: string;
+  current: LaunchBriefingSnapshot;
+  change: PortfolioMonitoringChange;
+  sourceHealth: PortfolioMonitoringSourceHealth;
+}) {
+  const asset = input.change.assetSlug ? input.current.assets.find((candidate) => candidate.slug === input.change.assetSlug) ?? null : null;
+  const observedAt = input.current.sourceAvailableThrough
+    ? new Date(`${input.current.sourceAvailableThrough}T23:59:59.999Z`)
+    : new Date(input.current.generatedAt);
+  const performanceCategory = ["rent", "supply", "comps", "operator", "decision"].includes(input.change.category);
+  return {
+    portfolioId: input.portfolioId,
+    assetId: asset?.id ?? null,
+    fingerprint: `${input.portfolioId}:monitoring:${input.change.key}`,
+    signalType: `baseline_change_${input.change.category}`,
+    category: performanceCategory ? "performance" : "readiness",
+    severity: input.change.severity,
+    confidence: input.sourceHealth === "healthy" && ["rent", "supply", "comps"].includes(input.change.category) ? "high" : "medium",
+    rankScore: input.change.rankScore,
+    headline: input.change.headline,
+    narrative: input.change.narrative,
+    ownerQuestion: ownerQuestion(input.change),
+    evidence: JSON.stringify({
+      sourceKind: "portfolio_monitoring",
+      sourceHealth: input.sourceHealth,
+      changeKey: input.change.key,
+      category: input.change.category,
+      baselineValue: input.change.baselineValue,
+      currentValue: input.change.currentValue,
+      baselineGeneratedAt: input.baselineGeneratedAt,
+      sourceAvailableThrough: input.current.sourceAvailableThrough,
+    }),
+    observedAt,
+  };
+}
+
 function signedPercent(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }

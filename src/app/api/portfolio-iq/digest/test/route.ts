@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const email = user?.emailAddresses.find((item) => item.id === user.primaryEmailAddressId)?.emailAddress ?? user?.emailAddresses[0]?.emailAddress;
   if (!email) return Response.json({ error: "Your Clerk account has no email address." }, { status: 422 });
   const signals = await refreshPortfolioWatchSignals(portfolio.id);
-  const digest = buildPortfolioIqDigest({ portfolioName: portfolio.name, recipientName: user?.firstName ?? null, dashboardUrl: `${new URL(request.url).origin}/portfolio-iq`, signals, preview: true });
+  const digest = buildPortfolioIqDigest({ portfolioName: portfolio.name, recipientName: user?.firstName ?? null, dashboardUrl: `${new URL(request.url).origin}/today`, signals, preview: true });
   const sent = await sendEmail({ to: email, subject: digest.subject, html: digest.html, text: digest.text });
   if (!sent.ok) return Response.json({ error: sent.error }, { status: 502 });
   return Response.json({ sent: true, recipient: email, signalCount: digest.signalCount, messageId: sent.id });

@@ -147,7 +147,12 @@ export async function refreshPortfolioWatchSignals(portfolioId: string) {
     }
     const fingerprints = drafts.map((signal) => signal.fingerprint);
     await tx.portfolioIqSignal.updateMany({
-      where: { portfolioId, status: "active", ...(fingerprints.length ? { fingerprint: { notIn: fingerprints } } : {}) },
+      where: {
+        portfolioId,
+        status: "active",
+        NOT: { fingerprint: { startsWith: `${portfolioId}:monitoring:` } },
+        ...(fingerprints.length ? { fingerprint: { notIn: fingerprints } } : {}),
+      },
       data: { status: "resolved", resolvedAt: now },
     });
   });

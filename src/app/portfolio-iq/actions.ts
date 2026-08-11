@@ -8,7 +8,7 @@ import { refreshPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
 import { buildDecisionBaseline, loadDecisionCase } from "@/lib/portfolio-iq/decision-case.server";
 import { parseMonitoringWindow } from "@/lib/portfolio-iq/decision-case";
 import { buildLaunchBriefingSnapshot } from "@/lib/portfolio-iq/launch-briefing.server";
-import { savePortfolioMonitoringSnapshot } from "@/lib/portfolio-iq/monitoring.server";
+import { runPortfolioMonitoringForPortfolio } from "@/lib/portfolio-iq/monitoring-run.server";
 
 export async function updatePortfolioDigestPreference(formData: FormData): Promise<void> {
   const { userId } = await auth();
@@ -64,7 +64,7 @@ export async function capturePortfolioMonitoringPeriod(formData: FormData): Prom
   if (!userId || !organizationId || !portfolioId) throw new Error("Workspace not ready.");
   const portfolio = await prisma.portfolioIqPortfolio.findUnique({ where: { id: portfolioId }, select: { organizationId: true, isSynthetic: true } });
   if (!portfolio || (portfolio.organizationId !== organizationId && !(portfolio.isSynthetic && isAdminUser(userId)))) throw new Error("Portfolio not found.");
-  await savePortfolioMonitoringSnapshot({ portfolioId, organizationId, userId, capturedBy: userId });
+  await runPortfolioMonitoringForPortfolio(portfolioId, { triggerKind: "manual" });
   revalidatePath("/portfolio-iq/changes");
   revalidatePath("/today");
 }

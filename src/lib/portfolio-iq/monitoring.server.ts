@@ -8,11 +8,17 @@ export async function loadPortfolioMonitoring(input: { organizationId: string; u
   const briefing = await loadLaunchBriefing(input);
   if (!briefing) return null;
   const baseline = briefing.isApproved ? briefing.snapshot : null;
-  const historyRows = await prisma.portfolioIqMonitoringSnapshot.findMany({
-    where: { portfolioId: briefing.snapshot.portfolio.id, periodKey: { not: "launch-baseline" } },
-    orderBy: { capturedAt: "desc" },
-    take: 12,
-  });
+  const [historyRows, latestRun] = await Promise.all([
+    prisma.portfolioIqMonitoringSnapshot.findMany({
+      where: { portfolioId: briefing.snapshot.portfolio.id, periodKey: { not: "launch-baseline" } },
+      orderBy: { capturedAt: "desc" },
+      take: 12,
+    }),
+    prisma.portfolioIqMonitoringRun.findFirst({
+      where: { portfolioId: briefing.snapshot.portfolio.id },
+      orderBy: { startedAt: "desc" },
+    }),
+  ]);
   const history = baseline ? historyRows.flatMap((row) => {
     const snapshot = parseLaunchBriefingSnapshot(row.snapshot);
     return snapshot ? [{ id: row.id, periodKey: row.periodKey, capturedAt: row.capturedAt, sourceAvailableThrough: row.sourceAvailableThrough, comparison: comparePortfolioSnapshots(baseline, snapshot) }] : [];
@@ -26,6 +32,7 @@ export async function loadPortfolioMonitoring(input: { organizationId: string; u
     history,
     currentPeriodKey: portfolioWeekKey(new Date()),
     currentPeriodCaptured: historyRows.some((row) => row.periodKey === portfolioWeekKey(new Date())),
+    latestRun,
   };
 }
 

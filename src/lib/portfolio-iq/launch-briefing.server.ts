@@ -20,7 +20,8 @@ export async function buildLaunchBriefingSnapshot(input: { organizationId: strin
     loadOperatorResponseContexts({ marketId: portfolio.marketId, assets: portfolio.assets }),
     Promise.all(portfolio.assets.map((asset) => loadPortfolioIqProperty({ ...input, slug: asset.slug }))),
   ]);
-  const signalRows = unifiedInsights.length ? unifiedInsights : fallbackSignals;
+  const signalRows = (unifiedInsights.length ? unifiedInsights : fallbackSignals)
+    .filter((signal) => !signal.signalType.startsWith("baseline_change_"));
   const properties = new Map(propertyResults.flatMap((property) => property ? [[property.asset.id, property] as const] : []));
   const monitoring = portfolio.assets.filter((asset) => ["ready", "monitoring"].includes(asset.readinessStatus)).length;
   const matched = portfolio.assets.filter((asset) => asset.matchStatus === "matched").length;

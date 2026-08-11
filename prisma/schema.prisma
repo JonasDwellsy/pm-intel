@@ -680,6 +680,7 @@ model PortfolioIqPortfolio {
   unifiedInsights DwellsyIqInsight[]
   launchBriefing PortfolioIqLaunchBriefing?
   monitoringSnapshots PortfolioIqMonitoringSnapshot[]
+  monitoringRuns PortfolioIqMonitoringRun[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -722,6 +723,33 @@ model PortfolioIqMonitoringSnapshot {
 
   @@unique([portfolioId, periodKey])
   @@index([portfolioId, capturedAt(sort: Desc)])
+}
+
+// One idempotent monitoring result per portfolio and ISO week. Source health
+// is recorded even when no alerts are created, so missing or unchanged inputs
+// never masquerade as a quiet market.
+model PortfolioIqMonitoringRun {
+  id                     String    @id @default(cuid())
+  portfolioId            String
+  periodKey               String
+  triggerKind             String    @default("scheduled")
+  status                  String    @default("running") // running | completed | completed_with_errors | blocked
+  sourceHealth            String    @default("unknown") // healthy | unchanged | unavailable
+  sourceAvailableThrough  String?
+  materialChanges         Int       @default(0)
+  alertsActivated         Int       @default(0)
+  alertsResolved          Int       @default(0)
+  error                    String?
+  startedAt               DateTime  @default(now())
+  completedAt             DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, periodKey])
+  @@index([status, startedAt(sort: Desc)])
+  @@index([portfolioId, startedAt(sort: Desc)])
 }
 
 // High-touch owner onboarding intake. The customer supplies only what they
