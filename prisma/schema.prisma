@@ -496,14 +496,14 @@ model Organization {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  memberships           OrganizationMembership[]
-  watchLists            WatchList[]
-  pendingWelcomes       PendingWelcome[]
-  marketAccess          OrganizationMarketAccess[]
-  productAccess         OrganizationProductAccess[]
-  marketIqWatchlists    MarketIqWatchlist[]
-  portfolioIqPortfolios PortfolioIqPortfolio[]
-  dwellsyIqInsights     DwellsyIqInsight[]
+  memberships                   OrganizationMembership[]
+  watchLists                    WatchList[]
+  pendingWelcomes               PendingWelcome[]
+  marketAccess                  OrganizationMarketAccess[]
+  productAccess                 OrganizationProductAccess[]
+  marketIqWatchlists            MarketIqWatchlist[]
+  portfolioIqPortfolios         PortfolioIqPortfolio[]
+  dwellsyIqInsights             DwellsyIqInsight[]
   portfolioIqOnboardingRequests PortfolioIqOnboardingRequest[]
 
   // Hot lookups: "find personal org for user X" (already covered by
@@ -673,20 +673,43 @@ model PortfolioIqPortfolio {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  assets       PortfolioIqAsset[]
-  signals      PortfolioIqSignal[]
-  digestPreferences PortfolioIqDigestPreference[]
-  unifiedInsights DwellsyIqInsight[]
-  launchBriefing PortfolioIqLaunchBriefing?
+  organization        Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assets              PortfolioIqAsset[]
+  signals             PortfolioIqSignal[]
+  digestPreferences   PortfolioIqDigestPreference[]
+  unifiedInsights     DwellsyIqInsight[]
+  launchBriefing      PortfolioIqLaunchBriefing?
   monitoringSnapshots PortfolioIqMonitoringSnapshot[]
-  monitoringRuns PortfolioIqMonitoringRun[]
-  pmBriefs PortfolioIqPmBrief[]
-  outcomeReviews PortfolioIqOutcomeReview[]
+  monitoringRuns      PortfolioIqMonitoringRun[]
+  pmBriefs            PortfolioIqPmBrief[]
+  outcomeReviews      PortfolioIqOutcomeReview[]
+  ownerWatchItems     PortfolioIqOwnerWatchItem[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
   @@index([marketId])
+}
+
+// Shared owner-watch pins for the unified Dwellsy IQ Online workspace. These
+// records connect portfolio objects without changing either Operator IQ's
+// acquisition WatchList model or Market IQ's geography watchlists.
+model PortfolioIqOwnerWatchItem {
+  id             String   @id @default(cuid())
+  portfolioId    String
+  organizationId String
+  objectType     String // property | geography | operator | decision
+  objectKey      String
+  label          String
+  href           String
+  pinnedBy       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, objectType, objectKey])
+  @@index([organizationId, updatedAt(sort: Desc)])
+  @@index([portfolioId, objectType])
 }
 
 // The permanent first-period owner report. Before approval the route renders
@@ -714,12 +737,12 @@ model PortfolioIqLaunchBriefing {
 model PortfolioIqMonitoringSnapshot {
   id                     String   @id @default(cuid())
   portfolioId            String
-  periodKey               String
-  snapshot                String
-  sourceAvailableThrough  String?
-  capturedAt              DateTime @default(now())
-  capturedBy              String?
-  createdAt               DateTime @default(now())
+  periodKey              String
+  snapshot               String
+  sourceAvailableThrough String?
+  capturedAt             DateTime @default(now())
+  capturedBy             String?
+  createdAt              DateTime @default(now())
 
   portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
 
@@ -733,19 +756,19 @@ model PortfolioIqMonitoringSnapshot {
 model PortfolioIqMonitoringRun {
   id                     String    @id @default(cuid())
   portfolioId            String
-  periodKey               String
-  triggerKind             String    @default("scheduled")
-  status                  String    @default("running") // running | completed | completed_with_errors | blocked
-  sourceHealth            String    @default("unknown") // healthy | unchanged | unavailable
-  sourceAvailableThrough  String?
-  materialChanges         Int       @default(0)
-  alertsActivated         Int       @default(0)
-  alertsResolved          Int       @default(0)
-  error                    String?
-  startedAt               DateTime  @default(now())
-  completedAt             DateTime?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  periodKey              String
+  triggerKind            String    @default("scheduled")
+  status                 String    @default("running") // running | completed | completed_with_errors | blocked
+  sourceHealth           String    @default("unknown") // healthy | unchanged | unavailable
+  sourceAvailableThrough String?
+  materialChanges        Int       @default(0)
+  alertsActivated        Int       @default(0)
+  alertsResolved         Int       @default(0)
+  error                  String?
+  startedAt              DateTime  @default(now())
+  completedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
 
@@ -845,7 +868,7 @@ model PortfolioIqAsset {
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
 
-  portfolio            PortfolioIqPortfolio            @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  portfolio            PortfolioIqPortfolio             @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   buildings            PortfolioIqBuilding[]
   operatorAssignments  PortfolioIqOperatorAssignment[]
   activationTasks      PortfolioIqActivationTask[]
@@ -865,24 +888,24 @@ model PortfolioIqAsset {
 // into a prioritization range. Bedroom -1 is the property-wide assumption;
 // nonnegative values represent product segments. These are never source data.
 model PortfolioIqFinancialAssumption {
-  id             String   @id @default(cuid())
-  assetId        String
-  bedrooms       Int      @default(-1)
-  inventoryUnits Int?
-  affectedUnits  Int?
-  realizationPct Float    @default(0.5)
-  conservativePct Float   @default(0.25)
-  upsidePct       Float   @default(0.75)
-  sourceKind      String  @default("owner_interview") // owner_interview | owner_file | pm_confirmed | system_default
+  id              String    @id @default(cuid())
+  assetId         String
+  bedrooms        Int       @default(-1)
+  inventoryUnits  Int?
+  affectedUnits   Int?
+  realizationPct  Float     @default(0.5)
+  conservativePct Float     @default(0.25)
+  upsidePct       Float     @default(0.75)
+  sourceKind      String    @default("owner_interview") // owner_interview | owner_file | pm_confirmed | system_default
   sourceLabel     String?
   effectiveAt     DateTime?
-  reviewStatus    String  @default("draft") // draft | verified | needs_owner | needs_pm
+  reviewStatus    String    @default("draft") // draft | verified | needs_owner | needs_pm
   reviewedAt      DateTime?
   reviewedBy      String?
-  note           String?
-  updatedBy      String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  note            String?
+  updatedBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   asset PortfolioIqAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
@@ -970,8 +993,8 @@ model PortfolioIqCompSet {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  asset   PortfolioIqAsset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  members PortfolioIqCompMember[]
+  asset    PortfolioIqAsset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  members  PortfolioIqCompMember[]
   segments PortfolioIqCompSegment[]
 
   @@index([sourceImportId])
@@ -1049,11 +1072,11 @@ model PortfolioIqSignal {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
-  asset     PortfolioIqAsset?     @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  decision  PortfolioIqSignalDecision?
+  portfolio      PortfolioIqPortfolio       @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  asset          PortfolioIqAsset?          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  decision       PortfolioIqSignalDecision?
   unifiedInsight DwellsyIqInsight?
-  pmBriefs PortfolioIqPmBrief[]
+  pmBriefs       PortfolioIqPmBrief[]
 
   @@index([portfolioId, status, rankScore(sort: Desc)])
   @@index([assetId, status])
@@ -1064,34 +1087,34 @@ model PortfolioIqSignal {
 // evidence-backed issue. Publication freezes a PM-safe snapshot that excludes
 // the owner's other assets and all Operator IQ rankings.
 model PortfolioIqPmBrief {
-  id            String    @id @default(cuid())
-  portfolioId   String
-  assetId       String
-  signalId      String
-  publicToken   String    @unique
-  status        String    @default("published") // published | responded | closed | revoked
-  title         String
-  snapshot      String
-  ownerNote     String?
-  responseDueAt DateTime?
-  recipientName String?
-  recipientEmail String?
-  deliveryStatus String   @default("not_sent") // not_sent | sent | failed
+  id                 String    @id @default(cuid())
+  portfolioId        String
+  assetId            String
+  signalId           String
+  publicToken        String    @unique
+  status             String    @default("published") // published | responded | closed | revoked
+  title              String
+  snapshot           String
+  ownerNote          String?
+  responseDueAt      DateTime?
+  recipientName      String?
+  recipientEmail     String?
+  deliveryStatus     String    @default("not_sent") // not_sent | sent | failed
   deliveryProviderId String?
-  deliveryError String?
-  deliveredAt   DateTime?
-  lastReminderAt DateTime?
-  reminderCount Int       @default(0)
-  remindersEnabled Boolean @default(false)
-  publishedBy   String
-  publishedAt   DateTime  @default(now())
-  closedAt      DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  deliveryError      String?
+  deliveredAt        DateTime?
+  lastReminderAt     DateTime?
+  reminderCount      Int       @default(0)
+  remindersEnabled   Boolean   @default(false)
+  publishedBy        String
+  publishedAt        DateTime  @default(now())
+  closedAt           DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
-  asset     PortfolioIqAsset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  signal    PortfolioIqSignal    @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  portfolio PortfolioIqPortfolio        @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  asset     PortfolioIqAsset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  signal    PortfolioIqSignal           @relation(fields: [signalId], references: [id], onDelete: Cascade)
   response  PortfolioIqPmBriefResponse?
 
   @@index([portfolioId, status, publishedAt(sort: Desc)])
@@ -1154,9 +1177,9 @@ model DwellsyIqInsight {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  portfolio    PortfolioIqPortfolio   @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
-  sourceSignal PortfolioIqSignal      @relation(fields: [sourceSignalId], references: [id], onDelete: Cascade)
+  organization Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  portfolio    PortfolioIqPortfolio       @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  sourceSignal PortfolioIqSignal          @relation(fields: [sourceSignalId], references: [id], onDelete: Cascade)
   exposures    DwellsyIqInsightExposure[]
 
   @@index([organizationId, status, rankScore(sort: Desc)])
@@ -1190,27 +1213,27 @@ model DwellsyIqInsightExposure {
 // Decision state is stored separately so acknowledging or resolving an item
 // never rewrites the evidence that caused it to appear.
 model PortfolioIqSignalDecision {
-  id             String    @id @default(cuid())
-  signalId       String    @unique
-  organizationId String
-  state          String    @default("open") // open | acknowledged | snoozed | resolved
-  assignedTo     String?
-  assignedUserId String?   // Clerk userId for an organization member; null for role or PM assignments
-  note           String?
-  actionPlan     String?
-  successMeasure String?
-  dueAt          DateTime?
+  id                   String    @id @default(cuid())
+  signalId             String    @unique
+  organizationId       String
+  state                String    @default("open") // open | acknowledged | snoozed | resolved
+  assignedTo           String?
+  assignedUserId       String? // Clerk userId for an organization member; null for role or PM assignments
+  note                 String?
+  actionPlan           String?
+  successMeasure       String?
+  dueAt                DateTime?
   monitoringWindowDays Int?
-  baselineEvidence String?
-  baselineCapturedAt DateTime?
-  snoozedUntil   DateTime?
-  decidedBy      String
-  decidedAt      DateTime  @default(now())
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  baselineEvidence     String?
+  baselineCapturedAt   DateTime?
+  snoozedUntil         DateTime?
+  decidedBy            String
+  decidedAt            DateTime  @default(now())
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  signal PortfolioIqSignal              @relation(fields: [signalId], references: [id], onDelete: Cascade)
-  events PortfolioIqSignalDecisionEvent[]
+  signal         PortfolioIqSignal                @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  events         PortfolioIqSignalDecisionEvent[]
   outcomeReviews PortfolioIqOutcomeReview[]
 
   @@index([organizationId, state, updatedAt(sort: Desc)])
@@ -1224,21 +1247,21 @@ model PortfolioIqOutcomeReview {
   id                     String    @id @default(cuid())
   portfolioId            String
   decisionId             String
-  periodKey               String
-  status                  String    @default("waiting_for_source") // waiting_for_source | ready | reviewed
-  sourceHealth            String    @default("unchanged") // healthy | unchanged | unavailable
-  sourceAvailableThrough  String?
-  comparison              String
-  conclusion              String? // improved | unchanged | worsened | inconclusive
-  reviewNote              String?
-  nextReviewAt            DateTime?
-  generatedAt             DateTime  @default(now())
-  reviewedAt              DateTime?
-  reviewedBy              String?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  periodKey              String
+  status                 String    @default("waiting_for_source") // waiting_for_source | ready | reviewed
+  sourceHealth           String    @default("unchanged") // healthy | unchanged | unavailable
+  sourceAvailableThrough String?
+  comparison             String
+  conclusion             String? // improved | unchanged | worsened | inconclusive
+  reviewNote             String?
+  nextReviewAt           DateTime?
+  generatedAt            DateTime  @default(now())
+  reviewedAt             DateTime?
+  reviewedBy             String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
-  portfolio PortfolioIqPortfolio    @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  portfolio PortfolioIqPortfolio      @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   decision  PortfolioIqSignalDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
 
   @@unique([decisionId, periodKey])
@@ -1247,16 +1270,16 @@ model PortfolioIqOutcomeReview {
 }
 
 model PortfolioIqSignalDecisionEvent {
-  id           String   @id @default(cuid())
-  decisionId   String
-  action       String
-  fromState    String?
-  toState      String
-  assignedTo   String?
+  id             String   @id @default(cuid())
+  decisionId     String
+  action         String
+  fromState      String?
+  toState        String
+  assignedTo     String?
   assignedUserId String?
-  note         String?
-  actorUserId  String
-  createdAt    DateTime @default(now())
+  note           String?
+  actorUserId    String
+  createdAt      DateTime @default(now())
 
   decision PortfolioIqSignalDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
 
@@ -1275,7 +1298,7 @@ model PortfolioIqDigestPreference {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  portfolio PortfolioIqPortfolio        @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  portfolio  PortfolioIqPortfolio        @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   deliveries PortfolioIqDigestDelivery[]
 
   @@unique([portfolioId, userId])
@@ -1283,20 +1306,20 @@ model PortfolioIqDigestPreference {
 }
 
 model PortfolioIqDigestDelivery {
-  id             String    @id @default(cuid())
-  preferenceId   String
-  deliveryKey    String    @unique
-  signalCutoff   DateTime
-  email          String
-  status         String
-  triggerKind    String    @default("scheduled") // scheduled | preview
-  briefingVersion Int      @default(1)
+  id                  String    @id @default(cuid())
+  preferenceId        String
+  deliveryKey         String    @unique
+  signalCutoff        DateTime
+  email               String
+  status              String
+  triggerKind         String    @default("scheduled") // scheduled | preview
+  briefingVersion     Int       @default(1)
   materialFingerprint String?
-  snapshot       String?
-  providerId     String?
-  error          String?
-  deliveredAt    DateTime?
-  createdAt      DateTime  @default(now())
+  snapshot            String?
+  providerId          String?
+  error               String?
+  deliveredAt         DateTime?
+  createdAt           DateTime  @default(now())
 
   preference PortfolioIqDigestPreference @relation(fields: [preferenceId], references: [id], onDelete: Cascade)
 

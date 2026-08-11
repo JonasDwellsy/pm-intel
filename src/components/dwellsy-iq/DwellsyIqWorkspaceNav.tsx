@@ -16,7 +16,7 @@ const workspaceItems = [
   { href: "/market-iq", label: "Markets", match: (path: string) => path.startsWith("/market-iq") },
   { href: "/portfolio-iq#properties", label: "Properties & Comps", match: (path: string) => path.startsWith("/portfolio-iq/properties") },
   { href: "/property-managers", label: "Operators", match: (path: string) => path.startsWith("/property-managers") || path.startsWith("/operators") },
-  { href: "/watch-lists", label: "Watchlists", match: (path: string) => path.startsWith("/watch-lists") },
+  { href: "/portfolio-iq/watchlists", label: "Watchlists", match: (path: string) => path.startsWith("/portfolio-iq/watchlists") },
   { href: "/portfolio-iq/reports", label: "Reports", match: (path: string) => path.startsWith("/portfolio-iq/reports") },
 ] as const;
 
