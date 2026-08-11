@@ -92,6 +92,7 @@ export default async function TodayPage() {
           <p className="mt-2 text-sm leading-6 text-foreground/75">
             {affectedAssets} assets are represented in today&apos;s queue. {assignedCount ? `${assignedCount} already ${assignedCount === 1 ? "has" : "have"} an owner.` : "Nothing has been assigned yet."}
           </p>
+          <p className="mt-2 text-xs leading-5 text-teal-800">{today.attentionQueue.watchlist.length} additional findings remain monitored without competing for today&apos;s attention.</p>
         </aside>
       </header>
 
@@ -101,7 +102,7 @@ export default async function TodayPage() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4">
           {[
             ["Needs attention", String(highPriorityCount), "High-priority evidence"],
-            ["New watched findings", String(routedActivity.eligibleUnreadCount), "Connected issues, not event count"],
+            ["Held on watchlist", String(today.attentionQueue.watchlist.length), "Credible or developing findings"],
             ["Assets exposed", String(affectedAssets), `of ${today.portfolio.assets.length} in the portfolio`],
             ["Monitoring now", `${readyAssets}/${today.portfolio.assets.length}`, "Remaining assets are activating"],
           ].map(([label, value, detail]) => (
@@ -142,10 +143,10 @@ export default async function TodayPage() {
             <p className="dq-eyebrow">Detect, diagnose, decide</p>
             <h2 id="today-issues-heading" className="dq-h2">What deserves attention</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Each issue begins with a material change, identifies the exposed asset, and keeps unsupported conclusions visibly out of the diagnosis.
+              Today is limited to three primary decisions. Evidence quality, portfolio exposure, financial materiality, and decision urgency determine the order.
             </p>
           </div>
-          <p className="text-xs text-muted-foreground">Showing the top {today.todaySignals.length} owner-relevant issues</p>
+          <p className="text-xs text-muted-foreground">{today.attentionQueue.evaluatedCount} signals consolidated into {today.attentionQueue.consolidatedCount} findings · top {today.todaySignals.length} shown</p>
         </div>
 
         <div className="mt-5 space-y-4">
@@ -187,13 +188,16 @@ export default async function TodayPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.1em]">
                       <span className={signal.severity === "high" ? "text-rose-800" : "text-teal-700"}>{signal.category}</span>
-                      <span className="text-muted-foreground">{signal.confidence === "setup" ? "Setup signal" : `${signal.confidence} confidence`}</span>
+                      <span className="text-muted-foreground">{signal.findingQuality.calibratedConfidence} confidence</span>
+                      <span className="rounded-full border border-grid bg-white px-2 py-0.5 text-navy">Quality {signal.findingQuality.score}/100</span>
+                      {signal.findingQuality.consolidatedCount > 1 && <span className="rounded-full border border-teal/25 bg-teal-soft px-2 py-0.5 text-teal-800">{signal.findingQuality.consolidatedCount} related signals combined</span>}
                       {isNew && <span className="rounded-full bg-navy px-2 py-0.5 text-white">New</span>}
                       {signal.unifiedInsightId && <span className="rounded-full border border-teal/25 bg-teal-soft px-2 py-0.5 text-teal-800">Connected insight</span>}
                       {signal.decision && <span className="rounded-full border border-grid bg-white px-2 py-0.5 text-navy">{portfolioDecisionLabel(signal.decision.state)}</span>}
                     </div>
                     <h3 className="mt-2 text-xl font-semibold leading-7 text-navy">{signal.headline}</h3>
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-foreground/75">{signal.narrative}</p>
+                    <p className="mt-3 text-xs font-semibold leading-5 text-teal-800">Why this is here: {signal.findingQuality.reason}</p>
                     {multiAssetExposure && <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                       {exposedProperties.map(({ exposure, property: exposedProperty }) => {
                         const exposedSegment = exposedProperty.segments.find((candidate) => candidate.bedrooms === signal.bedrooms);

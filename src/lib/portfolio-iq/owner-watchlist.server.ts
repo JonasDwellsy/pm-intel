@@ -72,5 +72,5 @@ export async function loadOwnerWatchlist(input: { organizationId: string; userId
     prisma.portfolioIqMonitoringRun.findFirst({ where: { portfolioId: portfolio.id }, orderBy: { startedAt: "desc" } }),
     prisma.marketIqDataImport.findMany({ where: { marketId: portfolio.marketId, status: "complete" }, orderBy: { importedAt: "desc" }, distinct: ["sourceKind"] }),
   ]);
-  return { portfolio, signals, candidates, groups: buildOwnerWatchGroups({ candidates, pins }), pins, latestRun, sourceImports };
+  return { portfolio, signals, attentionQueue: today.attentionQueue, candidates, groups: buildOwnerWatchGroups({ candidates, pins }), pins, latestRun, sourceImports };
 }

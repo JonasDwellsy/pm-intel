@@ -28,6 +28,9 @@ export async function loadOwnerBriefing(input: { organizationId: string; userId:
     decisionState: signal.decision?.state ?? null,
     assignedTo: signal.decision?.assignedTo ?? null,
     dueAt: signal.decision?.dueAt?.toISOString() ?? null,
+    qualityScore: signal.findingQuality.score,
+    calibratedConfidence: signal.findingQuality.calibratedConfidence,
+    priorityReason: signal.findingQuality.reason,
   }));
   const decisions = today.signals.flatMap((signal) => signal.decision ? [signal.decision] : []);
   const financialReady = today.financialImpacts.filter((item) => item.impact.status === "estimated");

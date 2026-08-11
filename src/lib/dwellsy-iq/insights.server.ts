@@ -90,6 +90,33 @@ export async function loadDwellsyIqInsights(portfolioId: string) {
     },
     orderBy: [{ rankScore: "desc" }, { observedAt: "desc" }],
   });
+  const qualityAlertIds = [...new Set(insights.flatMap((insight) => insight.sourceAlertId ? [insight.sourceAlertId] : []))];
+  const qualityAlerts = qualityAlertIds.length ? await prisma.marketIqAlert.findMany({
+    where: { id: { in: qualityAlertIds } },
+    select: { id: true, sourceImportId: true, geographyType: true, geographyValue: true, propertyType: true, bedrooms: true, observedMonth: true },
+  }) : [];
+  const trendObservations = qualityAlerts.length ? await prisma.marketIqTrendObservation.findMany({
+    where: { OR: qualityAlerts.map((alert) => ({
+      importId: alert.sourceImportId,
+      geographyType: alert.geographyType,
+      geographyValue: alert.geographyValue,
+      propertyType: alert.propertyType,
+      bedrooms: alert.bedrooms,
+      month: alert.observedMonth,
+    })) },
+    select: { importId: true, geographyType: true, geographyValue: true, propertyType: true, bedrooms: true, month: true, observations: true },
+  }) : [];
+  const observationKey = (item: { importId: string; geographyType: string; geographyValue: string; propertyType: string; bedrooms: number; month: Date }) =>
+    `${item.importId}:${item.geographyType}:${item.geographyValue}:${item.propertyType}:${item.bedrooms}:${item.month.toISOString()}`;
+  const observationByKey = new Map(trendObservations.map((item) => [observationKey(item), item.observations]));
+  const observationsByAlertId = new Map(qualityAlerts.map((alert) => [alert.id, observationByKey.get(observationKey({
+    importId: alert.sourceImportId,
+    geographyType: alert.geographyType,
+    geographyValue: alert.geographyValue,
+    propertyType: alert.propertyType,
+    bedrooms: alert.bedrooms,
+    month: alert.observedMonth,
+  })) ?? null]));
   const now = new Date();
   const actionable = insights.flatMap((insight) => {
     const decision = insight.sourceSignal.decision;
@@ -114,6 +141,7 @@ export async function loadDwellsyIqInsights(portfolioId: string) {
       geographyValue: insight.geographyValue,
       propertyType: insight.propertyType,
       bedrooms: insight.bedrooms,
+      qualityObservations: insight.sourceAlertId ? observationsByAlertId.get(insight.sourceAlertId) ?? null : parseTodaySignalEvidence(insight.sourceSignal.evidence).observations,
       evidenceSources: insight.evidenceSources,
       exposures: insight.exposures,
     }];

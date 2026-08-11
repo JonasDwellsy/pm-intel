@@ -4,7 +4,7 @@ import { loadClevelandTrendPulses } from "@/lib/market-iq/trends.server";
 import { loadPortfolioIqHome } from "@/lib/portfolio-iq/home.server";
 import { loadPortfolioIqProperty } from "@/lib/portfolio-iq/property.server";
 import { loadPortfolioDecisionHistory, loadPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
-import { selectTodaySignals } from "@/lib/portfolio-iq/today";
+import { buildOwnerAttentionQueue } from "@/lib/portfolio-iq/today";
 import { loadDwellsyIqInsights } from "@/lib/dwellsy-iq/insights.server";
 import { loadOperatorResponseContexts } from "@/lib/dwellsy-iq/operator-response.server";
 import { calculateFinancialImpact, financialImpactPriority } from "@/lib/portfolio-iq/financial";
@@ -30,11 +30,11 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
     geographyValue: null,
     propertyType: null,
     bedrooms: null,
+    qualityObservations: null,
     evidenceSources: "[]",
     exposures: [],
   }));
-  const todaySignals = selectTodaySignals(signals, 5);
-  const uniqueSlugs = [...new Set(todaySignals.flatMap((signal) => [
+  const uniqueSlugs = [...new Set(signals.flatMap((signal) => [
     ...(signal.asset?.slug ? [signal.asset.slug] : []),
     ...signal.exposures.map((exposure) => exposure.asset.slug),
   ]))];
@@ -44,7 +44,7 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
     where: { assetId: { in: propertyResults.flatMap((property) => property ? [property.asset.id] : []) }, bedrooms: -1 },
   });
   const financialAssumptionMap = new Map(financialAssumptions.map((assumption) => [assumption.assetId, assumption]));
-  const financialImpacts = propertyResults.flatMap((property) => {
+  const financialResults = propertyResults.flatMap((property) => {
     if (!property) return [];
     const assumption = financialAssumptionMap.get(property.asset.id) ?? null;
     const isSingleFamily = property.asset.assetType === "single_family";
@@ -59,13 +59,23 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
       realizationPct: assumption?.realizationPct ?? 0.5,
       assumptionSource: assumption ? "owner" : isSingleFamily ? "single_family_default" : "missing",
     });
-    const signal = todaySignals.find((candidate) => candidate.assetId === property.asset.id) ?? null;
-    return [{ property: property.asset, impact, signal, priority: financialImpactPriority(impact) }];
-  }).sort((left, right) => right.priority - left.priority);
+    return [{ property: property.asset, impact, priority: financialImpactPriority(impact) }];
+  });
+  const annualFinancialExposureByAssetId = new Map(financialResults.flatMap((item) =>
+    item.impact.status === "estimated" && item.impact.annualRealizationAdjusted !== null
+      ? [[item.property.id, Math.abs(item.impact.annualRealizationAdjusted)] as const]
+      : []
+  ));
+  const attentionQueue = buildOwnerAttentionQueue(signals, { limit: 3, annualFinancialExposureByAssetId });
+  const todaySignals = attentionQueue.today;
+  const financialImpacts = financialResults.map((item) => ({
+    ...item,
+    signal: todaySignals.find((candidate) => candidate.assetId === item.property.id || candidate.exposures.some((exposure) => exposure.assetId === item.property.id)) ?? null,
+  })).sort((left, right) => right.priority - left.priority);
   const operatorResponses = await loadOperatorResponseContexts({
     marketId: portfolio.marketId,
     assets: portfolio.assets,
   });
 
-  return { portfolio, signals, todaySignals, digestPreference, decisionHistory, trendPulses, properties, operatorResponses, financialImpacts };
+  return { portfolio, signals, todaySignals, attentionQueue, digestPreference, decisionHistory, trendPulses, properties, operatorResponses, financialImpacts };
 }
