@@ -107,6 +107,28 @@ export default async function TodayPage() {
         </div>
       </section>
 
+      <section aria-labelledby="financial-priority-heading" className="mt-10 rounded-xl border border-navy bg-navy p-5 text-white sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-200">Financial prioritization</p>
+            <h2 id="financial-priority-heading" className="mt-1 text-2xl font-semibold">Where the asking-rent gap may matter most</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">Gross asking-rent exposure is shown only when approved comps and affected-unit assumptions are available.</p>
+          </div>
+          <Link href="/portfolio-iq/financial-impact" className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-navy">Open Financial Impact Queue</Link>
+        </div>
+        <div className="mt-5 grid gap-3 lg:grid-cols-3">
+          {today.financialImpacts.map(({ property, impact, signal }) => (
+            <article key={property.id} className="rounded-lg border border-white/15 bg-white/10 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-teal-200">{impact.status === "estimated" ? "Estimate ready" : impact.status === "assumptions_needed" ? "Owner input needed" : "Evidence gate"}</p>
+              <h3 className="mt-2 font-semibold text-white">{property.name}</h3>
+              <p className="mt-2 text-2xl font-semibold">{impact.annualRealizationAdjusted === null ? impact.monthlyGapPerUnit === null ? "Not estimated" : `${dollars(impact.monthlyGapPerUnit)}/unit/mo` : dollars(impact.annualRealizationAdjusted)}</p>
+              <p className="mt-1 text-xs leading-5 text-white/65">{impact.direction === "opportunity" ? "Potential asking-rent opportunity" : impact.direction === "pricing_exposure" ? "Potential pricing exposure" : impact.status === "aligned" ? "Asking rent aligned" : "Subject or comp evidence incomplete"}</p>
+              <div className="mt-3 flex gap-3 border-t border-white/15 pt-3 text-xs font-semibold"><Link href={`/portfolio-iq/properties/${property.slug}`} className="text-teal-200">Property</Link>{signal && <Link href={`/today/cases/${signal.id}`} className="text-teal-200">Decision case</Link>}</div>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section aria-labelledby="today-issues-heading" className="mt-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

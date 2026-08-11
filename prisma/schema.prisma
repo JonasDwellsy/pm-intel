@@ -853,10 +853,32 @@ model PortfolioIqAsset {
   insightExposures     DwellsyIqInsightExposure[]
   onboardingProperties PortfolioIqOnboardingProperty[]
   pmBriefs             PortfolioIqPmBrief[]
+  financialAssumptions PortfolioIqFinancialAssumption[]
 
   @@unique([portfolioId, slug])
   @@index([portfolioId, sortOrder])
   @@index([dwellsyCommunityId])
+}
+
+// Owner-controlled assumptions used only to translate asking-rent evidence
+// into a prioritization range. Bedroom -1 is the property-wide assumption;
+// nonnegative values represent product segments. These are never source data.
+model PortfolioIqFinancialAssumption {
+  id             String   @id @default(cuid())
+  assetId        String
+  bedrooms       Int      @default(-1)
+  inventoryUnits Int?
+  affectedUnits  Int?
+  realizationPct Float    @default(0.5)
+  note           String?
+  updatedBy      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  asset PortfolioIqAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, bedrooms])
+  @@index([assetId, updatedAt(sort: Desc)])
 }
 
 model PortfolioIqBuilding {

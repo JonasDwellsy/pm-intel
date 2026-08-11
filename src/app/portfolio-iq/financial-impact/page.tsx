@@ -1,0 +1,69 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { DwellsyIqWorkspaceNav } from "@/components/dwellsy-iq/DwellsyIqWorkspaceNav";
+import { getActiveOrgContext } from "@/lib/auth/active-org";
+import { isMarketEntitled, resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
+import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
+import { FINANCIAL_IMPACT_DISCLOSURE, financialImpactStatusLabel, type FinancialImpactResult } from "@/lib/portfolio-iq/financial";
+import { loadPortfolioIqFinancialPriority } from "@/lib/portfolio-iq/financial.server";
+import { portfolioIqPreviewEnabled } from "@/lib/portfolio-iq/feature";
+import { savePortfolioIqFinancialAssumption } from "@/app/portfolio-iq/financial-actions";
+
+export const dynamic = "force-dynamic";
+
+function money(value: number | null, digits = 0): string {
+  return value === null ? "Not estimated" : value.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: digits, minimumFractionDigits: digits });
+}
+
+function directionLabel(direction: FinancialImpactResult["direction"]): string {
+  if (direction === "opportunity") return "Potential asking-rent opportunity";
+  if (direction === "pricing_exposure") return "Potential pricing exposure";
+  if (direction === "aligned") return "Asking rent aligned";
+  return "Evidence incomplete";
+}
+
+function statusTone(status: FinancialImpactResult["status"]): string {
+  if (status === "estimated") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (status === "assumptions_needed") return "border-orange-200 bg-orange-soft text-orange-800";
+  if (status === "aligned") return "border-teal/25 bg-teal-soft text-teal-800";
+  return "border-grid bg-surface-soft text-muted-foreground";
+}
+
+export default async function PortfolioIqFinancialImpactPage() {
+  if (!portfolioIqPreviewEnabled() || !(await viewerHasProductAccess("portfolio_iq"))) notFound();
+  const { userId, organizationId } = await getActiveOrgContext();
+  if (!userId) notFound();
+  if (!organizationId) redirect("/setup-workspace");
+  const data = await loadPortfolioIqFinancialPriority({ userId, organizationId });
+  if (!data) notFound();
+  const entitlement = await resolveViewerEntitlement();
+  if (!isMarketEntitled(entitlement, data.portfolio.marketId)) notFound();
+
+  return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
+    <DwellsyIqWorkspaceNav />
+    <header className="grid gap-7 border-b border-grid pb-8 lg:grid-cols-[1fr_410px] lg:items-end">
+      <div><p className="dq-eyebrow">Owner capital attention</p><h1 className="dq-h1">Financial Impact Queue</h1><p className="mt-3 max-w-3xl text-[15px] leading-6 text-muted-foreground">Prioritize where asking-rent evidence may matter most. Portfolio IQ calculates transparent gross exposure only after the subject, approved comps, and owner assumptions are available.</p></div>
+      <aside className="rounded-xl border border-teal/25 bg-teal-soft p-5"><p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Estimated annual impact</p><p className="mt-2 text-3xl font-semibold text-navy">{data.estimatedCount ? money(data.totalAnnualAdjusted) : "Awaiting assumptions"}</p><p className="mt-2 text-sm leading-6 text-foreground/75">Realization-adjusted gross asking-rent exposure across {data.estimatedCount} modeled {data.estimatedCount === 1 ? "property" : "properties"}. Not a revenue forecast.</p></aside>
+    </header>
+
+    <section aria-label="Financial prioritization summary" className="mt-7 grid gap-px overflow-hidden rounded-xl border border-grid bg-grid sm:grid-cols-2 lg:grid-cols-4">
+      {[["Properties reviewed", data.items.length, "Every pilot asset"], ["Estimates ready", data.estimatedCount, "Evidence and assumptions complete"], ["Needs owner input", data.assumptionsNeeded, "Affected units missing"], ["Needs evidence", data.evidenceNeeded, "Subject or approved comps missing"]].map(([label, value, detail]) => <article key={String(label)} className="bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p><p className="mt-2 text-[28px] font-semibold text-navy">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></article>)}
+    </section>
+
+    <section className="mt-10"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="dq-eyebrow">Ranked by decision value</p><h2 className="dq-h2">Where to focus first</h2></div><p className="max-w-xl text-right text-xs leading-5 text-muted-foreground">Ready estimates rank by realization-adjusted annual magnitude. Incomplete estimates rank by per-unit gap and evidence readiness.</p></div>
+      <div className="mt-5 space-y-5">{data.items.map((item, index) => {
+        const { property, impact, assumption } = item;
+        return <article key={property.asset.id} className="overflow-hidden rounded-xl border border-grid bg-white shadow-sm">
+          <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[48px_1fr_230px] lg:items-start"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-navy text-sm font-bold text-white">{index + 1}</div><div><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold text-teal-700">{property.asset.city}, OH</p><span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${statusTone(impact.status)}`}>{financialImpactStatusLabel(impact.status)}</span></div><h3 className="mt-1 text-xl font-semibold text-navy">{property.asset.name}</h3><p className="mt-2 text-sm leading-6 text-foreground/75">{directionLabel(impact.direction)}{impact.monthlyGapPerUnit !== null ? ` of ${money(impact.monthlyGapPerUnit)} per affected unit each month.` : "."}</p><div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground"><span>{property.performance.observationCount} subject observations</span><span>{property.compSet?.members.length ?? 0} approved or proposed comps</span><span className="capitalize">{impact.confidence.replaceAll("_", " ")} confidence</span></div></div><div className="rounded-lg bg-surface-soft p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Prioritized annual impact</p><p className="mt-2 text-2xl font-semibold text-navy">{money(impact.annualRealizationAdjusted)}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{impact.status === "estimated" ? `${impact.affectedUnits} affected units at ${Math.round(impact.realizationPct * 100)}% realization` : impact.status === "assumptions_needed" ? "Add affected units to calculate" : "Evidence gate not yet met"}</p></div></div>
+
+          <div className="grid gap-px border-t border-grid bg-grid lg:grid-cols-[1fr_1fr]"><section className="bg-white p-5 sm:p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-teal-700">Calculation evidence</p><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-xs text-muted-foreground">Observed asking rent</dt><dd className="mt-1 font-semibold text-navy">{money(property.performance.askingRent)}</dd></div><div><dt className="text-xs text-muted-foreground">Approved comp rent</dt><dd className="mt-1 font-semibold text-navy">{property.compSet?.status === "locked" ? money(property.performance.compAskingRent) : "Comp set not locked"}</dd></div><div><dt className="text-xs text-muted-foreground">Monthly gap per unit</dt><dd className="mt-1 font-semibold text-navy">{money(impact.monthlyGapPerUnit)}</dd></div><div><dt className="text-xs text-muted-foreground">Gross annual exposure</dt><dd className="mt-1 font-semibold text-navy">{money(impact.annualGrossExposure)}</dd></div></dl><div className="mt-5 flex flex-wrap gap-2"><Link href={`/portfolio-iq/properties/${property.asset.slug}`} className="rounded-md border border-navy px-3 py-2 text-xs font-semibold text-navy">Open property evidence</Link>{item.signal && <Link href={`/today/cases/${item.signal.id}`} className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white">Open decision case</Link>}</div></section>
+            <section className="bg-surface-soft p-5 sm:p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-teal-700">Owner assumptions</p><form action={savePortfolioIqFinancialAssumption} className="mt-4 grid gap-3 sm:grid-cols-3"><input type="hidden" name="assetId" value={property.asset.id} /><input type="hidden" name="slug" value={property.asset.slug} /><input type="hidden" name="bedrooms" value="-1" /><label className="text-xs font-semibold text-navy">Inventory units<input name="inventoryUnits" type="number" min="1" max="100000" defaultValue={assumption?.inventoryUnits ?? property.asset.unitCount ?? (property.asset.assetType === "single_family" ? 1 : "")} placeholder="Required" className="mt-1.5 w-full rounded-md border border-grid bg-white px-3 py-2 text-sm font-normal" /></label><label className="text-xs font-semibold text-navy">Affected units<input name="affectedUnits" type="number" min="1" max="100000" defaultValue={assumption?.affectedUnits ?? (property.asset.assetType === "single_family" ? 1 : "")} placeholder="Required" className="mt-1.5 w-full rounded-md border border-grid bg-white px-3 py-2 text-sm font-normal" /></label><label className="text-xs font-semibold text-navy">Realization<input name="realizationPercent" type="number" min="0" max="100" step="5" defaultValue={Math.round((assumption?.realizationPct ?? 0.5) * 100)} className="mt-1.5 w-full rounded-md border border-grid bg-white px-3 py-2 text-sm font-normal" /></label><label className="text-xs font-semibold text-navy sm:col-span-3">Assumption note<input name="note" maxLength={500} defaultValue={assumption?.note ?? ""} placeholder="Source, rationale, or owner instruction" className="mt-1.5 w-full rounded-md border border-grid bg-white px-3 py-2 text-sm font-normal" /></label><button className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white sm:col-span-3">Save and recalculate</button></form><p className="mt-3 text-[11px] leading-5 text-muted-foreground">Affected units and realization are owner-controlled. Portfolio IQ never writes them back into Dwellsy source data.</p></section></div>
+
+          <details className="border-t border-grid"><summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-semibold text-navy sm:px-6"><span>Bedroom-segment impact and assumptions</span><span className="text-lg text-teal-700">+</span></summary><div className="border-t border-grid bg-surface-soft p-5 sm:p-6"><div className="grid gap-4 md:grid-cols-2">{item.segments.map((segment) => <article key={segment.bedrooms} className="rounded-lg border border-grid bg-white p-4"><div className="flex items-start justify-between gap-3"><div><h4 className="font-semibold text-navy">{segment.label}</h4><p className="mt-1 text-xs text-muted-foreground">{segment.performance.observationCount} observations · {segment.compPropertyCount} comps</p></div><p className="text-right text-sm font-semibold text-navy">{money(segment.impact.annualRealizationAdjusted)}</p></div><dl className="mt-3 grid grid-cols-2 gap-2 text-xs"><div><dt className="text-muted-foreground">Subject</dt><dd className="font-semibold text-navy">{money(segment.performance.askingRent)}</dd></div><div><dt className="text-muted-foreground">Approved comps</dt><dd className="font-semibold text-navy">{segment.isLocked ? money(segment.performance.compAskingRent) : "Not locked"}</dd></div></dl><form action={savePortfolioIqFinancialAssumption} className="mt-4 grid grid-cols-3 gap-2 border-t border-grid pt-3"><input type="hidden" name="assetId" value={property.asset.id} /><input type="hidden" name="slug" value={property.asset.slug} /><input type="hidden" name="bedrooms" value={segment.bedrooms} /><label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Units<input name="inventoryUnits" type="number" min="1" max="100000" defaultValue={segment.assumption?.inventoryUnits ?? ""} className="mt-1 w-full rounded border border-grid px-2 py-1.5 text-xs font-normal text-navy" /></label><label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Affected<input name="affectedUnits" type="number" min="1" max="100000" defaultValue={segment.assumption?.affectedUnits ?? ""} className="mt-1 w-full rounded border border-grid px-2 py-1.5 text-xs font-normal text-navy" /></label><label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Realization<input name="realizationPercent" type="number" min="0" max="100" step="5" defaultValue={Math.round((segment.assumption?.realizationPct ?? assumption?.realizationPct ?? 0.5) * 100)} className="mt-1 w-full rounded border border-grid px-2 py-1.5 text-xs font-normal text-navy" /></label><input type="hidden" name="note" value={segment.assumption?.note ?? ""} /><button className="col-span-3 rounded border border-navy px-2 py-1.5 text-xs font-semibold text-navy">Save segment assumptions</button></form></article>)}</div></div></details>
+        </article>;
+      })}</div>
+    </section>
+
+    <section className="mt-10 rounded-xl border border-orange-200 bg-orange-soft p-5 sm:p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-orange-700">Evidence boundary</p><h2 className="mt-2 text-lg font-semibold text-navy">A prioritization estimate, not a pro forma</h2><p className="mt-2 max-w-4xl text-sm leading-6 text-foreground/75">{FINANCIAL_IMPACT_DISCLOSURE} Positive and negative gaps both represent questions to investigate. A property asking above comps may reflect superior product rather than excessive pricing.</p></section>
+  </main>;
+}

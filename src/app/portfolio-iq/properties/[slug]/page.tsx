@@ -107,6 +107,7 @@ export default async function PortfolioIqPropertyPage({ params }: { params: Prom
             <span className="rounded-full border border-grid bg-white px-3 py-1.5 text-navy">{asset.buildings.length} {asset.buildings.length === 1 ? "building" : "buildings"}</span>
             <span className="rounded-full border border-grid bg-white px-3 py-1.5 text-navy">Operator observed: {asset.observedOperatorName ?? "Being confirmed"}</span>
             <span className="rounded-full border border-grid bg-white px-3 py-1.5 text-navy">Comp set: {compSet?.status ?? "Not generated"}</span>
+            <Link href="/portfolio-iq/financial-impact" className="rounded-full border border-navy bg-navy px-3 py-1.5 font-semibold text-white">Financial impact</Link>
           </div>
         </div>
         <aside className="rounded-lg border border-teal/25 bg-teal-soft p-5">
