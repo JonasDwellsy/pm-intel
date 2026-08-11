@@ -140,6 +140,7 @@ export default async function PortfolioIqPage() {
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link href="/today" className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-700">Open Today</Link>
+            <Link href="/portfolio-iq/launch-briefing" className="rounded-md border border-navy px-4 py-2.5 text-sm font-semibold text-navy hover:bg-surface-soft">Launch briefing</Link>
             <Link href="/onboarding" className="rounded-md border border-navy px-4 py-2.5 text-sm font-semibold text-navy hover:bg-surface-soft">Onboarding center</Link>
             <a href="#properties" className="rounded-md border border-navy px-4 py-2.5 text-sm font-semibold text-navy hover:bg-surface-soft">Review properties</a>
             <Link href="/market-iq" className="rounded-md border border-navy px-4 py-2.5 text-sm font-semibold text-navy hover:bg-surface-soft">Open Market IQ</Link>

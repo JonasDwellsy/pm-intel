@@ -77,6 +77,7 @@ export default async function TodayPage() {
           <p className="mt-3 max-w-3xl text-[15px] leading-6 text-muted-foreground">
             The most important changes across {today.portfolio.name}, ranked by decision value. Open any issue to see the market, asset, comp, and operator evidence in one place.
           </p>
+          <Link href="/portfolio-iq/launch-briefing" className="mt-4 inline-flex text-sm font-semibold text-teal-700 hover:underline">View launch baseline →</Link>
         </div>
         <aside className="rounded-xl border border-teal/25 bg-teal-soft p-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">This morning</p>

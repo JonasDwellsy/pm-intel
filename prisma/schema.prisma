@@ -678,10 +678,30 @@ model PortfolioIqPortfolio {
   signals      PortfolioIqSignal[]
   digestPreferences PortfolioIqDigestPreference[]
   unifiedInsights DwellsyIqInsight[]
+  launchBriefing PortfolioIqLaunchBriefing?
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
   @@index([marketId])
+}
+
+// The permanent first-period owner report. Before approval the route renders
+// current activation evidence. Approval freezes the exact baseline used for
+// the launch call so later monitoring can explain what changed from day one.
+model PortfolioIqLaunchBriefing {
+  id          String    @id @default(cuid())
+  portfolioId String    @unique
+  status      String    @default("draft") // draft | approved
+  snapshot    String
+  generatedAt DateTime  @default(now())
+  approvedAt  DateTime?
+  approvedBy  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([status, updatedAt(sort: Desc)])
 }
 
 // High-touch owner onboarding intake. The customer supplies only what they

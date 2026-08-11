@@ -7,6 +7,7 @@ import { isAdminUser } from "@/lib/auth/is-admin";
 import { refreshPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
 import { buildDecisionBaseline, loadDecisionCase } from "@/lib/portfolio-iq/decision-case.server";
 import { parseMonitoringWindow } from "@/lib/portfolio-iq/decision-case";
+import { buildLaunchBriefingSnapshot } from "@/lib/portfolio-iq/launch-briefing.server";
 
 export async function updatePortfolioDigestPreference(formData: FormData): Promise<void> {
   const { userId } = await auth();
@@ -23,6 +24,30 @@ export async function updatePortfolioDigestPreference(formData: FormData): Promi
   });
   revalidatePath("/today");
   revalidatePath("/portfolio-iq");
+}
+
+export async function approvePortfolioLaunchBriefing(formData: FormData): Promise<void> {
+  const { userId } = await auth();
+  const { organizationId } = await getActiveOrgContext();
+  const portfolioId = String(formData.get("portfolioId") ?? "");
+  if (!userId || !organizationId || !portfolioId) throw new Error("Workspace not ready.");
+  const snapshot = await buildLaunchBriefingSnapshot({ organizationId, userId });
+  if (!snapshot || snapshot.portfolio.id !== portfolioId) throw new Error("Launch briefing not found.");
+  const portfolio = await prisma.portfolioIqPortfolio.findUnique({ where: { id: portfolioId }, select: { organizationId: true, isSynthetic: true } });
+  if (!portfolio || (portfolio.organizationId !== organizationId && !(portfolio.isSynthetic && isAdminUser(userId)))) throw new Error("Portfolio not found.");
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.portfolioIqLaunchBriefing.upsert({
+      where: { portfolioId },
+      create: { portfolioId, status: "approved", snapshot: JSON.stringify(snapshot), generatedAt: new Date(snapshot.generatedAt), approvedAt: now, approvedBy: userId },
+      update: { status: "approved", snapshot: JSON.stringify(snapshot), generatedAt: new Date(snapshot.generatedAt), approvedAt: now, approvedBy: userId },
+    }),
+    prisma.portfolioIqPortfolio.update({ where: { id: portfolioId }, data: { status: "ready" } }),
+  ]);
+  revalidatePath("/portfolio-iq/launch-briefing");
+  revalidatePath("/portfolio-iq");
+  revalidatePath("/today");
+  revalidatePath("/onboarding");
 }
 
 const DECISION_ACTIONS = new Set(["acknowledge", "assign", "snooze", "resolve", "reopen"]);
