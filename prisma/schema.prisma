@@ -969,6 +969,12 @@ model PortfolioIqSignalDecision {
   state          String    @default("open") // open | acknowledged | snoozed | resolved
   assignedTo     String?
   note           String?
+  actionPlan     String?
+  successMeasure String?
+  dueAt          DateTime?
+  monitoringWindowDays Int?
+  baselineEvidence String?
+  baselineCapturedAt DateTime?
   snoozedUntil   DateTime?
   decidedBy      String
   decidedAt      DateTime  @default(now())

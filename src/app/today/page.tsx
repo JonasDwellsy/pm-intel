@@ -159,9 +159,10 @@ export default async function TodayPage() {
                     )}
                   </div>
                   {signal.asset && (
-                    <Link href={`/portfolio-iq/properties/${signal.asset.slug}`} className="rounded-md border border-navy bg-white px-3 py-2 text-center text-xs font-semibold text-navy hover:bg-surface-soft">
-                      Open property
-                    </Link>
+                    <div className="flex flex-col gap-2">
+                      <Link href={`/today/cases/${signal.id}`} className="rounded-md bg-navy px-3 py-2 text-center text-xs font-semibold text-white hover:bg-navy-700">Decision case</Link>
+                      <Link href={`/portfolio-iq/properties/${signal.asset.slug}`} className="rounded-md border border-navy bg-white px-3 py-2 text-center text-xs font-semibold text-navy hover:bg-surface-soft">Open property</Link>
+                    </div>
                   )}
                 </div>
 

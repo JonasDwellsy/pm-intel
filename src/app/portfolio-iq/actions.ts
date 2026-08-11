@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { refreshPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
+import { buildDecisionBaseline, loadDecisionCase } from "@/lib/portfolio-iq/decision-case.server";
+import { parseMonitoringWindow } from "@/lib/portfolio-iq/decision-case";
 
 export async function updatePortfolioDigestPreference(formData: FormData): Promise<void> {
   const { userId } = await auth();
@@ -74,4 +76,43 @@ export async function updatePortfolioSignalDecision(formData: FormData): Promise
   revalidatePath("/today");
   revalidatePath("/portfolio-iq");
   if (signal.asset?.slug) revalidatePath(`/portfolio-iq/properties/${signal.asset.slug}`);
+}
+
+export async function savePortfolioDecisionCase(formData: FormData): Promise<void> {
+  const { userId } = await auth();
+  const { organizationId } = await getActiveOrgContext();
+  const signalId = String(formData.get("signalId") ?? "");
+  const assignedTo = String(formData.get("assignedTo") ?? "").trim().slice(0, 120);
+  const actionPlan = String(formData.get("actionPlan") ?? "").trim().slice(0, 1500);
+  const successMeasure = String(formData.get("successMeasure") ?? "").trim().slice(0, 600);
+  const monitoringWindowDays = parseMonitoringWindow(formData.get("monitoringWindowDays"));
+  const dueRaw = String(formData.get("dueAt") ?? "");
+  const dueAt = dueRaw ? new Date(`${dueRaw}T23:59:59.999Z`) : null;
+  if (!userId || !organizationId || !signalId || !assignedTo || !actionPlan || !successMeasure || !monitoringWindowDays || !dueAt || Number.isNaN(dueAt.getTime())) {
+    throw new Error("Complete the owner, action, due date, success measure, and monitoring window.");
+  }
+
+  const caseData = await loadDecisionCase({ organizationId, userId, signalId });
+  if (!caseData) throw new Error("Decision case not found.");
+  const now = new Date();
+  const prior = caseData.signal.decision;
+  const fromState = prior?.state ?? "open";
+  const toState = fromState === "resolved" ? "resolved" : "acknowledged";
+  const baseline = prior?.baselineEvidence ?? JSON.stringify(buildDecisionBaseline(caseData, now));
+
+  await prisma.$transaction(async (tx) => {
+    const decision = prior
+      ? await tx.portfolioIqSignalDecision.update({
+          where: { id: prior.id },
+          data: { assignedTo, actionPlan, successMeasure, dueAt, monitoringWindowDays, baselineEvidence: baseline, baselineCapturedAt: prior.baselineCapturedAt ?? now, decidedBy: userId, decidedAt: now },
+        })
+      : await tx.portfolioIqSignalDecision.create({
+          data: { signalId, organizationId: caseData.portfolio.organizationId, state: toState, assignedTo, actionPlan, successMeasure, dueAt, monitoringWindowDays, baselineEvidence: baseline, baselineCapturedAt: now, decidedBy: userId, decidedAt: now },
+        });
+    await tx.portfolioIqSignalDecisionEvent.create({
+      data: { decisionId: decision.id, action: prior?.actionPlan ? "update_plan" : "plan", fromState, toState, assignedTo, note: actionPlan, actorUserId: userId, createdAt: now },
+    });
+  });
+  revalidatePath("/today");
+  revalidatePath(`/today/cases/${signalId}`);
 }
