@@ -286,6 +286,15 @@ export async function updateAssetReadiness(formData: FormData): Promise<void> {
 }
 
 const TASK_STATUSES = new Set(["open", "in_progress", "blocked", "complete"]);
+const TASK_LANES = new Set(["activation_ops", "data_ops", "operator_success", "customer_success"]);
+
+function optionalDueDate(value: FormDataEntryValue | null): Date | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const parsed = new Date(`${text}T17:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) throw new Error("Invalid due date.");
+  return parsed;
+}
 
 export async function updateActivationTaskStatus(formData: FormData): Promise<void> {
   await requireAdmin();
@@ -297,6 +306,27 @@ export async function updateActivationTaskStatus(formData: FormData): Promise<vo
     data: { status, completedAt: status === "complete" ? new Date() : null },
   });
   revalidatePath("/admin/portfolio-activation");
+}
+
+export async function updateActivationTask(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const taskId = String(formData.get("taskId") ?? "");
+  const status = String(formData.get("status") ?? "");
+  const assignedLane = String(formData.get("assignedLane") ?? "");
+  const note = String(formData.get("note") ?? "").trim();
+  if (!taskId || !TASK_STATUSES.has(status) || !TASK_LANES.has(assignedLane)) throw new Error("Invalid task update.");
+  await prisma.portfolioIqActivationTask.update({
+    where: { id: taskId },
+    data: {
+      status,
+      assignedLane,
+      note: note || null,
+      dueAt: optionalDueDate(formData.get("dueAt")),
+      completedAt: status === "complete" ? new Date() : null,
+    },
+  });
+  revalidatePath("/admin/portfolio-activation");
+  revalidatePath("/onboarding");
 }
 
 const FINANCIAL_SOURCE_KINDS = new Set(["owner_interview", "owner_file", "pm_confirmed", "system_default"]);

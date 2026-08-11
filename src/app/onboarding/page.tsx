@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { DwellsyIqWorkspaceNav } from "@/components/dwellsy-iq/DwellsyIqWorkspaceNav";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
@@ -6,6 +7,7 @@ import { portfolioIqPreviewEnabled } from "@/lib/portfolio-iq/feature";
 import { loadPortfolioOnboarding } from "@/lib/portfolio-iq/onboarding.server";
 import { onboardingStatusLabel } from "@/lib/portfolio-iq/onboarding";
 import { requestOnboardingSession, submitPortfolioIntake } from "./actions";
+import { isAdminUser } from "@/lib/auth/is-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +35,7 @@ export default async function OnboardingPage() {
   const portfolioReceived = assets.length > 0 || suppliedProperties.length > 0;
   const progressSteps = [portfolioReceived, callRequested, assets.length > 0 && matched === assets.length, assets.length > 0 && listingReady === assets.length, assets.length > 0 && compReady === assets.length, assets.length > 0 && monitoring === assets.length];
   const progress = Math.round((progressSteps.filter(Boolean).length / progressSteps.length) * 100);
+  const canOperateLaunch = isAdminUser(userId);
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -45,6 +48,7 @@ export default async function OnboardingPage() {
           <p className="mt-3 max-w-3xl text-[15px] leading-6 text-muted-foreground">
             Give Dwellsy the property list you already have and meet once with an onboarding specialist. We handle property matching, URU coverage, comparable review, operator confirmation, and the first owner briefing.
           </p>
+          {canOperateLaunch && <Link href="/admin/portfolio-activation" className="mt-5 inline-flex rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">Open pilot launch console →</Link>}
         </div>
         <aside className="rounded-xl border border-teal/25 bg-teal-soft p-5">
           <div className="flex items-center justify-between gap-4"><p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Activation status</p><span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-teal-800">{onboardingStatusLabel(request?.status)}</span></div>

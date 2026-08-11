@@ -12,7 +12,7 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/admin/markets", label: "Markets" },
   { href: "/admin/organizations", label: "Organizations" },
-  { href: "/admin/portfolio-activation", label: "Portfolio activation" },
+  { href: "/admin/portfolio-activation", label: "Launch console" },
   { href: "/admin/usage", label: "Usage" },
   { href: "/admin/digests", label: "Digests" },
   { href: "/admin/merges", label: "Merges" },

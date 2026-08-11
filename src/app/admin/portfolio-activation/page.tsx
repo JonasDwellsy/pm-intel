@@ -3,11 +3,12 @@ import Link from "next/link";
 import {
   seedClevelandPilotPortfolio,
   refreshPortfolioWatch,
-  updateActivationTaskStatus,
+  updateActivationTask,
   updateAssetReadiness,
   updateOnboardingRequestStatus,
 } from "./actions";
 import { prisma } from "@/lib/prisma";
+import { buildPilotLaunchAssetReadiness } from "@/lib/portfolio-iq/launch-console";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,13 @@ const TASK_LABELS: Record<string, string> = {
   operator_outreach: "Operator outreach",
   comp_setup: "Comp setup",
   customer_confirmation: "Customer confirmation",
+};
+
+const LANE_LABELS: Record<string, string> = {
+  activation_ops: "Activation specialist",
+  data_ops: "Data operations",
+  operator_success: "Operator success",
+  customer_success: "Customer success",
 };
 
 function badgeClass(value: string): string {
@@ -61,7 +69,7 @@ function easternDateTimeInput(value: Date | null): string {
 }
 
 export default async function PortfolioActivationPage() {
-  const [organizations, portfolios, onboardingRequests] = await Promise.all([
+  const [organizations, portfolios, onboardingRequests, dataImports] = await Promise.all([
     prisma.organization.findMany({
       select: { id: true, name: true, personalForUserId: true },
       orderBy: [{ personalForUserId: "asc" }, { name: "asc" }],
@@ -73,11 +81,14 @@ export default async function PortfolioActivationPage() {
           include: {
             buildings: { orderBy: [{ isPrimary: "desc" }, { canonicalAddress: "asc" }] },
             activationTasks: { orderBy: [{ status: "asc" }, { taskType: "asc" }] },
+            operatorAssignments: { where: { isCurrent: true }, orderBy: { createdAt: "desc" }, take: 1 },
             compSet: { include: { members: { select: { reviewStatus: true } } } },
             financialAssumptions: { select: { bedrooms: true, reviewStatus: true } },
+            signals: { where: { status: "active" }, select: { id: true, assetId: true, category: true, severity: true, confidence: true, rankScore: true, evidence: true } },
           },
           orderBy: { sortOrder: "asc" },
         },
+        monitoringRuns: { where: { status: { not: "running" } }, orderBy: { startedAt: "desc" }, take: 1 },
       },
       orderBy: { updatedAt: "desc" },
     }),
@@ -85,7 +96,14 @@ export default async function PortfolioActivationPage() {
       include: { organization: { select: { name: true } }, properties: { orderBy: { createdAt: "asc" } } },
       orderBy: { updatedAt: "desc" },
     }),
+    prisma.marketIqDataImport.findMany({
+      where: { sourceKind: "historical_export", status: "complete" },
+      orderBy: { importedAt: "desc" },
+      select: { marketId: true, availableThrough: true, sourceName: true, recordCount: true },
+    }),
   ]);
+  const sourceByMarket = new Map<string, (typeof dataImports)[number]>();
+  for (const source of dataImports) if (!sourceByMarket.has(source.marketId)) sourceByMarket.set(source.marketId, source);
 
   return (
     <div className="mx-auto max-w-[1100px] px-6 pb-16">
@@ -94,7 +112,7 @@ export default async function PortfolioActivationPage() {
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-700">
             Assisted onboarding
           </p>
-          <h1 className="text-3xl font-bold text-navy">Portfolio activation console</h1>
+          <h1 className="text-3xl font-bold text-navy">Pilot launch console</h1>
           <p className="mt-3 max-w-[650px] text-[14px] leading-relaxed text-grey-600">
             Internal workspace for turning a customer&apos;s property list into a monitored Portfolio IQ account.
             Customers provide what they have; activation staff resolve property matches, URU coverage, operator
@@ -170,6 +188,21 @@ export default async function PortfolioActivationPage() {
           const mfCount = portfolio.assets.filter((asset) => asset.assetType === "multifamily").length;
           const sfrCount = portfolio.assets.length - mfCount;
           const lockedCompCount = portfolio.assets.filter((asset) => asset.compSet?.status === "locked").length;
+          const source = sourceByMarket.get(portfolio.marketId) ?? null;
+          const assetReadiness = new Map(portfolio.assets.map((asset) => [asset.id, buildPilotLaunchAssetReadiness({
+            id: asset.id,
+            matchStatus: asset.matchStatus,
+            uruStatus: asset.uruStatus,
+            compStatus: asset.compSet?.status ?? null,
+            operatorMatched: Boolean(asset.operatorAssignments[0]?.canonicalOperatorId),
+            sourceAvailableThrough: source?.availableThrough ?? null,
+            sourceHealth: source ? "healthy" : "unavailable",
+            signals: asset.signals,
+          })]));
+          const fullSupportCount = [...assetReadiness.values()].filter((item) => item.supportLevel === "full").length;
+          const marketSupportCount = [...assetReadiness.values()].filter((item) => item.supportLevel === "market_only").length;
+          const setupCount = [...assetReadiness.values()].filter((item) => item.supportLevel === "setup").length;
+          const latestMonitoring = portfolio.monitoringRuns[0] ?? null;
 
           return (
             <section key={portfolio.id} className="mt-8 overflow-hidden rounded-xl border border-grid bg-white">
@@ -212,6 +245,46 @@ export default async function PortfolioActivationPage() {
                     <p className="mt-1 text-2xl font-bold tabular-nums text-navy">{value}</p>
                   </div>
                 ))}
+              </div>
+
+              <div className="border-b border-grid bg-navy px-6 py-6 text-white">
+                <div className="flex flex-wrap items-end justify-between gap-5">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-teal-200">Launch control</p>
+                    <h3 className="mt-2 text-2xl font-semibold">What each property can support now</h3>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">Identity and source evidence unlock market context first. URU coverage and locked comps unlock property comparisons. A canonical operator match unlocks Operator IQ accountability.</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-center text-xs">
+                    <div><strong className="block text-2xl text-white">{fullSupportCount}</strong>Full</div>
+                    <div><strong className="block text-2xl text-white">{marketSupportCount}</strong>Market only</div>
+                    <div><strong className="block text-2xl text-white">{setupCount}</strong>Setup</div>
+                  </div>
+                </div>
+                <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 border-t border-white/15 pt-4 text-xs text-white/70">
+                  <span>Historical source: <strong className="text-white">{source?.availableThrough?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) ?? "Unavailable"}</strong></span>
+                  <span>Records: <strong className="text-white">{source?.recordCount.toLocaleString("en-US") ?? "0"}</strong></span>
+                  <span>Live monitoring: <strong className="capitalize text-white">{latestMonitoring?.sourceHealth ?? "not run"}</strong></span>
+                  <span>Last run: <strong className="text-white">{latestMonitoring?.completedAt?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) ?? "Not available"}</strong></span>
+                </div>
+              </div>
+
+              <div className="border-b border-grid bg-surface-soft px-6 py-6">
+                <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-700">Property launch queue</p><h3 className="mt-1 text-xl font-semibold text-navy">Blockers, ownership, and promotion readiness</h3></div><p className="text-xs text-grey-500">Completing a gate changes what the owner experience is permitted to conclude.</p></div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {portfolio.assets.map((asset) => {
+                    const readiness = assetReadiness.get(asset.id)!;
+                    const nextTask = asset.activationTasks.find((task) => task.taskType === readiness.nextTaskType && task.status !== "complete") ?? asset.activationTasks.find((task) => task.status !== "complete") ?? null;
+                    const supportLabel = readiness.supportLevel === "full" ? "Full intelligence" : readiness.supportLevel === "market_only" ? "Market context only" : "Setup required";
+                    const supportClass = readiness.supportLevel === "full" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : readiness.supportLevel === "market_only" ? "border-sky-200 bg-sky-50 text-sky-800" : "border-amber-200 bg-amber-50 text-amber-800";
+                    return <article key={asset.id} className="rounded-xl border border-grid bg-white p-5">
+                      <div className="flex items-start justify-between gap-4"><div><h4 className="font-semibold text-navy">{asset.name}</h4><p className="mt-1 text-xs text-grey-500">{asset.city} · {asset.postalCode} · {asset.assetType === "single_family" ? "SFR" : "Multifamily"}</p></div><span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${supportClass}`}>{supportLabel}</span></div>
+                      <div className="mt-4 grid grid-cols-5 gap-1.5">{Object.entries(readiness.gates).map(([gate, passed]) => <div key={gate} className={`rounded-md border px-1.5 py-2 text-center text-[9px] font-bold uppercase tracking-tight ${passed ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-grid bg-surface-soft text-grey-500"}`}><span className="block text-sm">{passed ? "✓" : "○"}</span>{({ identity: "Match", listingCoverage: "URU", comps: "Comps", operator: "Operator", source: "Source" } as Record<string, string>)[gate]}</div>)}</div>
+                      <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-soft"><div className="h-full rounded-full bg-teal-700" style={{ width: `${readiness.readinessPercent}%` }} /></div><span className="text-xs font-semibold tabular-nums text-navy">{readiness.completedGateCount}/5</span></div>
+                      <div className="mt-4 rounded-lg bg-surface-soft p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-grey-500">Next action</p><p className="mt-1 text-sm font-semibold text-navy">{readiness.nextAction}</p>{nextTask && <p className="mt-1 text-xs text-grey-600">{LANE_LABELS[nextTask.assignedLane] ?? nextTask.assignedLane}{nextTask.dueAt ? ` · Due ${nextTask.dueAt.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}` : " · No due date"}</p>}</div>
+                      <div className="mt-4 flex flex-wrap items-center gap-3 text-xs"><span className="font-semibold text-navy">Findings:</span><span className="text-rose-700">{readiness.findingCounts.today} Today</span><span className="text-teal-700">{readiness.findingCounts.watchlist} Watch</span><span className="text-amber-800">{readiness.findingCounts.setup} Setup</span><Link href={`/admin/portfolio-activation/${asset.id}`} className="ml-auto font-semibold text-teal-700 hover:underline">Open property workbench →</Link></div>
+                    </article>;
+                  })}
+                </div>
               </div>
 
               <div className="px-6 py-6">
@@ -321,16 +394,17 @@ export default async function PortfolioActivationPage() {
                         <div>
                           <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">{TASK_LABELS[task.taskType] ?? task.taskType}</p>
                           <p className="mt-1 font-semibold text-navy">{task.assetName}</p>
-                          {task.note && <p className="mt-1 text-[12px] leading-relaxed text-grey-600">{task.note}</p>}
                         </div>
-                        <form action={updateActivationTaskStatus}>
-                          <input type="hidden" name="taskId" value={task.id} />
-                          <input type="hidden" name="status" value="complete" />
-                          <button type="submit" className="whitespace-nowrap rounded-md border border-grid px-3 py-1.5 text-[11px] font-semibold text-navy hover:bg-surface-soft">
-                            Mark complete
-                          </button>
-                        </form>
+                        <span className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase ${badgeClass(task.status)}`}>{task.status.replaceAll("_", " ")}</span>
                       </div>
+                      <form action={updateActivationTask} className="mt-4 grid gap-2 sm:grid-cols-2">
+                        <input type="hidden" name="taskId" value={task.id} />
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-grey-500">Status<select name="status" defaultValue={task.status} className="mt-1 w-full rounded-md border border-grid bg-white px-2 py-2 text-xs font-normal normal-case tracking-normal text-navy"><option value="open">Open</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="complete">Complete</option></select></label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-grey-500">Owner<select name="assignedLane" defaultValue={task.assignedLane} className="mt-1 w-full rounded-md border border-grid bg-white px-2 py-2 text-xs font-normal normal-case tracking-normal text-navy">{Object.entries(LANE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-grey-500">Due date<input type="date" name="dueAt" defaultValue={task.dueAt?.toISOString().slice(0, 10) ?? ""} className="mt-1 w-full rounded-md border border-grid bg-white px-2 py-2 text-xs font-normal normal-case tracking-normal text-navy" /></label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-grey-500">Work note<input name="note" defaultValue={task.note ?? ""} placeholder="Next step or blocker" className="mt-1 w-full rounded-md border border-grid bg-white px-2 py-2 text-xs font-normal normal-case tracking-normal text-navy" /></label>
+                        <button className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white sm:col-span-2">Save activation task</button>
+                      </form>
                     </div>
                   ))}
                 </div>
