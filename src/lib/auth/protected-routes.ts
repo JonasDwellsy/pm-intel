@@ -58,6 +58,8 @@ export const PROTECTED_ROUTE_PATTERNS = [
   "/portfolio-iq/:path*",
   "/today",
   "/today/:path*",
+  "/onboarding",
+  "/onboarding/:path*",
 
   // v0.21 — premium content. Per-operator scorecards, operator
   // profiles, and the AI /ask tool are the paid surface. State/market

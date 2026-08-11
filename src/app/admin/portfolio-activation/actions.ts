@@ -294,6 +294,29 @@ export async function updateActivationTaskStatus(formData: FormData): Promise<vo
   revalidatePath("/admin/portfolio-activation");
 }
 
+const ONBOARDING_STATUSES = new Set(["started", "intake_received", "call_requested", "scheduled", "activating", "launch_ready", "complete"]);
+
+export async function updateOnboardingRequestStatus(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const requestId = String(formData.get("requestId") ?? "");
+  const status = String(formData.get("status") ?? "");
+  const scheduledRaw = String(formData.get("scheduledFor") ?? "");
+  // The assisted onboarding pilot is staffed in Cleveland and the admin UI
+  // explicitly presents this field as Eastern Time. Store the instant in UTC.
+  const scheduledFor = scheduledRaw ? new Date(`${scheduledRaw}:00-04:00`) : null;
+  if (!requestId || !ONBOARDING_STATUSES.has(status) || (scheduledRaw && Number.isNaN(scheduledFor?.getTime()))) throw new Error("Invalid onboarding update.");
+  await prisma.portfolioIqOnboardingRequest.update({
+    where: { id: requestId },
+    data: {
+      status,
+      ...(status === "scheduled" && scheduledFor ? { scheduledFor } : {}),
+      completedAt: status === "complete" ? new Date() : null,
+    },
+  });
+  revalidatePath("/admin/portfolio-activation");
+  revalidatePath("/onboarding");
+}
+
 const COMP_MEMBER_STATUSES = new Set(["included", "excluded"]);
 const COMP_EXCLUSION_REASONS = new Set([
   "wrong_property_type",

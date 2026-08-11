@@ -72,6 +72,7 @@ test("Market IQ preview routes require a Clerk session", () => {
 test("Portfolio IQ owner workspace requires a Clerk session", () => {
   assert.equal(isGated("/portfolio-iq"), true);
   assert.equal(isGated("/portfolio-iq/properties/acadian-apartments"), true);
+  assert.equal(isGated("/onboarding"), true);
 });
 
 test("Market IQ ingestion bypasses Clerk only for bearer-token auth routes", () => {

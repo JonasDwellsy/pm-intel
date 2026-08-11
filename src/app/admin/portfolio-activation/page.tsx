@@ -5,6 +5,7 @@ import {
   refreshPortfolioWatch,
   updateActivationTaskStatus,
   updateAssetReadiness,
+  updateOnboardingRequestStatus,
 } from "./actions";
 import { prisma } from "@/lib/prisma";
 
@@ -44,8 +45,23 @@ function badgeClass(value: string): string {
   return "bg-amber-50 text-amber-800 border-amber-200";
 }
 
+function easternDateTimeInput(value: Date | null): string {
+  if (!value) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(value);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
+}
+
 export default async function PortfolioActivationPage() {
-  const [organizations, portfolios] = await Promise.all([
+  const [organizations, portfolios, onboardingRequests] = await Promise.all([
     prisma.organization.findMany({
       select: { id: true, name: true, personalForUserId: true },
       orderBy: [{ personalForUserId: "asc" }, { name: "asc" }],
@@ -62,6 +78,10 @@ export default async function PortfolioActivationPage() {
           orderBy: { sortOrder: "asc" },
         },
       },
+      orderBy: { updatedAt: "desc" },
+    }),
+    prisma.portfolioIqOnboardingRequest.findMany({
+      include: { organization: { select: { name: true } }, properties: { orderBy: { createdAt: "asc" } } },
       orderBy: { updatedAt: "desc" },
     }),
   ]);
@@ -109,6 +129,28 @@ export default async function PortfolioActivationPage() {
           </p>
         </form>
       </header>
+
+      {onboardingRequests.length > 0 && (
+        <section className="mt-8 rounded-xl border border-teal/25 bg-teal-soft p-6">
+          <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-700">Concierge intake</p><h2 className="text-2xl font-bold text-navy">Customer onboarding requests</h2></div><p className="text-[12px] text-grey-600">Schedule the call, then move the request into activation.</p></div>
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {onboardingRequests.map((request) => (
+              <article key={request.id} className="rounded-lg border border-grid bg-white p-4">
+                <div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-navy">{request.organization.name}</p><p className="mt-1 text-[12px] text-grey-600">{request.contactName ?? "Contact pending"}{request.contactEmail ? ` · ${request.contactEmail}` : ""}</p></div><span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-800">{request.status.replaceAll("_", " ")}</span></div>
+                <dl className="mt-4 grid grid-cols-2 gap-3 text-[12px]"><div><dt className="text-grey-500">Preferred time</dt><dd className="mt-0.5 font-semibold text-navy">{request.preferredContactWindow ?? "Not supplied"} · {request.timezone ?? "Timezone pending"}</dd></div><div><dt className="text-grey-500">Properties supplied</dt><dd className="mt-0.5 font-semibold text-navy">{request.properties.length}</dd></div></dl>
+                {request.intakeNotes && <p className="mt-3 rounded-md bg-surface-soft px-3 py-2 text-[12px] leading-relaxed text-grey-600">{request.intakeNotes}</p>}
+                {request.properties.length > 0 && <details className="mt-3 text-[12px]"><summary className="cursor-pointer font-semibold text-teal-700">Review supplied properties</summary><ul className="mt-2 space-y-1 text-grey-600">{request.properties.map((property) => <li key={property.id}>{property.propertyName ? `${property.propertyName} · ` : ""}{property.addressLine}</li>)}</ul></details>}
+                <form action={updateOnboardingRequestStatus} className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                  <input type="hidden" name="requestId" value={request.id} />
+                  <select name="status" defaultValue={request.status} className="rounded-md border border-grid px-2 py-2 text-[12px] text-navy"><option value="call_requested">Call requested</option><option value="scheduled">Scheduled</option><option value="activating">Activating</option><option value="launch_ready">Launch ready</option><option value="complete">Complete</option></select>
+                  <label className="text-[10px] font-semibold uppercase tracking-wider text-grey-500">Session time (ET)<input type="datetime-local" name="scheduledFor" defaultValue={easternDateTimeInput(request.scheduledFor)} className="mt-1 w-full rounded-md border border-grid px-2 py-2 text-[12px] font-normal normal-case tracking-normal text-navy" /></label>
+                  <button className="rounded-md bg-navy px-3 py-2 text-[12px] font-semibold text-white">Save</button>
+                </form>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {portfolios.length === 0 ? (
         <div className="mt-8 rounded-xl border border-dashed border-grid px-6 py-14 text-center">

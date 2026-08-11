@@ -504,6 +504,7 @@ model Organization {
   marketIqWatchlists    MarketIqWatchlist[]
   portfolioIqPortfolios PortfolioIqPortfolio[]
   dwellsyIqInsights     DwellsyIqInsight[]
+  portfolioIqOnboardingRequests PortfolioIqOnboardingRequest[]
 
   // Hot lookups: "find personal org for user X" (already covered by
   // the @unique on personalForUserId) and "find org by Clerk id"
@@ -681,6 +682,56 @@ model PortfolioIqPortfolio {
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
   @@index([marketId])
+}
+
+// High-touch owner onboarding intake. The customer supplies only what they
+// have; activation staff resolve identity, URUs, comps, and operator outreach
+// in the existing Portfolio IQ activation console.
+model PortfolioIqOnboardingRequest {
+  id                     String    @id @default(cuid())
+  organizationId         String
+  portfolioId            String?
+  status                 String    @default("started") // started | intake_received | call_requested | scheduled | activating | launch_ready | complete
+  contactName            String?
+  contactEmail           String?
+  contactPhone           String?
+  preferredContactWindow String?
+  timezone               String?
+  intakeNotes            String?
+  callRequestedAt        DateTime?
+  scheduledFor           DateTime?
+  intakeReceivedAt       DateTime?
+  completedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  organization Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  properties   PortfolioIqOnboardingProperty[]
+
+  @@unique([organizationId])
+  @@index([status, updatedAt(sort: Desc)])
+  @@index([portfolioId])
+}
+
+model PortfolioIqOnboardingProperty {
+  id             String   @id @default(cuid())
+  requestId      String
+  propertyName   String?
+  addressLine    String
+  city           String?
+  state          String?
+  postalCode     String?
+  unitCount      Int?
+  assetType      String?
+  sourceKind     String   @default("manual") // manual | spreadsheet
+  status         String   @default("received") // received | matching | matched | needs_customer | activated
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  request PortfolioIqOnboardingRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, addressLine])
+  @@index([requestId, status])
 }
 
 // One economic asset in an owner's portfolio. A multifamily community may
