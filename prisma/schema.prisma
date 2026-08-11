@@ -681,6 +681,7 @@ model PortfolioIqPortfolio {
   launchBriefing PortfolioIqLaunchBriefing?
   monitoringSnapshots PortfolioIqMonitoringSnapshot[]
   monitoringRuns PortfolioIqMonitoringRun[]
+  pmBriefs PortfolioIqPmBrief[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -851,6 +852,7 @@ model PortfolioIqAsset {
   signals              PortfolioIqSignal[]
   insightExposures     DwellsyIqInsightExposure[]
   onboardingProperties PortfolioIqOnboardingProperty[]
+  pmBriefs             PortfolioIqPmBrief[]
 
   @@unique([portfolioId, slug])
   @@index([portfolioId, sortOrder])
@@ -1020,10 +1022,57 @@ model PortfolioIqSignal {
   asset     PortfolioIqAsset?     @relation(fields: [assetId], references: [id], onDelete: Cascade)
   decision  PortfolioIqSignalDecision?
   unifiedInsight DwellsyIqInsight?
+  pmBriefs PortfolioIqPmBrief[]
 
   @@index([portfolioId, status, rankScore(sort: Desc)])
   @@index([assetId, status])
   @@index([observedAt(sort: Desc)])
+}
+
+// A deliberately narrow collaboration artifact for one property and one
+// evidence-backed issue. Publication freezes a PM-safe snapshot that excludes
+// the owner's other assets and all Operator IQ rankings.
+model PortfolioIqPmBrief {
+  id            String    @id @default(cuid())
+  portfolioId   String
+  assetId       String
+  signalId      String
+  publicToken   String    @unique
+  status        String    @default("published") // published | responded | closed | revoked
+  title         String
+  snapshot      String
+  ownerNote     String?
+  responseDueAt DateTime?
+  publishedBy   String
+  publishedAt   DateTime  @default(now())
+  closedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  asset     PortfolioIqAsset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  signal    PortfolioIqSignal    @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  response  PortfolioIqPmBriefResponse?
+
+  @@index([portfolioId, status, publishedAt(sort: Desc)])
+  @@index([assetId, publishedAt(sort: Desc)])
+  @@index([signalId, status])
+}
+
+model PortfolioIqPmBriefResponse {
+  id               String    @id @default(cuid())
+  briefId          String    @unique
+  responderName    String
+  responderEmail   String?
+  responseSummary  String
+  actionPlan       String?
+  followUpDate     DateTime?
+  submittedAt      DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+
+  brief PortfolioIqPmBrief @relation(fields: [briefId], references: [id], onDelete: Cascade)
+
+  @@index([submittedAt(sort: Desc)])
 }
 
 // One customer-facing finding across the Dwellsy IQ Online decision system.

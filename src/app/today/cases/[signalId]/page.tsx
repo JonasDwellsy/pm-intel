@@ -203,6 +203,7 @@ export default async function DecisionCasePage({ params }: { params: Promise<{ s
           <section className="rounded-xl border border-grid bg-white p-5 sm:p-6">
             <p className="dq-eyebrow">Case controls</p>
             <div className="mt-3 flex flex-wrap gap-2">
+              {caseData.signal.asset?.slug && <Link href={`/portfolio-iq/properties/${caseData.signal.asset.slug}/pm-brief?signalId=${signalId}`} className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy">Prepare PM brief</Link>}
               <form action={updatePortfolioSignalDecision}><input type="hidden" name="signalId" value={signalId} /><button name="decisionAction" value="snooze" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy">Snooze 7 days</button></form>
               {decision?.state === "resolved" ? (
                 <form action={updatePortfolioSignalDecision}><input type="hidden" name="signalId" value={signalId} /><button name="decisionAction" value="reopen" className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white">Reopen</button></form>

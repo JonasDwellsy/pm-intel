@@ -263,11 +263,7 @@ export default async function TodayPage() {
                     <input name="assignedTo" aria-label={`Assign ${signal.headline}`} defaultValue={signal.decision?.assignedTo ?? ""} placeholder="Person or team" className="w-36 rounded-md border border-grid px-3 py-2 text-xs text-navy" />
                     <button name="decisionAction" value="assign" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy hover:bg-surface-soft">Assign</button>
                   </form>
-                  <form action={updatePortfolioSignalDecision}>
-                    <input type="hidden" name="signalId" value={signal.id} />
-                    <input type="hidden" name="assignedTo" value="Property manager" />
-                    <button name="decisionAction" value="assign" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy hover:bg-surface-soft">Discuss with PM</button>
-                  </form>
+                  {signal.asset?.slug && <Link href={`/portfolio-iq/properties/${signal.asset.slug}/pm-brief?signalId=${signal.id}`} className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy hover:bg-surface-soft">Discuss with PM</Link>}
                   <form action={updatePortfolioSignalDecision}>
                     <input type="hidden" name="signalId" value={signal.id} />
                     <button name="decisionAction" value="snooze" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy hover:bg-surface-soft">Watch 7 days</button>
