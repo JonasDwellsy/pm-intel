@@ -8,6 +8,7 @@ const workspaceItems = [
   { href: "/portfolio-iq", label: "My Portfolio", match: (path: string) => path === "/portfolio-iq" },
   { href: "/portfolio-iq/launch-briefing", label: "Launch Briefing", match: (path: string) => path.startsWith("/portfolio-iq/launch-briefing") },
   { href: "/portfolio-iq/changes", label: "Changes", match: (path: string) => path.startsWith("/portfolio-iq/changes") },
+  { href: "/portfolio-iq/collaboration", label: "Collaboration", match: (path: string) => path.startsWith("/portfolio-iq/collaboration") },
   { href: "/onboarding", label: "Setup", match: (path: string) => path.startsWith("/onboarding") },
   { href: "/market-iq", label: "Markets", match: (path: string) => path.startsWith("/market-iq") },
   { href: "/portfolio-iq#properties", label: "Properties & Comps", match: (path: string) => path.startsWith("/portfolio-iq/properties") },

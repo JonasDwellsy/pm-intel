@@ -59,6 +59,7 @@ export async function publishPortfolioIqPmBrief(formData: FormData): Promise<voi
   });
   revalidatePath(`/portfolio-iq/properties/${slug}/pm-brief`);
   revalidatePath(`/portfolio-iq/properties/${slug}`);
+  revalidatePath("/portfolio-iq/collaboration");
   revalidatePath("/today");
 }
 
@@ -72,4 +73,5 @@ export async function revokePortfolioIqPmBrief(formData: FormData): Promise<void
   if (!brief || (brief.portfolio.organizationId !== organizationId && !(brief.portfolio.isSynthetic && isAdminUser(userId)))) throw new Error("Brief not found.");
   await prisma.portfolioIqPmBrief.update({ where: { id: briefId }, data: { status: "revoked", closedAt: new Date() } });
   revalidatePath(`/portfolio-iq/properties/${slug}/pm-brief`);
+  revalidatePath("/portfolio-iq/collaboration");
 }

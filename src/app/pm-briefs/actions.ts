@@ -29,5 +29,7 @@ export async function submitPortfolioIqPmBriefResponse(formData: FormData): Prom
       await tx.portfolioIqSignalDecisionEvent.create({ data: { decisionId: brief.signal.decision.id, action: "pm_response_received", fromState: brief.signal.decision.state, toState: brief.signal.decision.state, assignedTo: brief.signal.decision.assignedTo, note: responseSummary.slice(0, 500), actorUserId: "external:pm-brief" } });
     }
   });
+  // The response is the owner's in-app notification. The Collaboration Center
+  // surfaces it immediately without forwarding PM content by email.
   redirect(`/pm-briefs/${publicToken}?submitted=1`);
 }

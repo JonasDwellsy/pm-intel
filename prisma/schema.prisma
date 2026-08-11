@@ -1043,6 +1043,15 @@ model PortfolioIqPmBrief {
   snapshot      String
   ownerNote     String?
   responseDueAt DateTime?
+  recipientName String?
+  recipientEmail String?
+  deliveryStatus String   @default("not_sent") // not_sent | sent | failed
+  deliveryProviderId String?
+  deliveryError String?
+  deliveredAt   DateTime?
+  lastReminderAt DateTime?
+  reminderCount Int       @default(0)
+  remindersEnabled Boolean @default(false)
   publishedBy   String
   publishedAt   DateTime  @default(now())
   closedAt      DateTime?
@@ -1057,6 +1066,7 @@ model PortfolioIqPmBrief {
   @@index([portfolioId, status, publishedAt(sort: Desc)])
   @@index([assetId, publishedAt(sort: Desc)])
   @@index([signalId, status])
+  @@index([deliveryStatus, responseDueAt])
 }
 
 model PortfolioIqPmBriefResponse {
@@ -1067,12 +1077,17 @@ model PortfolioIqPmBriefResponse {
   responseSummary  String
   actionPlan       String?
   followUpDate     DateTime?
+  ownerDisposition String    @default("pending") // pending | accepted | revised | closed
+  ownerReviewNote  String?
+  reviewedAt       DateTime?
+  reviewedBy       String?
   submittedAt      DateTime  @default(now())
   createdAt        DateTime  @default(now())
 
   brief PortfolioIqPmBrief @relation(fields: [briefId], references: [id], onDelete: Cascade)
 
   @@index([submittedAt(sort: Desc)])
+  @@index([ownerDisposition, submittedAt(sort: Desc)])
 }
 
 // One customer-facing finding across the Dwellsy IQ Online decision system.
