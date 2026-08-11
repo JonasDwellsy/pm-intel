@@ -329,6 +329,20 @@ export async function updateActivationTask(formData: FormData): Promise<void> {
   revalidatePath("/onboarding");
 }
 
+export async function updatePilotCorrection(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const correctionId = String(formData.get("correctionId") ?? "");
+  const status = String(formData.get("status") ?? "");
+  const allowed = new Set(["open", "in_progress", "complete"]);
+  if (!correctionId || !allowed.has(status)) throw new Error("Correction update is invalid.");
+  await prisma.portfolioIqPilotCorrection.update({
+    where: { id: correctionId },
+    data: { status, completedAt: status === "complete" ? new Date() : null },
+  });
+  revalidatePath("/admin/portfolio-activation");
+  revalidatePath("/portfolio-iq/acceptance");
+}
+
 const FINANCIAL_SOURCE_KINDS = new Set(["owner_interview", "owner_file", "pm_confirmed", "system_default"]);
 const FINANCIAL_REVIEW_STATUSES = new Set(["draft", "verified", "needs_owner", "needs_pm"]);
 

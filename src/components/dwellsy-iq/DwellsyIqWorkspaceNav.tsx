@@ -12,6 +12,7 @@ const portfolioItems = [
 ] as const;
 
 const moreItems = [
+  { href: "/portfolio-iq/acceptance", label: "Launch acceptance" },
   { href: "/portfolio-iq/launch-briefing", label: "Launch briefing" },
   { href: "/portfolio-iq/collaboration", label: "Collaboration" },
   { href: "/onboarding", label: "Portfolio setup" },

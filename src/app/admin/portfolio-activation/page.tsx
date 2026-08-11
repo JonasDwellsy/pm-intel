@@ -4,6 +4,7 @@ import {
   seedClevelandPilotPortfolio,
   refreshPortfolioWatch,
   updateActivationTask,
+  updatePilotCorrection,
   updateAssetReadiness,
   updateOnboardingRequestStatus,
 } from "./actions";
@@ -89,6 +90,9 @@ export default async function PortfolioActivationPage() {
           orderBy: { sortOrder: "asc" },
         },
         monitoringRuns: { where: { status: { not: "running" } }, orderBy: { startedAt: "desc" }, take: 1 },
+        pilotAcceptance: true,
+        pilotReviews: { orderBy: { reviewedAt: "desc" } },
+        pilotCorrections: { orderBy: [{ status: "asc" }, { updatedAt: "desc" }] },
       },
       orderBy: { updatedAt: "desc" },
     }),
@@ -266,6 +270,14 @@ export default async function PortfolioActivationPage() {
                   <span>Live monitoring: <strong className="capitalize text-white">{latestMonitoring?.sourceHealth ?? "not run"}</strong></span>
                   <span>Last run: <strong className="text-white">{latestMonitoring?.completedAt?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) ?? "Not available"}</strong></span>
                 </div>
+              </div>
+
+              <div className="border-b border-grid bg-white px-6 py-6">
+                <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-700">Launch acceptance</p><h3 className="mt-1 text-xl font-semibold text-navy">Owner confirmations and corrections</h3><p className="mt-2 text-xs leading-5 text-grey-500">Every correction from the guided launch session is routed here, including portfolio-wide finding corrections.</p></div><div className="flex items-center gap-3"><span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${portfolio.pilotAcceptance?.status === "accepted" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>{portfolio.pilotAcceptance?.status === "accepted" ? "Accepted" : "Not accepted"}</span><Link href="/portfolio-iq/acceptance" className="rounded-md border border-navy px-3 py-2 text-xs font-semibold text-navy">Open guided session →</Link></div></div>
+                <div className="mt-5 grid gap-4 lg:grid-cols-[220px_1fr]"><div className="rounded-lg bg-surface-soft p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-grey-500">Session record</p><p className="mt-2 text-2xl font-semibold text-navy">{portfolio.pilotReviews.length}</p><p className="mt-1 text-xs text-grey-600">owner responses captured</p><p className="mt-3 text-xs text-grey-600">{portfolio.pilotCorrections.filter((item) => item.status !== "complete").length} open corrections</p></div><div className="grid gap-3 md:grid-cols-2">{portfolio.pilotCorrections.filter((item) => item.status !== "complete").map((correction) => {
+                  const asset = correction.assetId ? portfolio.assets.find((item) => item.id === correction.assetId) : null;
+                  return <article key={correction.id} className="rounded-lg border border-amber-200 bg-amber-50 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">{correction.objectType} correction</p><p className="mt-1 font-semibold text-navy">{asset?.name ?? "Portfolio finding"}</p></div><span className="rounded-full bg-white px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-900">{correction.status.replaceAll("_", " ")}</span></div><p className="mt-3 text-sm leading-6 text-amber-950/80">{correction.issue}</p><form action={updatePilotCorrection} className="mt-4 flex gap-2"><input type="hidden" name="correctionId" value={correction.id} /><select name="status" defaultValue={correction.status} className="min-w-0 flex-1 rounded-md border border-amber-200 bg-white px-2 py-2 text-xs text-navy"><option value="open">Open</option><option value="in_progress">In progress</option><option value="complete">Complete</option></select><button className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white">Save</button></form></article>;
+                })}{portfolio.pilotCorrections.filter((item) => item.status !== "complete").length === 0 && <div className="rounded-lg border border-dashed border-grid p-5 text-sm text-grey-500 md:col-span-2">No owner corrections are waiting for the launch team.</div>}</div></div>
               </div>
 
               <div className="border-b border-grid bg-surface-soft px-6 py-6">

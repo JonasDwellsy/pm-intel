@@ -48,7 +48,7 @@ export default async function OnboardingPage() {
           <p className="mt-3 max-w-3xl text-[15px] leading-6 text-muted-foreground">
             Give Dwellsy the property list you already have and meet once with an onboarding specialist. We handle property matching, URU coverage, comparable review, operator confirmation, and the first owner briefing.
           </p>
-          {canOperateLaunch && <Link href="/admin/portfolio-activation" className="mt-5 inline-flex rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">Open pilot launch console →</Link>}
+          <div className="mt-5 flex flex-wrap gap-3">{assets.length > 0 && <Link href="/portfolio-iq/acceptance" className="inline-flex rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">Open guided launch review →</Link>}{canOperateLaunch && <Link href="/admin/portfolio-activation" className="inline-flex rounded-md border border-navy px-4 py-2.5 text-sm font-semibold text-navy">Open pilot launch console →</Link>}</div>
         </div>
         <aside className="rounded-xl border border-teal/25 bg-teal-soft p-5">
           <div className="flex items-center justify-between gap-4"><p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Activation status</p><span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-teal-800">{onboardingStatusLabel(request?.status)}</span></div>

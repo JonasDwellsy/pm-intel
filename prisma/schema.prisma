@@ -685,10 +685,81 @@ model PortfolioIqPortfolio {
   outcomeReviews      PortfolioIqOutcomeReview[]
   ownerWatchItems     PortfolioIqOwnerWatchItem[]
   ownerWatchReviews   PortfolioIqOwnerWatchReview[]
+  pilotAcceptance     PortfolioIqPilotAcceptance?
+  pilotReviews        PortfolioIqPilotReview[]
+  pilotCorrections    PortfolioIqPilotCorrection[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
   @@index([marketId])
+}
+
+// The assisted onboarding specialist uses this one-session record to move a
+// configured portfolio into owner-approved monitoring. It is separate from
+// source evidence and never changes an analytical finding.
+model PortfolioIqPilotAcceptance {
+  id               String    @id @default(cuid())
+  portfolioId      String    @unique
+  organizationId   String
+  status           String    @default("in_progress") // in_progress | accepted
+  sessionStartedAt DateTime  @default(now())
+  acceptedAt       DateTime?
+  acceptedBy       String?
+  note             String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status, updatedAt(sort: Desc)])
+}
+
+// Owner reactions captured during launch. Generic object keys let the same
+// workflow review properties, operator assignments, and immutable findings
+// without rewriting any of those source records.
+model PortfolioIqPilotReview {
+  id             String   @id @default(cuid())
+  portfolioId    String
+  organizationId String
+  objectType     String // property | operator | finding
+  objectId       String
+  response       String // confirmed | useful | investigate | incorrect | acted
+  note           String?
+  reviewedBy     String
+  reviewedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, objectType, objectId])
+  @@index([organizationId, reviewedAt(sort: Desc)])
+  @@index([portfolioId, objectType])
+}
+
+// Every launch-call correction enters an explicit internal queue, including
+// portfolio-wide finding corrections that cannot be attached to one asset.
+model PortfolioIqPilotCorrection {
+  id             String    @id @default(cuid())
+  portfolioId    String
+  organizationId String
+  assetId        String?
+  objectType     String
+  objectId       String
+  issue          String
+  status         String    @default("open") // open | in_progress | complete
+  assignedLane   String    @default("customer_success")
+  createdBy      String
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, objectType, objectId])
+  @@index([organizationId, status, updatedAt(sort: Desc)])
+  @@index([portfolioId, status])
+  @@index([assetId])
 }
 
 // Shared owner-watch pins for the unified Dwellsy IQ Online workspace. These
