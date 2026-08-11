@@ -679,6 +679,7 @@ model PortfolioIqPortfolio {
   digestPreferences PortfolioIqDigestPreference[]
   unifiedInsights DwellsyIqInsight[]
   launchBriefing PortfolioIqLaunchBriefing?
+  monitoringSnapshots PortfolioIqMonitoringSnapshot[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -702,6 +703,25 @@ model PortfolioIqLaunchBriefing {
   portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
 
   @@index([status, updatedAt(sort: Desc)])
+}
+
+// Immutable, dated evidence snapshots for the owner monitoring loop. The
+// launch baseline and each weekly observation use the same versioned contract,
+// so every reported change can be reproduced without altering source data.
+model PortfolioIqMonitoringSnapshot {
+  id                     String   @id @default(cuid())
+  portfolioId            String
+  periodKey               String
+  snapshot                String
+  sourceAvailableThrough  String?
+  capturedAt              DateTime @default(now())
+  capturedBy              String?
+  createdAt               DateTime @default(now())
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, periodKey])
+  @@index([portfolioId, capturedAt(sort: Desc)])
 }
 
 // High-touch owner onboarding intake. The customer supplies only what they

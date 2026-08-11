@@ -8,6 +8,7 @@ import { refreshPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
 import { buildDecisionBaseline, loadDecisionCase } from "@/lib/portfolio-iq/decision-case.server";
 import { parseMonitoringWindow } from "@/lib/portfolio-iq/decision-case";
 import { buildLaunchBriefingSnapshot } from "@/lib/portfolio-iq/launch-briefing.server";
+import { savePortfolioMonitoringSnapshot } from "@/lib/portfolio-iq/monitoring.server";
 
 export async function updatePortfolioDigestPreference(formData: FormData): Promise<void> {
   const { userId } = await auth();
@@ -43,11 +44,29 @@ export async function approvePortfolioLaunchBriefing(formData: FormData): Promis
       update: { status: "approved", snapshot: JSON.stringify(snapshot), generatedAt: new Date(snapshot.generatedAt), approvedAt: now, approvedBy: userId },
     }),
     prisma.portfolioIqPortfolio.update({ where: { id: portfolioId }, data: { status: "ready" } }),
+    prisma.portfolioIqMonitoringSnapshot.upsert({
+      where: { portfolioId_periodKey: { portfolioId, periodKey: "launch-baseline" } },
+      create: { portfolioId, periodKey: "launch-baseline", snapshot: JSON.stringify(snapshot), sourceAvailableThrough: snapshot.sourceAvailableThrough, capturedAt: now, capturedBy: userId },
+      update: { snapshot: JSON.stringify(snapshot), sourceAvailableThrough: snapshot.sourceAvailableThrough, capturedAt: now, capturedBy: userId },
+    }),
   ]);
   revalidatePath("/portfolio-iq/launch-briefing");
   revalidatePath("/portfolio-iq");
   revalidatePath("/today");
   revalidatePath("/onboarding");
+  revalidatePath("/portfolio-iq/changes");
+}
+
+export async function capturePortfolioMonitoringPeriod(formData: FormData): Promise<void> {
+  const { userId } = await auth();
+  const { organizationId } = await getActiveOrgContext();
+  const portfolioId = String(formData.get("portfolioId") ?? "");
+  if (!userId || !organizationId || !portfolioId) throw new Error("Workspace not ready.");
+  const portfolio = await prisma.portfolioIqPortfolio.findUnique({ where: { id: portfolioId }, select: { organizationId: true, isSynthetic: true } });
+  if (!portfolio || (portfolio.organizationId !== organizationId && !(portfolio.isSynthetic && isAdminUser(userId)))) throw new Error("Portfolio not found.");
+  await savePortfolioMonitoringSnapshot({ portfolioId, organizationId, userId, capturedBy: userId });
+  revalidatePath("/portfolio-iq/changes");
+  revalidatePath("/today");
 }
 
 const DECISION_ACTIONS = new Set(["acknowledge", "assign", "snooze", "resolve", "reopen"]);
