@@ -28,7 +28,7 @@ export async function buildLaunchBriefingSnapshot(input: { organizationId: strin
   const compsLocked = portfolio.assets.filter((asset) => asset.compSet?.status === "locked").length;
   const openTasks = portfolio.assets.flatMap((asset) => asset.activationTasks).filter((task) => task.status !== "complete").length;
   const marketTrend = trends.find((trend) => trend.trendSource.geographyType === "msa") ?? trends[0] ?? null;
-  const readinessPhrase = monitoring === portfolio.assets.length ? "all assets are monitoring" : `${monitoring} of ${portfolio.assets.length} assets are monitoring`;
+  const readinessPhrase = monitoring === portfolio.assets.length ? "all assets monitoring" : `${monitoring} of ${portfolio.assets.length} assets monitoring`;
   const evidencePhrase = compsLocked ? `${compsLocked} comp ${compsLocked === 1 ? "set is" : "sets are"} locked` : "comparable review is still in progress";
 
   const assets = portfolio.assets.map((asset) => {
