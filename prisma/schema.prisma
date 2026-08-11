@@ -1272,11 +1272,16 @@ model PortfolioIqPmBriefResponse {
   briefId          String    @unique
   responderName    String
   responderEmail   String?
+  assessment       String? // agree | partially_agree | disagree | need_more_information
+  recommendation   String? // hold_pricing | raise_pricing | reduce_pricing | refresh_marketing | investigate | no_change | other
   responseSummary  String
   actionPlan       String?
+  actionOwner      String?
+  successMeasure   String?
   followUpDate     DateTime?
   ownerDisposition String    @default("pending") // pending | accepted | revised | closed
   ownerReviewNote  String?
+  revisionCount    Int       @default(0)
   reviewedAt       DateTime?
   reviewedBy       String?
   submittedAt      DateTime  @default(now())
@@ -1397,6 +1402,8 @@ model PortfolioIqOutcomeReview {
   sourceAvailableThrough String?
   comparison             String
   conclusion             String? // improved | unchanged | worsened | inconclusive
+  implementationStatus   String? // completed | partially_completed | not_completed | unknown
+  nextDecision           String? // continue | adjust | escalate | close
   reviewNote             String?
   nextReviewAt           DateTime?
   generatedAt            DateTime  @default(now())

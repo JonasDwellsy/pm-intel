@@ -34,7 +34,9 @@ export async function loadPortfolioIqOutcomes(input: { organizationId: string; u
       return { assetId: exposure.asset.id, property: currentProperty ? { availableThrough: currentProperty.availableThrough?.toISOString() ?? null, askingRent: currentProperty.performance.askingRent, askingRentChange90d: currentProperty.performance.askingRentChange90d, medianDom: currentProperty.performance.medianDom, observationCount: currentProperty.performance.observationCount } : null };
     });
     const liveComparison = buildOutcomeComparison({ baseline, current, currentExposures, actionPlan: decision.actionPlan, successMeasure: decision.successMeasure, generatedAt: now });
-    const savedReview = decision.outcomeReviews[0] ?? null;
+    const currentPeriodKey = liveComparison.currentAvailableThrough?.slice(0, 10) ?? `unavailable-${baseline.capturedAt.slice(0, 10)}`;
+    const latestReview = decision.outcomeReviews[0] ?? null;
+    const savedReview = decision.state === "resolved" ? latestReview : latestReview?.periodKey === currentPeriodKey ? latestReview : null;
     return [{ decision, property, comparison: savedReview ? parseOutcomeComparison(savedReview.comparison) ?? liveComparison : liveComparison, liveComparison, savedReview, due: Boolean(decision.dueAt && decision.dueAt <= now) }];
   });
   return { portfolio, items, readyCount: items.filter((item) => item.liveComparison.sourceHealth === "healthy" && !item.savedReview?.reviewedAt).length, waitingCount: items.filter((item) => item.liveComparison.sourceHealth !== "healthy").length, reviewedCount: items.filter((item) => Boolean(item.savedReview?.reviewedAt)).length, dueCount: items.filter((item) => item.due && !item.savedReview?.reviewedAt).length };

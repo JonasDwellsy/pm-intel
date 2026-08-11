@@ -7,6 +7,8 @@ import { sendEmail } from "@/lib/email/send";
 import { prisma } from "@/lib/prisma";
 import { parsePortfolioIqPmBriefSnapshot } from "@/lib/portfolio-iq/pm-brief";
 import { buildPmBriefEmail } from "@/lib/portfolio-iq/pm-email";
+import { buildDecisionBaseline, loadDecisionCase } from "@/lib/portfolio-iq/decision-case.server";
+import { monitoringDays } from "@/lib/portfolio-iq/pm-response";
 
 function validEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -77,27 +79,33 @@ export async function reviewPortfolioIqPmResponse(formData: FormData): Promise<v
   if (!userId || !organizationId || !briefId || !DISPOSITIONS.has(disposition)) throw new Error("Response review is incomplete.");
   const brief = await authorizedBrief(briefId, organizationId, userId);
   if (!brief.response) throw new Error("No PM response is available to review.");
-  if (disposition === "accepted" && !brief.response.actionPlan) throw new Error("The PM did not include an action plan to accept.");
+  if (disposition === "accepted" && (!brief.response.actionPlan || !brief.response.actionOwner || !brief.response.successMeasure || !brief.response.followUpDate)) throw new Error("Request a complete action owner, plan, success measure, and review date before accepting.");
   if (disposition === "revised" && !ownerReviewNote) throw new Error("Add the revision you want the PM to make.");
   const now = new Date();
-  const adoptedPlan = disposition === "accepted" ? brief.response.actionPlan : disposition === "revised" ? ownerReviewNote : null;
+  const adoptedPlan = disposition === "accepted" ? brief.response.actionPlan : null;
+  const caseData = disposition === "accepted" ? await loadDecisionCase({ organizationId, userId, signalId: brief.signalId }) : null;
+  if (disposition === "accepted" && !caseData) throw new Error("The decision case is unavailable.");
+  const baselineEvidence = caseData ? brief.signal.decision?.baselineEvidence ?? JSON.stringify(buildDecisionBaseline(caseData, now)) : null;
   await prisma.$transaction(async (tx) => {
     await tx.portfolioIqPmBriefResponse.update({ where: { id: brief.response!.id }, data: { ownerDisposition: disposition, ownerReviewNote, reviewedAt: now, reviewedBy: userId } });
-    await tx.portfolioIqPmBrief.update({ where: { id: brief.id }, data: disposition === "closed" ? { status: "closed", closedAt: now } : { status: "responded" } });
+    await tx.portfolioIqPmBrief.update({ where: { id: brief.id }, data: disposition === "closed" ? { status: "closed", closedAt: now } : disposition === "revised" ? { status: "published", closedAt: null } : { status: "responded", closedAt: null } });
     const prior = brief.signal.decision;
+    const toState = disposition === "accepted" ? "acknowledged" : disposition === "closed" ? "resolved" : prior?.state ?? "open";
+    const assignedTo = disposition === "accepted" ? brief.response!.actionOwner : prior?.assignedTo ?? null;
     const decision = prior
       ? await tx.portfolioIqSignalDecision.update({
           where: { id: prior.id },
           data: adoptedPlan
-            ? { state: "acknowledged", assignedTo: brief.response!.responderName, actionPlan: adoptedPlan, dueAt: brief.response!.followUpDate ?? prior.dueAt, note: ownerReviewNote ?? prior.note, decidedBy: userId, decidedAt: now }
-            : { note: ownerReviewNote ?? prior.note, decidedBy: userId, decidedAt: now },
+            ? { state: toState, assignedTo, assignedUserId: null, actionPlan: adoptedPlan, successMeasure: brief.response!.successMeasure, dueAt: brief.response!.followUpDate, monitoringWindowDays: monitoringDays(now, brief.response!.followUpDate!), baselineEvidence, baselineCapturedAt: prior.baselineCapturedAt ?? now, note: ownerReviewNote ?? prior.note, decidedBy: userId, decidedAt: now }
+            : { state: toState, note: ownerReviewNote ?? prior.note, decidedBy: userId, decidedAt: now },
         })
       : await tx.portfolioIqSignalDecision.create({
-          data: { signalId: brief.signalId, organizationId: brief.portfolio.organizationId, state: "acknowledged", assignedTo: adoptedPlan ? brief.response!.responderName : "Property manager", actionPlan: adoptedPlan, dueAt: adoptedPlan ? brief.response!.followUpDate : null, note: ownerReviewNote, decidedBy: userId, decidedAt: now },
+          data: { signalId: brief.signalId, organizationId: brief.portfolio.organizationId, state: toState, assignedTo, actionPlan: adoptedPlan, successMeasure: adoptedPlan ? brief.response!.successMeasure : null, dueAt: adoptedPlan ? brief.response!.followUpDate : null, monitoringWindowDays: adoptedPlan ? monitoringDays(now, brief.response!.followUpDate!) : null, baselineEvidence: adoptedPlan ? baselineEvidence : null, baselineCapturedAt: adoptedPlan ? now : null, note: ownerReviewNote, decidedBy: userId, decidedAt: now },
         });
-    await tx.portfolioIqSignalDecisionEvent.create({ data: { decisionId: decision.id, action: `pm_plan_${disposition}`, fromState: prior?.state ?? "open", toState: decision.state, assignedTo: decision.assignedTo, note: adoptedPlan ?? ownerReviewNote, actorUserId: userId, createdAt: now } });
+    await tx.portfolioIqSignalDecisionEvent.create({ data: { decisionId: decision.id, action: `pm_plan_${disposition}`, fromState: prior?.state ?? "open", toState, assignedTo, note: adoptedPlan ?? ownerReviewNote, actorUserId: userId, createdAt: now } });
   });
   revalidatePath("/portfolio-iq/collaboration");
+  revalidatePath("/portfolio-iq/outcomes");
   revalidatePath("/today");
   revalidatePath(`/portfolio-iq/properties/${brief.asset.slug}`);
   revalidatePath(`/today/cases/${brief.signalId}`);

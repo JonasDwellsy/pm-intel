@@ -24,10 +24,10 @@ export async function loadPortfolioIqCollaboration(input: { organizationId: stri
   ]);
   const now = new Date();
   const drafts = signals.filter((signal) => signal.pmBriefs.length === 0);
-  const awaitingResponse = briefs.filter((brief) => brief.status === "published" && !brief.response);
+  const awaitingResponse = briefs.filter((brief) => brief.status === "published" && (!brief.response || brief.response.ownerDisposition === "revised"));
   const overdue = awaitingResponse.filter((brief) => brief.responseDueAt && brief.responseDueAt < now);
   const awaitingOwnerReview = briefs.filter((brief) => brief.response?.ownerDisposition === "pending");
-  const acceptedPlans = briefs.filter((brief) => ["accepted", "revised"].includes(brief.response?.ownerDisposition ?? ""));
+  const acceptedPlans = briefs.filter((brief) => brief.response?.ownerDisposition === "accepted" && brief.signal.decision?.state !== "resolved");
   const closed = briefs.filter((brief) => brief.status === "closed" || brief.response?.ownerDisposition === "closed");
   return { portfolio, briefs, drafts, awaitingResponse, overdue, awaitingOwnerReview, acceptedPlans, closed, now };
 }
