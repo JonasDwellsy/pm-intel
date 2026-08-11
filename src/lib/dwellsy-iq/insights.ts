@@ -34,6 +34,39 @@ export interface SharedInsightAlertInput {
   geographyValue: string;
   propertyType: string;
   bedrooms: number;
+  headline?: string;
+  narrative?: string;
+}
+
+export interface SharedInsightExposedAssetInput extends SharedInsightAssetInput {
+  relevanceScore: number;
+}
+
+function stripAssetPrefix(headline: string): string {
+  const separator = headline.indexOf(": ");
+  return separator >= 0 ? headline.slice(separator + 2) : headline;
+}
+
+export function portfolioExposureCopy(input: {
+  signal: SharedInsightSignalInput;
+  alert: SharedInsightAlertInput | null;
+  exposedAssets: SharedInsightExposedAssetInput[];
+}) {
+  if (!input.alert || input.exposedAssets.length < 2) return {
+    headline: input.signal.headline,
+    narrative: input.signal.narrative,
+    suggestedFollowup: input.signal.ownerQuestion,
+  };
+  const propertyNames = input.exposedAssets.map((asset) => asset.name);
+  const displayed = propertyNames.slice(0, 3).join(", ");
+  const remaining = propertyNames.length - 3;
+  const exposureSentence = `${input.exposedAssets.length} portfolio assets are exposed: ${displayed}${remaining > 0 ? ` and ${remaining} more` : ""}.`;
+  const alertHeadline = input.alert.headline ?? stripAssetPrefix(input.signal.headline);
+  return {
+    headline: `${alertHeadline}: ${input.exposedAssets.length} portfolio assets exposed`,
+    narrative: `${input.alert.narrative ?? input.signal.narrative} ${exposureSentence}`,
+    suggestedFollowup: "Review segment pricing, approved comp position, and operator response across the exposed properties.",
+  };
 }
 
 export function buildSharedInsightDraft(input: {
@@ -43,6 +76,7 @@ export function buildSharedInsightDraft(input: {
   signal: SharedInsightSignalInput;
   asset: SharedInsightAssetInput | null;
   alert: SharedInsightAlertInput | null;
+  exposedAssets?: SharedInsightExposedAssetInput[];
 }) {
   const parsedEvidence = parseTodaySignalEvidence(input.signal.evidence);
   const evidenceSources = new Set<string>(["owner_portfolio"]);
@@ -54,6 +88,7 @@ export function buildSharedInsightDraft(input: {
   if (input.signal.category === "readiness") evidenceSources.add("activation_workflow");
   if (input.asset?.observedOperatorName) evidenceSources.add("observed_operator_activity");
 
+  const copy = portfolioExposureCopy({ signal: input.signal, alert: input.alert, exposedAssets: input.exposedAssets ?? (input.asset ? [{ ...input.asset, relevanceScore: input.signal.rankScore }] : []) });
   return {
     organizationId: input.organizationId,
     portfolioId: input.portfolioId,
@@ -65,9 +100,9 @@ export function buildSharedInsightDraft(input: {
     severity: input.signal.severity,
     confidence: input.signal.confidence,
     rankScore: input.signal.rankScore,
-    headline: input.signal.headline,
-    narrative: input.signal.narrative,
-    suggestedFollowup: input.signal.ownerQuestion,
+    headline: copy.headline,
+    narrative: copy.narrative,
+    suggestedFollowup: copy.suggestedFollowup,
     marketId: input.marketId,
     geographyType: input.alert?.geographyType ?? (input.asset ? "property" : "market"),
     geographyValue: input.alert?.geographyValue ?? input.asset?.name ?? input.marketId,
@@ -87,6 +122,7 @@ export function buildSharedExposureDraft(input: {
   signalId: string;
   asset: SharedInsightAssetInput;
   relevanceScore: number;
+  evidence?: Record<string, unknown>;
 }) {
   return {
     insightId: input.insightId,
@@ -94,6 +130,6 @@ export function buildSharedExposureDraft(input: {
     exposureKind: "direct",
     relevanceScore: input.relevanceScore,
     operatorName: input.asset.observedOperatorName,
-    evidence: JSON.stringify({ sourceSignalId: input.signalId, assetId: input.asset.id }),
+    evidence: JSON.stringify({ sourceSignalId: input.signalId, assetId: input.asset.id, ...(input.evidence ?? {}) }),
   };
 }

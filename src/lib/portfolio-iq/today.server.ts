@@ -34,7 +34,10 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
     exposures: [],
   }));
   const todaySignals = selectTodaySignals(signals, 5);
-  const uniqueSlugs = [...new Set(todaySignals.flatMap((signal) => signal.asset?.slug ? [signal.asset.slug] : []))];
+  const uniqueSlugs = [...new Set(todaySignals.flatMap((signal) => [
+    ...(signal.asset?.slug ? [signal.asset.slug] : []),
+    ...signal.exposures.map((exposure) => exposure.asset.slug),
+  ]))];
   const propertyResults = await Promise.all(uniqueSlugs.map((slug) => loadPortfolioIqProperty({ ...input, slug })));
   const properties = new Map(propertyResults.flatMap((property) => property ? [[property.asset.slug, property] as const] : []));
   const financialAssumptions = await prisma.portfolioIqFinancialAssumption.findMany({
@@ -58,7 +61,7 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
     });
     const signal = todaySignals.find((candidate) => candidate.assetId === property.asset.id) ?? null;
     return [{ property: property.asset, impact, signal, priority: financialImpactPriority(impact) }];
-  }).sort((left, right) => right.priority - left.priority).slice(0, 3);
+  }).sort((left, right) => right.priority - left.priority);
   const operatorResponses = await loadOperatorResponseContexts({
     marketId: portfolio.marketId,
     assets: portfolio.assets,

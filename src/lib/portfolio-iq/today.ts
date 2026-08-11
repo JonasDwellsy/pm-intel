@@ -5,6 +5,7 @@ export interface TodaySignalCandidate {
   severity: string;
   rankScore: number;
   evidence: string;
+  exposures?: Array<{ assetId: string }>;
 }
 
 export interface TodaySignalEvidence {
@@ -38,11 +39,12 @@ export function selectTodaySignals<T extends TodaySignalCandidate>(signals: T[],
 
   for (const signal of [...signals].sort((left, right) => right.rankScore - left.rankScore)) {
     if (selected.length >= limit) break;
-    const assetKey = signal.assetId ?? `signal:${signal.id}`;
-    if (seenAssets.has(assetKey)) continue;
+    const exposureAssetIds = signal.exposures?.map((exposure) => exposure.assetId) ?? [];
+    const assetKeys = exposureAssetIds.length ? exposureAssetIds : [signal.assetId ?? `signal:${signal.id}`];
+    if (assetKeys.some((assetKey) => seenAssets.has(assetKey))) continue;
     if (signal.category === "readiness" && readinessCount >= 1) continue;
     selected.push(signal);
-    seenAssets.add(assetKey);
+    for (const assetKey of assetKeys) seenAssets.add(assetKey);
     if (signal.category === "readiness") readinessCount += 1;
   }
 

@@ -10,7 +10,7 @@ import { buildPortfolioIqDigest } from "@/lib/portfolio-iq/digest";
 import { isPortfolioSignalActionable, portfolioDecisionLabel } from "@/lib/portfolio-iq/decision";
 import { buildBedroomSegments } from "@/lib/portfolio-iq/segments";
 import { parseTodaySignalEvidence, selectTodaySignals } from "@/lib/portfolio-iq/today";
-import { buildSharedExposureDraft, buildSharedInsightDraft } from "@/lib/dwellsy-iq/insights";
+import { buildSharedExposureDraft, buildSharedInsightDraft, portfolioExposureCopy } from "@/lib/dwellsy-iq/insights";
 
 test("Cleveland owner pilot contains five multifamily assets and four SFRs", () => {
   assert.equal(CLEVELAND_PILOT_PORTFOLIO.marketId, "cleveland-elyria-mentor-oh");
@@ -261,6 +261,15 @@ test("Today ranks one issue per asset and keeps readiness from crowding out deci
   assert.deepEqual(selectTodaySignals(candidates, 4).map((signal) => signal.id), ["a-performance", "b-market", "c-ready", "e-market"]);
 });
 
+test("Today treats one portfolio exposure insight as occupying every affected asset", () => {
+  const candidates = [
+    { id: "market-group", assetId: "a", category: "market", severity: "high", rankScore: 95, evidence: "{}", exposures: [{ assetId: "a" }, { assetId: "b" }] },
+    { id: "b-performance", assetId: "b", category: "performance", severity: "high", rankScore: 94, evidence: "{}", exposures: [{ assetId: "b" }] },
+    { id: "c-performance", assetId: "c", category: "performance", severity: "medium", rankScore: 80, evidence: "{}", exposures: [{ assetId: "c" }] },
+  ];
+  assert.deepEqual(selectTodaySignals(candidates, 5).map((signal) => signal.id), ["market-group", "c-performance"]);
+});
+
 test("Today safely reads segment evidence without trusting malformed JSON", () => {
   assert.deepEqual(parseTodaySignalEvidence('{"bedrooms":2,"observations":50,"alertId":"alert-1"}'), {
     bedrooms: 2, observations: 50, alertId: "alert-1",
@@ -313,6 +322,20 @@ test("market-backed shared insight retains its canonical alert geography", () =>
   assert.equal(insight.geographyType, "zip");
   assert.equal(insight.geographyValue, "44113");
   assert.equal(insight.bedrooms, 1);
+});
+
+test("portfolio exposure copy turns one market event into one multi-asset owner finding", () => {
+  const copy = portfolioExposureCopy({
+    signal: { id: "signal-2", fingerprint: "market-signal", signalType: "local_market_change", category: "market", severity: "high", confidence: "high", rankScore: 86, headline: "Acadian: One-bedroom rents softened", narrative: "Asking rents declined.", ownerQuestion: "Review pricing", evidence: "{}", status: "active", observedAt: new Date(), firstSeenAt: new Date(), lastSeenAt: new Date(), resolvedAt: null },
+    alert: { id: "alert-1", geographyType: "zip", geographyValue: "44113", propertyType: "apartment", bedrooms: 1, headline: "One-bedroom rents softened", narrative: "Asking rents declined." },
+    exposedAssets: [
+      { id: "asset-a", name: "Acadian", city: "Brook Park", postalCode: "44142", assetType: "multifamily", observedOperatorName: "Operator A", relevanceScore: 86 },
+      { id: "asset-b", name: "Greenwood", city: "Euclid", postalCode: "44117", assetType: "multifamily", observedOperatorName: "Operator B", relevanceScore: 84 },
+    ],
+  });
+  assert.equal(copy.headline, "One-bedroom rents softened: 2 portfolio assets exposed");
+  assert.match(copy.narrative, /Acadian, Greenwood/);
+  assert.match(copy.suggestedFollowup ?? "", /operator response/);
 });
 
 test("shared insight migration is additive and backfills current owner signals", () => {

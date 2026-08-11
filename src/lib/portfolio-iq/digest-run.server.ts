@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email/send";
 import { buildPortfolioIqDigest } from "@/lib/portfolio-iq/digest";
 import { refreshPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
+import { loadDwellsyIqInsights } from "@/lib/dwellsy-iq/insights.server";
 
 export async function runPortfolioIqDigests(input: { dryRun?: boolean; baseUrl?: string } = {}) {
   const now = new Date();
@@ -17,7 +18,8 @@ export async function runPortfolioIqDigests(input: { dryRun?: boolean; baseUrl?:
   for (const preference of preferences) {
     if (preference.portfolio.organization.excludeFromDigests) { skipped++; continue; }
     if (preference.lastDeliveredAt && now.getTime() - preference.lastDeliveredAt.getTime() < 6 * 86_400_000) { skipped++; continue; }
-    const signals = await refreshPortfolioWatchSignals(preference.portfolioId);
+    await refreshPortfolioWatchSignals(preference.portfolioId);
+    const signals = await loadDwellsyIqInsights(preference.portfolioId);
     const newSignals = signals.filter((signal) => signal.severity !== "info" && (!preference.lastSignalAt || signal.firstSeenAt > preference.lastSignalAt));
     if (!newSignals.length) { skipped++; continue; }
     const user = await client.users.getUser(preference.userId);

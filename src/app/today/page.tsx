@@ -61,7 +61,7 @@ export default async function TodayPage() {
   if (!isMarketEntitled(entitlement, today.portfolio.marketId)) notFound();
 
   const highPriorityCount = today.todaySignals.filter((signal) => signal.severity === "high").length;
-  const affectedAssets = new Set(today.todaySignals.map((signal) => signal.assetId)).size;
+  const affectedAssets = new Set(today.todaySignals.flatMap((signal) => signal.exposures.length ? signal.exposures.map((exposure) => exposure.assetId) : signal.assetId ? [signal.assetId] : [])).size;
   const assignedCount = today.todaySignals.filter((signal) => Boolean(signal.decision?.assignedTo)).length;
   const newCount = today.todaySignals.filter((signal) => !today.digestPreference?.lastSignalAt || signal.firstSeenAt > today.digestPreference.lastSignalAt).length;
   const readyAssets = today.portfolio.assets.filter((asset) => ["ready", "monitoring"].includes(asset.readinessStatus)).length;
@@ -117,7 +117,7 @@ export default async function TodayPage() {
           <Link href="/portfolio-iq/financial-impact" className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-navy">Open Financial Impact Queue</Link>
         </div>
         <div className="mt-5 grid gap-3 lg:grid-cols-3">
-          {today.financialImpacts.map(({ property, impact, signal }) => (
+          {today.financialImpacts.slice(0, 3).map(({ property, impact, signal }) => (
             <article key={property.id} className="rounded-lg border border-white/15 bg-white/10 p-4">
               <p className="text-[10px] font-bold uppercase tracking-wider text-teal-200">{impact.status === "estimated" ? "Estimate ready" : impact.status === "assumptions_needed" ? "Owner input needed" : "Evidence gate"}</p>
               <h3 className="mt-2 font-semibold text-white">{property.name}</h3>
@@ -144,6 +144,18 @@ export default async function TodayPage() {
         <div className="mt-5 space-y-4">
           {today.todaySignals.map((signal, index) => {
             const property = signal.asset?.slug ? today.properties.get(signal.asset.slug) : null;
+            const exposedProperties = signal.exposures.flatMap((exposure) => {
+              const exposedProperty = today.properties.get(exposure.asset.slug);
+              return exposedProperty ? [{ exposure, property: exposedProperty }] : [];
+            });
+            const multiAssetExposure = exposedProperties.length > 1;
+            const exposedAssetIds = new Set(exposedProperties.map(({ property: exposedProperty }) => exposedProperty.asset.id));
+            const exposureImpacts = today.financialImpacts.filter((item) => exposedAssetIds.has(item.property.id) && item.impact.status === "estimated");
+            const financialRange = exposureImpacts.length ? {
+              conservative: exposureImpacts.reduce((sum, item) => sum + (item.impact.annualConservative ?? 0), 0),
+              base: exposureImpacts.reduce((sum, item) => sum + (item.impact.annualRealizationAdjusted ?? 0), 0),
+              upside: exposureImpacts.reduce((sum, item) => sum + (item.impact.annualUpside ?? 0), 0),
+            } : null;
             const evidence = parseTodaySignalEvidence(signal.evidence);
             const segment = property?.segments.find((candidate) => candidate.bedrooms === evidence.bedrooms) ?? null;
             const performance = segment?.performance ?? property?.performance ?? null;
@@ -175,6 +187,21 @@ export default async function TodayPage() {
                     </div>
                     <h3 className="mt-2 text-xl font-semibold leading-7 text-navy">{signal.headline}</h3>
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-foreground/75">{signal.narrative}</p>
+                    {multiAssetExposure && <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      {exposedProperties.map(({ exposure, property: exposedProperty }) => {
+                        const exposedSegment = exposedProperty.segments.find((candidate) => candidate.bedrooms === signal.bedrooms);
+                        const position = exposedSegment?.isLocked ? exposedSegment.performance.askingRentVsComps : null;
+                        return <Link key={exposure.assetId} href={`/portfolio-iq/properties/${exposedProperty.asset.slug}`} className="rounded-lg border border-grid bg-white/90 p-3 transition-colors hover:border-teal/40 hover:bg-teal-soft">
+                          <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-navy">{exposedProperty.asset.name}</p><p className="mt-1 text-xs text-muted-foreground">{exposedProperty.asset.city} · {exposedProperty.asset.postalCode}</p></div><span className="text-[10px] font-bold uppercase tracking-wider text-teal-700">{position === null ? "Comp review" : `${position > 0 ? "+" : ""}${position.toFixed(1)}% vs comps`}</span></div>
+                          <p className="mt-2 text-xs text-muted-foreground">{exposedProperty.asset.observedOperatorName ?? "Operator being confirmed"}</p>
+                        </Link>;
+                      })}
+                    </div>}
+                    {multiAssetExposure && <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+                      <span className="rounded-full border border-teal/25 bg-teal-soft px-3 py-1.5 font-semibold text-teal-800">{exposedProperties.length} exposed assets</span>
+                      <span className="rounded-full border border-grid bg-white px-3 py-1.5 font-semibold text-navy">{new Set(exposedProperties.map(({ property: exposedProperty }) => exposedProperty.asset.observedOperatorName).filter(Boolean)).size} observed operators</span>
+                      {financialRange ? <span className="rounded-full border border-grid bg-white px-3 py-1.5 font-semibold text-navy">Verified annual range {dollars(financialRange.conservative)} to {dollars(financialRange.upside)} · base {dollars(financialRange.base)}</span> : <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 font-semibold text-amber-800">Financial assumptions incomplete</span>}
+                    </div>}
                     {signal.ownerQuestion && (
                       <p className="mt-4 rounded-lg border border-grid bg-white/80 px-4 py-3 text-sm font-medium leading-6 text-navy">
                         <span className="font-bold">Decision to consider:</span> {signal.ownerQuestion}
@@ -183,8 +210,8 @@ export default async function TodayPage() {
                   </div>
                   {signal.asset && (
                     <div className="flex flex-col gap-2">
-                      <Link href={`/today/cases/${signal.id}`} className="rounded-md bg-navy px-3 py-2 text-center text-xs font-semibold text-white hover:bg-navy-700">Decision case</Link>
-                      <Link href={`/portfolio-iq/properties/${signal.asset.slug}`} className="rounded-md border border-navy bg-white px-3 py-2 text-center text-xs font-semibold text-navy hover:bg-surface-soft">Open property</Link>
+                      <Link href={`/today/cases/${signal.id}`} className="rounded-md bg-navy px-3 py-2 text-center text-xs font-semibold text-white hover:bg-navy-700">{multiAssetExposure ? "Open portfolio decision" : "Decision case"}</Link>
+                      {!multiAssetExposure && <Link href={`/portfolio-iq/properties/${signal.asset.slug}`} className="rounded-md border border-navy bg-white px-3 py-2 text-center text-xs font-semibold text-navy hover:bg-surface-soft">Open property</Link>}
                     </div>
                   )}
                 </div>
@@ -211,8 +238,12 @@ export default async function TodayPage() {
 
                     <section className="bg-white p-5">
                       <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Asset exposure</p>
-                      <h4 className="mt-2 font-semibold text-navy">{property?.asset.name ?? "Property being resolved"}</h4>
-                      {performance ? (
+                      <h4 className="mt-2 font-semibold text-navy">{multiAssetExposure ? `${exposedProperties.length} properties in this portfolio` : property?.asset.name ?? "Property being resolved"}</h4>
+                      {multiAssetExposure ? <div className="mt-3 divide-y divide-grid">{exposedProperties.map(({ property: exposedProperty }) => {
+                        const exposedSegment = exposedProperty.segments.find((candidate) => candidate.bedrooms === signal.bedrooms);
+                        const exposedPerformance = exposedSegment?.performance ?? exposedProperty.performance;
+                        return <div key={exposedProperty.asset.id} className="py-2.5"><div className="flex justify-between gap-3"><Link href={`/portfolio-iq/properties/${exposedProperty.asset.slug}`} className="text-sm font-semibold text-navy hover:text-teal-700">{exposedProperty.asset.name}</Link><span className="text-xs font-semibold text-navy">{dollars(exposedPerformance.askingRent)}</span></div><p className="mt-1 text-xs text-muted-foreground">{percent(exposedPerformance.askingRentChange90d)} over 90 days · {days(exposedPerformance.medianDom)}</p></div>;
+                      })}</div> : performance ? (
                         <dl className="mt-3 space-y-2 text-sm">
                           <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Observed rent</dt><dd className="font-semibold text-navy">{dollars(performance.askingRent)}</dd></div>
                           <div className="flex justify-between gap-3"><dt className="text-muted-foreground">90-day move</dt><dd className="font-semibold text-navy">{percent(performance.askingRentChange90d)}</dd></div>
@@ -226,8 +257,11 @@ export default async function TodayPage() {
 
                     <section className="bg-white p-5">
                       <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Comp evidence</p>
-                      <h4 className="mt-2 font-semibold capitalize text-navy">{String(compStatus).replaceAll("_", " ")}</h4>
-                      {segment?.isLocked ? (
+                      <h4 className="mt-2 font-semibold capitalize text-navy">{multiAssetExposure ? "Position across exposed assets" : String(compStatus).replaceAll("_", " ")}</h4>
+                      {multiAssetExposure ? <div className="mt-3 divide-y divide-grid">{exposedProperties.map(({ property: exposedProperty }) => {
+                        const exposedSegment = exposedProperty.segments.find((candidate) => candidate.bedrooms === signal.bedrooms);
+                        return <div key={exposedProperty.asset.id} className="flex items-center justify-between gap-3 py-2.5 text-sm"><span className="font-medium text-navy">{exposedProperty.asset.name}</span><span className={`text-xs font-semibold ${exposedSegment?.isLocked ? "text-navy" : "text-amber-700"}`}>{exposedSegment?.isLocked ? percent(exposedSegment.performance.askingRentVsComps) : "Segment comps pending"}</span></div>;
+                      })}</div> : segment?.isLocked ? (
                         <dl className="mt-3 space-y-2 text-sm">
                           <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Approved comps</dt><dd className="font-semibold text-navy">{compCount}</dd></div>
                           <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Comp rent</dt><dd className="font-semibold text-navy">{dollars(segment.performance.compAskingRent)}</dd></div>
@@ -243,8 +277,11 @@ export default async function TodayPage() {
 
                     <section className="bg-white p-5">
                       <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Operator response</p>
-                      <h4 className="mt-2 font-semibold text-navy">{property?.asset.observedOperatorName ?? "Operator being confirmed"}</h4>
-                      {operatorResponse?.status === "matched" ? (
+                      <h4 className="mt-2 font-semibold text-navy">{multiAssetExposure ? "Accountability across the exposure" : property?.asset.observedOperatorName ?? "Operator being confirmed"}</h4>
+                      {multiAssetExposure ? <div className="mt-3 divide-y divide-grid">{exposedProperties.map(({ property: exposedProperty }) => {
+                        const response = today.operatorResponses.get(exposedProperty.asset.id);
+                        return <div key={exposedProperty.asset.id} className="py-2.5"><div className="flex justify-between gap-3"><span className="text-sm font-semibold text-navy">{exposedProperty.asset.observedOperatorName ?? "Unconfirmed"}</span><span className="text-xs font-semibold text-muted-foreground">{response?.status === "matched" ? `#${response.overallRank ?? "–"} of ${response.overallRankTotal ?? "–"}` : "Match pending"}</span></div><p className="mt-1 text-xs text-muted-foreground">{exposedProperty.asset.name}</p></div>;
+                      })}<p className="pt-3 text-[11px] leading-5 text-muted-foreground">Observed assignments are not verified management contracts. Live response tracking remains paused until the listing feed is available.</p></div> : operatorResponse?.status === "matched" ? (
                         <>
                           <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Operator IQ benchmark</p>
                           <dl className="mt-3 space-y-2 text-sm">
