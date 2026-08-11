@@ -684,6 +684,7 @@ model PortfolioIqPortfolio {
   pmBriefs            PortfolioIqPmBrief[]
   outcomeReviews      PortfolioIqOutcomeReview[]
   ownerWatchItems     PortfolioIqOwnerWatchItem[]
+  ownerWatchReviews   PortfolioIqOwnerWatchReview[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -710,6 +711,27 @@ model PortfolioIqOwnerWatchItem {
   @@unique([portfolioId, objectType, objectKey])
   @@index([organizationId, updatedAt(sort: Desc)])
   @@index([portfolioId, objectType])
+}
+
+// A private read watermark for one person and one monitored owner object.
+// Reviewing an item never changes shared evidence, decision state, or another
+// team member's unread count.
+model PortfolioIqOwnerWatchReview {
+  id              String   @id @default(cuid())
+  portfolioId     String
+  organizationId  String
+  userId          String
+  objectType      String
+  objectKey       String
+  reviewedThrough DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, userId, objectType, objectKey])
+  @@index([organizationId, userId, updatedAt(sort: Desc)])
+  @@index([portfolioId, userId])
 }
 
 // The permanent first-period owner report. Before approval the route renders
