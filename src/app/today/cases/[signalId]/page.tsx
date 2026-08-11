@@ -91,8 +91,8 @@ export default async function DecisionCasePage({ params }: { params: Promise<{ s
             <p className="dq-eyebrow">Detect, diagnose, decide, monitor</p>
             <span className="rounded-full border border-teal/25 bg-teal-soft px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-teal-800">{statusCopy(caseStatus)}</span>
           </div>
-          <h1 className="mt-3 max-w-4xl text-3xl font-semibold leading-tight tracking-tight text-navy sm:text-4xl">{caseData.signal.headline}</h1>
-          <p className="mt-3 max-w-3xl text-[15px] leading-6 text-foreground/75">{caseData.signal.narrative}</p>
+          <h1 className="mt-3 max-w-4xl text-3xl font-semibold leading-tight tracking-tight text-navy sm:text-4xl">{caseData.displayInsight.headline}</h1>
+          <p className="mt-3 max-w-3xl text-[15px] leading-6 text-foreground/75">{caseData.displayInsight.narrative}</p>
           {multiAssetCase && <div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full border border-teal/25 bg-teal-soft px-3 py-1 text-xs font-semibold text-teal-800">{baselineExposures.length} exposed assets</span><span className="rounded-full border border-grid bg-white px-3 py-1 text-xs font-semibold text-navy">{observedOperators.length || "No"} observed operator{observedOperators.length === 1 ? "" : "s"}</span></div>}
         </div>
         <aside className="rounded-xl border border-grid bg-surface-soft p-5">

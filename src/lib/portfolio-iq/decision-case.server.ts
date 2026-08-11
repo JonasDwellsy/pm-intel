@@ -4,6 +4,7 @@ import { loadPortfolioIqHome } from "@/lib/portfolio-iq/home.server";
 import { loadPortfolioIqProperty } from "@/lib/portfolio-iq/property.server";
 import { loadOperatorResponseContexts } from "@/lib/dwellsy-iq/operator-response.server";
 import { loadClevelandTrendPulses } from "@/lib/market-iq/trends.server";
+import { loadDwellsyIqInsights } from "@/lib/dwellsy-iq/insights.server";
 import type { DecisionBaselineSnapshot } from "@/lib/portfolio-iq/decision-case";
 
 export async function loadDecisionCase(input: { organizationId: string; userId: string; signalId: string }) {
@@ -17,6 +18,7 @@ export async function loadDecisionCase(input: { organizationId: string; userId: 
       unifiedInsight: {
         select: {
           id: true,
+          sourceAlertId: true,
           evidenceSources: true,
           geographyType: true,
           geographyValue: true,
@@ -34,8 +36,16 @@ export async function loadDecisionCase(input: { organizationId: string; userId: 
     },
   });
   if (!signal) return null;
-  const exposureAssets = signal.unifiedInsight?.exposures.length
-    ? signal.unifiedInsight.exposures
+  const sharedInsight = (await loadDwellsyIqInsights(portfolio.id)).find((insight) =>
+    insight.id === signal.id || Boolean(signal.unifiedInsight?.sourceAlertId && insight.sourceAlertId === signal.unifiedInsight.sourceAlertId)
+  ) ?? null;
+  const exposureAssets = sharedInsight?.exposures.length
+    ? sharedInsight.exposures.map((exposure) => ({
+        relevanceScore: exposure.relevanceScore,
+        asset: { ...exposure.asset, observedOperatorName: exposure.operatorName },
+      }))
+    : signal.unifiedInsight?.exposures.length
+      ? signal.unifiedInsight.exposures
     : signal.asset
       ? [{ relevanceScore: signal.rankScore, asset: signal.asset }]
       : [];
@@ -55,6 +65,7 @@ export async function loadDecisionCase(input: { organizationId: string; userId: 
   return {
     portfolio,
     signal,
+    displayInsight: sharedInsight ? { headline: sharedInsight.headline, narrative: sharedInsight.narrative, ownerQuestion: sharedInsight.ownerQuestion } : { headline: signal.headline, narrative: signal.narrative, ownerQuestion: signal.ownerQuestion },
     property: primaryContext?.property ?? null,
     operatorResponse: primaryContext?.operatorResponse ?? null,
     exposureContexts,
@@ -88,8 +99,8 @@ export function buildDecisionBaseline(caseData: NonNullable<Awaited<ReturnType<t
     version: 1,
     capturedAt: capturedAt.toISOString(),
     signal: {
-      headline: signal.headline,
-      narrative: signal.narrative,
+      headline: caseData.displayInsight.headline,
+      narrative: caseData.displayInsight.narrative,
       category: signal.category,
       severity: signal.severity,
       confidence: signal.confidence,
