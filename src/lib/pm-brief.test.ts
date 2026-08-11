@@ -61,6 +61,8 @@ test("public PM response route is token-scoped and does not require workspace ac
   assert.match(publicAction, /honeypot/);
   assert.match(ownerAction, /randomBytes\(24\)/);
   assert.match(ownerAction, /signalId, assetId: composer\.property\.asset\.id/);
-  assert.match(composer, /unifiedInsight: \{ exposures: \{ some: \{ assetId: property\.asset\.id \} \} \}/);
+  assert.match(composer, /unifiedInsight: \{ select: \{ sourceAlertId: true \} \}/);
+  assert.match(composer, /assetId: property\.asset\.id, insight: \{ portfolioId: property\.portfolio\.id, sourceAlertId, status: "active" \}/);
+  assert.match(composer, /headline: `\$\{property\.asset\.name\}: \$\{issueHeadline\}`/);
   assert.doesNotMatch(ownerAction, /sendEmail|SENDGRID/);
 });

@@ -10,18 +10,31 @@ export async function loadPortfolioIqPmBriefComposer(input: { organizationId: st
     ? property.signals.find((candidate) => candidate.id === input.signalId) ?? null
     : property.signals[0] ?? null;
   if (input.signalId && !signal) {
-    signal = await prisma.portfolioIqSignal.findFirst({
+    const requestedSignal = await prisma.portfolioIqSignal.findFirst({
       where: {
         id: input.signalId,
         portfolioId: property.portfolio.id,
         status: "active",
-        unifiedInsight: { exposures: { some: { assetId: property.asset.id } } },
       },
       include: {
         asset: { select: { slug: true, name: true, city: true, postalCode: true } },
         decision: { include: { events: { orderBy: { createdAt: "desc" }, take: 5 } } },
+        unifiedInsight: { select: { sourceAlertId: true } },
       },
     });
+    const sourceAlertId = requestedSignal?.unifiedInsight?.sourceAlertId ?? null;
+    const [exposure, alert] = sourceAlertId ? await Promise.all([
+      prisma.dwellsyIqInsightExposure.findFirst({
+        where: { assetId: property.asset.id, insight: { portfolioId: property.portfolio.id, sourceAlertId, status: "active" } },
+        select: { id: true },
+      }),
+      prisma.marketIqAlert.findUnique({ where: { id: sourceAlertId }, select: { headline: true, narrative: true } }),
+    ]) : [null, null];
+    if (requestedSignal && exposure) {
+      const separator = requestedSignal.headline.indexOf(": ");
+      const issueHeadline = alert?.headline ?? (separator >= 0 ? requestedSignal.headline.slice(separator + 2) : requestedSignal.headline);
+      signal = { ...requestedSignal, headline: `${property.asset.name}: ${issueHeadline}`, narrative: alert?.narrative ?? requestedSignal.narrative };
+    }
   }
   const briefs = await prisma.portfolioIqPmBrief.findMany({
     where: { assetId: property.asset.id },
