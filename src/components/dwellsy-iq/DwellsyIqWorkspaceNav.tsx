@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const workspaceItems = [
   { href: "/today", label: "Today", match: (path: string) => path === "/today" },
+  { href: "/portfolio-iq/team", label: "My Work", match: (path: string) => path.startsWith("/portfolio-iq/team") },
   { href: "/portfolio-iq", label: "My Portfolio", match: (path: string) => path === "/portfolio-iq" },
   { href: "/portfolio-iq/launch-briefing", label: "Launch Briefing", match: (path: string) => path.startsWith("/portfolio-iq/launch-briefing") },
   { href: "/portfolio-iq/changes", label: "Changes", match: (path: string) => path.startsWith("/portfolio-iq/changes") },

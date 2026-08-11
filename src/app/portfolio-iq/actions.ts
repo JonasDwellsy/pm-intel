@@ -101,19 +101,20 @@ export async function updatePortfolioSignalDecision(formData: FormData): Promise
         : "open";
   const snoozedUntil = action === "snooze" ? new Date(now.getTime() + 7 * 86_400_000) : null;
   const nextAssignedTo = action === "assign" ? assignedTo : signal.decision?.assignedTo ?? null;
+  const nextAssignedUserId = action === "assign" ? null : signal.decision?.assignedUserId ?? null;
   const nextNote = note ?? signal.decision?.note ?? null;
 
   await prisma.$transaction(async (tx) => {
     const decision = signal.decision
       ? await tx.portfolioIqSignalDecision.update({
           where: { id: signal.decision.id },
-          data: { state: toState, assignedTo: nextAssignedTo, note: nextNote, snoozedUntil, decidedBy: userId, decidedAt: now },
+          data: { state: toState, assignedTo: nextAssignedTo, assignedUserId: nextAssignedUserId, note: nextNote, snoozedUntil, decidedBy: userId, decidedAt: now },
         })
       : await tx.portfolioIqSignalDecision.create({
-          data: { signalId, organizationId: signal.portfolio.organizationId, state: toState, assignedTo: nextAssignedTo, note: nextNote, snoozedUntil, decidedBy: userId, decidedAt: now },
+          data: { signalId, organizationId: signal.portfolio.organizationId, state: toState, assignedTo: nextAssignedTo, assignedUserId: nextAssignedUserId, note: nextNote, snoozedUntil, decidedBy: userId, decidedAt: now },
         });
     await tx.portfolioIqSignalDecisionEvent.create({
-      data: { decisionId: decision.id, action, fromState, toState, assignedTo: nextAssignedTo, note, actorUserId: userId, createdAt: now },
+      data: { decisionId: decision.id, action, fromState, toState, assignedTo: nextAssignedTo, assignedUserId: nextAssignedUserId, note, actorUserId: userId, createdAt: now },
     });
   });
 
@@ -141,6 +142,7 @@ export async function savePortfolioDecisionCase(formData: FormData): Promise<voi
   if (!caseData) throw new Error("Decision case not found.");
   const now = new Date();
   const prior = caseData.signal.decision;
+  const assignedUserId = prior?.assignedTo === assignedTo ? prior.assignedUserId : null;
   const fromState = prior?.state ?? "open";
   const toState = fromState === "resolved" ? "resolved" : "acknowledged";
   const baseline = prior?.baselineEvidence ?? JSON.stringify(buildDecisionBaseline(caseData, now));
@@ -149,13 +151,13 @@ export async function savePortfolioDecisionCase(formData: FormData): Promise<voi
     const decision = prior
       ? await tx.portfolioIqSignalDecision.update({
           where: { id: prior.id },
-          data: { assignedTo, actionPlan, successMeasure, dueAt, monitoringWindowDays, baselineEvidence: baseline, baselineCapturedAt: prior.baselineCapturedAt ?? now, decidedBy: userId, decidedAt: now },
+          data: { assignedTo, assignedUserId, actionPlan, successMeasure, dueAt, monitoringWindowDays, baselineEvidence: baseline, baselineCapturedAt: prior.baselineCapturedAt ?? now, decidedBy: userId, decidedAt: now },
         })
       : await tx.portfolioIqSignalDecision.create({
-          data: { signalId, organizationId: caseData.portfolio.organizationId, state: toState, assignedTo, actionPlan, successMeasure, dueAt, monitoringWindowDays, baselineEvidence: baseline, baselineCapturedAt: now, decidedBy: userId, decidedAt: now },
+          data: { signalId, organizationId: caseData.portfolio.organizationId, state: toState, assignedTo, assignedUserId, actionPlan, successMeasure, dueAt, monitoringWindowDays, baselineEvidence: baseline, baselineCapturedAt: now, decidedBy: userId, decidedAt: now },
         });
     await tx.portfolioIqSignalDecisionEvent.create({
-      data: { decisionId: decision.id, action: prior?.actionPlan ? "update_plan" : "plan", fromState, toState, assignedTo, note: actionPlan, actorUserId: userId, createdAt: now },
+      data: { decisionId: decision.id, action: prior?.actionPlan ? "update_plan" : "plan", fromState, toState, assignedTo, assignedUserId, note: actionPlan, actorUserId: userId, createdAt: now },
     });
   });
   revalidatePath("/today");

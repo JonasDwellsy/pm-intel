@@ -1195,6 +1195,7 @@ model PortfolioIqSignalDecision {
   organizationId String
   state          String    @default("open") // open | acknowledged | snoozed | resolved
   assignedTo     String?
+  assignedUserId String?   // Clerk userId for an organization member; null for role or PM assignments
   note           String?
   actionPlan     String?
   successMeasure String?
@@ -1213,6 +1214,7 @@ model PortfolioIqSignalDecision {
   outcomeReviews PortfolioIqOutcomeReview[]
 
   @@index([organizationId, state, updatedAt(sort: Desc)])
+  @@index([organizationId, assignedUserId, state])
 }
 
 // A dated, owner-reviewed comparison between the immutable decision baseline
@@ -1251,6 +1253,7 @@ model PortfolioIqSignalDecisionEvent {
   fromState    String?
   toState      String
   assignedTo   String?
+  assignedUserId String?
   note         String?
   actorUserId  String
   createdAt    DateTime @default(now())
