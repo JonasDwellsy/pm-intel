@@ -7,7 +7,11 @@ export interface RoutedOwnerAttention extends OwnerWatchActivityEvent {
   eventCount: number;
   kinds: OwnerWatchActivityEvent["kind"][];
   events: Array<OwnerWatchActivityEvent & { isNew: boolean }>;
+  destination: OwnerAttentionDestination;
+  gateReason: string;
 }
+
+export type OwnerAttentionDestination = "today" | "watchlist" | "setup";
 
 function routeScore(event: OwnerWatchActivityEvent): number {
   const kindScore = { source: 130, outcome: 105, decision: 95, evidence: 70 }[event.kind];
@@ -38,6 +42,30 @@ function joinLabels(labels: string[]): string {
   return `${labels.slice(0, -1).join(", ")}, and ${labels.at(-1)}`;
 }
 
+function classifyFindingDestination(
+  events: Array<OwnerWatchActivityEvent & { isNew: boolean }>,
+  severity: string,
+): { destination: OwnerAttentionDestination; reason: string } {
+  const gates = events.flatMap((event) => event.evidenceGate ? [event.evidenceGate] : []);
+  if (gates.some((gate) => gate.category === "readiness" || gate.confidence === "setup")) {
+    return { destination: "setup", reason: "Activation or evidence-readiness work is incomplete." };
+  }
+  if (gates.some((gate) => ["unavailable", "unchanged"].includes(gate.sourceHealth ?? ""))) {
+    return { destination: "setup", reason: "The source has not advanced enough to support an owner conclusion." };
+  }
+  if (events.some((event) => event.kind === "source" && event.severity === "info")) {
+    return { destination: "setup", reason: "This is a source-health exception, not a performance conclusion." };
+  }
+  const confidence = gates.find((gate) => gate.confidence)?.confidence ?? "high";
+  if (severity === "high" && ["high", "medium"].includes(confidence)) {
+    return { destination: "today", reason: "Material evidence is sufficiently supported for owner review." };
+  }
+  if (severity === "medium" && confidence === "high") {
+    return { destination: "today", reason: "High-confidence evidence supports an owner decision." };
+  }
+  return { destination: "watchlist", reason: "The observation is worth monitoring but does not yet clear the owner-attention threshold." };
+}
+
 function groupFinding(events: Array<OwnerWatchActivityEvent & { isNew: boolean }>): RoutedOwnerAttention {
   const ordered = [...events].sort((left, right) => right.occurredAt.getTime() - left.occurredAt.getTime());
   const latest = ordered[0];
@@ -48,6 +76,7 @@ function groupFinding(events: Array<OwnerWatchActivityEvent & { isNew: boolean }
   const objects = [...new Map(ordered.flatMap((event) => event.objects).map((object) => [`${object.objectType}:${object.objectKey}`, object])).values()];
   const groupScore = Math.max(...ordered.map(routeScore));
   const key = findingKey(latest);
+  const gate = classifyFindingDestination(ordered, severity);
 
   return {
     ...canonical,
@@ -65,6 +94,8 @@ function groupFinding(events: Array<OwnerWatchActivityEvent & { isNew: boolean }
     eventCount: ordered.length,
     kinds,
     events: ordered,
+    destination: gate.destination,
+    gateReason: gate.reason,
   };
 }
 
@@ -72,11 +103,15 @@ export function routeOwnerAttention(input: {
   events: Array<OwnerWatchActivityEvent & { isNew: boolean }>;
   limit?: number;
   since?: Date | null;
-}): { routed: RoutedOwnerAttention[]; eligibleUnreadCount: number } {
+}): {
+  routed: RoutedOwnerAttention[];
+  eligibleUnreadCount: number;
+  totalUnreadFindingCount: number;
+  destinations: Record<OwnerAttentionDestination, RoutedOwnerAttention[]>;
+} {
   const eligible = input.events.filter((event) =>
     event.isNew &&
-    (!input.since || event.occurredAt > input.since) &&
-    (event.kind !== "evidence" || event.severity !== "info")
+    (!input.since || event.occurredAt > input.since)
   );
   const grouped = new Map<string, Array<OwnerWatchActivityEvent & { isNew: boolean }>>();
   for (const event of eligible) {
@@ -84,8 +119,18 @@ export function routeOwnerAttention(input: {
     grouped.set(key, [...(grouped.get(key) ?? []), event]);
   }
   const findings = [...grouped.values()].map(groupFinding);
-  const routed = findings
-    .sort((left, right) => right.routeScore - left.routeScore || right.occurredAt.getTime() - left.occurredAt.getTime())
-    .slice(0, input.limit ?? 5);
-  return { routed, eligibleUnreadCount: findings.length };
+  const sorted = findings
+    .sort((left, right) => right.routeScore - left.routeScore || right.occurredAt.getTime() - left.occurredAt.getTime());
+  const destinations = {
+    today: sorted.filter((finding) => finding.destination === "today"),
+    watchlist: sorted.filter((finding) => finding.destination === "watchlist"),
+    setup: sorted.filter((finding) => finding.destination === "setup"),
+  };
+  const routed = destinations.today.slice(0, input.limit ?? 5);
+  return {
+    routed,
+    eligibleUnreadCount: destinations.today.length,
+    totalUnreadFindingCount: findings.length,
+    destinations,
+  };
 }

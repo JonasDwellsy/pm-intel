@@ -249,7 +249,7 @@ test("Portfolio Watch market alerts require a bedroom observed at the subject", 
   assert.match(source, /observations\.some\(\(row\) => row\.bedrooms === alert\.bedrooms\)/);
 });
 
-test("Today ranks one issue per asset and keeps readiness from crowding out decisions", () => {
+test("Today ranks one decision-ready issue per asset and routes readiness elsewhere", () => {
   const candidates = [
     { id: "a-performance", assetId: "a", category: "performance", severity: "high", rankScore: 96, evidence: "{}" },
     { id: "a-market", assetId: "a", category: "market", severity: "high", rankScore: 92, evidence: "{}" },
@@ -258,7 +258,17 @@ test("Today ranks one issue per asset and keeps readiness from crowding out deci
     { id: "d-ready", assetId: "d", category: "readiness", severity: "info", rankScore: 79, evidence: "{}" },
     { id: "e-market", assetId: "e", category: "market", severity: "medium", rankScore: 70, evidence: "{}" },
   ];
-  assert.deepEqual(selectTodaySignals(candidates, 4).map((signal) => signal.id), ["a-performance", "b-market", "c-ready", "e-market"]);
+  assert.deepEqual(selectTodaySignals(candidates, 4).map((signal) => signal.id), ["a-performance", "b-market", "e-market"]);
+});
+
+test("Today withholds developing evidence until it clears the confidence gate", () => {
+  const candidates = [
+    { id: "high-medium", assetId: "a", category: "performance", severity: "high", confidence: "medium", rankScore: 95, evidence: "{}" },
+    { id: "medium-high", assetId: "b", category: "market", severity: "medium", confidence: "high", rankScore: 90, evidence: "{}" },
+    { id: "medium-medium", assetId: "c", category: "performance", severity: "medium", confidence: "medium", rankScore: 85, evidence: "{}" },
+    { id: "setup", assetId: "d", category: "readiness", severity: "high", confidence: "setup", rankScore: 100, evidence: "{}" },
+  ];
+  assert.deepEqual(selectTodaySignals(candidates, 5).map((signal) => signal.id), ["high-medium", "medium-high"]);
 });
 
 test("Today treats one portfolio exposure insight as occupying every affected asset", () => {

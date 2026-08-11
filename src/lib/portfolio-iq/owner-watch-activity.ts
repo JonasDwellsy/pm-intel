@@ -13,6 +13,11 @@ export interface OwnerWatchActivityEvent {
   severity: string;
   occurredAt: Date;
   objects: OwnerWatchObjectRef[];
+  evidenceGate?: {
+    category?: string;
+    confidence?: string;
+    sourceHealth?: string;
+  };
 }
 
 export interface OwnerWatchReviewWatermark {

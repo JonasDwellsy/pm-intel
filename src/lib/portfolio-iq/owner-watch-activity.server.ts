@@ -65,6 +65,7 @@ export async function loadOwnerWatchActivity(input: { organizationId: string; us
       id: `evidence:${signal.id}:${signal.firstSeenAt.toISOString()}`, kind: "evidence", headline: signal.headline,
       detail: signal.narrative, href: `/today/cases/${signal.id}`, severity: signal.severity, occurredAt: signal.firstSeenAt,
       objects: refsForAssetIds(assetIds, signal.id),
+      evidenceGate: { category: signal.category, confidence: signal.confidence },
     });
   }
   for (const event of decisionEvents) {
@@ -75,6 +76,7 @@ export async function loadOwnerWatchActivity(input: { organizationId: string; us
       detail: `${signal.headline}${event.assignedTo ? ` · ${event.assignedTo}` : ""}${event.note ? ` · ${event.note}` : ""}`,
       href: `/today/cases/${signal.id}`, severity: signal.severity, occurredAt: event.createdAt,
       objects: refsForAssetIds(assetIds, signal.id),
+      evidenceGate: { category: signal.category, confidence: signal.confidence },
     });
   }
   for (const outcome of outcomes) {
@@ -86,6 +88,7 @@ export async function loadOwnerWatchActivity(input: { organizationId: string; us
       detail: `${signal.headline} · Source health: ${outcome.sourceHealth}`,
       href: "/portfolio-iq/outcomes", severity: outcome.conclusion === "worsened" ? "high" : "medium", occurredAt: outcome.reviewedAt ?? outcome.generatedAt,
       objects: refsForAssetIds(assetIds, signal.id),
+      evidenceGate: { category: signal.category, confidence: signal.confidence, sourceHealth: outcome.sourceHealth },
     });
   }
   for (const run of monitoringRuns) {
@@ -96,6 +99,7 @@ export async function loadOwnerWatchActivity(input: { organizationId: string; us
       detail: run.sourceHealth === "unavailable" ? "No listing records were substituted or fabricated. Existing evidence remains unchanged." : `${run.alertsActivated} alerts activated and ${run.alertsResolved} resolved in this observation period.`,
       href: "/portfolio-iq/changes", severity: run.sourceHealth === "unavailable" ? "info" : "high", occurredAt: run.completedAt ?? run.startedAt,
       objects: [{ objectType: "watchlist", objectKey: "all", label: "Owner Watchlist" }],
+      evidenceGate: { category: run.sourceHealth === "unavailable" ? "readiness" : "performance", confidence: run.sourceHealth === "unavailable" ? "setup" : "high", sourceHealth: run.sourceHealth },
     });
   }
   const activity = buildOwnerWatchActivity({ events, pinnedObjects: pins, reviews });

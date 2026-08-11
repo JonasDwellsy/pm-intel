@@ -8,17 +8,18 @@ const event = (overrides: Partial<OwnerWatchActivityEvent & { isNew: boolean }>)
   severity: "medium", occurredAt: new Date("2026-08-11T12:00:00Z"), objects: [], isNew: true, ...overrides,
 });
 
-test("routing favors source exceptions, outcomes, and decisions over ordinary evidence", () => {
+test("routing favors outcomes and decisions while source exceptions go to setup", () => {
   const result = routeOwnerAttention({ events: [
     event({ id: "evidence" }),
     event({ id: "decision", kind: "decision" }),
     event({ id: "outcome", kind: "outcome" }),
     event({ id: "source", kind: "source", severity: "info" }),
   ] });
-  assert.deepEqual(result.routed.map((item) => item.id), ["source", "outcome", "decision", "evidence"]);
+  assert.deepEqual(result.routed.map((item) => item.id), ["outcome", "decision", "evidence"]);
+  assert.deepEqual(result.destinations.setup.map((item) => item.id), ["source"]);
 });
 
-test("routing excludes reviewed and informational setup evidence", () => {
+test("routing excludes reviewed evidence and holds informational evidence on the watchlist", () => {
   const result = routeOwnerAttention({ events: [
     event({ id: "reviewed", isNew: false, severity: "high" }),
     event({ id: "setup", severity: "info" }),
@@ -26,6 +27,7 @@ test("routing excludes reviewed and informational setup evidence", () => {
   ] });
   assert.deepEqual(result.routed.map((item) => item.id), ["material"]);
   assert.equal(result.eligibleUnreadCount, 1);
+  assert.deepEqual(result.destinations.watchlist.map((item) => item.id), ["setup"]);
 });
 
 test("briefing cutoff stays separate from in-app review state", () => {
@@ -62,4 +64,17 @@ test("unrelated decisions remain separate findings even when they share a proper
 
   assert.equal(result.eligibleUnreadCount, 2);
   assert.equal(result.routed.length, 2);
+});
+
+test("evidence gates route setup, developing, and decision-ready findings separately", () => {
+  const result = routeOwnerAttention({ events: [
+    event({ id: "ready", severity: "medium", evidenceGate: { category: "market", confidence: "high" } }),
+    event({ id: "developing", severity: "medium", evidenceGate: { category: "performance", confidence: "medium" } }),
+    event({ id: "activation", severity: "high", evidenceGate: { category: "readiness", confidence: "setup" } }),
+  ] });
+
+  assert.deepEqual(result.destinations.today.map((item) => item.id), ["ready"]);
+  assert.deepEqual(result.destinations.watchlist.map((item) => item.id), ["developing"]);
+  assert.deepEqual(result.destinations.setup.map((item) => item.id), ["activation"]);
+  assert.equal(result.totalUnreadFindingCount, 3);
 });

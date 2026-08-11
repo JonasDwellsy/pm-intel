@@ -3,9 +3,20 @@ export interface TodaySignalCandidate {
   assetId: string | null;
   category: string;
   severity: string;
+  confidence?: string;
   rankScore: number;
   evidence: string;
   exposures?: Array<{ assetId: string }>;
+}
+
+export type EvidenceDestination = "today" | "watchlist" | "setup";
+
+export function classifySignalEvidenceDestination(signal: TodaySignalCandidate): EvidenceDestination {
+  if (signal.category === "readiness" || signal.confidence === "setup") return "setup";
+  const confidence = signal.confidence ?? "high";
+  if (signal.severity === "high" && ["high", "medium"].includes(confidence)) return "today";
+  if (signal.severity === "medium" && confidence === "high") return "today";
+  return "watchlist";
 }
 
 export interface TodaySignalEvidence {
@@ -30,22 +41,21 @@ export function parseTodaySignalEvidence(value: string): TodaySignalEvidence {
 /**
  * Build an owner attention queue rather than reproducing a raw signal table.
  * One issue per asset prevents a single property from crowding out the rest of
- * the portfolio, while readiness is capped so evidence-backed decisions lead.
+ * the portfolio. Setup work and developing evidence remain available in their
+ * dedicated destinations rather than competing for owner attention.
  */
 export function selectTodaySignals<T extends TodaySignalCandidate>(signals: T[], limit = 5): T[] {
   const selected: T[] = [];
   const seenAssets = new Set<string>();
-  let readinessCount = 0;
 
   for (const signal of [...signals].sort((left, right) => right.rankScore - left.rankScore)) {
     if (selected.length >= limit) break;
+    if (classifySignalEvidenceDestination(signal) !== "today") continue;
     const exposureAssetIds = signal.exposures?.map((exposure) => exposure.assetId) ?? [];
     const assetKeys = exposureAssetIds.length ? exposureAssetIds : [signal.assetId ?? `signal:${signal.id}`];
     if (assetKeys.some((assetKey) => seenAssets.has(assetKey))) continue;
-    if (signal.category === "readiness" && readinessCount >= 1) continue;
     selected.push(signal);
     for (const assetKey of assetKeys) seenAssets.add(assetKey);
-    if (signal.category === "readiness") readinessCount += 1;
   }
 
   return selected;
