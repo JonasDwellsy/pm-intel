@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const workspaceItems = [
   { href: "/today", label: "Today", match: (path: string) => path === "/today" },
@@ -22,6 +23,16 @@ const workspaceItems = [
 
 export function DwellsyIqWorkspaceNav() {
   const pathname = usePathname() ?? "";
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/portfolio-iq/watch-activity/count", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<{ count?: number }> : { count: 0 })
+      .then((result) => { if (active) setUnreadCount(Math.max(0, result.count ?? 0)); })
+      .catch(() => { if (active) setUnreadCount(0); });
+    return () => { active = false; };
+  }, []);
 
   return (
     <nav aria-label="Dwellsy IQ Online workspace" className="mb-8 border-b border-grid pb-4">
@@ -44,6 +55,7 @@ export function DwellsyIqWorkspaceNav() {
                     : "rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-soft hover:text-navy"}
                 >
                   {item.label}
+                  {item.label === "Today" && unreadCount > 0 && <span className="ml-1.5 rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{unreadCount > 99 ? "99+" : unreadCount}</span>}
                 </Link>
               );
             })}

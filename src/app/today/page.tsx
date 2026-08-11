@@ -10,6 +10,8 @@ import { portfolioIqPreviewEnabled } from "@/lib/portfolio-iq/feature";
 import { loadOwnerToday } from "@/lib/portfolio-iq/today.server";
 import { parseTodaySignalEvidence } from "@/lib/portfolio-iq/today";
 import { updatePortfolioDigestPreference, updatePortfolioSignalDecision } from "@/app/portfolio-iq/actions";
+import { loadOwnerWatchActivity } from "@/lib/portfolio-iq/owner-watch-activity.server";
+import { routeOwnerAttention } from "@/lib/portfolio-iq/owner-attention-routing";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +57,10 @@ export default async function TodayPage() {
   if (!userId) notFound();
   if (!organizationId) redirect("/setup-workspace");
 
-  const today = await loadOwnerToday({ userId, organizationId });
+  const [today, watchActivity] = await Promise.all([
+    loadOwnerToday({ userId, organizationId }),
+    loadOwnerWatchActivity({ userId, organizationId }),
+  ]);
   if (!today) notFound();
   const entitlement = await resolveViewerEntitlement();
   if (!isMarketEntitled(entitlement, today.portfolio.marketId)) notFound();
@@ -63,8 +68,8 @@ export default async function TodayPage() {
   const highPriorityCount = today.todaySignals.filter((signal) => signal.severity === "high").length;
   const affectedAssets = new Set(today.todaySignals.flatMap((signal) => signal.exposures.length ? signal.exposures.map((exposure) => exposure.assetId) : signal.assetId ? [signal.assetId] : [])).size;
   const assignedCount = today.todaySignals.filter((signal) => Boolean(signal.decision?.assignedTo)).length;
-  const newCount = today.todaySignals.filter((signal) => !today.digestPreference?.lastSignalAt || signal.firstSeenAt > today.digestPreference.lastSignalAt).length;
   const readyAssets = today.portfolio.assets.filter((asset) => ["ready", "monitoring"].includes(asset.readinessStatus)).length;
+  const routedActivity = watchActivity ? routeOwnerAttention({ events: watchActivity.activity.events, limit: 5 }) : { routed: [], eligibleUnreadCount: 0 };
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -90,11 +95,13 @@ export default async function TodayPage() {
         </aside>
       </header>
 
+      {routedActivity.routed.length > 0 && <section className="mt-7 rounded-xl border border-teal/30 bg-teal-soft p-5 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="dq-eyebrow">Since your last review</p><h2 className="dq-h2">New watched changes</h2><p className="mt-2 text-sm leading-6 text-foreground/70">The most decision-relevant unread activity, routed from the same ledger used by Watchlists and Owner Briefings.</p></div><Link href="/portfolio-iq/watchlists/activity" className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">Review all {routedActivity.eligibleUnreadCount}</Link></div><div className="mt-5 grid gap-3 lg:grid-cols-2">{routedActivity.routed.map((event) => <Link key={event.id} href={event.href} className="rounded-lg border border-grid bg-white p-4 transition-colors hover:border-teal/40"><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-teal-700"><span>{event.kind}</span><span className="text-muted-foreground">{event.severity}</span></div><h3 className="mt-2 font-semibold leading-6 text-navy">{event.headline}</h3><p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{event.detail}</p></Link>)}</div></section>}
+
       <section aria-label="Today summary" className="mt-7 overflow-hidden rounded-xl border border-grid bg-white shadow-sm">
         <div className="grid sm:grid-cols-2 lg:grid-cols-4">
           {[
             ["Needs attention", String(highPriorityCount), "High-priority evidence"],
-            ["New since briefing", String(newCount), "Changes not in the prior digest"],
+            ["New watched changes", String(routedActivity.eligibleUnreadCount), "Material unread activity"],
             ["Assets exposed", String(affectedAssets), `of ${today.portfolio.assets.length} in the portfolio`],
             ["Monitoring now", `${readyAssets}/${today.portfolio.assets.length}`, "Remaining assets are activating"],
           ].map(([label, value, detail]) => (

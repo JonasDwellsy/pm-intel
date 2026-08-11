@@ -4,12 +4,15 @@ import { loadOwnerToday } from "@/lib/portfolio-iq/today.server";
 import { loadPortfolioIqCollaboration } from "@/lib/portfolio-iq/collaboration.server";
 import { loadPortfolioIqOutcomes } from "@/lib/portfolio-iq/outcome-review.server";
 import { buildOwnerBriefingSnapshot } from "@/lib/portfolio-iq/owner-briefing";
+import { loadOwnerWatchActivity } from "@/lib/portfolio-iq/owner-watch-activity.server";
+import { routeOwnerAttention } from "@/lib/portfolio-iq/owner-attention-routing";
 
 export async function loadOwnerBriefing(input: { organizationId: string; userId: string; portfolioId?: string; now?: Date }) {
-  const [today, collaboration, outcomes] = await Promise.all([
+  const [today, collaboration, outcomes, watchActivity] = await Promise.all([
     loadOwnerToday(input),
     loadPortfolioIqCollaboration(input),
     loadPortfolioIqOutcomes(input),
+    loadOwnerWatchActivity(input),
   ]);
   if (!today || !collaboration || !outcomes) return null;
   const now = input.now ?? new Date();
@@ -58,5 +61,10 @@ export async function loadOwnerBriefing(input: { organizationId: string; userId:
     sources,
   });
   const deliveries = today.digestPreference ? await prisma.portfolioIqDigestDelivery.findMany({ where: { preferenceId: today.digestPreference.id }, orderBy: { createdAt: "desc" }, take: 8 }) : [];
-  return { snapshot, digestPreference: today.digestPreference, deliveries };
+  const briefingChanges = watchActivity ? routeOwnerAttention({
+    events: watchActivity.activity.events.map((event) => ({ ...event, isNew: true })),
+    since: today.digestPreference?.lastDeliveredAt ?? null,
+    limit: 5,
+  }).routed : [];
+  return { snapshot, digestPreference: today.digestPreference, deliveries, briefingChanges };
 }

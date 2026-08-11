@@ -62,6 +62,7 @@ export async function runPortfolioIqDigests(input: { dryRun?: boolean; baseUrl?:
       snapshot,
       recipientName: user.firstName,
       reportUrl: `${baseUrl}/portfolio-iq/reports`,
+      recentActivity: briefing.briefingChanges,
     });
     if (input.dryRun) { sent++; continue; }
 

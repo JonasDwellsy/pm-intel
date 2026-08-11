@@ -28,6 +28,7 @@ export async function deliverOwnerBriefingPreview(input: {
     recipientName: input.recipientName,
     reportUrl: `${input.baseUrl}/portfolio-iq/reports`,
     preview: true,
+    recentActivity: briefing.briefingChanges,
   });
   const delivery = await prisma.portfolioIqDigestDelivery.create({
     data: {
