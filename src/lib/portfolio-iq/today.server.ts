@@ -6,6 +6,7 @@ import { loadPortfolioIqProperty } from "@/lib/portfolio-iq/property.server";
 import { loadPortfolioDecisionHistory, loadPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
 import { selectTodaySignals } from "@/lib/portfolio-iq/today";
 import { loadDwellsyIqInsights } from "@/lib/dwellsy-iq/insights.server";
+import { loadOperatorResponseContexts } from "@/lib/dwellsy-iq/operator-response.server";
 
 export async function loadOwnerToday(input: { organizationId: string; userId: string }) {
   const portfolio = await loadPortfolioIqHome(input);
@@ -35,6 +36,10 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
   const uniqueSlugs = [...new Set(todaySignals.flatMap((signal) => signal.asset?.slug ? [signal.asset.slug] : []))];
   const propertyResults = await Promise.all(uniqueSlugs.map((slug) => loadPortfolioIqProperty({ ...input, slug })));
   const properties = new Map(propertyResults.flatMap((property) => property ? [[property.asset.slug, property] as const] : []));
+  const operatorResponses = await loadOperatorResponseContexts({
+    marketId: portfolio.marketId,
+    assets: portfolio.assets,
+  });
 
-  return { portfolio, signals, todaySignals, digestPreference, decisionHistory, trendPulses, properties };
+  return { portfolio, signals, todaySignals, digestPreference, decisionHistory, trendPulses, properties, operatorResponses };
 }

@@ -136,6 +136,7 @@ export default async function TodayPage() {
             const compCount = segment?.compPropertyCount ?? property?.compSet?.members.length ?? 0;
             const compStatus = segment ? segment.evidenceStatus : property?.compSet?.status ?? "not started";
             const connectedSourceCount = evidenceSourceCount(signal.evidenceSources);
+            const operatorResponse = signal.assetId ? today.operatorResponses.get(signal.assetId) ?? null : null;
 
             return (
               <article key={signal.id} className={`overflow-hidden rounded-xl border ${severityStyle(signal.severity)}`}>
@@ -219,12 +220,33 @@ export default async function TodayPage() {
                     <section className="bg-white p-5">
                       <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Operator response</p>
                       <h4 className="mt-2 font-semibold text-navy">{property?.asset.observedOperatorName ?? "Operator being confirmed"}</h4>
-                      <p className="mt-2 text-sm leading-6 text-foreground/75">
-                        {property?.asset.observedOperatorName
-                          ? "This assignment is observed from listing activity, not presented as a verified management contract. Live pricing and listing-response tracking will appear here when the listing feed is available."
-                          : "Dwellsy is resolving the observed operator before adding execution context."}
-                      </p>
-                      <Link href="/property-managers" className="mt-3 inline-flex text-xs font-semibold text-teal-700 hover:underline">Open Operator IQ →</Link>
+                      {operatorResponse?.status === "matched" ? (
+                        <>
+                          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Operator IQ benchmark</p>
+                          <dl className="mt-3 space-y-2 text-sm">
+                            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Market rank</dt><dd className="font-semibold text-navy">#{operatorResponse.overallRank ?? "–"} of {operatorResponse.overallRankTotal ?? "–"}</dd></div>
+                            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Lease-up speed</dt><dd className="font-semibold text-navy">{days(operatorResponse.leaseUpDom)}</dd></div>
+                            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Cohort recognition</dt><dd className="font-semibold text-navy">{operatorResponse.goldCount} gold · {operatorResponse.silverCount} silver</dd></div>
+                            <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Observed listings · T12</dt><dd className="font-semibold text-navy">{operatorResponse.t12Listings?.toLocaleString("en-US") ?? "–"}</dd></div>
+                          </dl>
+                          <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
+                            Observed assignment, not a verified management contract. Benchmark through {operatorResponse.dataAsOf ? new Date(operatorResponse.dataAsOf).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "the latest Operator IQ cutoff"}. Live response tracking remains paused until the listing feed is available.
+                          </p>
+                          <Link href={operatorResponse.scorecardHref ?? "/property-managers"} className="mt-3 inline-flex text-xs font-semibold text-teal-700 hover:underline">Open full Operator IQ scorecard →</Link>
+                        </>
+                      ) : (
+                        <>
+                          <p className="mt-2 text-sm leading-6 text-foreground/75">
+                            {property?.asset.observedOperatorName
+                              ? operatorResponse?.status === "ambiguous"
+                                ? "More than one Operator IQ identity matches this observed name. Dwellsy is holding the connection for review instead of choosing one."
+                                : "This observed assignment has not been matched exactly to an Operator IQ identity. No operator benchmark is substituted."
+                              : "Dwellsy is resolving the observed operator before adding execution context."}
+                          </p>
+                          <p className="mt-3 text-[11px] leading-5 text-muted-foreground">Live pricing and listing-response tracking remains paused until the listing feed is available.</p>
+                          <Link href="/property-managers" className="mt-3 inline-flex text-xs font-semibold text-teal-700 hover:underline">Search Operator IQ →</Link>
+                        </>
+                      )}
                     </section>
                   </div>
                 </details>
