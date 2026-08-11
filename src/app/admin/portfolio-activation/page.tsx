@@ -7,6 +7,7 @@ import {
   updatePilotCorrection,
   updateAssetReadiness,
   updateOnboardingRequestStatus,
+  startMarketIqTrendRefresh,
 } from "./actions";
 import { prisma } from "@/lib/prisma";
 import { buildPilotLaunchAssetReadiness } from "@/lib/portfolio-iq/launch-console";
@@ -70,7 +71,7 @@ function easternDateTimeInput(value: Date | null): string {
 }
 
 export default async function PortfolioActivationPage() {
-  const [organizations, portfolios, onboardingRequests, dataImports] = await Promise.all([
+  const [organizations, portfolios, onboardingRequests, dataImports, sourceRefreshes] = await Promise.all([
     prisma.organization.findMany({
       select: { id: true, name: true, personalForUserId: true },
       orderBy: [{ personalForUserId: "asc" }, { name: "asc" }],
@@ -105,9 +106,16 @@ export default async function PortfolioActivationPage() {
       orderBy: { importedAt: "desc" },
       select: { marketId: true, availableThrough: true, sourceName: true, recordCount: true },
     }),
+    prisma.marketIqSourceRefresh.findMany({
+      include: { items: { orderBy: [{ geographyType: "asc" }, { geographyValue: "asc" }] } },
+      orderBy: { startedAt: "desc" },
+      take: 20,
+    }),
   ]);
   const sourceByMarket = new Map<string, (typeof dataImports)[number]>();
   for (const source of dataImports) if (!sourceByMarket.has(source.marketId)) sourceByMarket.set(source.marketId, source);
+  const refreshByMarket = new Map<string, (typeof sourceRefreshes)[number]>();
+  for (const refresh of sourceRefreshes) if (!refreshByMarket.has(refresh.marketId)) refreshByMarket.set(refresh.marketId, refresh);
 
   return (
     <div className="mx-auto max-w-[1100px] px-6 pb-16">
@@ -153,6 +161,46 @@ export default async function PortfolioActivationPage() {
         </form>
       </header>
 
+      <section className="mt-8 rounded-xl border border-grid bg-white p-6">
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-700">Data truth control</p>
+            <h2 className="mt-2 text-2xl font-bold text-navy">Trend refresh audit</h2>
+            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-grey-600">
+              A refresh is a validated delivery contract for every portfolio city, ZIP, and product segment. While the source MCP is unavailable, the queue remains visibly blocked and no current-market finding is regenerated from substitute data.
+            </p>
+          </div>
+          <form action={startMarketIqTrendRefresh}>
+            <input type="hidden" name="marketId" value="cleveland-elyria-mentor-oh" />
+            <button className="rounded-md bg-navy px-4 py-2 text-[12px] font-semibold text-white">Prepare Cleveland refresh</button>
+          </form>
+        </div>
+        {sourceRefreshes.length === 0 ? (
+          <div className="mt-5 rounded-lg border border-dashed border-grid bg-surface-soft p-5 text-[13px] text-grey-600">
+            No trend refresh has been prepared. Starting one creates the manifest only. It does not fabricate records or mark the source healthy.
+          </div>
+        ) : (
+          <div className="mt-5 space-y-4">
+            {sourceRefreshes.slice(0, 3).map((refresh) => {
+              const missing = refresh.items.filter((item) => item.status !== "complete");
+              return <article key={refresh.id} className="rounded-lg border border-grid bg-surface-soft p-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div><p className="font-semibold text-navy">{refresh.marketId}</p><p className="mt-1 text-[11px] text-grey-500">Started {refresh.startedAt.toLocaleString("en-US", { timeZone: "America/New_York" })} ET · {refresh.triggerKind}</p><p className="mt-1 font-mono text-[10px] text-grey-500">Refresh ID: {refresh.id}</p></div>
+                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${badgeClass(refresh.status)}`}>{refresh.status.replaceAll("_", " ")}</span>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                  <div><p className="text-[10px] font-bold uppercase tracking-wider text-grey-500">Coverage</p><p className="mt-1 font-semibold text-navy">{refresh.receivedGeographies}/{refresh.requiredGeographies} geographies</p></div>
+                  <div><p className="text-[10px] font-bold uppercase tracking-wider text-grey-500">Records</p><p className="mt-1 font-semibold text-navy">{refresh.recordCount.toLocaleString("en-US")}</p></div>
+                  <div><p className="text-[10px] font-bold uppercase tracking-wider text-grey-500">Source through</p><p className="mt-1 font-semibold text-navy">{refresh.sourceAvailableThrough?.toLocaleDateString("en-US", { timeZone: "UTC" }) ?? "Not received"}</p></div>
+                  <div><p className="text-[10px] font-bold uppercase tracking-wider text-grey-500">Blocked or incomplete</p><p className="mt-1 font-semibold text-navy">{missing.length}</p></div>
+                </div>
+                <details className="mt-4 text-[12px]"><summary className="cursor-pointer font-semibold text-teal-700">Review geography manifest</summary><div className="mt-3 overflow-x-auto rounded-md border border-grid bg-white"><table className="w-full min-w-[720px] text-left"><thead className="bg-surface-soft text-[9px] uppercase tracking-wider text-grey-500"><tr><th className="px-3 py-2">Geography</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Required segments</th><th className="px-3 py-2">Reportable</th><th className="px-3 py-2">Source through</th></tr></thead><tbody>{refresh.items.map((item) => <tr key={item.id} className="border-t border-grid"><td className="px-3 py-2 font-semibold text-navy">{item.geographyType.toUpperCase()} · {item.geographyValue}</td><td className="px-3 py-2 capitalize text-grey-600">{item.status.replaceAll("_", " ")}</td><td className="px-3 py-2 text-grey-600">{(JSON.parse(item.requiredSegments) as Array<{propertyType: string; bedrooms: number}>).map((segment) => `${segment.propertyType} ${segment.bedrooms}BR`).join(", ")}</td><td className="px-3 py-2 text-grey-600">{item.reportableSegments}</td><td className="px-3 py-2 text-grey-600">{item.sourceAvailableThrough?.toLocaleDateString("en-US", { timeZone: "UTC" }) ?? "Pending"}</td></tr>)}</tbody></table></div></details>
+              </article>;
+            })}
+          </div>
+        )}
+      </section>
+
       {onboardingRequests.length > 0 && (
         <section className="mt-8 rounded-xl border border-teal/25 bg-teal-soft p-6">
           <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-700">Concierge intake</p><h2 className="text-2xl font-bold text-navy">Customer onboarding requests</h2></div><p className="text-[12px] text-grey-600">Schedule the call, then move the request into activation.</p></div>
@@ -193,6 +241,7 @@ export default async function PortfolioActivationPage() {
           const sfrCount = portfolio.assets.length - mfCount;
           const lockedCompCount = portfolio.assets.filter((asset) => asset.compSet?.status === "locked").length;
           const source = sourceByMarket.get(portfolio.marketId) ?? null;
+          const trendRefresh = refreshByMarket.get(portfolio.marketId) ?? null;
           const assetReadiness = new Map(portfolio.assets.map((asset) => [asset.id, buildPilotLaunchAssetReadiness({
             id: asset.id,
             matchStatus: asset.matchStatus,
@@ -267,6 +316,8 @@ export default async function PortfolioActivationPage() {
                 <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 border-t border-white/15 pt-4 text-xs text-white/70">
                   <span>Historical source: <strong className="text-white">{source?.availableThrough?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) ?? "Unavailable"}</strong></span>
                   <span>Records: <strong className="text-white">{source?.recordCount.toLocaleString("en-US") ?? "0"}</strong></span>
+                  <span>Trend refresh: <strong className="capitalize text-white">{trendRefresh?.status.replaceAll("_", " ") ?? "not prepared"}</strong></span>
+                  <span>Trend coverage: <strong className="text-white">{trendRefresh ? `${trendRefresh.receivedGeographies}/${trendRefresh.requiredGeographies}` : "0/0"}</strong></span>
                   <span>Live monitoring: <strong className="capitalize text-white">{latestMonitoring?.sourceHealth ?? "not run"}</strong></span>
                   <span>Last run: <strong className="text-white">{latestMonitoring?.completedAt?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) ?? "Not available"}</strong></span>
                 </div>

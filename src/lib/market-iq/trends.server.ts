@@ -2,6 +2,7 @@ import "server-only";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { prisma } from "@/lib/prisma";
 import { buildMarketIqTrendPulse, type MarketIqTrendPulse } from "@/lib/market-iq/trends";
+import { trendSnapshotFreshness } from "@/lib/market-iq/source-refresh";
 
 function displayLabel(type: string, value: string) {
   if (type === "msa") return "Cleveland–Elyria, OH";
@@ -18,6 +19,7 @@ export async function loadClevelandTrendPulses() {
   const seen = new Set<string>();
   const pulses: MarketIqTrendPulse[] = [];
   for (const dataImport of imports) {
+    if (trendSnapshotFreshness(dataImport.availableThrough) !== "fresh") continue;
     const first = dataImport.trendObservations[0];
     if (!first) continue;
     const key = `${first.geographyType}:${first.geographyValue}`;

@@ -576,6 +576,57 @@ model MarketIqDataImport {
   @@index([marketId, importedAt(sort: Desc)])
 }
 
+// One requested source cycle. The application can create and audit this
+// manifest even while an upstream MCP is unavailable. Findings refresh only
+// after every requested geography has reported complete, fresh coverage, so a
+// missing or sparse payload cannot look like a quiet market.
+model MarketIqSourceRefresh {
+  id                     String    @id @default(cuid())
+  marketId               String
+  sourceKind             String    @default("trends")
+  triggerKind            String    @default("manual") // manual | scheduled | mcp
+  status                 String    @default("awaiting_source") // awaiting_source | receiving | complete | complete_with_gaps | blocked
+  requiredManifest       String
+  sourceAvailableThrough DateTime?
+  receivedGeographies    Int       @default(0)
+  requiredGeographies    Int
+  recordCount            Int       @default(0)
+  error                  String?
+  startedBy              String?
+  startedAt              DateTime  @default(now())
+  completedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  items MarketIqSourceRefreshItem[]
+
+  @@index([marketId, startedAt(sort: Desc)])
+  @@index([status, startedAt(sort: Desc)])
+}
+
+model MarketIqSourceRefreshItem {
+  id                     String    @id @default(cuid())
+  refreshId              String
+  geographyType          String
+  geographyValue         String
+  requiredSegments       String
+  status                 String    @default("awaiting_source") // awaiting_source | complete | sparse | stale | invalid
+  importId               String?
+  sourceAvailableThrough DateTime?
+  recordCount            Int       @default(0)
+  reportableSegments     Int       @default(0)
+  validation             String    @default("{}")
+  receivedAt             DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  refresh MarketIqSourceRefresh @relation(fields: [refreshId], references: [id], onDelete: Cascade)
+
+  @@unique([refreshId, geographyType, geographyValue])
+  @@index([refreshId, status])
+  @@index([geographyType, geographyValue, receivedAt(sort: Desc)])
+}
+
 // Normalized Dwellsy IQ rent-trend point. These observations come from the
 // authoritative rent-trends product, never from the historical listing export.
 // Geography is explicit so the same model supports MSA, city, and ZIP views.

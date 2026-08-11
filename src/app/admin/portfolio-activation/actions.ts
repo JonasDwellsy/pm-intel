@@ -16,11 +16,27 @@ import {
   normalizeOnboardingAssetType,
   onboardingAssetSlug,
 } from "@/lib/portfolio-iq/onboarding";
+import { createMarketIqSourceRefresh } from "@/lib/market-iq/source-refresh.server";
 
 async function requireAdmin(): Promise<string> {
   const { userId } = await auth();
   if (!userId || !isAdminUser(userId)) throw new Error("Not found.");
   return userId;
+}
+
+export async function startMarketIqTrendRefresh(formData: FormData): Promise<void> {
+  const userId = await requireAdmin();
+  const marketId = String(formData.get("marketId") ?? "").trim();
+  if (!marketId) throw new Error("Market is required.");
+  const active = await prisma.marketIqSourceRefresh.findFirst({
+    where: { marketId, sourceKind: "trends", status: { in: ["awaiting_source", "receiving"] } },
+    orderBy: { startedAt: "desc" },
+    select: { id: true },
+  });
+  if (!active) {
+    await createMarketIqSourceRefresh({ marketId, startedBy: userId, triggerKind: "manual" });
+  }
+  revalidatePath("/admin/portfolio-activation");
 }
 
 export async function seedClevelandPilotPortfolio(formData: FormData): Promise<void> {

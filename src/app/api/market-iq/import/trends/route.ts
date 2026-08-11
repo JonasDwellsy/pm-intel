@@ -4,6 +4,10 @@ import { isAdminUser } from "@/lib/auth/is-admin";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { prisma } from "@/lib/prisma";
 import { buildTrendAlertCandidates } from "@/lib/market-iq/alerts";
+import {
+  recordTrendRefreshImport,
+  validateRefreshTarget,
+} from "@/lib/market-iq/source-refresh.server";
 
 export const dynamic = "force-dynamic";
 const MARKET_ID = "cleveland-elyria-mentor-oh";
@@ -63,6 +67,7 @@ export async function POST(request: Request) {
   }
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const records = Array.isArray(body?.records) ? body.records : [];
+  const refreshId = typeof body?.refreshId === "string" ? body.refreshId.trim() : "";
   if (
     !body ||
     typeof body.geographyType !== "string" ||
@@ -73,6 +78,22 @@ export async function POST(request: Request) {
     records.length > 1_000
   ) {
     return Response.json({ error: "Invalid trend snapshot." }, { status: 422 });
+  }
+  if (body.refreshId !== undefined && !refreshId) {
+    return Response.json({ error: "Invalid source refresh." }, { status: 422 });
+  }
+  if (refreshId) {
+    const target = await validateRefreshTarget(
+      refreshId,
+      body.geographyType,
+      body.geographyValue
+    );
+    if (!target) {
+      return Response.json(
+        { error: "Geography is not part of this refresh manifest." },
+        { status: 422 }
+      );
+    }
   }
   const normalized = records.flatMap((record) => {
     if (!record || typeof record !== "object") return [];
@@ -123,11 +144,21 @@ export async function POST(request: Request) {
       existingRows
     );
     const inserted = await prisma.marketIqAlert.createMany({ data: alertRows, skipDuplicates: true });
+    const refresh = refreshId
+      ? await recordTrendRefreshImport({
+          refreshId,
+          geographyType: body.geographyType,
+          geographyValue: body.geographyValue,
+          importId: existing.id,
+          rows: existingRows,
+        })
+      : null;
     return Response.json({
       importId: existing.id,
       alreadyComplete: true,
       recordCount: existing.recordCount,
       alertCount: inserted.count,
+      refresh,
     });
   }
   const latestMonth = normalized.reduce((latest, row) => row.month > latest ? row.month : latest, normalized[0].month);
@@ -162,5 +193,20 @@ export async function POST(request: Request) {
     prisma.marketIqAlert.createMany({ data: alertRows, skipDuplicates: true }),
     prisma.marketIqDataImport.update({ where: { id: dataImport.id }, data: { status: "complete" } }),
   ]);
-  return Response.json({ importId: dataImport.id, recordCount: normalized.length, alertCount: alertRows.length, complete: true });
+  const refresh = refreshId
+    ? await recordTrendRefreshImport({
+        refreshId,
+        geographyType: body.geographyType,
+        geographyValue: body.geographyValue,
+        importId: dataImport.id,
+        rows: normalized,
+      })
+    : null;
+  return Response.json({
+    importId: dataImport.id,
+    recordCount: normalized.length,
+    alertCount: alertRows.length,
+    complete: true,
+    refresh,
+  });
 }

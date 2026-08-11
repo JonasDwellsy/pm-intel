@@ -5,6 +5,7 @@ import { buildPortfolioWatchDrafts } from "@/lib/portfolio-iq/watch";
 import { isPortfolioSignalActionable } from "@/lib/portfolio-iq/decision";
 import { buildBedroomSegments } from "@/lib/portfolio-iq/segments";
 import { syncDwellsyIqInsights } from "@/lib/dwellsy-iq/insights.server";
+import { trendSnapshotFreshness } from "@/lib/market-iq/source-refresh";
 
 function communityToken(name: string): string | undefined {
   const generic = new Set(["apartments", "apartment", "villas", "villa", "the", "road"]);
@@ -26,18 +27,28 @@ export async function refreshPortfolioWatchSignals(portfolioId: string) {
     },
   });
   if (!portfolio) throw new Error("Portfolio not found.");
-  const [dataImport, alerts] = await Promise.all([
+  const [dataImport, trendImports] = await Promise.all([
     prisma.marketIqDataImport.findFirst({
       where: { marketId: portfolio.marketId, sourceKind: "historical_export", status: "complete" },
       orderBy: { importedAt: "desc" },
       select: { id: true, availableThrough: true },
     }),
-    prisma.marketIqAlert.findMany({
-      where: { marketId: portfolio.marketId },
-      orderBy: [{ observedMonth: "desc" }, { severity: "asc" }],
-      take: 300,
+    prisma.marketIqDataImport.findMany({
+      where: { marketId: portfolio.marketId, sourceKind: "trends", status: "complete" },
+      orderBy: { importedAt: "desc" },
+      select: { id: true, availableThrough: true },
     }),
   ]);
+  const freshTrendImportIds = trendImports
+    .filter((item) => trendSnapshotFreshness(item.availableThrough) === "fresh")
+    .map((item) => item.id);
+  const alerts = freshTrendImportIds.length
+    ? await prisma.marketIqAlert.findMany({
+        where: { marketId: portfolio.marketId, sourceImportId: { in: freshTrendImportIds } },
+        orderBy: [{ observedMonth: "desc" }, { severity: "asc" }],
+        take: 300,
+      })
+    : [];
   const declaredCutoff = new Date("2026-07-31T23:59:59.999Z");
   const observedAt = dataImport?.availableThrough
     ? new Date(Math.min(dataImport.availableThrough.getTime(), declaredCutoff.getTime()))
