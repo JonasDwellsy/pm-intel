@@ -74,6 +74,7 @@ export default async function PortfolioActivationPage() {
             buildings: { orderBy: [{ isPrimary: "desc" }, { canonicalAddress: "asc" }] },
             activationTasks: { orderBy: [{ status: "asc" }, { taskType: "asc" }] },
             compSet: { include: { members: { select: { reviewStatus: true } } } },
+            financialAssumptions: { select: { bedrooms: true, reviewStatus: true } },
           },
           orderBy: { sortOrder: "asc" },
         },
@@ -229,6 +230,7 @@ export default async function PortfolioActivationPage() {
                         <th className="px-3 py-3">Buildings</th>
                         <th className="px-3 py-3">URU</th>
                         <th className="px-3 py-3">Comp review</th>
+                        <th className="px-3 py-3">Financial setup</th>
                         <th className="px-3 py-3">Readiness</th>
                       </tr>
                     </thead>
@@ -278,6 +280,12 @@ export default async function PortfolioActivationPage() {
                             ) : (
                               <span className="text-[11px] text-grey-500">Not generated</span>
                             )}
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-semibold ${badgeClass(asset.financialAssumptions.some((row) => row.bedrooms === -1 && row.reviewStatus === "verified") ? "ready" : "needs_confirmation")}`}>
+                              {asset.financialAssumptions.some((row) => row.bedrooms === -1 && row.reviewStatus === "verified") ? "Verified" : "Input needed"}
+                            </span>
+                            <Link href={`/admin/portfolio-activation/${asset.id}/financial-setup`} className="mt-1 block text-[11px] font-semibold text-teal-700 hover:underline">Open workbench →</Link>
                           </td>
                           <td className="px-3 py-3">
                             <form action={updateAssetReadiness} className="flex items-center gap-2">

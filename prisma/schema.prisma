@@ -682,6 +682,7 @@ model PortfolioIqPortfolio {
   monitoringSnapshots PortfolioIqMonitoringSnapshot[]
   monitoringRuns PortfolioIqMonitoringRun[]
   pmBriefs PortfolioIqPmBrief[]
+  outcomeReviews PortfolioIqOutcomeReview[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -870,6 +871,14 @@ model PortfolioIqFinancialAssumption {
   inventoryUnits Int?
   affectedUnits  Int?
   realizationPct Float    @default(0.5)
+  conservativePct Float   @default(0.25)
+  upsidePct       Float   @default(0.75)
+  sourceKind      String  @default("owner_interview") // owner_interview | owner_file | pm_confirmed | system_default
+  sourceLabel     String?
+  effectiveAt     DateTime?
+  reviewStatus    String  @default("draft") // draft | verified | needs_owner | needs_pm
+  reviewedAt      DateTime?
+  reviewedBy      String?
   note           String?
   updatedBy      String
   createdAt      DateTime @default(now())
@@ -1201,8 +1210,38 @@ model PortfolioIqSignalDecision {
 
   signal PortfolioIqSignal              @relation(fields: [signalId], references: [id], onDelete: Cascade)
   events PortfolioIqSignalDecisionEvent[]
+  outcomeReviews PortfolioIqOutcomeReview[]
 
   @@index([organizationId, state, updatedAt(sort: Desc)])
+}
+
+// A dated, owner-reviewed comparison between the immutable decision baseline
+// and later asking-market evidence. Source health is explicit so an unchanged
+// or unavailable feed cannot be interpreted as a successful outcome.
+model PortfolioIqOutcomeReview {
+  id                     String    @id @default(cuid())
+  portfolioId            String
+  decisionId             String
+  periodKey               String
+  status                  String    @default("waiting_for_source") // waiting_for_source | ready | reviewed
+  sourceHealth            String    @default("unchanged") // healthy | unchanged | unavailable
+  sourceAvailableThrough  String?
+  comparison              String
+  conclusion              String? // improved | unchanged | worsened | inconclusive
+  reviewNote              String?
+  nextReviewAt            DateTime?
+  generatedAt             DateTime  @default(now())
+  reviewedAt              DateTime?
+  reviewedBy              String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  portfolio PortfolioIqPortfolio    @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  decision  PortfolioIqSignalDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  @@unique([decisionId, periodKey])
+  @@index([portfolioId, status, generatedAt(sort: Desc)])
+  @@index([decisionId, generatedAt(sort: Desc)])
 }
 
 model PortfolioIqSignalDecisionEvent {

@@ -299,6 +299,52 @@ export async function updateActivationTaskStatus(formData: FormData): Promise<vo
   revalidatePath("/admin/portfolio-activation");
 }
 
+const FINANCIAL_SOURCE_KINDS = new Set(["owner_interview", "owner_file", "pm_confirmed", "system_default"]);
+const FINANCIAL_REVIEW_STATUSES = new Set(["draft", "verified", "needs_owner", "needs_pm"]);
+
+function optionalFinancialUnits(value: FormDataEntryValue | null): number | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const number = Number(raw);
+  if (!Number.isInteger(number) || number < 1 || number > 100_000) throw new Error("Unit counts must be positive whole numbers.");
+  return number;
+}
+
+export async function saveFinancialSetup(formData: FormData): Promise<void> {
+  const userId = await requireAdmin();
+  const assetId = String(formData.get("assetId") ?? "").trim();
+  const bedrooms = Number(formData.get("bedrooms"));
+  const inventoryUnits = optionalFinancialUnits(formData.get("inventoryUnits"));
+  const affectedUnits = optionalFinancialUnits(formData.get("affectedUnits"));
+  const conservativePct = Number(formData.get("conservativePercent")) / 100;
+  const realizationPct = Number(formData.get("basePercent")) / 100;
+  const upsidePct = Number(formData.get("upsidePercent")) / 100;
+  const sourceKind = String(formData.get("sourceKind") ?? "");
+  const sourceLabel = String(formData.get("sourceLabel") ?? "").trim().slice(0, 300) || null;
+  const effectiveRaw = String(formData.get("effectiveAt") ?? "").trim();
+  const effectiveAt = effectiveRaw ? new Date(`${effectiveRaw}T12:00:00Z`) : null;
+  const reviewStatus = String(formData.get("reviewStatus") ?? "draft");
+  const note = String(formData.get("note") ?? "").trim().slice(0, 1000) || null;
+  if (!assetId || !Number.isInteger(bedrooms) || bedrooms < -1 || bedrooms > 10) throw new Error("Financial setup request is incomplete.");
+  if (affectedUnits !== null && inventoryUnits !== null && affectedUnits > inventoryUnits) throw new Error("Affected units cannot exceed inventory units.");
+  if (![conservativePct, realizationPct, upsidePct].every((value) => Number.isFinite(value) && value >= 0 && value <= 1) || conservativePct > realizationPct || realizationPct > upsidePct) throw new Error("Use ordered realization assumptions between 0% and 100%.");
+  if (!FINANCIAL_SOURCE_KINDS.has(sourceKind) || !FINANCIAL_REVIEW_STATUSES.has(reviewStatus)) throw new Error("Choose valid source and review statuses.");
+  if (effectiveRaw && Number.isNaN(effectiveAt?.getTime())) throw new Error("Choose a valid effective date.");
+  if (reviewStatus === "verified" && (!inventoryUnits || !sourceLabel || !effectiveAt)) throw new Error("Verified setup requires inventory, a source reference, and an effective date.");
+  const asset = await prisma.portfolioIqAsset.findUnique({ where: { id: assetId }, select: { unitCount: true } });
+  if (!asset) throw new Error("Property not found.");
+  await prisma.portfolioIqFinancialAssumption.upsert({
+    where: { assetId_bedrooms: { assetId, bedrooms } },
+    create: { assetId, bedrooms, inventoryUnits, affectedUnits, conservativePct, realizationPct, upsidePct, sourceKind, sourceLabel, effectiveAt, reviewStatus, reviewedAt: reviewStatus === "verified" ? new Date() : null, reviewedBy: reviewStatus === "verified" ? userId : null, note, updatedBy: userId },
+    update: { inventoryUnits, affectedUnits, conservativePct, realizationPct, upsidePct, sourceKind, sourceLabel, effectiveAt, reviewStatus, reviewedAt: reviewStatus === "verified" ? new Date() : null, reviewedBy: reviewStatus === "verified" ? userId : null, note, updatedBy: userId },
+  });
+  if (bedrooms === -1 && inventoryUnits !== null && inventoryUnits !== asset.unitCount) await prisma.portfolioIqAsset.update({ where: { id: assetId }, data: { unitCount: inventoryUnits } });
+  revalidatePath(`/admin/portfolio-activation/${assetId}/financial-setup`);
+  revalidatePath("/admin/portfolio-activation");
+  revalidatePath("/portfolio-iq/financial-impact");
+  revalidatePath("/today");
+}
+
 const ONBOARDING_STATUSES = new Set(["started", "intake_received", "call_requested", "scheduled", "activating", "launch_ready", "complete"]);
 
 export async function updateOnboardingRequestStatus(formData: FormData): Promise<void> {

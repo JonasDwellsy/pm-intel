@@ -10,6 +10,8 @@ export interface FinancialImpactInput {
   inventoryUnits: number | null;
   affectedUnits: number | null;
   realizationPct: number;
+  conservativePct?: number;
+  upsidePct?: number;
   assumptionSource: "owner" | "single_family_default" | "missing";
 }
 
@@ -19,6 +21,8 @@ export interface FinancialImpactResult {
   monthlyGapPerUnit: number | null;
   annualGrossExposure: number | null;
   annualRealizationAdjusted: number | null;
+  annualConservative: number | null;
+  annualUpside: number | null;
   inventoryUnits: number | null;
   affectedUnits: number | null;
   realizationPct: number;
@@ -34,17 +38,19 @@ export function calculateFinancialImpact(input: FinancialImpactInput): Financial
   const inventoryUnits = positiveInteger(input.inventoryUnits);
   const affectedUnits = positiveInteger(input.affectedUnits);
   const realizationPct = Math.min(1, Math.max(0, input.realizationPct));
-  const base = { inventoryUnits, affectedUnits, realizationPct, assumptionSource: input.assumptionSource };
-  if (input.askingRent === null || input.observationCount === 0) return { ...base, direction: "unavailable", status: "subject_evidence_needed", monthlyGapPerUnit: null, annualGrossExposure: null, annualRealizationAdjusted: null, confidence: "not_estimated" };
-  if (!input.compLocked || input.compAskingRent === null || input.compCount < 1) return { ...base, direction: "unavailable", status: "comps_needed", monthlyGapPerUnit: null, annualGrossExposure: null, annualRealizationAdjusted: null, confidence: "not_estimated" };
+  const conservativePct = Math.min(realizationPct, Math.max(0, input.conservativePct ?? Math.min(0.25, realizationPct)));
+  const upsidePct = Math.max(realizationPct, Math.min(1, input.upsidePct ?? Math.max(0.75, realizationPct)));
+  const base = { inventoryUnits, affectedUnits, realizationPct, conservativePct, upsidePct, assumptionSource: input.assumptionSource };
+  if (input.askingRent === null || input.observationCount === 0) return { ...base, direction: "unavailable", status: "subject_evidence_needed", monthlyGapPerUnit: null, annualGrossExposure: null, annualRealizationAdjusted: null, annualConservative: null, annualUpside: null, confidence: "not_estimated" };
+  if (!input.compLocked || input.compAskingRent === null || input.compCount < 1) return { ...base, direction: "unavailable", status: "comps_needed", monthlyGapPerUnit: null, annualGrossExposure: null, annualRealizationAdjusted: null, annualConservative: null, annualUpside: null, confidence: "not_estimated" };
   const signedGap = input.compAskingRent - input.askingRent;
   const monthlyGapPerUnit = Math.abs(signedGap);
   const direction: FinancialImpactDirection = Math.abs(signedGap) < 1 ? "aligned" : signedGap > 0 ? "opportunity" : "pricing_exposure";
-  if (direction === "aligned") return { ...base, direction, status: "aligned", monthlyGapPerUnit, annualGrossExposure: 0, annualRealizationAdjusted: 0, confidence: "medium" };
-  if (affectedUnits === null) return { ...base, direction, status: "assumptions_needed", monthlyGapPerUnit, annualGrossExposure: null, annualRealizationAdjusted: null, confidence: "not_estimated" };
+  if (direction === "aligned") return { ...base, direction, status: "aligned", monthlyGapPerUnit, annualGrossExposure: 0, annualRealizationAdjusted: 0, annualConservative: 0, annualUpside: 0, confidence: "medium" };
+  if (affectedUnits === null) return { ...base, direction, status: "assumptions_needed", monthlyGapPerUnit, annualGrossExposure: null, annualRealizationAdjusted: null, annualConservative: null, annualUpside: null, confidence: "not_estimated" };
   const annualGrossExposure = monthlyGapPerUnit * affectedUnits * 12;
   const confidence = input.assumptionSource === "owner" && input.observationCount >= 10 && input.compCount >= 3 ? "high" : input.observationCount >= 5 ? "medium" : "low";
-  return { ...base, direction, status: "estimated", monthlyGapPerUnit, annualGrossExposure, annualRealizationAdjusted: annualGrossExposure * realizationPct, confidence };
+  return { ...base, direction, status: "estimated", monthlyGapPerUnit, annualGrossExposure, annualRealizationAdjusted: annualGrossExposure * realizationPct, annualConservative: annualGrossExposure * conservativePct, annualUpside: annualGrossExposure * upsidePct, confidence };
 }
 
 export function financialImpactPriority(result: FinancialImpactResult): number {

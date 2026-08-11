@@ -10,6 +10,7 @@ const workspaceItems = [
   { href: "/portfolio-iq/changes", label: "Changes", match: (path: string) => path.startsWith("/portfolio-iq/changes") },
   { href: "/portfolio-iq/collaboration", label: "Collaboration", match: (path: string) => path.startsWith("/portfolio-iq/collaboration") },
   { href: "/portfolio-iq/financial-impact", label: "Financial Impact", match: (path: string) => path.startsWith("/portfolio-iq/financial-impact") },
+  { href: "/portfolio-iq/outcomes", label: "Outcomes", match: (path: string) => path.startsWith("/portfolio-iq/outcomes") },
   { href: "/onboarding", label: "Setup", match: (path: string) => path.startsWith("/onboarding") },
   { href: "/market-iq", label: "Markets", match: (path: string) => path.startsWith("/market-iq") },
   { href: "/portfolio-iq#properties", label: "Properties & Comps", match: (path: string) => path.startsWith("/portfolio-iq/properties") },

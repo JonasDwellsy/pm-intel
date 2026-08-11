@@ -16,6 +16,13 @@ test("financial impact calculates transparent gross and realization-adjusted exp
   assert.equal(result.confidence, "high");
 });
 
+test("financial impact keeps conservative, base, and upside scenarios ordered", () => {
+  const result = calculateFinancialImpact({ askingRent: 1000, compAskingRent: 1100, observationCount: 12, compCount: 4, compLocked: true, inventoryUnits: 20, affectedUnits: 10, conservativePct: .2, realizationPct: .5, upsidePct: .8, assumptionSource: "owner" });
+  assert.equal(result.annualConservative, 2400);
+  assert.equal(result.annualRealizationAdjusted, 6000);
+  assert.equal(result.annualUpside, 9600);
+});
+
 test("asking above approved comps is pricing exposure, not guaranteed loss", () => {
   const result = impact({ askingRent: 1_250, compAskingRent: 1_100 });
   assert.equal(result.direction, "pricing_exposure");

@@ -26,6 +26,8 @@ export async function loadPortfolioIqFinancialPriority(input: { organizationId: 
       inventoryUnits,
       affectedUnits,
       realizationPct: propertyAssumption?.realizationPct ?? 0.5,
+      conservativePct: propertyAssumption?.conservativePct,
+      upsidePct: propertyAssumption?.upsidePct,
       assumptionSource,
     });
     const segments = property.segments.map((segment) => {
@@ -40,6 +42,8 @@ export async function loadPortfolioIqFinancialPriority(input: { organizationId: 
         inventoryUnits: assumption?.inventoryUnits ?? (segmentDefault ? 1 : null),
         affectedUnits: assumption?.affectedUnits ?? (segmentDefault ? 1 : null),
         realizationPct: assumption?.realizationPct ?? propertyAssumption?.realizationPct ?? 0.5,
+        conservativePct: assumption?.conservativePct ?? propertyAssumption?.conservativePct,
+        upsidePct: assumption?.upsidePct ?? propertyAssumption?.upsidePct,
         assumptionSource: assumption ? "owner" : segmentDefault ? "single_family_default" : "missing",
       });
       return { ...segment, assumption, impact: segmentImpact };
