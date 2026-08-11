@@ -35,10 +35,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { OrganizationSwitcher, UserButton, SignInButton } from "@clerk/nextjs";
-import { NAV_ITEMS } from "@/lib/nav";
+import { NAV_ITEMS, OWNER_NAV_ITEMS } from "@/lib/nav";
+import { useSearchOverlay } from "@/components/search/SearchOverlay";
 
-export function MobileMenu({ isSignedIn }: { isSignedIn: boolean }) {
+export function MobileMenu({ isSignedIn, ownerMode = false }: { isSignedIn: boolean; ownerMode?: boolean }) {
   const [open, setOpen] = useState(false);
+  const items = ownerMode ? OWNER_NAV_ITEMS : NAV_ITEMS;
+  const responsiveVisibility = ownerMode ? "xl:hidden" : "lg:hidden";
+  const { open: openSearch } = useSearchOverlay();
 
   // Escape-to-close + body-scroll lock while the menu is open.
   // Both effects only attach listeners when `open` is true to
@@ -66,7 +70,7 @@ export function MobileMenu({ isSignedIn }: { isSignedIn: boolean }) {
         aria-expanded={open}
         aria-controls="mobile-nav"
         aria-label={open ? "Close menu" : "Open menu"}
-        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-navy transition-colors hover:bg-surface-soft lg:hidden"
+        className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-navy transition-colors hover:bg-surface-soft ${responsiveVisibility}`}
       >
         {open ? <CloseIcon /> : <HamburgerIcon />}
       </button>
@@ -82,7 +86,7 @@ export function MobileMenu({ isSignedIn }: { isSignedIn: boolean }) {
           <div
             onClick={() => setOpen(false)}
             aria-hidden
-            className="fixed inset-0 top-[60px] z-30 bg-navy/30 backdrop-blur-sm sm:top-[76px] lg:hidden"
+            className={`fixed inset-0 top-[60px] z-30 bg-navy/30 backdrop-blur-sm sm:top-[76px] ${responsiveVisibility}`}
           />
 
           {/* Menu panel — drops down from below the header, full
@@ -91,10 +95,10 @@ export function MobileMenu({ isSignedIn }: { isSignedIn: boolean }) {
           <nav
             id="mobile-nav"
             aria-label="Primary navigation"
-            className="fixed inset-x-0 top-[60px] z-40 max-h-[calc(100dvh-60px)] overflow-y-auto border-b border-grid bg-white shadow-lg sm:top-[76px] sm:max-h-[calc(100dvh-76px)] lg:hidden"
+            className={`fixed inset-x-0 top-[60px] z-40 max-h-[calc(100dvh-60px)] overflow-y-auto border-b border-grid bg-white shadow-lg sm:top-[76px] sm:max-h-[calc(100dvh-76px)] ${responsiveVisibility}`}
           >
             <div className="flex flex-col gap-1 px-6 py-4 sm:px-10">
-              {NAV_ITEMS.map((item) => (
+              {items.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -112,6 +116,21 @@ export function MobileMenu({ isSignedIn }: { isSignedIn: boolean }) {
                   )}
                 </Link>
               ))}
+
+              {ownerMode && (
+                <div className="mt-1 grid grid-cols-2 gap-2 border-t border-grid pt-3">
+                  <button
+                    type="button"
+                    onClick={() => { setOpen(false); openSearch(); }}
+                    className="rounded-md border border-grid px-3 py-2.5 text-left text-sm font-semibold text-navy transition-colors hover:bg-surface-soft"
+                  >
+                    Search
+                  </button>
+                  <Link href="/ask" onClick={() => setOpen(false)} className="rounded-md bg-teal-soft px-3 py-2.5 text-sm font-semibold text-teal-700">
+                    Ask IQ
+                  </Link>
+                </div>
+              )}
 
               {/* Divider between nav and auth */}
               <div className="my-2 border-t border-grid" aria-hidden />

@@ -4,9 +4,11 @@ import { OrganizationSwitcher, UserButton, SignInButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { MobileMenu } from "@/components/layout/MobileMenu";
-import { SearchInput } from "@/components/search/SearchInput";
-import { NAV_ITEMS, PRIMARY_CTA } from "@/lib/nav";
+import { PRIMARY_CTA } from "@/lib/nav";
 import { ProductContextLabel } from "@/components/layout/ProductContextLabel";
+import { HeaderNavigation } from "@/components/layout/HeaderNavigation";
+import { isAdminUser } from "@/lib/auth/is-admin";
+import { portfolioIqPreviewEnabled } from "@/lib/portfolio-iq/feature";
 
 // v0.18 PR #72 hotfix — Resolve signed-in state via try/catch'd
 // `auth()` rather than Clerk's `<Show when="…">` server component.
@@ -37,10 +39,10 @@ import { ProductContextLabel } from "@/components/layout/ProductContextLabel";
  *  on bot-probed not-found requests for static-extension URLs.
  *  Other Clerk errors are unexpected and captured to Sentry; we
  *  still default to signed-out so the page renders. */
-async function resolveSignedIn(): Promise<boolean> {
+async function resolveAuthState(): Promise<{ isSignedIn: boolean; userId: string | null }> {
   try {
     const session = await auth();
-    return Boolean(session.userId);
+    return { isSignedIn: Boolean(session.userId), userId: session.userId };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     // The "no middleware" path is the documented Clerk failure mode
@@ -52,12 +54,14 @@ async function resolveSignedIn(): Promise<boolean> {
         tags: { component: "SiteHeader", area: "auth_fallback" },
       });
     }
-    return false;
+    return { isSignedIn: false, userId: null };
   }
 }
 
 export async function SiteHeader() {
-  const isSignedIn = await resolveSignedIn();
+  const { isSignedIn, userId } = await resolveAuthState();
+  const ownerMode = isSignedIn && portfolioIqPreviewEnabled();
+  const isAdmin = isAdminUser(userId);
   return (
     <header className="sticky top-0 z-50 border-b border-grid bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
       <div className="mx-auto flex h-[60px] max-w-[1440px] flex-nowrap items-center justify-between gap-3 px-4 sm:h-[76px] sm:gap-4 sm:px-6 lg:px-10">
@@ -90,7 +94,7 @@ export async function SiteHeader() {
           />
           <span aria-hidden className="hidden h-5 w-px bg-grid sm:block" />
           <span className="hidden text-sm font-semibold text-navy sm:inline">
-            <ProductContextLabel />
+            <ProductContextLabel ownerMode={ownerMode} />
           </span>
         </Link>
         <nav className="flex shrink-0 items-center gap-2 sm:gap-5">
@@ -106,32 +110,7 @@ export async function SiteHeader() {
               cleanly shows just brand + CTA (matching the mobile
               experience that already worked), and the full desktop
               header only kicks in once there's enough room. */}
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={
-                "hidden whitespace-nowrap text-sm font-medium text-navy transition-colors hover:text-teal " +
-                (item.badge ? "items-center gap-1.5 lg:inline-flex" : "lg:inline-block")
-              }
-            >
-              {item.label}
-              {item.badge && (
-                <span
-                  aria-hidden
-                  className="inline-flex h-4 items-center rounded-sm bg-teal px-1 text-[9px] font-bold uppercase tracking-[0.06em] text-white"
-                >
-                  {item.badge}
-                </span>
-              )}
-            </Link>
-          ))}
-          {/* v0.7 search — top-nav PM autocomplete. Hidden until
-              there's room for the full desktop layout; Cmd+K still
-              invokes the modal from any viewport. */}
-          <div className="hidden lg:block">
-            <SearchInput />
-          </div>
+          <HeaderNavigation ownerMode={ownerMode} />
           {/* Auth control. Signed-in → Clerk's UserButton avatar
               + OrganizationSwitcher. Signed-out → a "Sign in" button
               that opens the Clerk sign-in in a modal over the current
@@ -163,7 +142,7 @@ export async function SiteHeader() {
                                                the user sees the
                                                org-filtered list
                                                immediately. */}
-              <div className="hidden lg:flex max-w-[200px] [&_.cl-organizationSwitcherTrigger]:!h-[34px] [&_.cl-organizationPreviewMainIdentifier]:!truncate">
+              <div className={`${ownerMode ? "hidden 2xl:flex" : "hidden lg:flex"} max-w-[170px] [&_.cl-organizationSwitcherTrigger]:!h-[34px] [&_.cl-organizationPreviewMainIdentifier]:!truncate`}>
                 <OrganizationSwitcher
                   hidePersonal={false}
                   afterCreateOrganizationUrl="/watch-lists"
@@ -182,7 +161,7 @@ export async function SiteHeader() {
                   }}
                 />
               </div>
-              <div className="hidden lg:block">
+              <div className={ownerMode ? "hidden xl:block" : "hidden lg:block"}>
                 <UserButton
                   appearance={{
                     elements: {
@@ -203,6 +182,13 @@ export async function SiteHeader() {
                       }
                       href="/settings/notifications"
                     />
+                    {isAdmin && (
+                      <UserButton.Link
+                        label="Pilot launch console"
+                        labelIcon={<span aria-hidden style={{ fontSize: 14 }}>⚙</span>}
+                        href="/admin/portfolio-activation"
+                      />
+                    )}
                   </UserButton.MenuItems>
                 </UserButton>
               </div>
@@ -217,7 +203,7 @@ export async function SiteHeader() {
               state — Clerk's components inside the drawer (Org
               switcher + UserButton) need this same context that
               the desktop cluster gets above. */}
-          <MobileMenu isSignedIn={isSignedIn} />
+          <MobileMenu isSignedIn={isSignedIn} ownerMode={ownerMode} />
           {/* Primary CTA — branches on auth state for the v0.21
               enterprise launch.
               - Signed in (customer user): "Build a watch list →"
@@ -229,7 +215,7 @@ export async function SiteHeader() {
                 /sign-up explains).
               PR #81: `whitespace-nowrap` keeps the label on one line
               at every viewport. */}
-          {isSignedIn ? (
+          {ownerMode ? null : isSignedIn ? (
             <Link
               href={PRIMARY_CTA.href}
               className="inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-navy px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-navy-700 sm:px-3.5 sm:text-[13px]"

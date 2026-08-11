@@ -2,9 +2,11 @@
 
 import { usePathname } from "next/navigation";
 
-export function ProductContextLabel() {
+export function ProductContextLabel({ ownerMode = false }: { ownerMode?: boolean }) {
   const pathname = usePathname() ?? "";
-  const label = pathname.startsWith("/today")
+  const label = ownerMode
+    ? "Dwellsy IQ Online"
+    : pathname.startsWith("/today")
     ? "Dwellsy IQ Online"
     : pathname.startsWith("/portfolio-iq")
     ? "Portfolio IQ"

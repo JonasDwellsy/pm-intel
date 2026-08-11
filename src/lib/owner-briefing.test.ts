@@ -59,7 +59,7 @@ test("a first empty briefing is not treated as a material delivery", () => {
 });
 
 test("Reports navigation is a real owner route and manual email stays self-addressed", () => {
-  const nav = readFileSync("src/components/dwellsy-iq/DwellsyIqWorkspaceNav.tsx", "utf8");
+  const nav = readFileSync("src/lib/nav.ts", "utf8");
   const page = readFileSync("src/app/portfolio-iq/reports/page.tsx", "utf8");
   const action = readFileSync("src/app/portfolio-iq/reports/actions.ts", "utf8");
   assert.match(nav, /href: "\/portfolio-iq\/reports", label: "Reports"/);

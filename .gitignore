@@ -62,3 +62,6 @@ __pycache__/
 # Calibration export from /admin/sizes — carries who-said-what from sales
 # conversations, so it stays out of the repo.
 scripts/data-pipeline/reported_sizes.csv
+
+# clerk configuration (can include secrets)
+/.clerk/

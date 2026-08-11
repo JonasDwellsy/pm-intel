@@ -27,7 +27,7 @@ test("owner watchlist puts explicit pins first without hiding automatic monitori
 test("owner watchlist migration and route remain additive to both existing watchlist products", () => {
   const migration = readFileSync("prisma/migrations/20260811150000_portfolio_iq_owner_watchlist/migration.sql", "utf8");
   const schema = readFileSync("prisma/schema.prisma", "utf8");
-  const navigation = readFileSync("src/components/dwellsy-iq/DwellsyIqWorkspaceNav.tsx", "utf8");
+  const navigation = readFileSync("src/lib/nav.ts", "utf8");
   assert.match(migration, /CREATE TABLE "PortfolioIqOwnerWatchItem"/);
   assert.doesNotMatch(migration, /DROP TABLE|DROP COLUMN|ALTER TABLE "WatchList"|ALTER TABLE "MarketIqWatchlist"/);
   assert.match(schema, /model WatchList/);

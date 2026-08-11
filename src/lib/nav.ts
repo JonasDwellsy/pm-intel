@@ -30,6 +30,19 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { href: "/ask", label: "Ask", badge: "AI" },
 ];
 
+/** Owner-facing navigation for the connected Dwellsy IQ Online preview.
+ * Workflow pages such as Changes and Collaboration intentionally do not
+ * appear here. They belong to the Portfolio section's contextual navigation. */
+export const OWNER_NAV_ITEMS: ReadonlyArray<NavItem> = [
+  { href: "/today", label: "Today" },
+  { href: "/portfolio-iq", label: "Portfolio" },
+  { href: "/market-iq", label: "Markets" },
+  { href: "/portfolio-iq#properties", label: "Properties" },
+  { href: "/property-managers", label: "Operators" },
+  { href: "/portfolio-iq/watchlists", label: "Watchlists" },
+  { href: "/portfolio-iq/reports", label: "Reports" },
+];
+
 /** Primary action button. Clicking takes the visitor straight into the
  *  template picker so they can clone a named watch-list thesis without any
  *  auth gate. The actual save action on the editor still requires auth. */
