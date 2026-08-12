@@ -746,6 +746,7 @@ model PortfolioIqPortfolio {
   pilotSuccessPlan     PortfolioIqPilotSuccessPlan?
   pilotInterventions   PortfolioIqPilotIntervention[]
   emailEvents          PortfolioIqEmailEvent[]
+  pilotValueReviews    PortfolioIqPilotValueReview[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -820,6 +821,27 @@ model PortfolioIqEmailEvent {
   @@index([organizationId, occurredAt(sort: Desc)])
   @@index([portfolioId, occurredAt(sort: Desc)])
   @@index([messageKind, messageRecordId])
+}
+
+// A frozen, owner-visible pilot review. The snapshot preserves the evidence
+// shown during a conversion or renewal conversation without converting
+// asking-market prioritization into claimed realized financial performance.
+model PortfolioIqPilotValueReview {
+  id             String   @id @default(cuid())
+  reviewKey      String   @unique
+  portfolioId    String
+  organizationId String
+  periodStart    DateTime
+  periodEnd      DateTime
+  snapshot       String
+  finalizedBy    String
+  finalizedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, finalizedAt(sort: Desc)])
+  @@index([portfolioId, periodEnd(sort: Desc)])
 }
 
 // Minimal first-party engagement evidence for pilot operations. This records
