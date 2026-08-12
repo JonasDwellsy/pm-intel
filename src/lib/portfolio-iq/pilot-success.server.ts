@@ -19,6 +19,7 @@ export async function loadPilotSuccessCockpit(now = new Date()) {
       pilotCorrections: { where: { status: { not: "complete" } }, select: { id: true } },
       pilotSuccessPlan: true,
       pilotInterventions: { orderBy: { createdAt: "desc" }, take: 20 },
+      emailEvents: { orderBy: { occurredAt: "desc" }, take: 20 },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -44,7 +45,7 @@ export async function loadPilotSuccessCockpit(now = new Date()) {
       pmBriefSentCount: portfolio.pmBriefs.filter((item) => item.deliveryStatus === "sent").length,
       pmResponseCount: portfolio.pmBriefs.filter((item) => Boolean(item.response)).length,
       outcomeCount: portfolio.outcomeReviews.length,
-      digestDeliveredCount: deliveries.filter((item) => item.status === "sent" || Boolean(item.deliveredAt)).length,
+      digestDeliveredCount: deliveries.filter((item) => item.status === "delivered" || Boolean(item.deliveredAt)).length,
       failedDeliveryCount: deliveries.filter((item) => item.status === "failed").length + portfolio.pmBriefs.filter((item) => item.deliveryStatus === "failed").length,
       openCorrectionCount: portfolio.pilotCorrections.length,
     });
@@ -54,6 +55,10 @@ export async function loadPilotSuccessCockpit(now = new Date()) {
       priority: pilotInterventionPriority(item, now),
     }));
     const checkInOverdue = Boolean(portfolio.pilotSuccessPlan?.nextCheckInAt && portfolio.pilotSuccessPlan.nextCheckInAt.getTime() < now.getTime());
+    const activity = [
+      ...interventions.map((item) => ({ activityType: "intervention" as const, occurredAt: item.createdAt, ...item })),
+      ...portfolio.emailEvents.map((item) => ({ activityType: "email" as const, ...item })),
+    ].sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime()).slice(0, 25);
     return {
       id: portfolio.id,
       name: portfolio.name,
@@ -69,6 +74,11 @@ export async function loadPilotSuccessCockpit(now = new Date()) {
       openInterventionCount: interventions.filter((item) => item.status !== "completed").length,
       overdueInterventionCount: interventions.filter((item) => item.priority === "overdue").length,
       checkInOverdue,
+      activity,
+      deliveredEmailCount: portfolio.emailEvents.filter((item) => item.eventType === "delivered").length,
+      clickedEmailCount: portfolio.emailEvents.filter((item) => item.eventType === "click").length,
+      directionalOpenCount: portfolio.emailEvents.filter((item) => item.eventType === "open").length,
+      failedEmailCount: portfolio.emailEvents.filter((item) => ["bounce", "dropped", "spamreport", "unsubscribe"].includes(item.eventType)).length,
       ...success,
     };
   });

@@ -14,6 +14,7 @@ export interface EmailMessage {
   subject: string;
   html: string;
   text: string;
+  customArgs?: Record<string, string>;
 }
 export type SendResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -30,6 +31,7 @@ export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
       subject: msg.subject,
       html: msg.html,
       text: msg.text,
+      customArgs: msg.customArgs,
     });
     // SendGrid returns 202 Accepted with the message id in the
     // x-message-id response header on success.

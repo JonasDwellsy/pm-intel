@@ -43,10 +43,10 @@ export async function deliverOwnerBriefingPreview(input: {
       snapshot: JSON.stringify(briefing.snapshot),
     },
   });
-  const result = await sendEmail({ to: input.email, subject: message.subject, html: message.html, text: message.text });
+  const result = await sendEmail({ to: input.email, subject: message.subject, html: message.html, text: message.text, customArgs: { dwellsy_kind: "owner_digest", dwellsy_record_id: delivery.id, dwellsy_portfolio_id: briefing.snapshot.portfolio.id } });
   await prisma.portfolioIqDigestDelivery.update({
     where: { id: delivery.id },
-    data: { status: result.ok ? "sent" : "failed", providerId: result.ok ? result.id : null, error: result.ok ? null : result.error, deliveredAt: result.ok ? now : null },
+    data: { status: result.ok ? "sent" : "failed", providerId: result.ok ? result.id : null, error: result.ok ? null : result.error, acceptedAt: result.ok ? now : null, deliveredAt: null },
   });
   return { ...result, recipient: input.email, signalCount: message.signalCount, deliveryId: delivery.id };
 }

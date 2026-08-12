@@ -745,6 +745,7 @@ model PortfolioIqPortfolio {
   pilotEngagements     PortfolioIqPilotEngagement[]
   pilotSuccessPlan     PortfolioIqPilotSuccessPlan?
   pilotInterventions   PortfolioIqPilotIntervention[]
+  emailEvents          PortfolioIqEmailEvent[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -785,6 +786,7 @@ model PortfolioIqPilotIntervention {
   completedAt     DateTime?
   assignedTo      String?
   createdByUserId String
+  sourceEventId   String?   @unique
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -792,6 +794,32 @@ model PortfolioIqPilotIntervention {
 
   @@index([organizationId, status, dueAt])
   @@index([portfolioId, createdAt(sort: Desc)])
+}
+
+// Verified SendGrid Event Webhook evidence for Portfolio IQ messages. Raw
+// email addresses, full URLs, user agents, and IP addresses are deliberately
+// not retained here.
+model PortfolioIqEmailEvent {
+  id                    String    @id @default(cuid())
+  providerEventId       String    @unique
+  portfolioId           String
+  organizationId        String
+  messageKind           String // owner_digest | pm_brief
+  messageRecordId       String
+  providerMessageId     String?
+  eventType             String
+  occurredAt            DateTime
+  reason                String?
+  responseCode          String?
+  engagementStrength    String    @default("operational") // operational | directional | explicit
+  interventionCreatedAt DateTime?
+  createdAt             DateTime  @default(now())
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, occurredAt(sort: Desc)])
+  @@index([portfolioId, occurredAt(sort: Desc)])
+  @@index([messageKind, messageRecordId])
 }
 
 // Minimal first-party engagement evidence for pilot operations. This records
@@ -1397,7 +1425,10 @@ model PortfolioIqPmBrief {
   deliveryStatus     String    @default("not_sent") // not_sent | sent | failed
   deliveryProviderId String?
   deliveryError      String?
+  acceptedAt         DateTime?
   deliveredAt        DateTime?
+  lastEmailEventAt   DateTime?
+  lastEmailEventType String?
   lastReminderAt     DateTime?
   reminderCount      Int       @default(0)
   remindersEnabled   Boolean   @default(false)
@@ -1620,7 +1651,10 @@ model PortfolioIqDigestDelivery {
   snapshot            String?
   providerId          String?
   error               String?
+  acceptedAt          DateTime?
   deliveredAt         DateTime?
+  lastEmailEventAt    DateTime?
+  lastEmailEventType  String?
   createdAt           DateTime  @default(now())
 
   preference PortfolioIqDigestPreference @relation(fields: [preferenceId], references: [id], onDelete: Cascade)

@@ -44,11 +44,11 @@ export async function sendPortfolioIqPmBrief(formData: FormData): Promise<void> 
   if (!snapshot) throw new Error("The PM-safe brief snapshot is unavailable.");
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://iq.dwellsy.com").replace(/\/$/, "");
   const message = buildPmBriefEmail({ recipientName, propertyName: brief.asset.name, ownerName: brief.portfolio.organization.name, snapshot, briefUrl: `${baseUrl}/pm-briefs/${brief.publicToken}` });
-  const result = await sendEmail({ to: recipientEmail, ...message });
+  const result = await sendEmail({ to: recipientEmail, ...message, customArgs: { dwellsy_kind: "pm_brief", dwellsy_record_id: brief.id, dwellsy_portfolio_id: brief.portfolioId } });
   await prisma.portfolioIqPmBrief.update({
     where: { id: brief.id },
     data: result.ok
-      ? { recipientName, recipientEmail, remindersEnabled, deliveryStatus: "sent", deliveryProviderId: result.id, deliveryError: null, deliveredAt: new Date() }
+      ? { recipientName, recipientEmail, remindersEnabled, deliveryStatus: "sent", deliveryProviderId: result.id, deliveryError: null, acceptedAt: new Date(), deliveredAt: null }
       : { recipientName, recipientEmail, remindersEnabled, deliveryStatus: "failed", deliveryError: result.error },
   });
   revalidatePath("/portfolio-iq/collaboration");

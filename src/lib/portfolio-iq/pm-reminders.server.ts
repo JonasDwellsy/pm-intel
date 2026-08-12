@@ -29,7 +29,7 @@ export async function runPortfolioIqPmReminders(input: { dryRun?: boolean; baseU
     const baseUrl = (input.baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://iq.dwellsy.com").replace(/\/$/, "");
     const message = buildPmBriefEmail({ recipientName: brief.recipientName, propertyName: brief.asset.name, ownerName: brief.portfolio.organization.name, snapshot, briefUrl: `${baseUrl}/pm-briefs/${brief.publicToken}`, reminder: true });
     if (input.dryRun) { sent++; continue; }
-    const result = await sendEmail({ to: brief.recipientEmail, ...message });
+    const result = await sendEmail({ to: brief.recipientEmail, ...message, customArgs: { dwellsy_kind: "pm_brief", dwellsy_record_id: brief.id, dwellsy_portfolio_id: brief.portfolioId } });
     if (result.ok) {
       sent++;
       await prisma.portfolioIqPmBrief.update({ where: { id: brief.id }, data: { lastReminderAt: now, reminderCount: { increment: 1 } } });

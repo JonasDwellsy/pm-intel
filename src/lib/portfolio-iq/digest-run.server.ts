@@ -45,12 +45,12 @@ export async function runPortfolioIqDigests(input: { dryRun?: boolean; baseUrl?:
     const deliveryKey = `${preference.id}:${materialFingerprint}`;
     const [lastSuccessful, existingDelivery] = await Promise.all([
       prisma.portfolioIqDigestDelivery.findFirst({
-        where: { preferenceId: preference.id, triggerKind: "scheduled", status: "sent" },
+        where: { preferenceId: preference.id, triggerKind: "scheduled", status: { in: ["sent", "delivered"] } },
         orderBy: { deliveredAt: "desc" },
       }),
       prisma.portfolioIqDigestDelivery.findUnique({ where: { deliveryKey } }),
     ]);
-    if (lastSuccessful?.materialFingerprint === materialFingerprint || existingDelivery?.status === "sent") { skipped++; continue; }
+    if (lastSuccessful?.materialFingerprint === materialFingerprint || ["sent", "delivered"].includes(existingDelivery?.status ?? "")) { skipped++; continue; }
     if (!lastSuccessful && !ownerBriefingHasMaterialContent(briefing.snapshot)) { skipped++; continue; }
 
     const user = await client.users.getUser(preference.userId);
@@ -81,14 +81,15 @@ export async function runPortfolioIqDigests(input: { dryRun?: boolean; baseUrl?:
       },
       update: { status: "sending", email, error: null },
     });
-    const result = await sendEmail({ to: email, subject: message.subject, html: message.html, text: message.text });
+    const result = await sendEmail({ to: email, subject: message.subject, html: message.html, text: message.text, customArgs: { dwellsy_kind: "owner_digest", dwellsy_record_id: delivery.id, dwellsy_portfolio_id: preference.portfolioId } });
     await prisma.portfolioIqDigestDelivery.update({
       where: { id: delivery.id },
       data: {
         status: result.ok ? "sent" : "failed",
         providerId: result.ok ? result.id : null,
         error: result.ok ? null : result.error,
-        deliveredAt: result.ok ? now : null,
+        acceptedAt: result.ok ? now : null,
+        deliveredAt: null,
       },
     });
     if (result.ok) {
