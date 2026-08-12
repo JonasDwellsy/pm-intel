@@ -67,3 +67,14 @@ test("Today enforces a three-decision attention budget", () => {
   assert.match(queue.watchlist[0].findingQuality.reason, /limited to 3 primary decisions/);
 });
 
+test("only supplied approved calibrations adjust the transparent quality score", () => {
+  const queue = buildOwnerAttentionQueue([
+    candidate({ id: "adjusted", assetId: "asset-1", signalType: "rent_softening", qualityObservations: 30 }),
+  ], {
+    now: new Date("2026-08-11T00:00:00Z"),
+    calibrationAdjustments: new Map([["signal_type:rent_softening", -10]]),
+  });
+  const finding = [...queue.today, ...queue.watchlist][0];
+  assert.equal(finding.findingQuality.calibrationAdjustment, -10);
+  assert.equal(finding.findingQuality.score, finding.findingQuality.baseScore - 10);
+});

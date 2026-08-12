@@ -13,7 +13,7 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
   const portfolio = await loadPortfolioIqHome(input);
   if (!portfolio) return null;
 
-  const [unifiedInsights, fallbackSignals, digestPreference, decisionHistory, trendPulses, findingFeedback] = await Promise.all([
+  const [unifiedInsights, fallbackSignals, digestPreference, decisionHistory, trendPulses, findingFeedback, findingCalibrations] = await Promise.all([
     loadDwellsyIqInsights(portfolio.id),
     loadPortfolioWatchSignals(portfolio.id),
     prisma.portfolioIqDigestPreference.findUnique({
@@ -25,6 +25,7 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
       where: { portfolioId: portfolio.id, userId: input.userId },
       orderBy: { reviewedAt: "desc" },
     }),
+    prisma.portfolioIqFindingCalibration.findMany({ where: { portfolioId: portfolio.id } }),
   ]);
   const allSignals = unifiedInsights.length ? unifiedInsights : fallbackSignals.map((signal) => ({
     ...signal,
@@ -76,7 +77,8 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
       ? [[item.property.id, Math.abs(item.impact.annualRealizationAdjusted)] as const]
       : []
   ));
-  const attentionQueue = buildOwnerAttentionQueue(signals, { limit: 3, annualFinancialExposureByAssetId });
+  const calibrationAdjustments = new Map(findingCalibrations.map((item) => [`${item.scopeKind}:${item.scopeValue}`, item.scoreAdjustment]));
+  const attentionQueue = buildOwnerAttentionQueue(signals, { limit: 3, annualFinancialExposureByAssetId, calibrationAdjustments });
   const todaySignals = attentionQueue.today;
   const financialImpacts = financialResults.map((item) => ({
     ...item,
@@ -87,5 +89,5 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
     assets: portfolio.assets,
   });
 
-  return { portfolio, signals, todaySignals, attentionQueue, digestPreference, decisionHistory, trendPulses, properties, operatorResponses, financialImpacts, findingFeedback, feedbackBySignalId, hiddenSignals };
+  return { portfolio, signals, todaySignals, attentionQueue, digestPreference, decisionHistory, trendPulses, properties, operatorResponses, financialImpacts, findingFeedback, feedbackBySignalId, hiddenSignals, findingCalibrations };
 }

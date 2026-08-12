@@ -193,6 +193,7 @@ export default async function TodayPage() {
                       <span className={signal.severity === "high" ? "text-rose-800" : "text-teal-700"}>{signal.category}</span>
                       <span className="text-muted-foreground">{signal.findingQuality.calibratedConfidence} confidence</span>
                       <span className="rounded-full border border-grid bg-white px-2 py-0.5 text-navy">Quality {signal.findingQuality.score}/100</span>
+                      {signal.findingQuality.calibrationAdjustment !== 0 && <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-violet-800">Reviewed calibration {signal.findingQuality.calibrationAdjustment > 0 ? "+" : ""}{signal.findingQuality.calibrationAdjustment}</span>}
                       {signal.findingQuality.consolidatedCount > 1 && <span className="rounded-full border border-teal/25 bg-teal-soft px-2 py-0.5 text-teal-800">{signal.findingQuality.consolidatedCount} related signals combined</span>}
                       {isNew && <span className="rounded-full bg-navy px-2 py-0.5 text-white">New</span>}
                       {signal.unifiedInsightId && <span className="rounded-full border border-teal/25 bg-teal-soft px-2 py-0.5 text-teal-800">Connected insight</span>}

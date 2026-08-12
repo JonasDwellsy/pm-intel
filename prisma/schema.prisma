@@ -724,22 +724,24 @@ model PortfolioIqPortfolio {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization        Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  assets              PortfolioIqAsset[]
-  signals             PortfolioIqSignal[]
-  digestPreferences   PortfolioIqDigestPreference[]
-  unifiedInsights     DwellsyIqInsight[]
-  launchBriefing      PortfolioIqLaunchBriefing?
-  monitoringSnapshots PortfolioIqMonitoringSnapshot[]
-  monitoringRuns      PortfolioIqMonitoringRun[]
-  pmBriefs            PortfolioIqPmBrief[]
-  outcomeReviews      PortfolioIqOutcomeReview[]
-  ownerWatchItems     PortfolioIqOwnerWatchItem[]
-  ownerWatchReviews   PortfolioIqOwnerWatchReview[]
-  pilotAcceptance     PortfolioIqPilotAcceptance?
-  pilotReviews        PortfolioIqPilotReview[]
-  pilotCorrections    PortfolioIqPilotCorrection[]
-  findingFeedback     PortfolioIqFindingFeedback[]
+  organization         Organization                     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assets               PortfolioIqAsset[]
+  signals              PortfolioIqSignal[]
+  digestPreferences    PortfolioIqDigestPreference[]
+  unifiedInsights      DwellsyIqInsight[]
+  launchBriefing       PortfolioIqLaunchBriefing?
+  monitoringSnapshots  PortfolioIqMonitoringSnapshot[]
+  monitoringRuns       PortfolioIqMonitoringRun[]
+  pmBriefs             PortfolioIqPmBrief[]
+  outcomeReviews       PortfolioIqOutcomeReview[]
+  ownerWatchItems      PortfolioIqOwnerWatchItem[]
+  ownerWatchReviews    PortfolioIqOwnerWatchReview[]
+  pilotAcceptance      PortfolioIqPilotAcceptance?
+  pilotReviews         PortfolioIqPilotReview[]
+  pilotCorrections     PortfolioIqPilotCorrection[]
+  findingFeedback      PortfolioIqFindingFeedback[]
+  findingCalibrations  PortfolioIqFindingCalibration[]
+  calibrationProposals PortfolioIqCalibrationProposal[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
@@ -768,6 +770,61 @@ model PortfolioIqFindingFeedback {
   @@index([organizationId, rating, reviewedAt(sort: Desc)])
   @@index([portfolioId, rating])
   @@index([userId, suppressFromQueue])
+}
+
+// The active, administrator-approved ranking adjustment for one finding
+// family. Owner feedback can propose a change but can never write this record.
+model PortfolioIqFindingCalibration {
+  id              String   @id @default(cuid())
+  portfolioId     String
+  organizationId  String
+  scopeKind       String   @default("signal_type")
+  scopeValue      String
+  scoreAdjustment Int      @default(0)
+  revision        Int      @default(1)
+  approvedBy      String
+  approvedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  portfolio PortfolioIqPortfolio             @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  proposals PortfolioIqCalibrationProposal[]
+
+  @@unique([portfolioId, scopeKind, scopeValue])
+  @@index([organizationId, updatedAt(sort: Desc)])
+}
+
+// Immutable review packets preserve the evidence and previous setting behind
+// every proposed, approved, or rejected calibration decision.
+model PortfolioIqCalibrationProposal {
+  id                      String    @id @default(cuid())
+  portfolioId             String
+  organizationId          String
+  calibrationId           String?
+  scopeKind               String    @default("signal_type")
+  scopeValue              String
+  status                  String    @default("proposed") // proposed | approved | rejected
+  priorScoreAdjustment    Int       @default(0)
+  proposedScoreAdjustment Int
+  sampleSize              Int
+  usefulCount             Int
+  alreadyKnownCount       Int
+  noiseCount              Int
+  contextErrorCount       Int
+  baselineUsefulRate      Float?
+  rationale               String
+  proposedBy              String
+  proposedAt              DateTime  @default(now())
+  reviewedBy              String?
+  reviewedAt              DateTime?
+  reviewNote              String?
+  createdAt               DateTime  @default(now())
+
+  portfolio   PortfolioIqPortfolio           @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  calibration PortfolioIqFindingCalibration? @relation(fields: [calibrationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, proposedAt(sort: Desc)])
+  @@index([portfolioId, scopeKind, scopeValue, proposedAt(sort: Desc)])
 }
 
 // The assisted onboarding specialist uses this one-session record to move a

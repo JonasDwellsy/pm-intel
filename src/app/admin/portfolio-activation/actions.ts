@@ -17,6 +17,7 @@ import {
   onboardingAssetSlug,
 } from "@/lib/portfolio-iq/onboarding";
 import { createMarketIqSourceRefresh } from "@/lib/market-iq/source-refresh.server";
+import { MAX_CALIBRATION_ADJUSTMENT, recommendFindingCalibrations } from "@/lib/portfolio-iq/finding-calibration";
 
 async function requireAdmin(): Promise<string> {
   const { userId } = await auth();
@@ -357,6 +358,101 @@ export async function updatePilotCorrection(formData: FormData): Promise<void> {
   });
   revalidatePath("/admin/portfolio-activation");
   revalidatePath("/portfolio-iq/acceptance");
+}
+
+export async function generateFindingCalibrationProposals(formData: FormData): Promise<void> {
+  const userId = await requireAdmin();
+  const portfolioId = String(formData.get("portfolioId") ?? "").trim();
+  const portfolio = await prisma.portfolioIqPortfolio.findUnique({
+    where: { id: portfolioId },
+    select: {
+      id: true,
+      organizationId: true,
+      findingFeedback: { include: { signal: { select: { signalType: true } } } },
+      findingCalibrations: true,
+    },
+  });
+  if (!portfolio) throw new Error("Portfolio not found.");
+  const currentByScope = new Map(portfolio.findingCalibrations.map((item) => [`${item.scopeKind}:${item.scopeValue}`, item]));
+  const feedbackSinceLastApproval = portfolio.findingFeedback.filter((item) => {
+    const current = currentByScope.get(`signal_type:${item.signal.signalType}`);
+    return !current || item.reviewedAt > current.approvedAt;
+  });
+  const recommendations = recommendFindingCalibrations(feedbackSinceLastApproval);
+
+  await prisma.$transaction(async (tx) => {
+    for (const recommendation of recommendations) {
+      const current = currentByScope.get(`${recommendation.scopeKind}:${recommendation.scopeValue}`);
+      if (current?.scoreAdjustment === recommendation.proposedScoreAdjustment) continue;
+      const existing = await tx.portfolioIqCalibrationProposal.findFirst({
+        where: { portfolioId, scopeKind: recommendation.scopeKind, scopeValue: recommendation.scopeValue, status: "proposed" },
+        orderBy: { proposedAt: "desc" },
+      });
+      const data = {
+        priorScoreAdjustment: current?.scoreAdjustment ?? 0,
+        proposedScoreAdjustment: recommendation.proposedScoreAdjustment,
+        sampleSize: recommendation.sampleSize,
+        usefulCount: recommendation.usefulCount,
+        alreadyKnownCount: recommendation.alreadyKnownCount,
+        noiseCount: recommendation.noiseCount,
+        contextErrorCount: recommendation.contextErrorCount,
+        baselineUsefulRate: recommendation.usefulRate,
+        rationale: recommendation.rationale,
+        proposedBy: userId,
+        proposedAt: new Date(),
+      };
+      if (existing) await tx.portfolioIqCalibrationProposal.update({ where: { id: existing.id }, data });
+      else await tx.portfolioIqCalibrationProposal.create({ data: {
+        portfolioId,
+        organizationId: portfolio.organizationId,
+        scopeKind: recommendation.scopeKind,
+        scopeValue: recommendation.scopeValue,
+        ...data,
+      } });
+    }
+  });
+  revalidatePath("/admin/portfolio-activation");
+}
+
+export async function reviewFindingCalibrationProposal(formData: FormData): Promise<void> {
+  const userId = await requireAdmin();
+  const proposalId = String(formData.get("proposalId") ?? "").trim();
+  const decision = String(formData.get("decision") ?? "").trim();
+  const reviewNote = String(formData.get("reviewNote") ?? "").trim().slice(0, 600);
+  if (!proposalId || !["approve", "reject"].includes(decision)) throw new Error("Calibration review is invalid.");
+  const proposal = await prisma.portfolioIqCalibrationProposal.findUnique({ where: { id: proposalId } });
+  if (!proposal || proposal.status !== "proposed") throw new Error("Calibration proposal is no longer open.");
+  if (Math.abs(proposal.proposedScoreAdjustment) > MAX_CALIBRATION_ADJUSTMENT) throw new Error("Calibration exceeds the permitted range.");
+
+  await prisma.$transaction(async (tx) => {
+    if (decision === "reject") {
+      await tx.portfolioIqCalibrationProposal.update({ where: { id: proposalId }, data: { status: "rejected", reviewedBy: userId, reviewedAt: new Date(), reviewNote: reviewNote || null } });
+      return;
+    }
+    const calibration = await tx.portfolioIqFindingCalibration.upsert({
+      where: { portfolioId_scopeKind_scopeValue: { portfolioId: proposal.portfolioId, scopeKind: proposal.scopeKind, scopeValue: proposal.scopeValue } },
+      create: {
+        portfolioId: proposal.portfolioId,
+        organizationId: proposal.organizationId,
+        scopeKind: proposal.scopeKind,
+        scopeValue: proposal.scopeValue,
+        scoreAdjustment: proposal.proposedScoreAdjustment,
+        approvedBy: userId,
+      },
+      update: {
+        scoreAdjustment: proposal.proposedScoreAdjustment,
+        revision: { increment: 1 },
+        approvedBy: userId,
+        approvedAt: new Date(),
+      },
+    });
+    await tx.portfolioIqCalibrationProposal.update({
+      where: { id: proposalId },
+      data: { status: "approved", calibrationId: calibration.id, reviewedBy: userId, reviewedAt: new Date(), reviewNote: reviewNote || null },
+    });
+  });
+  revalidatePath("/admin/portfolio-activation");
+  revalidatePath("/today");
 }
 
 const FINANCIAL_SOURCE_KINDS = new Set(["owner_interview", "owner_file", "pm_confirmed", "system_default"]);

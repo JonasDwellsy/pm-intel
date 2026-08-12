@@ -26,6 +26,8 @@ export type CalibratedFindingConfidence = "high" | "medium" | "developing" | "se
 
 export interface FindingQuality {
   score: number;
+  baseScore: number;
+  calibrationAdjustment: number;
   calibratedConfidence: CalibratedFindingConfidence;
   destination: EvidenceDestination;
   reason: string;
@@ -149,7 +151,7 @@ function qualityReason(input: {
 
 export function buildOwnerAttentionQueue<T extends TodaySignalCandidate>(
   signals: T[],
-  options: { limit?: number; now?: Date; annualFinancialExposureByAssetId?: Map<string, number> } = {}
+  options: { limit?: number; now?: Date; annualFinancialExposureByAssetId?: Map<string, number>; calibrationAdjustments?: Map<string, number> } = {}
 ): OwnerAttentionQueue<T> {
   const now = options.now ?? new Date();
   const financialValues = options.annualFinancialExposureByAssetId ?? new Map<string, number>();
@@ -160,12 +162,14 @@ export function buildOwnerAttentionQueue<T extends TodaySignalCandidate>(
     const exposedAssetCount = new Set(signal.exposures?.map((item) => item.assetId) ?? (signal.assetId ? [signal.assetId] : [])).size;
     const annualFinancialExposure = financialExposureFor(signal, financialValues);
     const confidence = calibratedConfidence(signal, observations, evidenceSourceCount);
-    const score = scoreFinding({ signal, observations, evidenceSourceCount, exposedAssetCount, annualFinancialExposure, confidence, now });
+    const baseScore = scoreFinding({ signal, observations, evidenceSourceCount, exposedAssetCount, annualFinancialExposure, confidence, now });
+    const calibrationAdjustment = Math.max(-15, Math.min(15, options.calibrationAdjustments?.get(`signal_type:${signal.signalType ?? signal.category}`) ?? 0));
+    const score = Math.max(0, Math.min(100, baseScore + calibrationAdjustment));
     const hasQualityEvidence = signal.qualityObservations !== undefined || signal.evidenceSources !== undefined;
     let destination = classifySignalEvidenceDestination({ ...signal, confidence });
     if (confidence === "developing") destination = "watchlist";
     if (destination === "today" && hasQualityEvidence && score < 55) destination = "watchlist";
-    return { signal, observations, evidenceSourceCount, exposedAssetCount, annualFinancialExposure, confidence, score, destination };
+    return { signal, observations, evidenceSourceCount, exposedAssetCount, annualFinancialExposure, confidence, baseScore, calibrationAdjustment, score, destination };
   });
 
   const consolidated = new Map<string, typeof evaluated[number] & { relatedSignalIds: string[] }>();
@@ -180,6 +184,8 @@ export function buildOwnerAttentionQueue<T extends TodaySignalCandidate>(
     const reason = qualityReason({ ...item, destination: item.destination });
     return Object.assign({}, item.signal, { findingQuality: {
       score: item.score,
+      baseScore: item.baseScore,
+      calibrationAdjustment: item.calibrationAdjustment,
       calibratedConfidence: item.confidence,
       destination: item.destination,
       reason,
