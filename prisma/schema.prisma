@@ -818,6 +818,7 @@ model PortfolioIqCalibrationProposal {
   reviewedBy              String?
   reviewedAt              DateTime?
   reviewNote              String?
+  impactSnapshot          String    @default("{}")
   createdAt               DateTime  @default(now())
 
   portfolio   PortfolioIqPortfolio           @relation(fields: [portfolioId], references: [id], onDelete: Cascade)

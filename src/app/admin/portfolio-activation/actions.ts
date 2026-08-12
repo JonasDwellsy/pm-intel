@@ -18,6 +18,7 @@ import {
 } from "@/lib/portfolio-iq/onboarding";
 import { createMarketIqSourceRefresh } from "@/lib/market-iq/source-refresh.server";
 import { MAX_CALIBRATION_ADJUSTMENT, recommendFindingCalibrations } from "@/lib/portfolio-iq/finding-calibration";
+import { loadCalibrationImpact } from "@/lib/portfolio-iq/calibration-impact.server";
 
 async function requireAdmin(): Promise<string> {
   const { userId } = await auth();
@@ -423,6 +424,8 @@ export async function reviewFindingCalibrationProposal(formData: FormData): Prom
   const proposal = await prisma.portfolioIqCalibrationProposal.findUnique({ where: { id: proposalId } });
   if (!proposal || proposal.status !== "proposed") throw new Error("Calibration proposal is no longer open.");
   if (Math.abs(proposal.proposedScoreAdjustment) > MAX_CALIBRATION_ADJUSTMENT) throw new Error("Calibration exceeds the permitted range.");
+  const impact = decision === "approve" ? await loadCalibrationImpact({ proposalId, userId }) : null;
+  if (decision === "approve" && !impact) throw new Error("Calibration impact preview is unavailable.");
 
   await prisma.$transaction(async (tx) => {
     if (decision === "reject") {
@@ -448,7 +451,56 @@ export async function reviewFindingCalibrationProposal(formData: FormData): Prom
     });
     await tx.portfolioIqCalibrationProposal.update({
       where: { id: proposalId },
-      data: { status: "approved", calibrationId: calibration.id, reviewedBy: userId, reviewedAt: new Date(), reviewNote: reviewNote || null },
+      data: { status: "approved", calibrationId: calibration.id, reviewedBy: userId, reviewedAt: new Date(), reviewNote: reviewNote || null, impactSnapshot: JSON.stringify(impact) },
+    });
+  });
+  revalidatePath("/admin/portfolio-activation");
+  revalidatePath("/today");
+}
+
+export async function rollbackFindingCalibration(formData: FormData): Promise<void> {
+  const userId = await requireAdmin();
+  const calibrationId = String(formData.get("calibrationId") ?? "").trim();
+  const reviewNote = String(formData.get("reviewNote") ?? "").trim().slice(0, 600);
+  const calibration = await prisma.portfolioIqFindingCalibration.findUnique({
+    where: { id: calibrationId },
+    include: { proposals: { where: { status: "approved" }, orderBy: { reviewedAt: "desc" }, take: 1 } },
+  });
+  const priorDecision = calibration?.proposals[0] ?? null;
+  if (!calibration || !priorDecision) throw new Error("No approved calibration revision is available to roll back.");
+  const rollbackAdjustment = priorDecision.priorScoreAdjustment;
+  if (rollbackAdjustment === calibration.scoreAdjustment) throw new Error("Calibration is already at the prior setting.");
+
+  await prisma.$transaction(async (tx) => {
+    const now = new Date();
+    await tx.portfolioIqCalibrationProposal.create({
+      data: {
+        portfolioId: calibration.portfolioId,
+        organizationId: calibration.organizationId,
+        calibrationId: calibration.id,
+        scopeKind: calibration.scopeKind,
+        scopeValue: calibration.scopeValue,
+        status: "approved",
+        priorScoreAdjustment: calibration.scoreAdjustment,
+        proposedScoreAdjustment: rollbackAdjustment,
+        sampleSize: priorDecision.sampleSize,
+        usefulCount: priorDecision.usefulCount,
+        alreadyKnownCount: priorDecision.alreadyKnownCount,
+        noiseCount: priorDecision.noiseCount,
+        contextErrorCount: priorDecision.contextErrorCount,
+        baselineUsefulRate: priorDecision.baselineUsefulRate,
+        rationale: `Rolled back revision ${calibration.revision} to its prior score adjustment.`,
+        proposedBy: userId,
+        proposedAt: now,
+        reviewedBy: userId,
+        reviewedAt: now,
+        reviewNote: reviewNote || "Administrator rollback",
+        impactSnapshot: JSON.stringify({ rollback: true, from: calibration.scoreAdjustment, to: rollbackAdjustment }),
+      },
+    });
+    await tx.portfolioIqFindingCalibration.update({
+      where: { id: calibration.id },
+      data: { scoreAdjustment: rollbackAdjustment, revision: { increment: 1 }, approvedBy: userId, approvedAt: now },
     });
   });
   revalidatePath("/admin/portfolio-activation");

@@ -89,5 +89,5 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
     assets: portfolio.assets,
   });
 
-  return { portfolio, signals, todaySignals, attentionQueue, digestPreference, decisionHistory, trendPulses, properties, operatorResponses, financialImpacts, findingFeedback, feedbackBySignalId, hiddenSignals, findingCalibrations };
+  return { portfolio, allSignals, signals, todaySignals, attentionQueue, digestPreference, decisionHistory, trendPulses, properties, operatorResponses, financialImpacts, findingFeedback, feedbackBySignalId, hiddenSignals, findingCalibrations };
 }

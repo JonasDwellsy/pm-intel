@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
 import {
   seedClevelandPilotPortfolio,
   refreshPortfolioWatch,
@@ -10,10 +11,13 @@ import {
   startMarketIqTrendRefresh,
   generateFindingCalibrationProposals,
   reviewFindingCalibrationProposal,
+  rollbackFindingCalibration,
 } from "./actions";
 import { prisma } from "@/lib/prisma";
 import { buildPilotLaunchAssetReadiness } from "@/lib/portfolio-iq/launch-console";
 import { summarizeFindingFeedback } from "@/lib/portfolio-iq/finding-feedback";
+import { loadCalibrationImpact } from "@/lib/portfolio-iq/calibration-impact.server";
+import { isAdminUser } from "@/lib/auth/is-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +78,8 @@ function easternDateTimeInput(value: Date | null): string {
 }
 
 export default async function PortfolioActivationPage() {
+  const { userId } = await auth();
+  if (!userId || !isAdminUser(userId)) throw new Error("Not found.");
   const [organizations, portfolios, onboardingRequests, dataImports, sourceRefreshes] = await Promise.all([
     prisma.organization.findMany({
       select: { id: true, name: true, personalForUserId: true },
@@ -81,7 +87,7 @@ export default async function PortfolioActivationPage() {
     }),
     prisma.portfolioIqPortfolio.findMany({
       include: {
-        organization: { select: { name: true } },
+        organization: { select: { name: true, _count: { select: { memberships: true } } } },
         assets: {
           include: {
             buildings: { orderBy: [{ isPrimary: "desc" }, { canonicalAddress: "asc" }] },
@@ -118,6 +124,9 @@ export default async function PortfolioActivationPage() {
       take: 20,
     }),
   ]);
+  const openCalibrationProposals = portfolios.flatMap((portfolio) => portfolio.calibrationProposals.filter((item) => item.status === "proposed"));
+  const calibrationImpactEntries = await Promise.all(openCalibrationProposals.map(async (proposal) => [proposal.id, await loadCalibrationImpact({ proposalId: proposal.id, userId })] as const));
+  const calibrationImpacts = new Map(calibrationImpactEntries);
   const sourceByMarket = new Map<string, (typeof dataImports)[number]>();
   for (const source of dataImports) if (!sourceByMarket.has(source.marketId)) sourceByMarket.set(source.marketId, source);
   const refreshByMarket = new Map<string, (typeof sourceRefreshes)[number]>();
@@ -263,6 +272,8 @@ export default async function PortfolioActivationPage() {
           const setupCount = [...assetReadiness.values()].filter((item) => item.supportLevel === "setup").length;
           const latestMonitoring = portfolio.monitoringRuns[0] ?? null;
           const feedbackSummary = summarizeFindingFeedback(portfolio.findingFeedback);
+          const approvedProposalByCalibration = new Map<string, (typeof portfolio.calibrationProposals)[number]>();
+          for (const proposal of portfolio.calibrationProposals) if (proposal.status === "approved" && proposal.calibrationId && !approvedProposalByCalibration.has(proposal.calibrationId)) approvedProposalByCalibration.set(proposal.calibrationId, proposal);
 
           return (
             <section key={portfolio.id} className="mt-8 overflow-hidden rounded-xl border border-grid bg-white">
@@ -345,8 +356,13 @@ export default async function PortfolioActivationPage() {
                   ["Context valid", feedbackSummary.validContextRate === null ? "–" : `${Math.round(feedbackSummary.validContextRate * 100)}%`, "of rated findings"],
                 ].map(([label, value, detail]) => <div key={String(label)} className="rounded-lg border border-grid bg-white p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-grey-500">{label}</p><p className="mt-1 text-xl font-semibold text-navy">{value}</p><p className="mt-1 text-[10px] leading-4 text-grey-500">{detail}</p></div>)}</div></div>
                 <div className="mt-5 rounded-xl border border-navy bg-navy p-5 text-white"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-200">Governed calibration</p><h4 className="mt-1 text-lg font-semibold">Turn repeated feedback into reviewed ranking changes</h4><p className="mt-2 max-w-3xl text-xs leading-5 text-white/70">The system proposes a bounded adjustment by finding type after at least three ratings. Nothing changes until an administrator approves it, and every proposal preserves the prior setting and evidence sample.</p></div><form action={generateFindingCalibrationProposals}><input type="hidden" name="portfolioId" value={portfolio.id} /><button className="rounded-md bg-white px-4 py-2.5 text-xs font-semibold text-navy">Analyze feedback</button></form></div>
-                  <div className="mt-5 grid gap-3 lg:grid-cols-2">{portfolio.calibrationProposals.filter((item) => item.status === "proposed").map((proposal) => <article key={proposal.id} className="rounded-lg border border-white/20 bg-white p-4 text-navy"><div className="flex items-start justify-between gap-3"><div><p className="text-[9px] font-bold uppercase tracking-wider text-teal-700">{proposal.scopeValue.replaceAll("_", " ")}</p><p className="mt-1 font-semibold">{proposal.priorScoreAdjustment > 0 ? "+" : ""}{proposal.priorScoreAdjustment} → {proposal.proposedScoreAdjustment > 0 ? "+" : ""}{proposal.proposedScoreAdjustment} ranking points</p></div><span className="rounded-full bg-amber-50 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-800">Review</span></div><p className="mt-3 text-xs leading-5 text-grey-600">{proposal.rationale}</p><p className="mt-2 text-[10px] text-grey-500">{proposal.sampleSize} ratings · {proposal.usefulCount} useful · {proposal.noiseCount} noise · {proposal.contextErrorCount} context errors</p><form action={reviewFindingCalibrationProposal} className="mt-4 grid gap-2"><input type="hidden" name="proposalId" value={proposal.id} /><input name="reviewNote" maxLength={600} placeholder="Optional review note" className="rounded-md border border-grid px-3 py-2 text-xs" /><div className="flex gap-2"><button name="decision" value="approve" className="rounded-md bg-teal-700 px-3 py-2 text-xs font-semibold text-white">Approve adjustment</button><button name="decision" value="reject" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy">Reject</button></div></form></article>)}{portfolio.calibrationProposals.filter((item) => item.status === "proposed").length === 0 && <div className="rounded-lg border border-dashed border-white/30 p-5 text-sm text-white/60 lg:col-span-2">No calibration is waiting for review. Analyze feedback after owners have rated at least three findings of the same type.</div>}</div>
-                  {(portfolio.findingCalibrations.length > 0 || portfolio.calibrationProposals.some((item) => item.status !== "proposed")) && <div className="mt-5 border-t border-white/15 pt-4"><p className="text-[10px] font-bold uppercase tracking-wider text-white/60">Decision history and measurement</p><div className="mt-3 grid gap-2 lg:grid-cols-2">{portfolio.calibrationProposals.filter((item) => item.status !== "proposed").slice(0, 6).map((item) => <div key={item.id} className="rounded-lg border border-white/15 px-3 py-2 text-xs"><div className="flex justify-between gap-3"><strong>{item.scopeValue.replaceAll("_", " ")}</strong><span className="capitalize text-white/60">{item.status}</span></div><p className="mt-1 text-white/70">{item.priorScoreAdjustment > 0 ? "+" : ""}{item.priorScoreAdjustment} → {item.proposedScoreAdjustment > 0 ? "+" : ""}{item.proposedScoreAdjustment} · {item.sampleSize} ratings · {item.baselineUsefulRate === null ? "no precision measure" : `${Math.round(item.baselineUsefulRate * 100)}% useful`}</p></div>)}</div><p className="mt-3 text-[10px] leading-4 text-white/50">After approval, the next review uses only feedback collected under the new setting. This keeps before-and-after samples distinct.</p></div>}
+                  <div className="mt-5 grid gap-3 lg:grid-cols-2">{portfolio.calibrationProposals.filter((item) => item.status === "proposed").map((proposal) => {
+                    const impact = calibrationImpacts.get(proposal.id);
+                    return <article key={proposal.id} className="rounded-lg border border-white/20 bg-white p-4 text-navy"><div className="flex items-start justify-between gap-3"><div><p className="text-[9px] font-bold uppercase tracking-wider text-teal-700">{proposal.scopeValue.replaceAll("_", " ")}</p><p className="mt-1 font-semibold">{proposal.priorScoreAdjustment > 0 ? "+" : ""}{proposal.priorScoreAdjustment} → {proposal.proposedScoreAdjustment > 0 ? "+" : ""}{proposal.proposedScoreAdjustment} ranking points</p></div><span className="rounded-full bg-amber-50 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-800">Review</span></div><p className="mt-3 text-xs leading-5 text-grey-600">{proposal.rationale}</p><p className="mt-2 text-[10px] text-grey-500">{proposal.sampleSize} ratings · {proposal.usefulCount} useful · {proposal.noiseCount} noise · {proposal.contextErrorCount} context errors</p>
+                      <div className="mt-4 rounded-lg border border-grid bg-surface-soft p-3"><div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-semibold text-navy"><span>{impact?.enteredToday ?? 0} enter Today</span><span>{impact?.leftToday ?? 0} leave Today</span><span>{impact?.reordered ?? 0} reordered</span><span>{impact?.affectedAssetIds.length ?? 0} properties affected</span><span>{portfolio.organization._count.memberships} authorized users</span></div>{impact?.changes.length ? <div className="mt-3 space-y-2">{impact.changes.slice(0, 5).map((change) => <div key={change.signalId} className="flex items-start justify-between gap-3 border-t border-grid pt-2 text-[10px]"><span className="line-clamp-2 text-grey-600">{change.headline}</span><span className="shrink-0 font-semibold text-navy">{change.beforePlacement ?? "out"} #{change.beforeRank ?? "–"} ({change.beforeScore ?? "–"}) → {change.afterPlacement ?? "out"} #{change.afterRank ?? "–"} ({change.afterScore ?? "–"})</span></div>)}</div> : <p className="mt-2 text-[10px] text-grey-500">No queue placement changes at the current evidence cut.</p>}</div>
+                      <form action={reviewFindingCalibrationProposal} className="mt-4 grid gap-2"><input type="hidden" name="proposalId" value={proposal.id} /><input name="reviewNote" maxLength={600} placeholder="Optional review note" className="rounded-md border border-grid px-3 py-2 text-xs" /><div className="flex gap-2"><button name="decision" value="approve" className="rounded-md bg-teal-700 px-3 py-2 text-xs font-semibold text-white">Approve adjustment</button><button name="decision" value="reject" className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy">Reject</button></div></form></article>;
+                  })}{portfolio.calibrationProposals.filter((item) => item.status === "proposed").length === 0 && <div className="rounded-lg border border-dashed border-white/30 p-5 text-sm text-white/60 lg:col-span-2">No calibration is waiting for review. Analyze feedback after owners have rated at least three findings of the same type.</div>}</div>
+                  {(portfolio.findingCalibrations.length > 0 || portfolio.calibrationProposals.some((item) => item.status !== "proposed")) && <div className="mt-5 border-t border-white/15 pt-4"><p className="text-[10px] font-bold uppercase tracking-wider text-white/60">Decision history and measurement</p><div className="mt-3 grid gap-2 lg:grid-cols-2">{portfolio.calibrationProposals.filter((item) => item.status !== "proposed").slice(0, 6).map((item) => <div key={item.id} className="rounded-lg border border-white/15 px-3 py-2 text-xs"><div className="flex justify-between gap-3"><strong>{item.scopeValue.replaceAll("_", " ")}</strong><span className="capitalize text-white/60">{item.status}</span></div><p className="mt-1 text-white/70">{item.priorScoreAdjustment > 0 ? "+" : ""}{item.priorScoreAdjustment} → {item.proposedScoreAdjustment > 0 ? "+" : ""}{item.proposedScoreAdjustment} · {item.sampleSize} ratings · {item.baselineUsefulRate === null ? "no precision measure" : `${Math.round(item.baselineUsefulRate * 100)}% useful`}</p></div>)}</div><div className="mt-3 flex flex-wrap gap-2">{portfolio.findingCalibrations.map((item) => { const prior = approvedProposalByCalibration.get(item.id); return <form key={item.id} action={rollbackFindingCalibration} className="flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-xs"><input type="hidden" name="calibrationId" value={item.id} /><span><strong>{item.scopeValue.replaceAll("_", " ")}</strong> · current {item.scoreAdjustment > 0 ? "+" : ""}{item.scoreAdjustment} · revision {item.revision}</span>{prior && prior.priorScoreAdjustment !== item.scoreAdjustment && <button className="rounded bg-white px-2 py-1 font-semibold text-navy">Rollback to {prior.priorScoreAdjustment > 0 ? "+" : ""}{prior.priorScoreAdjustment}</button>}</form>; })}</div><p className="mt-3 text-[10px] leading-4 text-white/50">After approval, the next review uses only feedback collected under the new setting. This keeps before-and-after samples distinct.</p></div>}
                 </div>
               </div>
 
