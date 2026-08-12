@@ -739,10 +739,35 @@ model PortfolioIqPortfolio {
   pilotAcceptance     PortfolioIqPilotAcceptance?
   pilotReviews        PortfolioIqPilotReview[]
   pilotCorrections    PortfolioIqPilotCorrection[]
+  findingFeedback     PortfolioIqFindingFeedback[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
   @@index([marketId])
+}
+
+// Per-owner reactions improve the attention queue without rewriting the
+// analytical finding or changing another user's view of the portfolio.
+model PortfolioIqFindingFeedback {
+  id                String   @id @default(cuid())
+  portfolioId       String
+  organizationId    String
+  signalId          String
+  userId            String
+  rating            String // useful | already_known | immaterial | duplicate | stale | wrong_context
+  note              String?
+  suppressFromQueue Boolean  @default(false)
+  reviewedAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  signal    PortfolioIqSignal    @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, userId, signalId])
+  @@index([organizationId, rating, reviewedAt(sort: Desc)])
+  @@index([portfolioId, rating])
+  @@index([userId, suppressFromQueue])
 }
 
 // The assisted onboarding specialist uses this one-session record to move a
@@ -1216,11 +1241,12 @@ model PortfolioIqSignal {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  portfolio      PortfolioIqPortfolio       @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
-  asset          PortfolioIqAsset?          @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  decision       PortfolioIqSignalDecision?
-  unifiedInsight DwellsyIqInsight?
-  pmBriefs       PortfolioIqPmBrief[]
+  portfolio       PortfolioIqPortfolio         @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  asset           PortfolioIqAsset?            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  decision        PortfolioIqSignalDecision?
+  unifiedInsight  DwellsyIqInsight?
+  pmBriefs        PortfolioIqPmBrief[]
+  findingFeedback PortfolioIqFindingFeedback[]
 
   @@index([portfolioId, status, rankScore(sort: Desc)])
   @@index([assetId, status])

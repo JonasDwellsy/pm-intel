@@ -12,6 +12,9 @@ import { parseTodaySignalEvidence } from "@/lib/portfolio-iq/today";
 import { updatePortfolioDigestPreference, updatePortfolioSignalDecision } from "@/app/portfolio-iq/actions";
 import { loadOwnerWatchActivity } from "@/lib/portfolio-iq/owner-watch-activity.server";
 import { routeOwnerAttention } from "@/lib/portfolio-iq/owner-attention-routing";
+import { FindingFeedbackControl } from "@/components/portfolio-iq/FindingFeedbackControl";
+import { clearFindingFeedback } from "@/app/today/feedback-actions";
+import { FINDING_FEEDBACK_LABELS, type FindingFeedbackRating } from "@/lib/portfolio-iq/finding-feedback";
 
 export const dynamic = "force-dynamic";
 
@@ -92,7 +95,7 @@ export default async function TodayPage() {
           <p className="mt-2 text-sm leading-6 text-foreground/75">
             {affectedAssets} assets are represented in today&apos;s queue. {assignedCount ? `${assignedCount} already ${assignedCount === 1 ? "has" : "have"} an owner.` : "Nothing has been assigned yet."}
           </p>
-          <p className="mt-2 text-xs leading-5 text-teal-800">{today.attentionQueue.watchlist.length} additional findings remain monitored without competing for today&apos;s attention.</p>
+          <p className="mt-2 text-xs leading-5 text-teal-800">{today.attentionQueue.watchlist.length} additional findings remain monitored without competing for today&apos;s attention. {today.hiddenSignals.length ? `${today.hiddenSignals.length} hidden by your feedback.` : ""}</p>
         </aside>
       </header>
 
@@ -227,6 +230,8 @@ export default async function TodayPage() {
                   )}
                 </div>
 
+                <div className="border-t border-grid bg-white/85 px-5 pb-4 sm:px-6"><FindingFeedbackControl signalId={signal.id} currentRating={today.feedbackBySignalId.get(signal.id)?.rating} compact /></div>
+
                 <details className="group border-t border-grid bg-white/85">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-navy sm:px-6">
                     <span>Open the full diagnosis{connectedSourceCount ? ` · ${connectedSourceCount} evidence sources` : ""}</span>
@@ -348,6 +353,14 @@ export default async function TodayPage() {
           })}
         </div>
       </section>
+
+      {today.hiddenSignals.length > 0 && <section className="mt-10 rounded-xl border border-grid bg-surface-soft p-5 sm:p-6">
+        <details>
+          <summary className="cursor-pointer text-sm font-semibold text-navy">Hidden from your queue · {today.hiddenSignals.length}</summary>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">These findings remain in the evidence record and stay visible to other authorized users unless they also hide them.</p>
+          <div className="mt-4 divide-y divide-grid rounded-lg border border-grid bg-white">{today.hiddenSignals.map(({ signal, feedback }) => <div key={signal.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"><div><p className="text-sm font-semibold text-navy">{signal.headline}</p><p className="mt-1 text-xs text-muted-foreground">{FINDING_FEEDBACK_LABELS[feedback.rating as FindingFeedbackRating] ?? feedback.rating.replaceAll("_", " ")}</p></div><form action={clearFindingFeedback}><input type="hidden" name="signalId" value={signal.id} /><button className="rounded-md border border-grid px-3 py-2 text-xs font-semibold text-navy">Restore to my queue</button></form></div>)}</div>
+        </details>
+      </section>}
 
       <section className="mt-10 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-xl border border-grid bg-white p-5 sm:p-6">

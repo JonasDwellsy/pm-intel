@@ -15,6 +15,7 @@ export async function loadDecisionCase(input: { organizationId: string; userId: 
     include: {
       asset: { select: { id: true, slug: true, name: true, city: true, postalCode: true, observedOperatorName: true } },
       decision: { include: { events: { orderBy: { createdAt: "desc" }, take: 25 } } },
+      findingFeedback: { where: { userId: input.userId }, take: 1 },
       unifiedInsight: {
         select: {
           id: true,

@@ -11,6 +11,7 @@ import {
 } from "./actions";
 import { prisma } from "@/lib/prisma";
 import { buildPilotLaunchAssetReadiness } from "@/lib/portfolio-iq/launch-console";
+import { summarizeFindingFeedback } from "@/lib/portfolio-iq/finding-feedback";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +95,7 @@ export default async function PortfolioActivationPage() {
         pilotAcceptance: true,
         pilotReviews: { orderBy: { reviewedAt: "desc" } },
         pilotCorrections: { orderBy: [{ status: "asc" }, { updatedAt: "desc" }] },
+        findingFeedback: { orderBy: { reviewedAt: "desc" } },
       },
       orderBy: { updatedAt: "desc" },
     }),
@@ -256,6 +258,7 @@ export default async function PortfolioActivationPage() {
           const marketSupportCount = [...assetReadiness.values()].filter((item) => item.supportLevel === "market_only").length;
           const setupCount = [...assetReadiness.values()].filter((item) => item.supportLevel === "setup").length;
           const latestMonitoring = portfolio.monitoringRuns[0] ?? null;
+          const feedbackSummary = summarizeFindingFeedback(portfolio.findingFeedback);
 
           return (
             <section key={portfolio.id} className="mt-8 overflow-hidden rounded-xl border border-grid bg-white">
@@ -329,6 +332,14 @@ export default async function PortfolioActivationPage() {
                   const asset = correction.assetId ? portfolio.assets.find((item) => item.id === correction.assetId) : null;
                   return <article key={correction.id} className="rounded-lg border border-amber-200 bg-amber-50 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-wider text-amber-800">{correction.objectType} correction</p><p className="mt-1 font-semibold text-navy">{asset?.name ?? "Portfolio finding"}</p></div><span className="rounded-full bg-white px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-900">{correction.status.replaceAll("_", " ")}</span></div><p className="mt-3 text-sm leading-6 text-amber-950/80">{correction.issue}</p><form action={updatePilotCorrection} className="mt-4 flex gap-2"><input type="hidden" name="correctionId" value={correction.id} /><select name="status" defaultValue={correction.status} className="min-w-0 flex-1 rounded-md border border-amber-200 bg-white px-2 py-2 text-xs text-navy"><option value="open">Open</option><option value="in_progress">In progress</option><option value="complete">Complete</option></select><button className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white">Save</button></form></article>;
                 })}{portfolio.pilotCorrections.filter((item) => item.status !== "complete").length === 0 && <div className="rounded-lg border border-dashed border-grid p-5 text-sm text-grey-500 md:col-span-2">No owner corrections are waiting for the launch team.</div>}</div></div>
+                <div className="mt-5 rounded-xl border border-grid bg-surface-soft p-4"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-wider text-teal-700">Finding precision</p><h4 className="mt-1 font-semibold text-navy">What owners say deserves attention</h4></div><p className="text-xs text-grey-500">Owner-specific feedback never changes Operator IQ rankings.</p></div><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">{[
+                  ["Rated", feedbackSummary.rated, "responses"],
+                  ["Useful", feedbackSummary.useful, feedbackSummary.usefulRate === null ? "No ratings" : `${Math.round(feedbackSummary.usefulRate * 100)}% precision`],
+                  ["Already known", feedbackSummary.alreadyKnown, "valid, not new"],
+                  ["Noise", feedbackSummary.noise, "immaterial, duplicate, stale"],
+                  ["Context errors", feedbackSummary.contextErrors, "routed to data ops"],
+                  ["Context valid", feedbackSummary.validContextRate === null ? "–" : `${Math.round(feedbackSummary.validContextRate * 100)}%`, "of rated findings"],
+                ].map(([label, value, detail]) => <div key={String(label)} className="rounded-lg border border-grid bg-white p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-grey-500">{label}</p><p className="mt-1 text-xl font-semibold text-navy">{value}</p><p className="mt-1 text-[10px] leading-4 text-grey-500">{detail}</p></div>)}</div></div>
               </div>
 
               <div className="border-b border-grid bg-surface-soft px-6 py-6">

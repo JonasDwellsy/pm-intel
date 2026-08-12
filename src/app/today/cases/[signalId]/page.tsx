@@ -9,6 +9,7 @@ import { buildDecisionBaseline, loadDecisionCase } from "@/lib/portfolio-iq/deci
 import { decisionBaselineExposures, monitoringStatus, parseDecisionBaseline, MONITORING_WINDOWS } from "@/lib/portfolio-iq/decision-case";
 import { portfolioDecisionLabel } from "@/lib/portfolio-iq/decision";
 import { savePortfolioDecisionCase, updatePortfolioSignalDecision } from "@/app/portfolio-iq/actions";
+import { FindingFeedbackControl } from "@/components/portfolio-iq/FindingFeedbackControl";
 
 export const dynamic = "force-dynamic";
 
@@ -174,6 +175,7 @@ export default async function DecisionCasePage({ params }: { params: Promise<{ s
         </div>
 
         <aside className="space-y-6">
+          <FindingFeedbackControl signalId={signalId} currentRating={caseData.signal.findingFeedback[0]?.rating} />
           <section className="rounded-xl border border-teal/25 bg-teal-soft p-5 sm:p-6">
             <p className="dq-eyebrow">Monitor</p>
             <h2 className="dq-h2">Source health and follow-up</h2>

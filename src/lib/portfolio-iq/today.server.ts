@@ -13,7 +13,7 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
   const portfolio = await loadPortfolioIqHome(input);
   if (!portfolio) return null;
 
-  const [unifiedInsights, fallbackSignals, digestPreference, decisionHistory, trendPulses] = await Promise.all([
+  const [unifiedInsights, fallbackSignals, digestPreference, decisionHistory, trendPulses, findingFeedback] = await Promise.all([
     loadDwellsyIqInsights(portfolio.id),
     loadPortfolioWatchSignals(portfolio.id),
     prisma.portfolioIqDigestPreference.findUnique({
@@ -21,8 +21,12 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
     }),
     loadPortfolioDecisionHistory(portfolio.id),
     loadClevelandTrendPulses().catch(() => []),
+    prisma.portfolioIqFindingFeedback.findMany({
+      where: { portfolioId: portfolio.id, userId: input.userId },
+      orderBy: { reviewedAt: "desc" },
+    }),
   ]);
-  const signals = unifiedInsights.length ? unifiedInsights : fallbackSignals.map((signal) => ({
+  const allSignals = unifiedInsights.length ? unifiedInsights : fallbackSignals.map((signal) => ({
     ...signal,
     unifiedInsightId: "",
     sourceAlertId: null,
@@ -34,7 +38,13 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
     evidenceSources: "[]",
     exposures: [],
   }));
-  const uniqueSlugs = [...new Set(signals.flatMap((signal) => [
+  const feedbackBySignalId = new Map(findingFeedback.map((item) => [item.signalId, item]));
+  const signals = allSignals.filter((signal) => !feedbackBySignalId.get(signal.id)?.suppressFromQueue);
+  const hiddenSignals = allSignals.flatMap((signal) => {
+    const feedback = feedbackBySignalId.get(signal.id);
+    return feedback?.suppressFromQueue ? [{ signal, feedback }] : [];
+  });
+  const uniqueSlugs = [...new Set(allSignals.flatMap((signal) => [
     ...(signal.asset?.slug ? [signal.asset.slug] : []),
     ...signal.exposures.map((exposure) => exposure.asset.slug),
   ]))];
@@ -77,5 +87,5 @@ export async function loadOwnerToday(input: { organizationId: string; userId: st
     assets: portfolio.assets,
   });
 
-  return { portfolio, signals, todaySignals, attentionQueue, digestPreference, decisionHistory, trendPulses, properties, operatorResponses, financialImpacts };
+  return { portfolio, signals, todaySignals, attentionQueue, digestPreference, decisionHistory, trendPulses, properties, operatorResponses, financialImpacts, findingFeedback, feedbackBySignalId, hiddenSignals };
 }
