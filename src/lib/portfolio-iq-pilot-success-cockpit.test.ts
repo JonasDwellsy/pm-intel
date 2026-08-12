@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { buildPilotSuccess, type PilotSuccessInput } from "@/lib/portfolio-iq/pilot-success";
+import { isPilotInterventionOverdue, pilotInterventionPriority } from "@/lib/portfolio-iq/pilot-interventions";
 
 function input(overrides: Partial<PilotSuccessInput> = {}): PilotSuccessInput {
   return {
@@ -66,4 +67,25 @@ test("engagement storage and route are tenant-scoped and additive", () => {
   assert.doesNotMatch(migration, /DROP TABLE|DROP COLUMN|ALTER TABLE "PropertyManager"|ALTER TABLE "CanonicalOperator"|ALTER TABLE "WatchList"/);
   assert.match(route, /portfolio\.organizationId === organizationId/);
   assert.match(route, /portfolioId_userId/);
+});
+
+test("pilot intervention aging distinguishes overdue, blocked, and completed work", () => {
+  const now = new Date("2026-08-12T00:00:00Z");
+  const old = new Date("2026-08-01T00:00:00Z");
+  const due = new Date("2026-08-10T00:00:00Z");
+  assert.equal(isPilotInterventionOverdue({ status: "open", dueAt: due }, now), true);
+  assert.equal(isPilotInterventionOverdue({ status: "completed", dueAt: due }, now), false);
+  assert.equal(pilotInterventionPriority({ status: "blocked", dueAt: null, createdAt: old }, now), "blocked");
+  assert.equal(pilotInterventionPriority({ status: "open", dueAt: null, createdAt: old }, now), "aging");
+});
+
+test("pilot intervention workflow is additive, admin-gated, and portfolio-scoped", () => {
+  const migration = readFileSync("prisma/migrations/20260812060000_portfolio_iq_pilot_interventions/migration.sql", "utf8");
+  const actions = readFileSync("src/app/admin/pilot-success/actions.ts", "utf8");
+  assert.match(migration, /CREATE TABLE "PortfolioIqPilotSuccessPlan"/);
+  assert.match(migration, /CREATE TABLE "PortfolioIqPilotIntervention"/);
+  assert.doesNotMatch(migration, /DROP TABLE|DROP COLUMN|ALTER TABLE "PropertyManager"|ALTER TABLE "CanonicalOperator"|ALTER TABLE "WatchList"/);
+  assert.match(actions, /isAdminUser\(userId\)/);
+  assert.match(actions, /portfolioId: portfolio\.id/);
+  assert.match(actions, /organizationId: portfolio\.organizationId/);
 });

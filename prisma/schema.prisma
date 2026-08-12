@@ -743,10 +743,55 @@ model PortfolioIqPortfolio {
   findingCalibrations  PortfolioIqFindingCalibration[]
   calibrationProposals PortfolioIqCalibrationProposal[]
   pilotEngagements     PortfolioIqPilotEngagement[]
+  pilotSuccessPlan     PortfolioIqPilotSuccessPlan?
+  pilotInterventions   PortfolioIqPilotIntervention[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
   @@index([marketId])
+}
+
+// Staff-owned operating plan for an assisted pilot. The derived lifecycle
+// score remains evidence-based; this record adds the human accountability
+// needed to move an account through that journey.
+model PortfolioIqPilotSuccessPlan {
+  id              String    @id @default(cuid())
+  portfolioId     String    @unique
+  organizationId  String
+  staffOwnerName  String?
+  successGoal     String?
+  nextCheckInAt   DateTime?
+  updatedByUserId String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, nextCheckInAt])
+}
+
+// Calls, emails, meetings, decisions, notes, and follow-ups form the internal
+// customer-success timeline. These do not alter analytical findings or any
+// Operator IQ scorecard data.
+model PortfolioIqPilotIntervention {
+  id              String    @id @default(cuid())
+  portfolioId     String
+  organizationId  String
+  kind            String // call | email | meeting | decision | note | follow_up
+  status          String    @default("open") // open | scheduled | completed | blocked
+  title           String
+  note            String?
+  dueAt           DateTime?
+  completedAt     DateTime?
+  assignedTo      String?
+  createdByUserId String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status, dueAt])
+  @@index([portfolioId, createdAt(sort: Desc)])
 }
 
 // Minimal first-party engagement evidence for pilot operations. This records

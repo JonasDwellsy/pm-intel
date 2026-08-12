@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { buildPilotSuccess } from "@/lib/portfolio-iq/pilot-success";
+import { pilotInterventionPriority } from "@/lib/portfolio-iq/pilot-interventions";
 
 export async function loadPilotSuccessCockpit(now = new Date()) {
   const portfolios = await prisma.portfolioIqPortfolio.findMany({
@@ -16,6 +17,8 @@ export async function loadPilotSuccessCockpit(now = new Date()) {
       outcomeReviews: { where: { status: "reviewed" }, select: { reviewedAt: true } },
       digestPreferences: { select: { deliveries: { select: { status: true, deliveredAt: true } } } },
       pilotCorrections: { where: { status: { not: "complete" } }, select: { id: true } },
+      pilotSuccessPlan: true,
+      pilotInterventions: { orderBy: { createdAt: "desc" }, take: 20 },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -46,6 +49,11 @@ export async function loadPilotSuccessCockpit(now = new Date()) {
       openCorrectionCount: portfolio.pilotCorrections.length,
     });
     const firstUseful = portfolio.findingFeedback.filter((item) => item.rating === "useful").sort((a, b) => a.reviewedAt.getTime() - b.reviewedAt.getTime())[0]?.reviewedAt ?? null;
+    const interventions = portfolio.pilotInterventions.map((item) => ({
+      ...item,
+      priority: pilotInterventionPriority(item, now),
+    }));
+    const checkInOverdue = Boolean(portfolio.pilotSuccessPlan?.nextCheckInAt && portfolio.pilotSuccessPlan.nextCheckInAt.getTime() < now.getTime());
     return {
       id: portfolio.id,
       name: portfolio.name,
@@ -56,6 +64,11 @@ export async function loadPilotSuccessCockpit(now = new Date()) {
       lastViewedAt,
       firstUsefulAt: firstUseful,
       openCorrections: portfolio.pilotCorrections.length,
+      successPlan: portfolio.pilotSuccessPlan,
+      interventions,
+      openInterventionCount: interventions.filter((item) => item.status !== "completed").length,
+      overdueInterventionCount: interventions.filter((item) => item.priority === "overdue").length,
+      checkInOverdue,
       ...success,
     };
   });
