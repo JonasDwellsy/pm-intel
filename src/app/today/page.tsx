@@ -15,6 +15,7 @@ import { routeOwnerAttention } from "@/lib/portfolio-iq/owner-attention-routing"
 import { FindingFeedbackControl } from "@/components/portfolio-iq/FindingFeedbackControl";
 import { clearFindingFeedback } from "@/app/today/feedback-actions";
 import { FINDING_FEEDBACK_LABELS, type FindingFeedbackRating } from "@/lib/portfolio-iq/finding-feedback";
+import { PilotEngagementBeacon } from "@/components/portfolio-iq/PilotEngagementBeacon";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,7 @@ export default async function TodayPage() {
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
+      <PilotEngagementBeacon portfolioId={today.portfolio.id} />
       <DwellsyIqWorkspaceNav />
 
       <header className="grid gap-7 border-b border-grid pb-8 lg:grid-cols-[1fr_390px] lg:items-end">

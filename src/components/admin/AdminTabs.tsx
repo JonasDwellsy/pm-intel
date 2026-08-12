@@ -13,6 +13,7 @@ const TABS = [
   { href: "/admin/markets", label: "Markets" },
   { href: "/admin/organizations", label: "Organizations" },
   { href: "/admin/portfolio-activation", label: "Launch console" },
+  { href: "/admin/pilot-success", label: "Pilot success" },
   { href: "/admin/usage", label: "Usage" },
   { href: "/admin/digests", label: "Digests" },
   { href: "/admin/merges", label: "Merges" },

@@ -145,6 +145,7 @@ export default async function PortfolioActivationPage() {
             Customers provide what they have; activation staff resolve property matches, URU coverage, operator
             relationships, and comp readiness before the launch call.
           </p>
+          <Link href="/admin/pilot-success" className="mt-4 inline-flex rounded-md border border-navy px-3 py-2 text-xs font-semibold text-navy">Open pilot-success cockpit →</Link>
         </div>
         <form action={seedClevelandPilotPortfolio} className="rounded-lg border border-grid bg-white p-4">
           <label htmlFor="organizationId" className="block text-[12px] font-semibold uppercase tracking-wider text-grey-600">

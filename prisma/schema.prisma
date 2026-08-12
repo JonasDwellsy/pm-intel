@@ -742,10 +742,32 @@ model PortfolioIqPortfolio {
   findingFeedback      PortfolioIqFindingFeedback[]
   findingCalibrations  PortfolioIqFindingCalibration[]
   calibrationProposals PortfolioIqCalibrationProposal[]
+  pilotEngagements     PortfolioIqPilotEngagement[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, updatedAt(sort: Desc)])
   @@index([marketId])
+}
+
+// Minimal first-party engagement evidence for pilot operations. This records
+// workspace visits only, not clickstream behavior or analytical content.
+model PortfolioIqPilotEngagement {
+  id             String   @id @default(cuid())
+  portfolioId    String
+  organizationId String
+  userId         String
+  firstViewedAt  DateTime @default(now())
+  lastViewedAt   DateTime @default(now())
+  viewCount      Int      @default(1)
+  lastRoute      String   @default("/today")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  portfolio PortfolioIqPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, userId])
+  @@index([organizationId, lastViewedAt(sort: Desc)])
+  @@index([portfolioId, lastViewedAt(sort: Desc)])
 }
 
 // Per-owner reactions improve the attention queue without rewriting the
