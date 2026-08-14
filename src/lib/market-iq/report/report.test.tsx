@@ -35,6 +35,19 @@ describe("Market IQ local market read assembly", () => {
     expect(parseMarketIqReportSnapshot('{"version":1}')).toBeNull();
     expect(parseMarketIqReportSnapshot("not json")).toBeNull();
   });
+
+  it("ships source-dated ZIP Trends cells in the Cleveland preview snapshot", () => {
+    expect(seededClevelandMarketReport.marketRead.cells.find((cell) => cell.key === "44113:apartment:1")).toMatchObject({
+      status: "reportable",
+      rent: 1199,
+      observations: 17,
+      month: "2026-07-01",
+    });
+    expect(seededClevelandMarketReport.marketRead.cells.find((cell) => cell.key === "44123:apartment:1")).toMatchObject({
+      status: "suppressed",
+      rent: null,
+    });
+  });
 });
 
 describe("Market IQ composer scope and coverage", () => {
@@ -47,7 +60,7 @@ describe("Market IQ composer scope and coverage", () => {
     expect(scoped.scope).toMatchObject({ cities: ["Cleveland"], zipCodes: ["44113"], segments: ["1-bedroom apartments"] });
     expect(scoped.marketRead.cells.map((cell) => cell.key)).toEqual(["Cleveland, OH:apartment:1", "44113:apartment:1"]);
     expect(scoped.marketMap.points).toHaveLength(1);
-    expect(buildMarketIqCoveragePreflight(scoped).counts).toEqual({ reportable: 1, thin: 0, stale: 0, unavailable: 1 });
+    expect(buildMarketIqCoveragePreflight(scoped).counts).toEqual({ reportable: 2, thin: 0, stale: 0, unavailable: 0 });
   });
 
   it("does not silently restore unchecked geographies or segments", () => {

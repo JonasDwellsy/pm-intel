@@ -15,6 +15,7 @@ import {
 import {
   SEEDED_CLEVELAND_REPORT_TOKEN,
   CLEVELAND_ZIP_CENTERS,
+  SEEDED_CLEVELAND_TREND_SERIES,
   seededClevelandMarketReport,
 } from "@/lib/market-iq/report/seeded-cleveland";
 
@@ -74,6 +75,8 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
   generatedAt?: Date;
   brand?: MarketIqReportSnapshot["brand"];
 }) {
+  const liveDwellsyRuntimeEnabled = process.env.DWELLSY_LIVE_RUNTIME_ENABLED === "1"
+    || !process.env.VERCEL;
   const analyticalContext = marketIqDatabaseConfigured()
     ? Promise.all([
         loadClevelandHistoricalPulse(),
@@ -84,16 +87,21 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
         }),
       ]).then(([historicalPulse, coordinateRows]) => ({ historicalPulse, coordinateRows }))
     : Promise.resolve(null);
-  const [dwellsyTrends, context] = await Promise.all([
-    loadDwellsyTrendSeries({
-      cities: REPORT_CITIES,
-      zipCodes: REPORT_ZIPS,
-      periodStart: "2025-08-01",
-      bedrooms: REPORT_BEDROOMS,
-    }),
+  const [trendSource, context] = await Promise.all([
+    liveDwellsyRuntimeEnabled
+      ? loadDwellsyTrendSeries({
+          cities: REPORT_CITIES,
+          zipCodes: REPORT_ZIPS,
+          periodStart: "2025-08-01",
+          bedrooms: REPORT_BEDROOMS,
+        }).then((result) => ({ result, live: true as const })).catch(() => ({
+          result: { series: SEEDED_CLEVELAND_TREND_SERIES },
+          live: false as const,
+        }))
+      : Promise.resolve({ result: { series: SEEDED_CLEVELAND_TREND_SERIES }, live: false as const }),
     analyticalContext,
   ]);
-  const trendSeries = completeTrendSeries(dwellsyTrends.series);
+  const trendSeries = completeTrendSeries(trendSource.result.series);
   const reportablePoints = trendSeries.flatMap((series) => series.points.filter((point) => point.observations >= 10));
   const historicalSource = seededClevelandMarketReport.sources.find((source) => source.name === "Total IQ observed listings");
   const latestTrendMonth = reportablePoints.map((point) => point.month).sort().at(-1) ?? seededClevelandMarketReport.scope.periodEnd;
@@ -128,7 +136,9 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
       historical: historicalPulse.historical,
     } : seededClevelandMarketReport.marketConditions,
     sources: [
-      { name: "Dwellsy IQ Trends", availableThrough: trendAvailableThrough, observationCount: totalTrendObservations || null, note: "The exclusive source for every published aggregated rent level and rent change." },
+      { name: "Dwellsy IQ Trends", availableThrough: trendAvailableThrough, observationCount: totalTrendObservations || null, note: trendSource.live
+        ? "The exclusive source for every published aggregated rent level and rent change. Loaded directly from the read-only Trends source."
+        : "The exclusive source for every published aggregated rent level and rent change. This source-dated snapshot is used while the read-only Trends connection is unavailable from the preview environment." },
       historicalPulse
         ? { name: "Total IQ observed listings", availableThrough: historicalPulse.historicalSource.availableThrough, observationCount: historicalPulse.historicalSource.recordCount, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." }
         : historicalSource ?? { name: "Total IQ observed listings", availableThrough: "2026-07-31", observationCount: null, note: "Used only for listing activity and geographic context. It is not used to calculate aggregated prices." },

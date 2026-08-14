@@ -16,6 +16,16 @@ export const CLEVELAND_ZIP_CENTERS: Record<string, { latitude: number; longitude
   "44123": { latitude: 41.6035, longitude: -81.5254 },
 };
 
+const CLEVELAND_ZIP_TREND_POINTS: Record<string, MarketIqTrendPoint[]> = {
+  "44102:apartment:2": [{ rent: 1120, yearOverYearPct: null, observations: 14, month: "2026-06-01" }],
+  "44107:apartment:1": [{ rent: 1050, yearOverYearPct: null, observations: 13, month: "2026-07-01" }],
+  "44113:apartment:1": [{ rent: 1199, yearOverYearPct: null, observations: 17, month: "2026-07-01" }],
+  "44113:apartment:2": [{ rent: 1900, yearOverYearPct: null, observations: 10, month: "2026-06-01" }],
+  "44114:apartment:1": [{ rent: 1341, yearOverYearPct: null, observations: 34, month: "2026-07-01" }],
+  "44120:apartment:1": [{ rent: 999, yearOverYearPct: null, observations: 15, month: "2026-07-01" }],
+  "44120:apartment:2": [{ rent: 1150, yearOverYearPct: null, observations: 35, month: "2026-06-01" }],
+};
+
 function series(input: {
   geographyType: "msa" | "city" | "zip";
   geographyValue: string;
@@ -27,7 +37,7 @@ function series(input: {
   return { ...input, points: input.points ?? [] };
 }
 
-const trendSeries: MarketIqTrendSeries[] = [
+export const SEEDED_CLEVELAND_TREND_SERIES: MarketIqTrendSeries[] = [
   series({ geographyType: "city", geographyValue: "Cleveland, OH", geographyLabel: "Cleveland", propertyType: "apartment", bedrooms: 1, points: [{ rent: 950, yearOverYearPct: 1.39, observations: 135, month: "2026-07-01" }] }),
   series({ geographyType: "city", geographyValue: "Cleveland, OH", geographyLabel: "Cleveland", propertyType: "apartment", bedrooms: 2, points: [{ rent: 1150, yearOverYearPct: -4.17, observations: 99, month: "2026-06-01" }] }),
   series({ geographyType: "city", geographyValue: "Cleveland, OH", geographyLabel: "Cleveland", propertyType: "house", bedrooms: 2, points: [{ rent: 1161, yearOverYearPct: 4.89, observations: 33, month: "2026-06-01" }] }),
@@ -41,8 +51,8 @@ const trendSeries: MarketIqTrendSeries[] = [
   series({ geographyType: "city", geographyValue: "Euclid, OH", geographyLabel: "Euclid", propertyType: "house", bedrooms: 2 }),
   series({ geographyType: "city", geographyValue: "Euclid, OH", geographyLabel: "Euclid", propertyType: "house", bedrooms: 3 }),
   ...Object.keys(CLEVELAND_ZIP_CENTERS).flatMap((zip) => [
-    series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "apartment" as const, bedrooms: 1 }),
-    series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "apartment" as const, bedrooms: 2 }),
+    series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "apartment" as const, bedrooms: 1, points: CLEVELAND_ZIP_TREND_POINTS[`${zip}:apartment:1`] }),
+    series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "apartment" as const, bedrooms: 2, points: CLEVELAND_ZIP_TREND_POINTS[`${zip}:apartment:2`] }),
     series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "house" as const, bedrooms: 2 }),
     series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "house" as const, bedrooms: 3 }),
   ]),
@@ -70,7 +80,7 @@ export const seededClevelandMarketReport = buildMarketIqReportSnapshot({
     periodEnd: "2026-07-31",
     seededExample: true,
   },
-  trendSeries,
+  trendSeries: SEEDED_CLEVELAND_TREND_SERIES,
   mapCenters: CLEVELAND_ZIP_CENTERS,
   unavailableCuts: [{
     label: "Small multifamily versus large multifamily",
