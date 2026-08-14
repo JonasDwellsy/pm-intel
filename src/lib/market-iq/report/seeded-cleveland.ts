@@ -7,7 +7,7 @@ import {
 
 export const SEEDED_CLEVELAND_REPORT_TOKEN = "cleveland-local-market-read-r4";
 
-const ZIP_CENTERS: Record<string, { latitude: number; longitude: number }> = {
+export const CLEVELAND_ZIP_CENTERS: Record<string, { latitude: number; longitude: number }> = {
   "44102": { latitude: 41.4767, longitude: -81.7398 },
   "44107": { latitude: 41.4821, longitude: -81.7974 },
   "44113": { latitude: 41.4828, longitude: -81.6968 },
@@ -40,7 +40,7 @@ const trendSeries: MarketIqTrendSeries[] = [
   series({ geographyType: "city", geographyValue: "Euclid, OH", geographyLabel: "Euclid", propertyType: "apartment", bedrooms: 2 }),
   series({ geographyType: "city", geographyValue: "Euclid, OH", geographyLabel: "Euclid", propertyType: "house", bedrooms: 2 }),
   series({ geographyType: "city", geographyValue: "Euclid, OH", geographyLabel: "Euclid", propertyType: "house", bedrooms: 3 }),
-  ...Object.keys(ZIP_CENTERS).flatMap((zip) => [
+  ...Object.keys(CLEVELAND_ZIP_CENTERS).flatMap((zip) => [
     series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "apartment" as const, bedrooms: 1 }),
     series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "apartment" as const, bedrooms: 2 }),
     series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "house" as const, bedrooms: 2 }),
@@ -64,14 +64,14 @@ export const seededClevelandMarketReport = buildMarketIqReportSnapshot({
     marketId: "cleveland-elyria-mentor-oh",
     marketName: "Cleveland-Elyria, OH",
     cities: ["Cleveland", "Lakewood", "Euclid"],
-    zipCodes: Object.keys(ZIP_CENTERS),
+    zipCodes: Object.keys(CLEVELAND_ZIP_CENTERS),
     segments: ["Apartments by bedroom", "Houses by bedroom"],
     periodStart: "2025-08-01",
     periodEnd: "2026-07-31",
     seededExample: true,
   },
   trendSeries,
-  mapCenters: ZIP_CENTERS,
+  mapCenters: CLEVELAND_ZIP_CENTERS,
   unavailableCuts: [{
     label: "Small multifamily versus large multifamily",
     reason: "Not published because community-size fields conflict for known Cleveland communities. Apartments remain grouped by bedroom until community identity is corrected.",

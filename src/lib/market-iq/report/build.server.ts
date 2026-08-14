@@ -4,7 +4,7 @@ import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { prisma } from "@/lib/prisma";
 import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server";
 import { loadDwellsyTrendSeries } from "@/lib/dwellsy-source/trends.server";
-import { marketIqPrisma } from "@/lib/market-iq/prisma";
+import { marketIqDatabaseConfigured, marketIqPrisma } from "@/lib/market-iq/prisma";
 import {
   buildMarketIqReportSnapshot,
   isPublicMarketIqReportStatus,
@@ -14,6 +14,7 @@ import {
 } from "@/lib/market-iq/report/report";
 import {
   SEEDED_CLEVELAND_REPORT_TOKEN,
+  CLEVELAND_ZIP_CENTERS,
   seededClevelandMarketReport,
 } from "@/lib/market-iq/report/seeded-cleveland";
 
@@ -73,28 +74,34 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
   generatedAt?: Date;
   brand?: MarketIqReportSnapshot["brand"];
 }) {
-  const [historicalPulse, dwellsyTrends, coordinateRows] = await Promise.all([
-    loadClevelandHistoricalPulse(),
+  const analyticalContext = marketIqDatabaseConfigured()
+    ? Promise.all([
+        loadClevelandHistoricalPulse(),
+        marketIqPrisma.marketIqListing.findMany({
+          where: { marketId: CLEVELAND_MARKET_ID, postalCode: { in: REPORT_ZIPS }, latitude: { not: null }, longitude: { not: null } },
+          select: { postalCode: true, latitude: true, longitude: true },
+          take: 10_000,
+        }),
+      ]).then(([historicalPulse, coordinateRows]) => ({ historicalPulse, coordinateRows }))
+    : Promise.resolve(null);
+  const [dwellsyTrends, context] = await Promise.all([
     loadDwellsyTrendSeries({
       cities: REPORT_CITIES,
       zipCodes: REPORT_ZIPS,
       periodStart: "2025-08-01",
       bedrooms: REPORT_BEDROOMS,
     }),
-    marketIqPrisma.marketIqListing.findMany({
-      where: { marketId: CLEVELAND_MARKET_ID, postalCode: { in: REPORT_ZIPS }, latitude: { not: null }, longitude: { not: null } },
-      select: { postalCode: true, latitude: true, longitude: true },
-      take: 10_000,
-    }),
+    analyticalContext,
   ]);
   const trendSeries = completeTrendSeries(dwellsyTrends.series);
   const reportablePoints = trendSeries.flatMap((series) => series.points.filter((point) => point.observations >= 10));
-  const latestTrendMonth = reportablePoints.map((point) => point.month).sort().at(-1) ?? historicalPulse.historicalSource.availableThrough;
+  const historicalSource = seededClevelandMarketReport.sources.find((source) => source.name === "Total IQ observed listings");
+  const latestTrendMonth = reportablePoints.map((point) => point.month).sort().at(-1) ?? seededClevelandMarketReport.scope.periodEnd;
   const trendAvailableThrough = monthEnd(latestTrendMonth);
   const totalTrendObservations = reportablePoints
     .filter((point) => point.month === latestTrendMonth)
     .reduce((sum, point) => sum + point.observations, 0);
-  const historical = historicalPulse.historical;
+  const historicalPulse = context?.historicalPulse;
 
   return buildMarketIqReportSnapshot({
     generatedAt: input?.generatedAt ?? new Date(),
@@ -110,24 +117,21 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
       seededExample: false,
     },
     trendSeries,
-    mapCenters: averageZipCenters(coordinateRows),
+    mapCenters: context ? averageZipCenters(context.coordinateRows) : CLEVELAND_ZIP_CENTERS,
     unavailableCuts: [{
       label: "Small multifamily versus large multifamily",
       reason: "Not published because community-size fields conflict for known Cleveland communities. Apartments remain grouped by bedroom until community identity is corrected.",
     }],
-    marketConditions: {
+    marketConditions: historicalPulse ? {
       heading: historicalPulse.historical.newListingsChange >= 0 ? "New listing supply expanded into the cutoff" : "New listing supply contracted into the cutoff",
       narrative: `${historicalPulse.decisionRead} These are Total IQ listing-activity measures and are kept separate from Trends IQ rent statistics.`,
-      historical: {
-        activeAtCutoff: historical.activeAtCutoff,
-        newListings30d: historical.newListings30d,
-        newListingsChange: historical.newListingsChange,
-        medianDom: historical.medianDom,
-      },
-    },
+      historical: historicalPulse.historical,
+    } : seededClevelandMarketReport.marketConditions,
     sources: [
       { name: "Dwellsy IQ Trends", availableThrough: trendAvailableThrough, observationCount: totalTrendObservations || null, note: "The exclusive source for every published aggregated rent level and rent change." },
-      { name: "Total IQ observed listings", availableThrough: historicalPulse.historicalSource.availableThrough, observationCount: historicalPulse.historicalSource.recordCount, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." },
+      historicalPulse
+        ? { name: "Total IQ observed listings", availableThrough: historicalPulse.historicalSource.availableThrough, observationCount: historicalPulse.historicalSource.recordCount, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." }
+        : historicalSource ?? { name: "Total IQ observed listings", availableThrough: "2026-07-31", observationCount: null, note: "Used only for listing activity and geographic context. It is not used to calculate aggregated prices." },
     ],
   });
 }
