@@ -92,6 +92,7 @@ export default async function PublicMarketReportPage({ params }: PageProps) {
           <div className="text-right text-sm text-slate-500">
             <p>{report.scope.periodStart} to {report.scope.periodEnd}</p>
             <p className="mt-1">Prepared {new Date(report.generatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
+            <a href={`/reports/market/${publicToken}/pdf`} className="mt-3 inline-flex rounded-md bg-[var(--report-primary)] px-3 py-2 text-xs font-semibold text-white">Download PDF</a>
           </div>
         </div>
       </header>
