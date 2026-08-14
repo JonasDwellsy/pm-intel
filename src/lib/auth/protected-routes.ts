@@ -109,6 +109,7 @@ export const PUBLIC_BUYBOX_PATTERNS = [
   // the trends route also permits the existing signed-in admin allowlist.
   "/api/market-iq/import/history",
   "/api/market-iq/import/trends",
+  "/api/market-iq/source/dwellsy/refresh",
   // NOTE: the per-market brief (/property-managers/:state/:city/brief) used
   // to be carved out here as public. It's now intentionally GATED — it falls
   // through to the protected :slug pattern above. Logged-out visitors get the

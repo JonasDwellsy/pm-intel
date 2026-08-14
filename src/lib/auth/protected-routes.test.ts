@@ -79,6 +79,7 @@ test("Portfolio IQ owner workspace requires a Clerk session", () => {
 test("Market IQ ingestion bypasses Clerk only for bearer-token auth routes", () => {
   assert.equal(isGated("/api/market-iq/import/history"), false);
   assert.equal(isGated("/api/market-iq/import/trends"), false);
+  assert.equal(isGated("/api/market-iq/source/dwellsy/refresh"), false);
   assert.equal(isGated("/api/market-iq/watchlists"), true);
 });
 
