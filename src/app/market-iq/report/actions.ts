@@ -13,6 +13,11 @@ import { buildClevelandComposerPreview, type MarketIqReportBrandInput } from "@/
 import { canAccessMarketIqReportComposer } from "@/lib/market-iq/report/access";
 import { buildMarketIqReportEmail } from "@/lib/market-iq/report/email";
 import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
+import {
+  applyMarketIqReportScope,
+  buildMarketIqCoveragePreflight,
+  parseMarketIqScopeFormData,
+} from "@/lib/market-iq/report/scope";
 import { prisma } from "@/lib/prisma";
 
 function clipped(value: FormDataEntryValue | null, maximum: number) {
@@ -69,6 +74,7 @@ function reportBaseUrl() {
 export async function publishMarketIqReport(formData: FormData): Promise<void> {
   const context = await authorizedMarketIqContext();
   if (!context) throw new Error("Market IQ report access is unavailable.");
+  if (clipped(formData.get("marketId"), 80) !== CLEVELAND_MARKET_ID) throw new Error("The selected market is not available.");
   const displayName = clipped(formData.get("displayName"), 120);
   if (displayName.length < 2) throw new Error("Enter the PM brand name shown to the client.");
   const contactEmail = clipped(formData.get("contactEmail"), 254) || null;
@@ -89,7 +95,13 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
   if (websiteRaw && !brand.websiteUrl) throw new Error("Website URL must be a valid HTTPS address.");
 
   const now = new Date();
-  const { snapshot } = await buildClevelandComposerPreview(brand);
+  const selection = parseMarketIqScopeFormData(formData);
+  if (!selection.cities.length && !selection.zipCodes.length) throw new Error("Select at least one city or ZIP code.");
+  if (!selection.segments.length) throw new Error("Select at least one product segment.");
+  const preview = await buildClevelandComposerPreview(brand);
+  const snapshot = applyMarketIqReportScope(preview.snapshot, selection);
+  const coverage = buildMarketIqCoveragePreflight(snapshot);
+  if (!coverage.canPublish) throw new Error("At least one selected Trends IQ cell must clear the sample and freshness thresholds before publishing.");
   const publicToken = randomBytes(24).toString("base64url");
   const report = await prisma.$transaction(async (tx) => {
     const brandProfile = await tx.organizationBrandProfile.upsert({

@@ -93,8 +93,25 @@ function trendSeriesFromImports(imports: TrendImport[]) {
   }
 
   const existing = new Set(result.map((item) => `${item.geographyType}:${item.geographyValue}:${item.propertyType}:${item.bedrooms}`));
+  for (const city of REPORT_CITIES) {
+    const geographyValue = `${city}, OH`;
+    for (const segment of [
+      { propertyType: "apartment" as const, bedrooms: 1 },
+      { propertyType: "apartment" as const, bedrooms: 2 },
+      { propertyType: "house" as const, bedrooms: 2 },
+      { propertyType: "house" as const, bedrooms: 3 },
+    ]) {
+      const key = `city:${geographyValue}:${segment.propertyType}:${segment.bedrooms}`;
+      if (!existing.has(key)) result.push({ geographyType: "city", geographyValue, geographyLabel: city, ...segment, points: [] });
+    }
+  }
   for (const zip of REPORT_ZIPS) {
-    for (const segment of [{ propertyType: "apartment" as const, bedrooms: 1 }, { propertyType: "house" as const, bedrooms: 3 }]) {
+    for (const segment of [
+      { propertyType: "apartment" as const, bedrooms: 1 },
+      { propertyType: "apartment" as const, bedrooms: 2 },
+      { propertyType: "house" as const, bedrooms: 2 },
+      { propertyType: "house" as const, bedrooms: 3 },
+    ]) {
       const key = `zip:${zip}:${segment.propertyType}:${segment.bedrooms}`;
       if (!existing.has(key)) result.push({ geographyType: "zip", geographyValue: zip, geographyLabel: `ZIP ${zip}`, ...segment, points: [] });
     }

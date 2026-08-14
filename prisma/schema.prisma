@@ -580,8 +580,8 @@ model OrganizationBrandProfile {
   reports      MarketIqReport[]
 }
 
-// One immutable, PM-branded Market IQ artifact. `scope` records the managed
-// portfolio and segment/submarket definition used to build it; `snapshot` is
+// One immutable, PM-branded Market IQ artifact. `scope` records the selected
+// market geographies and segments used to build it; `snapshot` is
 // frozen on publication so a sent report cannot drift as source data changes.
 model MarketIqReport {
   id             String    @id @default(cuid())

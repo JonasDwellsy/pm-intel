@@ -34,10 +34,16 @@ const trendSeries: MarketIqTrendSeries[] = [
   series({ geographyType: "city", geographyValue: "Cleveland, OH", geographyLabel: "Cleveland", propertyType: "house", bedrooms: 3, points: [{ rent: 1387, yearOverYearPct: -1.35, observations: 88, month: "2026-07-01" }] }),
   series({ geographyType: "city", geographyValue: "Lakewood, OH", geographyLabel: "Lakewood", propertyType: "apartment", bedrooms: 1, points: [{ rent: 1050, yearOverYearPct: 12, observations: 12, month: "2026-07-01" }] }),
   series({ geographyType: "city", geographyValue: "Lakewood, OH", geographyLabel: "Lakewood", propertyType: "apartment", bedrooms: 2 }),
+  series({ geographyType: "city", geographyValue: "Lakewood, OH", geographyLabel: "Lakewood", propertyType: "house", bedrooms: 2 }),
+  series({ geographyType: "city", geographyValue: "Lakewood, OH", geographyLabel: "Lakewood", propertyType: "house", bedrooms: 3 }),
   series({ geographyType: "city", geographyValue: "Euclid, OH", geographyLabel: "Euclid", propertyType: "apartment", bedrooms: 1 }),
   series({ geographyType: "city", geographyValue: "Euclid, OH", geographyLabel: "Euclid", propertyType: "apartment", bedrooms: 2 }),
+  series({ geographyType: "city", geographyValue: "Euclid, OH", geographyLabel: "Euclid", propertyType: "house", bedrooms: 2 }),
+  series({ geographyType: "city", geographyValue: "Euclid, OH", geographyLabel: "Euclid", propertyType: "house", bedrooms: 3 }),
   ...Object.keys(ZIP_CENTERS).flatMap((zip) => [
     series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "apartment" as const, bedrooms: 1 }),
+    series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "apartment" as const, bedrooms: 2 }),
+    series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "house" as const, bedrooms: 2 }),
     series({ geographyType: "zip" as const, geographyValue: zip, geographyLabel: `ZIP ${zip}`, propertyType: "house" as const, bedrooms: 3 }),
   ]),
 ];

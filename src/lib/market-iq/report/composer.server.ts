@@ -32,7 +32,7 @@ export async function buildClevelandComposerPreview(brand: MarketIqReportBrandIn
       source: "analytical_store",
     };
   } catch (error) {
-    if (process.env.MARKET_IQ_PREVIEW_ENABLED !== "1") throw error;
+    if (process.env.MARKET_IQ_PREVIEW_ENABLED !== "1" && process.env.VERCEL_ENV !== "preview") throw error;
     return {
       snapshot: {
         ...seededClevelandMarketReport,
@@ -57,6 +57,7 @@ export async function loadMarketIqReportComposer(organizationId: string) {
         select: {
           id: true,
           periodLabel: true,
+          scope: true,
           publicToken: true,
           status: true,
           publishedAt: true,

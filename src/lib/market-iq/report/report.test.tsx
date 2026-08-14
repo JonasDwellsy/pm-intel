@@ -4,6 +4,7 @@ import { buildMarketIqReportSnapshot, isPublicMarketIqReportStatus, parseMarketI
 import { canAccessMarketIqReportComposer } from "./access";
 import { buildMarketIqReportEmail } from "./email";
 import { seededClevelandMarketReport } from "./seeded-cleveland";
+import { applyMarketIqReportScope, buildMarketIqCoveragePreflight, normalizeMarketIqScopeSelection } from "./scope";
 
 const baseInput = {
   generatedAt: new Date("2026-08-14T00:00:00.000Z"),
@@ -33,6 +34,40 @@ describe("Market IQ local market read assembly", () => {
     expect(parseMarketIqReportSnapshot(JSON.stringify(seededClevelandMarketReport))).toEqual(seededClevelandMarketReport);
     expect(parseMarketIqReportSnapshot('{"version":1}')).toBeNull();
     expect(parseMarketIqReportSnapshot("not json")).toBeNull();
+  });
+});
+
+describe("Market IQ composer scope and coverage", () => {
+  it("uses one selected scope for the preflight and immutable snapshot", () => {
+    const scoped = applyMarketIqReportScope(seededClevelandMarketReport, {
+      cities: ["Cleveland"],
+      zipCodes: ["44113"],
+      segments: ["apartment:1"],
+    });
+    expect(scoped.scope).toMatchObject({ cities: ["Cleveland"], zipCodes: ["44113"], segments: ["1-bedroom apartments"] });
+    expect(scoped.marketRead.cells.map((cell) => cell.key)).toEqual(["Cleveland, OH:apartment:1", "44113:apartment:1"]);
+    expect(scoped.marketMap.points).toHaveLength(1);
+    expect(buildMarketIqCoveragePreflight(scoped).counts).toEqual({ reportable: 1, thin: 0, stale: 0, unavailable: 1 });
+  });
+
+  it("does not silently restore unchecked geographies or segments", () => {
+    const selection = normalizeMarketIqScopeSelection({ cities: [], zipCodes: [], segments: [] });
+    const scoped = applyMarketIqReportScope(seededClevelandMarketReport, selection);
+    expect(scoped.marketRead.cells).toHaveLength(0);
+    expect(buildMarketIqCoveragePreflight(scoped).canPublish).toBe(false);
+  });
+
+  it("suppresses a selected cell when its Trends month is stale", () => {
+    const stale = {
+      ...seededClevelandMarketReport,
+      marketRead: {
+        ...seededClevelandMarketReport.marketRead,
+        cells: seededClevelandMarketReport.marketRead.cells.map((cell) => cell.key === "Cleveland, OH:apartment:1" ? { ...cell, month: "2025-01-01" } : cell),
+      },
+    };
+    const scoped = applyMarketIqReportScope(stale, { cities: ["Cleveland"], zipCodes: [], segments: ["apartment:1"] });
+    expect(scoped.marketRead.cells[0]).toMatchObject({ status: "suppressed", rent: null, yearOverYearPct: null });
+    expect(buildMarketIqCoveragePreflight(scoped).counts.stale).toBe(1);
   });
 });
 
