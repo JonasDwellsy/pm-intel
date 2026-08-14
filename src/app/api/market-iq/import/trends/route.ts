@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { auth } from "@clerk/nextjs/server";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { buildTrendAlertCandidates } from "@/lib/market-iq/alerts";
 import {
   recordTrendRefreshImport,
@@ -124,9 +124,9 @@ export async function POST(request: Request) {
     geographyValue: body.geographyValue,
     records: normalized.map((row) => ({ ...row, month: row.month.toISOString() })),
   })).digest("hex");
-  const existing = await prisma.marketIqDataImport.findUnique({ where: { sourceChecksum: checksum } });
+  const existing = await marketIqPrisma.marketIqDataImport.findUnique({ where: { sourceChecksum: checksum } });
   if (existing?.status === "complete") {
-    const existingRows = await prisma.marketIqTrendObservation.findMany({
+    const existingRows = await marketIqPrisma.marketIqTrendObservation.findMany({
       where: { importId: existing.id },
       select: {
         month: true,
@@ -143,7 +143,7 @@ export async function POST(request: Request) {
       body.geographyValue,
       existingRows
     );
-    const inserted = await prisma.marketIqAlert.createMany({ data: alertRows, skipDuplicates: true });
+    const inserted = await marketIqPrisma.marketIqAlert.createMany({ data: alertRows, skipDuplicates: true });
     const refresh = refreshId
       ? await recordTrendRefreshImport({
           refreshId,
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
     });
   }
   const latestMonth = normalized.reduce((latest, row) => row.month > latest ? row.month : latest, normalized[0].month);
-  const dataImport = await prisma.marketIqDataImport.create({
+  const dataImport = await marketIqPrisma.marketIqDataImport.create({
     data: {
       sourceKind: "trends",
       sourceName: "Dwellsy IQ Rent Trends",
@@ -180,8 +180,8 @@ export async function POST(request: Request) {
     body.geographyValue,
     normalized
   );
-  await prisma.$transaction([
-    prisma.marketIqTrendObservation.createMany({
+  await marketIqPrisma.$transaction([
+    marketIqPrisma.marketIqTrendObservation.createMany({
       data: normalized.map((row) => ({
         ...row,
         importId: dataImport.id,
@@ -190,8 +190,8 @@ export async function POST(request: Request) {
         geographyValue: body.geographyValue as string,
       })),
     }),
-    prisma.marketIqAlert.createMany({ data: alertRows, skipDuplicates: true }),
-    prisma.marketIqDataImport.update({ where: { id: dataImport.id }, data: { status: "complete" } }),
+    marketIqPrisma.marketIqAlert.createMany({ data: alertRows, skipDuplicates: true }),
+    marketIqPrisma.marketIqDataImport.update({ where: { id: dataImport.id }, data: { status: "complete" } }),
   ]);
   const refresh = refreshId
     ? await recordTrendRefreshImport({

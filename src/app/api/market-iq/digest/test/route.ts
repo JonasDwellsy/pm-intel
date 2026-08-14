@@ -5,6 +5,7 @@ import { isAdminUser } from "@/lib/auth/is-admin";
 import { sendEmail } from "@/lib/email/send";
 import { buildMarketIqDigest } from "@/lib/market-iq/digest";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { parseJsonArray, type MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
 import { prisma } from "@/lib/prisma";
 
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
       },
       orderBy: { updatedAt: "desc" },
     }),
-    prisma.marketIqAlert.findMany({
+    marketIqPrisma.marketIqAlert.findMany({
       where: { marketId: CLEVELAND_MARKET_ID },
       orderBy: [{ observedMonth: "desc" }, { severity: "desc" }],
       take: 100,

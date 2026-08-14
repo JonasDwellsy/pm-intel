@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { loadOwnerToday } from "@/lib/portfolio-iq/today.server";
 import { buildOwnerWatchGroups, type OwnerWatchCandidate } from "@/lib/portfolio-iq/owner-watchlist";
 
@@ -70,7 +71,7 @@ export async function loadOwnerWatchlist(input: { organizationId: string; userId
   const [pins, latestRun, sourceImports] = await Promise.all([
     prisma.portfolioIqOwnerWatchItem.findMany({ where: { portfolioId: portfolio.id }, orderBy: { updatedAt: "desc" } }),
     prisma.portfolioIqMonitoringRun.findFirst({ where: { portfolioId: portfolio.id }, orderBy: { startedAt: "desc" } }),
-    prisma.marketIqDataImport.findMany({ where: { marketId: portfolio.marketId, status: "complete" }, orderBy: { importedAt: "desc" }, distinct: ["sourceKind"] }),
+    marketIqPrisma.marketIqDataImport.findMany({ where: { marketId: portfolio.marketId, status: "complete" }, orderBy: { importedAt: "desc" }, distinct: ["sourceKind"] }),
   ]);
   return { portfolio, signals, attentionQueue: today.attentionQueue, candidates, groups: buildOwnerWatchGroups({ candidates, pins }), pins, latestRun, sourceImports };
 }

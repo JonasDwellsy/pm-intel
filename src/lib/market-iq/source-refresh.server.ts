@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { buildSourceRefreshManifest, summarizeSourceRefreshItems, validateTrendRefreshItem, type SourceRefreshTrendRow } from "@/lib/market-iq/source-refresh";
 import { refreshPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
 import { runPortfolioMonitoringForPortfolio } from "@/lib/portfolio-iq/monitoring-run.server";
@@ -12,7 +13,7 @@ export async function createMarketIqSourceRefresh(input: { marketId: string; sta
   const assets = portfolios.flatMap((portfolio) => portfolio.assets);
   if (!assets.length) throw new Error("No portfolio exposure defines the requested refresh scope.");
   const manifest = buildSourceRefreshManifest(input.marketId, assets);
-  return prisma.marketIqSourceRefresh.create({
+  return marketIqPrisma.marketIqSourceRefresh.create({
     data: {
       marketId: input.marketId,
       sourceKind: "trends",
@@ -28,7 +29,7 @@ export async function createMarketIqSourceRefresh(input: { marketId: string; sta
 }
 
 export async function validateRefreshTarget(refreshId: string, geographyType: string, geographyValue: string) {
-  return prisma.marketIqSourceRefreshItem.findFirst({
+  return marketIqPrisma.marketIqSourceRefreshItem.findFirst({
     where: { refreshId, geographyType, geographyValue, refresh: { sourceKind: "trends", status: { in: ["awaiting_source", "receiving"] } } },
     include: { refresh: true },
   });
@@ -45,7 +46,7 @@ export async function recordTrendRefreshImport(input: {
   if (!item) throw new Error("Refresh target is not awaiting this geography.");
   const requiredSegments = JSON.parse(item.requiredSegments) as Array<{ propertyType: "apartment" | "house"; bedrooms: number }>;
   const validation = validateTrendRefreshItem({ rows: input.rows, requiredSegments });
-  await prisma.marketIqSourceRefreshItem.update({
+  await marketIqPrisma.marketIqSourceRefreshItem.update({
     where: { id: item.id },
     data: {
       status: validation.status,
@@ -57,10 +58,10 @@ export async function recordTrendRefreshImport(input: {
       receivedAt: new Date(),
     },
   });
-  const items = await prisma.marketIqSourceRefreshItem.findMany({ where: { refreshId: input.refreshId } });
+  const items = await marketIqPrisma.marketIqSourceRefreshItem.findMany({ where: { refreshId: input.refreshId } });
   const summary = summarizeSourceRefreshItems(items);
   const terminal = summary.pending === 0;
-  await prisma.marketIqSourceRefresh.update({
+  await marketIqPrisma.marketIqSourceRefresh.update({
     where: { id: input.refreshId },
     data: {
       status: summary.status,
@@ -89,7 +90,7 @@ export async function recordTrendRefreshImport(input: {
   }
   const failed = processed.filter((result) => result.error);
   if (failed.length) {
-    await prisma.marketIqSourceRefresh.update({ where: { id: input.refreshId }, data: { error: JSON.stringify(failed).slice(0, 4_000) } });
+    await marketIqPrisma.marketIqSourceRefresh.update({ where: { id: input.refreshId }, data: { error: JSON.stringify(failed).slice(0, 4_000) } });
   }
   return { ...summary, processing: processed };
 }

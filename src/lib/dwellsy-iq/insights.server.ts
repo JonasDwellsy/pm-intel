@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { buildSharedExposureDraft, buildSharedInsightDraft } from "@/lib/dwellsy-iq/insights";
 import { parseTodaySignalEvidence } from "@/lib/portfolio-iq/today";
 
@@ -15,7 +16,7 @@ export async function syncDwellsyIqInsights(portfolioId: string) {
     const id = parseTodaySignalEvidence(signal.evidence).alertId;
     return id ? [id] : [];
   }))];
-  const alerts = alertIds.length ? await prisma.marketIqAlert.findMany({
+  const alerts = alertIds.length ? await marketIqPrisma.marketIqAlert.findMany({
     where: { id: { in: alertIds } },
     select: { id: true, geographyType: true, geographyValue: true, propertyType: true, bedrooms: true, headline: true, narrative: true },
   }) : [];
@@ -91,11 +92,11 @@ export async function loadDwellsyIqInsights(portfolioId: string) {
     orderBy: [{ rankScore: "desc" }, { observedAt: "desc" }],
   });
   const qualityAlertIds = [...new Set(insights.flatMap((insight) => insight.sourceAlertId ? [insight.sourceAlertId] : []))];
-  const qualityAlerts = qualityAlertIds.length ? await prisma.marketIqAlert.findMany({
+  const qualityAlerts = qualityAlertIds.length ? await marketIqPrisma.marketIqAlert.findMany({
     where: { id: { in: qualityAlertIds } },
     select: { id: true, sourceImportId: true, geographyType: true, geographyValue: true, propertyType: true, bedrooms: true, observedMonth: true },
   }) : [];
-  const trendObservations = qualityAlerts.length ? await prisma.marketIqTrendObservation.findMany({
+  const trendObservations = qualityAlerts.length ? await marketIqPrisma.marketIqTrendObservation.findMany({
     where: { OR: qualityAlerts.map((alert) => ({
       importId: alert.sourceImportId,
       geographyType: alert.geographyType,

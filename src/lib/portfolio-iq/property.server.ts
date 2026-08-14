@@ -2,6 +2,7 @@ import "server-only";
 import { loadPortfolioIqHome } from "@/lib/portfolio-iq/home.server";
 import { buildSubjectPerformance, propertyDecisionRead } from "@/lib/portfolio-iq/property";
 import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { loadPortfolioDecisionHistory, loadPortfolioWatchSignals } from "@/lib/portfolio-iq/watch.server";
 import { buildBedroomSegments } from "@/lib/portfolio-iq/segments";
 
@@ -21,7 +22,7 @@ export async function loadPortfolioIqProperty(input: {
     .sort((left, right) => right.length - left.length)[0];
 
   const [dataImport, compSet, alerts, portfolioSignals, decisionHistory] = await Promise.all([
-    prisma.marketIqDataImport.findFirst({
+    marketIqPrisma.marketIqDataImport.findFirst({
       where: { marketId: portfolio.marketId, sourceKind: "historical_export", status: "complete" },
       orderBy: { importedAt: "desc" },
       select: { id: true, availableThrough: true, sourceName: true, recordCount: true },
@@ -36,7 +37,7 @@ export async function loadPortfolioIqProperty(input: {
         segments: { orderBy: { bedrooms: "asc" } },
       },
     }),
-    prisma.marketIqAlert.findMany({
+    marketIqPrisma.marketIqAlert.findMany({
       where: {
         marketId: portfolio.marketId,
         propertyType: asset.assetType === "single_family" ? "house" : "apartment",
@@ -54,7 +55,7 @@ export async function loadPortfolioIqProperty(input: {
   ]);
 
   const subjectListings = dataImport
-    ? await prisma.marketIqListing.findMany({
+    ? await marketIqPrisma.marketIqListing.findMany({
         where: {
           importId: dataImport.id,
           OR: [

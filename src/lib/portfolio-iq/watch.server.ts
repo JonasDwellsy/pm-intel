@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { buildSubjectPerformance } from "@/lib/portfolio-iq/property";
 import { buildPortfolioWatchDrafts } from "@/lib/portfolio-iq/watch";
 import { isPortfolioSignalActionable } from "@/lib/portfolio-iq/decision";
@@ -28,12 +29,12 @@ export async function refreshPortfolioWatchSignals(portfolioId: string) {
   });
   if (!portfolio) throw new Error("Portfolio not found.");
   const [dataImport, trendImports] = await Promise.all([
-    prisma.marketIqDataImport.findFirst({
+    marketIqPrisma.marketIqDataImport.findFirst({
       where: { marketId: portfolio.marketId, sourceKind: "historical_export", status: "complete" },
       orderBy: { importedAt: "desc" },
       select: { id: true, availableThrough: true },
     }),
-    prisma.marketIqDataImport.findMany({
+    marketIqPrisma.marketIqDataImport.findMany({
       where: { marketId: portfolio.marketId, sourceKind: "trends", status: "complete" },
       orderBy: { importedAt: "desc" },
       select: { id: true, availableThrough: true },
@@ -43,7 +44,7 @@ export async function refreshPortfolioWatchSignals(portfolioId: string) {
     .filter((item) => trendSnapshotFreshness(item.availableThrough) === "fresh")
     .map((item) => item.id);
   const alerts = freshTrendImportIds.length
-    ? await prisma.marketIqAlert.findMany({
+    ? await marketIqPrisma.marketIqAlert.findMany({
         where: { marketId: portfolio.marketId, sourceImportId: { in: freshTrendImportIds } },
         orderBy: [{ observedMonth: "desc" }, { severity: "asc" }],
         take: 300,
@@ -57,7 +58,7 @@ export async function refreshPortfolioWatchSignals(portfolioId: string) {
   const drafts = (await Promise.all(portfolio.assets.map(async (asset) => {
     const token = communityToken(asset.name);
     const observations = dataImport
-      ? await prisma.marketIqListing.findMany({
+      ? await marketIqPrisma.marketIqListing.findMany({
           where: {
             importId: dataImport.id,
             OR: [

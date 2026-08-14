@@ -1,0 +1,156 @@
+// Dedicated Market IQ analytical store.
+//
+// Identity, organizations, product entitlements, and customer-owned watchlists
+// remain in the primary Dwellsy IQ database. This schema contains only source
+// observations and derived market facts, allowing Market IQ data to be loaded,
+// refreshed, and scaled without touching Operator IQ or Portfolio IQ records.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../src/generated/market-iq"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("MARKET_IQ_DATABASE_URL")
+  directUrl = env("MARKET_IQ_DATABASE_URL_UNPOOLED")
+}
+
+model MarketIqDataImport {
+  id               String    @id @default(cuid())
+  sourceKind       String
+  sourceName       String
+  sourceFilename   String?
+  sourceChecksum   String    @unique
+  marketId         String
+  availableThrough DateTime?
+  recordCount      Int       @default(0)
+  status           String    @default("pending")
+  metadata         String    @default("{}")
+  importedAt       DateTime  @default(now())
+
+  listings          MarketIqListing[]
+  trendObservations MarketIqTrendObservation[]
+
+  @@index([marketId, importedAt(sort: Desc)])
+}
+
+model MarketIqSourceRefresh {
+  id                     String    @id @default(cuid())
+  marketId               String
+  sourceKind             String    @default("trends")
+  triggerKind            String    @default("manual")
+  status                 String    @default("awaiting_source")
+  requiredManifest       String
+  sourceAvailableThrough DateTime?
+  receivedGeographies    Int       @default(0)
+  requiredGeographies    Int
+  recordCount            Int       @default(0)
+  error                  String?
+  startedBy              String?
+  startedAt              DateTime  @default(now())
+  completedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  items MarketIqSourceRefreshItem[]
+
+  @@index([marketId, startedAt(sort: Desc)])
+  @@index([status, startedAt(sort: Desc)])
+}
+
+model MarketIqSourceRefreshItem {
+  id                     String    @id @default(cuid())
+  refreshId              String
+  geographyType          String
+  geographyValue         String
+  requiredSegments       String
+  status                 String    @default("awaiting_source")
+  importId               String?
+  sourceAvailableThrough DateTime?
+  recordCount            Int       @default(0)
+  reportableSegments     Int       @default(0)
+  validation             String    @default("{}")
+  receivedAt             DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  refresh MarketIqSourceRefresh @relation(fields: [refreshId], references: [id], onDelete: Cascade)
+
+  @@unique([refreshId, geographyType, geographyValue])
+  @@index([refreshId, status])
+  @@index([geographyType, geographyValue, receivedAt(sort: Desc)])
+}
+
+model MarketIqTrendObservation {
+  id              String   @id @default(cuid())
+  importId        String
+  marketId        String
+  geographyType   String
+  geographyValue  String
+  month           DateTime
+  propertyType    String
+  bedrooms        Int
+  observations    Int
+  askingRent      Float
+  yearOverYearPct Float?
+  createdAt       DateTime @default(now())
+
+  dataImport MarketIqDataImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@unique([importId, geographyType, geographyValue, month, propertyType, bedrooms])
+  @@index([marketId, geographyType, geographyValue, month])
+  @@index([marketId, propertyType, bedrooms, month])
+}
+
+model MarketIqAlert {
+  id             String   @id @default(cuid())
+  fingerprint    String   @unique
+  marketId       String
+  sourceImportId String
+  geographyType  String
+  geographyValue String
+  propertyType   String
+  bedrooms       Int
+  signalType     String
+  severity       String
+  headline       String
+  narrative      String
+  observedMonth  DateTime
+  createdAt      DateTime @default(now())
+
+  @@index([marketId, geographyType, geographyValue, observedMonth(sort: Desc)])
+  @@index([sourceImportId])
+}
+
+model MarketIqListing {
+  id             String    @id @default(cuid())
+  importId       String
+  sourceRecordId String
+  marketId       String
+  listingStatus  String?
+  address        String?
+  city           String?
+  state          String?
+  postalCode     String?
+  latitude       Float?
+  longitude      Float?
+  askingRent     Float?
+  squareFeet     Float?
+  bedrooms       Float?
+  bathrooms      Float?
+  propertyType   String
+  communityName  String?
+  ownerName      String?
+  activatedAt    DateTime?
+  deactivatedAt  DateTime?
+  rawData        String    @default("{}")
+  createdAt      DateTime  @default(now())
+
+  dataImport MarketIqDataImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@unique([importId, sourceRecordId])
+  @@index([marketId, activatedAt])
+  @@index([marketId, city, postalCode])
+  @@index([marketId, propertyType, bedrooms])
+}

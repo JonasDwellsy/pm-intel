@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid import batch." }, { status: 422 });
   }
 
-  const dataImport = await prisma.marketIqDataImport.upsert({
+  const dataImport = await marketIqPrisma.marketIqDataImport.upsert({
     where: { sourceChecksum: input.sourceChecksum },
     create: {
       sourceKind: "historical_export",
@@ -110,8 +110,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "One or more records are invalid." }, { status: 422 });
   }
 
-  await prisma.marketIqListing.createMany({ data: normalized, skipDuplicates: true });
-  const persistedCount = await prisma.marketIqListing.count({ where: { importId: dataImport.id } });
+  await marketIqPrisma.marketIqListing.createMany({ data: normalized, skipDuplicates: true });
+  const persistedCount = await marketIqPrisma.marketIqListing.count({ where: { importId: dataImport.id } });
   const final = input.final === true;
   const expectedRecordCount = typeof input.expectedRecordCount === "number" ? input.expectedRecordCount : null;
   if (final && expectedRecordCount !== persistedCount) {
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     );
   }
   if (final) {
-    await prisma.marketIqDataImport.update({
+    await marketIqPrisma.marketIqDataImport.update({
       where: { id: dataImport.id },
       data: { status: "complete", recordCount: persistedCount },
     });

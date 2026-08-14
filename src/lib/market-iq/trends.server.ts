@@ -1,6 +1,6 @@
 import "server-only";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
-import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { buildMarketIqTrendPulse, type MarketIqTrendPulse } from "@/lib/market-iq/trends";
 import { trendSnapshotFreshness } from "@/lib/market-iq/source-refresh";
 
@@ -11,7 +11,7 @@ function displayLabel(type: string, value: string) {
 }
 
 export async function loadClevelandTrendPulses() {
-  const imports = await prisma.marketIqDataImport.findMany({
+  const imports = await marketIqPrisma.marketIqDataImport.findMany({
     where: { marketId: CLEVELAND_MARKET_ID, sourceKind: "trends", status: "complete" },
     orderBy: { importedAt: "desc" },
     include: { trendObservations: { orderBy: { month: "desc" } } },
@@ -25,7 +25,7 @@ export async function loadClevelandTrendPulses() {
     const key = `${first.geographyType}:${first.geographyValue}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const alerts = await prisma.marketIqAlert.findMany({
+    const alerts = await marketIqPrisma.marketIqAlert.findMany({
       where: { sourceImportId: dataImport.id },
       orderBy: { createdAt: "desc" },
     });

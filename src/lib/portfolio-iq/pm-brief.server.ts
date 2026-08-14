@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { loadPortfolioIqProperty } from "@/lib/portfolio-iq/property.server";
 import { buildPortfolioIqPmBriefSnapshot, parsePortfolioIqPmBriefSnapshot } from "@/lib/portfolio-iq/pm-brief";
 
@@ -28,7 +29,7 @@ export async function loadPortfolioIqPmBriefComposer(input: { organizationId: st
         where: { assetId: property.asset.id, insight: { portfolioId: property.portfolio.id, sourceAlertId, status: "active" } },
         select: { id: true },
       }),
-      prisma.marketIqAlert.findUnique({ where: { id: sourceAlertId }, select: { headline: true, narrative: true } }),
+      marketIqPrisma.marketIqAlert.findUnique({ where: { id: sourceAlertId }, select: { headline: true, narrative: true } }),
     ]) : [null, null];
     if (requestedSignal && exposure) {
       const separator = requestedSignal.headline.indexOf(": ");

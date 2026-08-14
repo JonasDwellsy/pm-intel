@@ -14,6 +14,7 @@ import {
   rollbackFindingCalibration,
 } from "./actions";
 import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { buildPilotLaunchAssetReadiness } from "@/lib/portfolio-iq/launch-console";
 import { summarizeFindingFeedback } from "@/lib/portfolio-iq/finding-feedback";
 import { loadCalibrationImpact } from "@/lib/portfolio-iq/calibration-impact.server";
@@ -113,12 +114,12 @@ export default async function PortfolioActivationPage() {
       include: { organization: { select: { name: true } }, properties: { orderBy: { createdAt: "asc" } } },
       orderBy: { updatedAt: "desc" },
     }),
-    prisma.marketIqDataImport.findMany({
+    marketIqPrisma.marketIqDataImport.findMany({
       where: { sourceKind: "historical_export", status: "complete" },
       orderBy: { importedAt: "desc" },
       select: { marketId: true, availableThrough: true, sourceName: true, recordCount: true },
     }),
-    prisma.marketIqSourceRefresh.findMany({
+    marketIqPrisma.marketIqSourceRefresh.findMany({
       include: { items: { orderBy: [{ geographyType: "asc" }, { geographyValue: "asc" }] } },
       orderBy: { startedAt: "desc" },
       take: 20,

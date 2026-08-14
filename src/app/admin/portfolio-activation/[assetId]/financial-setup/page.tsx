@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { saveFinancialSetup } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -22,8 +23,8 @@ export default async function FinancialSetupWorkbench({ params }: { params: Prom
     include: { portfolio: { include: { organization: { select: { name: true } } } }, buildings: true, financialAssumptions: { orderBy: { bedrooms: "asc" } } },
   });
   if (!asset) notFound();
-  const sourceImport = await prisma.marketIqDataImport.findFirst({ where: { marketId: asset.portfolio.marketId, sourceKind: "historical_export", status: "complete" }, orderBy: { importedAt: "desc" }, select: { id: true, availableThrough: true } });
-  const observations = sourceImport ? await prisma.marketIqListing.findMany({
+  const sourceImport = await marketIqPrisma.marketIqDataImport.findFirst({ where: { marketId: asset.portfolio.marketId, sourceKind: "historical_export", status: "complete" }, orderBy: { importedAt: "desc" }, select: { id: true, availableThrough: true } });
+  const observations = sourceImport ? await marketIqPrisma.marketIqListing.findMany({
     where: { importId: sourceImport.id, OR: asset.buildings.flatMap((building) => [{ address: { startsWith: building.canonicalAddress, mode: "insensitive" as const } }, { address: { startsWith: building.suppliedAddress, mode: "insensitive" as const } }]) },
     select: { bedrooms: true, askingRent: true },
   }) : [];

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && prisma db seed && tsx scripts/data-pipeline/export_name_corrections.ts && next build",
+    "vercel-build": "prisma generate && prisma generate --schema prisma/market-iq/schema.prisma && prisma migrate deploy && tsx scripts/deploy-market-iq-migrations.ts && prisma db seed && tsx scripts/data-pipeline/export_name_corrections.ts && next build",
     "start": "next start",
     "lint": "eslint",
     "test:watch-list": "node --import tsx --test src/lib/*.test.ts src/lib/scorecard/*.test.ts src/lib/watch-list/*.test.ts src/lib/operators/*.test.ts src/lib/auth/*.test.ts src/lib/styles/*.test.ts src/lib/ask-tools/*.test.ts",
@@ -14,7 +14,9 @@
     "migrate:to-orgs": "tsx scripts/migrate-to-orgs.ts",
     "migrate:to-orgs:dry-run": "tsx scripts/migrate-to-orgs.ts --dry-run",
     "audit:metrics": "tsx scripts/audit-metrics.ts",
-    "market-iq:import-history": "tsx scripts/import-market-iq-history.ts"
+    "market-iq:import-history": "tsx scripts/import-market-iq-history.ts",
+    "market-iq:generate": "prisma generate --schema prisma/market-iq/schema.prisma",
+    "market-iq:migrate": "tsx scripts/deploy-market-iq-migrations.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",

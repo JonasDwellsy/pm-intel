@@ -1,13 +1,13 @@
 import "server-only";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
-import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { buildHistoricalListingPulse, historicalWindows, resolveHistoricalAnalysisCutoff } from "@/lib/market-iq/historical";
 
 const CORE_PROPERTY_TYPES = ["apartment", "house"];
 const CLEVELAND_DECLARED_ANALYSIS_CUTOFF = new Date("2026-07-31T00:00:00.000Z");
 
 export async function loadClevelandHistoricalPulse() {
-  const dataImport = await prisma.marketIqDataImport.findFirst({
+  const dataImport = await marketIqPrisma.marketIqDataImport.findFirst({
     where: {
       marketId: CLEVELAND_MARKET_ID,
       sourceKind: "historical_export",
@@ -24,7 +24,7 @@ export async function loadClevelandHistoricalPulse() {
   const analysisCutoff = new Date(Math.min(metadataCutoff.getTime(), CLEVELAND_DECLARED_ANALYSIS_CUTOFF.getTime()));
   const { cutoffEnd, priorStart } = historicalWindows(analysisCutoff);
   const [activeListings, recentListings] = await Promise.all([
-    prisma.marketIqListing.findMany({
+    marketIqPrisma.marketIqListing.findMany({
       where: {
         importId: dataImport.id,
         propertyType: { in: CORE_PROPERTY_TYPES },
@@ -33,7 +33,7 @@ export async function loadClevelandHistoricalPulse() {
       },
       select: { city: true, askingRent: true, squareFeet: true, activatedAt: true },
     }),
-    prisma.marketIqListing.findMany({
+    marketIqPrisma.marketIqListing.findMany({
       where: {
         importId: dataImport.id,
         propertyType: { in: CORE_PROPERTY_TYPES },

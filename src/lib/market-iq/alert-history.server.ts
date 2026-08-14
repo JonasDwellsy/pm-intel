@@ -1,7 +1,7 @@
 import "server-only";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { marketIqAlertMatchesWatchlist, type MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
-import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 
 export interface MarketIqAlertHistoryItem {
   id: string;
@@ -27,7 +27,7 @@ function segmentLabel(propertyType: string, bedrooms: number) {
 
 export async function loadMarketIqAlertHistory(watchlists: MarketIqWatchlistView[]) {
   if (!watchlists.length) return [];
-  const alerts = await prisma.marketIqAlert.findMany({
+  const alerts = await marketIqPrisma.marketIqAlert.findMany({
     where: { marketId: CLEVELAND_MARKET_ID },
     orderBy: [{ observedMonth: "desc" }, { createdAt: "desc" }],
     take: 150,

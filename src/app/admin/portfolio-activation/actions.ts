@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { CLEVELAND_PILOT_PORTFOLIO } from "@/data/portfolio-iq/cleveland-pilot";
 import {
   comparisonAddress,
@@ -30,7 +31,7 @@ export async function startMarketIqTrendRefresh(formData: FormData): Promise<voi
   const userId = await requireAdmin();
   const marketId = String(formData.get("marketId") ?? "").trim();
   if (!marketId) throw new Error("Market is required.");
-  const active = await prisma.marketIqSourceRefresh.findFirst({
+  const active = await marketIqPrisma.marketIqSourceRefresh.findFirst({
     where: { marketId, sourceKind: "trends", status: { in: ["awaiting_source", "receiving"] } },
     orderBy: { startedAt: "desc" },
     select: { id: true },
@@ -52,7 +53,7 @@ export async function seedClevelandPilotPortfolio(formData: FormData): Promise<v
   });
   if (!organization) throw new Error("Organization not found.");
 
-  const historicalImport = await prisma.marketIqDataImport.findFirst({
+  const historicalImport = await marketIqPrisma.marketIqDataImport.findFirst({
     where: {
       marketId: CLEVELAND_PILOT_PORTFOLIO.marketId,
       sourceKind: "historical_export",
@@ -77,7 +78,7 @@ export async function seedClevelandPilotPortfolio(formData: FormData): Promise<v
   } as const;
   const historicalCandidates = historicalImport
     ? (await Promise.all(["apartment", "house"].map((propertyType) =>
-        prisma.marketIqListing.findMany({
+        marketIqPrisma.marketIqListing.findMany({
           where: {
             importId: historicalImport.id,
             propertyType,
@@ -807,7 +808,7 @@ export async function replaceCompMember(formData: FormData): Promise<void> {
     include: { compSet: { include: { asset: { include: { buildings: true } } } } },
   });
   if (!current) throw new Error("Comp member not found.");
-  const listing = await prisma.marketIqListing.findFirst({
+  const listing = await marketIqPrisma.marketIqListing.findFirst({
     where: { importId: current.compSet.sourceImportId, sourceRecordId },
   });
   if (!listing?.address) throw new Error("Replacement listing not found.");
@@ -952,7 +953,7 @@ export async function addCompSegmentCandidate(formData: FormData): Promise<void>
   if (!compSetId || !sourceRecordId || !Number.isInteger(bedrooms) || bedrooms < 0 || bedrooms > 5) throw new Error("Invalid segment candidate.");
   const compSet = await prisma.portfolioIqCompSet.findUnique({ where: { id: compSetId }, include: { asset: { include: { buildings: true } } } });
   if (!compSet) throw new Error("Comp set not found.");
-  const listing = await prisma.marketIqListing.findFirst({ where: { importId: compSet.sourceImportId, sourceRecordId } });
+  const listing = await marketIqPrisma.marketIqListing.findFirst({ where: { importId: compSet.sourceImportId, sourceRecordId } });
   if (!listing?.address || listing.bedrooms !== bedrooms) throw new Error("Candidate does not match the bedroom segment.");
   const expectedType = compSet.asset.assetType === "single_family" ? "house" : "apartment";
   if (listing.propertyType !== expectedType) throw new Error("Candidate property type does not match.");

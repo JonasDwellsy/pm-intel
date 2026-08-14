@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { normalizedAddress, proposeCompMembers } from "@/lib/portfolio-iq/comp-generator";
 import {
   addCompSegmentCandidate,
@@ -56,7 +57,7 @@ export default async function CompReviewPage({ params }: { params: Promise<{ ass
   if (!asset?.compSet) notFound();
 
   const propertyType = asset.assetType === "single_family" ? "house" : "apartment";
-  const [candidates, subjectRows] = await Promise.all([prisma.marketIqListing.findMany({
+  const [candidates, subjectRows] = await Promise.all([marketIqPrisma.marketIqListing.findMany({
     where: {
       importId: asset.compSet.sourceImportId,
       propertyType,
@@ -80,7 +81,7 @@ export default async function CompReviewPage({ params }: { params: Promise<{ ass
       squareFeet: true,
       activatedAt: true,
     },
-  }), prisma.marketIqListing.findMany({
+  }), marketIqPrisma.marketIqListing.findMany({
     where: {
       importId: asset.compSet.sourceImportId,
       activatedAt: { gte: new Date("2025-08-01T00:00:00Z") },
