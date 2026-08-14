@@ -10,6 +10,9 @@ const ANALYTICAL_DELEGATES = [
   "marketIqAlert",
   "marketIqSourceRefresh",
   "marketIqSourceRefreshItem",
+  "marketIqListingFeedRun",
+  "marketIqLiveListingSnapshot",
+  "marketIqListingEvent",
 ] as const;
 
 function sourceFiles(root: string): string[] {
@@ -36,6 +39,7 @@ test("the analytical schema contains no customer, operator, or portfolio models"
   assert.match(schema, /env\("MARKET_IQ_DATABASE_URL"\)/);
   assert.match(schema, /model MarketIqDataImport/);
   assert.match(schema, /model MarketIqListing/);
+  assert.match(schema, /model MarketIqListingFeedRun/);
   assert.doesNotMatch(schema, /model Organization\b/);
   assert.doesNotMatch(schema, /model PM\b/);
   assert.doesNotMatch(schema, /model PortfolioIq/);

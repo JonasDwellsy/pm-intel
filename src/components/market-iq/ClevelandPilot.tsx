@@ -10,6 +10,7 @@ import { MarketWatchlistBuilder } from "@/components/market-iq/MarketWatchlistBu
 import { MarketIqDigestPanel } from "@/components/market-iq/MarketIqDigestPanel";
 import { MarketIqAlertHistory } from "@/components/market-iq/MarketIqAlertHistory";
 import type { MarketIqAlertHistoryItem } from "@/lib/market-iq/alert-history.server";
+import type { ClevelandLiveListingPulse } from "@/lib/market-iq/live-listings.server";
 import { DwellsyIqWorkspaceNav } from "@/components/dwellsy-iq/DwellsyIqWorkspaceNav";
 
 function MetricCard({
@@ -35,11 +36,13 @@ function MetricCard({
 export function ClevelandPilot({
   historicalPulse,
   trendPulses,
+  liveListingPulse,
   initialWatchlists = [],
   alertHistory = [],
 }: {
   historicalPulse: HistoricalListingPulse;
   trendPulses: MarketIqTrendPulse[];
+  liveListingPulse: ClevelandLiveListingPulse;
   initialWatchlists?: MarketIqWatchlistView[];
   alertHistory?: MarketIqAlertHistoryItem[];
 }) {
@@ -90,6 +93,26 @@ export function ClevelandPilot({
           <MetricCard label="New listings · 30d" value={fmtInt(data.historical.newListings30d)} detail={`${fmtPct(data.historical.newListingsChange, 1, true)} versus prior 30 days`} />
           <MetricCard label="Median days on market" value={`${data.historical.medianDom.toFixed(0)} days`} detail="Active listings at export cutoff" />
           <MetricCard label="Median asking rent / sf" value={`$${data.historical.medianRentPerSqFt.toFixed(2)}`} detail="Active listings with square footage" />
+        </div>
+      </section>
+
+      <section aria-labelledby="live-listings-heading" className="mt-10">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="dq-eyebrow">Current asking market</p>
+            <h2 id="live-listings-heading" className="dq-h2">Live listing pulse</h2>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {liveListingPulse.sourceAvailableThrough
+              ? `Source observed ${fmtDate(liveListingPulse.sourceAvailableThrough.toISOString())}`
+              : "Awaiting first synchronized snapshot"}
+          </p>
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard label="Active listings" value={fmtInt(liveListingPulse.activeListings)} detail={`${fmtInt(liveListingPulse.apartmentListings)} apartments · ${fmtInt(liveListingPulse.houseListings)} houses`} />
+          <MetricCard label="New and relisted" value={fmtInt(liveListingPulse.newEvents + liveListingPulse.relistedEvents)} detail={`${fmtInt(liveListingPulse.reactivatedEvents)} reactivated in latest refresh`} />
+          <MetricCard label="Price changes" value={fmtInt(liveListingPulse.priceChangeEvents)} detail="Asking-rent changes in latest refresh" />
+          <MetricCard label="Deactivated" value={fmtInt(liveListingPulse.deactivatedEvents)} detail="Listings removed since prior snapshot" />
         </div>
       </section>
 
@@ -212,14 +235,15 @@ export function ClevelandPilot({
 
       <MarketIqDigestPanel />
 
-      <section aria-labelledby="source-heading" className="mt-10 rounded-lg border border-orange/30 bg-orange-soft p-5 sm:p-6">
+      <section aria-labelledby="source-heading" className={`mt-10 rounded-lg border p-5 sm:p-6 ${liveListingPulse.status === "healthy" ? "border-teal/25 bg-teal-soft" : "border-orange/30 bg-orange-soft"}`}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
-            <p className="dq-eyebrow text-orange-700">Live source health</p>
-            <h2 id="source-heading" className="text-xl font-semibold text-navy">Current listing feed unavailable</h2>
-            <p className="mt-2 text-sm leading-6 text-foreground/75">{data.liveListingSource.message}</p>
+            <p className={`dq-eyebrow ${liveListingPulse.status === "healthy" ? "text-teal" : "text-orange-700"}`}>Live source health</p>
+            <h2 id="source-heading" className="text-xl font-semibold text-navy">{liveListingPulse.status === "healthy" ? "Direct Dwellsy listing feed connected" : "Current listing feed awaiting baseline"}</h2>
+            <p className="mt-2 text-sm leading-6 text-foreground/75">{liveListingPulse.message}</p>
+            <p className="mt-2 text-xs text-muted-foreground">Source: {liveListingPulse.sourceName}. Asking listings only, not occupancy, leases, or effective rent.</p>
           </div>
-          <span className="rounded-full border border-orange/30 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700">Paused honestly</span>
+          <span className={`rounded-full border bg-white px-3 py-1.5 text-xs font-semibold ${liveListingPulse.status === "healthy" ? "border-teal/30 text-teal" : "border-orange/30 text-orange-700"}`}>{liveListingPulse.status === "healthy" ? "Healthy" : "Not synchronized"}</span>
         </div>
       </section>
     </main>

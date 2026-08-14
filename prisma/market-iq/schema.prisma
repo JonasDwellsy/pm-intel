@@ -154,3 +154,90 @@ model MarketIqListing {
   @@index([marketId, city, postalCode])
   @@index([marketId, propertyType, bedrooms])
 }
+
+model MarketIqListingFeedRun {
+  id                     String    @id @default(cuid())
+  marketId               String
+  sourceKind             String    @default("dwellsy_production")
+  triggerKind            String    @default("manual")
+  status                 String    @default("loading")
+  sourceAvailableThrough DateTime?
+  recordCount            Int       @default(0)
+  apartmentCount         Int       @default(0)
+  houseCount             Int       @default(0)
+  newCount               Int       @default(0)
+  relistedCount          Int       @default(0)
+  reactivatedCount       Int       @default(0)
+  priceChangeCount       Int       @default(0)
+  deactivatedCount       Int       @default(0)
+  error                  String?
+  startedBy              String?
+  startedAt              DateTime  @default(now())
+  completedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  snapshots MarketIqLiveListingSnapshot[]
+  events    MarketIqListingEvent[]
+
+  @@index([marketId, completedAt(sort: Desc)])
+  @@index([status, startedAt(sort: Desc)])
+}
+
+model MarketIqLiveListingSnapshot {
+  id                     String    @id @default(cuid())
+  runId                  String
+  marketId               String
+  sourceListingId        String
+  sourcePropertyId       String
+  sourceParentPropertyId String?
+  sourceCompanyId        String?
+  operatorNameSlug       String?
+  communityId            String?
+  address                String?
+  city                   String?
+  state                  String?
+  postalCode             String?
+  latitude               Float?
+  longitude              Float?
+  askingRent             Float
+  squareFeet             Float?
+  bedrooms               Float
+  bathrooms              Float?
+  propertyType           String
+  listingCreatedAt       DateTime?
+  sourceUpdatedAt        DateTime?
+  capturedAt             DateTime  @default(now())
+
+  run MarketIqListingFeedRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, sourceListingId])
+  @@index([marketId, propertyType, bedrooms])
+  @@index([marketId, city, postalCode])
+  @@index([sourceListingId, capturedAt(sort: Desc)])
+  @@index([sourcePropertyId, capturedAt(sort: Desc)])
+}
+
+model MarketIqListingEvent {
+  id               String    @id @default(cuid())
+  fingerprint      String    @unique
+  runId            String
+  marketId         String
+  eventType        String
+  sourceListingId  String
+  sourcePropertyId String
+  propertyType     String
+  city             String?
+  postalCode       String?
+  previousRent     Float?
+  currentRent      Float?
+  sourceOccurredAt DateTime?
+  observedAt       DateTime  @default(now())
+  metadata         String    @default("{}")
+
+  run MarketIqListingFeedRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([marketId, eventType, observedAt(sort: Desc)])
+  @@index([sourceListingId, observedAt(sort: Desc)])
+  @@index([sourcePropertyId, observedAt(sort: Desc)])
+}
