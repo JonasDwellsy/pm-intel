@@ -74,6 +74,7 @@ test("live-feed migration is additive and isolated from Operator IQ", () => {
 test("manual refresh is preview-gated and token-authenticated", () => {
   const route = readFileSync("src/app/api/market-iq/source/dwellsy/refresh/route.ts", "utf8");
   assert.match(route, /marketIqPreviewEnabled/);
+  assert.match(route, /MARKET_IQ_SOURCE_REFRESH_TOKEN/);
   assert.match(route, /MARKET_IQ_IMPORT_TOKEN/);
   assert.match(route, /timingSafeEqual/);
   assert.match(route, /runClevelandListingFeed/);

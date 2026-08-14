@@ -111,6 +111,33 @@ try {
       AND p.property_category::text IN ('Apartment', 'House')
   `);
 
+  const trendCoverage = await client.query(`
+    SELECT 'msa' AS geography_type,
+           COUNT(*)::int AS rows,
+           COUNT(DISTINCT address_type)::int AS address_types,
+           COUNT(DISTINCT bedrooms)::int AS bedroom_counts,
+           COUNT(DISTINCT msa::text)::int AS geographies,
+           MIN(month) AS first_month,
+           MAX(month) AS latest_month,
+           MAX(COALESCE(update_at, created_at)) AS latest_refresh
+    FROM dwellsy_prod.ai_msa_stats_table
+    WHERE msa = 17460
+    UNION ALL
+    SELECT 'city', COUNT(*)::int, COUNT(DISTINCT stats.address_type)::int,
+           COUNT(DISTINCT stats.bedrooms)::int, COUNT(DISTINCT stats.city_id)::int,
+           MIN(stats.month), MAX(stats.month), MAX(COALESCE(stats.update_at, stats.created_at))
+    FROM dwellsy_prod.ai_city_stats_table stats
+    JOIN dwellsy_prod.msa_city_table membership ON membership.city_id = stats.city_id
+    WHERE membership.msa_code = 17460
+    UNION ALL
+    SELECT 'zip', COUNT(*)::int, COUNT(DISTINCT stats.address_type)::int,
+           COUNT(DISTINCT stats.bedrooms)::int, COUNT(DISTINCT stats.zip)::int,
+           MIN(stats.month), MAX(stats.month), MAX(COALESCE(stats.update_at, stats.created_at))
+    FROM dwellsy_prod.ai_zip_stats_table stats
+    JOIN dwellsy_prod.msa_new_zip_table membership ON membership.zip = stats.zip
+    WHERE membership.msa_code = 17460
+  `);
+
   console.log(JSON.stringify({
     identity: identity.rows,
     msa: msa.rows,
@@ -119,6 +146,7 @@ try {
     activeCoverage: activeCoverage.rows,
     listingIdentity: listingIdentity.rows,
     recentLifecycle: recentLifecycle.rows,
+    trendCoverage: trendCoverage.rows,
   }, null, 2));
 
   await client.query("ROLLBACK");

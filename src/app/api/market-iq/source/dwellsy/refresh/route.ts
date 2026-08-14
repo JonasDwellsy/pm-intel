@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 function authorized(request: Request) {
-  const configured = process.env.MARKET_IQ_IMPORT_TOKEN;
+  const configured = process.env.MARKET_IQ_SOURCE_REFRESH_TOKEN ?? process.env.MARKET_IQ_IMPORT_TOKEN;
   const supplied = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!configured || !supplied) return false;
   const left = Buffer.from(configured);
