@@ -1,8 +1,8 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CopyMarketReportLink } from "@/components/market-iq/CopyMarketReportLink";
 import { DwellsyIqWorkspaceNav } from "@/components/dwellsy-iq/DwellsyIqWorkspaceNav";
+import { MarketIqReportHistory } from "@/components/market-iq/MarketIqReportHistory";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled, resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
@@ -10,7 +10,7 @@ import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { canAccessMarketIqReportComposer } from "@/lib/market-iq/report/access";
 import { loadMarketIqReportComposer } from "@/lib/market-iq/report/composer.server";
-import { publishMarketIqReport, revokeMarketIqReport } from "./actions";
+import { publishMarketIqReport } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +23,7 @@ function position(value: number | null) {
   return `${Math.abs(value).toFixed(1)}% ${value >= 0 ? "above" : "below"} market`;
 }
 
-function dateLabel(value: Date | string | null) {
-  return value ? new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "Not published";
-}
-
-export default async function MarketIqReportComposerPage({ searchParams }: { searchParams: Promise<{ published?: string }> }) {
+export default async function MarketIqReportComposerPage({ searchParams }: { searchParams: Promise<{ published?: string; delivery?: string }> }) {
   const previewEnabled = marketIqPreviewEnabled();
   if (!previewEnabled) notFound();
   const hasProduct = await viewerHasProductAccess("market_iq");
@@ -74,7 +70,7 @@ export default async function MarketIqReportComposerPage({ searchParams }: { sea
           </div>
         </form>
 
-        <section className="rounded-xl border border-grid bg-white p-5"><p className="dq-eyebrow">Report history</p><h2 className="dq-h2">Published links</h2>{composer.organization.marketIqReports.length ? <div className="mt-4 divide-y divide-grid">{composer.organization.marketIqReports.map((report) => <article key={report.id} className={`py-4 first:pt-0 ${query.published === report.id ? "rounded-lg bg-teal-soft px-3" : ""}`}><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-navy">Cleveland client report</p><p className="mt-1 text-xs capitalize text-muted-foreground">{report.status} · {dateLabel(report.publishedAt ?? report.createdAt)}</p></div><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${report.status === "published" ? "bg-emerald-50 text-emerald-800" : "bg-surface-soft text-muted-foreground"}`}>{report.status}</span></div>{report.status === "published" && <div className="mt-3 flex flex-wrap gap-2"><CopyMarketReportLink path={`/reports/market/${report.publicToken}`} /><Link href={`/reports/market/${report.publicToken}`} target="_blank" className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white">Open client view</Link><Link href={`/reports/market/${report.publicToken}/pdf`} target="_blank" className="rounded-md border border-grid bg-white px-3 py-2 text-xs font-semibold text-navy">Download PDF</Link><form action={revokeMarketIqReport}><input type="hidden" name="reportId" value={report.id} /><button className="rounded-md border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-800">Revoke</button></form></div>}</article>)}</div> : <p className="mt-3 text-sm leading-6 text-muted-foreground">No client reports have been published yet.</p>}</section>
+        <MarketIqReportHistory reports={composer.organization.marketIqReports} highlightedId={query.published} delivery={query.delivery} />
       </aside>
 
       <div style={style} className="overflow-hidden rounded-2xl border border-grid bg-[#f7f6f2] shadow-sm">

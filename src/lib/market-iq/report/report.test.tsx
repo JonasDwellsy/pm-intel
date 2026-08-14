@@ -7,6 +7,8 @@ import {
   type MarketIqPortfolioObservation,
 } from "./report";
 import { canAccessMarketIqReportComposer } from "./access";
+import { buildMarketIqReportEmail } from "./email";
+import { seededClevelandMarketReport } from "./seeded-cleveland";
 
 function observations(input: {
   prefix: string;
@@ -153,5 +155,36 @@ describe("Market IQ report access boundaries", () => {
     expect(isPublicMarketIqReportStatus("published")).toBe(true);
     expect(isPublicMarketIqReportStatus("draft")).toBe(false);
     expect(isPublicMarketIqReportStatus("revoked")).toBe(false);
+  });
+});
+
+describe("Market IQ report email", () => {
+  it("keeps the owner-facing message PM-branded and links the immutable report", () => {
+    const email = buildMarketIqReportEmail({
+      recipientName: "Avery Owner",
+      recipientKind: "client",
+      report: seededClevelandMarketReport,
+      reportUrl: "https://market.example/reports/market/token",
+      pdfUrl: "https://market.example/reports/market/token/pdf",
+    });
+    expect(email.subject).toMatch(/^Harborview Residential/);
+    expect(email.html).toContain("View market advisory");
+    expect(email.html).toContain("Download PDF");
+    expect(email.html).toContain("Market data by Dwellsy IQ");
+    expect(email.html).not.toContain("Open Market IQ");
+    expect(email.html).not.toContain("Operator IQ");
+    expect(email.text).toContain("advertised asking-market activity");
+  });
+
+  it("escapes recipient and brand-controlled content", () => {
+    const email = buildMarketIqReportEmail({
+      recipientName: "<script>alert(1)</script>",
+      recipientKind: "prospect",
+      report: { ...seededClevelandMarketReport, brand: { ...seededClevelandMarketReport.brand, displayName: "A&B <Advisors>" } },
+      reportUrl: "https://market.example/report?a=1&b=2",
+      pdfUrl: "https://market.example/report/pdf",
+    });
+    expect(email.html).toContain("A&amp;B &lt;Advisors&gt;");
+    expect(email.html).not.toContain("<script>");
   });
 });

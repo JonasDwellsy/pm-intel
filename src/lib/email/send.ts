@@ -11,6 +11,8 @@ import sgMail from "@sendgrid/mail";
 
 export interface EmailMessage {
   to: string;
+  fromName?: string;
+  replyTo?: string;
   subject: string;
   html: string;
   text: string;
@@ -27,7 +29,8 @@ export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
     sgMail.setApiKey(apiKey);
     const [response] = await sgMail.send({
       to: msg.to,
-      from, // must be a SendGrid-verified sender / authenticated domain
+      from: msg.fromName ? { email: from, name: msg.fromName } : from,
+      replyTo: msg.replyTo,
       subject: msg.subject,
       html: msg.html,
       text: msg.text,

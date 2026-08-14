@@ -61,3 +61,15 @@ test("portfolio email sends attach stable linkage and do not claim delivery on A
   assert.doesNotMatch(preview, /deliveredAt: result\.ok \? now/);
   assert.match(digest, /\["sent", "delivered"\]/);
 });
+
+test("Market IQ report sends use the shared signed webhook without exposing owner-facing Dwellsy branding", () => {
+  const events = readFileSync("src/lib/email/sendgrid-events.server.ts", "utf8");
+  const action = readFileSync("src/app/market-iq/report/actions.ts", "utf8");
+  const email = readFileSync("src/lib/market-iq/report/email.ts", "utf8");
+  assert.match(events, /market_iq_report/);
+  assert.match(events, /marketIqReportSend\.updateMany/);
+  assert.match(action, /dwellsy_kind: "market_iq_report"/);
+  assert.match(action, /fromName: snapshot\.brand\.displayName/);
+  assert.doesNotMatch(email, /Open Market IQ|Operator IQ/);
+  assert.match(email, /Market data by Dwellsy IQ/);
+});
