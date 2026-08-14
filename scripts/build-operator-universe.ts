@@ -44,6 +44,9 @@ interface RawRankedPm {
   // slug and don't appear in canonicalOperators below.
   canonicalOperatorId?: string;
   canonicalOperatorName?: string;
+  // v0.8 dormant tier — carried on every PM by the pipeline since phase 1.
+  operatorStatus?: string;
+  lastListingDate?: string | null;
 }
 
 interface RawCanonicalOperator {
@@ -90,6 +93,18 @@ interface OutputCanonicalEntry {
   name: string;
   canonicalSlug: string;
   marketCount: number;
+  /** v0.8 dormant tier. Set ONLY when every market this operator rolls up is
+   *  dormant. A multi-market operator quiet in some markets and listing in
+   *  others is ordinary operator behaviour, not a whole-operator state —
+   *  labelling that case would assert something about their business we
+   *  cannot see. Same distinction the digest's simultaneity guardrail draws
+   *  (see src/lib/watch-list/dormancy-guardrail.ts). Absent = no chip, so an
+   *  index built before this field renders exactly as before. */
+  status?: "dormant";
+  /** Latest last-listing date across the member markets — the point after
+   *  which we observed nothing anywhere. Matches the coverage note's choice
+   *  in dormancy-guardrail.ts. */
+  lastListingDate?: string | null;
   // List of { marketCity, stateCode } for each market the operator
   // operates in. Drives the "Operates in Phoenix, Memphis, Nashville,
   // Jacksonville" subtitle on the search result row.
@@ -301,6 +316,13 @@ const allRankedCandidates: Array<{
   silver: number;
 }> = [];
 const starsByCanonicalSlug = new Map<string, { gold: number; silver: number }>();
+// v0.8 — per-canonical dormancy roll-up. `total` counts member PMs seen and
+// `dormant` how many are quiet, so the canonical pass can tell "quiet
+// everywhere" (label it) from "quiet in some markets" (say nothing).
+const dormancyByCanonicalSlug = new Map<
+  string,
+  { total: number; dormant: number; latestLastListing: string | null }
+>();
 const rankedNamesByMarket = new Map<string, Set<string>>();
 const namesByCanonicalSlug = new Map<string, Set<string>>();
 
@@ -324,6 +346,21 @@ for (const pm of seed.pms) {
     if (pm.name) nameSet.add(pm.name);
     if (pm.canonicalOperatorName) nameSet.add(pm.canonicalOperatorName);
     namesByCanonicalSlug.set(canonSlug, nameSet);
+    const d = dormancyByCanonicalSlug.get(canonSlug) ?? {
+      total: 0,
+      dormant: 0,
+      latestLastListing: null as string | null,
+    };
+    d.total += 1;
+    if (pm.operatorStatus === "dormant") {
+      d.dormant += 1;
+      // Plain YYYY-MM-DD sorts lexicographically, so a string compare is the
+      // date compare.
+      if (pm.lastListingDate && (!d.latestLastListing || pm.lastListingDate > d.latestLastListing)) {
+        d.latestLastListing = pm.lastListingDate;
+      }
+    }
+    dormancyByCanonicalSlug.set(canonSlug, d);
   }
 }
 
@@ -396,9 +433,26 @@ for (const entity of Object.values(canonicalMap)) {
     totalT24T12Listings: entity.aggregateStats.totalT24T12Listings ?? 0,
     totalUrusT12: entity.aggregateStats.totalUrusT12 ?? 0,
     aliases: (() => { const a: string[] = []; for (const n of namesByCanonicalSlug.get(entity.canonicalSlug) ?? []) addAlias(a, n, entity.canonicalName); return a.length ? a : undefined; })(),
+    // Emitted only when EVERY member market is dormant, so a partially-quiet
+    // operator keeps its exact prior shape and no chip.
+    ...(() => {
+      const d = dormancyByCanonicalSlug.get(entity.canonicalSlug);
+      return d && d.total > 0 && d.dormant === d.total
+        ? { status: "dormant" as const, lastListingDate: d.latestLastListing }
+        : {};
+    })(),
   });
 }
-console.log(`Canonical multi-market operators: ${canonical.length}`);
+const dormantCanonical = canonical.filter((c) => c.status === "dormant").length;
+const partialCanonical = [...dormancyByCanonicalSlug.values()].filter(
+  (d) => d.dormant > 0 && d.dormant < d.total
+).length;
+console.log(
+  `Canonical multi-market operators: ${canonical.length}` +
+    (dormantCanonical
+      ? ` (${dormantCanonical} dormant in every market, chipped; ${partialCanonical} quiet in only some markets, deliberately unchipped)`
+      : "")
+);
 
 // --- Tier 2 — universe operators per market source JSON ---
 //
