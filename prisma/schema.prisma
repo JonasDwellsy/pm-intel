@@ -502,6 +502,10 @@ model Organization {
   marketAccess                  OrganizationMarketAccess[]
   productAccess                 OrganizationProductAccess[]
   marketIqWatchlists            MarketIqWatchlist[]
+  brandProfile                  OrganizationBrandProfile?
+  marketIqReports               MarketIqReport[]
+  marketIqReportRecipients      MarketIqReportRecipient[]
+  marketIqReportSends           MarketIqReportSend[]
   portfolioIqPortfolios         PortfolioIqPortfolio[]
   dwellsyIqInsights             DwellsyIqInsight[]
   portfolioIqOnboardingRequests PortfolioIqOnboardingRequest[]
@@ -553,6 +557,95 @@ model MarketIqWatchlist {
 
   @@index([organizationId, updatedAt(sort: Desc)])
   @@index([marketId])
+}
+
+// PM-controlled branding for outward-facing Market IQ reports. The PM is the
+// buyer and sender; Dwellsy remains a small data-provenance credit inside the
+// immutable report snapshot.
+model OrganizationBrandProfile {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  displayName    String
+  logoUrl        String?
+  primaryColor   String
+  accentColor    String
+  contactName    String?
+  contactEmail   String?
+  contactPhone   String?
+  websiteUrl     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reports      MarketIqReport[]
+}
+
+// One immutable, PM-branded Market IQ artifact. `scope` records the managed
+// portfolio and segment/submarket definition used to build it; `snapshot` is
+// frozen on publication so a sent report cannot drift as source data changes.
+model MarketIqReport {
+  id             String    @id @default(cuid())
+  organizationId String
+  marketId       String
+  periodLabel    String
+  publicToken    String    @unique
+  status         String    @default("draft") // draft | published | revoked
+  scope          String
+  snapshot       String
+  subjectAddress String? // drill-down/prospect mode only; never the report primitive
+  brandProfileId String
+  generatedBy    String
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brandProfile OrganizationBrandProfile @relation(fields: [brandProfileId], references: [id], onDelete: Restrict)
+  sends        MarketIqReportSend[]
+
+  @@index([organizationId, marketId, createdAt(sort: Desc)])
+  @@index([status, publishedAt(sort: Desc)])
+}
+
+model MarketIqReportRecipient {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  email          String
+  kind           String // client | prospect
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sends        MarketIqReportSend[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId, kind, name])
+}
+
+model MarketIqReportSend {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  reportId           String
+  recipientId        String
+  deliveryStatus     String    @default("not_sent") // not_sent | sent | failed
+  deliveryProviderId String?
+  deliveryError      String?
+  sentAt             DateTime?
+  deliveredAt        DateTime?
+  lastEmailEventAt   DateTime?
+  lastEmailEventType String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  report       MarketIqReport          @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  recipient    MarketIqReportRecipient @relation(fields: [recipientId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, deliveryStatus, createdAt(sort: Desc)])
+  @@index([reportId, createdAt(sort: Desc)])
+  @@index([recipientId, createdAt(sort: Desc)])
+  @@index([deliveryProviderId])
 }
 
 // One row per immutable source file. The checksum is the idempotency key, so a
