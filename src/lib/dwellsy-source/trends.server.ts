@@ -46,6 +46,82 @@ const DWELLSY_TRENDS_SQL = `
   ORDER BY geography_type, geography_value, address_type, bedrooms, month
 `;
 
+// Temporary adapter for the 999-bedroom product summaries. The lower-geography
+// canonical trends_value fields are being repaired upstream. Keeping the median
+// substitution in this one query makes the eventual swap deliberate and small.
+const DWELLSY_PRODUCT_ROLLUP_SQL = `
+  WITH rollup AS (
+    SELECT 'msa'::text AS geography_type,
+           s.msa::text AS geography_value,
+           'Cleveland-Elyria, OH'::text AS geography_label,
+           s.address_type,
+           s.bedrooms,
+           s.month,
+           s.count AS observations,
+           s.median AS rent
+    FROM dwellsy_prod.ai_msa_stats_table s
+    WHERE s.msa = 17460
+      AND s.month >= $1::date
+      AND s.address_type = ANY($3::text[])
+      AND s.bedrooms = 999
+
+    UNION ALL
+
+    SELECT DISTINCT 'city'::text AS geography_type,
+           c.name || ', ' || c.state AS geography_value,
+           c.name AS geography_label,
+           s.address_type,
+           s.bedrooms,
+           s.month,
+           s.count AS observations,
+           s.median AS rent
+    FROM dwellsy_prod.ai_city_stats_table s
+    JOIN dwellsy_prod.city_table c ON c.id = s.city_id
+    JOIN dwellsy_prod.msa_city_table membership ON membership.city_id = s.city_id
+    WHERE membership.msa_code = 17460
+      AND s.month >= $1::date
+      AND s.address_type = ANY($3::text[])
+      AND s.bedrooms = 999
+
+    UNION ALL
+
+    SELECT 'zip'::text AS geography_type,
+           s.zip AS geography_value,
+           'ZIP ' || s.zip AS geography_label,
+           s.address_type,
+           s.bedrooms,
+           s.month,
+           s.count AS observations,
+           s.median AS rent
+    FROM dwellsy_prod.ai_zip_stats_table s
+    WHERE s.zip = ANY($2::text[])
+      AND s.month >= $1::date
+      AND s.address_type = ANY($3::text[])
+      AND s.bedrooms = 999
+  )
+  SELECT current.geography_type,
+         current.geography_value,
+         current.geography_label,
+         current.address_type,
+         current.bedrooms,
+         current.month,
+         current.observations,
+         current.rent,
+         CASE WHEN prior.rent > 0
+              THEN ((current.rent / prior.rent) - 1) * 100
+              ELSE NULL END AS year_over_year_pct,
+         'median_999_proxy'::text AS value_basis
+  FROM rollup current
+  LEFT JOIN rollup prior
+    ON prior.geography_type = current.geography_type
+   AND prior.geography_value = current.geography_value
+   AND prior.address_type = current.address_type
+   AND prior.bedrooms = current.bedrooms
+   AND prior.month = current.month - interval '1 year'
+  WHERE current.rent > 0
+  ORDER BY current.geography_type, current.geography_value, current.address_type, current.month
+`;
+
 export async function loadDwellsyTrendSeries(input: {
   cities: string[];
   zipCodes: string[];
@@ -62,6 +138,22 @@ export async function loadDwellsyTrendSeries(input: {
     ]);
     const series = mapDwellsyTrendRows(result.rows);
     if (!series.length) throw new Error("Dwellsy Trends returned no rows for the selected Cleveland scope.");
+    return { series };
+  });
+}
+
+export async function loadDwellsyProductRollupSeries(input: {
+  zipCodes: string[];
+  periodStart: string;
+}) {
+  return withDwellsyReadOnly(async (client) => {
+    const result = await client.query<DwellsyTrendSourceRow>(DWELLSY_PRODUCT_ROLLUP_SQL, [
+      input.periodStart,
+      input.zipCodes,
+      ["Apartment", "House"],
+    ]);
+    const series = mapDwellsyTrendRows(result.rows);
+    if (!series.length) throw new Error("Dwellsy Trends returned no 999-bedroom product rollups for Cleveland.");
     return { series };
   });
 }

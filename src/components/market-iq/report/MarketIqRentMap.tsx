@@ -7,6 +7,8 @@ import type { MarketIqMapPoint, MarketIqPropertyType } from "@/lib/market-iq/rep
 type Segment = { propertyType: MarketIqPropertyType; bedrooms: number; label: string };
 
 const SEGMENTS: Segment[] = [
+  { propertyType: "apartment", bedrooms: 999, label: "All apartments" },
+  { propertyType: "house", bedrooms: 999, label: "All houses" },
   { propertyType: "apartment", bedrooms: 1, label: "1-bed apartments" },
   { propertyType: "apartment", bedrooms: 2, label: "2-bed apartments" },
   { propertyType: "house", bedrooms: 2, label: "2-bed houses" },
@@ -33,6 +35,7 @@ function featureCollection(points: MarketIqMapPoint[]) {
         observations: point.observations,
         month: point.month,
         status: point.status,
+        valueBasis: point.valueBasis,
       },
     })),
   };
@@ -65,8 +68,8 @@ export function MarketIqRentMap({ points, primaryColor, accentColor }: {
     let cleanup: (() => void) | undefined;
     (async () => {
       try {
-        const module = await import("mapbox-gl");
-        const mapboxgl = module.default;
+        const mapboxModule = await import("mapbox-gl");
+        const mapboxgl = mapboxModule.default;
         if (cancelled) return;
         mapboxgl.accessToken = token;
         const map = new mapboxgl.Map({
@@ -108,7 +111,8 @@ export function MarketIqRentMap({ points, primaryColor, accentColor }: {
             if (!feature || feature.geometry.type !== "Point") return;
             const properties = feature.properties ?? {};
             const yoy = typeof properties.yoy === "number" ? `${properties.yoy >= 0 ? "+" : ""}${properties.yoy.toFixed(1)}% YoY` : "YoY not published";
-            const sample = properties.status === "reportable" ? `N=${Number(properties.observations).toLocaleString("en-US")} · ${properties.month}` : "Trends IQ sample not yet reportable";
+            const basis = properties.valueBasis === "median_999_proxy" ? " · temporary median basis" : "";
+            const sample = properties.status === "reportable" ? `N=${Number(properties.observations).toLocaleString("en-US")} · ${properties.month}${basis}` : "Trends IQ sample not yet reportable";
             new mapboxgl.Popup({ offset: 18, closeButton: false })
               .setLngLat(feature.geometry.coordinates as [number, number])
               .setHTML(`<div style="font-family:system-ui;padding:2px 3px"><strong>ZIP ${properties.zip}</strong><div style="font-size:18px;margin-top:5px">${money(properties.rent === null ? null : Number(properties.rent))}</div><div style="color:#64748b;margin-top:3px">${yoy}</div><div style="color:#94a3b8;font-size:11px;margin-top:6px">${sample}</div></div>`)
@@ -132,6 +136,6 @@ export function MarketIqRentMap({ points, primaryColor, accentColor }: {
         return <button key={`${option.propertyType}:${option.bedrooms}`} type="button" onClick={() => setSegment(option)} className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${selected ? "border-transparent bg-[var(--report-primary)] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"}`}>{option.label}</button>;
       })}
     </div>
-    {unavailable || filtered.length === 0 ? <MapFallback points={points} reason={unavailable ? "token" : "segment"} /> : <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-[0_20px_55px_rgba(15,23,42,0.08)]"><div ref={containerRef} className="h-[470px] w-full" role="img" aria-label={`ZIP-level asking rent map for ${segment.label}`} /><div className="pointer-events-none absolute bottom-4 left-4 rounded-xl border border-white/70 bg-white/95 px-4 py-3 text-xs text-slate-600 shadow-sm backdrop-blur"><p><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-[var(--report-accent)]" />Rising year over year</p><p className="mt-1.5"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-[var(--report-primary)]" />Softening year over year</p><p className="mt-1.5"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-slate-400" />Not yet reportable</p></div></div>}
+    {unavailable || filtered.length === 0 ? <MapFallback points={points} reason={unavailable ? "token" : "segment"} /> : <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-[0_20px_55px_rgba(15,23,42,0.08)]"><div ref={containerRef} className="h-[470px] w-full" role="img" aria-label={`ZIP-level asking rent map for ${segment.label}`} /><div className="pointer-events-none absolute bottom-4 left-4 rounded-xl border border-white/70 bg-white/95 px-4 py-3 text-xs text-slate-600 shadow-sm backdrop-blur"><p><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-[var(--report-accent)]" />Rising year over year</p><p className="mt-1.5"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-[var(--report-primary)]" />Softening year over year</p><p className="mt-1.5"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-slate-400" />Not yet reportable</p>{segment.bedrooms === 999 && <p className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-400">Overall product view uses the temporary Trends median basis.</p>}</div></div>}
   </div>;
 }

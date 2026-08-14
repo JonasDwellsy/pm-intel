@@ -18,4 +18,11 @@ describe("Dwellsy Trends source mapping", () => {
       { geography_type: "zip", geography_value: "44123", geography_label: "ZIP 44123", address_type: "House", bedrooms: 3, month: "2026-07-01", observations: 7, rent: null, year_over_year_pct: null },
     ])).toEqual([]);
   });
+
+  it("preserves the explicit temporary basis on 999-bedroom summaries", () => {
+    const series = mapDwellsyTrendRows([
+      { geography_type: "msa", geography_value: "17460", geography_label: "Cleveland-Elyria, OH", address_type: "Apartment", bedrooms: 999, month: "2026-05-01", observations: 376, rent: 1050, year_over_year_pct: -16, value_basis: "median_999_proxy" },
+    ]);
+    expect(series[0]?.points[0]).toMatchObject({ rent: 1050, valueBasis: "median_999_proxy" });
+  });
 });

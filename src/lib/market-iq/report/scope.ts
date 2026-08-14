@@ -6,9 +6,11 @@ import {
   type MarketIqReportSnapshot,
 } from "@/lib/market-iq/report/report";
 
-export const MARKET_IQ_REPORT_CITIES = ["Cleveland", "Lakewood", "Euclid"] as const;
+export const MARKET_IQ_REPORT_CITIES = ["Cleveland", "Cleveland Heights", "Euclid", "Garfield Heights", "Lakewood", "Lorain", "Maple Heights", "Willoughby"] as const;
 export const MARKET_IQ_REPORT_ZIPS = ["44102", "44107", "44113", "44114", "44120", "44123"] as const;
 export const MARKET_IQ_REPORT_SEGMENTS = [
+  { key: "apartment:999", propertyType: "apartment", bedrooms: 999, label: "All apartments" },
+  { key: "house:999", propertyType: "house", bedrooms: 999, label: "All houses" },
   { key: "apartment:1", propertyType: "apartment", bedrooms: 1, label: "1-bedroom apartments" },
   { key: "apartment:2", propertyType: "apartment", bedrooms: 2, label: "2-bedroom apartments" },
   { key: "house:2", propertyType: "house", bedrooms: 2, label: "2-bedroom houses" },

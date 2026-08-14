@@ -3,7 +3,7 @@ import "server-only";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { prisma } from "@/lib/prisma";
 import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server";
-import { loadDwellsyTrendSeries } from "@/lib/dwellsy-source/trends.server";
+import { loadDwellsyProductRollupSeries, loadDwellsyTrendSeries } from "@/lib/dwellsy-source/trends.server";
 import { marketIqDatabaseConfigured, marketIqPrisma } from "@/lib/market-iq/prisma";
 import {
   buildMarketIqReportSnapshot,
@@ -89,12 +89,15 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
     : Promise.resolve(null);
   const [trendSource, context] = await Promise.all([
     liveDwellsyRuntimeEnabled
-      ? loadDwellsyTrendSeries({
-          cities: REPORT_CITIES,
-          zipCodes: REPORT_ZIPS,
-          periodStart: "2025-08-01",
-          bedrooms: REPORT_BEDROOMS,
-        }).then((result) => ({ result, live: true as const })).catch(() => ({
+      ? Promise.all([
+          loadDwellsyTrendSeries({
+            cities: REPORT_CITIES,
+            zipCodes: REPORT_ZIPS,
+            periodStart: "2025-04-01",
+            bedrooms: REPORT_BEDROOMS,
+          }),
+          loadDwellsyProductRollupSeries({ zipCodes: REPORT_ZIPS, periodStart: "2025-04-01" }),
+        ]).then(([detail, rollups]) => ({ result: { series: [...rollups.series, ...detail.series] }, live: true as const })).catch(() => ({
           result: { series: SEEDED_CLEVELAND_TREND_SERIES },
           live: false as const,
         }))
@@ -102,13 +105,13 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
     analyticalContext,
   ]);
   const trendSeries = completeTrendSeries(trendSource.result.series);
+  const reportCities = [...new Set(trendSeries
+    .filter((series) => series.geographyType === "city" && series.bedrooms === 999 && series.points.some((point) => point.observations >= 10))
+    .map((series) => series.geographyLabel))].sort();
   const reportablePoints = trendSeries.flatMap((series) => series.points.filter((point) => point.observations >= 10));
   const historicalSource = seededClevelandMarketReport.sources.find((source) => source.name === "Total IQ observed listings");
   const latestTrendMonth = reportablePoints.map((point) => point.month).sort().at(-1) ?? seededClevelandMarketReport.scope.periodEnd;
   const trendAvailableThrough = monthEnd(latestTrendMonth);
-  const totalTrendObservations = reportablePoints
-    .filter((point) => point.month === latestTrendMonth)
-    .reduce((sum, point) => sum + point.observations, 0);
   const historicalPulse = context?.historicalPulse;
 
   return buildMarketIqReportSnapshot({
@@ -117,10 +120,10 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
     scope: {
       marketId: CLEVELAND_MARKET_ID,
       marketName: "Cleveland-Elyria, OH",
-      cities: REPORT_CITIES,
+      cities: reportCities.length ? reportCities : REPORT_CITIES,
       zipCodes: REPORT_ZIPS,
-      segments: ["Apartments by bedroom", "Houses by bedroom"],
-      periodStart: "2025-08-01",
+      segments: ["All apartments", "All houses", "Apartments by bedroom", "Houses by bedroom"],
+      periodStart: "2025-04-01",
       periodEnd: trendAvailableThrough,
       seededExample: false,
     },
@@ -136,9 +139,9 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
       historical: historicalPulse.historical,
     } : seededClevelandMarketReport.marketConditions,
     sources: [
-      { name: "Dwellsy IQ Trends", availableThrough: trendAvailableThrough, observationCount: totalTrendObservations || null, note: trendSource.live
-        ? "The exclusive source for every published aggregated rent level and rent change. Loaded directly from the read-only Trends source."
-        : "The exclusive source for every published aggregated rent level and rent change. This source-dated snapshot is used while the read-only Trends connection is unavailable from the preview environment." },
+      { name: "Dwellsy IQ Trends", availableThrough: trendAvailableThrough, observationCount: null, note: trendSource.live
+        ? "The exclusive source for every published aggregated rent level and rent change. Overall product summaries temporarily use the stored median and an exact prior-year comparison from Trends IQ 999-bedroom rows until the canonical fields are restored. Per-cell sample sizes are shown with each result."
+        : "The exclusive source for every published aggregated rent level and rent change. This source-dated snapshot temporarily uses the stored median and an exact prior-year comparison from Trends IQ 999-bedroom rows. Per-cell sample sizes are shown with each result." },
       historicalPulse
         ? { name: "Total IQ observed listings", availableThrough: historicalPulse.historicalSource.availableThrough, observationCount: historicalPulse.historicalSource.recordCount, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." }
         : historicalSource ?? { name: "Total IQ observed listings", availableThrough: "2026-07-31", observationCount: null, note: "Used only for listing activity and geographic context. It is not used to calculate aggregated prices." },

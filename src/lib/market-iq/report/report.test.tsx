@@ -19,7 +19,7 @@ describe("Market IQ local market read assembly", () => {
     const report = buildMarketIqReportSnapshot({ ...baseInput, trendSeries: [{ geographyType: "city", geographyValue: "Cleveland, OH", geographyLabel: "Cleveland", propertyType: "apartment", bedrooms: 1, points: [{ rent: 1_025, yearOverYearPct: 2.5, observations: 20, month: "2026-07-01" }] }] });
     expect(report.marketRead.cells).toHaveLength(1);
     expect(report.marketRead.cells[0]).toMatchObject({ status: "reportable", rent: 1_025, yearOverYearPct: 2.5, observations: 20, month: "2026-07-01" });
-    expect(report.methodNote).toMatch(/Every published rent level and change is a Trends IQ statistic/);
+    expect(report.methodNote).toMatch(/Every published rent input comes from Trends IQ/);
     expect(JSON.stringify(report)).not.toMatch(/portfolioPosition|positionPct|competitor/i);
   });
 
@@ -47,6 +47,23 @@ describe("Market IQ local market read assembly", () => {
       status: "suppressed",
       rent: null,
     });
+  });
+
+  it("uses the temporary 999 median adapter for overall product summaries", () => {
+    const msaApartment = seededClevelandMarketReport.marketRead.cells.find((cell) => cell.key === "17460:apartment:999");
+    expect(msaApartment).toMatchObject({
+      geographyType: "msa",
+      label: "All apartments",
+      rent: 1050,
+      observations: 376,
+      month: "2026-05-01",
+      valueBasis: "median_999_proxy",
+      status: "reportable",
+    });
+    expect(msaApartment?.yearOverYearPct).toBeCloseTo(-16, 5);
+    expect(new Set(seededClevelandMarketReport.marketRead.cells
+      .filter((cell) => cell.geographyType === "city" && cell.bedrooms === 999 && cell.status === "reportable")
+      .map((cell) => cell.geographyLabel)).size).toBe(8);
   });
 });
 

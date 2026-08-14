@@ -5,7 +5,7 @@ import type {
 } from "@/lib/market-iq/report/report";
 
 export type DwellsyTrendSourceRow = {
-  geography_type: "city" | "zip";
+  geography_type: "msa" | "city" | "zip";
   geography_value: string;
   geography_label: string;
   address_type: "Apartment" | "House";
@@ -14,6 +14,7 @@ export type DwellsyTrendSourceRow = {
   observations: number | string | null;
   rent: number | string | null;
   year_over_year_pct: number | string | null;
+  value_basis?: "trends_value" | "median_999_proxy";
 };
 
 function numberOrNull(value: number | string | null) {
@@ -49,6 +50,7 @@ export function mapDwellsyTrendRows(rows: DwellsyTrendSourceRow[]): MarketIqTren
       yearOverYearPct: numberOrNull(row.year_over_year_pct),
       observations,
       month: monthIso(row.month),
+      valueBasis: row.value_basis,
     });
     grouped.set(key, series);
   }
