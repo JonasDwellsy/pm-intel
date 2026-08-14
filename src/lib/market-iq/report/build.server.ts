@@ -184,7 +184,9 @@ export async function loadPublicMarketIqReport(publicToken: string): Promise<Mar
   }).catch(() => null);
   if (stored && isPublicMarketIqReportStatus(stored.status)) return parseMarketIqReportSnapshot(stored.snapshot);
 
-  const previewEnabled = process.env.MARKET_IQ_PREVIEW_ENABLED === "1" || process.env.NODE_ENV !== "production";
+  const previewEnabled = process.env.MARKET_IQ_PREVIEW_ENABLED === "1"
+    || process.env.VERCEL_ENV === "preview"
+    || process.env.NODE_ENV !== "production";
   if (previewEnabled && publicToken === SEEDED_CLEVELAND_REPORT_TOKEN) return seededClevelandMarketReport;
   return null;
 }
