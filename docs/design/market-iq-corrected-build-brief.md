@@ -1,47 +1,51 @@
-# Market IQ — Corrected Build Brief for Codex
+# Market IQ — Corrected Build Brief for Codex (Revision 2)
 
 **Branch:** `codex/market-iq-integration`
-**Author intent:** Reshape the existing Market IQ work from an owner-facing market *monitor* into a property-manager *market-authority engine*. Date: 2026-08-14.
-**Read this first, in full, before writing code.** The current branch builds a competent product aimed at the wrong user. Your job is not to add features to it. Your job is to re-point it.
+**Date:** 2026-08-14 (Revision 2)
+**Read this first, in full, before writing code.**
+
+## Revision note — what changed from Revision 1 and why
+Revision 1 told you to lead the PM report with an **operator-scape** (a market-level view of who manages/lists in the market, share gainers/losers, etc.) and to reverse the existing "operator teaser only" guardrail. **That was wrong. Reverse that instruction.**
+
+A property manager will **never** put competitor or operator-landscape information in front of their own clients and prospects. PMs do not talk about competitors, even when they compare favorably. And once an owner has hired a PM, the owner is not thinking about the PM landscape until they are considering firing their PM. Surfacing the landscape to a happy owner plants exactly the "maybe I should shop around" thought the PM wants suppressed.
+
+So: **the operator-scape stays OUT of anything owner-facing.** It belongs to the owner products (Operator IQ, Portfolio IQ), which serve the owner at the evaluate-my-PM moment. The existing guardrail ("operator context is a teaser + deep links, never a second scorecard") is **correct** for Market IQ; keep it. The report's differentiator relocates from "who else is in your market" to **"your market and your position in it."**
 
 ---
 
 ## 1. Mission in one paragraph
 
-Market IQ is the tool a property manager (PM) buys to be the undisputed market expert in front of the owners they serve and the owners they want to win. The core deliverable is a **PM-branded, sendable market report** the PM gives to clients and prospects, backed by a private layer that keeps the PM genuinely current and ready to defend the numbers when pressed. The PM is the **buyer**. The owner and the prospect are the **readers**, not users. Dwellsy stays **backstage**: the report carries the PM's brand, with at most a small "market data by Dwellsy IQ" credit. What makes the report impossible for Altos or CoStar to match is the **operator-scape**: the market-level view of who actually manages and lists in this market and how they are performing, which only Dwellsy can produce.
+Market IQ is the tool a property manager (PM) buys to be the undisputed market expert for the owners they serve and the owners they want to win. The core deliverable is a **PM-branded, sendable market report** that answers the question an owner actually asks: *how are we doing in our market.* Not the competitive field. The PM is the **buyer**. The owner and prospect are the **readers**. Dwellsy stays **backstage** (PM brand on the artifact, at most a small "market data by Dwellsy IQ" credit). What makes the report more than a commodity rent chart is **depth about the owner's own position**: the market read keyed to the owner's actual units, granular to submarket, product type, and community size, on the most complete rental coverage, honestly dated. Only Dwellsy can produce that combination of unit-level identity, rental coverage, and locality.
 
-If you are ever unsure whether a change serves this mission, ask: *does this help a PM look like the market authority to an owner?* If not, stop.
+Test every change against: *does this help a PM look like the expert on THIS OWNER'S market and position, without ever mentioning a competitor?* If not, stop.
 
 ---
 
-## 2. What the branch is today, and why it is wrong
+## 2. What the branch is today, and what must change
 
-- `/market-iq` (`src/app/market-iq/page.tsx` → `src/components/market-iq/ClevelandPilot.tsx`) is a **monitoring dashboard** for whoever holds an entitled login: asking-rent trends (MSA/city/ZIP), a historical listing pulse, watchlists, alerts, and a weekly digest.
-- It is housed inside an **owner-first** shell (nav: Today / Portfolio / Markets / Operators / Reports) whose homepage and Operator IQ product are explicitly *not for PMs*.
-- The only outbound "brief" is **owner → PM** (`PortfolioIqPmBrief`). There is no PM → owner artifact.
-- Operator depth is **deliberately excluded** by a design guardrail ("operator teaser + deep links, never a second scorecard").
-- Everything, including the digest email, is **Dwellsy IQ branded**.
-
-Four things must change: **(1)** the buyer/reader split, **(2)** a sendable PM-branded report as the hero, **(3)** the operator-scape put *into* the report, **(4)** Dwellsy moved backstage. This brief sequences that.
+- `/market-iq` (`src/app/market-iq/page.tsx` → `src/components/market-iq/ClevelandPilot.tsx`) is a **monitoring dashboard** for whoever holds an entitled login. It is housed in an **owner-first** shell. The only outbound "brief" is **owner → PM** (`PortfolioIqPmBrief`). Everything, including the digest email, is **Dwellsy IQ branded**.
+- Four changes: **(1)** split the buyer (PM) from the reader (owner/prospect); **(2)** add a sendable **PM-branded report** as the hero; **(3)** the report **leads with the owner's position in the market** (see Phase 1), never competitors; **(4)** move Dwellsy **backstage / white-label**.
+- **Keep** the platform consolidation, the product + market entitlement model, the source-honesty discipline, and the operator "teaser only" guardrail.
 
 ---
 
 ## 3. Non-negotiable constraints
 
-1. **Additive only.** New Prisma models and migrations only. Do not alter or drop existing columns/models. Do not mutate production data. Ship to a Vercel preview.
-2. **Do not break Operator IQ or Portfolio IQ.** No renaming or moving existing stable routes, models, or components. Market IQ work is additive alongside them.
-3. **Fail-closed entitlements.** Every premium read requires both product access (`OrganizationProductAccess`, key `market_iq`) and market access (`OrganizationMarketAccess`). Follow the existing pattern in `src/app/market-iq/page.tsx`.
-4. **Source honesty is sacred.** Keep as-of dating, the "asking-market, not occupancy or effective rent" caveat, and the refusal to fabricate a live feed. These must appear on the **outbound report**, worded as rigor, not fine print. Do not invent listing data while the live feed is paused.
-5. **Dwellsy backstage on anything an owner sees.** Owner-facing report, emails, and public pages carry the **PM's** brand. A single small "Market data by Dwellsy IQ" credit line is allowed and encouraged for provenance. No Dwellsy IQ headers, logos, or "Open Market IQ" CTAs on owner-facing surfaces.
-6. **Two Prisma schemas, respect the split.** Workflow/org/report data → main `prisma/schema.prisma` (client `prisma`). Analytical market data (trends, listings, alerts) → isolated `prisma/market-iq/schema.prisma` (client `marketIqPrisma`, `src/lib/market-iq/prisma.ts`). New report/brand/recipient/delivery models are **workflow data → main schema.**
-7. **Tests.** Add/extend Vitest coverage next to the code (the repo has `*.test.ts(x)` beside modules). Every new server module gets unit tests; every new entitlement gate gets a fail-closed test.
-8. **Stack conventions.** Next.js 16 App Router, React 19, TypeScript strict, Prisma, Clerk auth, SendGrid (`src/lib/email/send.ts`), Vercel Cron, `@react-pdf/renderer` for PDF, shadcn/Base UI/Radix + Tailwind, Dwellsy IQ tokens for *internal* surfaces only.
+1. **No competitors, ever, on owner-facing surfaces.** The report, its public page, its PDF, and its emails contain **zero** operator/competitor landscape: no named operators, no share rankings, no "who runs this market," no operator league tables. Operator-derived signals that read purely as *market conditions* (e.g., aggregate concession prevalence, supply, pricing behavior) are acceptable only when they cannot be read as a competitive comparison and never name or rank operators. When in doubt, leave it out.
+2. **Additive only.** New Prisma models/migrations only. No altering/dropping existing columns or models. No production mutation. Ship to a Vercel preview.
+3. **Do not break Operator IQ or Portfolio IQ.** No renaming/moving stable routes, models, or components.
+4. **Fail-closed entitlements.** Every premium read requires both product access (`OrganizationProductAccess`, key `market_iq`) and market access (`OrganizationMarketAccess`). Follow `src/app/market-iq/page.tsx`.
+5. **Source honesty is sacred, and it is on the outbound report.** As-of dating, the "asking-market, not occupancy or effective rent" caveat, and no fabricated live feed. This is worded as rigor, and it is what lets the PM defend the numbers.
+6. **Dwellsy backstage on anything an owner sees.** PM brand on the report, emails, and public pages. A single small "Market data by Dwellsy IQ" credit is allowed. No Dwellsy IQ headers/logos/"Open Market IQ" CTAs on owner-facing surfaces.
+7. **Two Prisma schemas.** Workflow/org/report data → main `prisma/schema.prisma` (client `prisma`). Analytical market data → isolated `prisma/market-iq/schema.prisma` (client `marketIqPrisma`). New report/brand/recipient/delivery models are **workflow data → main schema.**
+8. **Tests.** Vitest beside the code. Every new server module gets unit tests; every entitlement gate gets a fail-closed test.
+9. **Stack.** Next.js 16 App Router, React 19, TypeScript strict, Prisma, Clerk, SendGrid (`src/lib/email/send.ts`), Vercel Cron, `@react-pdf/renderer` for PDF, shadcn/Base UI/Radix + Tailwind.
 
 **Do NOT:**
+- Put operator/competitor landscape in any owner-facing artifact (Constraint 1).
 - Add more monitoring/dashboard/watchlist features.
-- Build a second per-operator scorecard. The operator-scape is **market-aggregated**, not individual-PM profiles.
-- Put buyer and reader in one persona.
-- Gate Phase 1 on the brand-architecture decision (see gates); build the report first.
+- Collapse buyer and reader into one persona.
+- Gate Phase 1 on the brand-architecture decision (Gate 1); build the report first.
 
 ---
 
@@ -49,83 +53,86 @@ Four things must change: **(1)** the buyer/reader split, **(2)** a sendable PM-b
 
 | Need | Reuse | Location |
 |---|---|---|
-| Public-link + email delivery + SendGrid event tracking + recipient fields + status lifecycle | **`PortfolioIqPmBrief`** shape (publicToken, recipientName/Email, deliveryStatus, deliveryProviderId, deliveredAt, lastEmailEventType) and its public route `/pm-briefs/[publicToken]` | `prisma/schema.prisma` (model `PortfolioIqPmBrief`), `src/lib/portfolio-iq/pm-brief*.ts`, `src/app/pm-briefs/[publicToken]` |
+| Public-link + email delivery + SendGrid event tracking + recipient fields + status lifecycle | **`PortfolioIqPmBrief`** shape (publicToken, recipientName/Email, deliveryStatus, deliveryProviderId, deliveredAt, lastEmailEventType) and public route `/pm-briefs/[publicToken]` | `prisma/schema.prisma`, `src/lib/portfolio-iq/pm-brief*.ts`, `src/app/pm-briefs/[publicToken]` |
 | PDF generation | `@react-pdf/renderer` | reference `src/components/scorecard/OperatorProfilePDF.tsx` |
-| Email compose + send | SendGrid wrapper + layout | `src/lib/email/send.ts`, `src/lib/email/layout.ts`, event ingest `src/lib/email/sendgrid-events*` |
-| Scheduled delivery | Vercel Cron routes | `src/app/api/cron/*`, existing `src/app/api/market-iq/digest` |
+| Email compose + send | SendGrid wrapper + layout | `src/lib/email/send.ts`, `src/lib/email/layout.ts`, events `src/lib/email/sendgrid-events*` |
+| Scheduled delivery | Vercel Cron | `src/app/api/cron/*`, existing `src/app/api/market-iq/digest` |
 | Entitlement gates | product + market access helpers | `src/lib/auth/product-entitlements(.server).ts`, `src/lib/auth/market-entitlements.server.ts` |
-| Market trends / listings / alerts data | isolated analytical client | `marketIqPrisma`, `src/lib/market-iq/{trends,historical,alerts}*.ts` |
-| Operator data for the operator-scape | existing Operator IQ data | main schema models `PM`, `CanonicalOperator`, `OperatorSnapshot`; logic in `src/lib/scorecard`, `src/lib/operators` |
+| Market trends / listings data for the market read | isolated analytical client | `marketIqPrisma`, `src/lib/market-iq/{trends,historical}*.ts` |
+| Subject-property "your position" benchmark (owner's or prospect's building vs market) | Dwellsy IQ comp capability, IF reachable from this codebase | assess in Phase 1 Task 0; if not reachable, fall back to segment-level position and flag |
+
+**Note:** `PM` / `CanonicalOperator` / `OperatorSnapshot` (the operator data) are **not** for the Market IQ outbound report. They remain the basis of the owner-facing Operator IQ product. Do not surface them in Market IQ owner-facing output.
 
 ---
 
 ## 5. Build sequence
 
-Phases are ordered to de-risk the business thesis fastest. **Phase 1 is the whole bet.** Do not start a later phase before the prior one meets its Definition of Done. Phases 2+ are scoped here but expect refinement after Phase 1 lands.
+Phases are ordered to de-risk the business thesis fastest. **Phase 1 is the whole bet.** Do not start a later phase before the prior one meets its Definition of Done.
 
 ### PHASE 1 — Prove the hero artifact on one market (Cleveland)
 
-Goal: a Cleveland market report, **PM-branded**, **leading with the operator-scape**, that a PM can generate, preview, get a shareable owner-facing link for, and send by email. One market, one PM persona, one artifact. This phase is brand-agnostic about the PM's *dashboard* surface (that is Phase 2); it only requires that the **artifact and its public page/email are PM-branded**.
+Goal: a Cleveland market report, **PM-branded**, that **leads with the owner's position in the market** and can be generated, previewed, shared via public link, and emailed. One market, one PM persona, one artifact.
+
+**Task 0 (do this first — feasibility, report back, do not build yet).** Determine whether a **subject-property benchmark** is reachable in this codebase: given a single address (the owner's asset or a prospect's building), can we produce a market-relative read for it (is its rent at / above / below market for its submarket, product type, and community size), using data available to this repo (comp capability and/or `MarketIqListing` + trends)? Report what is reachable. If a true subject-property benchmark is not reachable, Phase 1 falls back to a **segment-level position** (the granular market read cut so an owner can locate their own units in it) and we add the subject benchmark later. **Stop and report before building the lead section.**
 
 **1a. Data model (additive, main schema).**
-- `OrganizationBrandProfile` — per-organization PM brand: displayName, logoUrl, primaryColor, accentColor, contactName, contactEmail, contactPhone, websiteUrl. One per organization.
-- `MarketIqReport` — a generated report instance: `organizationId`, `marketId`, `periodLabel`, `publicToken @unique`, `status` (draft | published | revoked), `snapshot` (String, JSON of the fully-rendered report data at generation time, mirroring the `PortfolioIqPmBrief.snapshot` pattern so the report is immutable once sent), `brandProfileId`, `generatedBy`, `publishedAt`, timestamps.
-- `MarketIqReportRecipient` — `reportId` or org-owned list entry: name, email, kind (client | prospect).
-- `MarketIqReportSend` — delivery record mirroring PmBrief delivery fields: recipientEmail, deliveryStatus, deliveryProviderId, deliveredAt, lastEmailEventType, error. Wire SendGrid events through the existing ingest.
-- Migration is additive; include a Vitest that asserts the models exist and relations resolve.
+- `OrganizationBrandProfile` — per-org PM brand: displayName, logoUrl, primaryColor, accentColor, contactName, contactEmail, contactPhone, websiteUrl.
+- `MarketIqReport` — a generated report: `organizationId`, `marketId`, `periodLabel`, `publicToken @unique`, `status` (draft | published | revoked), `snapshot` (String JSON, immutable once published, mirroring `PortfolioIqPmBrief.snapshot`), `subjectAddress` (nullable, for the "your position" section), `brandProfileId`, `generatedBy`, `publishedAt`, timestamps.
+- `MarketIqReportRecipient` — name, email, kind (client | prospect).
+- `MarketIqReportSend` — delivery record mirroring PmBrief delivery fields; wire SendGrid events through existing ingest.
+- Additive migration + a Vitest asserting models/relations resolve.
 
-**1b. Report data assembly (server).** New `src/lib/market-iq/report/build.server.ts`:
-- Input: `organizationId`, `marketId` (Cleveland), period.
-- Assemble a `MarketIqReportSnapshot` with sections in this order:
-  1. **Operator-scape (LEAD SECTION).** Market-aggregated operator view from `PM` / `CanonicalOperator` / `OperatorSnapshot`: who is active in this market, share gainers/losers, concession behavior, DOM by operator type, institutional vs independent mix, community-size mix (SFR / small multi 2–99 / large multi 100+). **MSA-tier only** (see Gate 2). This is aggregation of existing Operator IQ data, not a new scorecard and not individual-PM profile pages.
-  2. **Rent and supply context** (supporting, not hero): asking-rent trends and the historical listing pulse already produced by `src/lib/market-iq/{trends,historical}.server.ts`. Reuse; do not duplicate.
-  3. **Source & method note:** as-of dates per source, the asking-market caveat, and the "Market data by Dwellsy IQ" credit.
-- Segment by **community size** as the primary cut; keep apartment/house as secondary (see Item G1 in the punch list). Do **not** invent live-listing figures; carry the paused-feed dating honestly.
+**1b. Report data assembly (server).** New `src/lib/market-iq/report/build.server.ts`. Assemble a `MarketIqReportSnapshot` with sections in this order:
+  1. **Your position (LEAD SECTION).** Either the subject-property benchmark (if Task 0 says reachable) or the segment-level position: the market read cut to the owner's relevant submarket(s), product type, and **community size** (SFR / small multi 2–99 / large multi 100+), so the reader sees where their own units sit. Frame: "how you are doing in your market." **No operators, no competitors.**
+  2. **Market conditions (supporting).** Asking-rent trends and the historical listing pulse already produced by `src/lib/market-iq/{trends,historical}.server.ts`. Reuse; do not duplicate. Aggregate market conditions only.
+  3. **Source & method note:** per-source as-of dates, the asking-market caveat, the "Market data by Dwellsy IQ" credit.
+  Do not invent live-listing figures while the feed is paused; carry honest dating.
 
-**1c. PM-facing report composer + preview.** Route under the existing `/market-iq` area (e.g. `/market-iq/report`), gated fail-closed. The PM: picks the market and period, sees the assembled report rendered in the PM's brand (pulls `OrganizationBrandProfile`), and can Publish. Publishing writes a `MarketIqReport` with an immutable snapshot + `publicToken`.
+**1c. PM-facing report composer + preview.** Route under `/market-iq` (e.g. `/market-iq/report`), fail-closed. The PM picks market + period, optionally enters a subject address, sees the report rendered in the **PM's** brand (`OrganizationBrandProfile`), and Publishes. Publishing writes a `MarketIqReport` with immutable snapshot + `publicToken`.
 
-**1d. Owner-facing public report page.** `/reports/market/[publicToken]` (a **new, unbranded-by-Dwellsy** public route; do NOT reuse the Dwellsy IQ shell/header). Renders the snapshot in the **PM's** brand from a no-login token, mirroring how `/pm-briefs/[publicToken]` renders without auth. Small Dwellsy provenance credit only.
+**1d. Owner-facing public report page.** New route `/reports/market/[publicToken]` — **not** the Dwellsy IQ shell. Renders the snapshot in the PM's brand from a no-login token (mirroring `/pm-briefs/[publicToken]`). Small Dwellsy provenance credit only. **No competitors on this page.**
 
-**1e. PDF.** `@react-pdf/renderer` component `src/components/market-iq/report/MarketIqReportPDF.tsx` (reference `OperatorProfilePDF.tsx`) rendering the same snapshot, PM-branded. Downloadable from the composer and attachable to the email.
+**1e. PDF.** `@react-pdf/renderer` component `src/components/market-iq/report/MarketIqReportPDF.tsx` (reference `OperatorProfilePDF.tsx`), same snapshot, PM-branded.
 
-**1f. Send.** Reuse `src/lib/email/send.ts` to email the public link (and/or PDF) to a `MarketIqReportRecipient`, **from the PM as sender-of-record**, PM-branded template (new template in `src/lib/email/`, not the Dwellsy `buildMarketIqDigest`). Record a `MarketIqReportSend`; wire SendGrid delivery/open events through existing ingest.
+**1f. Send.** Reuse `src/lib/email/send.ts` to email the public link and/or PDF to a `MarketIqReportRecipient`, **from the PM as sender-of-record**, PM-branded template (new template, not the Dwellsy `buildMarketIqDigest`). Record a `MarketIqReportSend`; wire SendGrid events.
 
 **Phase 1 Definition of Done:**
-- [ ] A PM persona can generate a Cleveland report that **leads with the operator-scape**, rendered in the PM's brand with no Dwellsy header/logo/CTA.
-- [ ] Publishing produces an immutable snapshot + public token; the `/reports/market/[token]` page renders it with no login, PM-branded, with a small Dwellsy provenance credit.
-- [ ] A PDF of the same snapshot downloads, PM-branded.
-- [ ] The report can be emailed to a client and to a prospect from the PM as sender; a send record and SendGrid events are captured.
-- [ ] Source dating + asking-market caveat appear on the report.
-- [ ] Fail-closed: no `market_iq` product or no Cleveland market access → 404, with tests.
+- [ ] Task 0 feasibility reported and the lead section built accordingly (subject benchmark or segment-level position).
+- [ ] A PM persona generates a Cleveland report that **leads with the owner's position**, PM-branded, with **no operator/competitor content anywhere**.
+- [ ] Publishing produces an immutable snapshot + public token; `/reports/market/[token]` renders it with no login, PM-branded, small Dwellsy credit.
+- [ ] A PM-branded PDF of the same snapshot downloads.
+- [ ] The report emails to a client and a prospect from the PM as sender; send record + SendGrid events captured.
+- [ ] Source dating + asking-market caveat on the report.
+- [ ] Fail-closed: no `market_iq` product or no Cleveland access → 404, with tests.
 - [ ] No existing Operator IQ / Portfolio IQ route or model changed. Vitest green.
 
-### PHASE 2 — Wrap it in the PM surface  *(GATE 1 required before starting)*
-Separate the PM-facing experience from the owner-facing Operator IQ shell so a PM never sees the "grade your PM" framing. Add `OrganizationBrandProfile` settings UI. Recipient/list management (clients vs prospects). Scope depends on Gate 1 (own brand/surface vs shared shell).
+### PHASE 2 — Wrap it in the PM surface  *(GATE 1 required)*
+Separate the PM-facing experience from the owner-facing Operator IQ shell so a PM never sees the "grade your PM" framing. `OrganizationBrandProfile` settings UI. Recipient/list management (clients vs prospects).
 
 ### PHASE 3 — Mastery + evidence locker
-- **Talking-points layer (PM-only, never sent):** for each report, "the 3 things that moved and how to explain them" derived from the existing `decisionRead`/`signal.narrative` generators, rewritten as *what to say*.
-- **Drill-down evidence:** one click from any market claim to the specific `MarketIqListing` comps behind it, ready to show live. This is the "when the client presses" layer.
+- **Talking-points layer (PM-only, never sent):** "the 3 things that moved in your market and how to explain them," derived from the existing `decisionRead`/signal narrative generators, rewritten as *what to say*. No competitors.
+- **Drill-down evidence:** one click from any market claim to the specific listings/comps behind it (the owner's/subject segment), ready to show live when the client presses. Comps of *comparable units*, not operators.
 
 ### PHASE 4 — Recurring + prospect mode
-- Repoint the digest/cron machinery to deliver the **PM-branded report** on a PM-controlled schedule to the PM's client/prospect lists (PM sender-of-record). Reuse `src/app/api/cron/*` + `MarketDigestPreference` patterns, but the payload is the branded report, not Dwellsy alerts.
-- **Prospect-pitch variant** of the report tuned to win a new management contract for a named market or a prospect's asset.
+- Repoint the digest/cron machinery to deliver the **PM-branded report** on a PM-controlled schedule to the PM's client/prospect lists (PM sender-of-record). Reuse `src/app/api/cron/*` patterns; payload is the branded report.
+- **Prospect-pitch variant:** the report pointed at a prospect's own building (market + rent opportunity for that asset), still **no competitors**.
 
-### PHASE 5 — Industrialize + price  *(GATE 3, Gate 4 inform this)*
-- Generate reports for any covered MSA from the live trend/listing pipelines (no hand-seeded data).
-- PM pricing/packaging + near-self-serve entitlement path (priced on markets covered + report volume; open to every PM in a market).
-- Add Market-IQ-specific resale/derivative terms protecting the operator-scape.
+### PHASE 5 — Industrialize + price  *(Gates 3, 4 inform this)*
+- Generate reports for any covered MSA from live pipelines (no hand-seeded data).
+- PM pricing/packaging + near-self-serve entitlement (priced on markets + report volume; open to every PM in a market).
+- Market-IQ-specific resale/derivative terms protecting the underlying data.
 
 ---
 
 ## 6. Decision gates (do not guess; ask the author)
 
-- **GATE 1 — Brand architecture (blocks Phase 2).** Does Market IQ get its own PM-facing brand/surface, or live under the shared Dwellsy IQ Online shell? Phase 1 does not need this answered because the *artifact* is PM-branded regardless. Phase 2 does.
-- **GATE 2 — Operator-scape depth (default set, confirm).** **Default for Phase 1:** operator-scape is **market-aggregated and MSA-tier only**; no individual-PM scorecard pages and no sub-MSA operator stats (thin-N). Rents/supply may go city/ZIP. Confirm before widening.
+- **GATE 1 — Brand architecture (blocks Phase 2).** Own PM-facing brand/surface, or the shared Dwellsy IQ shell? Phase 1 does not need this; the artifact is PM-branded regardless.
+- **GATE 2 — How much of the owner's own assets to include (confirm during Phase 1).** The "your position" section borders Portfolio IQ. The distinction: this is **PM-authored, favorably framed, and excludes the operator layer**, sent by the PM as a service. Default for Phase 1: subject-property or segment-level position on the owner's/prospect's own units only. Confirm before widening toward full portfolio benchmarking.
 - **GATE 3 — Self-serve vs sales-led** (Phase 5 entitlement motion).
-- **GATE 4 — Live feed prerequisite** (does the outbound report ship on trends + dated export until live listing ingestion lands, or wait). **Default:** ship on trends + honest dating now.
+- **GATE 4 — Live feed prerequisite** (ship on trends + dated export now, default yes).
 
 ---
 
 ## 7. First PR to open
 
-Phase 1a + 1b + 1d as a thin vertical slice: the additive models + migration, `report/build.server.ts` assembling a Cleveland snapshot that **leads with the operator-scape**, and the unbranded public `/reports/market/[token]` page rendering it PM-branded from a seeded example report. Prove the shape end-to-end before layering composer polish, PDF, and send. Keep production untouched; deploy to a preview.
+After Task 0 is reported: Phase 1a + 1b + 1d as a thin vertical slice — the additive models + migration, `report/build.server.ts` assembling a Cleveland snapshot that **leads with the owner's position (no competitors)**, and the unbranded-by-Dwellsy public `/reports/market/[token]` page rendering it PM-branded from a seeded example. Prove the shape end-to-end before composer polish, PDF, and send. Production untouched; deploy to a preview.
