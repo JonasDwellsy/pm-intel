@@ -24,12 +24,12 @@ export function defaultMarketIqReportBrand(organizationName: string): MarketIqRe
 
 export async function buildClevelandComposerPreview(brand: MarketIqReportBrandInput): Promise<{
   snapshot: MarketIqReportSnapshot;
-  source: "analytical_store" | "verified_seed";
+  source: "dwellsy_trends" | "verified_seed";
 }> {
   try {
     return {
       snapshot: await buildClevelandMarketIqReportSnapshot({ brand }),
-      source: "analytical_store",
+      source: "dwellsy_trends",
     };
   } catch (error) {
     if (process.env.MARKET_IQ_PREVIEW_ENABLED !== "1" && process.env.VERCEL_ENV !== "preview") throw error;

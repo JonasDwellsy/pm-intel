@@ -17,7 +17,7 @@ function sourcePool() {
   if (!globalForDwellsySource.dwellsySourcePool) {
     globalForDwellsySource.dwellsySourcePool = new Pool({
       connectionString: connectionString(),
-      application_name: "market-iq-live-listing-feed",
+      application_name: "market-iq-dwellsy-readonly",
       max: 2,
       connectionTimeoutMillis: 10_000,
       idleTimeoutMillis: 30_000,

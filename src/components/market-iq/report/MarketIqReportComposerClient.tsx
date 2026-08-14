@@ -49,7 +49,7 @@ function CoverageSummary({ status, count }: { status: MarketIqCoverageStatus; co
 export function MarketIqReportComposerClient({ snapshot, initialBrand, source }: {
   snapshot: MarketIqReportSnapshot;
   initialBrand: Brand;
-  source: "analytical_store" | "verified_seed";
+  source: "dwellsy_trends" | "verified_seed";
 }) {
   const [selection, setSelection] = useState<MarketIqReportScopeSelection>(defaultMarketIqScopeSelection());
   const [brand, setBrand] = useState<Brand>(initialBrand);
@@ -100,7 +100,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, source }:
       </form>
 
       <section className="rounded-xl border border-grid bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="dq-eyebrow">Pre-publication check</p><h2 className="dq-h2">What the client will and will not see</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Every selected geography and segment is checked against the latest landed Trends IQ month. Thin, stale, and missing cells stay visible here but publish without a rent value.</p></div><span className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${source === "analytical_store" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>{source === "analytical_store" ? "Landed analytical data" : "Verified preview seed"}</span></div>
+        <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="dq-eyebrow">Pre-publication check</p><h2 className="dq-h2">What the client will and will not see</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Every selected geography and segment is checked against the latest Trends IQ month. Thin, stale, and missing cells stay visible here but publish without a rent value.</p></div><span className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${source === "dwellsy_trends" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>{source === "dwellsy_trends" ? "Live Dwellsy Trends" : "Verified preview seed"}</span></div>
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4"><CoverageSummary status="reportable" count={coverage.counts.reportable} /><CoverageSummary status="thin" count={coverage.counts.thin} /><CoverageSummary status="stale" count={coverage.counts.stale} /><CoverageSummary status="unavailable" count={coverage.counts.unavailable} /></div>
         <div className="mt-7 grid gap-4 lg:grid-cols-2">{groupedCoverage.map(([geography, cells]) => <article key={geography} className="rounded-xl border border-grid p-4"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-navy">{geography}</h3><span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{cells[0]?.geographyType}</span></div><div className="mt-3 grid gap-2">{cells.map((cell) => <div key={cell.key} title={cell.reason} className="flex items-center justify-between gap-3 rounded-lg bg-surface-soft px-3 py-2"><div><p className="text-xs font-semibold text-navy">{cell.segmentLabel}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{cell.reason}</p></div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold uppercase ring-1 ${STATUS_STYLE[cell.status]}`}>{cell.status}</span></div>)}</div></article>)}</div>
       </section>
