@@ -72,6 +72,25 @@ describe("Market IQ local market read assembly", () => {
     expect(overall.filter((point) => point.propertyType === "house")).toHaveLength(7);
     expect(overall.every((point) => point.rent !== null && point.observations >= 10)).toBe(true);
   });
+
+  it("includes current MSA bedroom benchmarks with published Trends trajectories", () => {
+    expect(seededClevelandMarketReport.marketRead.cells.find((cell) => cell.key === "17460:apartment:1")).toMatchObject({
+      rent: 950,
+      yearOverYearPct: 1.39,
+      observations: 253,
+      month: "2026-07-01",
+      valueBasis: "trends_value",
+      status: "reportable",
+    });
+    expect(seededClevelandMarketReport.marketRead.cells.find((cell) => cell.key === "17460:house:3")).toMatchObject({
+      rent: 1536,
+      yearOverYearPct: 3.27,
+      observations: 181,
+      month: "2026-07-01",
+      valueBasis: "trends_value",
+      status: "reportable",
+    });
+  });
 });
 
 describe("Market IQ composer scope and coverage", () => {
@@ -82,9 +101,9 @@ describe("Market IQ composer scope and coverage", () => {
       segments: ["apartment:1"],
     });
     expect(scoped.scope).toMatchObject({ cities: ["Cleveland"], zipCodes: ["44113"], segments: ["1-bedroom apartments"] });
-    expect(scoped.marketRead.cells.map((cell) => cell.key)).toEqual(["Cleveland, OH:apartment:1", "44113:apartment:1"]);
+    expect(scoped.marketRead.cells.map((cell) => cell.key)).toEqual(["17460:apartment:1", "Cleveland, OH:apartment:1", "44113:apartment:1"]);
     expect(scoped.marketMap.points).toHaveLength(1);
-    expect(buildMarketIqCoveragePreflight(scoped).counts).toEqual({ reportable: 2, thin: 0, stale: 0, unavailable: 0 });
+    expect(buildMarketIqCoveragePreflight(scoped).counts).toEqual({ reportable: 3, thin: 0, stale: 0, unavailable: 0 });
   });
 
   it("does not silently restore unchecked geographies or segments", () => {
@@ -103,7 +122,7 @@ describe("Market IQ composer scope and coverage", () => {
       },
     };
     const scoped = applyMarketIqReportScope(stale, { cities: ["Cleveland"], zipCodes: [], segments: ["apartment:1"] });
-    expect(scoped.marketRead.cells[0]).toMatchObject({ status: "suppressed", rent: null, yearOverYearPct: null });
+    expect(scoped.marketRead.cells.find((cell) => cell.key === "Cleveland, OH:apartment:1")).toMatchObject({ status: "suppressed", rent: null, yearOverYearPct: null });
     expect(buildMarketIqCoveragePreflight(scoped).counts.stale).toBe(1);
   });
 });

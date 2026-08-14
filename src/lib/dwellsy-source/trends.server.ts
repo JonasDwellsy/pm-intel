@@ -7,7 +7,22 @@ import {
 } from "@/lib/dwellsy-source/trends";
 
 const DWELLSY_TRENDS_SQL = `
-  WITH selected_city_stats AS (
+  WITH selected_msa_stats AS (
+    SELECT 'msa'::text AS geography_type,
+           s.msa::text AS geography_value,
+           'Cleveland-Elyria, OH'::text AS geography_label,
+           s.address_type,
+           s.bedrooms,
+           s.month,
+           s.count AS observations,
+           s.trends_value AS rent,
+           s.rent_change_percentage AS year_over_year_pct
+    FROM dwellsy_prod.ai_msa_stats_table s
+    WHERE s.msa = 17460
+      AND s.month >= $3::date
+      AND s.address_type = ANY($4::text[])
+      AND s.bedrooms = ANY($5::int[])
+  ), selected_city_stats AS (
     SELECT 'city'::text AS geography_type,
            c.name || ', ' || c.state AS geography_value,
            c.name AS geography_label,
@@ -40,6 +55,8 @@ const DWELLSY_TRENDS_SQL = `
       AND s.address_type = ANY($4::text[])
       AND s.bedrooms = ANY($5::int[])
   )
+  SELECT * FROM selected_msa_stats
+  UNION ALL
   SELECT * FROM selected_city_stats
   UNION ALL
   SELECT * FROM selected_zip_stats

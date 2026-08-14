@@ -133,6 +133,24 @@ function series(input: {
 
 export const SEEDED_CLEVELAND_TREND_SERIES: MarketIqTrendSeries[] = [
   ...MSA_PRODUCT_ROLLUPS,
+  series({ geographyType: "msa", geographyValue: "17460", geographyLabel: "Cleveland-Elyria, OH", propertyType: "apartment", bedrooms: 1, points: [
+    { rent: 925, yearOverYearPct: 2.78, observations: 194, month: "2026-05-01", valueBasis: "trends_value" },
+    { rent: 950, yearOverYearPct: 2.7, observations: 204, month: "2026-06-01", valueBasis: "trends_value" },
+    { rent: 950, yearOverYearPct: 1.39, observations: 253, month: "2026-07-01", valueBasis: "trends_value" },
+  ] }),
+  series({ geographyType: "msa", geographyValue: "17460", geographyLabel: "Cleveland-Elyria, OH", propertyType: "apartment", bedrooms: 2, points: [
+    { rent: 1150, yearOverYearPct: -2.13, observations: 162, month: "2026-05-01", valueBasis: "trends_value" },
+    { rent: 1150, yearOverYearPct: -4.17, observations: 202, month: "2026-06-01", valueBasis: "trends_value" },
+  ] }),
+  series({ geographyType: "msa", geographyValue: "17460", geographyLabel: "Cleveland-Elyria, OH", propertyType: "house", bedrooms: 2, points: [
+    { rent: 1168, yearOverYearPct: 3.92, observations: 42, month: "2026-05-01", valueBasis: "trends_value" },
+    { rent: 1168, yearOverYearPct: 2.3, observations: 58, month: "2026-06-01", valueBasis: "trends_value" },
+  ] }),
+  series({ geographyType: "msa", geographyValue: "17460", geographyLabel: "Cleveland-Elyria, OH", propertyType: "house", bedrooms: 3, points: [
+    { rent: 1510, yearOverYearPct: 3.86, observations: 122, month: "2026-05-01", valueBasis: "trends_value" },
+    { rent: 1508, yearOverYearPct: 2.68, observations: 157, month: "2026-06-01", valueBasis: "trends_value" },
+    { rent: 1536, yearOverYearPct: 3.27, observations: 181, month: "2026-07-01", valueBasis: "trends_value" },
+  ] }),
   ...CITY_PRODUCT_ROLLUPS,
   ...ZIP_PRODUCT_ROLLUPS,
   series({ geographyType: "city", geographyValue: "Cleveland, OH", geographyLabel: "Cleveland", propertyType: "apartment", bedrooms: 1, points: [{ rent: 950, yearOverYearPct: 1.39, observations: 135, month: "2026-07-01" }] }),
