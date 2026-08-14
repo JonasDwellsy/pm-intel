@@ -14,7 +14,7 @@ export type DwellsyTrendSourceRow = {
   observations: number | string | null;
   rent: number | string | null;
   year_over_year_pct: number | string | null;
-  value_basis?: "trends_value" | "median_999_proxy";
+  value_basis?: "trends_value" | "trends_median_999";
 };
 
 function numberOrNull(value: number | string | null) {

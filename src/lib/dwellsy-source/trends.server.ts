@@ -46,9 +46,8 @@ const DWELLSY_TRENDS_SQL = `
   ORDER BY geography_type, geography_value, address_type, bedrooms, month
 `;
 
-// Temporary adapter for the 999-bedroom product summaries. The lower-geography
-// canonical trends_value fields are being repaired upstream. Keeping the median
-// substitution in this one query makes the eventual swap deliberate and small.
+// Canonical overall-product adapter. Dwellsy data science confirmed that the
+// median on the 999-bedroom row is the correct all-bedroom rent measure.
 const DWELLSY_PRODUCT_ROLLUP_SQL = `
   WITH rollup AS (
     SELECT 'msa'::text AS geography_type,
@@ -110,7 +109,7 @@ const DWELLSY_PRODUCT_ROLLUP_SQL = `
          CASE WHEN prior.rent > 0
               THEN ((current.rent / prior.rent) - 1) * 100
               ELSE NULL END AS year_over_year_pct,
-         'median_999_proxy'::text AS value_basis
+         'trends_median_999'::text AS value_basis
   FROM rollup current
   LEFT JOIN rollup prior
     ON prior.geography_type = current.geography_type

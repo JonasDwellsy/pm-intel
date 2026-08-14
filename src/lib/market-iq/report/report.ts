@@ -8,7 +8,7 @@ export type MarketIqTrendPoint = {
   yearOverYearPct: number | null;
   observations: number;
   month: string;
-  valueBasis?: "trends_value" | "median_999_proxy";
+  valueBasis?: "trends_value" | "trends_median_999";
 };
 
 export type MarketIqTrendSeries = {
@@ -32,7 +32,7 @@ export type MarketIqMarketCell = {
   yearOverYearPct: number | null;
   observations: number;
   month: string | null;
-  valueBasis?: "trends_value" | "median_999_proxy";
+  valueBasis?: "trends_value" | "trends_median_999";
   series: MarketIqTrendPoint[];
   status: "reportable" | "suppressed";
   suppressionReason: string | null;
@@ -50,7 +50,7 @@ export type MarketIqMapPoint = {
   observations: number;
   month: string | null;
   status: "reportable" | "suppressed";
-  valueBasis?: "trends_value" | "median_999_proxy";
+  valueBasis?: "trends_value" | "trends_median_999";
 };
 
 export interface MarketIqReportSnapshot {
@@ -238,7 +238,7 @@ export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): Ma
     },
     marketConditions: input.marketConditions,
     sources: input.sources,
-    methodNote: `Every published rent input comes from Trends IQ. Overall apartment and house summaries currently use the median stored on the Trends IQ 999-bedroom rows, with year-over-year change calculated only from the matching prior-year median in that same Trends series. This temporary adapter will be replaced with the canonical Trends IQ fields when they are restored. A segment requires at least ${MIN_TREND_OBSERVATIONS} observations in its latest month. Total IQ supports listing volume, velocity, days on market, and map geography only. Thin cells are suppressed rather than estimated.`,
+    methodNote: `Every published rent input comes from Trends IQ. Overall apartment and house summaries use the median stored on the Trends IQ all-bedroom rows, with year-over-year change calculated from the matching prior-year median in that same Trends series. A segment requires at least ${MIN_TREND_OBSERVATIONS} observations in its latest month. Total IQ supports listing volume, velocity, days on market, and map geography only. Thin cells are suppressed rather than estimated.`,
     disclosure: "This report measures advertised asking-market activity. It does not measure occupancy, signed leases, concessions, effective rent, or property-level financial performance.",
   };
 }

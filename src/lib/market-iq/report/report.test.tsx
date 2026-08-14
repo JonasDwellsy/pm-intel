@@ -49,7 +49,7 @@ describe("Market IQ local market read assembly", () => {
     });
   });
 
-  it("uses the temporary 999 median adapter for overall product summaries", () => {
+  it("uses the canonical 999 median for overall product summaries", () => {
     const msaApartment = seededClevelandMarketReport.marketRead.cells.find((cell) => cell.key === "17460:apartment:999");
     expect(msaApartment).toMatchObject({
       geographyType: "msa",
@@ -57,7 +57,7 @@ describe("Market IQ local market read assembly", () => {
       rent: 1050,
       observations: 376,
       month: "2026-05-01",
-      valueBasis: "median_999_proxy",
+      valueBasis: "trends_median_999",
       status: "reportable",
     });
     expect(msaApartment?.yearOverYearPct).toBeCloseTo(-16, 5);

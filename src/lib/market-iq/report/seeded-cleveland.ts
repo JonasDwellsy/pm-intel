@@ -31,7 +31,7 @@ const proxy = (rent: number, observations: number, month: string): MarketIqTrend
   observations,
   month,
   yearOverYearPct: null,
-  valueBasis: "median_999_proxy",
+  valueBasis: "trends_median_999",
 });
 
 function withProxyYearOverYear(points: MarketIqTrendPoint[]) {
@@ -165,7 +165,7 @@ export const seededClevelandMarketReport = buildMarketIqReportSnapshot({
     historical: { activeAtCutoff: 1211, newListings30d: 983, newListingsChange: 7.7, medianDom: 30 },
   },
   sources: [
-    { name: "Dwellsy IQ Trends", availableThrough: "2026-07-31", observationCount: null, note: "The exclusive source for every published aggregated rent level and rent change. Overall product summaries temporarily use the stored median and an exact prior-year comparison from Trends IQ 999-bedroom rows. Per-cell sample sizes are shown with each result." },
+    { name: "Dwellsy IQ Trends", availableThrough: "2026-07-31", observationCount: null, note: "The exclusive source for every published aggregated rent level and rent change. Overall product summaries use the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Per-cell sample sizes are shown with each result." },
     { name: "Total IQ observed listings", availableThrough: "2026-07-31", observationCount: 54_544, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." },
   ],
 });

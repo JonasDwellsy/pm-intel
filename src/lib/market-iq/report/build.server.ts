@@ -140,8 +140,8 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
     } : seededClevelandMarketReport.marketConditions,
     sources: [
       { name: "Dwellsy IQ Trends", availableThrough: trendAvailableThrough, observationCount: null, note: trendSource.live
-        ? "The exclusive source for every published aggregated rent level and rent change. Overall product summaries temporarily use the stored median and an exact prior-year comparison from Trends IQ 999-bedroom rows until the canonical fields are restored. Per-cell sample sizes are shown with each result."
-        : "The exclusive source for every published aggregated rent level and rent change. This source-dated snapshot temporarily uses the stored median and an exact prior-year comparison from Trends IQ 999-bedroom rows. Per-cell sample sizes are shown with each result." },
+        ? "The exclusive source for every published aggregated rent level and rent change. Overall product summaries use the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Per-cell sample sizes are shown with each result."
+        : "The exclusive source for every published aggregated rent level and rent change. This source-dated snapshot uses the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Per-cell sample sizes are shown with each result." },
       historicalPulse
         ? { name: "Total IQ observed listings", availableThrough: historicalPulse.historicalSource.availableThrough, observationCount: historicalPulse.historicalSource.recordCount, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." }
         : historicalSource ?? { name: "Total IQ observed listings", availableThrough: "2026-07-31", observationCount: null, note: "Used only for listing activity and geographic context. It is not used to calculate aggregated prices." },
