@@ -8,12 +8,24 @@ import {
 export const SEEDED_CLEVELAND_REPORT_TOKEN = "cleveland-local-market-read-r4";
 
 export const CLEVELAND_ZIP_CENTERS: Record<string, { latitude: number; longitude: number }> = {
-  "44102": { latitude: 41.4767, longitude: -81.7398 },
-  "44107": { latitude: 41.4821, longitude: -81.7974 },
-  "44113": { latitude: 41.4828, longitude: -81.6968 },
+  "44052": { latitude: 41.4570, longitude: -82.1782 },
+  "44094": { latitude: 41.6929, longitude: -81.3982 },
+  "44102": { latitude: 41.4804, longitude: -81.7503 },
+  "44105": { latitude: 41.4516, longitude: -81.6114 },
+  "44106": { latitude: 41.4965, longitude: -81.6155 },
+  "44107": { latitude: 41.4815, longitude: -81.7818 },
+  "44108": { latitude: 41.5321, longitude: -81.6105 },
+  "44109": { latitude: 41.4524, longitude: -81.7048 },
+  "44110": { latitude: 41.5700, longitude: -81.5796 },
+  "44112": { latitude: 41.5226, longitude: -81.5893 },
+  "44113": { latitude: 41.4779, longitude: -81.6798 },
   "44114": { latitude: 41.5094, longitude: -81.6743 },
-  "44120": { latitude: 41.4734, longitude: -81.5849 },
+  "44118": { latitude: 41.5106, longitude: -81.5663 },
+  "44120": { latitude: 41.4779, longitude: -81.5897 },
   "44123": { latitude: 41.6035, longitude: -81.5254 },
+  "44125": { latitude: 41.4255, longitude: -81.6153 },
+  "44128": { latitude: 41.4418, longitude: -81.5545 },
+  "44137": { latitude: 41.4130, longitude: -81.5655 },
 };
 
 const CLEVELAND_ZIP_TREND_POINTS: Record<string, MarketIqTrendPoint[]> = {
@@ -78,12 +90,24 @@ const CITY_PRODUCT_ROLLUPS: MarketIqTrendSeries[] = [
 }));
 
 const ZIP_PRODUCT_ROLLUPS: MarketIqTrendSeries[] = [
-  ["44102", "apartment", 995, 23, 875, 31], ["44102", "house", 1512.5, 10, 1375, 5],
-  ["44107", "apartment", 995, 19, 1050, 18], ["44107", "house", 1975, 6, 2000, 1],
-  ["44113", "apartment", 1699.5, 36, 1672, 34], ["44113", "house", 2100, 5, 1797, 1],
-  ["44114", "apartment", 1500, 1, 1625, 4],
-  ["44120", "apartment", 1212.5, 22, 1024.5, 30], ["44120", "house", 1550, 14, 1200, 10],
-  ["44123", "apartment", 1250, 1, 1100, 3], ["44123", "house", 1397.5, 10, 1699, 9],
+  ["44094", "apartment", 1280, 13, 1375, 12],
+  ["44102", "apartment", 995, 23, 875, 31],
+  ["44105", "apartment", 925, 11, 925, 10],
+  ["44106", "apartment", 1391.25, 36, 1250, 51],
+  ["44107", "apartment", 995, 19, 1050, 18],
+  ["44109", "apartment", 825, 11, 1150, 16],
+  ["44110", "apartment", 757.5, 10, 937, 12],
+  ["44112", "apartment", 0, 0, 750, 31],
+  ["44113", "apartment", 1699.5, 36, 1672, 34],
+  ["44118", "apartment", 1237.5, 12, 900, 11],
+  ["44120", "apartment", 1212.5, 22, 1024.5, 30],
+  ["44052", "house", 1410, 14, 1100, 11],
+  ["44105", "house", 1300, 16, 1395, 17],
+  ["44108", "house", 1200, 13, 1224.5, 12],
+  ["44120", "house", 1550, 14, 1200, 10],
+  ["44125", "house", 1495, 18, 1500, 15],
+  ["44128", "house", 1400, 13, 1425, 12],
+  ["44137", "house", 1525, 16, 1645, 14],
 ].map(([zip, propertyType, priorRent, priorN, latestRent, latestN]) => series({
   geographyType: "zip",
   geographyValue: String(zip),
@@ -91,7 +115,7 @@ const ZIP_PRODUCT_ROLLUPS: MarketIqTrendSeries[] = [
   propertyType: propertyType as MarketIqPropertyType,
   bedrooms: 999,
   points: withProxyYearOverYear([
-    proxy(Number(priorRent), Number(priorN), "2025-05-01"),
+    ...(Number(priorRent) > 0 ? [proxy(Number(priorRent), Number(priorN), "2025-05-01")] : []),
     proxy(Number(latestRent), Number(latestN), "2026-05-01"),
   ]),
 }));

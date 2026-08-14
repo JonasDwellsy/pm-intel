@@ -20,7 +20,7 @@ import {
 } from "@/lib/market-iq/report/seeded-cleveland";
 
 const REPORT_CITIES = ["Cleveland", "Lakewood", "Euclid"];
-const REPORT_ZIPS = ["44102", "44107", "44113", "44114", "44120", "44123"];
+const REPORT_ZIPS = Object.keys(CLEVELAND_ZIP_CENTERS);
 const REPORT_BEDROOMS = [1, 2, 3];
 
 function completeTrendSeries(source: MarketIqTrendSeries[]) {

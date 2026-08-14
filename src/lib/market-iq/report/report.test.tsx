@@ -65,6 +65,13 @@ describe("Market IQ local market read assembly", () => {
       .filter((cell) => cell.geographyType === "city" && cell.bedrooms === 999 && cell.status === "reportable")
       .map((cell) => cell.geographyLabel)).size).toBe(8);
   });
+
+  it("provides a useful supported ZIP field for the analytical map", () => {
+    const overall = seededClevelandMarketReport.marketMap.points.filter((point) => point.bedrooms === 999 && point.status === "reportable");
+    expect(overall.filter((point) => point.propertyType === "apartment")).toHaveLength(11);
+    expect(overall.filter((point) => point.propertyType === "house")).toHaveLength(7);
+    expect(overall.every((point) => point.rent !== null && point.observations >= 10)).toBe(true);
+  });
 });
 
 describe("Market IQ composer scope and coverage", () => {
