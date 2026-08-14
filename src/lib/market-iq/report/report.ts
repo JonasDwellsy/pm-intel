@@ -170,6 +170,10 @@ export function parseMarketIqReportSnapshot(value: string): MarketIqReportSnapsh
   }
 }
 
+export function isPublicMarketIqReportStatus(status: string) {
+  return status === "published";
+}
+
 export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): MarketIqReportSnapshot {
   const propertyTypes = ["apartment"] as const;
   const bedrooms = [...new Set(

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { clevelandPilot } from "@/data/market-iq/cleveland-pilot";
 import { fmtDate, fmtInt, fmtPct } from "@/lib/format";
 import type { MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
@@ -73,9 +74,7 @@ export function ClevelandPilot({
             Asking-market intelligence for rent direction, listing supply, and product-segment performance. This view does not measure occupancy, signed leases, or effective rent.
           </p>
         </div>
-        <div className="rounded-lg border border-teal/25 bg-teal-soft px-4 py-3 text-sm text-navy">
-          <span className="font-semibold">Decision read:</span> {data.decisionRead}
-        </div>
+        <div className="space-y-3"><div className="rounded-lg border border-teal/25 bg-teal-soft px-4 py-3 text-sm text-navy"><span className="font-semibold">Decision read:</span> {data.decisionRead}</div><Link href="/market-iq/report" className="block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white hover:bg-navy/90">Prepare a client report</Link></div>
       </header>
 
       <section aria-labelledby="overview-heading" className="mt-8">

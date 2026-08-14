@@ -13,8 +13,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const report = await loadPublicMarketIqReport(publicToken);
   if (!report) return { title: "Market report" };
   return {
-    title: `${report.scope.marketName} market report`,
+    title: { absolute: `${report.brand.displayName} | ${report.scope.marketName} market report` },
     description: `A private market advisory prepared by ${report.brand.displayName}.`,
+    icons: { icon: report.brand.logoUrl ?? "/market-report-icon.svg" },
     robots: { index: false, follow: false },
   };
 }
@@ -82,7 +83,10 @@ export default async function PublicMarketReportPage({ params }: PageProps) {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 lg:px-10">
           <div>
-            <p className="text-xl font-bold tracking-tight text-[var(--report-primary)]">{report.brand.displayName}</p>
+            {report.brand.logoUrl ? <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={report.brand.logoUrl} alt={report.brand.displayName} className="max-h-12 max-w-[220px] object-contain object-left" />
+            </> : <p className="text-xl font-bold tracking-tight text-[var(--report-primary)]">{report.brand.displayName}</p>}
             <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Market advisory</p>
           </div>
           <div className="text-right text-sm text-slate-500">
@@ -213,7 +217,7 @@ export default async function PublicMarketReportPage({ params }: PageProps) {
           <p className="mt-6">{report.methodNote}</p>
           <p className="mt-3">{report.disclosure}</p>
           <div className="mt-9 flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
-            <p className="font-semibold text-slate-700">Prepared by {report.brand.displayName}</p>
+            <div><p className="font-semibold text-slate-700">Prepared by {report.brand.displayName}</p>{(report.brand.contactName || report.brand.contactEmail || report.brand.contactPhone) && <p className="mt-1 text-xs text-slate-500">{[report.brand.contactName, report.brand.contactEmail, report.brand.contactPhone].filter(Boolean).join(" · ")}</p>}</div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Market data by Dwellsy IQ</p>
           </div>
         </section>

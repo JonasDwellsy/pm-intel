@@ -2,9 +2,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildMarketIqReportSnapshot,
+  isPublicMarketIqReportStatus,
   parseMarketIqReportSnapshot,
   type MarketIqPortfolioObservation,
 } from "./report";
+import { canAccessMarketIqReportComposer } from "./access";
 
 function observations(input: {
   prefix: string;
@@ -132,5 +134,24 @@ describe("Market IQ report migration", () => {
 
   it("contains no destructive statements", () => {
     expect(migration).not.toMatch(/^\s*(?:DROP|TRUNCATE|DELETE|UPDATE)\b/im);
+  });
+});
+
+describe("Market IQ report access boundaries", () => {
+  const allowed = { previewEnabled: true, userId: "user_1", organizationId: "org_1", hasProduct: true, marketEntitled: true };
+
+  it("fails closed when any composer entitlement is missing", () => {
+    expect(canAccessMarketIqReportComposer(allowed)).toBe(true);
+    expect(canAccessMarketIqReportComposer({ ...allowed, previewEnabled: false })).toBe(false);
+    expect(canAccessMarketIqReportComposer({ ...allowed, userId: null })).toBe(false);
+    expect(canAccessMarketIqReportComposer({ ...allowed, organizationId: null })).toBe(false);
+    expect(canAccessMarketIqReportComposer({ ...allowed, hasProduct: false })).toBe(false);
+    expect(canAccessMarketIqReportComposer({ ...allowed, marketEntitled: false })).toBe(false);
+  });
+
+  it("exposes only published report snapshots", () => {
+    expect(isPublicMarketIqReportStatus("published")).toBe(true);
+    expect(isPublicMarketIqReportStatus("draft")).toBe(false);
+    expect(isPublicMarketIqReportStatus("revoked")).toBe(false);
   });
 });

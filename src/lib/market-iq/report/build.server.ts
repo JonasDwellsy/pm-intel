@@ -8,6 +8,7 @@ import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { loadClevelandTrendPulses } from "@/lib/market-iq/trends.server";
 import {
   buildMarketIqReportSnapshot,
+  isPublicMarketIqReportStatus,
   parseMarketIqReportSnapshot,
   type MarketIqPortfolioObservation,
   type MarketIqReportSnapshot,
@@ -202,7 +203,7 @@ export async function loadPublicMarketIqReport(publicToken: string): Promise<Mar
     where: { publicToken },
     select: { status: true, snapshot: true },
   }).catch(() => null);
-  if (stored?.status === "published") return parseMarketIqReportSnapshot(stored.snapshot);
+  if (stored && isPublicMarketIqReportStatus(stored.status)) return parseMarketIqReportSnapshot(stored.snapshot);
 
   const previewEnabled = process.env.MARKET_IQ_PREVIEW_ENABLED === "1" || process.env.NODE_ENV !== "production";
   if (previewEnabled && publicToken === SEEDED_CLEVELAND_REPORT_TOKEN) return seededClevelandMarketReport;
