@@ -5,13 +5,15 @@ import { prisma } from "@/lib/prisma";
 import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server";
 import { resolveHistoricalAnalysisCutoff } from "@/lib/market-iq/historical";
 import { marketIqPrisma } from "@/lib/market-iq/prisma";
-import { loadClevelandTrendPulses } from "@/lib/market-iq/trends.server";
 import {
   buildMarketIqReportSnapshot,
   isPublicMarketIqReportStatus,
+  marketCellKey,
   parseMarketIqReportSnapshot,
-  type MarketIqPortfolioObservation,
+  type MarketIqMarketObservation,
+  type MarketIqPropertyType,
   type MarketIqReportSnapshot,
+  type MarketIqTrajectory,
 } from "@/lib/market-iq/report/report";
 import {
   SEEDED_CLEVELAND_REPORT_TOKEN,
@@ -19,59 +21,68 @@ import {
 } from "@/lib/market-iq/report/seeded-cleveland";
 
 const DECLARED_CLEVELAND_CUTOFF = new Date("2026-07-31T00:00:00.000Z");
-const PORTFOLIO_POSTAL_CODES = ["44102", "44103", "44106", "44114", "44115"];
-
-type PortfolioProperty = {
-  key: string;
-  communityNames: string[];
-  addressPrefixes: string[];
-};
-
-const CLEVELAND_DEMO_PORTFOLIO: PortfolioProperty[] = [
-  { key: "foundry-lofts", communityNames: ["foundrylofts"], addressPrefixes: ["7218euclidave"] },
-  { key: "1750-ansel-road", communityNames: ["1750anselrd"], addressPrefixes: ["1750anselrd"] },
-  { key: "1250-west-75th", communityNames: ["1250w75thst", "rlbpl"], addressPrefixes: ["1250w75thst"] },
-  { key: "2000-east-9th", communityNames: ["2000e9thst"], addressPrefixes: ["2000e9thst"] },
-  { key: "1120-chester", communityNames: ["1120chesterave"], addressPrefixes: ["1120chesterave"] },
-];
-
-const SUBMARKET_BY_POSTAL_CODE: Record<string, string> = {
-  "44102": "West Cleveland",
-  "44103": "Midtown / University",
-  "44106": "Midtown / University",
-  "44114": "Downtown",
-  "44115": "Downtown",
-};
+const REPORT_CITIES = ["Cleveland", "Lakewood", "Euclid"];
+const REPORT_PROPERTY_TYPES = ["apartment", "house"] as const;
+const REPORT_BEDROOMS = [1, 2, 3];
 
 function normalized(value: string | null | undefined) {
   return (value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-function portfolioPropertyFor(communityName: string | null, address: string | null) {
-  const community = normalized(communityName);
-  const normalizedAddress = normalized(address);
-  return CLEVELAND_DEMO_PORTFOLIO.find((property) =>
-    property.communityNames.includes(community) ||
-    property.addressPrefixes.some((prefix) => normalizedAddress.startsWith(prefix))
-  ) ?? null;
-}
-
-function externalPropertyKey(communityName: string | null, address: string | null) {
+function propertyKey(communityName: string | null, address: string | null) {
   const community = normalized(communityName);
   if (community) return `community:${community}`;
-  const streetAddress = (address ?? "").split(",")[0];
-  return `address:${normalized(streetAddress)}`;
+  return `address:${normalized((address ?? "").split(",")[0])}`;
 }
 
-function observedUnitKey(rawData: string, fallback: string) {
-  try {
-    const parsed = JSON.parse(rawData) as Record<string, unknown>;
-    const addressId = parsed.dwellsy_address_id;
-    if (typeof addressId === "string" || typeof addressId === "number") return String(addressId);
-  } catch {
-    // A malformed source payload still represents one observed listing.
+function cityLabel(value: string) {
+  return value.replace(/, OH$/, "");
+}
+
+type TrendImport = {
+  trendObservations: Array<{
+    geographyType: string;
+    geographyValue: string;
+    month: Date;
+    propertyType: string;
+    bedrooms: number;
+    observations: number;
+    askingRent: number;
+    yearOverYearPct: number | null;
+  }>;
+};
+
+function trajectoryMapFromImports(imports: TrendImport[]) {
+  const trajectories = new Map<string, MarketIqTrajectory>();
+  const seenGeographies = new Set<string>();
+  for (const dataImport of imports) {
+    const first = dataImport.trendObservations[0];
+    if (!first) continue;
+    const geographyKey = `${first.geographyType}:${first.geographyValue}`;
+    if (seenGeographies.has(geographyKey)) continue;
+    seenGeographies.add(geographyKey);
+    if (first.geographyType !== "city") continue;
+    const submarket = cityLabel(first.geographyValue);
+    if (!REPORT_CITIES.includes(submarket)) continue;
+    const latestBySegment = new Map<string, typeof first>();
+    for (const point of dataImport.trendObservations) {
+      const propertyType = point.propertyType.toLowerCase() as MarketIqPropertyType;
+      if (!REPORT_PROPERTY_TYPES.includes(propertyType) || !REPORT_BEDROOMS.includes(point.bedrooms)) continue;
+      const key = marketCellKey(submarket, propertyType, point.bedrooms);
+      const current = latestBySegment.get(key);
+      if (!current || point.month > current.month) latestBySegment.set(key, point);
+    }
+    for (const [key, point] of latestBySegment) {
+      if (point.yearOverYearPct === null) continue;
+      trajectories.set(key, {
+        rent: point.askingRent,
+        yearOverYearPct: point.yearOverYearPct,
+        observations: point.observations,
+        month: point.month.toISOString().slice(0, 10),
+      });
+    }
   }
-  return fallback;
+  return trajectories;
 }
 
 export async function buildClevelandMarketIqReportSnapshot(input?: {
@@ -88,7 +99,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
     select: { id: true, availableThrough: true, recordCount: true, metadata: true },
   });
   if (!dataImport?.availableThrough) {
-    throw new Error("Market IQ has no completed Cleveland historical import.");
+    throw new Error("Market IQ has no completed Cleveland Total IQ import.");
   }
 
   const metadataCutoff = resolveHistoricalAnalysisCutoff(dataImport.availableThrough, dataImport.metadata);
@@ -98,102 +109,105 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
   periodStart.setUTCDate(periodStart.getUTCDate() + 1);
   const cutoffEnd = new Date(periodEnd.getTime() + 86_400_000 - 1);
 
-  const listings = await marketIqPrisma.marketIqListing.findMany({
-    where: {
-      importId: dataImport.id,
-      propertyType: "apartment",
-      postalCode: { in: PORTFOLIO_POSTAL_CODES },
-      activatedAt: { gte: periodStart, lte: cutoffEnd },
-      askingRent: { gt: 0 },
-      bedrooms: { in: [0, 1, 2] },
-    },
-    select: {
-      sourceRecordId: true,
-      address: true,
-      postalCode: true,
-      askingRent: true,
-      bedrooms: true,
-      communityName: true,
-      rawData: true,
-    },
-  });
+  const [listings, historicalPulse, trendImports] = await Promise.all([
+    marketIqPrisma.marketIqListing.findMany({
+      where: {
+        importId: dataImport.id,
+        propertyType: { in: [...REPORT_PROPERTY_TYPES] },
+        city: { in: REPORT_CITIES },
+        activatedAt: { gte: periodStart, lte: cutoffEnd },
+        askingRent: { gt: 0 },
+        bedrooms: { in: REPORT_BEDROOMS },
+      },
+      select: {
+        sourceRecordId: true,
+        address: true,
+        city: true,
+        postalCode: true,
+        askingRent: true,
+        squareFeet: true,
+        bedrooms: true,
+        propertyType: true,
+        communityName: true,
+      },
+    }),
+    loadClevelandHistoricalPulse(),
+    marketIqPrisma.marketIqDataImport.findMany({
+      where: { marketId: CLEVELAND_MARKET_ID, sourceKind: "trends", status: "complete" },
+      orderBy: { importedAt: "desc" },
+      include: { trendObservations: { orderBy: { month: "desc" } } },
+    }),
+  ]);
 
-  const observations: MarketIqPortfolioObservation[] = listings.flatMap((listing) => {
-    const postalCode = listing.postalCode ?? "";
-    const submarket = SUBMARKET_BY_POSTAL_CODE[postalCode];
-    const bedroomCount = listing.bedrooms;
+  const observations: MarketIqMarketObservation[] = listings.flatMap((listing) => {
+    const city = listing.city ?? "";
+    const bedrooms = listing.bedrooms;
     const askingRent = listing.askingRent;
-    if (!submarket || bedroomCount === null || askingRent === null || !Number.isInteger(bedroomCount)) return [];
-    const portfolioProperty = portfolioPropertyFor(listing.communityName, listing.address);
+    const propertyType = listing.propertyType as MarketIqPropertyType;
+    if (
+      !REPORT_CITIES.includes(city) ||
+      bedrooms === null ||
+      !Number.isInteger(bedrooms) ||
+      askingRent === null ||
+      !REPORT_PROPERTY_TYPES.includes(propertyType)
+    ) return [];
     return [{
       id: listing.sourceRecordId,
-      propertyKey: portfolioProperty?.key ?? externalPropertyKey(listing.communityName, listing.address),
-      propertyType: "apartment" as const,
-      bedrooms: bedroomCount,
-      postalCode,
-      submarket,
+      propertyKey: propertyKey(listing.communityName, listing.address),
+      propertyType,
+      bedrooms,
+      city,
+      postalCode: listing.postalCode ?? "",
+      submarket: city,
       askingRent,
-      inPortfolio: Boolean(portfolioProperty),
+      squareFeet: listing.squareFeet && listing.squareFeet > 0 ? listing.squareFeet : null,
     }];
   });
-
-  const portfolioObservations = observations.filter((item) => item.inPortfolio);
-  const observedUnits = new Set(listings.flatMap((listing) => {
-    if (!portfolioPropertyFor(listing.communityName, listing.address)) return [];
-    return [observedUnitKey(listing.rawData, listing.sourceRecordId)];
-  })).size;
-  const observedProperties = new Set(portfolioObservations.map((item) => item.propertyKey));
-  if (observedProperties.size !== CLEVELAND_DEMO_PORTFOLIO.length) {
-    throw new Error(`The Cleveland seed resolved ${observedProperties.size} of ${CLEVELAND_DEMO_PORTFOLIO.length} portfolio communities.`);
-  }
-
-  const [historicalPulse, trendPulses] = await Promise.all([
-    loadClevelandHistoricalPulse(),
-    loadClevelandTrendPulses().catch(() => []),
-  ]);
-  const msaTrend = trendPulses.find((pulse) => pulse.trendSource.geographyType === "msa") ?? null;
-  const relevantTrendSegments = msaTrend?.segments.filter((segment) =>
-    segment.label === "1-bed apartment" || segment.label === "2-bed apartment"
-  ) ?? [];
-  const changeDirection = historicalPulse.historical.newListingsChange >= 0 ? "expanded" : "contracted";
+  const trajectories = trajectoryMapFromImports(trendImports);
+  const trendObservationCount = [...trajectories.values()].reduce((sum, item) => sum + item.observations, 0);
+  const trendAvailableThrough = [...trajectories.values()]
+    .map((item) => item.month)
+    .sort()
+    .at(-1) ?? periodEnd.toISOString().slice(0, 10);
+  const changeDirection = historicalPulse.historical.newListingsChange >= 0 ? "increased" : "decreased";
 
   return buildMarketIqReportSnapshot({
     generatedAt: input?.generatedAt ?? new Date(),
     brand: input?.brand ?? seededClevelandMarketReport.brand,
     scope: {
       marketId: CLEVELAND_MARKET_ID,
-      marketName: "Cleveland–Elyria, OH",
-      portfolioLabel: "Cleveland Managed Portfolio",
-      propertyCount: observedProperties.size,
-      observedUnits,
-      observedListings: portfolioObservations.length,
-      submarkets: [...new Set(portfolioObservations.map((item) => item.submarket))].sort(),
+      marketName: "Cleveland-Elyria, OH",
+      submarkets: REPORT_CITIES,
+      segments: ["Apartments by bedroom", "Houses by bedroom"],
       periodStart: periodStart.toISOString().slice(0, 10),
       periodEnd: periodEnd.toISOString().slice(0, 10),
+      totalObservedListings: observations.length,
       seededExample: true,
     },
     observations,
+    trajectories,
+    unavailableCuts: [{
+      label: "Small multifamily versus large multifamily",
+      reason: "Not published because community-size fields conflict for known Cleveland communities. Apartments remain grouped by bedroom until community identity is corrected.",
+    }],
     marketConditions: {
-      heading: `Competitive supply ${changeDirection} into the July cutoff`,
-      narrative: msaTrend
-        ? `${historicalPulse.decisionRead} ${msaTrend.signal.narrative}`
-        : historicalPulse.decisionRead,
-      trendSegments: relevantTrendSegments,
+      heading: `New listing supply ${changeDirection} into the July cutoff`,
+      narrative: historicalPulse.decisionRead,
       historical: historicalPulse.historical,
     },
     sources: [
       {
-        name: historicalPulse.historicalSource.name,
+        name: "Total IQ observed listings",
         availableThrough: historicalPulse.historicalSource.availableThrough,
         observationCount: dataImport.recordCount,
-        note: "Portfolio and external market samples use listing activity observed during the trailing 12 months.",
+        note: "Rent levels, rent per square foot, supply, and listing velocity use observed asking listings, not modeled estimates.",
       },
-      ...(msaTrend ? [{
-        name: msaTrend.trendSource.name,
-        availableThrough: msaTrend.trendSource.availableThrough,
-        observationCount: relevantTrendSegments.reduce((sum, segment) => sum + segment.observations, 0),
-        note: "Authoritative asking-rent trends for the Cleveland MSA, limited to the portfolio's apartment bedroom segments.",
-      }] : []),
+      {
+        name: "Dwellsy IQ Trends",
+        availableThrough: trendAvailableThrough,
+        observationCount: trendObservationCount || null,
+        note: "Trajectory is published only for city and product segments with sufficient validated Trends depth.",
+      },
     ],
   });
 }

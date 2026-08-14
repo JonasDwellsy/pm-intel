@@ -1,9 +1,42 @@
-import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
+import type { MarketIqMarketCell, MarketIqReportSnapshot, MarketIqTrajectory } from "@/lib/market-iq/report/report";
 
-export const SEEDED_CLEVELAND_REPORT_TOKEN = "cleveland-owner-market-report-r3";
+export const SEEDED_CLEVELAND_REPORT_TOKEN = "cleveland-local-market-read-r4";
+
+function cell(input: {
+  city: string;
+  type: "apartment" | "house";
+  bedrooms: number;
+  rent: number | null;
+  rentPerSqFt: number | null;
+  observations: number;
+  properties: number;
+  rentPerSqFtObservations: number;
+  trajectory?: MarketIqTrajectory;
+  suppressed?: string;
+}): MarketIqMarketCell {
+  const bedroom = input.bedrooms === 0 ? "Studio" : `${input.bedrooms}-bedroom`;
+  return {
+    key: `${input.city}:${input.type}:${input.bedrooms}`,
+    label: `${bedroom} ${input.type === "house" ? "houses" : "apartments"}`,
+    geographyLabel: input.city,
+    propertyType: input.type,
+    bedrooms: input.bedrooms,
+    rentLevel: {
+      medianAskingRent: input.suppressed ? null : input.rent,
+      medianRentPerSqFt: input.suppressed ? null : input.rentPerSqFt,
+      observations: input.observations,
+      properties: input.properties,
+      rentPerSqFtObservations: input.rentPerSqFtObservations,
+      availableThrough: "2026-07-31",
+    },
+    trajectory: input.trajectory ?? null,
+    status: input.suppressed ? "suppressed" : "reportable",
+    suppressionReason: input.suppressed ?? null,
+  };
+}
 
 export const seededClevelandMarketReport: MarketIqReportSnapshot = {
-  version: 1,
+  version: 2,
   generatedAt: "2026-08-14T00:00:00.000Z",
   brand: {
     displayName: "Harborview Residential",
@@ -17,43 +50,45 @@ export const seededClevelandMarketReport: MarketIqReportSnapshot = {
   },
   scope: {
     marketId: "cleveland-elyria-mentor-oh",
-    marketName: "Cleveland–Elyria, OH",
-    portfolioLabel: "Cleveland Managed Portfolio",
-    propertyCount: 5,
-    observedUnits: 178,
-    observedListings: 237,
-    submarkets: ["Downtown", "Midtown / University", "West Cleveland"],
+    marketName: "Cleveland-Elyria, OH",
+    submarkets: ["Cleveland", "Lakewood", "Euclid"],
+    segments: ["Apartments by bedroom", "Houses by bedroom"],
     periodStart: "2025-08-01",
     periodEnd: "2026-07-31",
+    totalObservedListings: 4_708,
     seededExample: true,
   },
-  portfolioPosition: {
-    heading: "How Cleveland Managed Portfolio is positioned",
-    narrative: "All three reportable portfolio segments are positioned above the observed asking-market median. This is advertised-rent positioning, not a conclusion about achieved rent or financial performance.",
-    portfolioWide: [
-      { key: "portfolio:apartment:0", label: "Studio apartments", geographyLabel: "Managed portfolio", propertyType: "apartment", bedrooms: 0, portfolio: { medianAskingRent: 999, observations: 65, properties: 2 }, market: { medianAskingRent: 750, observations: 84, properties: 20 }, positionPct: 33.2, status: "reportable", suppressionReason: null },
-      { key: "portfolio:apartment:1", label: "1-bedroom apartments", geographyLabel: "Managed portfolio", propertyType: "apartment", bedrooms: 1, portfolio: { medianAskingRent: 1275, observations: 132, properties: 5 }, market: { medianAskingRent: 1015, observations: 640, properties: 93 }, positionPct: 25.6, status: "reportable", suppressionReason: null },
-      { key: "portfolio:apartment:2", label: "2-bedroom apartments", geographyLabel: "Managed portfolio", propertyType: "apartment", bedrooms: 2, portfolio: { medianAskingRent: 1940, observations: 40, properties: 5 }, market: { medianAskingRent: 1200, observations: 389, properties: 173 }, positionPct: 61.7, status: "reportable", suppressionReason: null },
+  marketRead: {
+    heading: "What is happening in Cleveland–Elyria, OH",
+    narrative: "Cleveland’s observed asking market is split by product. Three-bedroom houses remain the deepest SFR segment, while apartment rent levels vary materially between Cleveland, Lakewood, and Euclid. Validated Trends show Cleveland 1-bedroom apartments up 1.4% year over year, while Cleveland 2-bedroom apartments softened 4.2% in the latest reportable month.",
+    cells: [
+      cell({ city: "Cleveland", type: "apartment", bedrooms: 1, rent: 999, rentPerSqFt: 1.67, observations: 1494, properties: 310, rentPerSqFtObservations: 1411, trajectory: { rent: 950, yearOverYearPct: 1.39, observations: 135, month: "2026-07-01" } }),
+      cell({ city: "Cleveland", type: "apartment", bedrooms: 2, rent: 1100, rentPerSqFt: 1.31, observations: 1279, properties: 534, rentPerSqFtObservations: 1096, trajectory: { rent: 1150, yearOverYearPct: -4.17, observations: 99, month: "2026-06-01" } }),
+      cell({ city: "Cleveland", type: "apartment", bedrooms: 3, rent: 1300, rentPerSqFt: 1.14, observations: 265, properties: 148, rentPerSqFtObservations: 229 }),
+      cell({ city: "Cleveland", type: "house", bedrooms: 1, rent: 950, rentPerSqFt: 1.35, observations: 35, properties: 22, rentPerSqFtObservations: 21 }),
+      cell({ city: "Cleveland", type: "house", bedrooms: 2, rent: 1095, rentPerSqFt: 1.17, observations: 314, properties: 190, rentPerSqFtObservations: 256, trajectory: { rent: 1161, yearOverYearPct: 4.89, observations: 33, month: "2026-06-01" } }),
+      cell({ city: "Cleveland", type: "house", bedrooms: 3, rent: 1395, rentPerSqFt: 1.16, observations: 874, properties: 608, rentPerSqFtObservations: 790, trajectory: { rent: 1387, yearOverYearPct: -1.35, observations: 88, month: "2026-07-01" } }),
+      cell({ city: "Lakewood", type: "apartment", bedrooms: 1, rent: 992.5, rentPerSqFt: 1.53, observations: 160, properties: 49, rentPerSqFtObservations: 152, trajectory: { rent: 1050, yearOverYearPct: 12, observations: 12, month: "2026-07-01" } }),
+      cell({ city: "Lakewood", type: "apartment", bedrooms: 2, rent: 1250, rentPerSqFt: 1.52, observations: 93, properties: 43, rentPerSqFtObservations: 73 }),
+      cell({ city: "Lakewood", type: "house", bedrooms: 2, rent: null, rentPerSqFt: null, observations: 29, properties: 16, rentPerSqFtObservations: 29, suppressed: "Fewer than 30 observed listings" }),
+      cell({ city: "Euclid", type: "apartment", bedrooms: 1, rent: 925, rentPerSqFt: 1.39, observations: 69, properties: 36, rentPerSqFtObservations: 69 }),
+      cell({ city: "Euclid", type: "apartment", bedrooms: 2, rent: 1100, rentPerSqFt: 1.47, observations: 149, properties: 51, rentPerSqFtObservations: 141 }),
+      cell({ city: "Euclid", type: "house", bedrooms: 3, rent: 1500, rentPerSqFt: 1.19, observations: 144, properties: 104, rentPerSqFtObservations: 137 }),
     ],
-    submarkets: [
-      { key: "submarket:Downtown:1", label: "1-bedroom apartments", geographyLabel: "Downtown", propertyType: "apartment", bedrooms: 1, portfolio: { medianAskingRent: 1425, observations: 24, properties: 2 }, market: { medianAskingRent: 1350, observations: 178, properties: 11 }, positionPct: 5.6, status: "reportable", suppressionReason: null },
-      { key: "submarket:Downtown:2", label: "2-bedroom apartments", geographyLabel: "Downtown", propertyType: "apartment", bedrooms: 2, portfolio: { medianAskingRent: null, observations: 9, properties: 2 }, market: { medianAskingRent: null, observations: 74, properties: 11 }, positionPct: null, status: "suppressed", suppressionReason: "Fewer than 10 portfolio observations" },
-      { key: "submarket:Midtown / University:0", label: "Studio apartments", geographyLabel: "Midtown / University", propertyType: "apartment", bedrooms: 0, portfolio: { medianAskingRent: null, observations: 65, properties: 2 }, market: { medianAskingRent: null, observations: 14, properties: 5 }, positionPct: null, status: "suppressed", suppressionReason: "Fewer than 30 market observations" },
-      { key: "submarket:Midtown / University:1", label: "1-bedroom apartments", geographyLabel: "Midtown / University", propertyType: "apartment", bedrooms: 1, portfolio: { medianAskingRent: 1250, observations: 85, properties: 2 }, market: { medianAskingRent: 1200, observations: 275, properties: 44 }, positionPct: 4.2, status: "reportable", suppressionReason: null },
-      { key: "submarket:Midtown / University:2", label: "2-bedroom apartments", geographyLabel: "Midtown / University", propertyType: "apartment", bedrooms: 2, portfolio: { medianAskingRent: 1899, observations: 15, properties: 2 }, market: { medianAskingRent: 1200, observations: 177, properties: 65 }, positionPct: 58.3, status: "reportable", suppressionReason: null },
-      { key: "submarket:West Cleveland:1", label: "1-bedroom apartments", geographyLabel: "West Cleveland", propertyType: "apartment", bedrooms: 1, portfolio: { medianAskingRent: 1550, observations: 23, properties: 1 }, market: { medianAskingRent: 825, observations: 187, properties: 38 }, positionPct: 87.9, status: "reportable", suppressionReason: null },
-      { key: "submarket:West Cleveland:2", label: "2-bedroom apartments", geographyLabel: "West Cleveland", propertyType: "apartment", bedrooms: 2, portfolio: { medianAskingRent: 2400, observations: 16, properties: 1 }, market: { medianAskingRent: 1000, observations: 138, properties: 97 }, positionPct: 140, status: "reportable", suppressionReason: null },
-    ],
+    unavailableCuts: [{
+      label: "Small multifamily versus large multifamily",
+      reason: "Not published because community-size fields conflict for known Cleveland communities. Apartments remain grouped by bedroom until community identity is corrected.",
+    }],
   },
   marketConditions: {
-    heading: "Competitive supply expanded into the July cutoff",
-    narrative: "New apartment and house listings increased 7.7% versus the prior 30-day period. Portfolio positioning should be read alongside this expanding advertised supply.",
-    trendSegments: [],
+    heading: "New listing supply expanded into the July cutoff",
+    narrative: "New apartment and house listings increased 7.7% versus the prior 30-day period. The increase was not uniform, so local rent direction should be read at the city and bedroom level rather than inferred from a single metro average.",
     historical: { activeAtCutoff: 1211, newListings30d: 983, newListingsChange: 7.7, medianDom: 30, medianRentPerSqFt: 1.41 },
   },
   sources: [
-    { name: "Cleveland historical listing export", availableThrough: "2026-07-31", observationCount: 54544, note: "Portfolio and market samples use listing activity observed during the trailing 12 months." },
+    { name: "Total IQ observed listings", availableThrough: "2026-07-31", observationCount: 54_544, note: "Rent levels, rent per square foot, supply, and listing velocity use observed asking listings, not modeled estimates." },
+    { name: "Dwellsy IQ Trends", availableThrough: "2026-07-31", observationCount: 367, note: "Trajectory is published only for city and product segments with sufficient validated Trends depth." },
   ],
-  methodNote: "Cells require at least 10 portfolio observations, 30 market observations, and 5 external properties. Cells below any threshold are suppressed rather than generalized from fragile samples.",
+  methodNote: "Rent-level cells require at least 30 observed listings from 5 properties. Rent per square foot requires 20 valid square-footage observations. Trajectory requires 10 observations in its latest Trends month. Anything thinner is suppressed, not estimated.",
   disclosure: "This report measures advertised asking-market activity. It does not measure occupancy, signed leases, concessions, effective rent, or property-level financial performance.",
 };
