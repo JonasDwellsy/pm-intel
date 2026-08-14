@@ -1,43 +1,53 @@
-export const MARKET_IQ_REPORT_VERSION = 2 as const;
+export const MARKET_IQ_REPORT_VERSION = 3 as const;
 
 export type MarketIqPropertyType = "apartment" | "house";
+export type MarketIqGeographyType = "msa" | "city" | "zip";
 
-export type MarketIqMarketObservation = {
-  id: string;
-  propertyKey: string;
-  propertyType: MarketIqPropertyType;
-  bedrooms: number;
-  city: string;
-  postalCode: string;
-  submarket: string;
-  askingRent: number;
-  squareFeet: number | null;
-};
-
-export type MarketIqTrajectory = {
+export type MarketIqTrendPoint = {
   rent: number;
-  yearOverYearPct: number;
+  yearOverYearPct: number | null;
   observations: number;
   month: string;
+};
+
+export type MarketIqTrendSeries = {
+  geographyType: MarketIqGeographyType;
+  geographyValue: string;
+  geographyLabel: string;
+  propertyType: MarketIqPropertyType;
+  bedrooms: number;
+  points: MarketIqTrendPoint[];
 };
 
 export type MarketIqMarketCell = {
   key: string;
   label: string;
+  geographyType: MarketIqGeographyType;
+  geographyValue: string;
   geographyLabel: string;
   propertyType: MarketIqPropertyType;
   bedrooms: number;
-  rentLevel: {
-    medianAskingRent: number | null;
-    medianRentPerSqFt: number | null;
-    observations: number;
-    properties: number;
-    rentPerSqFtObservations: number;
-    availableThrough: string;
-  };
-  trajectory: MarketIqTrajectory | null;
+  rent: number | null;
+  yearOverYearPct: number | null;
+  observations: number;
+  month: string | null;
+  series: MarketIqTrendPoint[];
   status: "reportable" | "suppressed";
   suppressionReason: string | null;
+};
+
+export type MarketIqMapPoint = {
+  zip: string;
+  label: string;
+  latitude: number;
+  longitude: number;
+  propertyType: MarketIqPropertyType;
+  bedrooms: number;
+  rent: number | null;
+  yearOverYearPct: number | null;
+  observations: number;
+  month: string | null;
+  status: "reportable" | "suppressed";
 };
 
 export interface MarketIqReportSnapshot {
@@ -56,11 +66,11 @@ export interface MarketIqReportSnapshot {
   scope: {
     marketId: string;
     marketName: string;
-    submarkets: string[];
+    cities: string[];
+    zipCodes: string[];
     segments: string[];
     periodStart: string;
     periodEnd: string;
-    totalObservedListings: number;
     seededExample: boolean;
   };
   marketRead: {
@@ -68,6 +78,11 @@ export interface MarketIqReportSnapshot {
     narrative: string;
     cells: MarketIqMarketCell[];
     unavailableCuts: Array<{ label: string; reason: string }>;
+  };
+  marketMap: {
+    heading: string;
+    narrative: string;
+    points: MarketIqMapPoint[];
   };
   marketConditions: {
     heading: string;
@@ -77,7 +92,6 @@ export interface MarketIqReportSnapshot {
       newListings30d: number;
       newListingsChange: number;
       medianDom: number;
-      medianRentPerSqFt: number;
     } | null;
   };
   sources: Array<{
@@ -94,27 +108,21 @@ export type MarketIqReportBuildInput = {
   generatedAt: Date;
   brand: MarketIqReportSnapshot["brand"];
   scope: MarketIqReportSnapshot["scope"];
-  observations: MarketIqMarketObservation[];
-  trajectories: Map<string, MarketIqTrajectory>;
+  trendSeries: MarketIqTrendSeries[];
+  mapCenters?: Record<string, { latitude: number; longitude: number }>;
   marketConditions: MarketIqReportSnapshot["marketConditions"];
   sources: MarketIqReportSnapshot["sources"];
   unavailableCuts?: MarketIqReportSnapshot["marketRead"]["unavailableCuts"];
 };
 
-export const MIN_MARKET_OBSERVATIONS = 30;
-export const MIN_MARKET_PROPERTIES = 5;
 export const MIN_TREND_OBSERVATIONS = 10;
-export const MIN_RENT_PER_SQ_FT_OBSERVATIONS = 20;
 
-function median(values: number[]): number | null {
-  if (!values.length) return null;
-  const ordered = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(ordered.length / 2);
-  return ordered.length % 2 === 1 ? ordered[middle] : (ordered[middle - 1] + ordered[middle]) / 2;
-}
-
-export function marketCellKey(submarket: string, propertyType: MarketIqPropertyType, bedrooms: number) {
-  return `${submarket}:${propertyType}:${bedrooms}`;
+export function marketCellKey(
+  geographyValue: string,
+  propertyType: MarketIqPropertyType,
+  bedrooms: number,
+) {
+  return `${geographyValue}:${propertyType}:${bedrooms}`;
 }
 
 export function segmentLabel(propertyType: MarketIqPropertyType, bedrooms: number): string {
@@ -122,50 +130,32 @@ export function segmentLabel(propertyType: MarketIqPropertyType, bedrooms: numbe
   return `${bedroom} ${propertyType === "house" ? "houses" : "apartments"}`;
 }
 
-function buildCell(input: {
-  submarket: string;
-  propertyType: MarketIqPropertyType;
-  bedrooms: number;
-  observations: MarketIqMarketObservation[];
-  trajectory: MarketIqTrajectory | null;
-  availableThrough: string;
-}): MarketIqMarketCell {
-  const properties = new Set(input.observations.map((item) => item.propertyKey)).size;
-  const rentPerSqFt = input.observations.flatMap((item) =>
-    item.squareFeet && item.squareFeet > 0 ? [item.askingRent / item.squareFeet] : []
-  );
-  const reasons = [
-    input.observations.length < MIN_MARKET_OBSERVATIONS
-      ? `Fewer than ${MIN_MARKET_OBSERVATIONS} observed listings`
-      : null,
-    properties < MIN_MARKET_PROPERTIES
-      ? `Fewer than ${MIN_MARKET_PROPERTIES} observed properties`
-      : null,
-  ].filter((reason): reason is string => Boolean(reason));
-  const reportable = reasons.length === 0;
-  const trajectory = input.trajectory && input.trajectory.observations >= MIN_TREND_OBSERVATIONS
-    ? input.trajectory
-    : null;
+function buildCell(series: MarketIqTrendSeries): MarketIqMarketCell {
+  const points = [...series.points]
+    .filter((point) => point.rent > 0)
+    .sort((a, b) => a.month.localeCompare(b.month));
+  const latest = points.at(-1) ?? null;
+  const reportable = Boolean(latest && latest.observations >= MIN_TREND_OBSERVATIONS);
 
   return {
-    key: marketCellKey(input.submarket, input.propertyType, input.bedrooms),
-    label: segmentLabel(input.propertyType, input.bedrooms),
-    geographyLabel: input.submarket,
-    propertyType: input.propertyType,
-    bedrooms: input.bedrooms,
-    rentLevel: {
-      medianAskingRent: reportable ? median(input.observations.map((item) => item.askingRent)) : null,
-      medianRentPerSqFt: reportable && rentPerSqFt.length >= MIN_RENT_PER_SQ_FT_OBSERVATIONS
-        ? median(rentPerSqFt)
-        : null,
-      observations: input.observations.length,
-      properties,
-      rentPerSqFtObservations: rentPerSqFt.length,
-      availableThrough: input.availableThrough,
-    },
-    trajectory,
+    key: marketCellKey(series.geographyValue, series.propertyType, series.bedrooms),
+    label: segmentLabel(series.propertyType, series.bedrooms),
+    geographyType: series.geographyType,
+    geographyValue: series.geographyValue,
+    geographyLabel: series.geographyLabel,
+    propertyType: series.propertyType,
+    bedrooms: series.bedrooms,
+    rent: reportable ? latest?.rent ?? null : null,
+    yearOverYearPct: reportable ? latest?.yearOverYearPct ?? null : null,
+    observations: latest?.observations ?? 0,
+    month: latest?.month ?? null,
+    series: reportable ? points.slice(-12) : [],
     status: reportable ? "reportable" : "suppressed",
-    suppressionReason: reportable ? null : reasons.join("; "),
+    suppressionReason: reportable
+      ? null
+      : latest
+        ? `Fewer than ${MIN_TREND_OBSERVATIONS} observations in the latest Trends IQ month`
+        : "No Trends IQ rent observation is available",
   };
 }
 
@@ -190,37 +180,39 @@ export function isPublicMarketIqReportStatus(status: string) {
 }
 
 export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): MarketIqReportSnapshot {
-  const combinations = new Map<string, { submarket: string; propertyType: MarketIqPropertyType; bedrooms: number }>();
-  for (const item of input.observations) {
-    combinations.set(marketCellKey(item.submarket, item.propertyType, item.bedrooms), {
-      submarket: item.submarket,
-      propertyType: item.propertyType,
-      bedrooms: item.bedrooms,
+  const cells = input.trendSeries
+    .map(buildCell)
+    .sort((a, b) => {
+      const rank = (type: MarketIqGeographyType) => type === "msa" ? 0 : type === "city" ? 1 : 2;
+      return rank(a.geographyType) - rank(b.geographyType) ||
+        a.geographyLabel.localeCompare(b.geographyLabel) ||
+        a.propertyType.localeCompare(b.propertyType) ||
+        a.bedrooms - b.bedrooms;
     });
-  }
-  const cells = [...combinations.values()]
-    .map((combination) => buildCell({
-      ...combination,
-      observations: input.observations.filter((item) =>
-        item.submarket === combination.submarket &&
-        item.propertyType === combination.propertyType &&
-        item.bedrooms === combination.bedrooms
-      ),
-      trajectory: input.trajectories.get(marketCellKey(
-        combination.submarket,
-        combination.propertyType,
-        combination.bedrooms
-      )) ?? null,
-      availableThrough: input.scope.periodEnd,
-    }))
-    .sort((a, b) => a.geographyLabel.localeCompare(b.geographyLabel) ||
-      a.propertyType.localeCompare(b.propertyType) || a.bedrooms - b.bedrooms);
   const reportable = cells.filter((cell) => cell.status === "reportable");
-  const withTrajectory = reportable.filter((cell) => cell.trajectory);
-  const rising = withTrajectory.filter((cell) => (cell.trajectory?.yearOverYearPct ?? 0) > 0).length;
-  const narrative = withTrajectory.length
-    ? `${rising} of ${withTrajectory.length} reportable local segments with sufficient Trends depth are rising year over year. Rent levels below come from observed listings; trajectory comes only from the validated Trends engine.`
-    : "The read publishes observed local rent levels and suppresses any trajectory without sufficient validated Trends depth.";
+  const directional = reportable.filter((cell) => cell.yearOverYearPct !== null);
+  const rising = directional.filter((cell) => (cell.yearOverYearPct ?? 0) > 0).length;
+  const narrative = directional.length
+    ? `${rising} of ${directional.length} reportable Trends IQ segments are rising year over year. Every rent level and change below comes from the same validated Trends IQ series, with its monthly sample and date attached.`
+    : "The read publishes only rent levels supported by Trends IQ and withholds any geography or segment that does not clear the sample threshold.";
+  const mapPoints = cells.flatMap((cell) => {
+    if (cell.geographyType !== "zip") return [];
+    const center = input.mapCenters?.[cell.geographyValue];
+    if (!center) return [];
+    return [{
+      zip: cell.geographyValue,
+      label: cell.label,
+      latitude: center.latitude,
+      longitude: center.longitude,
+      propertyType: cell.propertyType,
+      bedrooms: cell.bedrooms,
+      rent: cell.rent,
+      yearOverYearPct: cell.yearOverYearPct,
+      observations: cell.observations,
+      month: cell.month,
+      status: cell.status,
+    }];
+  });
 
   return {
     version: MARKET_IQ_REPORT_VERSION,
@@ -233,9 +225,14 @@ export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): Ma
       cells,
       unavailableCuts: input.unavailableCuts ?? [],
     },
+    marketMap: {
+      heading: "Where rent direction is changing",
+      narrative: "The map shows ZIP-level Trends IQ observations only. Select a product segment to compare local rent level and year-over-year direction without substituting broader city data.",
+      points: mapPoints,
+    },
     marketConditions: input.marketConditions,
     sources: input.sources,
-    methodNote: `Rent-level cells require at least ${MIN_MARKET_OBSERVATIONS} observed listings from ${MIN_MARKET_PROPERTIES} properties. Rent per square foot requires ${MIN_RENT_PER_SQ_FT_OBSERVATIONS} valid square-footage observations. Trajectory requires ${MIN_TREND_OBSERVATIONS} observations in its latest Trends month. Anything thinner is suppressed, not estimated.`,
+    methodNote: `Every published rent level and change is a Trends IQ statistic. A segment requires at least ${MIN_TREND_OBSERVATIONS} observations in its latest month. Total IQ supports listing volume, velocity, days on market, and map geography only. Thin cells are suppressed rather than estimated.`,
     disclosure: "This report measures advertised asking-market activity. It does not measure occupancy, signed leases, concessions, effective rent, or property-level financial performance.",
   };
 }
