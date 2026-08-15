@@ -28,15 +28,17 @@ test("the Market IQ route checks the disabled-by-default flag before auth or dat
   assert.ok(marketCheck > productCheck);
 });
 
-test("the integration preview root redirects before Operator IQ database reads", () => {
+test("the integration preview root opens the latest public Market IQ report before Operator IQ reads", () => {
   const source = readFileSync(join(process.cwd(), "src/app/page.tsx"), "utf8");
-  const redirectCheck = source.indexOf(
-    'if (marketIqPreviewEnabled()) redirect("/market-iq")'
-  );
-  const operatorIqRead = source.indexOf("await prisma.market.findMany", redirectCheck);
+  const previewCheck = source.indexOf("if (marketIqPreviewEnabled())");
+  const reportRead = source.indexOf("prisma.marketIqReport.findFirst", previewCheck);
+  const publicRedirect = source.indexOf("/reports/market/", reportRead);
+  const operatorIqRead = source.indexOf("await prisma.market.findMany", publicRedirect);
 
-  assert.ok(redirectCheck >= 0);
-  assert.ok(operatorIqRead > redirectCheck);
+  assert.ok(previewCheck >= 0);
+  assert.ok(reportRead > previewCheck);
+  assert.ok(publicRedirect > reportRead);
+  assert.ok(operatorIqRead > publicRedirect);
 });
 
 test("the standalone sign-in returns to Market IQ on the same origin", () => {

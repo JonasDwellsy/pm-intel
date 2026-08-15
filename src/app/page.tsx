@@ -26,6 +26,7 @@ import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
 import { marketingDataSuppressed } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
+import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import type { ScorecardData } from "@/lib/types";
 
 const HOME_TITLE =
@@ -342,12 +343,22 @@ async function loadHeroCard(): Promise<SampleCard | null> {
 }
 
 export default async function HomePage() {
-  // The Market IQ integration branch should open on the module being
-  // reviewed. The environment flag is scoped to that one Vercel Preview
-  // branch, so production and every normal Operator IQ deployment continue
-  // to render this homepage exactly as before. Keep this before all Prisma
-  // reads so the preview redirect adds no Operator IQ database work.
-  if (marketIqPreviewEnabled()) redirect("/market-iq");
+  // The standalone Market IQ project is primarily a client-facing market
+  // read. Open its latest published Cleveland edition directly instead of
+  // routing a client through the Clerk-protected internal composer. The
+  // project database fallback is itself preview-only and project-scoped, so
+  // this query cannot run against or alter Operator IQ production.
+  if (marketIqPreviewEnabled()) {
+    const latestPublished = await prisma.marketIqReport.findFirst({
+      where: { marketId: CLEVELAND_MARKET_ID, status: "published" },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      select: { publicToken: true },
+    });
+    if (latestPublished) {
+      redirect(`/reports/market/${latestPublished.publicToken}`);
+    }
+    redirect("/sign-in?redirect_url=%2Fmarket-iq");
+  }
 
   const marketRows = await prisma.market.findMany({
     orderBy: { city: "asc" },
