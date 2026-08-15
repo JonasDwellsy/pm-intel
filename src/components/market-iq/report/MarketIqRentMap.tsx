@@ -15,6 +15,8 @@ import type {
 
 type Segment = { propertyType: MarketIqPropertyType; bedrooms: number; label: string };
 type Metric = "yoy" | "rent" | "benchmark";
+type MapView = "published" | "msa";
+type MapBounds = [[number, number], [number, number]];
 
 const SEGMENTS: Segment[] = [
   { propertyType: "apartment", bedrooms: 1, label: "1-bed apartments" },
@@ -28,6 +30,29 @@ const METRICS: Array<{ value: Metric; label: string }> = [
 ];
 
 const COLORS = { rising: "#147d75", stable: "#93a2b5", softening: "#cc5620", missing: "#e7eaed" } as const;
+const CLEVELAND_MSA_BOUNDS: MapBounds = [[-82.50, 40.86], [-80.82, 41.88]];
+
+function boundsForFeatures(features: FeatureCollection<Geometry, GeoJsonProperties>["features"]): MapBounds | null {
+  let west = Number.POSITIVE_INFINITY;
+  let south = Number.POSITIVE_INFINITY;
+  let east = Number.NEGATIVE_INFINITY;
+  let north = Number.NEGATIVE_INFINITY;
+  const visit = (coordinates: unknown): void => {
+    if (!Array.isArray(coordinates)) return;
+    if (coordinates.length >= 2 && typeof coordinates[0] === "number" && typeof coordinates[1] === "number") {
+      west = Math.min(west, coordinates[0]);
+      south = Math.min(south, coordinates[1]);
+      east = Math.max(east, coordinates[0]);
+      north = Math.max(north, coordinates[1]);
+      return;
+    }
+    coordinates.forEach(visit);
+  };
+  features.forEach((feature) => {
+    if (feature.geometry && "coordinates" in feature.geometry) visit(feature.geometry.coordinates);
+  });
+  return Number.isFinite(west) ? [[west, south], [east, north]] : null;
+}
 
 function money(value: number | null) {
   return value === null ? "Not published" : new Intl.NumberFormat("en-US", {
@@ -239,6 +264,7 @@ export function MarketIqRentMap({
 }) {
   const [segment, setSegment] = useState<Segment>(SEGMENTS[0]);
   const [metric, setMetric] = useState<Metric>("yoy");
+  const [mapView, setMapView] = useState<MapView>("published");
   const [selectedZip, setSelectedZip] = useState<string | null>(null);
   const [mapFailed, setMapFailed] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -323,13 +349,15 @@ export function MarketIqRentMap({
             } };
           }),
         };
+        const publishedBounds = boundsForFeatures(joined.features.filter((feature) => feature.properties?.supported === true));
+        const initialBounds = mapView === "published" && publishedBounds ? publishedBounds : CLEVELAND_MSA_BOUNDS;
         const mapboxgl = mapboxModule.default;
         mapboxgl.accessToken = token;
         const map = new mapboxgl.Map({
           container,
           style: "mapbox://styles/mapbox/light-v11",
-          bounds: [[-82.50, 40.86], [-80.82, 41.88]],
-          fitBoundsOptions: { padding: 38 },
+          bounds: initialBounds,
+          fitBoundsOptions: { padding: 62, maxZoom: 10.25 },
           attributionControl: false,
         });
         mapRef.current = map;
@@ -337,8 +365,8 @@ export function MarketIqRentMap({
         map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-right");
         map.on("load", () => {
           map.addSource("market-iq-zips", { type: "geojson", data: joined });
-          map.addLayer({ id: "market-iq-fill", type: "fill", source: "market-iq-zips", paint: { "fill-color": mapPaint(metric, min, max), "fill-opacity": ["case", ["==", ["get", "supported"], true], 0.84, 0.4] } });
-          map.addLayer({ id: "market-iq-lines", type: "line", source: "market-iq-zips", paint: { "line-color": "#ffffff", "line-width": 1.5, "line-opacity": 0.95 } });
+          map.addLayer({ id: "market-iq-fill", type: "fill", source: "market-iq-zips", paint: { "fill-color": mapPaint(metric, min, max), "fill-opacity": ["case", ["==", ["get", "supported"], true], 0.88, 0.3] } });
+          map.addLayer({ id: "market-iq-lines", type: "line", source: "market-iq-zips", paint: { "line-color": ["case", ["==", ["get", "supported"], true], "#ffffff", "#cbd3db"], "line-width": ["case", ["==", ["get", "supported"], true], 1.7, 0.8], "line-opacity": 0.95 } });
           map.addLayer({ id: "market-iq-selected", type: "line", source: "market-iq-zips", filter: ["==", ["get", "zip"], selectedZipRef.current ?? ""], paint: { "line-color": "#0f172a", "line-width": 4 } });
           map.addLayer({ id: "market-iq-labels", type: "symbol", source: "market-iq-zips", filter: ["==", ["get", "supported"], true], layout: { "text-field": ["format", ["get", "zip"], { "font-scale": 0.88 }, "\n", {}, metric === "rent" ? ["get", "rentLabel"] : metric === "yoy" ? ["get", "yoyLabel"] : ["concat", ["to-string", ["round", ["get", "metricValue"]]], "%"], { "font-scale": 1.02 }], "text-size": 12, "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"], "text-allow-overlap": false, "text-padding": 8 }, paint: { "text-color": "#17324a", "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.6 } });
           const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: 10 });
@@ -369,7 +397,7 @@ export function MarketIqRentMap({
       }
     })();
     return () => { cancelled = true; cleanup?.(); };
-  }, [benchmark, filtered, metric, min, max, segmentPoints]);
+  }, [benchmark, filtered, mapView, metric, min, max, segmentPoints]);
 
   return <div>
     <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
@@ -392,11 +420,15 @@ export function MarketIqRentMap({
         ? <MapFallback tokenMissing={tokenMissing || mapFailed} />
         : <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-[0_20px_55px_rgba(15,23,42,0.08)]">
           <div ref={containerRef} className="h-[620px] w-full" role="img" aria-label={`Shaded ZIP-level map for ${segment.label}`} />
+          <div className="absolute left-4 top-4 flex rounded-xl border border-white/80 bg-white/95 p-1 text-[11px] font-semibold text-slate-500 shadow-sm backdrop-blur" role="group" aria-label="Map extent">
+            <button type="button" onClick={() => setMapView("published")} className={`rounded-lg px-3 py-2 transition ${mapView === "published" ? "bg-[var(--report-primary)] text-white" : "hover:bg-slate-100 hover:text-slate-800"}`}>Published ZIPs</button>
+            <button type="button" onClick={() => setMapView("msa")} className={`rounded-lg px-3 py-2 transition ${mapView === "msa" ? "bg-[var(--report-primary)] text-white" : "hover:bg-slate-100 hover:text-slate-800"}`}>Full MSA</button>
+          </div>
           <div className="pointer-events-none absolute bottom-4 left-4 w-[230px] rounded-xl border border-white/70 bg-white/95 px-4 py-3 text-xs text-slate-600 shadow-sm backdrop-blur">
             <div className="h-2.5 rounded-full" style={{ background: metric === "yoy" || metric === "benchmark" ? "linear-gradient(90deg,#b84016,#e8e6df,#08756e)" : "linear-gradient(90deg,#dbecef,#63a5ab,#164d69)" }} />
             <div className="mt-2 flex justify-between gap-2 text-[10px] font-semibold"><span>{legendLabels.left}</span><span>{legendLabels.middle}</span><span className="text-right">{legendLabels.right}</span></div>
             <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#e7eaed]" />No Trends IQ value</span></div>
-            <p className="mt-2 text-[10px] leading-4 text-slate-400">All 101 Census ZCTAs in Dwellsy&apos;s 102-ZIP Cleveland-Elyria market definition are shown. Every available Trends IQ value is colored.</p>
+            <p className="mt-2 text-[10px] leading-4 text-slate-400">Every available Trends IQ value is colored. Use Full MSA to see all 101 Census ZCTAs in the 102-ZIP market definition.</p>
           </div>
         </div>}</div>
 
