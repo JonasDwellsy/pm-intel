@@ -110,6 +110,9 @@ export const PUBLIC_BUYBOX_PATTERNS = [
   "/api/market-iq/import/history",
   "/api/market-iq/import/trends",
   "/api/market-iq/source/dwellsy/refresh",
+  // Stripe signs this request independently. The route verifies the raw-body
+  // signature before any billing mutation and must not be intercepted by Clerk.
+  "/api/market-iq/billing/webhook",
   // NOTE: the per-market brief (/property-managers/:state/:city/brief) used
   // to be carved out here as public. It's now intentionally GATED — it falls
   // through to the protected :slug pattern above. Logged-out visitors get the

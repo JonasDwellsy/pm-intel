@@ -1,15 +1,14 @@
 import "server-only";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
-import { isMarketEntitled, resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
-import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
+import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
+import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { parseJsonArray, type MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
 
 export async function canUseClevelandMarketIq() {
   if (!marketIqPreviewEnabled()) return false;
-  if (!(await viewerHasProductAccess("market_iq"))) return false;
-  const entitlement = await resolveViewerEntitlement();
-  return isMarketEntitled(entitlement, CLEVELAND_MARKET_ID);
+  const access = await resolveViewerMarketIqAccess();
+  return access.hasProduct && isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID);
 }
 
 export function marketIqWatchlistView(row: {

@@ -1,9 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ClevelandPilot } from "@/components/market-iq/ClevelandPilot";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
-import { isMarketEntitled, resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
-import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
+import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
+import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { loadMarketIqAlertHistory } from "@/lib/market-iq/alert-history.server";
 import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server";
@@ -21,11 +21,8 @@ export default async function MarketIqPage() {
   // and cannot add database load to the existing Operator IQ application.
   if (!marketIqPreviewEnabled()) notFound();
 
-  const hasProduct = await viewerHasProductAccess("market_iq");
-  if (!hasProduct) notFound();
-
-  const marketEntitlement = await resolveViewerEntitlement();
-  if (!isMarketEntitled(marketEntitlement, CLEVELAND_MARKET_ID)) notFound();
+  const access = await resolveViewerMarketIqAccess();
+  if (!access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) redirect("/market-iq/subscribe");
 
   const [{ organizationId }, historicalPulse, trendPulses, liveListingPulse] = await Promise.all([
     getActiveOrgContext(),

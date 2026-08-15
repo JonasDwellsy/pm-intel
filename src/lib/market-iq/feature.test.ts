@@ -20,12 +20,12 @@ test("the Market IQ route checks the disabled-by-default flag before auth or dat
     "utf8"
   );
   const flagCheck = source.indexOf("if (!marketIqPreviewEnabled()) notFound()");
-  const productCheck = source.indexOf("await viewerHasProductAccess");
-  const marketCheck = source.indexOf("await resolveViewerEntitlement");
+  const accessCheck = source.indexOf("await resolveViewerMarketIqAccess");
+  const marketCheck = source.indexOf("isMarketEntitled(access.entitlement");
 
   assert.ok(flagCheck >= 0);
-  assert.ok(productCheck > flagCheck);
-  assert.ok(marketCheck > productCheck);
+  assert.ok(accessCheck > flagCheck);
+  assert.ok(marketCheck > accessCheck);
 });
 
 test("the integration preview root opens the latest public Market IQ report before Operator IQ reads", () => {

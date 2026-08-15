@@ -5,8 +5,8 @@ import { MarketIqReportHistory } from "@/components/market-iq/MarketIqReportHist
 import { MarketIqReportComposerClient } from "@/components/market-iq/report/MarketIqReportComposerClient";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
-import { isMarketEntitled, resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
-import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
+import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
+import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { canAccessMarketIqReportComposer } from "@/lib/market-iq/report/access";
 import { loadMarketIqReportComposer } from "@/lib/market-iq/report/composer.server";
@@ -16,12 +16,11 @@ export const dynamic = "force-dynamic";
 export default async function MarketIqReportComposerPage({ searchParams }: { searchParams: Promise<{ published?: string; delivery?: string }> }) {
   const previewEnabled = marketIqPreviewEnabled();
   if (!previewEnabled) notFound();
-  const hasProduct = await viewerHasProductAccess("market_iq");
   const { userId, organizationId } = await getActiveOrgContext();
   if (!userId) notFound();
   if (!organizationId) redirect("/setup-workspace");
-  const entitlement = await resolveViewerEntitlement();
-  if (!canAccessMarketIqReportComposer({ previewEnabled, userId, organizationId, hasProduct, marketEntitled: isMarketEntitled(entitlement, CLEVELAND_MARKET_ID) })) notFound();
+  const access = await resolveViewerMarketIqAccess();
+  if (!canAccessMarketIqReportComposer({ previewEnabled, userId, organizationId, hasProduct: access.hasProduct, marketEntitled: isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID) })) notFound();
   const composer = await loadMarketIqReportComposer(organizationId);
   if (!composer) notFound();
   const query = await searchParams;

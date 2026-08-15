@@ -16,6 +16,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { isClerkAPIResponseError } from "@clerk/shared/error";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { prisma } from "@/lib/prisma";
+import { endEnterpriseMarketIq, provisionEnterpriseMarketIq } from "@/lib/market-iq/billing/provisioning.server";
 
 /** Extract a human-readable error message from a Clerk SDK throw.
  *  Clerk's API returns a structured { errors: [{ code, message, long_message }] }
@@ -394,4 +395,53 @@ export async function setOrganizationMarketAccess(
   } catch (err) {
     return { ok: false, error: describeError(err) };
   }
+}
+
+export interface ProvisionMarketIqResult {
+  ok: boolean;
+  message?: string;
+  error?: string;
+}
+
+/** Provision an early Market IQ client sold through an enterprise agreement.
+ * This creates the same commercial subscription shape as Stripe, but without
+ * Stripe identifiers. It does not alter Operator IQ product or market access. */
+export async function provisionOrganizationMarketIq(
+  _prevState: ProvisionMarketIqResult | null,
+  formData: FormData,
+): Promise<ProvisionMarketIqResult> {
+  const { userId } = await auth();
+  if (!userId || !isAdminUser(userId)) return { ok: false, error: "Not found." };
+  const organizationId = String(formData.get("orgId") ?? "").trim();
+  const marketId = String(formData.get("marketId") ?? "").trim();
+  if (!organizationId || !marketId) return { ok: false, error: "Organization and market are required." };
+  const [organization, market] = await Promise.all([
+    prisma.organization.findFirst({ where: { id: organizationId, personalForUserId: null }, select: { id: true } }),
+    prisma.market.findUnique({ where: { id: marketId }, select: { id: true, city: true, state: true } }),
+  ]);
+  if (!organization || !market) return { ok: false, error: "Organization or market was not found." };
+  try {
+    await provisionEnterpriseMarketIq({ organizationId, marketId, provisionedByUserId: userId });
+    revalidatePath(`/admin/organizations/${organizationId}`);
+    revalidatePath("/market-iq");
+    return { ok: true, message: `Market IQ provisioned for ${market.city}, ${market.state}.` };
+  } catch (error) {
+    return { ok: false, error: describeError(error) };
+  }
+}
+
+export async function endOrganizationEnterpriseMarketIq(
+  _prevState: ProvisionMarketIqResult | null,
+  formData: FormData,
+): Promise<ProvisionMarketIqResult> {
+  const { userId } = await auth();
+  if (!userId || !isAdminUser(userId)) return { ok: false, error: "Not found." };
+  const organizationId = String(formData.get("orgId") ?? "").trim();
+  const subscriptionId = String(formData.get("subscriptionId") ?? "").trim();
+  if (!organizationId || !subscriptionId) return { ok: false, error: "Subscription is required." };
+  const ended = await endEnterpriseMarketIq({ organizationId, subscriptionId });
+  if (!ended.count) return { ok: false, error: "Active enterprise provision was not found." };
+  revalidatePath(`/admin/organizations/${organizationId}`);
+  revalidatePath("/market-iq");
+  return { ok: true, message: "Enterprise Market IQ access ended." };
 }

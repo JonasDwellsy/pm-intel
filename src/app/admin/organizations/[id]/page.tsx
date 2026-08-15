@@ -25,6 +25,7 @@ import {
   type MarketAccessGroup,
 } from "@/components/admin/MarketAccessForm";
 import { STATE_CODE_TO_NAME } from "@/lib/slugify";
+import { MarketIqCommercialAccessForm } from "@/components/admin/MarketIqCommercialAccessForm";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +97,10 @@ export default async function AdminOrganizationDetailPage({
         orderBy: { createdAt: "asc" },
       },
       marketAccess: { select: { marketId: true } },
+      marketIqSubscriptions: {
+        include: { markets: { select: { marketId: true } } },
+        orderBy: { createdAt: "desc" },
+      },
       _count: { select: { watchLists: true } },
     },
   });
@@ -110,6 +115,9 @@ export default async function AdminOrganizationDetailPage({
   });
   const marketGroups = buildMarketGroups(allMarketRows);
   const grantedIds = org.marketAccess.map((m) => m.marketId);
+  const commercialMarkets = allMarketRows
+    .map((market) => ({ id: market.id, label: `${market.city}, ${market.state}` }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 
   // Resolve each membership's Clerk user → name + email. Memberships store only
   // the Clerk user ID; the person's identity lives in Clerk. Batch-fetch in one
@@ -162,6 +170,27 @@ export default async function AdminOrganizationDetailPage({
           {org.clerkOrgId}
         </p>
       </header>
+
+      <section className="mb-8">
+        <h2 className="text-[12px] font-semibold uppercase tracking-[0.12em] text-grey-600 mb-1">
+          Market IQ commercial access
+        </h2>
+        <p className="text-[13px] text-grey-500 mb-3 max-w-[680px]">
+          Provision an early client sold through an enterprise agreement. Stripe purchases appear here automatically and must be managed through Stripe.
+        </p>
+        <MarketIqCommercialAccessForm
+          orgId={org.id}
+          markets={commercialMarkets}
+          subscriptions={org.marketIqSubscriptions.map((subscription) => ({
+            id: subscription.id,
+            source: subscription.source,
+            status: subscription.status,
+            currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
+            cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+            markets: subscription.markets,
+          }))}
+        />
+      </section>
 
       <section className="mb-8">
         <h2 className="text-[12px] font-semibold uppercase tracking-[0.12em] text-grey-600 mb-1">

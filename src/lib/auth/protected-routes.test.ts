@@ -83,6 +83,12 @@ test("Market IQ ingestion bypasses Clerk only for bearer-token auth routes", () 
   assert.equal(isGated("/api/market-iq/watchlists"), true);
 });
 
+test("Stripe webhook bypasses Clerk while customer billing routes remain protected", () => {
+  assert.equal(isGated("/api/market-iq/billing/webhook"), false);
+  assert.equal(isGated("/api/market-iq/billing/checkout"), true);
+  assert.equal(isGated("/api/market-iq/billing/portal"), true);
+});
+
 test("anonymous users are gated off /watch-lists/:id/edit", () => {
   assert.equal(isGated("/watch-lists/cuid_abc123/edit"), true);
 });

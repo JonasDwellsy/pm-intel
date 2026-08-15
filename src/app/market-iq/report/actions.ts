@@ -5,8 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
-import { isMarketEntitled, resolveViewerEntitlement } from "@/lib/auth/market-entitlements.server";
-import { viewerHasProductAccess } from "@/lib/auth/product-entitlements.server";
+import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
+import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { sendEmail } from "@/lib/email/send";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { buildClevelandComposerPreview, type MarketIqReportBrandInput } from "@/lib/market-iq/report/composer.server";
@@ -44,17 +44,16 @@ function color(value: FormDataEntryValue | null, fallback: string) {
 async function authorizedMarketIqContext() {
   const previewEnabled = marketIqPreviewEnabled();
   if (!previewEnabled) return null;
-  const [{ userId, organizationId }, hasProduct, entitlement] = await Promise.all([
+  const [{ userId, organizationId }, access] = await Promise.all([
     getActiveOrgContext(),
-    viewerHasProductAccess("market_iq"),
-    resolveViewerEntitlement(),
+    resolveViewerMarketIqAccess(),
   ]);
   const allowed = canAccessMarketIqReportComposer({
     previewEnabled,
     userId,
     organizationId,
-    hasProduct,
-    marketEntitled: isMarketEntitled(entitlement, CLEVELAND_MARKET_ID),
+    hasProduct: access.hasProduct,
+    marketEntitled: isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID),
   });
   if (!allowed || !userId || !organizationId) return null;
   return { userId, organizationId };
