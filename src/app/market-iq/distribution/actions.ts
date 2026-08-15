@@ -7,6 +7,7 @@ import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
+import { deliverMarketIqReportToRecipient } from "@/lib/market-iq/report/delivery.server";
 import { marketIqClipped, marketIqValidEmail } from "@/lib/market-iq/report/form-values";
 import { prisma } from "@/lib/prisma";
 
@@ -42,7 +43,7 @@ export async function startMarketIqDistributionCampaign(formData: FormData): Pro
   });
   if (!report) throw new Error("Published report not found.");
   const existing = await prisma.marketIqDistributionCampaign.findFirst({
-    where: { organizationId: context.organizationId, reportId, status: { in: ["draft", "ready", "sending", "partial"] } },
+    where: { organizationId: context.organizationId, reportId },
     orderBy: { createdAt: "desc" },
     select: { id: true },
   });
@@ -103,6 +104,96 @@ export async function setMarketIqRecipientSuppression(formData: FormData): Promi
       ? { emailStatus: "suppressed", suppressionReason: "Manually suppressed by organization", suppressedAt: new Date() }
       : { emailStatus: "active", suppressionReason: null, suppressedAt: null },
   });
+  if (campaignId) {
+    await prisma.marketIqDistributionCampaignRecipient.updateMany({
+      where: { campaignId, organizationId: context.organizationId, recipientId, status: { in: suppress ? ["pending", "failed"] : ["suppressed"] } },
+      data: suppress
+        ? { status: "suppressed", lastError: "Manually suppressed by organization" }
+        : { status: "pending", lastError: null },
+    });
+  }
   revalidatePath("/market-iq/distribution");
   if (campaignId) revalidatePath(`/market-iq/distribution/${campaignId}`);
+}
+
+export async function sendMarketIqCampaignRecipient(formData: FormData): Promise<void> {
+  const context = await authorizedContext();
+  const campaignRecipientId = marketIqClipped(formData.get("campaignRecipientId"), 80);
+  const confirmation = marketIqClipped(formData.get("confirmation"), 80);
+  if (!context || !campaignRecipientId || confirmation !== campaignRecipientId) {
+    throw new Error("Confirm this exact recipient before sending.");
+  }
+  const row = await prisma.marketIqDistributionCampaignRecipient.findFirst({
+    where: { id: campaignRecipientId, organizationId: context.organizationId },
+    include: {
+      campaign: { select: { id: true, status: true } },
+      recipient: { select: { id: true, emailStatus: true, suppressionReason: true } },
+      report: { select: { status: true } },
+    },
+  });
+  if (!row || row.report.status !== "published") throw new Error("This delivery is unavailable.");
+  if (row.recipient.emailStatus === "suppressed") {
+    await prisma.marketIqDistributionCampaignRecipient.update({
+      where: { id: row.id },
+      data: { status: "suppressed", lastError: row.recipient.suppressionReason ?? "Recipient is suppressed." },
+    });
+    redirect(`/market-iq/distribution/${row.campaign.id}?delivery=suppressed`);
+  }
+  const staleSendingBefore = new Date(Date.now() - 5 * 60 * 1_000);
+  const claimed = await prisma.marketIqDistributionCampaignRecipient.updateMany({
+    where: {
+      id: row.id,
+      organizationId: context.organizationId,
+      OR: [
+        { status: { in: ["pending", "failed"] } },
+        { status: "sending", updatedAt: { lt: staleSendingBefore } },
+      ],
+    },
+    data: { status: "sending", lastError: null, attemptCount: { increment: 1 } },
+  });
+  if (claimed.count !== 1) redirect(`/market-iq/distribution/${row.campaign.id}?delivery=unchanged`);
+  await prisma.marketIqDistributionCampaign.update({ where: { id: row.campaign.id }, data: { status: "sending", confirmedAt: new Date() } });
+
+  let result: Awaited<ReturnType<typeof deliverMarketIqReportToRecipient>>;
+  try {
+    result = await deliverMarketIqReportToRecipient({
+      organizationId: context.organizationId,
+      reportId: row.reportId,
+      recipientId: row.recipientId,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Delivery failed before SendGrid accepted it.";
+    await prisma.marketIqDistributionCampaignRecipient.update({
+      where: { id: row.id },
+      data: { status: "failed", lastError: message.slice(0, 1_000) },
+    });
+    await prisma.marketIqDistributionCampaign.update({ where: { id: row.campaign.id }, data: { status: "partial" } });
+    redirect(`/market-iq/distribution/${row.campaign.id}?delivery=failed`);
+  }
+
+  await prisma.marketIqDistributionCampaignRecipient.update({
+    where: { id: row.id },
+    data: result.status === "sent"
+      ? { status: "sent", sendId: result.sendId, sentAt: new Date(), lastError: null }
+      : result.status === "already_sent"
+        ? { status: "already_sent", sendId: result.sendId, lastError: null }
+        : result.status === "suppressed"
+          ? { status: "suppressed", lastError: result.reason }
+          : { status: "failed", sendId: result.sendId, lastError: result.error.slice(0, 1_000) },
+  });
+  const [unfinished, failed] = await Promise.all([
+    prisma.marketIqDistributionCampaignRecipient.count({ where: { campaignId: row.campaign.id, status: { in: ["pending", "sending"] } } }),
+    prisma.marketIqDistributionCampaignRecipient.count({ where: { campaignId: row.campaign.id, status: "failed" } }),
+  ]);
+  await prisma.marketIqDistributionCampaign.update({
+    where: { id: row.campaign.id },
+    data: unfinished > 0
+      ? { status: "ready" }
+      : failed > 0
+        ? { status: "partial" }
+        : { status: "complete", completedAt: new Date() },
+  });
+  revalidatePath(`/market-iq/distribution/${row.campaign.id}`);
+  revalidatePath("/market-iq/distribution");
+  redirect(`/market-iq/distribution/${row.campaign.id}?delivery=${result.status}`);
 }

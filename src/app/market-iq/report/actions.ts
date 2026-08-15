@@ -7,11 +7,9 @@ import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
-import { sendEmail } from "@/lib/email/send";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { buildClevelandComposerPreview, type MarketIqReportBrandInput } from "@/lib/market-iq/report/composer.server";
 import { canAccessMarketIqReportComposer } from "@/lib/market-iq/report/access";
-import { buildMarketIqReportEmail } from "@/lib/market-iq/report/email";
 import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import { compareMarketIqEditions } from "@/lib/market-iq/report/edition-comparison";
 import {
@@ -57,18 +55,6 @@ async function authorizedMarketIqContext() {
   });
   if (!allowed || !userId || !organizationId) return null;
   return { userId, organizationId };
-}
-
-function validEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function reportBaseUrl() {
-  if (process.env.MARKET_IQ_PUBLIC_URL) return process.env.MARKET_IQ_PUBLIC_URL.replace(/\/$/, "");
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
-  return "http://localhost:3000";
 }
 
 export async function publishMarketIqReport(formData: FormData): Promise<void> {
@@ -198,60 +184,4 @@ export async function revokeMarketIqReport(formData: FormData): Promise<void> {
     await prisma.marketIqReport.update({ where: { id: report.id }, data: { status: "revoked" } });
   }
   revalidatePath("/market-iq/report");
-}
-
-export async function sendMarketIqReport(formData: FormData): Promise<void> {
-  const context = await authorizedMarketIqContext();
-  const reportId = clipped(formData.get("reportId"), 80);
-  const recipientName = clipped(formData.get("recipientName"), 120);
-  const recipientEmail = clipped(formData.get("recipientEmail"), 254).toLowerCase();
-  const recipientKind = clipped(formData.get("recipientKind"), 20);
-  if (!context || !reportId || !recipientName || !validEmail(recipientEmail) || !["client", "prospect"].includes(recipientKind)) {
-    throw new Error("Enter a valid client or prospect recipient before sending.");
-  }
-
-  const report = await prisma.marketIqReport.findFirst({
-    where: { id: reportId, organizationId: context.organizationId, marketId: CLEVELAND_MARKET_ID },
-    select: { id: true, publicToken: true, status: true, snapshot: true },
-  });
-  const snapshot = report ? parseMarketIqReportSnapshot(report.snapshot) : null;
-  if (!report || report.status !== "published" || !snapshot) throw new Error("Published Market IQ report not found.");
-
-  const recipient = await prisma.marketIqReportRecipient.upsert({
-    where: { organizationId_email: { organizationId: context.organizationId, email: recipientEmail } },
-    create: { organizationId: context.organizationId, name: recipientName, email: recipientEmail, kind: recipientKind },
-    update: { name: recipientName, kind: recipientKind },
-  });
-  const delivery = await prisma.marketIqReportSend.create({
-    data: { organizationId: context.organizationId, reportId: report.id, recipientId: recipient.id },
-    select: { id: true },
-  });
-  const baseUrl = reportBaseUrl();
-  const reportUrl = `${baseUrl}/reports/market/${report.publicToken}`;
-  const message = buildMarketIqReportEmail({
-    recipientName,
-    recipientKind: recipientKind as "client" | "prospect",
-    report: snapshot,
-    reportUrl,
-    pdfUrl: `${reportUrl}/pdf`,
-  });
-  const result = await sendEmail({
-    to: recipientEmail,
-    fromName: snapshot.brand.displayName,
-    replyTo: snapshot.brand.contactEmail && validEmail(snapshot.brand.contactEmail) ? snapshot.brand.contactEmail : undefined,
-    ...message,
-    customArgs: {
-      dwellsy_kind: "market_iq_report",
-      dwellsy_record_id: delivery.id,
-      dwellsy_report_id: report.id,
-    },
-  });
-  await prisma.marketIqReportSend.update({
-    where: { id: delivery.id },
-    data: result.ok
-      ? { deliveryStatus: "sent", deliveryProviderId: result.id || null, deliveryError: null, sentAt: new Date() }
-      : { deliveryStatus: "failed", deliveryError: result.error.slice(0, 1_000) },
-  });
-  revalidatePath("/market-iq/report");
-  redirect(`/market-iq/report?published=${report.id}&delivery=${result.ok ? "sent" : "failed"}`);
 }

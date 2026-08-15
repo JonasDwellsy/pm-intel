@@ -43,6 +43,7 @@ export async function processSendgridEvent(event: SendgridWebhookEvent): Promise
     const failure = isSendgridFailure(type);
     await prisma.$transaction(async (tx) => {
       const delivery = await tx.marketIqReportSend.findUnique({ where: { id: link.recordId }, select: { recipientId: true } });
+      const campaignDelivery = await tx.marketIqDistributionCampaignRecipient.findFirst({ where: { sendId: link.recordId }, select: { campaignId: true } });
       await tx.marketIqReportSend.updateMany({
         where: { id: link.recordId, OR: [{ lastEmailEventAt: null }, { lastEmailEventAt: { lte: occurredAt } }] },
         data: {
@@ -55,6 +56,14 @@ export async function processSendgridEvent(event: SendgridWebhookEvent): Promise
               : {}),
         },
       });
+      if (type === "delivered" || failure) {
+        await tx.marketIqDistributionCampaignRecipient.updateMany({
+          where: { sendId: link.recordId },
+          data: type === "delivered"
+            ? { status: "sent", lastError: null }
+            : { status: "failed", lastError: clean.reason ?? `SendGrid reported ${type}` },
+        });
+      }
       if (failure && delivery) {
         await tx.marketIqReportRecipient.update({
           where: { id: delivery.recipientId },
@@ -64,6 +73,9 @@ export async function processSendgridEvent(event: SendgridWebhookEvent): Promise
             suppressedAt: occurredAt,
           },
         });
+      }
+      if (failure && campaignDelivery) {
+        await tx.marketIqDistributionCampaign.update({ where: { id: campaignDelivery.campaignId }, data: { status: "partial", completedAt: null } });
       }
     });
     return "recorded";

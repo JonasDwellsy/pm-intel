@@ -720,7 +720,7 @@ model MarketIqDistributionCampaignRecipient {
   reportId       String
   recipientId    String
   sendId         String?
-  status         String    @default("pending") // pending | sent | failed | suppressed | already_sent
+  status         String    @default("pending") // pending | sending | sent | failed | suppressed | already_sent
   attemptCount   Int       @default(0)
   lastError      String?
   sentAt         DateTime?
