@@ -173,17 +173,17 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
 }
 
 export async function loadPublicMarketIqReport(publicToken: string): Promise<MarketIqReportSnapshot | null> {
-  const stored = await prisma.marketIqReport.findUnique({
-    where: { publicToken },
-    select: { status: true, snapshot: true },
-  }).catch(() => null);
-  if (stored && isPublicMarketIqReportStatus(stored.status)) return parseMarketIqReportSnapshot(stored.snapshot);
-
   const previewEnabled = process.env.MARKET_IQ_PREVIEW_ENABLED === "1"
     || process.env.VERCEL_ENV === "preview"
     || process.env.NODE_ENV !== "production";
   if (previewEnabled && publicToken === SEEDED_CLEVELAND_REPORT_TOKEN) {
     return buildClevelandMarketIqReportSnapshot({ brand: seededClevelandMarketReport.brand });
   }
+
+  const stored = await prisma.marketIqReport.findUnique({
+    where: { publicToken },
+    select: { status: true, snapshot: true },
+  }).catch(() => null);
+  if (stored && isPublicMarketIqReportStatus(stored.status)) return parseMarketIqReportSnapshot(stored.snapshot);
   return null;
 }
