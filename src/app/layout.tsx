@@ -67,7 +67,8 @@ export default function RootLayout({
   const allowedRedirectOrigins = ["https://portfolio.iq.dwellsy.com"];
   if (process.env.MARKET_IQ_PREVIEW_ENABLED === "1") {
     allowedRedirectOrigins.push(
-      "https://pm-intel-git-codex-market-iq-integration-dwellsybordo.vercel.app"
+      "https://pm-intel-git-codex-market-iq-integration-dwellsybordo.vercel.app",
+      "https://market-iq-git-codex-market-iq-integration-dwellsybordo.vercel.app"
     );
   }
   // ClerkProvider wraps the entire tree so <SignedIn> / <SignedOut>,
