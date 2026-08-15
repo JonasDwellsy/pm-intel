@@ -5,32 +5,23 @@ import {
   type MarketIqTrendSeries,
 } from "@/lib/market-iq/report/report";
 import { SEEDED_CLEVELAND_ZIP_BENCHMARK_SERIES } from "@/lib/market-iq/report/seeded-cleveland-zip-series";
+import clevelandZctaCenters from "@/data/market-iq/cleveland-zcta-centers.json";
+import clevelandMsaZips from "@/data/market-iq/cleveland-msa-zips.json";
 
 export const SEEDED_CLEVELAND_REPORT_TOKEN = "cleveland-local-market-read-r4";
 
-export const CLEVELAND_ZIP_CENTERS: Record<string, { latitude: number; longitude: number; primaryCity: string }> = {
-  "44052": { latitude: 41.4570, longitude: -82.1782, primaryCity: "Lorain" },
-  "44094": { latitude: 41.6929, longitude: -81.3982, primaryCity: "Willoughby" },
-  "44102": { latitude: 41.4804, longitude: -81.7503, primaryCity: "Cleveland" },
-  "44105": { latitude: 41.4516, longitude: -81.6114, primaryCity: "Cleveland" },
-  "44106": { latitude: 41.4965, longitude: -81.6155, primaryCity: "Cleveland" },
-  "44107": { latitude: 41.4815, longitude: -81.7818, primaryCity: "Lakewood" },
-  "44108": { latitude: 41.5321, longitude: -81.6105, primaryCity: "Cleveland" },
-  "44109": { latitude: 41.4524, longitude: -81.7048, primaryCity: "Cleveland" },
-  "44110": { latitude: 41.5700, longitude: -81.5796, primaryCity: "Cleveland" },
-  "44112": { latitude: 41.5226, longitude: -81.5893, primaryCity: "Cleveland" },
-  "44113": { latitude: 41.4779, longitude: -81.6798, primaryCity: "Cleveland" },
-  "44114": { latitude: 41.5094, longitude: -81.6743, primaryCity: "Cleveland" },
-  "44115": { latitude: 41.4930, longitude: -81.6718, primaryCity: "Cleveland" },
-  "44118": { latitude: 41.5106, longitude: -81.5663, primaryCity: "Cleveland Heights" },
-  "44120": { latitude: 41.4779, longitude: -81.5897, primaryCity: "Cleveland" },
-  "44121": { latitude: 41.5267, longitude: -81.5322, primaryCity: "South Euclid" },
-  "44123": { latitude: 41.6035, longitude: -81.5254, primaryCity: "Euclid" },
-  "44125": { latitude: 41.4255, longitude: -81.6153, primaryCity: "Garfield Heights" },
-  "44128": { latitude: 41.4418, longitude: -81.5545, primaryCity: "Cleveland" },
-  "44130": { latitude: 41.3774, longitude: -81.7875, primaryCity: "Parma" },
-  "44137": { latitude: 41.4130, longitude: -81.5655, primaryCity: "Maple Heights" },
+const PRIMARY_CITY_BY_ZIP: Record<string, string> = {
+  "44052": "Lorain", "44094": "Willoughby", "44102": "Cleveland", "44105": "Cleveland",
+  "44106": "Cleveland", "44107": "Lakewood", "44108": "Cleveland", "44109": "Cleveland",
+  "44110": "Cleveland", "44112": "Cleveland", "44113": "Cleveland", "44114": "Cleveland",
+  "44115": "Cleveland", "44118": "Cleveland Heights", "44120": "Cleveland", "44121": "South Euclid",
+  "44123": "Euclid", "44125": "Garfield Heights", "44128": "Cleveland", "44130": "Parma",
+  "44137": "Maple Heights",
 };
+
+export const CLEVELAND_ZIP_CENTERS: Record<string, { latitude: number; longitude: number; primaryCity: string | null }> = Object.fromEntries(
+  Object.entries(clevelandZctaCenters).map(([zip, center]) => [zip, { ...center, primaryCity: PRIMARY_CITY_BY_ZIP[zip] ?? null }]),
+);
 
 const CLEVELAND_ZIP_TREND_POINTS: Record<string, MarketIqTrendPoint[]> = {
   ...SEEDED_CLEVELAND_ZIP_BENCHMARK_SERIES,
@@ -194,7 +185,7 @@ export const seededClevelandMarketReport = buildMarketIqReportSnapshot({
     marketId: "cleveland-elyria-mentor-oh",
     marketName: "Cleveland-Elyria, OH",
     cities: ["Cleveland", "Cleveland Heights", "Euclid", "Garfield Heights", "Lakewood", "Lorain", "Maple Heights", "Willoughby"],
-    zipCodes: Object.keys(CLEVELAND_ZIP_CENTERS),
+    zipCodes: clevelandMsaZips,
     segments: ["All apartments", "All houses", "Apartments by bedroom", "Houses by bedroom"],
     periodStart: "2025-08-01",
     periodEnd: "2026-07-31",
@@ -227,9 +218,9 @@ export const seededClevelandMarketReport = buildMarketIqReportSnapshot({
     ],
   },
   sources: [
-    { name: "Dwellsy IQ Trends", availableThrough: "2026-07-31", observationCount: null, note: "The exclusive source for every published aggregated rent level and rent change. Overall product summaries use the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Per-cell sample sizes are shown with each result." },
+    { name: "Dwellsy IQ Trends", availableThrough: "2026-07-31", observationCount: null, note: "The exclusive source for every published aggregated rent level and rent change. Overall product summaries use the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Every available Trends IQ value is reportable." },
     { name: "Total IQ observed listings", availableThrough: "2026-07-31", observationCount: 54_544, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." },
     { name: "Total IQ listing activity feed", availableThrough: "2026-08-14", observationCount: 7, note: "Used only for the recent-listing ticker and source activity counts. It is not used to calculate aggregated prices." },
-    { name: "U.S. Census Bureau ZCTAs", availableThrough: "2020-01-01", observationCount: 21, note: "Provides the shaded ZIP Code Tabulation Area boundaries. ZCTAs approximate, but do not exactly reproduce, postal delivery ZIP areas." },
+    { name: "U.S. Census Bureau ZCTAs", availableThrough: "2020-01-01", observationCount: 101, note: "Provides 101 shaded ZIP Code Tabulation Area boundaries for the 102 active postal ZIPs in the Dwellsy Cleveland-Elyria MSA definition. Postal ZIP 44061 has no Census ZCTA polygon." },
   ],
 });

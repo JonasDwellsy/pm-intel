@@ -1,17 +1,13 @@
 import {
-  MIN_TREND_OBSERVATIONS,
   segmentLabel,
   type MarketIqMarketCell,
   type MarketIqPropertyType,
   type MarketIqReportSnapshot,
 } from "@/lib/market-iq/report/report";
+import clevelandMsaZips from "@/data/market-iq/cleveland-msa-zips.json";
 
 export const MARKET_IQ_REPORT_CITIES = ["Cleveland", "Cleveland Heights", "Euclid", "Garfield Heights", "Lakewood", "Lorain", "Maple Heights", "Willoughby"] as const;
-export const MARKET_IQ_REPORT_ZIPS = [
-  "44052", "44094", "44102", "44105", "44106", "44107", "44108",
-  "44109", "44110", "44112", "44113", "44114", "44115", "44118",
-  "44120", "44121", "44123", "44125", "44128", "44130", "44137",
-] as const;
+export const MARKET_IQ_REPORT_ZIPS: readonly string[] = clevelandMsaZips;
 export const MARKET_IQ_REPORT_SEGMENTS = [
   { key: "apartment:999", propertyType: "apartment", bedrooms: 999, label: "All apartments" },
   { key: "house:999", propertyType: "house", bedrooms: 999, label: "All houses" },
@@ -28,7 +24,7 @@ export type MarketIqReportScopeSelection = {
   segments: MarketIqSegmentKey[];
 };
 
-export type MarketIqCoverageStatus = "reportable" | "thin" | "stale" | "unavailable";
+export type MarketIqCoverageStatus = "reportable" | "stale" | "unavailable";
 export type MarketIqCoverageCell = {
   key: string;
   geographyLabel: string;
@@ -89,7 +85,6 @@ function daysBetween(start: string, end: string) {
 export function marketIqCoverageStatus(cell: MarketIqMarketCell, periodEnd: string): MarketIqCoverageStatus {
   if (cell.month && daysBetween(cell.month, periodEnd) > MAX_TREND_AGE_DAYS) return "stale";
   if (cell.status === "reportable") return "reportable";
-  if (cell.observations > 0 && cell.observations < MIN_TREND_OBSERVATIONS) return "thin";
   return "unavailable";
 }
 
@@ -132,8 +127,8 @@ export function applyMarketIqReportScope(
   const directional = cells.filter((cell) => cell.status === "reportable" && cell.yearOverYearPct !== null);
   const rising = directional.filter((cell) => (cell.yearOverYearPct ?? 0) > 0).length;
   const narrative = directional.length
-    ? `${rising} of ${directional.length} selected Trends IQ segments are rising year over year. Every published rent level and change uses the same validated monthly series, with its sample and date attached.`
-    : "No selected geography and segment currently clears the Trends IQ sample and freshness thresholds. Unsupported cells remain visible but unpublished.";
+    ? `${rising} of ${directional.length} selected Trends IQ segments are rising year over year. Every published rent level and change is a direct output from the validated Trends IQ series, with its date attached.`
+    : "No selected geography and segment currently has a fresh Trends IQ value. Unavailable cells remain visible but unpublished.";
   const selectedSegments = MARKET_IQ_REPORT_SEGMENTS
     .filter((segment) => selection.segments.includes(segment.key))
     .map((segment) => segmentLabel(segment.propertyType, segment.bedrooms));
@@ -154,10 +149,8 @@ export function buildMarketIqCoveragePreflight(snapshot: MarketIqReportSnapshot)
   const cells = snapshot.marketRead.cells.map((cell) => {
     const status = marketIqCoverageStatus(cell, snapshot.scope.periodEnd);
     const reason = status === "reportable"
-      ? `Trends IQ · N=${cell.observations.toLocaleString("en-US")} · ${cell.month}`
-      : status === "thin"
-        ? `Latest month has N=${cell.observations}; minimum is ${MIN_TREND_OBSERVATIONS}`
-        : status === "stale"
+      ? `Published by Trends IQ · ${cell.month}`
+      : status === "stale"
           ? `Latest observation is ${cell.month}; it is outside the freshness window`
           : cell.suppressionReason ?? "No Trends IQ observation is available";
     return {
@@ -174,6 +167,6 @@ export function buildMarketIqCoveragePreflight(snapshot: MarketIqReportSnapshot)
   const counts = cells.reduce<Record<MarketIqCoverageStatus, number>>((result, cell) => {
     result[cell.status] += 1;
     return result;
-  }, { reportable: 0, thin: 0, stale: 0, unavailable: 0 });
+  }, { reportable: 0, stale: 0, unavailable: 0 });
   return { cells, counts, canPublish: counts.reportable > 0 };
 }

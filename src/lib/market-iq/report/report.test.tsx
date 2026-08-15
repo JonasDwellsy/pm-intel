@@ -26,11 +26,11 @@ describe("Market IQ local market read assembly", () => {
     expect(JSON.stringify(report)).not.toMatch(/portfolioPosition|positionPct|competitor/i);
   });
 
-  it("suppresses a thin rent-level cell and withholds a thin trajectory", () => {
+  it("publishes every Trends IQ value without applying another unit-count threshold", () => {
     const report = buildMarketIqReportSnapshot({ ...baseInput, trendSeries: [{ geographyType: "zip", geographyValue: "44114", geographyLabel: "ZIP 44114", propertyType: "apartment", bedrooms: 1, points: [{ rent: 1_025, yearOverYearPct: 2.5, observations: 9, month: "2026-07-01" }] }], mapCenters: { "44114": { latitude: 41.5, longitude: -81.67 } } });
-    expect(report.marketRead.cells[0]).toMatchObject({ status: "suppressed", rent: null, yearOverYearPct: null, observations: 9 });
-    expect(report.marketRead.cells[0].suppressionReason).toMatch(/10 observations/);
-    expect(report.marketMap.points[0]).toMatchObject({ zip: "44114", status: "suppressed", rent: null });
+    expect(report.marketRead.cells[0]).toMatchObject({ status: "reportable", rent: 1_025, yearOverYearPct: 2.5, observations: 9 });
+    expect(report.marketRead.cells[0].suppressionReason).toBeNull();
+    expect(report.marketMap.points[0]).toMatchObject({ zip: "44114", status: "reportable", rent: 1_025 });
   });
 
   it("parses only Revision 4 market-read snapshots", () => {
@@ -74,7 +74,7 @@ describe("Market IQ local market read assembly", () => {
     const houses = seededClevelandMarketReport.marketMap.points.filter((point) => point.propertyType === "house" && point.bedrooms === 3 && point.status === "reportable");
     expect(apartments).toHaveLength(10);
     expect(houses).toHaveLength(6);
-    expect([...apartments, ...houses].every((point) => point.rent !== null && point.observations >= 10 && point.month === "2026-07-01")).toBe(true);
+    expect([...apartments, ...houses].every((point) => point.rent !== null && point.month === "2026-07-01")).toBe(true);
     expect([...apartments, ...houses].every((point) => point.series.length >= 2)).toBe(true);
     expect([...apartments, ...houses].some((point) => point.series.length === 12)).toBe(true);
     expect(apartments.find((point) => point.zip === "44107")).toMatchObject({ primaryCity: "Lakewood" });
@@ -119,10 +119,13 @@ describe("Market IQ local market read assembly", () => {
 });
 
 describe("Market IQ composer scope and coverage", () => {
-  it("includes every Cleveland ZIP geometry in the default report scope", () => {
+  it("includes the full Dwellsy Cleveland MSA ZIP universe and every available Census ZCTA", () => {
     const selection = defaultMarketIqScopeSelection();
-    expect(selection.zipCodes).toHaveLength(21);
+    const geometry = JSON.parse(readFileSync("public/data/cleveland-zcta.geojson", "utf8"));
+    expect(selection.zipCodes).toHaveLength(102);
+    expect(geometry.features).toHaveLength(101);
     expect(selection.zipCodes).toEqual(expect.arrayContaining(["44052", "44106", "44130", "44137"]));
+    expect(selection.zipCodes).toContain("44061");
   });
 
   it("uses one selected scope for the preflight and immutable snapshot", () => {
@@ -134,7 +137,7 @@ describe("Market IQ composer scope and coverage", () => {
     expect(scoped.scope).toMatchObject({ cities: ["Cleveland"], zipCodes: ["44113"], segments: ["1-bedroom apartments"] });
     expect(scoped.marketRead.cells.map((cell) => cell.key)).toEqual(["17460:apartment:1", "Cleveland, OH:apartment:1", "44113:apartment:1"]);
     expect(scoped.marketMap.points).toHaveLength(1);
-    expect(buildMarketIqCoveragePreflight(scoped).counts).toEqual({ reportable: 3, thin: 0, stale: 0, unavailable: 0 });
+    expect(buildMarketIqCoveragePreflight(scoped).counts).toEqual({ reportable: 3, stale: 0, unavailable: 0 });
   });
 
   it("does not silently restore unchecked geographies or segments", () => {
@@ -178,7 +181,7 @@ describe("Market IQ edition comparison", () => {
     expect(comparison.findings).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "rent_move", geographyType: "msa", currentValue: 950, priorValue: 900 })]));
   });
 
-  it("does not mislabel a sample threshold change as rent movement", () => {
+  it("does not mislabel a Trends availability change as rent movement", () => {
     const current = applyMarketIqReportScope(seededClevelandMarketReport, { cities: [], zipCodes: ["44113"], segments: ["apartment:1"] });
     const prior = {
       ...current,

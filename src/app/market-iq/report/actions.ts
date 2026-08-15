@@ -102,7 +102,7 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
   const preview = await buildClevelandComposerPreview(brand);
   const snapshot = applyMarketIqReportScope(preview.snapshot, selection);
   const coverage = buildMarketIqCoveragePreflight(snapshot);
-  if (!coverage.canPublish) throw new Error("At least one selected Trends IQ cell must clear the sample and freshness thresholds before publishing.");
+  if (!coverage.canPublish) throw new Error("At least one selected geography and segment must have a fresh Trends IQ value before publishing.");
   const priorReport = await prisma.marketIqReport.findFirst({
     where: { organizationId: context.organizationId, marketId: CLEVELAND_MARKET_ID, status: "published" },
     orderBy: { publishedAt: "desc" },

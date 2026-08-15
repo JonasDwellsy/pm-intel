@@ -43,10 +43,10 @@ function compareCell(current: MarketIqMarketCell, prior: MarketIqMarketCell): Ma
       id: findingId("coverage_change", current),
       kind: "coverage_change",
       importance: "medium",
-      headline: `${current.geographyLabel} ${current.label.toLowerCase()} ${newlyReportable ? "now clear" : "no longer clear"} the reporting threshold`,
+      headline: `${current.geographyLabel} ${current.label.toLowerCase()} ${newlyReportable ? "now have" : "no longer have"} a published Trends IQ value`,
       detail: newlyReportable
-        ? `The latest Trends IQ month has N=${current.observations.toLocaleString("en-US")}. This is a coverage change, not evidence that rent itself moved.`
-        : `The latest Trends IQ cell is withheld. The prior edition reported N=${prior.observations.toLocaleString("en-US")}.`,
+        ? "This is a coverage change, not evidence that rent itself moved."
+        : "The latest Trends IQ value is unavailable for this geography and segment.",
       geographyType: current.geographyType,
       geographyLabel: current.geographyLabel,
       segmentLabel: current.label,
@@ -72,7 +72,7 @@ function compareCell(current: MarketIqMarketCell, prior: MarketIqMarketCell): Ma
       kind: "direction_change",
       importance: "high",
       headline: `${current.geographyLabel} ${current.label.toLowerCase()} shifted from ${priorDirection} to ${currentDirection}`,
-      detail: `The Trends IQ year-over-year read moved from ${signed(prior.yearOverYearPct ?? 0)} to ${signed(current.yearOverYearPct ?? 0)}.${levelContext} Latest sample N=${current.observations.toLocaleString("en-US")}.`,
+      detail: `The Trends IQ year-over-year read moved from ${signed(prior.yearOverYearPct ?? 0)} to ${signed(current.yearOverYearPct ?? 0)}.${levelContext}`,
       geographyType: current.geographyType,
       geographyLabel: current.geographyLabel,
       segmentLabel: current.label,
@@ -90,7 +90,7 @@ function compareCell(current: MarketIqMarketCell, prior: MarketIqMarketCell): Ma
       kind: "rent_move",
       importance: Math.abs(rentMove) >= 5 ? "high" : "medium",
       headline: `${current.geographyLabel} ${current.label.toLowerCase()} rent level moved ${signed(rentMove)} since the prior edition`,
-      detail: `The published Trends IQ level changed from ${money(prior.rent)} to ${money(current.rent)}. Latest sample N=${current.observations.toLocaleString("en-US")}.`,
+      detail: `The published Trends IQ level changed from ${money(prior.rent)} to ${money(current.rent)}.`,
       geographyType: current.geographyType,
       geographyLabel: current.geographyLabel,
       segmentLabel: current.label,
@@ -171,7 +171,7 @@ export function compareMarketIqEditions(
   return {
     state: "changed",
     heading: `${ranked.length} material ${ranked.length === 1 ? "change" : "changes"} since the prior edition`,
-    narrative: "These changes passed the reporting thresholds and use the same selected geography and segment definitions as this edition.",
+    narrative: "These changes passed the materiality rules and use the same selected geography and segment definitions as this edition.",
     priorReportId: prior.id,
     priorPeriodLabel: prior.periodLabel,
     priorPublishedAt: prior.publishedAt,

@@ -175,8 +175,6 @@ export type MarketIqReportBuildInput = {
   unavailableCuts?: MarketIqReportSnapshot["marketRead"]["unavailableCuts"];
 };
 
-export const MIN_TREND_OBSERVATIONS = 10;
-
 export function marketCellKey(
   geographyValue: string,
   propertyType: MarketIqPropertyType,
@@ -196,7 +194,7 @@ function buildCell(series: MarketIqTrendSeries): MarketIqMarketCell {
     .filter((point) => point.rent > 0)
     .sort((a, b) => a.month.localeCompare(b.month));
   const latest = points.at(-1) ?? null;
-  const reportable = Boolean(latest && latest.observations >= MIN_TREND_OBSERVATIONS);
+  const reportable = Boolean(latest);
 
   return {
     key: marketCellKey(series.geographyValue, series.propertyType, series.bedrooms),
@@ -215,9 +213,7 @@ function buildCell(series: MarketIqTrendSeries): MarketIqMarketCell {
     status: reportable ? "reportable" : "suppressed",
     suppressionReason: reportable
       ? null
-      : latest
-        ? `Fewer than ${MIN_TREND_OBSERVATIONS} observations in the latest Trends IQ month`
-        : "No Trends IQ rent observation is available",
+      : "No Trends IQ rent observation is available",
   };
 }
 
@@ -255,8 +251,8 @@ export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): Ma
   const directional = reportable.filter((cell) => cell.yearOverYearPct !== null);
   const rising = directional.filter((cell) => (cell.yearOverYearPct ?? 0) > 0).length;
   const narrative = directional.length
-    ? `${rising} of ${directional.length} reportable Trends IQ segments are rising year over year. Every rent level and change below comes from the same validated Trends IQ series, with its monthly sample and date attached.`
-    : "The read publishes only rent levels supported by Trends IQ and withholds any geography or segment that does not clear the sample threshold.";
+    ? `${rising} of ${directional.length} published Trends IQ segments are rising year over year. Every rent level and change below comes directly from the validated Trends IQ series, with its date attached.`
+    : "The read publishes every available Trends IQ value and withholds only geography or segment combinations for which Trends IQ has no value.";
   const mapPoints = cells.flatMap((cell) => {
     if (cell.geographyType !== "zip") return [];
     const center = input.mapCenters?.[cell.geographyValue];
@@ -298,7 +294,7 @@ export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): Ma
     marketConditions: input.marketConditions,
     marketActivity: input.marketActivity,
     sources: input.sources,
-    methodNote: `Every published rent input comes from Trends IQ. Overall apartment and house summaries use the median stored on the Trends IQ all-bedroom rows, with year-over-year change calculated from the matching prior-year median in that same Trends series. A segment requires at least ${MIN_TREND_OBSERVATIONS} observations in its latest month. Total IQ supports listing volume, velocity, days on market, and recent listing activity only. Census ZCTAs provide the ZIP-area geometry. Thin cells are suppressed rather than estimated.`,
+    methodNote: "Every published rent input comes from Trends IQ. Overall apartment and house summaries use the median stored on the Trends IQ all-bedroom rows, with year-over-year change calculated from the matching prior-year median in that same Trends series. A published Trends IQ value is treated as reportable because Dwellsy's underlying methodology has already established confidence in that result. Unit counts are retained as source metadata but are not used as an additional publication threshold. Total IQ supports listing volume, velocity, days on market, and recent listing activity only. Census ZCTAs provide the ZIP-area geometry; postal ZIP 44061 has no Census ZCTA polygon.",
     disclosure: "This report measures advertised asking-market activity. It does not measure occupancy, signed leases, concessions, effective rent, or property-level financial performance.",
   };
 }

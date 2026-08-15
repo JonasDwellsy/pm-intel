@@ -19,10 +19,10 @@ import {
   SEEDED_CLEVELAND_TREND_SERIES,
   seededClevelandMarketReport,
 } from "@/lib/market-iq/report/seeded-cleveland";
-import { MARKET_IQ_REPORT_CITIES } from "@/lib/market-iq/report/scope";
+import { MARKET_IQ_REPORT_CITIES, MARKET_IQ_REPORT_ZIPS } from "@/lib/market-iq/report/scope";
 
 const REPORT_CITIES = [...MARKET_IQ_REPORT_CITIES];
-const REPORT_ZIPS = Object.keys(CLEVELAND_ZIP_CENTERS);
+const REPORT_ZIPS = [...MARKET_IQ_REPORT_ZIPS];
 const REPORT_BEDROOMS = [1, 2, 3];
 
 function completeTrendSeries(source: MarketIqTrendSeries[]) {
@@ -119,9 +119,9 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
   ]);
   const trendSeries = completeTrendSeries(trendSource.result.series);
   const reportCities = [...new Set(trendSeries
-    .filter((series) => series.geographyType === "city" && series.bedrooms === 999 && series.points.some((point) => point.observations >= 10))
+    .filter((series) => series.geographyType === "city" && series.bedrooms === 999 && series.points.length > 0)
     .map((series) => series.geographyLabel))].sort();
-  const reportablePoints = trendSeries.flatMap((series) => series.points.filter((point) => point.observations >= 10));
+  const reportablePoints = trendSeries.flatMap((series) => series.points);
   const historicalSource = seededClevelandMarketReport.sources.find((source) => source.name === "Total IQ observed listings");
   const latestTrendMonth = reportablePoints.map((point) => point.month).sort().at(-1) ?? seededClevelandMarketReport.scope.periodEnd;
   const trendAvailableThrough = monthEnd(latestTrendMonth);
@@ -142,7 +142,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
       seededExample: false,
     },
     trendSeries,
-    mapCenters: context ? averageZipCenters(context.coordinateRows) : CLEVELAND_ZIP_CENTERS,
+    mapCenters: context ? { ...CLEVELAND_ZIP_CENTERS, ...averageZipCenters(context.coordinateRows) } : CLEVELAND_ZIP_CENTERS,
     unavailableCuts: [{
       label: "Small multifamily versus large multifamily",
       reason: "Not published because community-size fields conflict for known Cleveland communities. Apartments remain grouped by bedroom until community identity is corrected.",
@@ -155,13 +155,13 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
     marketActivity,
     sources: [
       { name: "Dwellsy IQ Trends", availableThrough: trendAvailableThrough, observationCount: null, note: trendSource.live
-        ? "The exclusive source for every published aggregated rent level and rent change. Overall product summaries use the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Per-cell sample sizes are shown with each result."
-        : "The exclusive source for every published aggregated rent level and rent change. This source-dated snapshot uses the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Per-cell sample sizes are shown with each result." },
+        ? "The exclusive source for every published aggregated rent level and rent change. Overall product summaries use the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Every available Trends IQ value is reportable."
+        : "The exclusive source for every published aggregated rent level and rent change. This source-dated snapshot uses the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Every available Trends IQ value is reportable." },
       historicalPulse
         ? { name: "Total IQ observed listings", availableThrough: historicalPulse.historicalSource.availableThrough, observationCount: historicalPulse.historicalSource.recordCount, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." }
         : historicalSource ?? { name: "Total IQ observed listings", availableThrough: "2026-07-31", observationCount: null, note: "Used only for listing activity and geographic context. It is not used to calculate aggregated prices." },
       ...(activityAvailableThrough ? [{ name: "Total IQ listing activity feed", availableThrough: activityAvailableThrough, observationCount: marketActivity?.events.length ?? null, note: "Used only for the recent-listing ticker and source activity counts. It is not used to calculate aggregated prices." }] : []),
-      { name: "U.S. Census Bureau ZCTAs", availableThrough: "2020-01-01", observationCount: REPORT_ZIPS.length, note: "Provides the shaded ZIP Code Tabulation Area boundaries. ZCTAs approximate, but do not exactly reproduce, postal delivery ZIP areas." },
+      { name: "U.S. Census Bureau ZCTAs", availableThrough: "2020-01-01", observationCount: REPORT_ZIPS.length - 1, note: "Provides 101 shaded ZIP Code Tabulation Area boundaries for the 102 active postal ZIPs in the Dwellsy Cleveland-Elyria MSA definition. Postal ZIP 44061 has no Census ZCTA polygon." },
     ],
   });
 }

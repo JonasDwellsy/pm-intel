@@ -14,7 +14,7 @@ import type {
 } from "@/lib/market-iq/report/report";
 
 type Segment = { propertyType: MarketIqPropertyType; bedrooms: number; label: string };
-type Metric = "yoy" | "rent" | "benchmark" | "sample";
+type Metric = "yoy" | "rent" | "benchmark";
 
 const SEGMENTS: Segment[] = [
   { propertyType: "apartment", bedrooms: 1, label: "1-bed apartments" },
@@ -25,7 +25,6 @@ const METRICS: Array<{ value: Metric; label: string }> = [
   { value: "yoy", label: "Rent direction" },
   { value: "rent", label: "Asking rent" },
   { value: "benchmark", label: "Versus MSA" },
-  { value: "sample", label: "Sample strength" },
 ];
 
 const COLORS = { rising: "#147d75", stable: "#93a2b5", softening: "#cc5620", missing: "#e7eaed" } as const;
@@ -61,21 +60,19 @@ function metricValue(point: MarketIqMapPoint, metric: Metric, benchmark: MarketI
   if (metric === "yoy") return point.yearOverYearPct;
   if (metric === "rent") return point.rent;
   if (metric === "benchmark") return relative(point, benchmark);
-  return point.observations;
+  return null;
 }
 
 function metricLabel(point: MarketIqMapPoint, metric: Metric, benchmark: MarketIqMarketCell | undefined) {
   const value = metricValue(point, metric, benchmark);
   if (value === null) return "Not published";
   if (metric === "rent") return money(value);
-  if (metric === "sample") return `N=${Math.round(value)}`;
   return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
 function mapPaint(metric: Metric, min: number, max: number): ExpressionSpecification {
   if (metric === "yoy" || metric === "benchmark") return [
     "case",
-    ["==", ["get", "coverageStatus"], "thin"], "#f2dfbd",
     ["==", ["get", "coverageStatus"], "unavailable"], COLORS.missing,
     ["==", ["get", "supported"], false], "#d9dee4",
     ["interpolate", ["linear"], ["get", "metricValue"], -15, "#b84016", -5, "#e7956e", 0, "#e8e6df", 5, "#75bcb5", 15, "#08756e"],
@@ -83,7 +80,6 @@ function mapPaint(metric: Metric, min: number, max: number): ExpressionSpecifica
   const middle = min + (max - min) / 2;
   return [
     "case",
-    ["==", ["get", "coverageStatus"], "thin"], "#f2dfbd",
     ["==", ["get", "coverageStatus"], "unavailable"], COLORS.missing,
     ["==", ["get", "supported"], false], "#d9dee4",
     ["interpolate", ["linear"], ["get", "metricValue"], min, "#dbecef", middle, "#63a5ab", max, "#164d69"],
@@ -94,7 +90,7 @@ function legend(metric: Metric, min: number, max: number) {
   if (metric === "yoy") return { left: "Softening", middle: "Stable", right: "Rising" };
   if (metric === "benchmark") return { left: "Below MSA", middle: "At MSA", right: "Above MSA" };
   if (metric === "rent") return { left: money(min), middle: money(min + (max - min) / 2), right: money(max) };
-  return { left: `N=${Math.round(min)}`, middle: "Sample", right: `N=${Math.round(max)}` };
+  return { left: money(min), middle: money(min + (max - min) / 2), right: money(max) };
 }
 
 function MapFallback({ tokenMissing }: { tokenMissing: boolean }) {
@@ -150,12 +146,11 @@ function TrendChart({ points }: { points: MarketIqTrendPoint[] }) {
 function ComparisonCard({ label, cell, selected }: { label: string; cell?: MarketIqMarketCell; selected?: MarketIqMapPoint }) {
   const rent = selected ? selected.rent : cell?.rent ?? null;
   const yoy = selected ? selected.yearOverYearPct : cell?.yearOverYearPct ?? null;
-  const observations = selected ? selected.observations : cell?.observations ?? 0;
   const date = selected ? selected.month : cell?.month ?? null;
   const supported = selected ? selected.status === "reportable" : cell?.status === "reportable";
   return <div className={`rounded-2xl border p-4 ${supported ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50"}`}>
     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{label}</p>
-    {supported ? <><div className="mt-2 flex items-baseline justify-between gap-3"><p className="text-2xl font-semibold text-[var(--report-primary)]">{money(rent)}</p><p className={`text-sm font-bold ${(yoy ?? 0) >= 1 ? "text-teal-700" : (yoy ?? 0) <= -1 ? "text-orange-700" : "text-slate-500"}`}>{percentage(yoy)}</p></div><p className="mt-2 text-xs text-slate-500">N={observations} · {monthLabel(date)}</p></> : <p className="mt-3 text-sm leading-5 text-slate-500">Below the current reporting threshold</p>}
+    {supported ? <><div className="mt-2 flex items-baseline justify-between gap-3"><p className="text-2xl font-semibold text-[var(--report-primary)]">{money(rent)}</p><p className={`text-sm font-bold ${(yoy ?? 0) >= 1 ? "text-teal-700" : (yoy ?? 0) <= -1 ? "text-orange-700" : "text-slate-500"}`}>{percentage(yoy)}</p></div><p className="mt-2 text-xs text-slate-500">Trends IQ · {monthLabel(date)}</p></> : <p className="mt-3 text-sm leading-5 text-slate-500">No Trends IQ value is available</p>}
   </div>;
 }
 
@@ -192,7 +187,7 @@ function interpretation(selected: MarketIqMapPoint, city: MarketIqMarketCell | u
     : null;
   const cityContext = city?.status === "reportable" && city.yearOverYearPct !== null
     ? ` Its primary municipality is at ${percentage(city.yearOverYearPct)} year over year for the same product.`
-    : " The matching city cut is too thin to publish, so the MSA is the broader comparison.";
+    : " The matching city Trends IQ value is unavailable, so the MSA is the broader comparison.";
   return `ZIP ${selected.zip} ${direction}${versusMsa ? ` and sits ${versusMsa} the current MSA asking-rent benchmark` : ""}.${cityContext} This is a market conversation prompt, not a property pricing recommendation.`;
 }
 
@@ -219,7 +214,7 @@ function ZipDrilldown({
     </div>
     <div className="p-6 lg:p-8">
       <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-        <div><div className="mb-3 flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Trajectory</p><h4 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Twelve-month asking-rent path</h4></div><p className="text-right text-xs text-slate-500">Trends IQ · N={selected.observations}<br />{monthLabel(selected.month)}</p></div><TrendChart points={selected.series ?? []} /></div>
+        <div><div className="mb-3 flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Trajectory</p><h4 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Twelve-month asking-rent path</h4></div><p className="text-right text-xs text-slate-500">Trends IQ<br />{monthLabel(selected.month)}</p></div><TrendChart points={selected.series ?? []} /></div>
         <div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Geographic context</p><h4 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Same product, three levels</h4><div className="mt-3 grid gap-3"><ComparisonCard label={`ZIP ${selected.zip}`} selected={selected} /><ComparisonCard label={selected.primaryCity ?? "Primary municipality"} cell={cityCell} /><ComparisonCard label="Cleveland-Elyria MSA" cell={benchmark} /></div></div>
       </div>
       <div className="mt-7 grid gap-5 lg:grid-cols-[1fr_0.85fr_1fr]">
@@ -313,11 +308,7 @@ export function MarketIqRentMap({
             const point = segmentPointByZip.get(zip);
             const reportablePoint = pointByZip.get(zip);
             const value = reportablePoint ? metricValue(reportablePoint, metric, benchmark) : null;
-            const coverageStatus = reportablePoint
-              ? "reportable"
-              : point && point.observations > 0
-                ? "thin"
-                : "unavailable";
+            const coverageStatus = reportablePoint ? "reportable" : "unavailable";
             return { ...feature, properties: {
               ...feature.properties,
               zip,
@@ -337,7 +328,7 @@ export function MarketIqRentMap({
         const map = new mapboxgl.Map({
           container,
           style: "mapbox://styles/mapbox/light-v11",
-          bounds: [[-82.26, 41.32], [-81.34, 41.78]],
+          bounds: [[-82.50, 40.86], [-80.82, 41.88]],
           fitBoundsOptions: { padding: 38 },
           attributionControl: false,
         });
@@ -349,7 +340,7 @@ export function MarketIqRentMap({
           map.addLayer({ id: "market-iq-fill", type: "fill", source: "market-iq-zips", paint: { "fill-color": mapPaint(metric, min, max), "fill-opacity": ["case", ["==", ["get", "supported"], true], 0.84, 0.4] } });
           map.addLayer({ id: "market-iq-lines", type: "line", source: "market-iq-zips", paint: { "line-color": "#ffffff", "line-width": 1.5, "line-opacity": 0.95 } });
           map.addLayer({ id: "market-iq-selected", type: "line", source: "market-iq-zips", filter: ["==", ["get", "zip"], selectedZipRef.current ?? ""], paint: { "line-color": "#0f172a", "line-width": 4 } });
-          map.addLayer({ id: "market-iq-labels", type: "symbol", source: "market-iq-zips", filter: ["==", ["get", "supported"], true], layout: { "text-field": ["format", ["get", "zip"], { "font-scale": 0.88 }, "\n", {}, metric === "rent" ? ["get", "rentLabel"] : metric === "sample" ? ["concat", "N=", ["to-string", ["get", "observations"]]] : metric === "yoy" ? ["get", "yoyLabel"] : ["concat", ["to-string", ["round", ["get", "metricValue"]]], "%"], { "font-scale": 1.02 }], "text-size": 12, "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"], "text-allow-overlap": false, "text-padding": 8 }, paint: { "text-color": "#17324a", "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.6 } });
+          map.addLayer({ id: "market-iq-labels", type: "symbol", source: "market-iq-zips", filter: ["==", ["get", "supported"], true], layout: { "text-field": ["format", ["get", "zip"], { "font-scale": 0.88 }, "\n", {}, metric === "rent" ? ["get", "rentLabel"] : metric === "yoy" ? ["get", "yoyLabel"] : ["concat", ["to-string", ["round", ["get", "metricValue"]]], "%"], { "font-scale": 1.02 }], "text-size": 12, "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"], "text-allow-overlap": false, "text-padding": 8 }, paint: { "text-color": "#17324a", "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.6 } });
           const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: 10 });
           map.on("mousemove", "market-iq-fill", (event) => {
             map.getCanvas().style.cursor = "pointer";
@@ -361,10 +352,8 @@ export function MarketIqRentMap({
             title.textContent = `ZIP ${properties.zip}`;
             const detail = document.createElement("div");
             detail.textContent = properties.supported
-              ? `${properties.rentLabel} · ${properties.yoyLabel} · N=${properties.observations}`
-              : properties.coverageStatus === "thin"
-                ? `Thin July sample · N=${properties.observations}`
-                : "No qualifying July observation";
+              ? `${properties.rentLabel} · ${properties.yoyLabel}`
+              : "No Trends IQ value for this product";
             body.append(title, detail);
             popup.setLngLat(event.lngLat).setDOMContent(body).addTo(map);
           });
@@ -392,10 +381,10 @@ export function MarketIqRentMap({
     </div>
 
     <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Stat label="Supported coverage" value={`${filtered.length} ZIPs`} detail={`${filtered.reduce((sum, point) => sum + point.observations, 0).toLocaleString("en-US")} Trends IQ observations`} />
+      <Stat label="Published coverage" value={`${filtered.length} ZIPs`} detail="of 102 active Cleveland-Elyria postal ZIPs" />
       <Stat label="Asking-rent range" value={rents.length ? `${money(Math.min(...rents))} to ${money(Math.max(...rents))}` : "Not published"} detail={benchmark?.rent ? `${money(benchmark.rent)} MSA benchmark` : "MSA comparison unavailable"} />
       <Stat label="Local direction" value={`${rising} up · ${softening} down`} detail={`${filtered.length - rising - softening} within 1% or no YoY read`} />
-      <Stat label="Benchmark month" value={monthLabel(benchmark?.month ?? null)} detail={`${segment.label} · MSA N=${benchmark?.observations ?? 0}`} />
+      <Stat label="Benchmark month" value={monthLabel(benchmark?.month ?? null)} detail={`${segment.label} · Cleveland-Elyria MSA`} />
     </div>
 
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
@@ -406,11 +395,8 @@ export function MarketIqRentMap({
           <div className="pointer-events-none absolute bottom-4 left-4 w-[230px] rounded-xl border border-white/70 bg-white/95 px-4 py-3 text-xs text-slate-600 shadow-sm backdrop-blur">
             <div className="h-2.5 rounded-full" style={{ background: metric === "yoy" || metric === "benchmark" ? "linear-gradient(90deg,#b84016,#e8e6df,#08756e)" : "linear-gradient(90deg,#dbecef,#63a5ab,#164d69)" }} />
             <div className="mt-2 flex justify-between gap-2 text-[10px] font-semibold"><span>{legendLabels.left}</span><span>{legendLabels.middle}</span><span className="text-right">{legendLabels.right}</span></div>
-            <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500">
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#f2dfbd]" />Thin sample</span>
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#e7eaed]" />No observation</span>
-            </div>
-            <p className="mt-2 text-[10px] leading-4 text-slate-400">All 21 selected Cleveland-area Census ZCTAs are shown. A colored ZIP requires at least 10 observations in the latest Trends IQ month.</p>
+            <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#e7eaed]" />No Trends IQ value</span></div>
+            <p className="mt-2 text-[10px] leading-4 text-slate-400">All 101 Census ZCTAs in Dwellsy&apos;s 102-ZIP Cleveland-Elyria market definition are shown. Every available Trends IQ value is colored.</p>
           </div>
         </div>}</div>
 
@@ -419,11 +405,11 @@ export function MarketIqRentMap({
         <div className="p-2">{ranked.slice(0, 5).map((point, index) => {
           const active = selected?.zip === point.zip;
           return <button key={point.zip} type="button" onClick={() => setSelectedZip(point.zip)} className={`w-full rounded-xl px-3 py-3 text-left transition ${active ? "bg-slate-100 ring-1 ring-slate-300" : "hover:bg-slate-50"}`}>
-            <div className="flex items-start gap-3"><span className="mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">{index + 1}</span><div className="min-w-0 flex-1"><div className="flex items-baseline justify-between gap-2"><span className="font-semibold text-slate-800">ZIP {point.zip}</span><span className="text-base font-semibold text-[var(--report-primary)]">{money(point.rent)}</span></div><div className="mt-1 flex items-center justify-between gap-2 text-xs"><span className={`font-bold ${(point.yearOverYearPct ?? 0) >= 1 ? "text-teal-700" : (point.yearOverYearPct ?? 0) <= -1 ? "text-orange-700" : "text-slate-500"}`}>{percentage(point.yearOverYearPct)} YoY</span><span className="text-slate-400">N={point.observations}</span></div><p className="mt-1 text-[11px] text-slate-400">{metricLabel(point, metric, benchmark)} on selected map measure</p></div></div>
+            <div className="flex items-start gap-3"><span className="mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">{index + 1}</span><div className="min-w-0 flex-1"><div className="flex items-baseline justify-between gap-2"><span className="font-semibold text-slate-800">ZIP {point.zip}</span><span className="text-base font-semibold text-[var(--report-primary)]">{money(point.rent)}</span></div><div className="mt-1 text-xs"><span className={`font-bold ${(point.yearOverYearPct ?? 0) >= 1 ? "text-teal-700" : (point.yearOverYearPct ?? 0) <= -1 ? "text-orange-700" : "text-slate-500"}`}>{percentage(point.yearOverYearPct)} YoY</span></div><p className="mt-1 text-[11px] text-slate-400">{metricLabel(point, metric, benchmark)} on selected map measure</p></div></div>
           </button>;
         })}</div>
-        {selected && <div className="border-t border-slate-100 bg-slate-50 px-5 py-4"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Selected area</p><p className="mt-1 font-semibold text-slate-800">ZIP {selected.zip} · {money(selected.rent)}</p><p className="mt-1 text-xs text-slate-500">{percentage(selected.yearOverYearPct)} YoY · N={selected.observations}</p></div>}
-        <div className="border-t border-slate-100 px-5 py-3 text-[11px] leading-5 text-slate-500">All displayed prices and changes are direct Trends IQ statistics for the selected product. Thin ZIP cells are withheld.</div>
+        {selected && <div className="border-t border-slate-100 bg-slate-50 px-5 py-4"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Selected area</p><p className="mt-1 font-semibold text-slate-800">ZIP {selected.zip} · {money(selected.rent)}</p><p className="mt-1 text-xs text-slate-500">{percentage(selected.yearOverYearPct)} YoY · {monthLabel(selected.month)}</p></div>}
+        <div className="border-t border-slate-100 px-5 py-3 text-[11px] leading-5 text-slate-500">All displayed prices and changes are direct Trends IQ statistics for the selected product. If Trends IQ publishes a value, the map displays it.</div>
       </aside>
     </div>
 
