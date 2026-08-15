@@ -38,3 +38,14 @@ test("the integration preview root redirects before Operator IQ database reads",
   assert.ok(redirectCheck >= 0);
   assert.ok(operatorIqRead > redirectCheck);
 });
+
+test("the standalone sign-in returns to Market IQ on the same origin", () => {
+  const source = readFileSync(
+    join(process.cwd(), "src/app/sign-in/[[...sign-in]]/page.tsx"),
+    "utf8"
+  );
+
+  assert.match(source, /marketIqPreviewEnabled\(\)/);
+  assert.match(source, /forceRedirectUrl: "\/market-iq"/);
+  assert.match(source, /marketIqPreview \? "Market IQ" : "Operator IQ"/);
+});

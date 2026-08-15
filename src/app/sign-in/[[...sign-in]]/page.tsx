@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { SignIn } from "@clerk/nextjs";
+import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 
 // /sign-in — Clerk-managed sign-in route.
 //
@@ -47,11 +48,16 @@ const clerkAppearance = {
 // into "sign in to see the specific thing you clicked", and Clerk still routes
 // them back there after auth. Order matters: /brief is a 4-segment path that
 // also matches the scorecard pattern, so test it first.
-function signInContext(redirectUrl: string | undefined): {
+function signInContext(redirectUrl: string | undefined, marketIqPreview: boolean): {
   title: string;
   sub: string;
 } {
   const url = redirectUrl ?? "";
+  if (marketIqPreview || url.includes("/market-iq"))
+    return {
+      title: "Sign in to Market IQ",
+      sub: "Continue to your local rental-market intelligence workspace.",
+    };
   if (/\/property-managers\/[^/]+\/[^/]+\/brief/.test(url))
     return {
       title: "Sign in to read this brief",
@@ -86,7 +92,9 @@ export default async function SignInPage({
   searchParams: Promise<{ redirect_url?: string }>;
 }) {
   const { redirect_url } = await searchParams;
-  const ctx = signInContext(redirect_url);
+  const marketIqPreview = marketIqPreviewEnabled();
+  const ctx = signInContext(redirect_url, marketIqPreview);
+  const fallbackRedirectUrl = marketIqPreview ? "/market-iq" : "/watch-lists";
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-soft px-6 py-12">
       <div className="flex w-full max-w-[400px] flex-col items-center gap-7">
@@ -106,7 +114,7 @@ export default async function SignInPage({
           />
           <span aria-hidden className="h-4 w-px bg-grid" />
           <span className="text-[13px] font-semibold tracking-[-0.005em]">
-            Operator IQ
+            {marketIqPreview ? "Market IQ" : "Operator IQ"}
           </span>
         </Link>
         {/* One concise heading — replaces Clerk's verbose
@@ -118,7 +126,8 @@ export default async function SignInPage({
           <p className="text-[14px] text-muted-foreground">{ctx.sub}</p>
         </div>
         <SignIn
-          fallbackRedirectUrl="/watch-lists"
+          fallbackRedirectUrl={fallbackRedirectUrl}
+          {...(marketIqPreview ? { forceRedirectUrl: "/market-iq" } : {})}
           signUpUrl="/sign-up"
           appearance={clerkAppearance}
         />
