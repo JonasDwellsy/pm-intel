@@ -27,7 +27,7 @@ export default async function MarketIqReportComposerPage({ searchParams }: { sea
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
     <DwellsyIqWorkspaceNav />
-    <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><span>Client report</span><span>·</span><Link href="/market-iq/distribution" className="hover:text-teal-700">Recipients and distribution</Link></nav>
+    <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><Link href="/market-iq/editions" className="hover:text-teal-700">Edition workflow</Link><span>/</span><span>Review and publish</span><span>·</span><Link href="/market-iq/distribution" className="hover:text-teal-700">Distribution</Link></nav>
     {query.activated === "1" && <p className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Setup complete. Your saved brand and market defaults are loaded below.</p>}
     <header className="grid gap-7 border-b border-grid pb-8 lg:grid-cols-[1fr_360px] lg:items-end">
       <div><p className="dq-eyebrow">Client advisory</p><h1 className="dq-h1">Prepare a Cleveland local market read</h1><p className="mt-3 max-w-3xl text-[15px] leading-6 text-muted-foreground">Turn validated Trends IQ rent levels and direction into an interactive, client-ready read under your firm’s brand. Publishing freezes the evidence and creates a revocable public link.</p></div>

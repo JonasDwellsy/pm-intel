@@ -74,7 +74,7 @@ export function ClevelandPilot({
             Asking-market intelligence for rent direction, listing supply, and product-segment performance. This view does not measure occupancy, signed leases, or effective rent.
           </p>
         </div>
-        <div className="space-y-3"><div className="rounded-lg border border-teal/25 bg-teal-soft px-4 py-3 text-sm text-navy"><span className="font-semibold">Decision read:</span> {data.decisionRead}</div><Link href="/market-iq/report" className="block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white hover:bg-navy/90">Prepare a client report</Link><div className="flex justify-center gap-4"><Link href="/market-iq/distribution" className="text-xs font-semibold text-slate-500 hover:text-navy">Recipients and distribution</Link><Link href="/market-iq/subscribe" className="text-xs font-semibold text-slate-500 hover:text-navy">Plan and billing</Link></div></div>
+        <div className="space-y-3"><div className="rounded-lg border border-teal/25 bg-teal-soft px-4 py-3 text-sm text-navy"><span className="font-semibold">Decision read:</span> {data.decisionRead}</div><Link href="/market-iq/editions" className="block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white hover:bg-navy/90">Prepare next edition</Link><div className="flex justify-center gap-4"><Link href="/market-iq/distribution" className="text-xs font-semibold text-slate-500 hover:text-navy">Recipients and distribution</Link><Link href="/market-iq/subscribe" className="text-xs font-semibold text-slate-500 hover:text-navy">Plan and billing</Link></div></div>
       </header>
 
       <section aria-labelledby="overview-heading" className="mt-8">

@@ -46,5 +46,5 @@ export async function completeMarketIqActivation(formData: FormData): Promise<vo
       },
     }),
   ]);
-  redirect("/market-iq/report?activated=1");
+  redirect("/market-iq/editions?activated=1");
 }
