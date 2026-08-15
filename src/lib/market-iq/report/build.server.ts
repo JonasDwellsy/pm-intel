@@ -19,8 +19,9 @@ import {
   SEEDED_CLEVELAND_TREND_SERIES,
   seededClevelandMarketReport,
 } from "@/lib/market-iq/report/seeded-cleveland";
+import { MARKET_IQ_REPORT_CITIES } from "@/lib/market-iq/report/scope";
 
-const REPORT_CITIES = ["Cleveland", "Lakewood", "Euclid"];
+const REPORT_CITIES = [...MARKET_IQ_REPORT_CITIES];
 const REPORT_ZIPS = Object.keys(CLEVELAND_ZIP_CENTERS);
 const REPORT_BEDROOMS = [1, 2, 3];
 
@@ -58,18 +59,26 @@ function monthEnd(month: string) {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
 }
 
-function averageZipCenters(rows: Array<{ postalCode: string | null; latitude: number | null; longitude: number | null }>) {
-  const grouped = new Map<string, Array<{ latitude: number; longitude: number }>>();
+function averageZipCenters(rows: Array<{ postalCode: string | null; latitude: number | null; longitude: number | null; city: string | null }>) {
+  const grouped = new Map<string, Array<{ latitude: number; longitude: number; city: string | null }>>();
   for (const row of rows) {
     if (!row.postalCode || row.latitude === null || row.longitude === null) continue;
     const points = grouped.get(row.postalCode) ?? [];
-    points.push({ latitude: row.latitude, longitude: row.longitude });
+    points.push({ latitude: row.latitude, longitude: row.longitude, city: row.city });
     grouped.set(row.postalCode, points);
   }
-  return Object.fromEntries([...grouped].map(([zip, points]) => [zip, {
-    latitude: points.reduce((sum, point) => sum + point.latitude, 0) / points.length,
-    longitude: points.reduce((sum, point) => sum + point.longitude, 0) / points.length,
-  }]));
+  return Object.fromEntries([...grouped].map(([zip, points]) => {
+    const cityCounts = points.reduce<Map<string, number>>((counts, point) => {
+      if (point.city) counts.set(point.city, (counts.get(point.city) ?? 0) + 1);
+      return counts;
+    }, new Map());
+    const primaryCity = [...cityCounts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null;
+    return [zip, {
+      latitude: points.reduce((sum, point) => sum + point.latitude, 0) / points.length,
+      longitude: points.reduce((sum, point) => sum + point.longitude, 0) / points.length,
+      primaryCity,
+    }];
+  }));
 }
 
 export async function buildClevelandMarketIqReportSnapshot(input?: {
@@ -83,7 +92,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
         loadClevelandHistoricalPulse(),
         marketIqPrisma.marketIqListing.findMany({
           where: { marketId: CLEVELAND_MARKET_ID, postalCode: { in: REPORT_ZIPS }, latitude: { not: null }, longitude: { not: null } },
-          select: { postalCode: true, latitude: true, longitude: true },
+          select: { postalCode: true, latitude: true, longitude: true, city: true },
           take: 10_000,
         }),
       ]).then(([historicalPulse, coordinateRows]) => ({ historicalPulse, coordinateRows }))

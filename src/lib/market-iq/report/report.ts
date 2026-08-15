@@ -41,6 +41,7 @@ export type MarketIqMarketCell = {
 export type MarketIqMapPoint = {
   zip: string;
   label: string;
+  primaryCity: string | null;
   latitude: number;
   longitude: number;
   propertyType: MarketIqPropertyType;
@@ -51,6 +52,7 @@ export type MarketIqMapPoint = {
   month: string | null;
   status: "reportable" | "suppressed";
   valueBasis?: "trends_value" | "trends_median_999";
+  series: MarketIqTrendPoint[];
 };
 
 export type MarketIqListingEvent = {
@@ -133,7 +135,7 @@ export type MarketIqReportBuildInput = {
   brand: MarketIqReportSnapshot["brand"];
   scope: MarketIqReportSnapshot["scope"];
   trendSeries: MarketIqTrendSeries[];
-  mapCenters?: Record<string, { latitude: number; longitude: number }>;
+  mapCenters?: Record<string, { latitude: number; longitude: number; primaryCity?: string | null }>;
   marketConditions: MarketIqReportSnapshot["marketConditions"];
   marketActivity?: MarketIqMarketActivity;
   sources: MarketIqReportSnapshot["sources"];
@@ -229,6 +231,7 @@ export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): Ma
     return [{
       zip: cell.geographyValue,
       label: cell.label,
+      primaryCity: center.primaryCity ?? null,
       latitude: center.latitude,
       longitude: center.longitude,
       propertyType: cell.propertyType,
@@ -239,6 +242,7 @@ export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): Ma
       month: cell.month,
       status: cell.status,
       valueBasis: cell.valueBasis,
+      series: cell.series,
     }];
   });
 

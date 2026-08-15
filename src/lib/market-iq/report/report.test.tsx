@@ -72,6 +72,21 @@ describe("Market IQ local market read assembly", () => {
     expect(apartments).toHaveLength(10);
     expect(houses).toHaveLength(6);
     expect([...apartments, ...houses].every((point) => point.rent !== null && point.observations >= 10 && point.month === "2026-07-01")).toBe(true);
+    expect([...apartments, ...houses].every((point) => point.series.length >= 2)).toBe(true);
+    expect([...apartments, ...houses].some((point) => point.series.length === 12)).toBe(true);
+    expect(apartments.find((point) => point.zip === "44107")).toMatchObject({ primaryCity: "Lakewood" });
+  });
+
+  it("uses a consistent July benchmark definition for the municipality read", () => {
+    const cells = seededClevelandMarketReport.marketRead.cells.filter((cell) =>
+      cell.geographyType === "city" &&
+      cell.status === "reportable" &&
+      cell.month === "2026-07-01" &&
+      ((cell.propertyType === "apartment" && cell.bedrooms === 1) || (cell.propertyType === "house" && cell.bedrooms === 3))
+    );
+    expect(cells).toHaveLength(5);
+    expect([...new Set(cells.map((cell) => cell.geographyLabel))].sort()).toEqual(["Cleveland", "Lakewood", "Maple Heights"]);
+    expect(cells.every((cell) => cell.valueBasis === "trends_value")).toBe(true);
   });
 
   it("ships a source-dated market activity tape without exposing addresses", () => {
