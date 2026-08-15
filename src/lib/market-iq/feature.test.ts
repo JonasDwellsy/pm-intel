@@ -67,3 +67,19 @@ test("the standalone preview keeps unauthenticated Market IQ navigation on its o
   assert.ok(scopedOverride >= 0);
   assert.ok(defaultProtection > scopedOverride);
 });
+
+test("the public Cleveland read tolerates a fresh preview database without historical imports", () => {
+  const source = readFileSync(
+    join(process.cwd(), "src/lib/market-iq/report/build.server.ts"),
+    "utf8"
+  );
+  const analyticalContext = source.indexOf("const analyticalContext");
+  const historicalLoad = source.indexOf("loadClevelandHistoricalPulse()", analyticalContext);
+  const fallback = source.indexOf(".catch(() => null)", historicalLoad);
+  const reportBuild = source.indexOf("return buildMarketIqReportSnapshot", fallback);
+
+  assert.ok(analyticalContext >= 0);
+  assert.ok(historicalLoad > analyticalContext);
+  assert.ok(fallback > historicalLoad);
+  assert.ok(reportBuild > fallback);
+});

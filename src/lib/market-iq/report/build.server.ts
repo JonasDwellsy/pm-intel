@@ -95,7 +95,13 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
           select: { postalCode: true, latitude: true, longitude: true, city: true },
           take: 10_000,
         }),
-      ]).then(([historicalPulse, coordinateRows]) => ({ historicalPulse, coordinateRows }))
+      ])
+        .then(([historicalPulse, coordinateRows]) => ({ historicalPulse, coordinateRows }))
+        // A newly created Neon preview branch can have the application schema
+        // before the historical export has been loaded. Trends remains the
+        // authoritative rent source, so render the market read with its seeded
+        // Total IQ context instead of failing the public report.
+        .catch(() => null)
     : Promise.resolve(null);
   const [trendSource, context, marketActivity] = await Promise.all([
     liveDwellsyRuntimeEnabled
