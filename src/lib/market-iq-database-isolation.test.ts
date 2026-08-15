@@ -46,10 +46,19 @@ test("the analytical schema contains no customer, operator, or portfolio models"
   assert.doesNotMatch(schema, /model MarketIqWatchlist/);
 });
 
-test("Market IQ database configuration fails closed without a primary URL fallback", () => {
+test("project database fallback is locked to the authorized Market IQ preview", () => {
   const client = readFileSync("src/lib/market-iq/prisma.ts", "utf8");
   assert.match(client, /MARKET_IQ_DATABASE_URL/);
-  assert.doesNotMatch(client, /process\.env\.DATABASE_URL/);
+  assert.match(client, /MARKET_IQ_PREVIEW_ENABLED === "1"/);
+  assert.match(client, /MARKET_IQ_USE_PROJECT_DATABASE === "1"/);
+  assert.match(client, /VERCEL_ENV === "preview"/);
+  assert.match(client, /VERCEL_PROJECT_PRODUCTION_URL === "market-iq-mu\.vercel\.app"/);
+
+  const migrations = readFileSync("scripts/deploy-market-iq-migrations.ts", "utf8");
+  assert.match(migrations, /MARKET_IQ_PREVIEW_ENABLED === "1"/);
+  assert.match(migrations, /MARKET_IQ_USE_PROJECT_DATABASE === "1"/);
+  assert.match(migrations, /VERCEL_ENV === "preview"/);
+  assert.match(migrations, /VERCEL_PROJECT_PRODUCTION_URL === "market-iq-mu\.vercel\.app"/);
 
   const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
     scripts: Record<string, string>;

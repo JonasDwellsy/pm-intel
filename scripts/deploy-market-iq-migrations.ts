@@ -1,9 +1,18 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-const pooled = process.env.MARKET_IQ_DATABASE_URL;
-const direct = process.env.MARKET_IQ_DATABASE_URL_UNPOOLED;
 const marketIqEnabled = process.env.MARKET_IQ_PREVIEW_ENABLED === "1";
+const projectDatabaseFallbackAllowed =
+  marketIqEnabled &&
+  process.env.MARKET_IQ_USE_PROJECT_DATABASE === "1" &&
+  process.env.VERCEL_ENV === "preview" &&
+  process.env.VERCEL_PROJECT_PRODUCTION_URL === "market-iq-mu.vercel.app";
+const pooled = process.env.MARKET_IQ_DATABASE_URL ?? (
+  projectDatabaseFallbackAllowed ? process.env.DATABASE_URL : undefined
+);
+const direct = process.env.MARKET_IQ_DATABASE_URL_UNPOOLED ?? (
+  projectDatabaseFallbackAllowed ? process.env.DATABASE_URL_UNPOOLED : undefined
+);
 
 if (!pooled && !direct && !marketIqEnabled) {
   console.log("Market IQ database is not configured; skipping its migrations.");
@@ -12,7 +21,7 @@ if (!pooled && !direct && !marketIqEnabled) {
 
 if (!pooled || !direct) {
   throw new Error(
-    "MARKET_IQ_DATABASE_URL and MARKET_IQ_DATABASE_URL_UNPOOLED must be configured together."
+    "Market IQ requires a dedicated pooled and unpooled connection. Project database fallback is allowed only for the explicitly authorized Market IQ Vercel preview."
   );
 }
 
@@ -25,7 +34,14 @@ const prismaBinary = path.join(
 const result = spawnSync(
   prismaBinary,
   ["migrate", "deploy", "--schema", "prisma/market-iq/schema.prisma"],
-  { stdio: "inherit", env: process.env }
+  {
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      MARKET_IQ_DATABASE_URL: pooled,
+      MARKET_IQ_DATABASE_URL_UNPOOLED: direct,
+    },
+  }
 );
 
 if (result.error) throw result.error;
