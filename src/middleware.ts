@@ -26,9 +26,29 @@ import {
 
 const isProtectedRoute = createRouteMatcher([...PROTECTED_ROUTE_PATTERNS]);
 const isPublicWatchListRoute = createRouteMatcher([...PUBLIC_BUYBOX_PATTERNS]);
+const isMarketIqPageRoute = createRouteMatcher([
+  "/market-iq",
+  "/market-iq/:path*",
+]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req) && !isPublicWatchListRoute(req)) {
+    // The standalone Market IQ preview shares the production Clerk instance
+    // with Operator IQ, whose instance-level sign-in URL points at the
+    // Operator IQ domain. Keep signed-out preview visitors on this origin so
+    // the local Market IQ doorway can authenticate them and return them to the
+    // Market IQ workspace. This exception is both route- and flag-scoped, so
+    // it cannot alter Operator IQ, Portfolio IQ, or any production route.
+    if (
+      process.env.MARKET_IQ_PREVIEW_ENABLED === "1" &&
+      isMarketIqPageRoute(req)
+    ) {
+      const returnTo = `${req.nextUrl.pathname}${req.nextUrl.search}`;
+      const signInUrl = new URL("/sign-in", req.url);
+      signInUrl.searchParams.set("redirect_url", returnTo);
+      await auth.protect({ unauthenticatedUrl: signInUrl.toString() });
+      return;
+    }
     await auth.protect();
   }
 });

@@ -49,3 +49,17 @@ test("the standalone sign-in returns to Market IQ on the same origin", () => {
   assert.match(source, /forceRedirectUrl: "\/market-iq"/);
   assert.match(source, /marketIqPreview \? "Market IQ" : "Operator IQ"/);
 });
+
+test("the standalone preview keeps unauthenticated Market IQ navigation on its own origin", () => {
+  const source = readFileSync(join(process.cwd(), "src/middleware.ts"), "utf8");
+
+  assert.match(source, /isMarketIqPageRoute/);
+  assert.match(source, /MARKET_IQ_PREVIEW_ENABLED === "1"/);
+  assert.match(source, /new URL\("\/sign-in", req\.url\)/);
+  assert.match(source, /auth\.protect\(\{ unauthenticatedUrl: signInUrl\.toString\(\) \}\)/);
+
+  const scopedOverride = source.indexOf("isMarketIqPageRoute(req)");
+  const defaultProtection = source.lastIndexOf("await auth.protect()");
+  assert.ok(scopedOverride >= 0);
+  assert.ok(defaultProtection > scopedOverride);
+});
