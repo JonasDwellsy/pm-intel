@@ -24,6 +24,14 @@ export default async function MarketIqPage() {
   const access = await resolveViewerMarketIqAccess();
   if (!access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) redirect("/market-iq/subscribe");
 
+  if (access.source === "subscription") {
+    const { organizationId } = await getActiveOrgContext();
+    if (organizationId) {
+      const preference = await prisma.marketIqWorkspacePreference.findUnique({ where: { organizationId }, select: { onboardingCompletedAt: true } });
+      if (!preference?.onboardingCompletedAt) redirect("/market-iq/get-started");
+    }
+  }
+
   const [{ organizationId }, historicalPulse, trendPulses, liveListingPulse] = await Promise.all([
     getActiveOrgContext(),
     loadClevelandHistoricalPulse(),

@@ -8,6 +8,7 @@ import {
 import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import type { PriorMarketIqEdition } from "@/lib/market-iq/report/edition-comparison";
+import { marketIqSelectionFromPreference } from "@/lib/market-iq/workspace-preference";
 
 export type MarketIqReportBrandInput = MarketIqReportSnapshot["brand"];
 
@@ -53,6 +54,7 @@ export async function loadMarketIqReportComposer(organizationId: string) {
       id: true,
       name: true,
       brandProfile: true,
+      marketIqWorkspacePreference: true,
       marketIqReports: {
         orderBy: { createdAt: "desc" },
         take: 12,
@@ -105,5 +107,5 @@ export async function loadMarketIqReportComposer(organizationId: string) {
     publishedAt: latestPublished.publishedAt?.toISOString() ?? null,
     snapshot: priorSnapshot,
   } : null;
-  return { organization, brand, preview, priorEdition };
+  return { organization, brand, preview, priorEdition, initialSelection: marketIqSelectionFromPreference(organization.marketIqWorkspacePreference) };
 }

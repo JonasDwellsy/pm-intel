@@ -22,6 +22,7 @@ export default async function MarketIqSubscribePage({ searchParams }: { searchPa
     where: { id: organizationId },
     select: {
       name: true,
+      marketIqWorkspacePreference: { select: { onboardingCompletedAt: true } },
       marketIqSubscriptions: {
         include: { markets: true },
         orderBy: { createdAt: "desc" },
@@ -34,6 +35,7 @@ export default async function MarketIqSubscribePage({ searchParams }: { searchPa
   const latest = organization.marketIqSubscriptions[0] ?? null;
   const canManageBilling = role === "org:admin";
   const checkoutReady = stripeConfigured() && Boolean(process.env.STRIPE_MARKET_IQ_SINGLE_MARKET_PRICE_ID);
+  const activationComplete = Boolean(organization.marketIqWorkspacePreference?.onboardingCompletedAt);
 
   return <main className="min-h-screen bg-[#f7f7f4] px-5 py-10 sm:px-6 lg:py-16">
     <div className="mx-auto max-w-5xl">
@@ -59,7 +61,7 @@ export default async function MarketIqSubscribePage({ searchParams }: { searchPa
           {active ? <div className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
             <p className="text-xs font-bold uppercase tracking-[0.13em] text-emerald-800">{active.source === "enterprise" ? "Enterprise provisioned" : active.status === "past_due" ? "Payment needs attention" : "Subscription active"}</p>
             <p className="mt-2 text-sm leading-6 text-slate-700">{organization.name} has access to {active.markets.length} market{active.markets.length === 1 ? "" : "s"}.{active.cancelAtPeriodEnd && active.currentPeriodEnd ? ` Access remains available through ${dateLabel(active.currentPeriodEnd)}.` : ""}</p>
-            <div className="mt-4 flex flex-wrap gap-3"><Link href="/market-iq/report" className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">Create a client read</Link><Link href="/market-iq" className="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-navy">Open Market IQ</Link></div>
+            <div className="mt-4 flex flex-wrap gap-3"><Link href={activationComplete ? "/market-iq/report" : "/market-iq/get-started"} className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">{activationComplete ? "Create a client read" : "Finish setup"}</Link><Link href="/market-iq" className="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-navy">Open Market IQ</Link></div>
           </div> : <div className="mt-8">
             {canManageBilling && checkoutReady ? <form action="/api/market-iq/billing/checkout" method="post"><button className="w-full rounded-md bg-navy px-5 py-3.5 text-sm font-semibold text-white hover:bg-navy/90">Subscribe with Stripe</button></form> : <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-600">{!canManageBilling ? "Ask an organization administrator to start the subscription." : "Online checkout is being configured. Enterprise-provisioned access remains available for early customers."}</div>}
           </div>}

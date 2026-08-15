@@ -8,7 +8,6 @@ import { compareMarketIqEditions, type PriorMarketIqEdition } from "@/lib/market
 import {
   applyMarketIqReportScope,
   buildMarketIqCoveragePreflight,
-  defaultMarketIqScopeSelection,
   MARKET_IQ_REPORT_CITIES,
   MARKET_IQ_REPORT_SEGMENTS,
   MARKET_IQ_REPORT_ZIPS,
@@ -46,13 +45,14 @@ function CoverageSummary({ status, count }: { status: MarketIqCoverageStatus; co
   return <div className={`rounded-xl px-4 py-3 ring-1 ${STATUS_STYLE[status]}`}><p className="text-2xl font-semibold">{count}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em]">{status}</p></div>;
 }
 
-export function MarketIqReportComposerClient({ snapshot, initialBrand, source, priorEdition }: {
+export function MarketIqReportComposerClient({ snapshot, initialBrand, initialSelection, source, priorEdition }: {
   snapshot: MarketIqReportSnapshot;
   initialBrand: Brand;
+  initialSelection: MarketIqReportScopeSelection;
   source: "dwellsy_trends" | "verified_seed";
   priorEdition: PriorMarketIqEdition | null;
 }) {
-  const [selection, setSelection] = useState<MarketIqReportScopeSelection>(defaultMarketIqScopeSelection());
+  const [selection, setSelection] = useState<MarketIqReportScopeSelection>(initialSelection);
   const [brand, setBrand] = useState<Brand>(initialBrand);
   const [editorialHeadline, setEditorialHeadline] = useState("");
   const [editorialIntroduction, setEditorialIntroduction] = useState("");
