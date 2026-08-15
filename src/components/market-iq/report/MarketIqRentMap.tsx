@@ -74,12 +74,18 @@ function metricLabel(point: MarketIqMapPoint, metric: Metric, benchmark: MarketI
 
 function mapPaint(metric: Metric, min: number, max: number): ExpressionSpecification {
   if (metric === "yoy" || metric === "benchmark") return [
-    "case", ["==", ["get", "supported"], false], COLORS.missing,
+    "case",
+    ["==", ["get", "coverageStatus"], "thin"], "#f2dfbd",
+    ["==", ["get", "coverageStatus"], "unavailable"], COLORS.missing,
+    ["==", ["get", "supported"], false], "#d9dee4",
     ["interpolate", ["linear"], ["get", "metricValue"], -15, "#b84016", -5, "#e7956e", 0, "#e8e6df", 5, "#75bcb5", 15, "#08756e"],
   ] as ExpressionSpecification;
   const middle = min + (max - min) / 2;
   return [
-    "case", ["==", ["get", "supported"], false], COLORS.missing,
+    "case",
+    ["==", ["get", "coverageStatus"], "thin"], "#f2dfbd",
+    ["==", ["get", "coverageStatus"], "unavailable"], COLORS.missing,
+    ["==", ["get", "supported"], false], "#d9dee4",
     ["interpolate", ["linear"], ["get", "metricValue"], min, "#dbecef", middle, "#63a5ab", max, "#164d69"],
   ] as ExpressionSpecification;
 }
@@ -243,12 +249,14 @@ export function MarketIqRentMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
   const selectedZipRef = useRef<string | null>(null);
-  const filtered = useMemo(() => points.filter((point) =>
+  const segmentPoints = useMemo(() => points.filter((point) =>
     point.propertyType === segment.propertyType &&
-    point.bedrooms === segment.bedrooms &&
+    point.bedrooms === segment.bedrooms
+  ), [points, segment]);
+  const filtered = useMemo(() => segmentPoints.filter((point) =>
     point.status === "reportable" &&
     point.rent !== null
-  ), [points, segment]);
+  ), [segmentPoints]);
   const benchmark = benchmarks.find((cell) =>
     cell.geographyType === "msa" &&
     cell.propertyType === segment.propertyType &&
@@ -297,21 +305,29 @@ export function MarketIqRentMap({
         const boundaries = await boundaryResponse.json() as FeatureCollection<Geometry, GeoJsonProperties>;
         if (cancelled) return;
         const pointByZip = new Map(filtered.map((point) => [point.zip, point]));
+        const segmentPointByZip = new Map(segmentPoints.map((point) => [point.zip, point]));
         const joined: FeatureCollection<Geometry, GeoJsonProperties> = {
           ...boundaries,
           features: boundaries.features.map((feature) => {
             const zip = String(feature.properties?.ZCTA5 ?? feature.properties?.GEOID ?? "");
-            const point = pointByZip.get(zip);
-            const value = point ? metricValue(point, metric, benchmark) : null;
+            const point = segmentPointByZip.get(zip);
+            const reportablePoint = pointByZip.get(zip);
+            const value = reportablePoint ? metricValue(reportablePoint, metric, benchmark) : null;
+            const coverageStatus = reportablePoint
+              ? "reportable"
+              : point && point.observations > 0
+                ? "thin"
+                : "unavailable";
             return { ...feature, properties: {
               ...feature.properties,
               zip,
               supported: value !== null,
+              coverageStatus,
               metricValue: value ?? 0,
-              rent: point?.rent ?? null,
-              rentLabel: money(point?.rent ?? null),
-              yoy: point?.yearOverYearPct ?? null,
-              yoyLabel: percentage(point?.yearOverYearPct ?? null),
+              rent: reportablePoint?.rent ?? null,
+              rentLabel: money(reportablePoint?.rent ?? null),
+              yoy: reportablePoint?.yearOverYearPct ?? null,
+              yoyLabel: percentage(reportablePoint?.yearOverYearPct ?? null),
               observations: point?.observations ?? 0,
             } };
           }),
@@ -344,7 +360,11 @@ export function MarketIqRentMap({
             const title = document.createElement("strong");
             title.textContent = `ZIP ${properties.zip}`;
             const detail = document.createElement("div");
-            detail.textContent = properties.supported ? `${properties.rentLabel} · ${properties.yoyLabel} · N=${properties.observations}` : "Below the reporting threshold";
+            detail.textContent = properties.supported
+              ? `${properties.rentLabel} · ${properties.yoyLabel} · N=${properties.observations}`
+              : properties.coverageStatus === "thin"
+                ? `Thin July sample · N=${properties.observations}`
+                : "No qualifying July observation";
             body.append(title, detail);
             popup.setLngLat(event.lngLat).setDOMContent(body).addTo(map);
           });
@@ -360,7 +380,7 @@ export function MarketIqRentMap({
       }
     })();
     return () => { cancelled = true; cleanup?.(); };
-  }, [benchmark, filtered, metric, min, max]);
+  }, [benchmark, filtered, metric, min, max, segmentPoints]);
 
   return <div>
     <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
@@ -386,7 +406,11 @@ export function MarketIqRentMap({
           <div className="pointer-events-none absolute bottom-4 left-4 w-[230px] rounded-xl border border-white/70 bg-white/95 px-4 py-3 text-xs text-slate-600 shadow-sm backdrop-blur">
             <div className="h-2.5 rounded-full" style={{ background: metric === "yoy" || metric === "benchmark" ? "linear-gradient(90deg,#b84016,#e8e6df,#08756e)" : "linear-gradient(90deg,#dbecef,#63a5ab,#164d69)" }} />
             <div className="mt-2 flex justify-between gap-2 text-[10px] font-semibold"><span>{legendLabels.left}</span><span>{legendLabels.middle}</span><span className="text-right">{legendLabels.right}</span></div>
-            <p className="mt-2 border-t border-slate-200 pt-2 text-[10px] leading-4 text-slate-400">Gray areas are below the Trends IQ reporting threshold. Boundaries are Census ZCTAs, an approximation of ZIP delivery areas.</p>
+            <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500">
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#f2dfbd]" />Thin sample</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#e7eaed]" />No observation</span>
+            </div>
+            <p className="mt-2 text-[10px] leading-4 text-slate-400">All 21 selected Cleveland-area Census ZCTAs are shown. A colored ZIP requires at least 10 observations in the latest Trends IQ month.</p>
           </div>
         </div>}</div>
 

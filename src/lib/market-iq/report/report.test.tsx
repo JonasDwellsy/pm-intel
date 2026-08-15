@@ -6,7 +6,7 @@ import { canAccessMarketIqReportComposer } from "./access";
 import { buildMarketIqReportEmail } from "./email";
 import { compareMarketIqEditions } from "./edition-comparison";
 import { seededClevelandMarketReport } from "./seeded-cleveland";
-import { applyMarketIqReportScope, buildMarketIqCoveragePreflight, normalizeMarketIqScopeSelection } from "./scope";
+import { applyMarketIqReportScope, buildMarketIqCoveragePreflight, defaultMarketIqScopeSelection, normalizeMarketIqScopeSelection } from "./scope";
 import { MarketIqPublicReport } from "@/components/market-iq/report/MarketIqPublicReport";
 
 const baseInput = {
@@ -119,6 +119,12 @@ describe("Market IQ local market read assembly", () => {
 });
 
 describe("Market IQ composer scope and coverage", () => {
+  it("includes every Cleveland ZIP geometry in the default report scope", () => {
+    const selection = defaultMarketIqScopeSelection();
+    expect(selection.zipCodes).toHaveLength(21);
+    expect(selection.zipCodes).toEqual(expect.arrayContaining(["44052", "44106", "44130", "44137"]));
+  });
+
   it("uses one selected scope for the preflight and immutable snapshot", () => {
     const scoped = applyMarketIqReportScope(seededClevelandMarketReport, {
       cities: ["Cleveland"],
