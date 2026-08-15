@@ -1,10 +1,13 @@
 import { readFileSync } from "node:fs";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { buildMarketIqReportSnapshot, isPublicMarketIqReportStatus, parseMarketIqReportSnapshot } from "./report";
 import { canAccessMarketIqReportComposer } from "./access";
 import { buildMarketIqReportEmail } from "./email";
+import { compareMarketIqEditions } from "./edition-comparison";
 import { seededClevelandMarketReport } from "./seeded-cleveland";
 import { applyMarketIqReportScope, buildMarketIqCoveragePreflight, normalizeMarketIqScopeSelection } from "./scope";
+import { MarketIqPublicReport } from "@/components/market-iq/report/MarketIqPublicReport";
 
 const baseInput = {
   generatedAt: new Date("2026-08-14T00:00:00.000Z"),
@@ -146,6 +149,55 @@ describe("Market IQ composer scope and coverage", () => {
     const scoped = applyMarketIqReportScope(stale, { cities: ["Cleveland"], zipCodes: [], segments: ["apartment:1"] });
     expect(scoped.marketRead.cells.find((cell) => cell.key === "Cleveland, OH:apartment:1")).toMatchObject({ status: "suppressed", rent: null, yearOverYearPct: null });
     expect(buildMarketIqCoveragePreflight(scoped).counts.stale).toBe(1);
+  });
+});
+
+describe("Market IQ edition comparison", () => {
+  it("labels the first published read as a baseline", () => {
+    const comparison = compareMarketIqEditions(seededClevelandMarketReport, null);
+    expect(comparison).toMatchObject({ state: "baseline", priorReportId: null, findings: [] });
+  });
+
+  it("detects a material rent move from the same Trends IQ cell", () => {
+    const current = applyMarketIqReportScope(seededClevelandMarketReport, { cities: ["Cleveland"], zipCodes: [], segments: ["apartment:1"] });
+    const prior = {
+      ...current,
+      marketRead: {
+        ...current.marketRead,
+        cells: current.marketRead.cells.map((cell) => cell.key === "17460:apartment:1" ? { ...cell, rent: 900 } : cell),
+      },
+    };
+    const comparison = compareMarketIqEditions(current, { id: "report_prior", periodLabel: "June 2026", publishedAt: "2026-07-10T00:00:00.000Z", snapshot: prior });
+    expect(comparison.state).toBe("changed");
+    expect(comparison.findings).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "rent_move", geographyType: "msa", currentValue: 950, priorValue: 900 })]));
+  });
+
+  it("does not mislabel a sample threshold change as rent movement", () => {
+    const current = applyMarketIqReportScope(seededClevelandMarketReport, { cities: [], zipCodes: ["44113"], segments: ["apartment:1"] });
+    const prior = {
+      ...current,
+      marketRead: {
+        ...current.marketRead,
+        cells: current.marketRead.cells.map((cell) => cell.key === "44113:apartment:1" ? { ...cell, status: "suppressed" as const, rent: null, yearOverYearPct: null } : cell),
+      },
+    };
+    const comparison = compareMarketIqEditions(current, { id: "report_prior", periodLabel: "June 2026", publishedAt: null, snapshot: prior });
+    const zipFinding = comparison.findings.find((finding) => finding.geographyLabel === "ZIP 44113");
+    expect(zipFinding).toMatchObject({ kind: "coverage_change" });
+    expect(zipFinding?.detail).toContain("not evidence that rent itself moved");
+  });
+
+  it("renders the reviewed PM framing and edition state on the client page", () => {
+    const report = {
+      ...seededClevelandMarketReport,
+      editorial: { headline: "Cleveland conditions worth discussing", introduction: "A PM-authored opening for the client.", reviewedAt: "2026-08-14T00:00:00.000Z", reviewedBy: "PM reviewer" },
+      editionComparison: compareMarketIqEditions(seededClevelandMarketReport, null),
+    };
+    const html = renderToStaticMarkup(<MarketIqPublicReport report={report} preview />);
+    expect(html).toContain("Cleveland conditions worth discussing");
+    expect(html).toContain("A PM-authored opening for the client.");
+    expect(html).toContain("Since the last market read");
+    expect(html).toContain("This is the launch baseline");
   });
 });
 

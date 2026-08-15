@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { publishMarketIqReport } from "@/app/market-iq/report/actions";
 import { MarketIqPublicReport } from "@/components/market-iq/report/MarketIqPublicReport";
 import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
+import { compareMarketIqEditions, type PriorMarketIqEdition } from "@/lib/market-iq/report/edition-comparison";
 import {
   applyMarketIqReportScope,
   buildMarketIqCoveragePreflight,
@@ -46,13 +47,16 @@ function CoverageSummary({ status, count }: { status: MarketIqCoverageStatus; co
   return <div className={`rounded-xl px-4 py-3 ring-1 ${STATUS_STYLE[status]}`}><p className="text-2xl font-semibold">{count}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em]">{status}</p></div>;
 }
 
-export function MarketIqReportComposerClient({ snapshot, initialBrand, source }: {
+export function MarketIqReportComposerClient({ snapshot, initialBrand, source, priorEdition }: {
   snapshot: MarketIqReportSnapshot;
   initialBrand: Brand;
   source: "dwellsy_trends" | "verified_seed";
+  priorEdition: PriorMarketIqEdition | null;
 }) {
   const [selection, setSelection] = useState<MarketIqReportScopeSelection>(defaultMarketIqScopeSelection());
   const [brand, setBrand] = useState<Brand>(initialBrand);
+  const [editorialHeadline, setEditorialHeadline] = useState("");
+  const [editorialIntroduction, setEditorialIntroduction] = useState("");
   const scopedSnapshot = useMemo(() => applyMarketIqReportScope({
     ...snapshot,
     brand: {
@@ -61,7 +65,21 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, source }:
       websiteUrl: brand.websiteUrl?.startsWith("https://") ? brand.websiteUrl : null,
     },
   }, selection), [snapshot, selection, brand]);
-  const coverage = useMemo(() => buildMarketIqCoveragePreflight(scopedSnapshot), [scopedSnapshot]);
+  const editionComparison = useMemo(() => compareMarketIqEditions(scopedSnapshot, priorEdition ? {
+    ...priorEdition,
+    snapshot: applyMarketIqReportScope(priorEdition.snapshot, selection),
+  } : null), [scopedSnapshot, priorEdition, selection]);
+  const reviewedSnapshot = useMemo(() => ({
+    ...scopedSnapshot,
+    editionComparison,
+    editorial: {
+      headline: editorialHeadline.trim() || null,
+      introduction: editorialIntroduction.trim() || null,
+      reviewedAt: snapshot.generatedAt,
+      reviewedBy: "PM reviewer",
+    },
+  }), [scopedSnapshot, editionComparison, editorialHeadline, editorialIntroduction, snapshot.generatedAt]);
+  const coverage = useMemo(() => buildMarketIqCoveragePreflight(reviewedSnapshot), [reviewedSnapshot]);
   const groupedCoverage = Object.entries(coverage.cells.reduce<Record<string, typeof coverage.cells>>((groups, cell) => {
     (groups[cell.geographyLabel] ??= []).push(cell);
     return groups;
@@ -84,13 +102,16 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, source }:
           <fieldset><legend className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">ZIP codes</legend><div className="mt-2 grid grid-cols-2 gap-2">{MARKET_IQ_REPORT_ZIPS.map((zip) => <ScopeOption key={zip} name="zipCodes" value={zip} label={zip} checked={selection.zipCodes.includes(zip)} onChange={() => setSelection((current) => ({ ...current, zipCodes: toggleValue(current.zipCodes, zip) }))} />)}</div></fieldset>
           <fieldset><legend className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Product segments</legend><div className="mt-2 grid gap-2">{MARKET_IQ_REPORT_SEGMENTS.map((segment) => <ScopeOption key={segment.key} name="segments" value={segment.key} label={segment.label} checked={selection.segments.includes(segment.key)} onChange={() => setSelection((current) => ({ ...current, segments: toggleValue(current.segments, segment.key as MarketIqSegmentKey) }))} />)}</div></fieldset>
 
+          <div className="border-t border-grid pt-4"><p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">PM review</p><p className="mt-2 text-xs leading-5 text-muted-foreground">The data-led version is ready without edits. Add your own framing only when it improves the client conversation.</p></div>
+          <label className="text-sm font-semibold text-navy">Client headline, optional<input name="editorialHeadline" maxLength={120} value={editorialHeadline} onChange={(event) => setEditorialHeadline(event.target.value)} placeholder="A split rental market requires a local read" className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /><span className="mt-1 block text-right text-[10px] font-normal text-muted-foreground">{editorialHeadline.length}/120</span></label>
+          <label className="text-sm font-semibold text-navy">Opening note, optional<textarea name="editorialIntroduction" maxLength={700} rows={5} value={editorialIntroduction} onChange={(event) => setEditorialIntroduction(event.target.value)} placeholder="Add the context you want your client to read before the evidence." className="mt-2 w-full resize-y rounded-md border border-grid px-3 py-2.5 text-sm font-normal leading-6" /><span className="mt-1 block text-right text-[10px] font-normal text-muted-foreground">{editorialIntroduction.length}/700</span></label>
+
           <div className="border-t border-grid pt-4"><p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Your client-facing brand</p></div>
           <label className="text-sm font-semibold text-navy">Firm name<input name="displayName" required minLength={2} maxLength={120} value={brand.displayName} onChange={(event) => updateBrand("displayName", event.target.value)} className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /></label>
           <label className="text-sm font-semibold text-navy">Logo URL, optional<input name="logoUrl" type="url" maxLength={500} value={brand.logoUrl ?? ""} onChange={(event) => updateBrand("logoUrl", event.target.value || null)} placeholder="https://yourfirm.com/logo.png" className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /></label>
           <div className="grid grid-cols-2 gap-3"><label className="text-sm font-semibold text-navy">Primary<input name="primaryColor" type="color" value={brand.primaryColor} onChange={(event) => updateBrand("primaryColor", event.target.value)} className="mt-2 h-11 w-full rounded-md border border-grid bg-white p-1" /></label><label className="text-sm font-semibold text-navy">Accent<input name="accentColor" type="color" value={brand.accentColor} onChange={(event) => updateBrand("accentColor", event.target.value)} className="mt-2 h-11 w-full rounded-md border border-grid bg-white p-1" /></label></div>
           <label className="text-sm font-semibold text-navy">Contact name<input name="contactName" maxLength={120} value={brand.contactName ?? ""} onChange={(event) => updateBrand("contactName", event.target.value || null)} className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /></label>
           <label className="text-sm font-semibold text-navy">Contact email<input name="contactEmail" type="email" maxLength={254} value={brand.contactEmail ?? ""} onChange={(event) => updateBrand("contactEmail", event.target.value || null)} className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /></label>
-          <label className="text-sm font-semibold text-navy">Contact phone<input name="contactPhone" maxLength={40} value={brand.contactPhone ?? ""} onChange={(event) => updateBrand("contactPhone", event.target.value || null)} className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /></label>
           <label className="text-sm font-semibold text-navy">Website<input name="websiteUrl" type="url" maxLength={500} value={brand.websiteUrl ?? ""} onChange={(event) => updateBrand("websiteUrl", event.target.value || null)} placeholder="https://yourfirm.com" className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /></label>
 
           <button disabled={!canPublish} className="mt-1 rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white hover:bg-navy/90 disabled:cursor-not-allowed disabled:bg-slate-300">Publish immutable report</button>
@@ -102,13 +123,14 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, source }:
       <section className="rounded-xl border border-grid bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="dq-eyebrow">Pre-publication check</p><h2 className="dq-h2">What the client will and will not see</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Every selected geography and segment is checked against the latest Trends IQ month. Thin, stale, and missing cells stay visible here but publish without a rent value.</p></div><span className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${source === "dwellsy_trends" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>{source === "dwellsy_trends" ? "Live Dwellsy Trends" : "Verified preview seed"}</span></div>
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4"><CoverageSummary status="reportable" count={coverage.counts.reportable} /><CoverageSummary status="thin" count={coverage.counts.thin} /><CoverageSummary status="stale" count={coverage.counts.stale} /><CoverageSummary status="unavailable" count={coverage.counts.unavailable} /></div>
+        <div className="mt-7 rounded-xl border border-teal-200 bg-teal-50/60 p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Edition comparison</p><h3 className="mt-2 text-lg font-semibold text-navy">{editionComparison.heading}</h3><p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{editionComparison.narrative}</p></div><span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-teal-800 ring-1 ring-teal-200">{editionComparison.state}</span></div>{editionComparison.findings.length > 0 && <div className="mt-4 grid gap-3 lg:grid-cols-2">{editionComparison.findings.map((finding) => <article key={finding.id} className="rounded-lg border border-teal-100 bg-white p-4"><div className="flex items-center justify-between gap-3"><span className="text-[10px] font-bold uppercase tracking-[0.11em] text-teal-700">{finding.importance} priority</span><span className="text-[10px] uppercase text-muted-foreground">{finding.geographyType}</span></div><p className="mt-2 text-sm font-semibold leading-5 text-navy">{finding.headline}</p><p className="mt-2 text-xs leading-5 text-muted-foreground">{finding.detail}</p></article>)}</div>}</div>
         <div className="mt-7 grid gap-4 lg:grid-cols-2">{groupedCoverage.map(([geography, cells]) => <article key={geography} className="rounded-xl border border-grid p-4"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-navy">{geography}</h3><span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{cells[0]?.geographyType}</span></div><div className="mt-3 grid gap-2">{cells.map((cell) => <div key={cell.key} title={cell.reason} className="flex items-center justify-between gap-3 rounded-lg bg-surface-soft px-3 py-2"><div><p className="text-xs font-semibold text-navy">{cell.segmentLabel}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{cell.reason}</p></div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold uppercase ring-1 ${STATUS_STYLE[cell.status]}`}>{cell.status}</span></div>)}</div></article>)}</div>
       </section>
     </section>
 
     <section className="mt-10 overflow-hidden rounded-2xl border border-grid bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-grid bg-white px-6 py-4"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700">Exact client-facing preview</p><p className="mt-1 text-sm text-muted-foreground">This shared renderer is also used by the published public link.</p></div><span className="rounded-full bg-surface-soft px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{coverage.counts.reportable} rent cells will publish</span></div>
-      <MarketIqPublicReport report={scopedSnapshot} preview />
+      <MarketIqPublicReport report={reviewedSnapshot} preview />
     </section>
   </>;
 }

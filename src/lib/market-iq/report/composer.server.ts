@@ -6,6 +6,8 @@ import {
   seededClevelandMarketReport,
 } from "@/lib/market-iq/report/seeded-cleveland";
 import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
+import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
+import type { PriorMarketIqEdition } from "@/lib/market-iq/report/edition-comparison";
 
 export type MarketIqReportBrandInput = MarketIqReportSnapshot["brand"];
 
@@ -45,7 +47,7 @@ export async function buildClevelandComposerPreview(brand: MarketIqReportBrandIn
 }
 
 export async function loadMarketIqReportComposer(organizationId: string) {
-  const organization = await prisma.organization.findUnique({
+  const [organization, latestPublished] = await Promise.all([prisma.organization.findUnique({
     where: { id: organizationId },
     select: {
       id: true,
@@ -79,7 +81,11 @@ export async function loadMarketIqReportComposer(organizationId: string) {
         },
       },
     },
-  });
+  }), prisma.marketIqReport.findFirst({
+    where: { organizationId, status: "published" },
+    orderBy: { publishedAt: "desc" },
+    select: { id: true, periodLabel: true, publishedAt: true, snapshot: true },
+  })]);
   if (!organization) return null;
   const brand = organization.brandProfile ?? defaultMarketIqReportBrand(organization.name);
   const preview = await buildClevelandComposerPreview({
@@ -92,5 +98,12 @@ export async function loadMarketIqReportComposer(organizationId: string) {
     contactPhone: brand.contactPhone,
     websiteUrl: brand.websiteUrl,
   });
-  return { organization, brand, preview };
+  const priorSnapshot = latestPublished ? parseMarketIqReportSnapshot(latestPublished.snapshot) : null;
+  const priorEdition: PriorMarketIqEdition | null = latestPublished && priorSnapshot ? {
+    id: latestPublished.id,
+    periodLabel: latestPublished.periodLabel,
+    publishedAt: latestPublished.publishedAt?.toISOString() ?? null,
+    snapshot: priorSnapshot,
+  } : null;
+  return { organization, brand, preview, priorEdition };
 }

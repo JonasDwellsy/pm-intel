@@ -75,6 +75,32 @@ export type MarketIqMarketActivity = {
   events: MarketIqListingEvent[];
 };
 
+export type MarketIqEditionFinding = {
+  id: string;
+  kind: "direction_change" | "rent_move" | "coverage_change" | "listing_change";
+  importance: "high" | "medium";
+  headline: string;
+  detail: string;
+  geographyType: MarketIqGeographyType | "market";
+  geographyLabel: string;
+  segmentLabel: string | null;
+  currentValue: number | null;
+  priorValue: number | null;
+  currentMonth: string | null;
+  priorMonth: string | null;
+  observations: number | null;
+};
+
+export type MarketIqEditionComparison = {
+  state: "baseline" | "unchanged" | "changed";
+  heading: string;
+  narrative: string;
+  priorReportId: string | null;
+  priorPeriodLabel: string | null;
+  priorPublishedAt: string | null;
+  findings: MarketIqEditionFinding[];
+};
+
 export interface MarketIqReportSnapshot {
   version: typeof MARKET_IQ_REPORT_VERSION;
   generatedAt: string;
@@ -120,6 +146,13 @@ export interface MarketIqReportSnapshot {
     } | null;
   };
   marketActivity?: MarketIqMarketActivity;
+  editionComparison?: MarketIqEditionComparison;
+  editorial?: {
+    headline: string | null;
+    introduction: string | null;
+    reviewedAt: string;
+    reviewedBy: string;
+  };
   sources: Array<{
     name: string;
     availableThrough: string;

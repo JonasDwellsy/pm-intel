@@ -13,6 +13,7 @@ import { buildClevelandComposerPreview, type MarketIqReportBrandInput } from "@/
 import { canAccessMarketIqReportComposer } from "@/lib/market-iq/report/access";
 import { buildMarketIqReportEmail } from "@/lib/market-iq/report/email";
 import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
+import { compareMarketIqEditions } from "@/lib/market-iq/report/edition-comparison";
 import {
   applyMarketIqReportScope,
   buildMarketIqCoveragePreflight,
@@ -102,6 +103,30 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
   const snapshot = applyMarketIqReportScope(preview.snapshot, selection);
   const coverage = buildMarketIqCoveragePreflight(snapshot);
   if (!coverage.canPublish) throw new Error("At least one selected Trends IQ cell must clear the sample and freshness thresholds before publishing.");
+  const priorReport = await prisma.marketIqReport.findFirst({
+    where: { organizationId: context.organizationId, marketId: CLEVELAND_MARKET_ID, status: "published" },
+    orderBy: { publishedAt: "desc" },
+    select: { id: true, periodLabel: true, publishedAt: true, snapshot: true },
+  });
+  const priorSnapshot = priorReport ? parseMarketIqReportSnapshot(priorReport.snapshot) : null;
+  const priorEdition = priorReport && priorSnapshot ? {
+    id: priorReport.id,
+    periodLabel: priorReport.periodLabel,
+    publishedAt: priorReport.publishedAt?.toISOString() ?? null,
+    snapshot: applyMarketIqReportScope(priorSnapshot, selection),
+  } : null;
+  const frozenSnapshot = {
+    ...snapshot,
+    generatedAt: now.toISOString(),
+    brand,
+    editionComparison: compareMarketIqEditions(snapshot, priorEdition),
+    editorial: {
+      headline: clipped(formData.get("editorialHeadline"), 120) || null,
+      introduction: clipped(formData.get("editorialIntroduction"), 700) || null,
+      reviewedAt: now.toISOString(),
+      reviewedBy: "PM reviewer",
+    },
+  };
   const publicToken = randomBytes(24).toString("base64url");
   const report = await prisma.$transaction(async (tx) => {
     const brandProfile = await tx.organizationBrandProfile.upsert({
@@ -117,7 +142,7 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
         publicToken,
         status: "published",
         scope: JSON.stringify(snapshot.scope),
-        snapshot: JSON.stringify({ ...snapshot, generatedAt: now.toISOString(), brand }),
+        snapshot: JSON.stringify(frozenSnapshot),
         subjectAddress: null,
         brandProfileId: brandProfile.id,
         generatedBy: context.userId,

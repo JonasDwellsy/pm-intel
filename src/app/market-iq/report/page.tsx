@@ -34,7 +34,7 @@ export default async function MarketIqReportComposerPage({ searchParams }: { sea
       <aside className="rounded-xl border border-teal/25 bg-teal-soft p-5"><p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-700">Owner-facing boundary</p><p className="mt-2 text-lg font-semibold text-navy">The market, not the owner</p><p className="mt-2 text-sm leading-6 text-foreground/75">No owner scoring, competitor identities, operator rankings, or modeled rent estimates are included.</p></aside>
     </header>
 
-    <MarketIqReportComposerClient snapshot={composer.preview.snapshot} initialBrand={composer.brand} source={composer.preview.source} />
+    <MarketIqReportComposerClient snapshot={composer.preview.snapshot} initialBrand={composer.brand} source={composer.preview.source} priorEdition={composer.priorEdition} />
     <section className="mt-8 max-w-xl"><MarketIqReportHistory reports={composer.organization.marketIqReports} highlightedId={query.published} delivery={query.delivery} /></section>
   </main>;
 }
