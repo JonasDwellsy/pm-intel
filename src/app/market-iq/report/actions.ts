@@ -133,7 +133,7 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
       create: { organizationId: context.organizationId, ...brand },
       update: brand,
     });
-    return tx.marketIqReport.create({
+    const createdReport = await tx.marketIqReport.create({
       data: {
         organizationId: context.organizationId,
         marketId: CLEVELAND_MARKET_ID,
@@ -149,9 +149,40 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
       },
       select: { id: true },
     });
+    const campaign = await tx.marketIqDistributionCampaign.create({
+      data: {
+        organizationId: context.organizationId,
+        reportId: createdReport.id,
+        createdByUserId: context.userId,
+      },
+      select: { id: true },
+    });
+    if (priorReport) {
+      const priorAudience = await tx.marketIqReportSend.findMany({
+        where: {
+          organizationId: context.organizationId,
+          reportId: priorReport.id,
+          OR: [{ deliveryStatus: "sent" }, { deliveredAt: { not: null } }],
+        },
+        distinct: ["recipientId"],
+        select: { recipientId: true },
+      });
+      if (priorAudience.length) {
+        await tx.marketIqDistributionCampaignRecipient.createMany({
+          data: priorAudience.map(({ recipientId }) => ({
+            organizationId: context.organizationId,
+            campaignId: campaign.id,
+            reportId: createdReport.id,
+            recipientId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+    return { id: createdReport.id, campaignId: campaign.id };
   });
   revalidatePath("/market-iq/report");
-  redirect(`/market-iq/report?published=${report.id}`);
+  redirect(`/market-iq/distribution/${report.campaignId}`);
 }
 
 export async function revokeMarketIqReport(formData: FormData): Promise<void> {

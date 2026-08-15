@@ -506,6 +506,8 @@ model Organization {
   marketIqReports               MarketIqReport[]
   marketIqReportRecipients      MarketIqReportRecipient[]
   marketIqReportSends           MarketIqReportSend[]
+  marketIqDistributionCampaigns MarketIqDistributionCampaign[]
+  marketIqCampaignRecipients    MarketIqDistributionCampaignRecipient[]
   marketIqSubscriptions         MarketIqSubscription[]
   marketIqWorkspacePreference   MarketIqWorkspacePreference?
   portfolioIqPortfolios         PortfolioIqPortfolio[]
@@ -542,7 +544,7 @@ model OrganizationProductAccess {
 model MarketIqSubscription {
   id                   String    @id @default(cuid())
   organizationId       String
-  source               String    // stripe | enterprise
+  source               String // stripe | enterprise
   status               String    @default("incomplete") // incomplete | trialing | active | past_due | paused | canceled | unpaid
   planKey              String    @default("single_market_monthly")
   stripeCustomerId     String?
@@ -656,28 +658,83 @@ model MarketIqReport {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  brandProfile OrganizationBrandProfile @relation(fields: [brandProfileId], references: [id], onDelete: Restrict)
-  sends        MarketIqReportSend[]
+  organization          Organization                            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brandProfile          OrganizationBrandProfile                @relation(fields: [brandProfileId], references: [id], onDelete: Restrict)
+  sends                 MarketIqReportSend[]
+  distributionCampaigns MarketIqDistributionCampaign[]
+  campaignRecipients    MarketIqDistributionCampaignRecipient[]
 
   @@index([organizationId, marketId, createdAt(sort: Desc)])
   @@index([status, publishedAt(sort: Desc)])
 }
 
 model MarketIqReportRecipient {
-  id             String   @id @default(cuid())
-  organizationId String
-  name           String
-  email          String
-  kind           String // client | prospect
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                String    @id @default(cuid())
+  organizationId    String
+  name              String
+  email             String
+  kind              String // client | prospect
+  emailStatus       String    @default("active") // active | suppressed
+  suppressionReason String?
+  suppressedAt      DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  sends        MarketIqReportSend[]
+  organization       Organization                            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sends              MarketIqReportSend[]
+  campaignRecipients MarketIqDistributionCampaignRecipient[]
 
   @@unique([organizationId, email])
   @@index([organizationId, kind, name])
+}
+
+// A staged distribution run for one immutable Market IQ edition. Publishing
+// creates a draft campaign, but never sends email. Audience review and final
+// confirmation happen on a separate route before the campaign can send.
+model MarketIqDistributionCampaign {
+  id              String    @id @default(cuid())
+  organizationId  String
+  reportId        String
+  status          String    @default("draft") // draft | ready | sending | complete | partial
+  createdByUserId String
+  confirmedAt     DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization                            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  report       MarketIqReport                          @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  recipients   MarketIqDistributionCampaignRecipient[]
+
+  @@index([organizationId, status, createdAt(sort: Desc)])
+  @@index([reportId])
+}
+
+// The unique report and recipient pair is the delivery idempotency boundary.
+// Failed rows can be retried in place, while repeated clicks or a second
+// campaign cannot send the same edition to the same person twice.
+model MarketIqDistributionCampaignRecipient {
+  id             String    @id @default(cuid())
+  organizationId String
+  campaignId     String
+  reportId       String
+  recipientId    String
+  sendId         String?
+  status         String    @default("pending") // pending | sent | failed | suppressed | already_sent
+  attemptCount   Int       @default(0)
+  lastError      String?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign     MarketIqDistributionCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  report       MarketIqReport               @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  recipient    MarketIqReportRecipient      @relation(fields: [recipientId], references: [id], onDelete: Restrict)
+
+  @@unique([reportId, recipientId])
+  @@index([campaignId, status])
+  @@index([organizationId, createdAt(sort: Desc)])
 }
 
 // Organization-level Market IQ setup. These values are customer preferences,
