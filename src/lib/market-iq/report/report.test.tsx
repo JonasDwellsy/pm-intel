@@ -67,10 +67,17 @@ describe("Market IQ local market read assembly", () => {
   });
 
   it("provides a useful supported ZIP field for the analytical map", () => {
-    const overall = seededClevelandMarketReport.marketMap.points.filter((point) => point.bedrooms === 999 && point.status === "reportable");
-    expect(overall.filter((point) => point.propertyType === "apartment")).toHaveLength(11);
-    expect(overall.filter((point) => point.propertyType === "house")).toHaveLength(7);
-    expect(overall.every((point) => point.rent !== null && point.observations >= 10)).toBe(true);
+    const apartments = seededClevelandMarketReport.marketMap.points.filter((point) => point.propertyType === "apartment" && point.bedrooms === 1 && point.status === "reportable");
+    const houses = seededClevelandMarketReport.marketMap.points.filter((point) => point.propertyType === "house" && point.bedrooms === 3 && point.status === "reportable");
+    expect(apartments).toHaveLength(10);
+    expect(houses).toHaveLength(6);
+    expect([...apartments, ...houses].every((point) => point.rent !== null && point.observations >= 10 && point.month === "2026-07-01")).toBe(true);
+  });
+
+  it("ships a source-dated market activity tape without exposing addresses", () => {
+    expect(seededClevelandMarketReport.marketActivity).toMatchObject({ newListings24h: 45, sourceUpdates24h: 396 });
+    expect(seededClevelandMarketReport.marketActivity?.events.length).toBeGreaterThan(4);
+    expect(JSON.stringify(seededClevelandMarketReport.marketActivity)).not.toMatch(/address|listingId|propertyId/i);
   });
 
   it("includes current MSA bedroom benchmarks with published Trends trajectories", () => {

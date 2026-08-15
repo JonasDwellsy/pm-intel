@@ -847,4 +847,21 @@ dialog.dq-metric-info-dialog[open] {
     position: static !important;
   }
 }
+@keyframes market-iq-ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
 
+.market-iq-ticker-track {
+  animation: market-iq-ticker 58s linear infinite;
+}
+
+.market-iq-ticker-mask {
+  mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-iq-ticker-track { animation: none; }
+  .market-iq-ticker-mask { overflow-x: auto; mask-image: none; }
+  .market-iq-ticker-track > div[aria-hidden="true"] { display: none; }
+}

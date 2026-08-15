@@ -4,6 +4,7 @@ import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { prisma } from "@/lib/prisma";
 import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server";
 import { loadDwellsyProductRollupSeries, loadDwellsyTrendSeries } from "@/lib/dwellsy-source/trends.server";
+import { loadClevelandListingActivity } from "@/lib/dwellsy-source/listing-events.server";
 import { marketIqDatabaseConfigured, marketIqPrisma } from "@/lib/market-iq/prisma";
 import {
   buildMarketIqReportSnapshot,
@@ -87,7 +88,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
         }),
       ]).then(([historicalPulse, coordinateRows]) => ({ historicalPulse, coordinateRows }))
     : Promise.resolve(null);
-  const [trendSource, context] = await Promise.all([
+  const [trendSource, context, marketActivity] = await Promise.all([
     liveDwellsyRuntimeEnabled
       ? Promise.all([
           loadDwellsyTrendSeries({
@@ -103,6 +104,9 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
         }))
       : Promise.resolve({ result: { series: SEEDED_CLEVELAND_TREND_SERIES }, live: false as const }),
     analyticalContext,
+    liveDwellsyRuntimeEnabled
+      ? loadClevelandListingActivity().catch(() => seededClevelandMarketReport.marketActivity)
+      : Promise.resolve(seededClevelandMarketReport.marketActivity),
   ]);
   const trendSeries = completeTrendSeries(trendSource.result.series);
   const reportCities = [...new Set(trendSeries
@@ -113,6 +117,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
   const latestTrendMonth = reportablePoints.map((point) => point.month).sort().at(-1) ?? seededClevelandMarketReport.scope.periodEnd;
   const trendAvailableThrough = monthEnd(latestTrendMonth);
   const historicalPulse = context?.historicalPulse;
+  const activityAvailableThrough = marketActivity?.asOf.slice(0, 10);
 
   return buildMarketIqReportSnapshot({
     generatedAt: input?.generatedAt ?? new Date(),
@@ -138,6 +143,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
       narrative: `${historicalPulse.decisionRead} These are Total IQ listing-activity measures and are kept separate from Trends IQ rent statistics.`,
       historical: historicalPulse.historical,
     } : seededClevelandMarketReport.marketConditions,
+    marketActivity,
     sources: [
       { name: "Dwellsy IQ Trends", availableThrough: trendAvailableThrough, observationCount: null, note: trendSource.live
         ? "The exclusive source for every published aggregated rent level and rent change. Overall product summaries use the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Per-cell sample sizes are shown with each result."
@@ -145,6 +151,8 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
       historicalPulse
         ? { name: "Total IQ observed listings", availableThrough: historicalPulse.historicalSource.availableThrough, observationCount: historicalPulse.historicalSource.recordCount, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." }
         : historicalSource ?? { name: "Total IQ observed listings", availableThrough: "2026-07-31", observationCount: null, note: "Used only for listing activity and geographic context. It is not used to calculate aggregated prices." },
+      ...(activityAvailableThrough ? [{ name: "Total IQ listing activity feed", availableThrough: activityAvailableThrough, observationCount: marketActivity?.events.length ?? null, note: "Used only for the recent-listing ticker and source activity counts. It is not used to calculate aggregated prices." }] : []),
+      { name: "U.S. Census Bureau ZCTAs", availableThrough: "2020-01-01", observationCount: REPORT_ZIPS.length, note: "Provides the shaded ZIP Code Tabulation Area boundaries. ZCTAs approximate, but do not exactly reproduce, postal delivery ZIP areas." },
     ],
   });
 }

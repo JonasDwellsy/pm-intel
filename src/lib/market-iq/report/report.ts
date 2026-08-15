@@ -53,6 +53,26 @@ export type MarketIqMapPoint = {
   valueBasis?: "trends_value" | "trends_median_999";
 };
 
+export type MarketIqListingEvent = {
+  id: string;
+  eventType: "new_listing" | "price_change";
+  city: string;
+  zip: string;
+  propertyType: MarketIqPropertyType;
+  bedrooms: number;
+  askingRent: number;
+  previousRent: number | null;
+  observedAt: string;
+};
+
+export type MarketIqMarketActivity = {
+  asOf: string;
+  newListings24h: number;
+  sourceUpdates24h: number;
+  confirmedPriceChanges24h: number;
+  events: MarketIqListingEvent[];
+};
+
 export interface MarketIqReportSnapshot {
   version: typeof MARKET_IQ_REPORT_VERSION;
   generatedAt: string;
@@ -97,6 +117,7 @@ export interface MarketIqReportSnapshot {
       medianDom: number;
     } | null;
   };
+  marketActivity?: MarketIqMarketActivity;
   sources: Array<{
     name: string;
     availableThrough: string;
@@ -114,6 +135,7 @@ export type MarketIqReportBuildInput = {
   trendSeries: MarketIqTrendSeries[];
   mapCenters?: Record<string, { latitude: number; longitude: number }>;
   marketConditions: MarketIqReportSnapshot["marketConditions"];
+  marketActivity?: MarketIqMarketActivity;
   sources: MarketIqReportSnapshot["sources"];
   unavailableCuts?: MarketIqReportSnapshot["marketRead"]["unavailableCuts"];
 };
@@ -233,12 +255,13 @@ export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): Ma
     },
     marketMap: {
       heading: "Where rent direction is changing",
-      narrative: "The map shows ZIP-level Trends IQ observations only. Select a product segment to compare local rent level and year-over-year direction without substituting broader city data.",
+      narrative: "The map shades Census ZIP Code Tabulation Areas using ZIP-level Trends IQ observations only. Select a benchmark segment and measure without substituting broader city data.",
       points: mapPoints,
     },
     marketConditions: input.marketConditions,
+    marketActivity: input.marketActivity,
     sources: input.sources,
-    methodNote: `Every published rent input comes from Trends IQ. Overall apartment and house summaries use the median stored on the Trends IQ all-bedroom rows, with year-over-year change calculated from the matching prior-year median in that same Trends series. A segment requires at least ${MIN_TREND_OBSERVATIONS} observations in its latest month. Total IQ supports listing volume, velocity, days on market, and map geography only. Thin cells are suppressed rather than estimated.`,
+    methodNote: `Every published rent input comes from Trends IQ. Overall apartment and house summaries use the median stored on the Trends IQ all-bedroom rows, with year-over-year change calculated from the matching prior-year median in that same Trends series. A segment requires at least ${MIN_TREND_OBSERVATIONS} observations in its latest month. Total IQ supports listing volume, velocity, days on market, and recent listing activity only. Census ZCTAs provide the ZIP-area geometry. Thin cells are suppressed rather than estimated.`,
     disclosure: "This report measures advertised asking-market activity. It does not measure occupancy, signed leases, concessions, effective rent, or property-level financial performance.",
   };
 }
