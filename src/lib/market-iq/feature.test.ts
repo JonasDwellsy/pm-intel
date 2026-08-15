@@ -33,11 +33,13 @@ test("the integration preview root opens the latest public Market IQ report befo
   const previewCheck = source.indexOf("if (marketIqPreviewEnabled())");
   const reportRead = source.indexOf("prisma.marketIqReport.findFirst", previewCheck);
   const publicRedirect = source.indexOf("/reports/market/", reportRead);
+  const seededFallback = source.indexOf("SEEDED_CLEVELAND_REPORT_TOKEN", publicRedirect);
   const operatorIqRead = source.indexOf("await prisma.market.findMany", publicRedirect);
 
   assert.ok(previewCheck >= 0);
   assert.ok(reportRead > previewCheck);
   assert.ok(publicRedirect > reportRead);
+  assert.ok(seededFallback > publicRedirect);
   assert.ok(operatorIqRead > publicRedirect);
 });
 

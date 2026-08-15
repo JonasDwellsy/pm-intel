@@ -27,6 +27,7 @@ import { marketingDataSuppressed } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
+import { SEEDED_CLEVELAND_REPORT_TOKEN } from "@/lib/market-iq/report/seeded-cleveland";
 import type { ScorecardData } from "@/lib/types";
 
 const HOME_TITLE =
@@ -357,7 +358,11 @@ export default async function HomePage() {
     if (latestPublished) {
       redirect(`/reports/market/${latestPublished.publicToken}`);
     }
-    redirect("/sign-in?redirect_url=%2Fmarket-iq");
+    // Neon creates an isolated database branch for each Vercel preview.
+    // A report published on an earlier deployment may therefore be absent
+    // from a newer branch. The deterministic preview token renders the same
+    // Cleveland baseline from current sources without requiring a stored row.
+    redirect(`/reports/market/${SEEDED_CLEVELAND_REPORT_TOKEN}`);
   }
 
   const marketRows = await prisma.market.findMany({
