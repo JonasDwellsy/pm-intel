@@ -5,7 +5,11 @@ import { redirect } from "next/navigation";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 import { marketIqDevelopmentPreviewEnabled } from "@/lib/market-iq/feature";
+import { seededClevelandMarketReport } from "@/lib/market-iq/report/seeded-cleveland";
 import { prisma } from "@/lib/prisma";
+
+const PREVIEW_PILOT_CLERK_ORG_ID = "preview_market_iq_cleveland_pilot";
+const PREVIEW_BASELINE_TOKEN = "preview-cleveland-market-read";
 
 function safeMarketIqReturnTo(value: FormDataEntryValue | null): string {
   if (typeof value !== "string") return "/market-iq/distribution";
@@ -53,26 +57,96 @@ export async function activateMarketIqDevelopmentWorkspace(
     select: { id: true },
   });
 
-  if (eligibleOrganizations.length !== 1) {
+  if (eligibleOrganizations.length > 1) {
     redirect(
       `/setup-workspace?from=${encodeURIComponent(returnTo)}&activation=unavailable`
     );
   }
 
-  const organizationId = eligibleOrganizations[0].id;
-  await prisma.organizationMembership.upsert({
-    where: { userId_organizationId: { userId, organizationId } },
-    create: {
-      clerkMembershipId: `preview_market_iq:${userId}:${organizationId}`,
-      organizationId,
-      userId,
-      role: "org:admin",
-    },
-    update: {
-      clerkMembershipId: `preview_market_iq:${userId}:${organizationId}`,
-      role: "org:admin",
-    },
+  const organizationId = await prisma.$transaction(async (tx) => {
+    const organization = eligibleOrganizations[0] ?? await tx.organization.upsert({
+      where: { clerkOrgId: PREVIEW_PILOT_CLERK_ORG_ID },
+      create: {
+        clerkOrgId: PREVIEW_PILOT_CLERK_ORG_ID,
+        name: "Harborview Residential",
+        slug: "harborview-residential-preview",
+      },
+      update: {},
+      select: { id: true },
+    });
+
+    await tx.organizationProductAccess.upsert({
+      where: {
+        organizationId_productKey: {
+          organizationId: organization.id,
+          productKey: "market_iq",
+        },
+      },
+      create: { organizationId: organization.id, productKey: "market_iq" },
+      update: {},
+    });
+    await tx.organizationMarketAccess.upsert({
+      where: {
+        organizationId_marketId: {
+          organizationId: organization.id,
+          marketId: CLEVELAND_MARKET_ID,
+        },
+      },
+      create: { organizationId: organization.id, marketId: CLEVELAND_MARKET_ID },
+      update: {},
+    });
+    const brandProfile = await tx.organizationBrandProfile.upsert({
+      where: { organizationId: organization.id },
+      create: {
+        organizationId: organization.id,
+        ...seededClevelandMarketReport.brand,
+      },
+      update: {},
+    });
+
+    const existingBaseline = await tx.marketIqReport.findUnique({
+      where: { publicToken: PREVIEW_BASELINE_TOKEN },
+      select: { id: true, organizationId: true },
+    });
+    if (existingBaseline && existingBaseline.organizationId !== organization.id) {
+      throw new Error("The isolated preview baseline belongs to another workspace.");
+    }
+    if (!existingBaseline) {
+      await tx.marketIqReport.create({
+        data: {
+          organizationId: organization.id,
+          marketId: CLEVELAND_MARKET_ID,
+          periodLabel: `${seededClevelandMarketReport.scope.periodStart} to ${seededClevelandMarketReport.scope.periodEnd}`,
+          publicToken: PREVIEW_BASELINE_TOKEN,
+          status: "published",
+          scope: JSON.stringify(seededClevelandMarketReport.scope),
+          snapshot: JSON.stringify(seededClevelandMarketReport),
+          subjectAddress: null,
+          brandProfileId: brandProfile.id,
+          generatedBy: "preview-bootstrap",
+          publishedAt: new Date(),
+        },
+      });
+    }
+
+    await tx.organizationMembership.upsert({
+      where: { userId_organizationId: { userId, organizationId: organization.id } },
+      create: {
+        clerkMembershipId: `preview_market_iq:${userId}:${organization.id}`,
+        organizationId: organization.id,
+        userId,
+        role: "org:admin",
+      },
+      update: {
+        clerkMembershipId: `preview_market_iq:${userId}:${organization.id}`,
+        role: "org:admin",
+      },
+    });
+
+    return organization.id;
   });
+
+  if (!organizationId) redirect("/setup-workspace");
 
   redirect(returnTo);
 }
