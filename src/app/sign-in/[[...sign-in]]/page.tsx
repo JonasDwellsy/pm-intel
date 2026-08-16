@@ -86,6 +86,23 @@ function signInContext(redirectUrl: string | undefined, marketIqPreview: boolean
   return { title: "Sign in", sub: "Welcome back — continue to Operator IQ." };
 }
 
+/**
+ * Clerk's forceRedirectUrl wins over the redirect_url query parameter. Keep
+ * that override for the standalone Market IQ preview so the production Clerk
+ * instance cannot send a preview user back to Operator IQ, but preserve the
+ * specific Market IQ route the user originally requested. Only relative
+ * Market IQ paths are accepted so this cannot become an open redirect.
+ */
+function marketIqReturnTo(redirectUrl: string | undefined): string {
+  if (
+    redirectUrl?.startsWith("/market-iq") &&
+    !redirectUrl.startsWith("//")
+  ) {
+    return redirectUrl;
+  }
+  return "/market-iq/distribution";
+}
+
 export default async function SignInPage({
   searchParams,
 }: {
@@ -94,7 +111,10 @@ export default async function SignInPage({
   const { redirect_url } = await searchParams;
   const marketIqPreview = marketIqPreviewEnabled();
   const ctx = signInContext(redirect_url, marketIqPreview);
-  const fallbackRedirectUrl = marketIqPreview ? "/market-iq" : "/watch-lists";
+  const marketIqRedirectUrl = marketIqReturnTo(redirect_url);
+  const fallbackRedirectUrl = marketIqPreview
+    ? marketIqRedirectUrl
+    : "/watch-lists";
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-soft px-6 py-12">
       <div className="flex w-full max-w-[400px] flex-col items-center gap-7">
@@ -127,7 +147,9 @@ export default async function SignInPage({
         </div>
         <SignIn
           fallbackRedirectUrl={fallbackRedirectUrl}
-          {...(marketIqPreview ? { forceRedirectUrl: "/market-iq" } : {})}
+          {...(marketIqPreview
+            ? { forceRedirectUrl: marketIqRedirectUrl }
+            : {})}
           signUpUrl="/sign-up"
           appearance={clerkAppearance}
         />
