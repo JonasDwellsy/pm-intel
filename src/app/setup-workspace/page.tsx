@@ -20,7 +20,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
+import { activateMarketIqDevelopmentWorkspace } from "@/app/setup-workspace/actions";
 import { getActiveOrgId } from "@/lib/auth/active-org";
+import { marketIqDevelopmentPreviewEnabled } from "@/lib/market-iq/feature";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +32,7 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  searchParams: Promise<{ from?: string }>;
+  searchParams: Promise<{ from?: string; activation?: string }>;
 }
 
 /** Whitelist of redirect targets so an attacker can't craft a
@@ -44,8 +46,11 @@ function sanitizeReturnTo(from: string | undefined): string {
 }
 
 export default async function SetupWorkspacePage({ searchParams }: PageProps) {
-  const { from } = await searchParams;
-  const returnTo = sanitizeReturnTo(from);
+  const { from, activation } = await searchParams;
+  const developmentPreview = marketIqDevelopmentPreviewEnabled();
+  const returnTo = sanitizeReturnTo(
+    from ?? (developmentPreview ? "/market-iq/distribution" : undefined)
+  );
 
   const { userId } = await auth();
   if (!userId) {
@@ -62,6 +67,40 @@ export default async function SetupWorkspacePage({ searchParams }: PageProps) {
   const existingOrgId = await getActiveOrgId();
   if (existingOrgId) {
     redirect(returnTo);
+  }
+
+  if (developmentPreview) {
+    return (
+      <main className="bg-white">
+        <div className="mx-auto max-w-[520px] px-6 py-24 text-center">
+          <p className="dq-eyebrow text-teal">Market IQ preview</p>
+          <h1 className="mt-3 text-[24px] font-semibold text-navy">
+            Activate your preview workspace
+          </h1>
+          <p className="mt-3 text-[14.5px] leading-relaxed text-foreground/75">
+            Your temporary development sign-in is verified. Connect it to the
+            isolated Cleveland pilot workspace to review editions, recipients,
+            and distribution controls.
+          </p>
+          <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground">
+            This affects only the Market IQ Preview database. It does not alter
+            Operator IQ production and it never sends an email.
+          </p>
+          {activation === "unavailable" && (
+            <p className="mt-5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+              Preview activation is unavailable because the isolated database
+              does not contain exactly one eligible Cleveland pilot workspace.
+            </p>
+          )}
+          <form action={activateMarketIqDevelopmentWorkspace} className="mt-7">
+            <input type="hidden" name="returnTo" value={returnTo} />
+            <button className="inline-flex h-11 items-center rounded-md bg-navy px-6 text-[14px] font-semibold text-white transition-colors hover:bg-navy-700">
+              Enter Market IQ
+            </button>
+          </form>
+        </div>
+      </main>
+    );
   }
 
   // No resolvable org, and we no longer auto-create one — an

@@ -25,6 +25,7 @@
 
 import "server-only";
 import { auth } from "@clerk/nextjs/server";
+import { marketIqDevelopmentPreviewEnabled } from "@/lib/market-iq/feature";
 import { prisma } from "@/lib/prisma";
 
 export interface ActiveOrgContext {
@@ -88,6 +89,36 @@ export async function getActiveOrgContext(): Promise<ActiveOrgContext> {
       clerkOrgId: personal.clerkOrgId,
       role: "org:admin", // user is always admin of their personal org
     };
+  }
+
+  // Preview-only development bridge. Clerk development users do not share
+  // organization ids with the production Clerk instance. The Market IQ
+  // activation screen records a synthetic membership in the isolated Preview
+  // database, and only this tightly gated path resolves it. Production Clerk,
+  // production Vercel deployments, and Operator IQ remain unchanged.
+  if (marketIqDevelopmentPreviewEnabled()) {
+    const previewMembership = await prisma.organizationMembership.findFirst({
+      where: {
+        userId,
+        clerkMembershipId: { startsWith: "preview_market_iq:" },
+        organization: {
+          productAccess: { some: { productKey: "market_iq" } },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+      select: {
+        role: true,
+        organization: { select: { id: true, clerkOrgId: true } },
+      },
+    });
+    if (previewMembership) {
+      return {
+        userId,
+        organizationId: previewMembership.organization.id,
+        clerkOrgId: previewMembership.organization.clerkOrgId,
+        role: previewMembership.role,
+      };
+    }
   }
 
   // Path 3: no personal org yet. Soft-fallback — caller should
