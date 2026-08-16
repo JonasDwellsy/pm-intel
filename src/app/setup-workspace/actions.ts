@@ -38,6 +38,12 @@ export async function activateMarketIqDevelopmentWorkspace(
   const eligibleOrganizations = await prisma.organization.findMany({
     where: {
       productAccess: { some: { productKey: "market_iq" } },
+      OR: [
+        { allMarkets: true },
+        { marketAccess: { some: { marketId: CLEVELAND_MARKET_ID } } },
+      ],
+      memberships: { some: {} },
+      brandProfile: { isNot: null },
       marketIqReports: {
         some: { marketId: CLEVELAND_MARKET_ID, status: "published" },
       },
