@@ -27,6 +27,21 @@ const REPORT_CITIES = [...MARKET_IQ_REPORT_CITIES];
 const REPORT_ZIPS = [...MARKET_IQ_REPORT_ZIPS];
 const REPORT_BEDROOMS = [1, 2, 3];
 
+function safeSourceError(error: unknown) {
+  if (!error || typeof error !== "object") return { name: "UnknownError", code: null };
+  const value = error as { name?: unknown; code?: unknown; errors?: unknown };
+  const nestedCodes = Array.isArray(value.errors)
+    ? value.errors.flatMap((nested) => nested && typeof nested === "object" && "code" in nested
+        ? [String((nested as { code: unknown }).code)]
+        : [])
+    : [];
+  return {
+    name: typeof value.name === "string" ? value.name : "Error",
+    code: value.code === undefined ? null : String(value.code),
+    nestedCodes,
+  };
+}
+
 function completeTrendSeries(source: MarketIqTrendSeries[]) {
   const result = [...source];
   const existing = new Set(result.map((item) => `${item.geographyType}:${item.geographyValue}:${item.propertyType}:${item.bedrooms}`));
@@ -118,10 +133,13 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
             bedrooms: REPORT_BEDROOMS,
           }),
           loadDwellsyProductRollupSeries({ zipCodes: REPORT_ZIPS, periodStart: "2025-04-01" }),
-        ]).then(([detail, rollups]) => ({ result: { series: [...rollups.series, ...detail.series] }, live: true as const })).catch(() => ({
-          result: { series: SEEDED_CLEVELAND_TREND_SERIES },
-          live: false as const,
-        }))
+        ]).then(([detail, rollups]) => ({ result: { series: [...rollups.series, ...detail.series] }, live: true as const })).catch((error) => {
+          console.error("[Market IQ] Read-only Trends source unavailable", safeSourceError(error));
+          return {
+            result: { series: SEEDED_CLEVELAND_TREND_SERIES },
+            live: false as const,
+          };
+        })
       : Promise.resolve({ result: { series: SEEDED_CLEVELAND_TREND_SERIES }, live: false as const }),
     analyticalContext,
     liveDwellsyRuntimeEnabled
@@ -182,7 +200,7 @@ export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
   // Bump this key whenever the source adapter or reportability rules change.
   // The callback itself is intentionally small, so relying on its function
   // string would otherwise preserve an obsolete cross-deployment snapshot.
-  ["market-iq-cleveland-live-snapshot-v2"],
+  ["market-iq-cleveland-live-snapshot-v3"],
   { revalidate: 900 },
 );
 
