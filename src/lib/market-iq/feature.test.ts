@@ -99,6 +99,29 @@ test("the Market IQ shell follows the purchased plan boundary", () => {
   assert.match(activation, /"Activate and open market"/);
 });
 
+test("successful checkout hands off automatically to plan-aware activation", () => {
+  const subscribe = readFileSync(
+    join(process.cwd(), "src/app/market-iq/subscribe/page.tsx"),
+    "utf8"
+  );
+  const statusRoute = readFileSync(
+    join(process.cwd(), "src/app/api/market-iq/billing/status/route.ts"),
+    "utf8"
+  );
+  const finalization = readFileSync(
+    join(process.cwd(), "src/components/market-iq/billing/MarketIqCheckoutFinalization.tsx"),
+    "utf8"
+  );
+
+  assert.match(subscribe, /query\.checkout === "success" && <MarketIqCheckoutFinalization/);
+  assert.match(statusRoute, /isMarketEntitled\(access\.entitlement, CLEVELAND_MARKET_ID\)/);
+  assert.match(statusRoute, /publishClientReports/);
+  assert.match(statusRoute, /"Cache-Control": "no-store"/);
+  assert.match(finalization, /MAX_ATTEMPTS = 30/);
+  assert.match(finalization, /\/api\/market-iq\/billing\/status/);
+  assert.match(finalization, /Continue to setup/);
+});
+
 test("Market IQ home and detailed market read are distinct routes", () => {
   const home = readFileSync(join(process.cwd(), "src/app/market-iq/page.tsx"), "utf8");
   const market = readFileSync(

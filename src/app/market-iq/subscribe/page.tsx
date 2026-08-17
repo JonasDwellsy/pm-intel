@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { MarketIqCheckoutFinalization } from "@/components/market-iq/billing/MarketIqCheckoutFinalization";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import {
   isActiveMarketIqSubscriptionStatus,
@@ -79,6 +80,11 @@ export default async function MarketIqSubscribePage({
   const latest = organization.marketIqSubscriptions[0] ?? null;
   const canManageBilling = role === "org:admin";
   const activationComplete = Boolean(organization.marketIqWorkspacePreference?.onboardingCompletedAt);
+  const checkoutNextUrl = activationComplete
+    ? "/market-iq"
+    : activePlan?.tier === "intelligence"
+      ? "/market-iq/get-started?step=2&purchase=success"
+      : "/market-iq/get-started?step=1&purchase=success";
 
   return <main className="min-h-screen bg-[#f7f7f4] px-5 py-10 sm:px-6 lg:py-16">
     <div className="mx-auto max-w-6xl">
@@ -92,7 +98,7 @@ export default async function MarketIqSubscribePage({
         </nav>
       </header>
 
-      {query.checkout === "success" && !active && <div className="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950"><p className="font-semibold">Payment was accepted. Stripe is finalizing access now.</p><p className="mt-1">This normally takes only a few seconds. Refresh to continue into workspace activation.</p></div>}
+      {query.checkout === "success" && <MarketIqCheckoutFinalization initialReady={Boolean(active)} initialPlanName={activePlan?.name ?? null} initialNextUrl={checkoutNextUrl} />}
       {query.checkout === "canceled" && <p className="mt-8 rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600">Checkout was canceled. Nothing was charged.</p>}
       {query.upgrade === "client_advisory" && activePlan?.tier === "intelligence" && <p className="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">Client publishing and distribution are part of Client Advisory. Upgrade to unlock these capabilities.</p>}
 
