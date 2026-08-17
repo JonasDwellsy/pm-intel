@@ -552,6 +552,7 @@ model MarketIqSubscription {
   stripeCustomerId     String?
   stripeSubscriptionId String?   @unique
   stripePriceId        String?
+  billingInterval      String    @default("month") // month | year
   currentPeriodEnd     DateTime?
   cancelAtPeriodEnd    Boolean   @default(false)
   provisionedByUserId  String?

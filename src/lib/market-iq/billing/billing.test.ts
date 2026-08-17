@@ -5,6 +5,8 @@ import {
   isActiveMarketIqSubscriptionStatus,
   MARKET_IQ_CLIENT_ADVISORY_PLAN,
   MARKET_IQ_INTELLIGENCE_PLAN,
+  isMarketIqBillingInterval,
+  marketIqFoundingPriceCents,
   marketIqCapabilitiesForPlan,
   marketIqPlanPriceLabel,
 } from "./plans";
@@ -22,6 +24,11 @@ test("Market IQ exposes standard and founding prices for both tiers", () => {
   assert.equal(marketIqPlanPriceLabel(MARKET_IQ_INTELLIGENCE_PLAN.foundingMonthlyPriceCents), "$49");
   assert.equal(marketIqPlanPriceLabel(MARKET_IQ_CLIENT_ADVISORY_PLAN.monthlyPriceCents), "$199");
   assert.equal(marketIqPlanPriceLabel(MARKET_IQ_CLIENT_ADVISORY_PLAN.foundingMonthlyPriceCents), "$149");
+  assert.equal(marketIqPlanPriceLabel(MARKET_IQ_INTELLIGENCE_PLAN.foundingAnnualPriceCents), "$499");
+  assert.equal(marketIqPlanPriceLabel(MARKET_IQ_CLIENT_ADVISORY_PLAN.foundingAnnualPriceCents), "$1,499");
+  assert.equal(marketIqFoundingPriceCents(MARKET_IQ_INTELLIGENCE_PLAN, "year"), 49_900);
+  assert.equal(isMarketIqBillingInterval("year"), true);
+  assert.equal(isMarketIqBillingInterval("week"), false);
 });
 
 test("only Client Advisory can publish and distribute reports", () => {
@@ -79,4 +86,14 @@ test("checkout accepts only a selected, configured plan", () => {
   assert.match(source, /marketIqPlanForKey\(requestedPlanKey\)/);
   assert.match(source, /STRIPE_MARKET_IQ_INTELLIGENCE_FOUNDING_PRICE_ID/);
   assert.match(source, /STRIPE_MARKET_IQ_CLIENT_ADVISORY_FOUNDING_PRICE_ID/);
+  assert.match(source, /STRIPE_MARKET_IQ_INTELLIGENCE_FOUNDING_ANNUAL_PRICE_ID/);
+  assert.match(source, /STRIPE_MARKET_IQ_CLIENT_ADVISORY_FOUNDING_ANNUAL_PRICE_ID/);
+  assert.match(source, /formData\.get\("billingInterval"\)/);
+  assert.match(source, /isMarketIqBillingInterval\(requestedBillingInterval\)/);
+});
+
+test("billing interval migration is additive", () => {
+  const migration = readFileSync("prisma/migrations/20260817151500_market_iq_billing_interval/migration.sql", "utf8");
+  assert.match(migration, /ADD COLUMN "billingInterval"/);
+  assert.doesNotMatch(migration, /DROP TABLE|DROP COLUMN|ALTER COLUMN/);
 });

@@ -1,7 +1,7 @@
 import "server-only";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
-import { MARKET_IQ_CLIENT_ADVISORY_PLAN, marketIqPlanForKey, type MarketIqPlanKey } from "@/lib/market-iq/billing/plans";
+import { isMarketIqBillingInterval, MARKET_IQ_CLIENT_ADVISORY_PLAN, marketIqPlanForKey, type MarketIqBillingInterval, type MarketIqPlanKey } from "@/lib/market-iq/billing/plans";
 
 function dateFromUnix(value: number | null | undefined): Date | null {
   return typeof value === "number" ? new Date(value * 1000) : null;
@@ -17,6 +17,14 @@ function stripeSubscriptionPeriodEnd(subscription: Stripe.Subscription): Date | 
 function stripeId(value: string | { id: string } | null): string | null {
   if (!value) return null;
   return typeof value === "string" ? value : value.id;
+}
+
+function stripeBillingInterval(subscription: Stripe.Subscription): MarketIqBillingInterval {
+  const recurringInterval = subscription.items.data[0]?.price.recurring?.interval;
+  if (recurringInterval === "month" || recurringInterval === "year") return recurringInterval as MarketIqBillingInterval;
+  const metadataInterval = subscription.metadata.dwellsy_billing_interval;
+  if (metadataInterval && isMarketIqBillingInterval(metadataInterval)) return metadataInterval;
+  return "month";
 }
 
 export async function provisionEnterpriseMarketIq(input: {
@@ -99,6 +107,7 @@ async function syncStripeMarketIqSubscriptionWithContext(
   if (!organization) throw new Error(`Unknown Market IQ organization ${organizationId}.`);
   const customerId = stripeId(subscription.customer);
   const priceId = subscription.items.data[0]?.price.id ?? null;
+  const billingInterval = stripeBillingInterval(subscription);
   const endedAt = subscription.status === "canceled" || subscription.status === "unpaid" ? new Date() : null;
   const planKey = subscription.metadata.dwellsy_plan_key || MARKET_IQ_CLIENT_ADVISORY_PLAN.key;
   if (!marketIqPlanForKey(planKey)) throw new Error(`Stripe subscription ${subscription.id} has an unknown Market IQ plan.`);
@@ -114,6 +123,7 @@ async function syncStripeMarketIqSubscriptionWithContext(
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscription.id,
         stripePriceId: priceId,
+        billingInterval,
         currentPeriodEnd: stripeSubscriptionPeriodEnd(subscription),
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
         startedAt: dateFromUnix(subscription.start_date) ?? new Date(),
@@ -124,6 +134,7 @@ async function syncStripeMarketIqSubscriptionWithContext(
         planKey,
         stripeCustomerId: customerId,
         stripePriceId: priceId,
+        billingInterval,
         currentPeriodEnd: stripeSubscriptionPeriodEnd(subscription),
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
         endedAt,

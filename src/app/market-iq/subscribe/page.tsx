@@ -6,6 +6,8 @@ import {
   MARKET_IQ_CLIENT_ADVISORY_PLAN,
   MARKET_IQ_INTELLIGENCE_PLAN,
   MARKET_IQ_PLANS,
+  isMarketIqBillingInterval,
+  marketIqFoundingPriceCents,
   marketIqPlanForKey,
   marketIqPlanPriceLabel,
 } from "@/lib/market-iq/billing/plans";
@@ -31,14 +33,18 @@ const FEATURES = {
   ],
 } as const;
 
-function configuredPriceId(planKey: string) {
+function configuredPriceId(planKey: string, billingInterval: "month" | "year") {
   if (planKey === MARKET_IQ_INTELLIGENCE_PLAN.key) {
-    return process.env.STRIPE_MARKET_IQ_INTELLIGENCE_FOUNDING_PRICE_ID
-      || process.env.STRIPE_MARKET_IQ_INTELLIGENCE_PRICE_ID;
+    return billingInterval === "year"
+      ? process.env.STRIPE_MARKET_IQ_INTELLIGENCE_FOUNDING_ANNUAL_PRICE_ID
+      : process.env.STRIPE_MARKET_IQ_INTELLIGENCE_FOUNDING_PRICE_ID
+        || process.env.STRIPE_MARKET_IQ_INTELLIGENCE_PRICE_ID;
   }
   if (planKey === MARKET_IQ_CLIENT_ADVISORY_PLAN.key) {
-    return process.env.STRIPE_MARKET_IQ_CLIENT_ADVISORY_FOUNDING_PRICE_ID
-      || process.env.STRIPE_MARKET_IQ_CLIENT_ADVISORY_PRICE_ID;
+    return billingInterval === "year"
+      ? process.env.STRIPE_MARKET_IQ_CLIENT_ADVISORY_FOUNDING_ANNUAL_PRICE_ID
+      : process.env.STRIPE_MARKET_IQ_CLIENT_ADVISORY_FOUNDING_PRICE_ID
+        || process.env.STRIPE_MARKET_IQ_CLIENT_ADVISORY_PRICE_ID;
   }
   return null;
 }
@@ -46,13 +52,15 @@ function configuredPriceId(planKey: string) {
 export default async function MarketIqSubscribePage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string; state?: string; upgrade?: string }>;
+  searchParams: Promise<{ checkout?: string; state?: string; upgrade?: string; billing?: string }>;
 }) {
   if (!marketIqPreviewEnabled()) notFound();
   const { userId, organizationId, role } = await getActiveOrgContext();
   if (!userId) notFound();
   if (!organizationId) redirect("/setup-workspace");
   const query = await searchParams;
+  const requestedBillingInterval = query.billing ?? "";
+  const billingInterval = isMarketIqBillingInterval(requestedBillingInterval) ? requestedBillingInterval : "month";
   const organization = await prisma.organization.findUnique({
     where: { id: organizationId },
     select: {
@@ -78,6 +86,10 @@ export default async function MarketIqSubscribePage({
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-700">Market IQ plans</p>
         <h1 className="mt-3 text-4xl font-bold tracking-tight text-navy sm:text-5xl">Start with market intelligence. Add a client advisory channel when you are ready.</h1>
         <p className="mt-5 text-lg leading-8 text-slate-600">Both plans include one market and the same underlying Dwellsy intelligence. Client Advisory adds the controlled, PM-branded workflow for sharing that intelligence with clients and prospects.</p>
+        <nav aria-label="Billing frequency" className="mt-7 inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+          <Link href="/market-iq/subscribe?billing=month" className={`rounded-lg px-5 py-2.5 text-sm font-semibold ${billingInterval === "month" ? "bg-navy text-white" : "text-slate-600"}`}>Monthly</Link>
+          <Link href="/market-iq/subscribe?billing=year" className={`rounded-lg px-5 py-2.5 text-sm font-semibold ${billingInterval === "year" ? "bg-navy text-white" : "text-slate-600"}`}>Annual</Link>
+        </nav>
       </header>
 
       {query.checkout === "success" && !active && <p className="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-900">Payment was accepted. Stripe is finalizing access now. Refresh this page in a few seconds.</p>}
@@ -85,7 +97,7 @@ export default async function MarketIqSubscribePage({
       {query.upgrade === "client_advisory" && activePlan?.tier === "intelligence" && <p className="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">Client publishing and distribution are part of Client Advisory. Upgrade to unlock these capabilities.</p>}
 
       {active && <section className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-        <div><p className="text-xs font-bold uppercase tracking-[0.13em] text-emerald-800">Current plan</p><p className="mt-1 font-semibold text-navy">{activePlan?.name ?? "Market IQ Client Advisory"} for {active.markets.length} market{active.markets.length === 1 ? "" : "s"}</p></div>
+        <div><p className="text-xs font-bold uppercase tracking-[0.13em] text-emerald-800">Current plan</p><p className="mt-1 font-semibold text-navy">{activePlan?.name ?? "Market IQ Client Advisory"} · billed {active.billingInterval === "year" ? "annually" : "monthly"} · {active.markets.length} market{active.markets.length === 1 ? "" : "s"}</p></div>
         <Link href={activationComplete ? "/market-iq" : "/market-iq/get-started"} className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">{activationComplete ? "Open Market IQ" : "Finish setup"}</Link>
       </section>}
 
@@ -94,24 +106,25 @@ export default async function MarketIqSubscribePage({
           const isAdvisory = plan.tier === "client_advisory";
           const isCurrent = activePlan?.tier === plan.tier;
           const isUpgrade = activePlan?.tier === "intelligence" && isAdvisory;
-          const checkoutReady = stripeConfigured() && Boolean(configuredPriceId(plan.key));
+          const checkoutReady = stripeConfigured() && Boolean(configuredPriceId(plan.key, billingInterval));
+          const displayedPrice = marketIqFoundingPriceCents(plan, billingInterval);
           return <article key={plan.key} className={`relative rounded-2xl border bg-white p-7 shadow-sm sm:p-9 ${isAdvisory ? "border-navy" : "border-slate-200"}`}>
             {isAdvisory && <p className="absolute right-6 top-0 -translate-y-1/2 rounded-full bg-navy px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white">Client growth plan</p>}
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">One market</p>
             <h2 className="mt-2 text-2xl font-bold text-navy">{plan.name}</h2>
             <p className="mt-2 min-h-12 text-sm leading-6 text-slate-600">{plan.description}</p>
             <div className="mt-6 flex items-end gap-3">
-              <span className="text-5xl font-bold text-navy">{marketIqPlanPriceLabel(plan.foundingMonthlyPriceCents)}</span>
-              <span className="pb-1 text-sm text-slate-500">per month</span>
+              <span className="text-5xl font-bold text-navy">{marketIqPlanPriceLabel(displayedPrice)}</span>
+              <span className="pb-1 text-sm text-slate-500">per {billingInterval}</span>
             </div>
-            <p className="mt-1 text-sm text-slate-500"><span className="line-through">{marketIqPlanPriceLabel(plan.monthlyPriceCents)}</span> standard price · founding offer</p>
+            <p className="mt-1 text-sm text-slate-500">{billingInterval === "year" ? `Founding annual price · save ${marketIqPlanPriceLabel(plan.foundingMonthlyPriceCents * 12 - plan.foundingAnnualPriceCents)}` : <><span className="line-through">{marketIqPlanPriceLabel(plan.monthlyPriceCents)}</span> standard price · founding offer</>}</p>
             <ul className="mt-7 space-y-3 text-sm leading-6 text-slate-700">
               {FEATURES[plan.tier].map((feature) => <li key={feature} className="flex gap-3"><span aria-hidden="true" className="font-bold text-teal-700">✓</span><span>{feature}</span></li>)}
             </ul>
             <div className="mt-8">
               {isCurrent ? <p className="rounded-md bg-emerald-50 px-5 py-3.5 text-center text-sm font-semibold text-emerald-800">Your current plan</p>
                 : active && !isUpgrade ? null
-                : canManageBilling && checkoutReady && !active ? <form action="/api/market-iq/billing/checkout" method="post"><input type="hidden" name="planKey" value={plan.key} /><button className="w-full rounded-md bg-navy px-5 py-3.5 text-sm font-semibold text-white hover:bg-navy/90">Choose the {marketIqPlanPriceLabel(plan.foundingMonthlyPriceCents)} founding plan</button></form>
+                : canManageBilling && checkoutReady && !active ? <form action="/api/market-iq/billing/checkout" method="post"><input type="hidden" name="planKey" value={plan.key} /><input type="hidden" name="billingInterval" value={billingInterval} /><button className="w-full rounded-md bg-navy px-5 py-3.5 text-sm font-semibold text-white hover:bg-navy/90">Choose the {marketIqPlanPriceLabel(displayedPrice)} {billingInterval === "year" ? "annual" : "monthly"} plan</button></form>
                 : isUpgrade && active?.source === "stripe" && active.stripeCustomerId ? <form action="/api/market-iq/billing/portal" method="post"><button className="w-full rounded-md bg-navy px-5 py-3.5 text-sm font-semibold text-white">Upgrade to Client Advisory</button></form>
                 : isUpgrade ? <div className="rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm leading-6 text-slate-700">Your founding Intelligence plan was provisioned directly. Contact Dwellsy to move this workspace to the $149 Client Advisory founding plan.</div>
                 : <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">{!canManageBilling ? "Ask an organization administrator to select this plan." : "Online checkout is being configured. Early customers can be provisioned directly at the founding price."}</div>}

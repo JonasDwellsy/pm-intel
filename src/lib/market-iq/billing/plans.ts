@@ -4,6 +4,7 @@ export const MARKET_IQ_INTELLIGENCE_PLAN = {
   description: "Internal rental-market intelligence for one market.",
   monthlyPriceCents: 7_900,
   foundingMonthlyPriceCents: 4_900,
+  foundingAnnualPriceCents: 49_900,
   currency: "usd",
   tier: "intelligence",
 } as const;
@@ -14,6 +15,7 @@ export const MARKET_IQ_CLIENT_ADVISORY_PLAN = {
   description: "PM-branded publishing and distribution for one market.",
   monthlyPriceCents: 19_900,
   foundingMonthlyPriceCents: 14_900,
+  foundingAnnualPriceCents: 149_900,
   currency: "usd",
   tier: "client_advisory",
 } as const;
@@ -30,6 +32,18 @@ export const MARKET_IQ_PLANS = [
 
 export type MarketIqPlanKey = typeof MARKET_IQ_PLANS[number]["key"];
 export type MarketIqPlanTier = typeof MARKET_IQ_PLANS[number]["tier"];
+export type MarketIqBillingInterval = "month" | "year";
+
+export function isMarketIqBillingInterval(value: string): value is MarketIqBillingInterval {
+  return value === "month" || value === "year";
+}
+
+export function marketIqFoundingPriceCents(
+  plan: typeof MARKET_IQ_PLANS[number],
+  interval: MarketIqBillingInterval,
+) {
+  return interval === "year" ? plan.foundingAnnualPriceCents : plan.foundingMonthlyPriceCents;
+}
 
 export type MarketIqCapabilities = {
   viewMarketIntelligence: boolean;
