@@ -28,18 +28,14 @@ test("the Market IQ route checks the disabled-by-default flag before auth or dat
   assert.ok(marketCheck > accessCheck);
 });
 
-test("the integration preview root opens the latest public Market IQ report before Operator IQ reads", () => {
+test("the integration preview root opens the public Market IQ front door before Operator IQ reads", () => {
   const source = readFileSync(join(process.cwd(), "src/app/page.tsx"), "utf8");
   const previewCheck = source.indexOf("if (marketIqPreviewEnabled())");
-  const reportRead = source.indexOf("prisma.marketIqReport.findFirst", previewCheck);
-  const publicRedirect = source.indexOf("/reports/market/", reportRead);
-  const seededFallback = source.indexOf("SEEDED_CLEVELAND_REPORT_TOKEN", publicRedirect);
+  const publicRedirect = source.indexOf('redirect("/market-iq/welcome")', previewCheck);
   const operatorIqRead = source.indexOf("await prisma.market.findMany", publicRedirect);
 
   assert.ok(previewCheck >= 0);
-  assert.ok(reportRead > previewCheck);
-  assert.ok(publicRedirect > reportRead);
-  assert.ok(seededFallback > publicRedirect);
+  assert.ok(publicRedirect > previewCheck);
   assert.ok(operatorIqRead > publicRedirect);
 });
 

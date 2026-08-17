@@ -26,8 +26,6 @@ import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
 import { marketingDataSuppressed } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
-import { SEEDED_CLEVELAND_REPORT_TOKEN } from "@/lib/market-iq/report/seeded-cleveland";
 import type { ScorecardData } from "@/lib/types";
 
 const HOME_TITLE =
@@ -344,25 +342,10 @@ async function loadHeroCard(): Promise<SampleCard | null> {
 }
 
 export default async function HomePage() {
-  // The standalone Market IQ project is primarily a client-facing market
-  // read. Open its latest published Cleveland edition directly instead of
-  // routing a client through the Clerk-protected internal composer. The
-  // project database fallback is itself preview-only and project-scoped, so
-  // this query cannot run against or alter Operator IQ production.
+  // The isolated Market IQ project owns a public product front door. This
+  // flag-scoped redirect is inert in Operator IQ production.
   if (marketIqPreviewEnabled()) {
-    const latestPublished = await prisma.marketIqReport.findFirst({
-      where: { marketId: CLEVELAND_MARKET_ID, status: "published" },
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-      select: { publicToken: true },
-    });
-    if (latestPublished) {
-      redirect(`/reports/market/${latestPublished.publicToken}`);
-    }
-    // Neon creates an isolated database branch for each Vercel preview.
-    // A report published on an earlier deployment may therefore be absent
-    // from a newer branch. The deterministic preview token renders the same
-    // Cleveland baseline from current sources without requiring a stored row.
-    redirect(`/reports/market/${SEEDED_CLEVELAND_REPORT_TOKEN}`);
+    redirect("/market-iq/welcome");
   }
 
   const marketRows = await prisma.market.findMany({

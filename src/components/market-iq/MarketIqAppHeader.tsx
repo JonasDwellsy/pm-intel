@@ -18,14 +18,14 @@ export async function MarketIqAppHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-grid bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
       <div className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between gap-4 px-5 sm:px-7 lg:px-10">
-        <Link href="/market-iq" aria-label="Dwellsy IQ Market IQ home" className="flex shrink-0 items-center gap-3 text-navy">
+        <Link href={isSignedIn ? "/market-iq" : "/market-iq/welcome"} aria-label="Dwellsy IQ Market IQ home" className="flex shrink-0 items-center gap-3 text-navy">
           <Image src="/dwellsy-iq-logo.png" alt="Dwellsy IQ" width={119} height={37} priority className="h-9 w-auto" />
           <span aria-hidden className="h-6 w-px bg-grid" />
           <span className="text-sm font-bold tracking-tight sm:text-base">Market IQ</span>
         </Link>
 
         <div className="flex items-center gap-2 lg:gap-4">
-          <MarketIqAppNavigation />
+          <MarketIqAppNavigation signedIn={isSignedIn} />
           <span aria-hidden className="hidden h-6 w-px bg-grid lg:block" />
           {isSignedIn ? (
             <>

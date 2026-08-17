@@ -98,6 +98,9 @@ export const PROTECTED_ROUTE_PATTERNS = [
 ] as const;
 
 export const PUBLIC_BUYBOX_PATTERNS = [
+  // Market IQ's public product front door. The workspace, checkout, setup,
+  // editions, and distribution routes remain protected by Clerk.
+  "/market-iq/welcome",
   // Watch-list discovery flow — template picker + in-memory preview.
   // Anonymous visitors can clone a starter watch list and run a
   // preview without an auth gate; the save action redirects through

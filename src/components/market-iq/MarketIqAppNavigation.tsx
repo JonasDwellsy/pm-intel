@@ -11,13 +11,23 @@ const PRIMARY_ITEMS = [
   { href: "/market-iq/distribution", label: "Clients", match: (path: string) => path.startsWith("/market-iq/distribution") },
 ] as const;
 
-export function MarketIqAppNavigation() {
+const PUBLIC_ITEMS = [
+  { href: "/market-iq/welcome#product", label: "Product" },
+  { href: "/market-iq/welcome#workflow", label: "How it works" },
+  { href: "/market-iq/welcome#plans", label: "Plans" },
+  { href: "/reports/market/preview-cleveland-market-read", label: "Cleveland example" },
+] as const;
+
+export function MarketIqAppNavigation({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname() ?? "";
+  const items = signedIn
+    ? PRIMARY_ITEMS
+    : PUBLIC_ITEMS.map((item) => ({ ...item, match: () => false }));
 
   return (
     <>
       <nav aria-label="Market IQ" className="hidden items-center gap-1 lg:flex">
-        {PRIMARY_ITEMS.map((item) => {
+        {items.map((item) => {
           const active = item.match(pathname);
           return (
             <Link
@@ -42,7 +52,7 @@ export function MarketIqAppNavigation() {
           </svg>
         </summary>
         <nav aria-label="Market IQ mobile" className="absolute right-0 top-12 z-50 w-64 rounded-xl border border-grid bg-white p-2 shadow-xl">
-          {PRIMARY_ITEMS.map((item) => {
+          {items.map((item) => {
             const active = item.match(pathname);
             return (
               <Link
@@ -57,9 +67,7 @@ export function MarketIqAppNavigation() {
               </Link>
             );
           })}
-          <div className="my-2 border-t border-grid" />
-          <Link href="/market-iq/get-started" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Workspace setup</Link>
-          <Link href="/market-iq/subscribe" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Plan and billing</Link>
+          {signedIn ? <><div className="my-2 border-t border-grid" /><Link href="/market-iq/get-started" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Workspace setup</Link><Link href="/market-iq/subscribe" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Plan and billing</Link></> : <><div className="my-2 border-t border-grid" /><Link href="/sign-in?redirect_url=/market-iq/subscribe" className="block rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white">Sign in</Link></>}
         </nav>
       </details>
     </>
