@@ -236,7 +236,7 @@ export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
   // Bump this key whenever the source adapter or reportability rules change.
   // The callback itself is intentionally small, so relying on its function
   // string would otherwise preserve an obsolete cross-deployment snapshot.
-  ["market-iq-cleveland-live-snapshot-v7"],
+  ["market-iq-cleveland-live-snapshot-v8"],
   { revalidate: 900 },
 );
 
