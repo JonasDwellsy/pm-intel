@@ -179,7 +179,10 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
 
 export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
   () => buildClevelandMarketIqReportSnapshot(),
-  ["market-iq-cleveland-live-snapshot-v1"],
+  // Bump this key whenever the source adapter or reportability rules change.
+  // The callback itself is intentionally small, so relying on its function
+  // string would otherwise preserve an obsolete cross-deployment snapshot.
+  ["market-iq-cleveland-live-snapshot-v2"],
   { revalidate: 900 },
 );
 

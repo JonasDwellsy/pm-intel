@@ -243,6 +243,7 @@ test("Market IQ reuses the market snapshot without caching organization branding
   );
 
   assert.match(build, /loadCachedClevelandMarketIqReportSnapshot = unstable_cache/);
+  assert.match(build, /market-iq-cleveland-live-snapshot-v2/);
   assert.match(build, /revalidate: 900/);
   assert.match(composer, /const snapshot = await loadCachedClevelandMarketIqReportSnapshot\(\)/);
   assert.match(composer, /snapshot: \{ \.\.\.snapshot, brand \}/);
