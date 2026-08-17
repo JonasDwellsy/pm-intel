@@ -60,7 +60,11 @@ export async function runMarketIqEditionOrchestrator(input: {
       where: {
         brandProfile: { isNot: null },
         marketIqWorkspacePreference: {
-          is: { onboardingCompletedAt: { not: null }, defaultMarketId: CLEVELAND_MARKET_ID },
+          is: {
+            onboardingCompletedAt: { not: null },
+            defaultMarketId: CLEVELAND_MARKET_ID,
+            recurringEditionsEnabled: true,
+          },
         },
         marketIqReports: { some: { marketId: CLEVELAND_MARKET_ID, status: "published" } },
         OR: [

@@ -9,6 +9,18 @@ test("scheduled edition orchestration is additive and isolated", async () => {
   assert.doesNotMatch(migration, /ALTER TABLE "PM"|ALTER TABLE "OperatorSnapshot"|ALTER TABLE "PortfolioIq|DROP TABLE|DROP COLUMN/);
 });
 
+test("recurring enrollment is additive and opt-in", async () => {
+  const [migration, schema, orchestrator] = await Promise.all([
+    readFile("prisma/migrations/20260817033000_market_iq_edition_enrollment/migration.sql", "utf8"),
+    readFile("prisma/schema.prisma", "utf8"),
+    readFile("src/lib/market-iq/report/edition-orchestrator.server.ts", "utf8"),
+  ]);
+  assert.match(migration, /ADD COLUMN "recurringEditionsEnabled" BOOLEAN NOT NULL DEFAULT false/);
+  assert.doesNotMatch(migration, /ALTER TABLE "PM"|ALTER TABLE "OperatorSnapshot"|ALTER TABLE "PortfolioIq|DROP TABLE|DROP COLUMN/);
+  assert.match(schema, /recurringEditionsEnabled Boolean\s+@default\(false\)/);
+  assert.match(orchestrator, /recurringEditionsEnabled: true/);
+});
+
 test("scheduled endpoint is authenticated and fail-closed behind Market IQ", async () => {
   const [route, vercel] = await Promise.all([
     readFile("src/app/api/cron/market-iq-editions/route.ts", "utf8"),

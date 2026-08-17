@@ -4,14 +4,16 @@ import { MarketIqWorkspaceNav } from "@/components/market-iq/MarketIqWorkspaceNa
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
-import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
+import { organizationHasMarketIqAccess, resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { loadMarketIqReportComposer } from "@/lib/market-iq/report/composer.server";
 import { compareMarketIqEditions } from "@/lib/market-iq/report/edition-comparison";
+import { buildEditionEnrollmentReadiness } from "@/lib/market-iq/report/edition-enrollment";
 import { buildMarketIqEditionWorkflow } from "@/lib/market-iq/report/edition-workflow";
 import { applyMarketIqReportScope, buildMarketIqCoveragePreflight } from "@/lib/market-iq/report/scope";
+import { marketIqSelectionFromPreference } from "@/lib/market-iq/workspace-preference";
 import { prisma } from "@/lib/prisma";
-import { checkForRecurringMarketIqEdition } from "@/app/market-iq/editions/actions";
+import { checkForRecurringMarketIqEdition, setMarketIqRecurringEnrollment } from "@/app/market-iq/editions/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +27,13 @@ function dateLabel(value: string | Date | null) {
   return value ? new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "None";
 }
 
-export default async function MarketIqEditionsPage({ searchParams }: { searchParams: Promise<{ activated?: string; refresh?: string }> }) {
+export default async function MarketIqEditionsPage({ searchParams }: { searchParams: Promise<{ activated?: string; refresh?: string; enrollment?: string }> }) {
   if (!marketIqPreviewEnabled()) notFound();
   const [{ userId, organizationId }, access] = await Promise.all([getActiveOrgContext(), resolveViewerMarketIqAccess()]);
   if (!userId) notFound();
   if (!organizationId) redirect("/setup-workspace");
   if (!access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) redirect("/market-iq/subscribe");
-  const [composer, recipients, publishedCount, recurringDraft, latestOrchestration] = await Promise.all([
+  const [composer, recipients, publishedCount, recurringDraft, latestOrchestration, organizationSetup, organizationHasAccess] = await Promise.all([
     loadMarketIqReportComposer(organizationId),
     prisma.marketIqReportRecipient.findMany({ where: { organizationId }, orderBy: { name: "asc" }, select: { id: true, name: true, email: true, kind: true } }),
     prisma.marketIqReport.count({ where: { organizationId, marketId: CLEVELAND_MARKET_ID, status: "published" } }),
@@ -50,6 +52,14 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
         run: { select: { dryRun: true, sourceAvailableThrough: true } },
       },
     }),
+    prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        brandProfile: { select: { id: true } },
+        marketIqWorkspacePreference: true,
+      },
+    }),
+    organizationHasMarketIqAccess(organizationId, CLEVELAND_MARKET_ID),
   ]);
   if (!composer) notFound();
   const query = await searchParams;
@@ -58,6 +68,19 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
   const comparison = compareMarketIqEditions(current, prior);
   const coverage = buildMarketIqCoveragePreflight(current);
   const workflow = buildMarketIqEditionWorkflow({ current, prior: prior?.snapshot ?? null, source: composer.preview.source, coverageCounts: coverage.counts, comparison });
+  const preference = organizationSetup?.marketIqWorkspacePreference ?? null;
+  const savedSelection = marketIqSelectionFromPreference(preference);
+  const enrollmentReadiness = buildEditionEnrollmentReadiness({
+    hasCommercialAccess: organizationHasAccess,
+    hasBrandProfile: Boolean(organizationSetup?.brandProfile),
+    onboardingCompleted: Boolean(preference?.onboardingCompletedAt),
+    hasSavedGeography: savedSelection.cities.length > 0 || savedSelection.zipCodes.length > 0,
+    hasSavedSegment: savedSelection.segments.length > 0,
+    sourceIsAuthoritative: composer.preview.source === "dwellsy_trends",
+    sourceAvailableThrough: current.scope.periodEnd,
+    hasPublishedBaseline: Boolean(composer.priorEdition),
+    recurringEditionsEnabled: Boolean(preference?.recurringEditionsEnabled),
+  });
   const latestSends = prior ? await prisma.marketIqReportSend.findMany({
     where: { organizationId, reportId: prior.id, deliveryStatus: { in: ["sent", "delivered"] } },
     orderBy: { createdAt: "desc" },
@@ -71,11 +94,21 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
     <MarketIqWorkspaceNav />
     <nav className="mt-5 flex items-center gap-2 text-xs font-semibold text-slate-500"><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><span>Edition workflow</span></nav>
     {query.activated === "1" && <p className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Setup complete. Your first saved-scope edition is assembled below.</p>}
+    {query.enrollment === "enabled" && <p className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Recurring drafts are enabled. The scheduler will check for a new authoritative Trends IQ period without publishing or emailing anyone.</p>}
+    {query.enrollment === "disabled" && <p className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700">Recurring drafts are paused for this workspace. Existing editions and drafts were preserved.</p>}
     {query.refresh === "same_period" && <p className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700">Checked Trends IQ. The authoritative reporting period has not advanced, so no duplicate draft was created.</p>}
     {query.refresh === "source_unavailable" && <p className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-900">Authoritative Trends IQ data is unavailable. The engine preserved the current state and did not create a draft from preview data.</p>}
     <header className="mt-6 grid gap-7 border-b border-grid pb-8 lg:grid-cols-[1fr_360px] lg:items-end"><div><p className="dq-eyebrow">Recurring client advisory</p><h1 className="dq-h1">Prepare the next Cleveland edition</h1><p className="mt-3 max-w-3xl text-[15px] leading-6 text-slate-600">Market IQ has assembled the latest Trends IQ evidence using your saved brand, geography, and segment defaults. Review what changed, confirm the evidence, then open the editorial and publication controls.</p><Link href="/market-iq/get-started" className="mt-4 inline-block text-sm font-semibold text-teal-800">Edit brand and market defaults →</Link></div><aside className="rounded-xl bg-navy p-5 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">Edition state</p><p className="mt-2 text-xl font-semibold">{workflow.state === "launch" ? "Launch baseline" : workflow.state === "new_period" ? "New data available" : "Same reporting period"}</p><p className="mt-2 text-sm leading-6 text-white/70">Current cutoff: {dateLabel(workflow.currentPeriodEnd)}{workflow.priorPeriodEnd ? ` · Prior cutoff: ${dateLabel(workflow.priorPeriodEnd)}` : ""}</p></aside></header>
 
     <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Reportable evidence</p><p className="mt-3 text-3xl font-semibold text-navy">{coverage.counts.reportable}</p><p className="mt-1 text-xs text-slate-500">Trends IQ cells in saved scope</p></article><article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Material changes</p><p className="mt-3 text-3xl font-semibold text-navy">{comparison.findings.length}</p><p className="mt-1 text-xs text-slate-500">since the prior frozen edition</p></article><article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Prior audience</p><p className="mt-3 text-3xl font-semibold text-navy">{priorAudience.length}</p><p className="mt-1 text-xs text-slate-500">recipients to consider carrying forward</p></article><article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Edition history</p><p className="mt-3 text-3xl font-semibold text-navy">{publishedCount}</p><p className="mt-1 text-xs text-slate-500">immutable published reads</p></article></section>
+
+    <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="grid gap-6 border-b border-slate-200 bg-slate-50 p-6 lg:grid-cols-[1fr_340px] lg:items-center">
+        <div><p className="dq-eyebrow">Scheduled-edition readiness</p><h2 className="dq-h2">{enrollmentReadiness.readyForScheduler ? "This workspace is enrolled" : enrollmentReadiness.prerequisitesPassed ? "Ready to enroll" : `${enrollmentReadiness.blockers.length} ${enrollmentReadiness.blockers.length === 1 ? "check needs" : "checks need"} attention`}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">The scheduler checks daily and creates at most one private draft when authoritative Trends IQ advances. It cannot publish a report, select recipients, create a campaign, or send email.</p></div>
+        <div className={`rounded-xl border p-5 ${enrollmentReadiness.readyForScheduler ? "border-emerald-200 bg-emerald-50" : enrollmentReadiness.prerequisitesPassed ? "border-teal-200 bg-teal-50" : "border-amber-200 bg-amber-50"}`}><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Enrollment</p><p className="mt-2 text-xl font-semibold text-navy">{enrollmentReadiness.enrolled ? "Recurring drafts on" : "Recurring drafts off"}</p>{enrollmentReadiness.prerequisitesPassed ? <form action={setMarketIqRecurringEnrollment} className="mt-4"><input type="hidden" name="enabled" value={enrollmentReadiness.enrolled ? "false" : "true"} /><button className={`w-full rounded-md px-4 py-2.5 text-sm font-semibold ${enrollmentReadiness.enrolled ? "border border-slate-300 bg-white text-navy" : "bg-navy text-white"}`}>{enrollmentReadiness.enrolled ? "Pause recurring drafts" : "Enable recurring drafts"}</button></form> : <p className="mt-3 text-xs leading-5 text-slate-600">Resolve the failed checks below before enrollment can be enabled.</p>}</div>
+      </div>
+      <div className="grid gap-px bg-slate-200 sm:grid-cols-2 xl:grid-cols-3">{enrollmentReadiness.checks.map((check) => <article key={check.id} className="bg-white p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-navy">{check.label}</p><p className="mt-2 text-xs leading-5 text-slate-500">{check.detail}</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${check.passed ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>{check.passed ? "Passed" : "Required"}</span></div>{check.remedyHref && <Link href={check.remedyHref} className="mt-3 inline-block text-xs font-semibold text-teal-800">{check.remedyLabel} →</Link>}</article>)}</div>
+    </section>
 
     <section className="mt-8 grid gap-7 xl:grid-cols-[1fr_380px]">
       <div className="space-y-7">
