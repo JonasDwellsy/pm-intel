@@ -7,7 +7,7 @@ import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.serv
 import { marketIqPlanForKey } from "@/lib/market-iq/billing/plans";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { loadClevelandLiveListingPulse } from "@/lib/market-iq/live-listings.server";
-import { loadClevelandTrendPulses } from "@/lib/market-iq/trends.server";
+import { loadClevelandMarketReadTrendPulses } from "@/lib/market-iq/trends.server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export default async function MarketIqHomePage() {
   if (!context.organizationId) redirect("/setup-workspace");
 
   const [trendPulses, liveListings, workspace] = await Promise.all([
-    loadClevelandTrendPulses(),
+    loadClevelandMarketReadTrendPulses(),
     loadClevelandLiveListingPulse(),
     prisma.organization.findUnique({
       where: { id: context.organizationId },
@@ -87,7 +87,7 @@ export default async function MarketIqHomePage() {
           <article className="bg-white p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">1-bed apartments</p><p className="mt-2 text-2xl font-semibold text-navy">{apartment ? `$${apartment.rent.toLocaleString("en-US")}` : "Pending"}</p><p className="mt-1 text-sm text-slate-500">{apartment ? `${percent(apartment.yoy)} year over year` : "No current read"}</p></article>
           <article className="bg-white p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">3-bed houses</p><p className="mt-2 text-2xl font-semibold text-navy">{house ? `$${house.rent.toLocaleString("en-US")}` : "Pending"}</p><p className="mt-1 text-sm text-slate-500">{house ? `${percent(house.yoy)} year over year` : "No current read"}</p></article>
           <article className="bg-white p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active listings</p><p className="mt-2 text-2xl font-semibold text-navy">{liveListings.status === "healthy" ? liveListings.activeListings.toLocaleString("en-US") : "Pending"}</p><p className="mt-1 text-sm text-slate-500">{liveListings.status === "healthy" ? `Observed ${dateLabel(liveListings.sourceAvailableThrough)}` : "Awaiting synchronized snapshot"}</p></article>
-          <article className="bg-white p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Your plan</p><p className="mt-2 text-2xl font-semibold text-navy">{plan?.tier === "client_advisory" || access.source !== "subscription" ? "Client Advisory" : "Intelligence"}</p><Link href="/market-iq/subscribe" className="mt-1 inline-block text-sm font-semibold text-teal-700">Plan and billing →</Link></article>
+          <article className="bg-white p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Your plan</p><p className="mt-2 text-2xl font-semibold text-navy">{plan?.tier === "client_advisory" || access.source !== "subscription" ? "Client Advisory" : "Intelligence"}</p><Link href="/market-iq/account" className="mt-1 inline-block text-sm font-semibold text-teal-700">Account and billing →</Link></article>
         </div>
       </section>
 

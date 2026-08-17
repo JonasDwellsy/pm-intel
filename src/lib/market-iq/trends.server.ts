@@ -3,11 +3,67 @@ import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { buildMarketIqTrendPulse, type MarketIqTrendPulse } from "@/lib/market-iq/trends";
 import { trendSnapshotFreshness } from "@/lib/market-iq/source-refresh";
+import { buildClevelandMarketIqReportSnapshot } from "@/lib/market-iq/report/build.server";
+import type { MarketIqMarketCell } from "@/lib/market-iq/report/report";
+import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 
 function displayLabel(type: string, value: string) {
   if (type === "msa") return "Cleveland–Elyria, OH";
   if (type === "zip") return `ZIP ${value}`;
   return value.replace(/, OH$/, "");
+}
+
+const MARKET_READ_SEGMENTS = [
+  { propertyType: "apartment", bedrooms: 1, label: "1-bed apartment" },
+  { propertyType: "apartment", bedrooms: 2, label: "2-bed apartment" },
+  { propertyType: "house", bedrooms: 2, label: "2-bed house" },
+  { propertyType: "house", bedrooms: 3, label: "3-bed house" },
+] as const;
+
+function reportPulse(cells: MarketIqMarketCell[]): MarketIqTrendPulse | null {
+  const reportable = cells.filter((cell) => cell.status === "reportable" && cell.rent !== null && cell.month);
+  const segments = MARKET_READ_SEGMENTS.flatMap((segment) => {
+    const cell = reportable.find((candidate) => candidate.propertyType === segment.propertyType && candidate.bedrooms === segment.bedrooms);
+    if (!cell) return [];
+    return [{
+      label: segment.label,
+      rent: cell.rent ?? 0,
+      yoy: cell.yearOverYearPct ?? 0,
+      observations: cell.observations,
+    }];
+  });
+  const first = reportable[0];
+  if (!first || !segments.length) return null;
+  const largestMove = [...segments].sort((a, b) => Math.abs(b.yoy) - Math.abs(a.yoy))[0];
+  const direction = largestMove.yoy >= 0 ? "rose" : "fell";
+  return {
+    trendSource: {
+      name: "Dwellsy IQ Trends",
+      availableThrough: first.month ?? "",
+      geographyType: first.geographyType,
+      geographyValue: first.geographyValue,
+      displayLabel: first.geographyLabel,
+    },
+    segments,
+    signal: {
+      heading: `${largestMove.label[0].toUpperCase()}${largestMove.label.slice(1)} moved the most`,
+      narrative: `${largestMove.label[0].toUpperCase()}${largestMove.label.slice(1)} asking rent ${direction} ${Math.abs(largestMove.yoy).toFixed(1)}% year over year to $${largestMove.rent.toLocaleString("en-US")}.`,
+    },
+    alerts: [],
+  };
+}
+
+async function loadClevelandReportPulses() {
+  const snapshot = await buildClevelandMarketIqReportSnapshot();
+  const grouped = new Map<string, MarketIqMarketCell[]>();
+  for (const cell of snapshot.marketRead.cells) {
+    const key = `${cell.geographyType}:${cell.geographyValue}`;
+    grouped.set(key, [...(grouped.get(key) ?? []), cell]);
+  }
+  return [...grouped.values()].flatMap((cells) => {
+    const pulse = reportPulse(cells);
+    return pulse ? [pulse] : [];
+  });
 }
 
 export async function loadClevelandTrendPulses() {
@@ -50,6 +106,17 @@ export async function loadClevelandTrendPulses() {
     }
   }
   return pulses.sort((a, b) => {
+    const rank = (type: string) => type === "msa" ? 0 : type === "city" ? 1 : 2;
+    return rank(a.trendSource.geographyType) - rank(b.trendSource.geographyType) ||
+      a.trendSource.displayLabel.localeCompare(b.trendSource.displayLabel);
+  });
+}
+
+export async function loadClevelandMarketReadTrendPulses() {
+  const importedPulses = await loadClevelandTrendPulses().catch(() => []);
+  if (importedPulses.length || !marketIqPreviewEnabled()) return importedPulses;
+  const reportPulses = await loadClevelandReportPulses();
+  return reportPulses.sort((a, b) => {
     const rank = (type: string) => type === "msa" ? 0 : type === "city" ? 1 : 2;
     return rank(a.trendSource.geographyType) - rank(b.trendSource.geographyType) ||
       a.trendSource.displayLabel.localeCompare(b.trendSource.displayLabel);

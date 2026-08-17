@@ -4,13 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { clevelandPilot } from "@/data/market-iq/cleveland-pilot";
 import { fmtDate, fmtInt, fmtPct } from "@/lib/format";
-import type { MarketIqWatchlistView } from "@/lib/market-iq/watchlists";
 import type { HistoricalListingPulse } from "@/lib/market-iq/historical";
 import type { MarketIqTrendPulse } from "@/lib/market-iq/trends";
-import { MarketWatchlistBuilder } from "@/components/market-iq/MarketWatchlistBuilder";
-import { MarketIqDigestPanel } from "@/components/market-iq/MarketIqDigestPanel";
-import { MarketIqAlertHistory } from "@/components/market-iq/MarketIqAlertHistory";
-import type { MarketIqAlertHistoryItem } from "@/lib/market-iq/alert-history.server";
 import type { ClevelandLiveListingPulse } from "@/lib/market-iq/live-listings.server";
 
 function MetricCard({
@@ -37,18 +32,14 @@ export function ClevelandPilot({
   historicalPulse,
   trendPulses,
   liveListingPulse,
-  initialWatchlists = [],
-  alertHistory = [],
   clientAdvisoryEnabled = true,
 }: {
-  historicalPulse: HistoricalListingPulse;
+  historicalPulse: HistoricalListingPulse | null;
   trendPulses: MarketIqTrendPulse[];
   liveListingPulse: ClevelandLiveListingPulse;
-  initialWatchlists?: MarketIqWatchlistView[];
-  alertHistory?: MarketIqAlertHistoryItem[];
   clientAdvisoryEnabled?: boolean;
 }) {
-  const data = { ...clevelandPilot, ...historicalPulse };
+  const data = historicalPulse ? { ...clevelandPilot, ...historicalPulse } : null;
   const [selectedKey, setSelectedKey] = useState(
     trendPulses[0] ? `${trendPulses[0].trendSource.geographyType}:${trendPulses[0].trendSource.geographyValue}` : ""
   );
@@ -68,15 +59,15 @@ export function ClevelandPilot({
       <header className="grid gap-6 border-b border-grid pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
           <p className="dq-eyebrow">Market watchlist</p>
-          <h1 className="dq-h1">{data.market}</h1>
+          <h1 className="dq-h1">{clevelandPilot.market}</h1>
           <p className="mt-3 max-w-3xl text-[15px] leading-6 text-muted-foreground">
             Asking-market intelligence for rent direction, listing supply, and product-segment performance. This view does not measure occupancy, signed leases, or effective rent.
           </p>
         </div>
-        <div className="space-y-3"><div className="rounded-lg border border-teal/25 bg-teal-soft px-4 py-3 text-sm text-navy"><span className="font-semibold">Decision read:</span> {data.decisionRead}</div>{clientAdvisoryEnabled ? <><Link href="/market-iq/editions" className="block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white hover:bg-navy/90">Prepare next edition</Link><div className="flex justify-center gap-4"><Link href="/market-iq/distribution" className="text-xs font-semibold text-slate-500 hover:text-navy">Recipients and distribution</Link><Link href="/market-iq/subscribe" className="text-xs font-semibold text-slate-500 hover:text-navy">Plan and billing</Link></div></> : <><Link href="/market-iq/subscribe?upgrade=client_advisory" className="block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white hover:bg-navy/90">Add client sharing</Link><p className="text-center text-xs text-slate-500">Upgrade to publish and distribute PM-branded editions.</p></>}</div>
+        <div className="space-y-3"><div className="rounded-lg border border-teal/25 bg-teal-soft px-4 py-3 text-sm text-navy"><span className="font-semibold">Current read:</span> {trendPulse?.signal.narrative ?? "The latest Cleveland Trends data is being prepared."}</div>{clientAdvisoryEnabled ? <><Link href="/market-iq/editions" className="block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white hover:bg-navy/90">Prepare next edition</Link><div className="flex justify-center gap-4"><Link href="/market-iq/distribution" className="text-xs font-semibold text-slate-500 hover:text-navy">Sharing</Link><Link href="/market-iq/account" className="text-xs font-semibold text-slate-500 hover:text-navy">Account and billing</Link></div></> : <><Link href="/market-iq/subscribe?upgrade=client_advisory" className="block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white hover:bg-navy/90">Add client sharing</Link><p className="text-center text-xs text-slate-500">Upgrade to publish and distribute PM-branded editions.</p></>}</div>
       </header>
 
-      <section aria-labelledby="overview-heading" className="mt-8">
+      {data && <section aria-labelledby="overview-heading" className="mt-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="dq-eyebrow">Historical listing pulse</p>
@@ -92,7 +83,7 @@ export function ClevelandPilot({
           <MetricCard label="Median days on market" value={`${data.historical.medianDom.toFixed(0)} days`} detail="Active listings at export cutoff" />
           <MetricCard label="Median asking rent / sf" value={`$${data.historical.medianRentPerSqFt.toFixed(2)}`} detail="Active listings with square footage" />
         </div>
-      </section>
+      </section>}
 
       <section aria-labelledby="live-listings-heading" className="mt-10">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -186,7 +177,7 @@ export function ClevelandPilot({
         <p className="mt-2 text-sm text-muted-foreground">No trend values are substituted while the authoritative Dwellsy IQ snapshot is being loaded.</p>
       </section>}
 
-      <section aria-labelledby="places-heading" className="mt-10">
+      {data && <section aria-labelledby="places-heading" className="mt-10">
         <div>
           <p className="dq-eyebrow">City lens</p>
           <h2 id="places-heading" className="dq-h2">Where listing pressure is changing</h2>
@@ -217,21 +208,7 @@ export function ClevelandPilot({
             </table>
           </div>
         </div>
-      </section>
-
-      <MarketWatchlistBuilder
-        key={selectedKey || "market-iq-watchlist"}
-        initialWatchlists={initialWatchlists}
-        selectedGeography={trendPulse ? {
-          type: trendPulse.trendSource.geographyType as "msa" | "city" | "zip",
-          value: trendPulse.trendSource.geographyValue,
-          label: trendPulse.trendSource.displayLabel,
-        } : undefined}
-      />
-
-      <MarketIqAlertHistory alerts={alertHistory} />
-
-      <MarketIqDigestPanel />
+      </section>}
 
       <section aria-labelledby="source-heading" className={`mt-10 rounded-lg border p-5 sm:p-6 ${liveListingPulse.status === "healthy" ? "border-teal/25 bg-teal-soft" : "border-orange/30 bg-orange-soft"}`}>
         <div className="flex flex-wrap items-start justify-between gap-4">

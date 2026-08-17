@@ -152,6 +152,43 @@ test("Market IQ home and detailed market read are distinct routes", () => {
   assert.match(market, /<ClevelandPilot/);
 });
 
+test("the standalone navigation does not leak Operator IQ destinations", () => {
+  const navigation = readFileSync(
+    join(process.cwd(), "src/components/market-iq/MarketIqAppNavigation.tsx"),
+    "utf8"
+  );
+  const header = readFileSync(
+    join(process.cwd(), "src/components/market-iq/MarketIqAppHeader.tsx"),
+    "utf8"
+  );
+  const footer = readFileSync(
+    join(process.cwd(), "src/components/market-iq/MarketIqAppFooter.tsx"),
+    "utf8"
+  );
+
+  assert.match(navigation, /label: "Market read"/);
+  assert.match(navigation, /label: "Sharing"/);
+  assert.doesNotMatch(navigation, /label: "Local areas"/);
+  assert.doesNotMatch(header, /OrganizationSwitcher/);
+  assert.match(footer, /href="\/market-iq\/account"/);
+  assert.doesNotMatch(footer, /href="\/privacy"|href="\/terms"/);
+});
+
+test("the standalone Market read tolerates an empty historical-import database", () => {
+  const market = readFileSync(
+    join(process.cwd(), "src/app/market-iq/market/page.tsx"),
+    "utf8"
+  );
+  const trends = readFileSync(
+    join(process.cwd(), "src/lib/market-iq/trends.server.ts"),
+    "utf8"
+  );
+
+  assert.match(market, /loadClevelandHistoricalPulse\(\)\.catch\(\(\) => null\)/);
+  assert.match(market, /loadClevelandMarketReadTrendPulses/);
+  assert.match(trends, /if \(importedPulses\.length \|\| !marketIqPreviewEnabled\(\)\) return importedPulses/);
+});
+
 test("the standalone preview keeps unauthenticated Market IQ navigation on its own origin", () => {
   const source = readFileSync(join(process.cwd(), "src/middleware.ts"), "utf8");
 

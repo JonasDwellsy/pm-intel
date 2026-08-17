@@ -5,13 +5,12 @@ import { usePathname } from "next/navigation";
 
 const INTELLIGENCE_ITEMS = [
   { href: "/market-iq", label: "Home", match: (path: string) => path === "/market-iq" },
-  { href: "/market-iq/market", label: "Market", match: (path: string) => path.startsWith("/market-iq/market") },
-  { href: "/market-iq/market#local-areas", label: "Local areas", match: () => false },
+  { href: "/market-iq/market", label: "Market read", match: (path: string) => path.startsWith("/market-iq/market") },
 ] as const;
 
 const ADVISORY_ITEMS = [
   { href: "/market-iq/editions", label: "Editions", match: (path: string) => path.startsWith("/market-iq/editions") || path.startsWith("/market-iq/review") || path.startsWith("/market-iq/report") },
-  { href: "/market-iq/distribution", label: "Clients", match: (path: string) => path.startsWith("/market-iq/distribution") },
+  { href: "/market-iq/distribution", label: "Sharing", match: (path: string) => path.startsWith("/market-iq/distribution") },
 ] as const;
 
 const PUBLIC_ITEMS = [
