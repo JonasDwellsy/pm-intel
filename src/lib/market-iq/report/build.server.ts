@@ -29,16 +29,54 @@ const REPORT_BEDROOMS = [1, 2, 3];
 
 function safeSourceError(error: unknown) {
   if (!error || typeof error !== "object") return { name: "UnknownError", code: null };
-  const value = error as { name?: unknown; code?: unknown; errors?: unknown };
+  const value = error as { name?: unknown; code?: unknown; message?: unknown; errors?: unknown };
   const nestedCodes = Array.isArray(value.errors)
     ? value.errors.flatMap((nested) => nested && typeof nested === "object" && "code" in nested
         ? [String((nested as { code: unknown }).code)]
         : [])
     : [];
+  const messages = [
+    typeof value.message === "string" ? value.message : "",
+    ...(Array.isArray(value.errors) ? value.errors.flatMap((nested) => nested && typeof nested === "object" && "message" in nested
+      ? [String((nested as { message: unknown }).message)]
+      : []) : []),
+  ].join(" ").toLowerCase();
+  const category = messages.includes("returned no rows") ? "empty-detail"
+    : messages.includes("returned no 999") ? "empty-rollup"
+    : messages.includes("password authentication") || messages.includes("sasl") ? "authentication"
+    : messages.includes("permission denied") ? "permission"
+    : messages.includes("does not exist") ? "schema"
+    : messages.includes("timeout") || messages.includes("timed out") ? "timeout"
+    : messages.includes("certificate") || messages.includes("ssl") ? "tls"
+    : messages.includes("read-only") ? "read-only-check"
+    : messages.includes("enotfound") || messages.includes("getaddrinfo") ? "dns"
+    : "unclassified";
   return {
     name: typeof value.name === "string" ? value.name : "Error",
     code: value.code === undefined ? null : String(value.code),
     nestedCodes,
+    category,
+  };
+}
+
+async function loadLiveTrendSource() {
+  const [detail, rollups] = await Promise.allSettled([
+    loadDwellsyTrendSeries({
+      cities: REPORT_CITIES,
+      zipCodes: REPORT_ZIPS,
+      periodStart: "2025-04-01",
+      bedrooms: REPORT_BEDROOMS,
+    }),
+    loadDwellsyProductRollupSeries({ zipCodes: REPORT_ZIPS, periodStart: "2025-04-01" }),
+  ]);
+  if (detail.status === "rejected") throw detail.reason;
+  if (rollups.status === "rejected") {
+    console.error("[Market IQ] Trends product rollups unavailable", safeSourceError(rollups.reason));
+  }
+  const fallbackRollups = SEEDED_CLEVELAND_TREND_SERIES.filter((series) => series.bedrooms === 999);
+  return {
+    result: { series: [...(rollups.status === "fulfilled" ? rollups.value.series : fallbackRollups), ...detail.value.series] },
+    live: true as const,
   };
 }
 
@@ -131,15 +169,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
     : Promise.resolve(null);
   const [trendSource, context, marketActivity] = await Promise.all([
     liveDwellsyRuntimeEnabled
-      ? Promise.all([
-          loadDwellsyTrendSeries({
-            cities: REPORT_CITIES,
-            zipCodes: REPORT_ZIPS,
-            periodStart: "2025-04-01",
-            bedrooms: REPORT_BEDROOMS,
-          }),
-          loadDwellsyProductRollupSeries({ zipCodes: REPORT_ZIPS, periodStart: "2025-04-01" }),
-        ]).then(([detail, rollups]) => ({ result: { series: [...rollups.series, ...detail.series] }, live: true as const })).catch((error) => {
+      ? loadLiveTrendSource().catch((error) => {
           console.error("[Market IQ] Read-only Trends source unavailable", safeSourceError(error));
           return {
             result: { series: SEEDED_CLEVELAND_TREND_SERIES },
@@ -206,7 +236,7 @@ export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
   // Bump this key whenever the source adapter or reportability rules change.
   // The callback itself is intentionally small, so relying on its function
   // string would otherwise preserve an obsolete cross-deployment snapshot.
-  ["market-iq-cleveland-live-snapshot-v6"],
+  ["market-iq-cleveland-live-snapshot-v7"],
   { revalidate: 900 },
 );
 
