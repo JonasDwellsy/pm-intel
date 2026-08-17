@@ -249,3 +249,29 @@ test("Market IQ reuses the market snapshot without caching organization branding
   assert.match(composer, /const snapshot = await loadCachedClevelandMarketIqReportSnapshot\(\)/);
   assert.match(composer, /snapshot: \{ \.\.\.snapshot, brand \}/);
 });
+
+test("the Market Read opens a guided client-edition workflow that freezes selected findings", () => {
+  const marketWorkspace = readFileSync(
+    join(process.cwd(), "src/components/market-iq/MarketIqIntelligenceWorkspace.tsx"),
+    "utf8"
+  );
+  const composer = readFileSync(
+    join(process.cwd(), "src/components/market-iq/report/MarketIqReportComposerClient.tsx"),
+    "utf8"
+  );
+  const action = readFileSync(
+    join(process.cwd(), "src/app/market-iq/report/actions.ts"),
+    "utf8"
+  );
+
+  assert.match(marketWorkspace, /href="\/market-iq\/report\?from=market-read"/);
+  assert.match(composer, /Choose the evidence/);
+  assert.match(composer, /Add your perspective/);
+  assert.match(composer, /Confirm your firm/);
+  assert.match(composer, /Review and publish/);
+  assert.match(composer, /name="findingIds"/);
+  assert.match(composer, /id="client-preview"/);
+  assert.match(action, /findingSelectionApplied/);
+  assert.match(action, /findings: comparison\.findings\.filter/);
+  assert.match(composer, /It never sends email/);
+});

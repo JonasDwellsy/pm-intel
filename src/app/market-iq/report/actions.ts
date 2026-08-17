@@ -118,11 +118,17 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
     publishedAt: priorReport.publishedAt?.toISOString() ?? null,
     snapshot: applyMarketIqReportScope(priorSnapshot, selection),
   } : null;
+  const comparison = compareMarketIqEditions(snapshot, priorEdition);
+  const findingSelectionApplied = clipped(formData.get("findingSelectionApplied"), 10) === "1";
+  const selectedFindingIds = new Set(formData.getAll("findingIds").map((value) => clipped(value, 240)));
+  const frozenComparison = findingSelectionApplied
+    ? { ...comparison, findings: comparison.findings.filter((finding) => selectedFindingIds.has(finding.id)) }
+    : comparison;
   const frozenSnapshot = {
     ...snapshot,
     generatedAt: now.toISOString(),
     brand,
-    editionComparison: compareMarketIqEditions(snapshot, priorEdition),
+    editionComparison: frozenComparison,
     editorial: {
       audienceKind: audienceKind as "client" | "prospect",
       headline: clipped(formData.get("editorialHeadline"), 120) || null,
