@@ -275,3 +275,22 @@ test("the Market Read opens a guided client-edition workflow that freezes select
   assert.match(action, /findings: comparison\.findings\.filter/);
   assert.match(composer, /It never sends email/);
 });
+
+test("publishing hands the PM to an immutable edition receipt before distribution", () => {
+  const action = readFileSync(
+    join(process.cwd(), "src/app/market-iq/report/actions.ts"),
+    "utf8"
+  );
+  const receipt = readFileSync(
+    join(process.cwd(), "src/app/market-iq/published/[campaignId]/page.tsx"),
+    "utf8"
+  );
+
+  assert.match(action, /redirect\(`\/market-iq\/published\/\$\{report\.campaignId\}`\)/);
+  assert.match(receipt, /Client edition published/);
+  assert.match(receipt, /Permanent client link/);
+  assert.match(receipt, /What was frozen at publication/);
+  assert.match(receipt, /Review audience and email/);
+  assert.match(receipt, /Each initial send and retry still requires an explicit confirmation/);
+  assert.match(receipt, /revokeMarketIqReport/);
+});
