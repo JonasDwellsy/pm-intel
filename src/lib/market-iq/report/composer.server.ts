@@ -1,7 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { buildClevelandMarketIqReportSnapshot } from "@/lib/market-iq/report/build.server";
+import { loadCachedClevelandMarketIqReportSnapshot } from "@/lib/market-iq/report/build.server";
 import {
   seededClevelandMarketReport,
 } from "@/lib/market-iq/report/seeded-cleveland";
@@ -45,8 +45,9 @@ export async function buildClevelandComposerPreview(brand: MarketIqReportBrandIn
   source: "dwellsy_trends" | "verified_seed";
 }> {
   try {
+    const snapshot = await loadCachedClevelandMarketIqReportSnapshot();
     return {
-      snapshot: await buildClevelandMarketIqReportSnapshot({ brand }),
+      snapshot: { ...snapshot, brand },
       source: "dwellsy_trends",
     };
   } catch (error) {

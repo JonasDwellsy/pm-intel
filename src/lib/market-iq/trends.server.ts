@@ -3,7 +3,7 @@ import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { buildMarketIqTrendPulse, type MarketIqTrendPulse } from "@/lib/market-iq/trends";
 import { trendSnapshotFreshness } from "@/lib/market-iq/source-refresh";
-import { buildClevelandMarketIqReportSnapshot } from "@/lib/market-iq/report/build.server";
+import { loadCachedClevelandMarketIqReportSnapshot } from "@/lib/market-iq/report/build.server";
 import type { MarketIqMarketCell } from "@/lib/market-iq/report/report";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 
@@ -54,7 +54,7 @@ function reportPulse(cells: MarketIqMarketCell[]): MarketIqTrendPulse | null {
 }
 
 async function loadClevelandReportPulses() {
-  const snapshot = await buildClevelandMarketIqReportSnapshot();
+  const snapshot = await loadCachedClevelandMarketIqReportSnapshot();
   const grouped = new Map<string, MarketIqMarketCell[]>();
   for (const cell of snapshot.marketRead.cells) {
     const key = `${cell.geographyType}:${cell.geographyValue}`;

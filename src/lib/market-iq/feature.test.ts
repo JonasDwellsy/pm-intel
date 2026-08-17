@@ -230,3 +230,19 @@ test("the isolated preview may use the configured read-only Dwellsy source witho
   assert.match(source, /process\.env\.DWELLSY_LIVE_RUNTIME_ENABLED === "1"/);
   assert.doesNotMatch(source, /process\.env\.VERCEL_ENV === "production"/);
 });
+
+test("Market IQ reuses the market snapshot without caching organization branding", () => {
+  const build = readFileSync(
+    join(process.cwd(), "src/lib/market-iq/report/build.server.ts"),
+    "utf8"
+  );
+  const composer = readFileSync(
+    join(process.cwd(), "src/lib/market-iq/report/composer.server.ts"),
+    "utf8"
+  );
+
+  assert.match(build, /loadCachedClevelandMarketIqReportSnapshot = unstable_cache/);
+  assert.match(build, /revalidate: 900/);
+  assert.match(composer, /const snapshot = await loadCachedClevelandMarketIqReportSnapshot\(\)/);
+  assert.match(composer, /snapshot: \{ \.\.\.snapshot, brand \}/);
+});

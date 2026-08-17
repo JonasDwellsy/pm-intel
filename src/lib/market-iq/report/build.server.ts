@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { prisma } from "@/lib/prisma";
@@ -176,12 +177,18 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
   });
 }
 
+export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
+  () => buildClevelandMarketIqReportSnapshot(),
+  ["market-iq-cleveland-live-snapshot-v1"],
+  { revalidate: 900 },
+);
+
 export async function loadPublicMarketIqReport(publicToken: string): Promise<MarketIqReportSnapshot | null> {
   const previewEnabled = process.env.MARKET_IQ_PREVIEW_ENABLED === "1"
     || process.env.VERCEL_ENV === "preview"
     || process.env.NODE_ENV !== "production";
   if (previewEnabled && publicToken === SEEDED_CLEVELAND_REPORT_TOKEN) {
-    return buildClevelandMarketIqReportSnapshot({ brand: seededClevelandMarketReport.brand });
+    return loadCachedClevelandMarketIqReportSnapshot();
   }
 
   const stored = await prisma.marketIqReport.findUnique({
