@@ -1,7 +1,7 @@
 import "server-only";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
-import { MARKET_IQ_SINGLE_MARKET_PLAN } from "@/lib/market-iq/billing/plans";
+import { MARKET_IQ_CLIENT_ADVISORY_PLAN, marketIqPlanForKey, type MarketIqPlanKey } from "@/lib/market-iq/billing/plans";
 
 function dateFromUnix(value: number | null | undefined): Date | null {
   return typeof value === "number" ? new Date(value * 1000) : null;
@@ -22,8 +22,10 @@ function stripeId(value: string | { id: string } | null): string | null {
 export async function provisionEnterpriseMarketIq(input: {
   organizationId: string;
   marketId: string;
+  planKey: MarketIqPlanKey;
   provisionedByUserId: string;
 }) {
+  if (!marketIqPlanForKey(input.planKey)) throw new Error("Unknown Market IQ plan.");
   return prisma.$transaction(async (tx) => {
     const existing = await tx.marketIqSubscription.findFirst({
       where: { organizationId: input.organizationId, source: "enterprise" },
@@ -34,7 +36,7 @@ export async function provisionEnterpriseMarketIq(input: {
           where: { id: existing.id },
           data: {
             status: "active",
-            planKey: MARKET_IQ_SINGLE_MARKET_PLAN.key,
+            planKey: input.planKey,
             provisionedByUserId: input.provisionedByUserId,
             startedAt: existing.startedAt ?? new Date(),
             endedAt: null,
@@ -46,9 +48,9 @@ export async function provisionEnterpriseMarketIq(input: {
             organizationId: input.organizationId,
             source: "enterprise",
             status: "active",
-            planKey: MARKET_IQ_SINGLE_MARKET_PLAN.key,
             provisionedByUserId: input.provisionedByUserId,
             startedAt: new Date(),
+            planKey: input.planKey,
           },
         });
     await tx.marketIqSubscriptionMarket.deleteMany({ where: { subscriptionId: subscription.id } });
@@ -98,6 +100,8 @@ async function syncStripeMarketIqSubscriptionWithContext(
   const customerId = stripeId(subscription.customer);
   const priceId = subscription.items.data[0]?.price.id ?? null;
   const endedAt = subscription.status === "canceled" || subscription.status === "unpaid" ? new Date() : null;
+  const planKey = subscription.metadata.dwellsy_plan_key || MARKET_IQ_CLIENT_ADVISORY_PLAN.key;
+  if (!marketIqPlanForKey(planKey)) throw new Error(`Stripe subscription ${subscription.id} has an unknown Market IQ plan.`);
 
   return prisma.$transaction(async (tx) => {
     const row = await tx.marketIqSubscription.upsert({
@@ -106,7 +110,7 @@ async function syncStripeMarketIqSubscriptionWithContext(
         organizationId,
         source: "stripe",
         status: subscription.status,
-        planKey: subscription.metadata.dwellsy_plan_key || MARKET_IQ_SINGLE_MARKET_PLAN.key,
+        planKey,
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscription.id,
         stripePriceId: priceId,
@@ -117,6 +121,7 @@ async function syncStripeMarketIqSubscriptionWithContext(
       },
       update: {
         status: subscription.status,
+        planKey,
         stripeCustomerId: customerId,
         stripePriceId: priceId,
         currentPeriodEnd: stripeSubscriptionPeriodEnd(subscription),

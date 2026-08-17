@@ -16,7 +16,7 @@ import { prisma } from "@/lib/prisma";
 export async function checkForRecurringMarketIqEdition(): Promise<void> {
   if (!marketIqPreviewEnabled()) throw new Error("Market IQ is unavailable.");
   const [{ userId, organizationId }, access] = await Promise.all([getActiveOrgContext(), resolveViewerMarketIqAccess()]);
-  if (!userId || !organizationId || !access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) {
+  if (!userId || !organizationId || !access.hasProduct || !access.capabilities.useRecurringEditions || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) {
     throw new Error("Market IQ edition access is unavailable.");
   }
   const result = await ensureRecurringMarketIqEditionDraft(organizationId);
@@ -35,6 +35,7 @@ export async function setMarketIqRecurringEnrollment(formData: FormData): Promis
     userId
     && organizationId
     && access.hasProduct
+    && access.capabilities.useRecurringEditions
     && isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID),
   );
   if (!userId || !organizationId || !hasCommercialAccess) {

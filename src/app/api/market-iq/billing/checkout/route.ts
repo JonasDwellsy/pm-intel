@@ -1,13 +1,30 @@
 import { redirect } from "next/navigation";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
-import { ACTIVE_MARKET_IQ_SUBSCRIPTION_STATUSES, MARKET_IQ_SINGLE_MARKET_PLAN } from "@/lib/market-iq/billing/plans";
+import {
+  ACTIVE_MARKET_IQ_SUBSCRIPTION_STATUSES,
+  MARKET_IQ_CLIENT_ADVISORY_PLAN,
+  MARKET_IQ_INTELLIGENCE_PLAN,
+  marketIqPlanForKey,
+} from "@/lib/market-iq/billing/plans";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function priceIdForPlan(planKey: string) {
+  if (planKey === MARKET_IQ_INTELLIGENCE_PLAN.key) {
+    return process.env.STRIPE_MARKET_IQ_INTELLIGENCE_FOUNDING_PRICE_ID
+      || process.env.STRIPE_MARKET_IQ_INTELLIGENCE_PRICE_ID;
+  }
+  if (planKey === MARKET_IQ_CLIENT_ADVISORY_PLAN.key) {
+    return process.env.STRIPE_MARKET_IQ_CLIENT_ADVISORY_FOUNDING_PRICE_ID
+      || process.env.STRIPE_MARKET_IQ_CLIENT_ADVISORY_PRICE_ID;
+  }
+  return null;
+}
 
 export async function POST(request: Request) {
   if (!marketIqPreviewEnabled()) return new Response("Not found", { status: 404 });
@@ -16,13 +33,18 @@ export async function POST(request: Request) {
   if (!organizationId) redirect("/setup-workspace");
   if (role !== "org:admin") return new Response("Only an organization admin can purchase Market IQ.", { status: 403 });
 
+  const formData = await request.formData();
+  const requestedPlanKey = String(formData.get("planKey") ?? "");
+  const plan = marketIqPlanForKey(requestedPlanKey);
+  if (!plan || plan.key !== requestedPlanKey) return new Response("Choose a valid Market IQ plan.", { status: 400 });
+
   const active = await prisma.marketIqSubscription.findFirst({
     where: { organizationId, status: { in: [...ACTIVE_MARKET_IQ_SUBSCRIPTION_STATUSES] } },
     select: { id: true },
   });
   if (active) redirect("/market-iq/subscribe?state=active");
 
-  const priceId = process.env.STRIPE_MARKET_IQ_SINGLE_MARKET_PRICE_ID;
+  const priceId = priceIdForPlan(plan.key);
   if (!priceId) return new Response("Market IQ checkout is not configured.", { status: 503 });
   const organization = await prisma.organization.findUnique({
     where: { id: organizationId },
@@ -43,7 +65,7 @@ export async function POST(request: Request) {
   const metadata = {
     dwellsy_organization_id: organizationId,
     dwellsy_market_id: CLEVELAND_MARKET_ID,
-    dwellsy_plan_key: MARKET_IQ_SINGLE_MARKET_PLAN.key,
+    dwellsy_plan_key: plan.key,
   };
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",

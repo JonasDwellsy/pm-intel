@@ -18,6 +18,7 @@ export default async function MarketIqDistributionPage({ searchParams }: { searc
   if (!userId) notFound();
   if (!organizationId) redirect("/setup-workspace");
   if (!access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) redirect("/market-iq/subscribe");
+  if (!access.capabilities.manageRecipients) redirect("/market-iq/subscribe?upgrade=client_advisory");
   const query = await searchParams;
   const [recipients, reports, sends, campaigns] = await Promise.all([
     prisma.marketIqReportRecipient.findMany({

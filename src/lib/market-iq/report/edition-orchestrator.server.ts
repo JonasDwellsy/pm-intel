@@ -1,7 +1,11 @@
 import "server-only";
 
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
-import { ACTIVE_MARKET_IQ_SUBSCRIPTION_STATUSES } from "@/lib/market-iq/billing/plans";
+import {
+  ACTIVE_MARKET_IQ_SUBSCRIPTION_STATUSES,
+  MARKET_IQ_CLIENT_ADVISORY_PLAN,
+  MARKET_IQ_LEGACY_SINGLE_MARKET_PLAN_KEY,
+} from "@/lib/market-iq/billing/plans";
 import { ensureRecurringMarketIqEditionDraft, type RecurringEditionResult } from "@/lib/market-iq/report/recurring-edition.server";
 import { prisma } from "@/lib/prisma";
 
@@ -72,6 +76,7 @@ export async function runMarketIqEditionOrchestrator(input: {
             marketIqSubscriptions: {
               some: {
                 status: { in: [...ACTIVE_MARKET_IQ_SUBSCRIPTION_STATUSES] },
+                planKey: { in: [MARKET_IQ_CLIENT_ADVISORY_PLAN.key, MARKET_IQ_LEGACY_SINGLE_MARKET_PLAN_KEY] },
                 markets: { some: { marketId: CLEVELAND_MARKET_ID } },
               },
             },

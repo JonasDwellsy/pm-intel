@@ -23,6 +23,7 @@ export default async function MarketIqReportComposerPage({ searchParams }: { sea
   if (!organizationId) redirect("/setup-workspace");
   const access = await resolveViewerMarketIqAccess();
   if (!canAccessMarketIqReportComposer({ previewEnabled, userId, organizationId, hasProduct: access.hasProduct, marketEntitled: isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID) })) notFound();
+  if (!access.capabilities.publishClientReports) redirect("/market-iq/subscribe?upgrade=client_advisory");
   const composer = await loadMarketIqReportComposer(organizationId);
   if (!composer) notFound();
   const query = await searchParams;

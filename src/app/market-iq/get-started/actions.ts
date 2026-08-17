@@ -17,11 +17,11 @@ async function activationContext() {
   if (!userId || !organizationId || !access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) {
     throw new Error("Market IQ access is unavailable.");
   }
-  return { organizationId };
+  return { organizationId, capabilities: access.capabilities };
 }
 
 async function persistActivation(formData: FormData, complete: boolean) {
-  const { organizationId } = await activationContext();
+  const { organizationId, capabilities } = await activationContext();
   const brand = parseMarketIqBrandForm(formData);
   const selection = parseMarketIqScopeFormData(formData);
   if (complete && !selection.cities.length && !selection.zipCodes.length) throw new Error("Select at least one city or ZIP code.");
@@ -54,6 +54,7 @@ async function persistActivation(formData: FormData, complete: boolean) {
   ]);
   revalidatePath("/market-iq/get-started");
   revalidatePath("/market-iq/report");
+  return capabilities;
 }
 
 export async function saveMarketIqActivationProgress(formData: FormData): Promise<void> {
@@ -64,6 +65,6 @@ export async function saveMarketIqActivationProgress(formData: FormData): Promis
 }
 
 export async function completeMarketIqActivation(formData: FormData): Promise<void> {
-  await persistActivation(formData, true);
-  redirect("/market-iq/launch?activated=1");
+  const capabilities = await persistActivation(formData, true);
+  redirect(capabilities.publishClientReports ? "/market-iq/launch?activated=1" : "/market-iq?activated=1");
 }

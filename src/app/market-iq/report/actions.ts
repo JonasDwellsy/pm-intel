@@ -54,6 +54,7 @@ async function authorizedMarketIqContext() {
     marketEntitled: isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID),
   });
   if (!allowed || !userId || !organizationId) return null;
+  if (!access.capabilities.publishClientReports) return null;
   return { userId, organizationId };
 }
 

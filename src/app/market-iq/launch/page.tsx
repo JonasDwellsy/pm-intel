@@ -50,6 +50,7 @@ export default async function MarketIqLaunchPage({
   if (!access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) {
     redirect("/market-iq/subscribe");
   }
+  if (!access.capabilities.publishClientReports) redirect("/market-iq/subscribe?upgrade=client_advisory");
 
   const [organization, reviewedEdition, bootstrapEdition, recipientCount, campaign, deliveredCount, recurringDraft] = await Promise.all([
     prisma.organization.findUnique({

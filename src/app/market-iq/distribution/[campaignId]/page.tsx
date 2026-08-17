@@ -41,6 +41,7 @@ export default async function MarketIqCampaignPage({
   if (!userId) notFound();
   if (!organizationId) redirect("/setup-workspace");
   if (!access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) redirect("/market-iq/subscribe");
+  if (!access.capabilities.manageRecipients) redirect("/market-iq/subscribe?upgrade=client_advisory");
   const [campaign, directory, query] = await Promise.all([
     prisma.marketIqDistributionCampaign.findFirst({
       where: { id: route.campaignId, organizationId },

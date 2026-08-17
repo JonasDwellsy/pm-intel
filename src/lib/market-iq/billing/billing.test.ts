@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { isActiveMarketIqSubscriptionStatus, marketIqPlanPriceLabel } from "./plans";
+import {
+  isActiveMarketIqSubscriptionStatus,
+  MARKET_IQ_CLIENT_ADVISORY_PLAN,
+  MARKET_IQ_INTELLIGENCE_PLAN,
+  marketIqCapabilitiesForPlan,
+  marketIqPlanPriceLabel,
+} from "./plans";
 
 test("Market IQ paid access recognizes active and grace-period states", () => {
   assert.equal(isActiveMarketIqSubscriptionStatus("active"), true);
@@ -11,8 +17,18 @@ test("Market IQ paid access recognizes active and grace-period states", () => {
   assert.equal(isActiveMarketIqSubscriptionStatus("unpaid"), false);
 });
 
-test("single-market pricing is the commercial default", () => {
-  assert.equal(marketIqPlanPriceLabel(), "$199");
+test("Market IQ exposes standard and founding prices for both tiers", () => {
+  assert.equal(marketIqPlanPriceLabel(MARKET_IQ_INTELLIGENCE_PLAN.monthlyPriceCents), "$79");
+  assert.equal(marketIqPlanPriceLabel(MARKET_IQ_INTELLIGENCE_PLAN.foundingMonthlyPriceCents), "$49");
+  assert.equal(marketIqPlanPriceLabel(MARKET_IQ_CLIENT_ADVISORY_PLAN.monthlyPriceCents), "$199");
+  assert.equal(marketIqPlanPriceLabel(MARKET_IQ_CLIENT_ADVISORY_PLAN.foundingMonthlyPriceCents), "$149");
+});
+
+test("only Client Advisory can publish and distribute reports", () => {
+  assert.equal(marketIqCapabilitiesForPlan(MARKET_IQ_INTELLIGENCE_PLAN.key).publishClientReports, false);
+  assert.equal(marketIqCapabilitiesForPlan(MARKET_IQ_INTELLIGENCE_PLAN.key).sendReports, false);
+  assert.equal(marketIqCapabilitiesForPlan(MARKET_IQ_CLIENT_ADVISORY_PLAN.key).publishClientReports, true);
+  assert.equal(marketIqCapabilitiesForPlan("single_market_monthly").sendReports, true);
 });
 
 test("commercial migration is additive and isolated from analytical storage", () => {
@@ -42,4 +58,25 @@ test("commercial access keeps subscription markets separate from legacy grants",
   assert.ok(legacyLookup > subscriptionBranch);
   assert.match(source, /source: "subscription"/);
   assert.match(source, /source: "legacy"/);
+});
+
+test("Client Advisory capabilities are enforced by pages, mutations, and the scheduler", () => {
+  const reportAction = readFileSync("src/app/market-iq/report/actions.ts", "utf8");
+  const distributionAction = readFileSync("src/app/market-iq/distribution/actions.ts", "utf8");
+  const editionsAction = readFileSync("src/app/market-iq/editions/actions.ts", "utf8");
+  const orchestrator = readFileSync("src/lib/market-iq/report/edition-orchestrator.server.ts", "utf8");
+  assert.match(reportAction, /capabilities\.publishClientReports/);
+  assert.match(distributionAction, /capabilities\.manageRecipients/);
+  assert.match(distributionAction, /capabilities\.sendReports/);
+  assert.match(editionsAction, /capabilities\.useRecurringEditions/);
+  assert.match(orchestrator, /MARKET_IQ_CLIENT_ADVISORY_PLAN\.key/);
+  assert.match(orchestrator, /MARKET_IQ_LEGACY_SINGLE_MARKET_PLAN_KEY/);
+});
+
+test("checkout accepts only a selected, configured plan", () => {
+  const source = readFileSync("src/app/api/market-iq/billing/checkout/route.ts", "utf8");
+  assert.match(source, /formData\.get\("planKey"\)/);
+  assert.match(source, /marketIqPlanForKey\(requestedPlanKey\)/);
+  assert.match(source, /STRIPE_MARKET_IQ_INTELLIGENCE_FOUNDING_PRICE_ID/);
+  assert.match(source, /STRIPE_MARKET_IQ_CLIENT_ADVISORY_FOUNDING_PRICE_ID/);
 });

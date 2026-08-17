@@ -33,6 +33,7 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
   if (!userId) notFound();
   if (!organizationId) redirect("/setup-workspace");
   if (!access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) redirect("/market-iq/subscribe");
+  if (!access.capabilities.useRecurringEditions) redirect("/market-iq/subscribe?upgrade=client_advisory");
   const [composer, recipients, publishedCount, recurringDraft, latestOrchestration, organizationSetup, organizationHasAccess] = await Promise.all([
     loadMarketIqReportComposer(organizationId),
     prisma.marketIqReportRecipient.findMany({ where: { organizationId }, orderBy: { name: "asc" }, select: { id: true, name: true, email: true, kind: true } }),

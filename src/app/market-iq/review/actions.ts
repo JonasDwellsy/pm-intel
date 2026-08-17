@@ -16,7 +16,7 @@ async function authorizedContext() {
     getActiveOrgContext(),
     resolveViewerMarketIqAccess(),
   ]);
-  if (!userId || !organizationId || !access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) {
+  if (!userId || !organizationId || !access.hasProduct || !access.capabilities.useRecurringEditions || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) {
     throw new Error("Market IQ review access is unavailable.");
   }
   return { userId, organizationId };

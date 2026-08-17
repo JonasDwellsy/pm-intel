@@ -1,18 +1,53 @@
 import Link from "next/link";
-import { redirect, notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
-import { marketIqPlanPriceLabel, isActiveMarketIqSubscriptionStatus } from "@/lib/market-iq/billing/plans";
+import {
+  isActiveMarketIqSubscriptionStatus,
+  MARKET_IQ_CLIENT_ADVISORY_PLAN,
+  MARKET_IQ_INTELLIGENCE_PLAN,
+  MARKET_IQ_PLANS,
+  marketIqPlanForKey,
+  marketIqPlanPriceLabel,
+} from "@/lib/market-iq/billing/plans";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { prisma } from "@/lib/prisma";
 import { stripeConfigured } from "@/lib/stripe.server";
 
 export const dynamic = "force-dynamic";
 
-function dateLabel(value: Date | null) {
-  return value?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) ?? null;
+const FEATURES = {
+  intelligence: [
+    "Interactive rental-market intelligence",
+    "MSA, city, and ZIP rent trajectories",
+    "Apartment and house segment analysis",
+    "Current listing and market-change context",
+  ],
+  client_advisory: [
+    "Everything in Market IQ Intelligence",
+    "PM-branded interactive client reports",
+    "Client and prospect recipient directory",
+    "Reviewed SendGrid delivery and history",
+    "Recurring edition drafts and PDF export",
+  ],
+} as const;
+
+function configuredPriceId(planKey: string) {
+  if (planKey === MARKET_IQ_INTELLIGENCE_PLAN.key) {
+    return process.env.STRIPE_MARKET_IQ_INTELLIGENCE_FOUNDING_PRICE_ID
+      || process.env.STRIPE_MARKET_IQ_INTELLIGENCE_PRICE_ID;
+  }
+  if (planKey === MARKET_IQ_CLIENT_ADVISORY_PLAN.key) {
+    return process.env.STRIPE_MARKET_IQ_CLIENT_ADVISORY_FOUNDING_PRICE_ID
+      || process.env.STRIPE_MARKET_IQ_CLIENT_ADVISORY_PRICE_ID;
+  }
+  return null;
 }
 
-export default async function MarketIqSubscribePage({ searchParams }: { searchParams: Promise<{ checkout?: string; state?: string }> }) {
+export default async function MarketIqSubscribePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ checkout?: string; state?: string; upgrade?: string }>;
+}) {
   if (!marketIqPreviewEnabled()) notFound();
   const { userId, organizationId, role } = await getActiveOrgContext();
   if (!userId) notFound();
@@ -32,46 +67,62 @@ export default async function MarketIqSubscribePage({ searchParams }: { searchPa
   });
   if (!organization) redirect("/setup-workspace");
   const active = organization.marketIqSubscriptions.find((subscription) => isActiveMarketIqSubscriptionStatus(subscription.status));
+  const activePlan = marketIqPlanForKey(active?.planKey);
   const latest = organization.marketIqSubscriptions[0] ?? null;
   const canManageBilling = role === "org:admin";
-  const checkoutReady = stripeConfigured() && Boolean(process.env.STRIPE_MARKET_IQ_SINGLE_MARKET_PRICE_ID);
   const activationComplete = Boolean(organization.marketIqWorkspacePreference?.onboardingCompletedAt);
 
   return <main className="min-h-screen bg-[#f7f7f4] px-5 py-10 sm:px-6 lg:py-16">
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-6xl">
       <header className="max-w-3xl">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-700">Market IQ</p>
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-navy sm:text-5xl">A local market read your firm can put in front of clients.</h1>
-        <p className="mt-5 text-lg leading-8 text-slate-600">Choose a market, add your branding, and publish an interactive rental-market advisory. No portfolio upload or implementation project is required.</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-700">Market IQ plans</p>
+        <h1 className="mt-3 text-4xl font-bold tracking-tight text-navy sm:text-5xl">Start with market intelligence. Add a client advisory channel when you are ready.</h1>
+        <p className="mt-5 text-lg leading-8 text-slate-600">Both plans include one market and the same underlying Dwellsy intelligence. Client Advisory adds the controlled, PM-branded workflow for sharing that intelligence with clients and prospects.</p>
       </header>
 
       {query.checkout === "success" && !active && <p className="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-900">Payment was accepted. Stripe is finalizing access now. Refresh this page in a few seconds.</p>}
       {query.checkout === "canceled" && <p className="mt-8 rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600">Checkout was canceled. Nothing was charged.</p>}
+      {query.upgrade === "client_advisory" && activePlan?.tier === "intelligence" && <p className="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">Client publishing and distribution are part of Client Advisory. Upgrade to unlock these capabilities.</p>}
 
-      <section className="mt-10 grid gap-6 lg:grid-cols-[1fr_340px]">
-        <article className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">One-market plan</p><h2 className="mt-2 text-2xl font-bold text-navy">Cleveland–Elyria, OH</h2></div>
-            <p className="text-right"><span className="text-4xl font-bold text-navy">{marketIqPlanPriceLabel()}</span><span className="block text-sm text-slate-500">per month</span></p>
-          </div>
-          <ul className="mt-7 grid gap-3 text-sm leading-6 text-slate-700 sm:grid-cols-2">
-            <li>Interactive PM-branded market read</li><li>City and ZIP-level rent trajectories</li><li>Client and prospect sharing links</li><li>PM-branded SendGrid delivery</li><li>PDF export</li><li>Successive edition comparisons</li>
-          </ul>
+      {active && <section className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+        <div><p className="text-xs font-bold uppercase tracking-[0.13em] text-emerald-800">Current plan</p><p className="mt-1 font-semibold text-navy">{activePlan?.name ?? "Market IQ Client Advisory"} for {active.markets.length} market{active.markets.length === 1 ? "" : "s"}</p></div>
+        <Link href={activationComplete ? "/market-iq" : "/market-iq/get-started"} className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">{activationComplete ? "Open Market IQ" : "Finish setup"}</Link>
+      </section>}
 
-          {active ? <div className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.13em] text-emerald-800">{active.source === "enterprise" ? "Enterprise provisioned" : active.status === "past_due" ? "Payment needs attention" : "Subscription active"}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">{organization.name} has access to {active.markets.length} market{active.markets.length === 1 ? "" : "s"}.{active.cancelAtPeriodEnd && active.currentPeriodEnd ? ` Access remains available through ${dateLabel(active.currentPeriodEnd)}.` : ""}</p>
-            <div className="mt-4 flex flex-wrap gap-3"><Link href={activationComplete ? "/market-iq/report" : "/market-iq/get-started"} className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">{activationComplete ? "Create a client read" : "Finish setup"}</Link><Link href="/market-iq" className="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-navy">Open Market IQ</Link></div>
-          </div> : <div className="mt-8">
-            {canManageBilling && checkoutReady ? <form action="/api/market-iq/billing/checkout" method="post"><button className="w-full rounded-md bg-navy px-5 py-3.5 text-sm font-semibold text-white hover:bg-navy/90">Subscribe with Stripe</button></form> : <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-600">{!canManageBilling ? "Ask an organization administrator to start the subscription." : "Online checkout is being configured. Enterprise-provisioned access remains available for early customers."}</div>}
-          </div>}
-        </article>
+      <section className="mt-10 grid gap-6 lg:grid-cols-2">
+        {MARKET_IQ_PLANS.map((plan) => {
+          const isAdvisory = plan.tier === "client_advisory";
+          const isCurrent = activePlan?.tier === plan.tier;
+          const isUpgrade = activePlan?.tier === "intelligence" && isAdvisory;
+          const checkoutReady = stripeConfigured() && Boolean(configuredPriceId(plan.key));
+          return <article key={plan.key} className={`relative rounded-2xl border bg-white p-7 shadow-sm sm:p-9 ${isAdvisory ? "border-navy" : "border-slate-200"}`}>
+            {isAdvisory && <p className="absolute right-6 top-0 -translate-y-1/2 rounded-full bg-navy px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white">Client growth plan</p>}
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">One market</p>
+            <h2 className="mt-2 text-2xl font-bold text-navy">{plan.name}</h2>
+            <p className="mt-2 min-h-12 text-sm leading-6 text-slate-600">{plan.description}</p>
+            <div className="mt-6 flex items-end gap-3">
+              <span className="text-5xl font-bold text-navy">{marketIqPlanPriceLabel(plan.foundingMonthlyPriceCents)}</span>
+              <span className="pb-1 text-sm text-slate-500">per month</span>
+            </div>
+            <p className="mt-1 text-sm text-slate-500"><span className="line-through">{marketIqPlanPriceLabel(plan.monthlyPriceCents)}</span> standard price · founding offer</p>
+            <ul className="mt-7 space-y-3 text-sm leading-6 text-slate-700">
+              {FEATURES[plan.tier].map((feature) => <li key={feature} className="flex gap-3"><span aria-hidden="true" className="font-bold text-teal-700">✓</span><span>{feature}</span></li>)}
+            </ul>
+            <div className="mt-8">
+              {isCurrent ? <p className="rounded-md bg-emerald-50 px-5 py-3.5 text-center text-sm font-semibold text-emerald-800">Your current plan</p>
+                : active && !isUpgrade ? null
+                : canManageBilling && checkoutReady && !active ? <form action="/api/market-iq/billing/checkout" method="post"><input type="hidden" name="planKey" value={plan.key} /><button className="w-full rounded-md bg-navy px-5 py-3.5 text-sm font-semibold text-white hover:bg-navy/90">Choose the {marketIqPlanPriceLabel(plan.foundingMonthlyPriceCents)} founding plan</button></form>
+                : isUpgrade && active?.source === "stripe" && active.stripeCustomerId ? <form action="/api/market-iq/billing/portal" method="post"><button className="w-full rounded-md bg-navy px-5 py-3.5 text-sm font-semibold text-white">Upgrade to Client Advisory</button></form>
+                : isUpgrade ? <div className="rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm leading-6 text-slate-700">Your founding Intelligence plan was provisioned directly. Contact Dwellsy to move this workspace to the $149 Client Advisory founding plan.</div>
+                : <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">{!canManageBilling ? "Ask an organization administrator to select this plan." : "Online checkout is being configured. Early customers can be provisioned directly at the founding price."}</div>}
+            </div>
+          </article>;
+        })}
+      </section>
 
-        <aside className="space-y-5">
-          <section className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Low-touch setup</p><ol className="mt-4 space-y-4 text-sm leading-6"><li><span className="font-bold">1.</span> Subscribe for the market.</li><li><span className="font-bold">2.</span> Add your logo and firm colors.</li><li><span className="font-bold">3.</span> Review and publish the first advisory.</li></ol></section>
-          {latest?.source === "stripe" && latest.stripeCustomerId && canManageBilling && <form action="/api/market-iq/billing/portal" method="post"><button className="w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-navy">Manage billing in Stripe</button></form>}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm leading-6 text-slate-600"><p className="font-semibold text-navy">Enterprise purchase?</p><p className="mt-2">Early clients can be provisioned directly under a signed agreement. The product experience is identical after access is granted.</p></section>
-        </aside>
+      <section className="mt-8 grid gap-5 md:grid-cols-2">
+        <article className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">The product boundary</p><p className="mt-3 text-sm leading-6 text-white/85">Intelligence is for your team. Client Advisory is for putting your firm’s point of view in front of clients and prospects. The upgrade buys a distribution workflow, not different market data.</p></article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 text-sm leading-6 text-slate-600"><p className="font-semibold text-navy">Enterprise purchase?</p><p className="mt-2">Early clients can be provisioned directly under a signed agreement at either founding tier. Stripe checkout can be enabled later without changing the entitlement model.</p>{latest?.source === "stripe" && latest.stripeCustomerId && canManageBilling && <form className="mt-4" action="/api/market-iq/billing/portal" method="post"><button className="font-semibold text-teal-700">Manage billing in Stripe →</button></form>}</article>
       </section>
     </div>
   </main>;

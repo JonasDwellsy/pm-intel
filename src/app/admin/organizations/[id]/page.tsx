@@ -185,6 +185,7 @@ export default async function AdminOrganizationDetailPage({
             id: subscription.id,
             source: subscription.source,
             status: subscription.status,
+            planKey: subscription.planKey,
             currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
             cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
             markets: subscription.markets,

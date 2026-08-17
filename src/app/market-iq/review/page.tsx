@@ -51,6 +51,7 @@ export default async function MarketIqReviewInboxPage({
   if (!userId) notFound();
   if (!organizationId) redirect("/setup-workspace?from=/market-iq/review");
   if (!access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) redirect("/market-iq/subscribe");
+  if (!access.capabilities.useRecurringEditions) redirect("/market-iq/subscribe?upgrade=client_advisory");
 
   const [drafts, recentDecisions, orchestrationItems, preference] = await Promise.all([
     prisma.marketIqEditionDraft.findMany({

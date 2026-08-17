@@ -14,8 +14,8 @@ import { prisma } from "@/lib/prisma";
 async function authorizedContext() {
   if (!marketIqPreviewEnabled()) return null;
   const [{ userId, organizationId }, access] = await Promise.all([getActiveOrgContext(), resolveViewerMarketIqAccess()]);
-  if (!userId || !organizationId || !access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) return null;
-  return { organizationId, userId };
+  if (!userId || !organizationId || !access.hasProduct || !access.capabilities.manageRecipients || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) return null;
+  return { organizationId, userId, capabilities: access.capabilities };
 }
 
 export async function saveMarketIqRecipient(formData: FormData): Promise<void> {
@@ -120,7 +120,7 @@ export async function sendMarketIqCampaignRecipient(formData: FormData): Promise
   const context = await authorizedContext();
   const campaignRecipientId = marketIqClipped(formData.get("campaignRecipientId"), 80);
   const confirmation = marketIqClipped(formData.get("confirmation"), 80);
-  if (!context || !campaignRecipientId || confirmation !== campaignRecipientId) {
+  if (!context || !context.capabilities.sendReports || !campaignRecipientId || confirmation !== campaignRecipientId) {
     throw new Error("Confirm this exact recipient before sending.");
   }
   const row = await prisma.marketIqDistributionCampaignRecipient.findFirst({

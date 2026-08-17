@@ -48,5 +48,5 @@ export default async function MarketIqPage() {
   }
   const alertHistory = await loadMarketIqAlertHistory(initialWatchlists);
 
-  return <ClevelandPilot historicalPulse={historicalPulse} trendPulses={trendPulses} liveListingPulse={liveListingPulse} initialWatchlists={initialWatchlists} alertHistory={alertHistory} />;
+  return <ClevelandPilot historicalPulse={historicalPulse} trendPulses={trendPulses} liveListingPulse={liveListingPulse} initialWatchlists={initialWatchlists} alertHistory={alertHistory} clientAdvisoryEnabled={access.capabilities.publishClientReports} />;
 }

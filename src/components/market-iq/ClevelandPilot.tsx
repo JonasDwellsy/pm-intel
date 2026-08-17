@@ -40,12 +40,14 @@ export function ClevelandPilot({
   liveListingPulse,
   initialWatchlists = [],
   alertHistory = [],
+  clientAdvisoryEnabled = true,
 }: {
   historicalPulse: HistoricalListingPulse;
   trendPulses: MarketIqTrendPulse[];
   liveListingPulse: ClevelandLiveListingPulse;
   initialWatchlists?: MarketIqWatchlistView[];
   alertHistory?: MarketIqAlertHistoryItem[];
+  clientAdvisoryEnabled?: boolean;
 }) {
   const data = { ...clevelandPilot, ...historicalPulse };
   const [selectedKey, setSelectedKey] = useState(
@@ -64,7 +66,7 @@ export function ClevelandPilot({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <MarketIqWorkspaceNav />
+      <MarketIqWorkspaceNav clientAdvisoryEnabled={clientAdvisoryEnabled} />
 
       <header className="grid gap-6 border-b border-grid pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
@@ -74,7 +76,7 @@ export function ClevelandPilot({
             Asking-market intelligence for rent direction, listing supply, and product-segment performance. This view does not measure occupancy, signed leases, or effective rent.
           </p>
         </div>
-        <div className="space-y-3"><div className="rounded-lg border border-teal/25 bg-teal-soft px-4 py-3 text-sm text-navy"><span className="font-semibold">Decision read:</span> {data.decisionRead}</div><Link href="/market-iq/editions" className="block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white hover:bg-navy/90">Prepare next edition</Link><div className="flex justify-center gap-4"><Link href="/market-iq/distribution" className="text-xs font-semibold text-slate-500 hover:text-navy">Recipients and distribution</Link><Link href="/market-iq/subscribe" className="text-xs font-semibold text-slate-500 hover:text-navy">Plan and billing</Link></div></div>
+        <div className="space-y-3"><div className="rounded-lg border border-teal/25 bg-teal-soft px-4 py-3 text-sm text-navy"><span className="font-semibold">Decision read:</span> {data.decisionRead}</div>{clientAdvisoryEnabled ? <><Link href="/market-iq/editions" className="block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white hover:bg-navy/90">Prepare next edition</Link><div className="flex justify-center gap-4"><Link href="/market-iq/distribution" className="text-xs font-semibold text-slate-500 hover:text-navy">Recipients and distribution</Link><Link href="/market-iq/subscribe" className="text-xs font-semibold text-slate-500 hover:text-navy">Plan and billing</Link></div></> : <><Link href="/market-iq/subscribe?upgrade=client_advisory" className="block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white hover:bg-navy/90">Add client sharing</Link><p className="text-center text-xs text-slate-500">Upgrade to publish and distribute PM-branded editions.</p></>}</div>
       </header>
 
       <section aria-labelledby="overview-heading" className="mt-8">

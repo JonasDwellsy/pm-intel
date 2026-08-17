@@ -17,6 +17,7 @@ import { isClerkAPIResponseError } from "@clerk/shared/error";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { prisma } from "@/lib/prisma";
 import { endEnterpriseMarketIq, provisionEnterpriseMarketIq } from "@/lib/market-iq/billing/provisioning.server";
+import { marketIqPlanForKey, type MarketIqPlanKey } from "@/lib/market-iq/billing/plans";
 
 /** Extract a human-readable error message from a Clerk SDK throw.
  *  Clerk's API returns a structured { errors: [{ code, message, long_message }] }
@@ -414,17 +415,18 @@ export async function provisionOrganizationMarketIq(
   if (!userId || !isAdminUser(userId)) return { ok: false, error: "Not found." };
   const organizationId = String(formData.get("orgId") ?? "").trim();
   const marketId = String(formData.get("marketId") ?? "").trim();
-  if (!organizationId || !marketId) return { ok: false, error: "Organization and market are required." };
+  const planKey = String(formData.get("planKey") ?? "").trim() as MarketIqPlanKey;
+  if (!organizationId || !marketId || !marketIqPlanForKey(planKey)) return { ok: false, error: "Organization, market, and plan are required." };
   const [organization, market] = await Promise.all([
     prisma.organization.findFirst({ where: { id: organizationId, personalForUserId: null }, select: { id: true } }),
     prisma.market.findUnique({ where: { id: marketId }, select: { id: true, city: true, state: true } }),
   ]);
   if (!organization || !market) return { ok: false, error: "Organization or market was not found." };
   try {
-    await provisionEnterpriseMarketIq({ organizationId, marketId, provisionedByUserId: userId });
+    await provisionEnterpriseMarketIq({ organizationId, marketId, planKey, provisionedByUserId: userId });
     revalidatePath(`/admin/organizations/${organizationId}`);
     revalidatePath("/market-iq");
-    return { ok: true, message: `Market IQ provisioned for ${market.city}, ${market.state}.` };
+    return { ok: true, message: `${marketIqPlanForKey(planKey)?.name} provisioned for ${market.city}, ${market.state}.` };
   } catch (error) {
     return { ok: false, error: describeError(error) };
   }
