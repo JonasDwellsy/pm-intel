@@ -77,6 +77,28 @@ test("Market IQ owns a standalone application shell", () => {
   assert.doesNotMatch(footer, /Dwellsy IQ Online|Operator IQ/);
 });
 
+test("the Market IQ shell follows the purchased plan boundary", () => {
+  const header = readFileSync(
+    join(process.cwd(), "src/components/market-iq/MarketIqAppHeader.tsx"),
+    "utf8"
+  );
+  const navigation = readFileSync(
+    join(process.cwd(), "src/components/market-iq/MarketIqAppNavigation.tsx"),
+    "utf8"
+  );
+  const activation = readFileSync(
+    join(process.cwd(), "src/components/market-iq/activation/MarketIqActivationFlow.tsx"),
+    "utf8"
+  );
+
+  assert.match(header, /resolveViewerMarketIqAccess/);
+  assert.match(header, /clientAdvisoryEnabled=\{Boolean\(access\?\.capabilities\.publishClientReports\)\}/);
+  assert.match(navigation, /clientAdvisoryEnabled \? ADVISORY_ITEMS : \[\]/);
+  assert.match(navigation, /hasProduct && <Link href="\/market-iq\/get-started"/);
+  assert.match(activation, /clientAdvisoryEnabled \? \[\{ step: 1, label: "Your firm" \}/);
+  assert.match(activation, /"Activate and open market"/);
+});
+
 test("Market IQ home and detailed market read are distinct routes", () => {
   const home = readFileSync(join(process.cwd(), "src/app/market-iq/page.tsx"), "utf8");
   const market = readFileSync(

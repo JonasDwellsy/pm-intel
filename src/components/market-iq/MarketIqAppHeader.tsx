@@ -3,6 +3,7 @@ import Link from "next/link";
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { MarketIqAppNavigation } from "@/components/market-iq/MarketIqAppNavigation";
+import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 
 async function signedIn() {
   try {
@@ -14,6 +15,9 @@ async function signedIn() {
 
 export async function MarketIqAppHeader() {
   const isSignedIn = await signedIn();
+  const access = isSignedIn
+    ? await resolveViewerMarketIqAccess().catch(() => null)
+    : null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-grid bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
@@ -25,7 +29,11 @@ export async function MarketIqAppHeader() {
         </Link>
 
         <div className="flex items-center gap-2 lg:gap-4">
-          <MarketIqAppNavigation signedIn={isSignedIn} />
+          <MarketIqAppNavigation
+            signedIn={isSignedIn}
+            hasProduct={Boolean(access?.hasProduct)}
+            clientAdvisoryEnabled={Boolean(access?.capabilities.publishClientReports)}
+          />
           <span aria-hidden className="hidden h-6 w-px bg-grid lg:block" />
           {isSignedIn ? (
             <>

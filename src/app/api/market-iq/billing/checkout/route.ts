@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     client_reference_id: organizationId,
     line_items: [{ price: priceId, quantity: 1 }],
     allow_promotion_codes: true,
-    success_url: `${origin}/market-iq/subscribe?checkout=success`,
+    success_url: `${origin}/market-iq/subscribe?checkout=success&next=activation`,
     cancel_url: `${origin}/market-iq/subscribe?checkout=canceled`,
     metadata,
     subscription_data: { metadata },

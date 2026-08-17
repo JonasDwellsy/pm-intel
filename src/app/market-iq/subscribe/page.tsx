@@ -52,7 +52,7 @@ function configuredPriceId(planKey: string, billingInterval: "month" | "year") {
 export default async function MarketIqSubscribePage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string; state?: string; upgrade?: string; billing?: string }>;
+    searchParams: Promise<{ checkout?: string; state?: string; upgrade?: string; billing?: string; next?: string }>;
 }) {
   if (!marketIqPreviewEnabled()) notFound();
   const { userId, organizationId, role } = await getActiveOrgContext();
@@ -92,13 +92,13 @@ export default async function MarketIqSubscribePage({
         </nav>
       </header>
 
-      {query.checkout === "success" && !active && <p className="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-900">Payment was accepted. Stripe is finalizing access now. Refresh this page in a few seconds.</p>}
+      {query.checkout === "success" && !active && <div className="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950"><p className="font-semibold">Payment was accepted. Stripe is finalizing access now.</p><p className="mt-1">This normally takes only a few seconds. Refresh to continue into workspace activation.</p></div>}
       {query.checkout === "canceled" && <p className="mt-8 rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600">Checkout was canceled. Nothing was charged.</p>}
       {query.upgrade === "client_advisory" && activePlan?.tier === "intelligence" && <p className="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">Client publishing and distribution are part of Client Advisory. Upgrade to unlock these capabilities.</p>}
 
       {active && <section className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
         <div><p className="text-xs font-bold uppercase tracking-[0.13em] text-emerald-800">Current plan</p><p className="mt-1 font-semibold text-navy">{activePlan?.name ?? "Market IQ Client Advisory"} · billed {active.billingInterval === "year" ? "annually" : "monthly"} · {active.markets.length} market{active.markets.length === 1 ? "" : "s"}</p></div>
-        <Link href={activationComplete ? "/market-iq" : "/market-iq/get-started"} className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">{activationComplete ? "Open Market IQ" : "Finish setup"}</Link>
+        <Link href={activationComplete ? "/market-iq" : "/market-iq/get-started"} className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">{activationComplete ? "Open Market IQ" : query.checkout === "success" || query.next === "activation" ? "Activate your workspace" : "Finish setup"}</Link>
       </section>}
 
       <section className="mt-10 grid gap-6 lg:grid-cols-2">

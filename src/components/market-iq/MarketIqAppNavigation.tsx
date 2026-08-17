@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const PRIMARY_ITEMS = [
+const INTELLIGENCE_ITEMS = [
   { href: "/market-iq", label: "Home", match: (path: string) => path === "/market-iq" },
   { href: "/market-iq/market", label: "Market", match: (path: string) => path.startsWith("/market-iq/market") },
   { href: "/market-iq/market#local-areas", label: "Local areas", match: () => false },
+] as const;
+
+const ADVISORY_ITEMS = [
   { href: "/market-iq/editions", label: "Editions", match: (path: string) => path.startsWith("/market-iq/editions") || path.startsWith("/market-iq/review") || path.startsWith("/market-iq/report") },
   { href: "/market-iq/distribution", label: "Clients", match: (path: string) => path.startsWith("/market-iq/distribution") },
 ] as const;
@@ -18,10 +21,12 @@ const PUBLIC_ITEMS = [
   { href: "/reports/market/preview-cleveland-market-read", label: "Cleveland example" },
 ] as const;
 
-export function MarketIqAppNavigation({ signedIn }: { signedIn: boolean }) {
+export function MarketIqAppNavigation({ signedIn, hasProduct, clientAdvisoryEnabled }: { signedIn: boolean; hasProduct: boolean; clientAdvisoryEnabled: boolean }) {
   const pathname = usePathname() ?? "";
-  const items = signedIn
-    ? PRIMARY_ITEMS
+  const items = signedIn && hasProduct
+    ? [...INTELLIGENCE_ITEMS, ...(clientAdvisoryEnabled ? ADVISORY_ITEMS : [])]
+    : signedIn
+      ? [{ href: "/market-iq/subscribe", label: "Plans", match: (path: string) => path.startsWith("/market-iq/subscribe") }]
     : PUBLIC_ITEMS.map((item) => ({ ...item, match: () => false }));
 
   return (
@@ -67,7 +72,7 @@ export function MarketIqAppNavigation({ signedIn }: { signedIn: boolean }) {
               </Link>
             );
           })}
-          {signedIn ? <><div className="my-2 border-t border-grid" /><Link href="/market-iq/get-started" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Workspace setup</Link><Link href="/market-iq/subscribe" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Plan and billing</Link></> : <><div className="my-2 border-t border-grid" /><Link href="/sign-in?redirect_url=/market-iq/subscribe" className="block rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white">Sign in</Link></>}
+          {signedIn ? <><div className="my-2 border-t border-grid" />{hasProduct && <Link href="/market-iq/get-started" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Workspace setup</Link>}<Link href="/market-iq/subscribe" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Plan and billing</Link></> : <><div className="my-2 border-t border-grid" /><Link href="/sign-in?redirect_url=/market-iq/subscribe" className="block rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white">Sign in</Link></>}
         </nav>
       </details>
     </>
