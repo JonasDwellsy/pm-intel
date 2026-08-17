@@ -124,7 +124,7 @@ function MapFallback({ tokenMissing }: { tokenMissing: boolean }) {
       <p className="text-sm font-semibold text-slate-700">{tokenMissing ? "Map unavailable" : "No supported ZIP series for this segment"}</p>
       <p className="mt-2 text-sm leading-6 text-slate-500">{tokenMissing
         ? "The analytical summary remains available. The shaded ZIP map will appear after the public Mapbox token is available."
-        : "No broader city or MSA rent is substituted. Choose another benchmark segment to see supported ZIP-level Trends IQ observations."}</p>
+        : "No broader city or MSA rent is substituted. Choose another benchmark segment to see ZIP-level asking-rent values."}</p>
     </div>
   </div>;
 }
@@ -152,7 +152,7 @@ function TrendChart({ points }: { points: MarketIqTrendPoint[] }) {
   }));
   const path = coords.map((point) => `${point.x},${point.y}`).join(" ");
   return <div className="rounded-2xl bg-slate-50 px-3 pb-3 pt-4">
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-44 w-full" role="img" aria-label="Twelve-month Trends IQ asking-rent trajectory">
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-44 w-full" role="img" aria-label="Twelve-month asking-rent trajectory">
       <line x1="28" y1={height - 22} x2={width - 28} y2={height - 22} stroke="#cbd5e1" strokeWidth="1" />
       <polyline points={path} fill="none" stroke="var(--report-accent)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
       {coords.map(({ x, y, point }, index) => <g key={point.month}>
@@ -175,7 +175,7 @@ function ComparisonCard({ label, cell, selected }: { label: string; cell?: Marke
   const supported = selected ? selected.status === "reportable" : cell?.status === "reportable";
   return <div className={`rounded-2xl border p-4 ${supported ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50"}`}>
     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{label}</p>
-    {supported ? <><div className="mt-2 flex items-baseline justify-between gap-3"><p className="text-2xl font-semibold text-[var(--report-primary)]">{money(rent)}</p><p className={`text-sm font-bold ${(yoy ?? 0) >= 1 ? "text-teal-700" : (yoy ?? 0) <= -1 ? "text-orange-700" : "text-slate-500"}`}>{percentage(yoy)}</p></div><p className="mt-2 text-xs text-slate-500">Trends IQ · {monthLabel(date)}</p></> : <p className="mt-3 text-sm leading-5 text-slate-500">No Trends IQ value is available</p>}
+    {supported ? <><div className="mt-2 flex items-baseline justify-between gap-3"><p className="text-2xl font-semibold text-[var(--report-primary)]">{money(rent)}</p><p className={`text-sm font-bold ${(yoy ?? 0) >= 1 ? "text-teal-700" : (yoy ?? 0) <= -1 ? "text-orange-700" : "text-slate-500"}`}>{percentage(yoy)}</p></div><p className="mt-2 text-xs text-slate-500">Asking-rent data · {monthLabel(date)}</p></> : <p className="mt-3 text-sm leading-5 text-slate-500">No asking-rent value is available</p>}
   </div>;
 }
 
@@ -212,8 +212,8 @@ function interpretation(selected: MarketIqMapPoint, city: MarketIqMarketCell | u
     : null;
   const cityContext = city?.status === "reportable" && city.yearOverYearPct !== null
     ? ` Its primary municipality is at ${percentage(city.yearOverYearPct)} year over year for the same product.`
-    : " The matching city Trends IQ value is unavailable, so the MSA is the broader comparison.";
-  return `ZIP ${selected.zip} ${direction}${versusMsa ? ` and sits ${versusMsa} the current MSA asking-rent benchmark` : ""}.${cityContext} This is a market conversation prompt, not a property pricing recommendation.`;
+    : " The matching city value is unavailable, so the MSA is the broader comparison.";
+  return `ZIP ${selected.zip} ${direction}${versusMsa ? ` and sits ${versusMsa} the current MSA asking-rent benchmark` : ""}.${cityContext} Property pricing should also account for condition, amenities, unit mix, and current availability.`;
 }
 
 function ZipDrilldown({
@@ -239,12 +239,12 @@ function ZipDrilldown({
     </div>
     <div className="p-6 lg:p-8">
       <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-        <div><div className="mb-3 flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Trajectory</p><h4 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Twelve-month asking-rent path</h4></div><p className="text-right text-xs text-slate-500">Trends IQ<br />{monthLabel(selected.month)}</p></div><TrendChart points={selected.series ?? []} /></div>
+        <div><div className="mb-3 flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Trajectory</p><h4 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Twelve-month asking-rent path</h4></div><p className="text-right text-xs text-slate-500">Asking-rent data<br />{monthLabel(selected.month)}</p></div><TrendChart points={selected.series ?? []} /></div>
         <div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Geographic context</p><h4 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Same product, three levels</h4><div className="mt-3 grid gap-3"><ComparisonCard label={`ZIP ${selected.zip}`} selected={selected} /><ComparisonCard label={selected.primaryCity ?? "Primary municipality"} cell={cityCell} /><ComparisonCard label="Cleveland-Elyria MSA" cell={benchmark} /></div></div>
       </div>
       <div className="mt-7 grid gap-5 lg:grid-cols-[1fr_0.85fr_1fr]">
-        <article className="rounded-2xl bg-[#eef5f5] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-800">Owner conversation</p><p className="mt-3 text-sm leading-6 text-slate-700">{interpretation(selected, cityCell, benchmark)}</p></article>
-        <article className="rounded-2xl border border-slate-200 p-5"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Nearby supported ZIPs</p><div className="mt-3 space-y-2">{nearby.length ? nearby.map((point) => <button type="button" key={point.zip} onClick={() => onSelect(point.zip)} className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left hover:bg-slate-50"><span><strong className="text-sm text-slate-700">{point.zip}</strong><span className="ml-2 text-xs text-slate-400">{distanceMiles(selected, point).toFixed(1)} mi</span></span><span className="text-right text-xs font-semibold text-slate-600">{money(point.rent)}<br />{percentage(point.yearOverYearPct)}</span></button>) : <p className="text-sm text-slate-500">No nearby supported ZIPs for this product.</p>}</div></article>
+        <article className="rounded-2xl bg-[#eef5f5] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-800">Local context</p><p className="mt-3 text-sm leading-6 text-slate-700">{interpretation(selected, cityCell, benchmark)}</p></article>
+        <article className="rounded-2xl border border-slate-200 p-5"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Nearby ZIPs with data</p><div className="mt-3 space-y-2">{nearby.length ? nearby.map((point) => <button type="button" key={point.zip} onClick={() => onSelect(point.zip)} className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left hover:bg-slate-50"><span><strong className="text-sm text-slate-700">{point.zip}</strong><span className="ml-2 text-xs text-slate-400">{distanceMiles(selected, point).toFixed(1)} mi</span></span><span className="text-right text-xs font-semibold text-slate-600">{money(point.rent)}<br />{percentage(point.yearOverYearPct)}</span></button>) : <p className="text-sm text-slate-500">No nearby ZIP values are available for this product.</p>}</div></article>
         <article className="rounded-2xl border border-slate-200 p-5"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Recent observed activity</p><div className="mt-3 space-y-3">{events.length ? events.map((event) => <div key={event.id} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0"><p className="text-sm font-semibold text-slate-700">{eventLabel(event)}</p><p className="mt-1 text-xs text-slate-400">{new Date(event.observedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York", timeZoneName: "short" })}</p></div>) : <p className="text-sm leading-6 text-slate-500">No recent listing or confirmed price-change events appeared in the current source window for this ZIP.</p>}</div></article>
       </div>
     </div>
@@ -381,7 +381,7 @@ export function MarketIqRentMap({
             const detail = document.createElement("div");
             detail.textContent = properties.supported
               ? `${properties.rentLabel} · ${properties.yoyLabel}`
-              : "No Trends IQ value for this product";
+              : "No asking-rent value for this product";
             body.append(title, detail);
             popup.setLngLat(event.lngLat).setDOMContent(body).addTo(map);
           });
@@ -409,7 +409,7 @@ export function MarketIqRentMap({
     </div>
 
     <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Stat label="Published coverage" value={`${filtered.length} ZIPs`} detail="of 102 active Cleveland-Elyria postal ZIPs" />
+      <Stat label="ZIP coverage" value={`${filtered.length} ZIPs`} detail="with an asking-rent value for this product" />
       <Stat label="Asking-rent range" value={rents.length ? `${money(Math.min(...rents))} to ${money(Math.max(...rents))}` : "Not published"} detail={benchmark?.rent ? `${money(benchmark.rent)} MSA benchmark` : "MSA comparison unavailable"} />
       <Stat label="Local direction" value={`${rising} up · ${softening} down`} detail={`${filtered.length - rising - softening} within 1% or no YoY read`} />
       <Stat label="Benchmark month" value={monthLabel(benchmark?.month ?? null)} detail={`${segment.label} · Cleveland-Elyria MSA`} />
@@ -421,19 +421,19 @@ export function MarketIqRentMap({
         : <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-[0_20px_55px_rgba(15,23,42,0.08)]">
           <div ref={containerRef} className="h-[620px] w-full" role="img" aria-label={`Shaded ZIP-level map for ${segment.label}`} />
           <div className="absolute left-4 top-4 flex rounded-xl border border-white/80 bg-white/95 p-1 text-[11px] font-semibold text-slate-500 shadow-sm backdrop-blur" role="group" aria-label="Map extent">
-            <button type="button" onClick={() => setMapView("published")} className={`rounded-lg px-3 py-2 transition ${mapView === "published" ? "bg-[var(--report-primary)] text-white" : "hover:bg-slate-100 hover:text-slate-800"}`}>Published ZIPs</button>
+            <button type="button" onClick={() => setMapView("published")} className={`rounded-lg px-3 py-2 transition ${mapView === "published" ? "bg-[var(--report-primary)] text-white" : "hover:bg-slate-100 hover:text-slate-800"}`}>ZIPs with data</button>
             <button type="button" onClick={() => setMapView("msa")} className={`rounded-lg px-3 py-2 transition ${mapView === "msa" ? "bg-[var(--report-primary)] text-white" : "hover:bg-slate-100 hover:text-slate-800"}`}>Full MSA</button>
           </div>
           <div className="pointer-events-none absolute bottom-4 left-4 w-[230px] rounded-xl border border-white/70 bg-white/95 px-4 py-3 text-xs text-slate-600 shadow-sm backdrop-blur">
             <div className="h-2.5 rounded-full" style={{ background: metric === "yoy" || metric === "benchmark" ? "linear-gradient(90deg,#b84016,#e8e6df,#08756e)" : "linear-gradient(90deg,#dbecef,#63a5ab,#164d69)" }} />
             <div className="mt-2 flex justify-between gap-2 text-[10px] font-semibold"><span>{legendLabels.left}</span><span>{legendLabels.middle}</span><span className="text-right">{legendLabels.right}</span></div>
-            <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#e7eaed]" />No Trends IQ value</span></div>
-            <p className="mt-2 text-[10px] leading-4 text-slate-400">Every available Trends IQ value is colored. Use Full MSA to see all 101 Census ZCTAs in the 102-ZIP market definition.</p>
+            <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#e7eaed]" />No asking-rent value</span></div>
+            <p className="mt-2 text-[10px] leading-4 text-slate-400">Every available value is colored. Use Full MSA to see all 101 Census ZCTAs in the 102-ZIP market definition.</p>
           </div>
         </div>}</div>
 
       <aside className="overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-label="ZIP market spotlights">
-        <div className="border-b border-slate-100 px-5 py-4"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">ZIPs to discuss</p><h3 className="mt-1 text-lg font-semibold text-[var(--report-primary)]">Largest supported moves</h3><p className="mt-1 text-xs leading-5 text-slate-500">Select a row or shaded area to open its full local read.</p></div>
+        <div className="border-b border-slate-100 px-5 py-4"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Notable ZIP trends</p><h3 className="mt-1 text-lg font-semibold text-[var(--report-primary)]">Largest year-over-year moves</h3><p className="mt-1 text-xs leading-5 text-slate-500">Select a row or shaded ZIP for its rent history and local comparisons.</p></div>
         <div className="p-2">{ranked.slice(0, 5).map((point, index) => {
           const active = selected?.zip === point.zip;
           return <button key={point.zip} type="button" onClick={() => setSelectedZip(point.zip)} className={`w-full rounded-xl px-3 py-3 text-left transition ${active ? "bg-slate-100 ring-1 ring-slate-300" : "hover:bg-slate-50"}`}>
@@ -441,7 +441,7 @@ export function MarketIqRentMap({
           </button>;
         })}</div>
         {selected && <div className="border-t border-slate-100 bg-slate-50 px-5 py-4"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Selected area</p><p className="mt-1 font-semibold text-slate-800">ZIP {selected.zip} · {money(selected.rent)}</p><p className="mt-1 text-xs text-slate-500">{percentage(selected.yearOverYearPct)} YoY · {monthLabel(selected.month)}</p></div>}
-        <div className="border-t border-slate-100 px-5 py-3 text-[11px] leading-5 text-slate-500">All displayed prices and changes are direct Trends IQ statistics for the selected product. If Trends IQ publishes a value, the map displays it.</div>
+        <div className="border-t border-slate-100 px-5 py-3 text-[11px] leading-5 text-slate-500">All prices and changes use the selected product and observation month. Every available ZIP value appears on the map.</div>
       </aside>
     </div>
 

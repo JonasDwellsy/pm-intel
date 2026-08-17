@@ -181,3 +181,15 @@ test("the public Cleveland read tolerates a fresh preview database without histo
   assert.ok(fallback > historicalLoad);
   assert.ok(reportBuild > fallback);
 });
+
+test("the isolated preview may use the configured read-only Dwellsy source without enabling production", () => {
+  const source = readFileSync(
+    join(process.cwd(), "src/lib/market-iq/report/build.server.ts"),
+    "utf8"
+  );
+
+  assert.match(source, /dwellsySourceConfigured\(\)/);
+  assert.match(source, /process\.env\.VERCEL_ENV === "preview"/);
+  assert.match(source, /process\.env\.DWELLSY_LIVE_RUNTIME_ENABLED === "1"/);
+  assert.doesNotMatch(source, /process\.env\.VERCEL_ENV === "production"/);
+});

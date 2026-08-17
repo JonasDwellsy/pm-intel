@@ -133,7 +133,7 @@ export default async function MarketIqLaunchPage({
       status: stepStatus(1, editionComplete),
       href: "/market-iq/editions",
       action: editionComplete ? "Review edition history" : "Review current edition",
-      detail: editionComplete ? `Published ${dateLabel(reviewedEdition?.publishedAt)}` : "The preview baseline is available for review",
+      detail: editionComplete ? `Published ${dateLabel(reviewedEdition?.publishedAt)}` : "The first Cleveland edition is ready for review",
     },
     {
       number: 3,
@@ -146,8 +146,8 @@ export default async function MarketIqLaunchPage({
     },
     {
       number: 4,
-      title: "Preview the exact delivery",
-      description: "Choose the audience, inspect the PM-branded report and personalized email, then confirm each recipient individually.",
+      title: "Review the report and email",
+      description: "Choose the audience, review the PM-branded report and personalized email, then confirm each recipient.",
       status: stepStatus(3, audienceComplete),
       href: campaignHref,
       action: audienceComplete ? "Review campaign" : "Prepare delivery",
@@ -156,11 +156,11 @@ export default async function MarketIqLaunchPage({
     {
       number: 5,
       title: "Send and verify delivery",
-      description: "Use the explicit recipient-level send control and verify the provider and delivery status afterward.",
+      description: "Approve each recipient and check the delivery status afterward.",
       status: stepStatus(4, deliveryComplete),
       href: campaignHref,
       action: deliveryComplete ? "View delivery history" : "Open final confirmation",
-      detail: deliveryComplete ? `${deliveredCount} successful ${deliveredCount === 1 ? "delivery" : "deliveries"}` : "Requires an explicit click",
+      detail: deliveryComplete ? `${deliveredCount} successful ${deliveredCount === 1 ? "delivery" : "deliveries"}` : "Waiting for your confirmation",
     },
   ];
   const recommended = steps[currentIndex];
@@ -175,10 +175,10 @@ export default async function MarketIqLaunchPage({
       {recurringDraft && <section className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-orange-200 bg-orange-50 px-5 py-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-800">New private edition</p><p className="mt-1 text-sm font-semibold text-navy">Trends IQ advanced through {recurringDraft.periodEnd}, with {recurringDraft.materialChangeCount} material {recurringDraft.materialChangeCount === 1 ? "change" : "changes"} flagged for review.</p><p className="mt-1 text-xs text-slate-600">No public link, campaign, audience, or email has been created.</p></div><Link href="/market-iq/review" className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">Open review inbox</Link></section>}
       <header className="grid gap-7 border-b border-grid pb-9 lg:grid-cols-[1fr_380px] lg:items-end">
         <div>
-          <p className="dq-eyebrow">First-edition launch</p>
-          <h1 className="dq-h1">Take one Cleveland market read from setup to delivery</h1>
+          <p className="dq-eyebrow">First edition</p>
+          <h1 className="dq-h1">Prepare and share your first Cleveland market read</h1>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">
-            Market IQ keeps the sequence explicit. Nothing publishes until review, saving a recipient never sends, and each delivery still requires its own confirmation.
+            Confirm your market settings, review the report, choose the audience, and approve each email before it is sent.
           </p>
         </div>
         <aside className="rounded-2xl bg-navy p-6 text-white">
@@ -203,16 +203,16 @@ export default async function MarketIqLaunchPage({
           <p className="mt-2 text-xs text-slate-500">{activeReport ? `Published ${dateLabel(activeReport.publishedAt)}` : "Uses saved Trends IQ scope"}</p>
         </article>
         <article className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Distribution safety</p>
-          <p className="mt-3 text-lg font-semibold text-navy">Explicit confirmation</p>
-          <p className="mt-2 text-xs leading-5 text-slate-500">No bulk send. Retries also require a new click.</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Email approval</p>
+          <p className="mt-3 text-lg font-semibold text-navy">One recipient at a time</p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">You approve each initial send and each retry.</p>
         </article>
       </section>
 
       <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-5 sm:px-8">
-          <p className="dq-eyebrow">Guided workflow</p>
-          <h2 className="dq-h2">One sequence, with a clear stopping point at every decision</h2>
+          <p className="dq-eyebrow">Your checklist</p>
+          <h2 className="dq-h2">Five steps from setup to delivery</h2>
         </div>
         <div className="divide-y divide-slate-100">
           {steps.map((step) => (
@@ -238,7 +238,7 @@ export default async function MarketIqLaunchPage({
 
       {activeReport && (
         <section className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-teal-200 bg-teal-50 p-6">
-          <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-800">Client-facing artifact</p><p className="mt-2 text-lg font-semibold text-navy">A shareable Cleveland baseline is ready</p><p className="mt-1 text-sm text-slate-600">Review the exact page a recipient will see before preparing any delivery.</p></div>
+          <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-800">Client report</p><p className="mt-2 text-lg font-semibold text-navy">A shareable Cleveland edition is ready</p><p className="mt-1 text-sm text-slate-600">Review the page your recipients will see before preparing an email.</p></div>
           <Link href={`/reports/market/${activeReport.publicToken}`} target="_blank" className="rounded-md border border-navy bg-white px-4 py-2.5 text-sm font-semibold text-navy">Open report preview</Link>
         </section>
       )}

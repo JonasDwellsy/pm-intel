@@ -4,6 +4,7 @@ import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { prisma } from "@/lib/prisma";
 import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server";
 import { loadDwellsyProductRollupSeries, loadDwellsyTrendSeries } from "@/lib/dwellsy-source/trends.server";
+import { dwellsySourceConfigured } from "@/lib/dwellsy-source/db.server";
 import { loadClevelandListingActivity } from "@/lib/dwellsy-source/listing-events.server";
 import { marketIqDatabaseConfigured, marketIqPrisma } from "@/lib/market-iq/prisma";
 import {
@@ -85,8 +86,11 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
   generatedAt?: Date;
   brand?: MarketIqReportSnapshot["brand"];
 }) {
-  const liveDwellsyRuntimeEnabled = process.env.DWELLSY_LIVE_RUNTIME_ENABLED === "1"
-    || !process.env.VERCEL;
+  const liveDwellsyRuntimeEnabled = dwellsySourceConfigured() && (
+    process.env.DWELLSY_LIVE_RUNTIME_ENABLED === "1"
+    || process.env.VERCEL_ENV === "preview"
+    || !process.env.VERCEL
+  );
   const analyticalContext = marketIqDatabaseConfigured()
     ? Promise.all([
         loadClevelandHistoricalPulse(),

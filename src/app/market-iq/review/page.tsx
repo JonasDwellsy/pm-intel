@@ -102,8 +102,8 @@ export default async function MarketIqReviewInboxPage({
     {query.check && CHECK_MESSAGES[query.check] && <p className={`mb-6 rounded-xl border px-5 py-3 text-sm font-semibold ${["source_unavailable", "blocked", "baseline_required"].includes(query.check) ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>{CHECK_MESSAGES[query.check]}</p>}
 
     <header className="grid gap-7 border-b border-grid pb-9 lg:grid-cols-[1fr_380px] lg:items-end">
-      <div><p className="dq-eyebrow">PM review inbox</p><h1 className="dq-h1">Decide what becomes the next client edition</h1><p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Private drafts arrive here when authoritative Trends IQ advances. Review the evidence, continue editorial work, or record why an edition should not move forward.</p></div>
-      <aside className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">Safety boundary</p><p className="mt-3 text-xl font-semibold">Review only</p><p className="mt-2 text-sm leading-6 text-white/70">This inbox cannot publish a report, select recipients, create a campaign, or send email. Those decisions remain separate and explicit.</p></aside>
+      <div><p className="dq-eyebrow">Report review</p><h1 className="dq-h1">Review the next client edition</h1><p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">New drafts appear here when the monthly rent data advances. Review the evidence, edit the wording, or skip an edition.</p></div>
+      <aside className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">Draft status</p><p className="mt-3 text-xl font-semibold">Private until published</p><p className="mt-2 text-sm leading-6 text-white/70">Reviewing a draft does not publish it or send an email.</p></aside>
     </header>
 
     <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -115,7 +115,7 @@ export default async function MarketIqReviewInboxPage({
 
     <section className="mt-8 grid gap-7 xl:grid-cols-[1fr_390px]">
       <div className="space-y-6">
-        <div><p className="dq-eyebrow">Attention queue</p><h2 className="dq-h2">{drafts.length ? `${drafts.length} ${drafts.length === 1 ? "edition needs" : "editions need"} a PM decision` : "The queue is clear"}</h2><p className="mt-2 text-sm leading-6 text-slate-600">The queue contains only private, authoritative drafts. Opening one begins review but does not make it public.</p></div>
+        <div><p className="dq-eyebrow">Drafts</p><h2 className="dq-h2">{drafts.length ? `${drafts.length} ${drafts.length === 1 ? "edition is" : "editions are"} ready for review` : "No drafts are waiting"}</h2><p className="mt-2 text-sm leading-6 text-slate-600">Opening a draft does not make it public.</p></div>
         {drafts.length ? drafts.map((draft) => {
           const change = comparison(draft.comparison);
           const findings = change?.findings.slice(0, 3) ?? [];

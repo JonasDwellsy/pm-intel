@@ -136,8 +136,8 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEd
           <label className="text-sm font-semibold text-navy">Contact email<input name="contactEmail" type="email" maxLength={254} value={brand.contactEmail ?? ""} onChange={(event) => updateBrand("contactEmail", event.target.value || null)} className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /></label>
           <label className="text-sm font-semibold text-navy">Website<input name="websiteUrl" type="url" maxLength={500} value={brand.websiteUrl ?? ""} onChange={(event) => updateBrand("websiteUrl", event.target.value || null)} placeholder="https://yourfirm.com" className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /></label>
 
-          <button disabled={!canPublish} className="mt-1 rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white hover:bg-navy/90 disabled:cursor-not-allowed disabled:bg-slate-300">Publish immutable report</button>
-          <p className="text-xs leading-5 text-muted-foreground">Publishing freezes exactly the selected evidence and brand shown in the preview. It creates a revocable link but does not send an email automatically.</p>
+          <button disabled={!canPublish} className="mt-1 rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white hover:bg-navy/90 disabled:cursor-not-allowed disabled:bg-slate-300">Publish report</button>
+          <p className="text-xs leading-5 text-muted-foreground">Publishing saves the data, wording, and branding shown here and creates a shareable link. It does not send an email.</p>
           {!canPublish && <p className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-900">Select at least one geography and segment with a reportable Trends IQ cell before publishing.</p>}
         </div>
       </form>
@@ -151,7 +151,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEd
     </section>
 
     <section className="mt-10 overflow-hidden rounded-2xl border border-grid bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-grid bg-white px-6 py-4"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700">Exact client-facing preview</p><p className="mt-1 text-sm text-muted-foreground">This shared renderer is also used by the published public link.</p></div><span className="rounded-full bg-surface-soft px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{coverage.counts.reportable} rent cells will publish</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-grid bg-white px-6 py-4"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-700">Client preview</p><p className="mt-1 text-sm text-muted-foreground">This is how the published report will appear.</p></div><span className="rounded-full bg-surface-soft px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{coverage.counts.reportable} rent cells will publish</span></div>
       <MarketIqPublicReport report={reviewedSnapshot} preview />
     </section>
   </>;

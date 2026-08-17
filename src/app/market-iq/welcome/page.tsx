@@ -69,8 +69,8 @@ export default function MarketIqWelcomePage() {
         <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-16 sm:px-7 sm:py-20 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:px-10 lg:py-24">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-700">Rental-market intelligence for property managers</p>
-            <h1 className="mt-5 max-w-3xl text-5xl font-bold leading-[1.02] tracking-[-0.045em] text-navy sm:text-6xl">Turn local rent data into a conversation clients remember.</h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">Market IQ shows your team what is changing across the local asking market. Client Advisory turns that same intelligence into a reviewed, property-manager-branded market read for owners and prospects.</p>
+            <h1 className="mt-5 max-w-3xl text-5xl font-bold leading-[1.02] tracking-[-0.045em] text-navy sm:text-6xl">See where local rents are moving, then explain why it matters.</h1>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">Market IQ tracks changes across the local asking market. Client Advisory lets property managers add their own commentary and share a firm-branded report with owners and prospects.</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href={SIGN_IN_TO_PLANS} className="rounded-md bg-navy px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-navy/90">Sign in and choose a plan</Link>
               <Link href={SAMPLE_REPORT} className="rounded-md border border-navy bg-white px-6 py-3.5 text-sm font-semibold text-navy transition hover:bg-slate-50">View a Cleveland example</Link>
@@ -91,7 +91,7 @@ export default function MarketIqWelcomePage() {
               </div>
               <div className="p-6 sm:p-7">
                 <div className="rounded-2xl bg-navy p-6 text-white">
-                  <div className="flex items-start justify-between gap-5"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Decision-ready local read</p><p className="mt-2 text-xl font-semibold">One market, several distinct rental stories</p></div><span className="shrink-0 rounded-md border border-white/15 px-2 py-1 text-[10px] text-white/70">Jul 2026</span></div>
+                  <div className="flex items-start justify-between gap-5"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Cleveland rent trends</p><p className="mt-2 text-xl font-semibold">One market, several different local patterns</p></div><span className="shrink-0 rounded-md border border-white/15 px-2 py-1 text-[10px] text-white/70">Jul 2026</span></div>
                   <div className="mt-6 grid grid-cols-5 items-end gap-2" aria-label="Illustrative local trend distribution">
                     {[42, 66, 53, 82, 61].map((height, index) => <div key={height} className="flex flex-col items-center gap-2"><div className={`w-full rounded-t-sm ${index === 3 ? "bg-teal-300" : index === 0 ? "bg-orange-300" : "bg-white/30"}`} style={{ height }} /><span className="text-[9px] text-white/45">ZIP {index + 1}</span></div>)}
                   </div>
@@ -105,10 +105,10 @@ export default function MarketIqWelcomePage() {
 
       <section id="product" className="mx-auto max-w-7xl px-5 py-16 sm:px-7 lg:px-10 lg:py-24">
         <div className="grid gap-10 lg:grid-cols-[0.7fr_1.3fr] lg:items-start">
-          <div className="lg:sticky lg:top-28"><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-700">One product, two jobs</p><h2 className="mt-3 text-4xl font-bold tracking-tight text-navy">Know the market. Show clients how you think.</h2><p className="mt-5 text-base leading-7 text-slate-600">The entry product helps your team interpret the market. Client Advisory adds the controlled publishing channel, without changing or withholding the underlying intelligence.</p></div>
+          <div className="lg:sticky lg:top-28"><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-700">Two plans</p><h2 className="mt-3 text-4xl font-bold tracking-tight text-navy">Use the data internally or share a branded report.</h2><p className="mt-5 text-base leading-7 text-slate-600">Market IQ Intelligence gives your team the full local market view. Client Advisory adds firm branding, commentary, recipient management, and email delivery.</p></div>
           <div className="grid gap-5 sm:grid-cols-2">
             <article className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">For your team</p><h3 className="mt-3 text-2xl font-semibold text-navy">Market IQ Intelligence</h3><p className="mt-3 text-sm leading-6 text-slate-600">Walk into pricing, owner, and prospect conversations with a current local read instead of a spreadsheet dump.</p><div className="mt-7 border-t border-slate-100 pt-5 text-sm font-semibold text-teal-800">Internal market workspace</div></article>
-            <article className="rounded-2xl border border-navy bg-navy p-7 text-white shadow-lg"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/50">For your clients and prospects</p><h3 className="mt-3 text-2xl font-semibold">Market IQ Client Advisory</h3><p className="mt-3 text-sm leading-6 text-white/72">Put your firm’s interpretation, branding, and experience around a useful recurring market artifact.</p><div className="mt-7 border-t border-white/10 pt-5 text-sm font-semibold text-teal-200">Reviewed PM-branded editions</div></article>
+            <article className="rounded-2xl border border-navy bg-navy p-7 text-white shadow-lg"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/50">For your clients and prospects</p><h3 className="mt-3 text-2xl font-semibold">Market IQ Client Advisory</h3><p className="mt-3 text-sm leading-6 text-white/72">Add your firm’s interpretation and branding to a recurring local market report.</p><div className="mt-7 border-t border-white/10 pt-5 text-sm font-semibold text-teal-200">Reviewed PM-branded editions</div></article>
           </div>
         </div>
       </section>
@@ -137,7 +137,6 @@ export default function MarketIqWelcomePage() {
             <Link href={SIGN_IN_TO_PLANS} className="mt-8 flex w-full justify-center rounded-md bg-navy px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-navy/90">Choose Client Advisory</Link>
           </article>
         </div>
-        <p className="mx-auto mt-7 max-w-3xl text-center text-xs leading-5 text-slate-500">Already purchasing through an enterprise agreement? Dwellsy can provision either plan directly without changing your future billing or workspace experience.</p>
       </section>
 
       <section className="bg-navy text-white">

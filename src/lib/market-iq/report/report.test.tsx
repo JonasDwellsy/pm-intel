@@ -208,6 +208,9 @@ describe("Market IQ edition comparison", () => {
     expect(html).toContain("A PM-authored opening for the client.");
     expect(html).toContain("Since the last market read");
     expect(html).toContain("This is the launch baseline");
+    expect(html).toContain("Market data by Dwellsy IQ");
+    expect(html).not.toContain("Trends IQ");
+    expect(html).not.toContain("Total IQ");
   });
 
   it("renders optional PM company marketing only when the reviewed edition includes it", () => {

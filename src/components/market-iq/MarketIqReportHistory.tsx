@@ -59,8 +59,8 @@ export function MarketIqReportHistory({ reports, highlightedId, delivery }: { re
           <form action={startMarketIqDistributionCampaign} className="mt-3 rounded-lg border border-grid bg-white px-3 py-3">
             <input type="hidden" name="reportId" value={report.id} />
             <p className="text-xs font-semibold text-navy">Email this report as your firm</p>
-            <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Open the staged audience, exact email preview, suppression checks, and recipient-by-recipient confirmation.</p>
-            <button className="mt-3 rounded-md bg-navy px-3 py-2.5 text-xs font-semibold text-white">Open controlled distribution</button>
+            <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Choose recipients, review the email, and confirm each delivery.</p>
+            <button className="mt-3 rounded-md bg-navy px-3 py-2.5 text-xs font-semibold text-white">Prepare delivery</button>
           </form>
         </>}
         {latest && <div className="mt-3 rounded-md bg-surface-soft px-3 py-2 text-[11px] leading-5 text-muted-foreground">

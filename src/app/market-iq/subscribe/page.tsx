@@ -91,7 +91,7 @@ export default async function MarketIqSubscribePage({
       <header className="max-w-3xl">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-700">Market IQ plans</p>
         <h1 className="mt-3 text-4xl font-bold tracking-tight text-navy sm:text-5xl">Start with market intelligence. Add a client advisory channel when you are ready.</h1>
-        <p className="mt-5 text-lg leading-8 text-slate-600">Both plans include one market and the same underlying Dwellsy intelligence. Client Advisory adds the controlled, PM-branded workflow for sharing that intelligence with clients and prospects.</p>
+        <p className="mt-5 text-lg leading-8 text-slate-600">Both plans include one market and the same rental-market data. Client Advisory adds reports branded for your firm, a recipient directory, and reviewed email delivery.</p>
         <nav aria-label="Billing frequency" className="mt-7 inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
           <Link href="/market-iq/subscribe?billing=month" className={`rounded-lg px-5 py-2.5 text-sm font-semibold ${billingInterval === "month" ? "bg-navy text-white" : "text-slate-600"}`}>Monthly</Link>
           <Link href="/market-iq/subscribe?billing=year" className={`rounded-lg px-5 py-2.5 text-sm font-semibold ${billingInterval === "year" ? "bg-navy text-white" : "text-slate-600"}`}>Annual</Link>
@@ -132,16 +132,16 @@ export default async function MarketIqSubscribePage({
                 : active && !isUpgrade ? null
                 : canManageBilling && checkoutReady && !active ? <form action="/api/market-iq/billing/checkout" method="post"><input type="hidden" name="planKey" value={plan.key} /><input type="hidden" name="billingInterval" value={billingInterval} /><button className="w-full rounded-md bg-navy px-5 py-3.5 text-sm font-semibold text-white hover:bg-navy/90">Choose the {marketIqPlanPriceLabel(displayedPrice)} {billingInterval === "year" ? "annual" : "monthly"} plan</button></form>
                 : isUpgrade && active?.source === "stripe" && active.stripeCustomerId ? <form action="/api/market-iq/billing/portal" method="post"><button className="w-full rounded-md bg-navy px-5 py-3.5 text-sm font-semibold text-white">Upgrade to Client Advisory</button></form>
-                : isUpgrade ? <div className="rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm leading-6 text-slate-700">Your founding Intelligence plan was provisioned directly. Contact Dwellsy to move this workspace to the $149 Client Advisory founding plan.</div>
-                : <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">{!canManageBilling ? "Ask an organization administrator to select this plan." : "Online checkout is being configured. Early customers can be provisioned directly at the founding price."}</div>}
+                : isUpgrade ? <div className="rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm leading-6 text-slate-700">Contact Dwellsy to upgrade this workspace to the $149 Client Advisory plan.</div>
+                : <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">{!canManageBilling ? "Ask an organization administrator to select this plan." : "Contact Dwellsy to purchase this plan."}</div>}
             </div>
           </article>;
         })}
       </section>
 
       <section className="mt-8 grid gap-5 md:grid-cols-2">
-        <article className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">The product boundary</p><p className="mt-3 text-sm leading-6 text-white/85">Intelligence is for your team. Client Advisory is for putting your firm’s point of view in front of clients and prospects. The upgrade buys a distribution workflow, not different market data.</p></article>
-        <article className="rounded-2xl border border-slate-200 bg-white p-6 text-sm leading-6 text-slate-600"><p className="font-semibold text-navy">Enterprise purchase?</p><p className="mt-2">Early clients can be provisioned directly under a signed agreement at either founding tier. Stripe checkout can be enabled later without changing the entitlement model.</p>{latest?.source === "stripe" && latest.stripeCustomerId && canManageBilling && <form className="mt-4" action="/api/market-iq/billing/portal" method="post"><button className="font-semibold text-teal-700">Manage billing in Stripe →</button></form>}</article>
+        <article className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Choose by audience</p><p className="mt-3 text-sm leading-6 text-white/85">Intelligence is built for your internal market work. Client Advisory adds the tools to present that work under your firm’s brand to clients and prospects.</p></article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 text-sm leading-6 text-slate-600"><p className="font-semibold text-navy">Billing and plan changes</p><p className="mt-2">Organization administrators can manage an existing subscription or contact Dwellsy for help changing plans.</p>{latest?.source === "stripe" && latest.stripeCustomerId && canManageBilling && <form className="mt-4" action="/api/market-iq/billing/portal" method="post"><button className="font-semibold text-teal-700">Manage billing in Stripe →</button></form>}</article>
       </section>
     </div>
   </main>;
