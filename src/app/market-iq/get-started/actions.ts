@@ -65,5 +65,5 @@ export async function saveMarketIqActivationProgress(formData: FormData): Promis
 
 export async function completeMarketIqActivation(formData: FormData): Promise<void> {
   await persistActivation(formData, true);
-  redirect("/market-iq/editions?activated=1");
+  redirect("/market-iq/launch?activated=1");
 }

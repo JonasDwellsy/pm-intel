@@ -100,7 +100,7 @@ function marketIqReturnTo(redirectUrl: string | undefined): string {
   ) {
     return redirectUrl;
   }
-  return "/market-iq/distribution";
+  return "/market-iq/launch";
 }
 
 export default async function SignInPage({

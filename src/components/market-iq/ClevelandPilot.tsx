@@ -12,7 +12,7 @@ import { MarketIqDigestPanel } from "@/components/market-iq/MarketIqDigestPanel"
 import { MarketIqAlertHistory } from "@/components/market-iq/MarketIqAlertHistory";
 import type { MarketIqAlertHistoryItem } from "@/lib/market-iq/alert-history.server";
 import type { ClevelandLiveListingPulse } from "@/lib/market-iq/live-listings.server";
-import { DwellsyIqWorkspaceNav } from "@/components/dwellsy-iq/DwellsyIqWorkspaceNav";
+import { MarketIqWorkspaceNav } from "@/components/market-iq/MarketIqWorkspaceNav";
 
 function MetricCard({
   label,
@@ -64,7 +64,7 @@ export function ClevelandPilot({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <DwellsyIqWorkspaceNav />
+      <MarketIqWorkspaceNav />
 
       <header className="grid gap-6 border-b border-grid pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>

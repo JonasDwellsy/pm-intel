@@ -12,9 +12,9 @@ const PREVIEW_PILOT_CLERK_ORG_ID = "preview_market_iq_cleveland_pilot";
 const PREVIEW_BASELINE_TOKEN = "preview-cleveland-market-read";
 
 function safeMarketIqReturnTo(value: FormDataEntryValue | null): string {
-  if (typeof value !== "string") return "/market-iq/distribution";
+  if (typeof value !== "string") return "/market-iq/launch";
   if (!value.startsWith("/market-iq") || value.startsWith("//")) {
-    return "/market-iq/distribution";
+    return "/market-iq/launch";
   }
   return value;
 }

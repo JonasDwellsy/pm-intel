@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { DwellsyIqWorkspaceNav } from "@/components/dwellsy-iq/DwellsyIqWorkspaceNav";
+import { MarketIqWorkspaceNav } from "@/components/market-iq/MarketIqWorkspaceNav";
 import { MarketIqReportHistory } from "@/components/market-iq/MarketIqReportHistory";
 import { MarketIqReportComposerClient } from "@/components/market-iq/report/MarketIqReportComposerClient";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
@@ -26,7 +26,7 @@ export default async function MarketIqReportComposerPage({ searchParams }: { sea
   const query = await searchParams;
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-    <DwellsyIqWorkspaceNav />
+    <MarketIqWorkspaceNav />
     <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><Link href="/market-iq/editions" className="hover:text-teal-700">Edition workflow</Link><span>/</span><span>Review and publish</span><span>·</span><Link href="/market-iq/distribution" className="hover:text-teal-700">Distribution</Link></nav>
     {query.activated === "1" && <p className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Setup complete. Your saved brand and market defaults are loaded below.</p>}
     <header className="grid gap-7 border-b border-grid pb-8 lg:grid-cols-[1fr_360px] lg:items-end">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { saveMarketIqCampaignAudience, sendMarketIqCampaignRecipient, setMarketIqRecipientSuppression } from "@/app/market-iq/distribution/actions";
-import { DwellsyIqWorkspaceNav } from "@/components/dwellsy-iq/DwellsyIqWorkspaceNav";
+import { MarketIqWorkspaceNav } from "@/components/market-iq/MarketIqWorkspaceNav";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
@@ -72,7 +72,7 @@ export default async function MarketIqCampaignPage({
   const reviewStage = query.stage === "review" || campaign.status !== "draft";
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-    <DwellsyIqWorkspaceNav />
+    <MarketIqWorkspaceNav />
     <nav className="mt-5 flex items-center gap-2 text-xs font-semibold text-slate-500"><Link href="/market-iq">Market IQ</Link><span>/</span><Link href="/market-iq/distribution">Distribution</Link><span>/</span><span>{campaign.report.periodLabel}</span></nav>
     <header className="mt-6 grid gap-6 border-b border-grid pb-8 lg:grid-cols-[1fr_360px] lg:items-end"><div><p className="dq-eyebrow">Controlled distribution</p><h1 className="dq-h1">Review every recipient before delivery</h1><p className="mt-3 max-w-3xl text-[15px] leading-6 text-slate-600">The prior edition audience is carried forward as a draft. Adjust it, inspect the exact PM-branded email, then confirm recipients individually. Nothing on this page sends automatically.</p></div><aside className="rounded-xl bg-navy p-5 text-white"><p className="text-[10px] font-bold uppercase tracking-wider text-white/55">Edition</p><p className="mt-2 text-lg font-semibold">{campaign.report.periodLabel}</p><p className="mt-2 text-sm text-white/65">{campaign.recipients.length} selected · {campaign.status}</p></aside></header>
     {query.delivery && <p className={`mt-6 rounded-xl border px-5 py-3 text-sm font-semibold ${query.delivery === "sent" || query.delivery === "already_sent" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : query.delivery === "failed" || query.delivery === "suppressed" ? "border-rose-200 bg-rose-50 text-rose-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{query.delivery === "sent" ? "SendGrid accepted the confirmed delivery." : query.delivery === "already_sent" ? "No duplicate was sent. This edition was already delivered to that recipient." : query.delivery === "failed" ? "Delivery failed. Review the error and use the explicit retry control." : query.delivery === "suppressed" ? "Delivery was blocked because the recipient is suppressed." : "No delivery was initiated because the recipient state had already changed."}</p>}

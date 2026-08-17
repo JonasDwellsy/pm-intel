@@ -49,7 +49,7 @@ export default async function SetupWorkspacePage({ searchParams }: PageProps) {
   const { from, activation } = await searchParams;
   const developmentPreview = marketIqDevelopmentPreviewEnabled();
   const returnTo = sanitizeReturnTo(
-    from ?? (developmentPreview ? "/market-iq/distribution" : undefined)
+    from ?? (developmentPreview ? "/market-iq/launch" : undefined)
   );
 
   const { userId } = await auth();

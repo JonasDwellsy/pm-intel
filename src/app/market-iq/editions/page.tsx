@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { DwellsyIqWorkspaceNav } from "@/components/dwellsy-iq/DwellsyIqWorkspaceNav";
+import { MarketIqWorkspaceNav } from "@/components/market-iq/MarketIqWorkspaceNav";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
@@ -52,7 +52,7 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
   const directoryOnly = recipients.filter((recipient) => !priorAudienceIds.has(recipient.id));
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-    <DwellsyIqWorkspaceNav />
+    <MarketIqWorkspaceNav />
     <nav className="mt-5 flex items-center gap-2 text-xs font-semibold text-slate-500"><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><span>Edition workflow</span></nav>
     {query.activated === "1" && <p className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Setup complete. Your first saved-scope edition is assembled below.</p>}
     <header className="mt-6 grid gap-7 border-b border-grid pb-8 lg:grid-cols-[1fr_360px] lg:items-end"><div><p className="dq-eyebrow">Recurring client advisory</p><h1 className="dq-h1">Prepare the next Cleveland edition</h1><p className="mt-3 max-w-3xl text-[15px] leading-6 text-slate-600">Market IQ has assembled the latest Trends IQ evidence using your saved brand, geography, and segment defaults. Review what changed, confirm the evidence, then open the editorial and publication controls.</p><Link href="/market-iq/get-started" className="mt-4 inline-block text-sm font-semibold text-teal-800">Edit brand and market defaults →</Link></div><aside className="rounded-xl bg-navy p-5 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">Edition state</p><p className="mt-2 text-xl font-semibold">{workflow.state === "launch" ? "Launch baseline" : workflow.state === "new_period" ? "New data available" : "Same reporting period"}</p><p className="mt-2 text-sm leading-6 text-white/70">Current cutoff: {dateLabel(workflow.currentPeriodEnd)}{workflow.priorPeriodEnd ? ` · Prior cutoff: ${dateLabel(workflow.priorPeriodEnd)}` : ""}</p></aside></header>
