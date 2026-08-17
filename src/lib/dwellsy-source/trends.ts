@@ -33,7 +33,7 @@ export function mapDwellsyTrendRows(rows: DwellsyTrendSourceRow[]): MarketIqTren
     const rent = numberOrNull(row.rent);
     const observations = numberOrNull(row.observations);
     const bedrooms = Number(row.bedrooms);
-    if (rent === null || rent <= 0 || observations === null || !Number.isInteger(bedrooms)) continue;
+    if (rent === null || rent <= 0 || !Number.isInteger(bedrooms)) continue;
     const geographyType = row.geography_type as MarketIqGeographyType;
     const propertyType = row.address_type.toLowerCase() as MarketIqPropertyType;
     const key = `${geographyType}:${row.geography_value}:${propertyType}:${bedrooms}`;
@@ -48,7 +48,7 @@ export function mapDwellsyTrendRows(rows: DwellsyTrendSourceRow[]): MarketIqTren
     series.points.push({
       rent,
       yearOverYearPct: numberOrNull(row.year_over_year_pct),
-      observations,
+      observations: observations ?? 0,
       month: monthIso(row.month),
       valueBasis: row.value_basis,
     });
