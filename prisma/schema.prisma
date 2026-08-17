@@ -688,7 +688,12 @@ model MarketIqEditionDraft {
   materialChangeCount    Int       @default(0)
   generatedBy            String    @default("recurring-edition-engine")
   detectedAt             DateTime  @default(now())
+  reviewStartedAt        DateTime?
+  reviewStartedByUserId  String?
   reviewedAt             DateTime?
+  dismissedAt            DateTime?
+  dismissedByUserId      String?
+  dismissalReason        String?
   publishedReportId      String?
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt

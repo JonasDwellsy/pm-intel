@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const ITEMS = [
   { href: "/market-iq/launch", label: "Launch", match: (path: string) => path.startsWith("/market-iq/launch") },
   { href: "/market-iq", label: "Market", match: (path: string) => path === "/market-iq" },
+  { href: "/market-iq/review", label: "Review inbox", match: (path: string) => path.startsWith("/market-iq/review") },
   { href: "/market-iq/editions", label: "Editions", match: (path: string) => path.startsWith("/market-iq/editions") || path.startsWith("/market-iq/report") },
   { href: "/market-iq/distribution", label: "Distribution", match: (path: string) => path.startsWith("/market-iq/distribution") },
   { href: "/market-iq/get-started", label: "Setup", match: (path: string) => path.startsWith("/market-iq/get-started") },
