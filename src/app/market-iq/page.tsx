@@ -18,6 +18,12 @@ function dateLabel(value: string | Date | null) {
     : "Awaiting source";
 }
 
+function monthLabel(value: string | Date | null) {
+  return value
+    ? new Date(value).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })
+    : "Awaiting source";
+}
+
 function percent(value: number) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
@@ -79,8 +85,8 @@ export default async function MarketIqHomePage() {
           <aside className="rounded-2xl bg-navy p-6 text-white">
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Current market read</p>
             <p className="mt-3 text-2xl font-semibold leading-8">{msa?.signal.heading ?? "Cleveland source refresh pending"}</p>
-            <p className="mt-3 text-sm leading-6 text-white/70">{msa?.signal.narrative ?? "Market IQ will publish a dated read when the next authoritative Trends IQ snapshot is available."}</p>
-            <p className="mt-4 text-xs text-white/45">Trends IQ through {dateLabel(msa?.trendSource.availableThrough ?? null)}</p>
+            <p className="mt-3 text-sm leading-6 text-white/70">{msa?.signal.narrative ?? "The next dated Cleveland read will appear when the monthly Trends data is available."}</p>
+            <p className="mt-4 text-xs text-white/45">Trends IQ through {monthLabel(msa?.trendSource.availableThrough ?? null)}</p>
           </aside>
         </div>
         <div className="grid gap-px bg-slate-200 sm:grid-cols-2 lg:grid-cols-4">
@@ -94,12 +100,12 @@ export default async function MarketIqHomePage() {
       <section className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-700">What deserves attention</p><h2 className="mt-2 text-2xl font-semibold text-navy">Your next useful moves</h2></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-700">What deserves attention</p><h2 className="mt-2 text-2xl font-semibold text-navy">Start here</h2></div>
             <Link href="/market-iq/market#local-areas" className="text-sm font-semibold text-teal-700">Explore local areas →</Link>
           </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <Link href="/market-iq/market" className="rounded-xl border border-slate-200 bg-slate-50 p-5 transition hover:border-teal-300"><p className="text-sm font-semibold text-navy">Read the market</p><p className="mt-2 text-sm leading-6 text-slate-600">Compare MSA, city, ZIP, apartment, and house trajectories in the current Cleveland view.</p></Link>
-            {advisory ? <Link href={draft ? "/market-iq/review" : "/market-iq/editions"} className="rounded-xl border border-slate-200 bg-slate-50 p-5 transition hover:border-teal-300"><p className="text-sm font-semibold text-navy">{draft ? `${draft.materialChangeCount} changes need review` : "Prepare the next edition"}</p><p className="mt-2 text-sm leading-6 text-slate-600">{draft ? `A private ${dateLabel(draft.periodEnd)} draft is waiting for PM review.` : "Turn the current market read into a reviewed, PM-branded client edition."}</p></Link> : <Link href="/market-iq/subscribe?upgrade=client_advisory" className="rounded-xl border border-slate-200 bg-slate-50 p-5 transition hover:border-teal-300"><p className="text-sm font-semibold text-navy">Share your market point of view</p><p className="mt-2 text-sm leading-6 text-slate-600">Client Advisory adds PM-branded reports, recipients, and reviewed distribution.</p></Link>}
+            {advisory ? <Link href={draft ? "/market-iq/review" : "/market-iq/editions"} className="rounded-xl border border-slate-200 bg-slate-50 p-5 transition hover:border-teal-300"><p className="text-sm font-semibold text-navy">{draft ? `${draft.materialChangeCount} changes need review` : "Prepare the next edition"}</p><p className="mt-2 text-sm leading-6 text-slate-600">{draft ? `A private ${dateLabel(draft.periodEnd)} draft is waiting for your review.` : "Add your firm’s commentary, review the data, and create a client-ready link."}</p></Link> : <Link href="/market-iq/subscribe?upgrade=client_advisory" className="rounded-xl border border-slate-200 bg-slate-50 p-5 transition hover:border-teal-300"><p className="text-sm font-semibold text-navy">Prepare reports for clients</p><p className="mt-2 text-sm leading-6 text-slate-600">Client Advisory adds your firm’s branding, recipient management, and email delivery.</p></Link>}
           </div>
         </div>
 

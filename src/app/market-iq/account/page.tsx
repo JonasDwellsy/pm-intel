@@ -48,7 +48,7 @@ export default async function MarketIqAccountPage() {
 
   return <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-7 lg:px-10 lg:py-12">
     <header className="grid gap-6 border-b border-grid pb-8 lg:grid-cols-[1fr_330px] lg:items-end">
-      <div><p className="dq-eyebrow">Account and workspace</p><h1 className="dq-h1">Market IQ settings</h1><p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">See exactly what your organization has purchased, what is configured, and what the next billing or setup action will affect.</p></div>
+      <div><p className="dq-eyebrow">Account and workspace</p><h1 className="dq-h1">Market IQ settings</h1><p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Review your plan, billing status, Cleveland access, and workspace setup.</p></div>
       <aside className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/55">Signed-in workspace</p><p className="mt-2 text-xl font-semibold">{organization.name}</p><p className="mt-2 text-sm text-white/65">{role === "org:admin" ? "Organization administrator" : "Organization member"}</p></aside>
     </header>
 

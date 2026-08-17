@@ -28,6 +28,14 @@ function MetricCard({
   );
 }
 
+function monthLabel(value: string) {
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function ClevelandPilot({
   historicalPulse,
   trendPulses,
@@ -58,7 +66,7 @@ export function ClevelandPilot({
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
       <header className="grid gap-6 border-b border-grid pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
-          <p className="dq-eyebrow">Market watchlist</p>
+          <p className="dq-eyebrow">Cleveland market read</p>
           <h1 className="dq-h1">{clevelandPilot.market}</h1>
           <p className="mt-3 max-w-3xl text-[15px] leading-6 text-muted-foreground">
             Asking-market intelligence for rent direction, listing supply, and product-segment performance. This view does not measure occupancy, signed leases, or effective rent.
@@ -97,12 +105,16 @@ export function ClevelandPilot({
               : "Awaiting first synchronized snapshot"}
           </p>
         </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {liveListingPulse.status === "healthy" ? <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard label="Active listings" value={fmtInt(liveListingPulse.activeListings)} detail={`${fmtInt(liveListingPulse.apartmentListings)} apartments · ${fmtInt(liveListingPulse.houseListings)} houses`} />
           <MetricCard label="New and relisted" value={fmtInt(liveListingPulse.newEvents + liveListingPulse.relistedEvents)} detail={`${fmtInt(liveListingPulse.reactivatedEvents)} reactivated in latest refresh`} />
           <MetricCard label="Price changes" value={fmtInt(liveListingPulse.priceChangeEvents)} detail="Asking-rent changes in latest refresh" />
           <MetricCard label="Deactivated" value={fmtInt(liveListingPulse.deactivatedEvents)} detail="Listings removed since prior snapshot" />
-        </div>
+        </div> : <div className="mt-6 rounded-xl border border-orange-200 bg-orange-soft p-5">
+          <p className="font-semibold text-navy">Listing activity is not available yet</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{liveListingPulse.message}</p>
+          <p className="mt-2 text-xs text-slate-500">No zero values are shown because no synchronized listing snapshot exists.</p>
+        </div>}
       </section>
 
       {trendPulse ? <section id="local-areas" aria-labelledby="segments-heading" className="mt-10 grid scroll-mt-32 gap-6 lg:grid-cols-[1.35fr_0.65fr]">
@@ -112,7 +124,7 @@ export function ClevelandPilot({
               <p className="dq-eyebrow">Asking-rent trends</p>
               <h2 id="segments-heading" className="dq-h2">Apartments versus houses</h2>
             </div>
-            <p className="text-xs text-muted-foreground">Through {fmtDate(trendPulse.trendSource.availableThrough)}</p>
+            <p className="text-xs text-muted-foreground">Through {monthLabel(trendPulse.trendSource.availableThrough)}</p>
           </div>
           <div className="mt-5 grid gap-3 rounded-lg border border-grid bg-surface-soft p-4 sm:grid-cols-2">
             <label className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
@@ -138,7 +150,6 @@ export function ClevelandPilot({
               <div key={segment.label} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-4 first:pt-0 last:pb-0">
                 <div>
                   <p className="font-medium text-navy">{segment.label}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{fmtInt(segment.observations)} observations</p>
                 </div>
                 <p className="text-lg font-semibold tabular-nums text-navy">${fmtInt(segment.rent)}</p>
                 <p className={`min-w-[74px] rounded-full px-2.5 py-1 text-center text-xs font-semibold tabular-nums ${segment.yoy >= 4 ? "bg-good-soft text-good" : "bg-surface-soft text-navy"}`}>
@@ -150,13 +161,13 @@ export function ClevelandPilot({
         </div>
 
         <aside className="rounded-lg border border-grid bg-surface-soft p-5 sm:p-6">
-          <p className="dq-eyebrow">Watch signal</p>
+          <p className="dq-eyebrow">Largest move</p>
           <h2 className="text-xl font-semibold tracking-tight text-navy">{trendPulse.signal.heading}</h2>
           <p className="mt-3 text-sm leading-6 text-foreground/75">
             {trendPulse.signal.narrative}
           </p>
           <p className="mt-5 border-t border-grid pt-4 text-xs leading-5 text-muted-foreground">
-            Alert status is based on the latest available Dwellsy IQ trend month, not the historical listing-export cutoff.
+            Rent level and year-over-year change come from Dwellsy IQ Trends for the selected month.
           </p>
         </aside>
         {trendPulse.alerts.length > 0 && <div className="lg:col-span-2 rounded-lg border border-orange/25 bg-orange-soft p-5 sm:p-6">
@@ -174,7 +185,7 @@ export function ClevelandPilot({
       </section> : <section aria-labelledby="segments-heading" className="mt-10 rounded-lg border border-grid bg-surface-soft p-6">
         <p className="dq-eyebrow">Asking-rent trends</p>
         <h2 id="segments-heading" className="dq-h2">Trend snapshot refresh in progress</h2>
-        <p className="mt-2 text-sm text-muted-foreground">No trend values are substituted while the authoritative Dwellsy IQ snapshot is being loaded.</p>
+        <p className="mt-2 text-sm text-muted-foreground">No trend values are substituted while the current Dwellsy IQ data is loading.</p>
       </section>}
 
       {data && <section aria-labelledby="places-heading" className="mt-10">
@@ -210,17 +221,6 @@ export function ClevelandPilot({
         </div>
       </section>}
 
-      <section aria-labelledby="source-heading" className={`mt-10 rounded-lg border p-5 sm:p-6 ${liveListingPulse.status === "healthy" ? "border-teal/25 bg-teal-soft" : "border-orange/30 bg-orange-soft"}`}>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-3xl">
-            <p className={`dq-eyebrow ${liveListingPulse.status === "healthy" ? "text-teal" : "text-orange-700"}`}>Live source health</p>
-            <h2 id="source-heading" className="text-xl font-semibold text-navy">{liveListingPulse.status === "healthy" ? "Direct Dwellsy listing feed connected" : "Current listing feed awaiting baseline"}</h2>
-            <p className="mt-2 text-sm leading-6 text-foreground/75">{liveListingPulse.message}</p>
-            <p className="mt-2 text-xs text-muted-foreground">Source: {liveListingPulse.sourceName}. Asking listings only, not occupancy, leases, or effective rent.</p>
-          </div>
-          <span className={`rounded-full border bg-white px-3 py-1.5 text-xs font-semibold ${liveListingPulse.status === "healthy" ? "border-teal/30 text-teal" : "border-orange/30 text-orange-700"}`}>{liveListingPulse.status === "healthy" ? "Healthy" : "Not synchronized"}</span>
-        </div>
-      </section>
     </main>
   );
 }
