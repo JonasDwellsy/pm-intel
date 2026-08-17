@@ -90,6 +90,9 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
   };
   if (logoRaw && !brand.logoUrl) throw new Error("Logo URL must be a valid HTTPS address.");
   if (websiteRaw && !brand.websiteUrl) throw new Error("Website URL must be a valid HTTPS address.");
+  const companyCtaRaw = clipped(formData.get("companyCtaUrl"), 500);
+  const companyCtaUrl = optionalUrl(formData.get("companyCtaUrl"));
+  if (companyCtaRaw && !companyCtaUrl) throw new Error("Company CTA URL must be a valid HTTPS address.");
 
   const now = new Date();
   const selection = parseMarketIqScopeFormData(formData);
@@ -121,6 +124,9 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
     editorial: {
       headline: clipped(formData.get("editorialHeadline"), 120) || null,
       introduction: clipped(formData.get("editorialIntroduction"), 700) || null,
+      companyProfile: clipped(formData.get("companyProfile"), 700) || null,
+      companyCtaLabel: clipped(formData.get("companyCtaLabel"), 60) || null,
+      companyCtaUrl,
       reviewedAt: now.toISOString(),
       reviewedBy: "PM reviewer",
     },

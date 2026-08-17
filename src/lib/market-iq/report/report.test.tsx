@@ -208,6 +208,26 @@ describe("Market IQ edition comparison", () => {
     expect(html).toContain("Since the last market read");
     expect(html).toContain("This is the launch baseline");
   });
+
+  it("renders optional PM company marketing only when the reviewed edition includes it", () => {
+    const report = {
+      ...seededClevelandMarketReport,
+      editorial: {
+        headline: null,
+        introduction: "A message from the property manager.",
+        companyProfile: "We manage rental homes across Greater Cleveland for owners who value responsive local service.",
+        companyCtaLabel: "Meet our team",
+        companyCtaUrl: "https://harborview.example/contact",
+        reviewedAt: "2026-08-17T00:00:00.000Z",
+        reviewedBy: "PM reviewer",
+      },
+    };
+    const html = renderToStaticMarkup(<MarketIqPublicReport report={report} preview />);
+    expect(html).toContain("About Harborview Residential");
+    expect(html).toContain("responsive local service");
+    expect(html).toContain("Meet our team");
+    expect(html).toContain("https://harborview.example/contact");
+  });
 });
 
 describe("Market IQ report migration", () => {
@@ -252,5 +272,24 @@ describe("Market IQ report email", () => {
     const email = buildMarketIqReportEmail({ recipientName: "<script>alert(1)</script>", recipientKind: "prospect", report: { ...seededClevelandMarketReport, brand: { ...seededClevelandMarketReport.brand, displayName: "A&B <Advisors>" } }, reportUrl: "https://market.example/report?a=1&b=2", pdfUrl: "https://market.example/report/pdf" });
     expect(email.html).toContain("A&amp;B &lt;Advisors&gt;");
     expect(email.html).not.toContain("<script>");
+  });
+  it("includes reviewed company marketing in both email formats", () => {
+    const report = {
+      ...seededClevelandMarketReport,
+      editorial: {
+        headline: null,
+        introduction: "A message from your property manager.",
+        companyProfile: "Local management with institutional reporting discipline.",
+        companyCtaLabel: "Discuss your portfolio",
+        companyCtaUrl: "https://harborview.example/advisory",
+        reviewedAt: "2026-08-17T00:00:00.000Z",
+        reviewedBy: "PM reviewer",
+      },
+    };
+    const email = buildMarketIqReportEmail({ recipientName: "Avery Owner", recipientKind: "client", report, reportUrl: "https://market.example/report", pdfUrl: "https://market.example/report/pdf" });
+    expect(email.html).toContain("About Harborview Residential");
+    expect(email.html).toContain("Discuss your portfolio");
+    expect(email.text).toContain("Local management with institutional reporting discipline.");
+    expect(email.text).toContain("https://harborview.example/advisory");
   });
 });

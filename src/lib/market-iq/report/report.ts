@@ -150,6 +150,9 @@ export interface MarketIqReportSnapshot {
   editorial?: {
     headline: string | null;
     introduction: string | null;
+    companyProfile?: string | null;
+    companyCtaLabel?: string | null;
+    companyCtaUrl?: string | null;
     reviewedAt: string;
     reviewedBy: string;
   };

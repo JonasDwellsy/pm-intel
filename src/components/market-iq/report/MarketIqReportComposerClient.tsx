@@ -55,8 +55,11 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialSe
 }) {
   const [selection, setSelection] = useState<MarketIqReportScopeSelection>(initialSelection);
   const [brand, setBrand] = useState<Brand>(initialBrand);
-  const [editorialHeadline, setEditorialHeadline] = useState("");
-  const [editorialIntroduction, setEditorialIntroduction] = useState("");
+  const [editorialHeadline, setEditorialHeadline] = useState(snapshot.editorial?.headline ?? "");
+  const [editorialIntroduction, setEditorialIntroduction] = useState(snapshot.editorial?.introduction ?? "");
+  const [companyProfile, setCompanyProfile] = useState(snapshot.editorial?.companyProfile ?? "");
+  const [companyCtaLabel, setCompanyCtaLabel] = useState(snapshot.editorial?.companyCtaLabel ?? "");
+  const [companyCtaUrl, setCompanyCtaUrl] = useState(snapshot.editorial?.companyCtaUrl ?? "");
   const scopedSnapshot = useMemo(() => applyMarketIqReportScope({
     ...snapshot,
     brand: {
@@ -75,10 +78,13 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialSe
     editorial: {
       headline: editorialHeadline.trim() || null,
       introduction: editorialIntroduction.trim() || null,
+      companyProfile: companyProfile.trim() || null,
+      companyCtaLabel: companyCtaLabel.trim() || null,
+      companyCtaUrl: companyCtaUrl.trim().startsWith("https://") ? companyCtaUrl.trim() : null,
       reviewedAt: snapshot.generatedAt,
       reviewedBy: "PM reviewer",
     },
-  }), [scopedSnapshot, editionComparison, editorialHeadline, editorialIntroduction, snapshot.generatedAt]);
+  }), [scopedSnapshot, editionComparison, editorialHeadline, editorialIntroduction, companyProfile, companyCtaLabel, companyCtaUrl, snapshot.generatedAt]);
   const coverage = useMemo(() => buildMarketIqCoveragePreflight(reviewedSnapshot), [reviewedSnapshot]);
   const groupedCoverage = Object.entries(coverage.cells.reduce<Record<string, typeof coverage.cells>>((groups, cell) => {
     (groups[cell.geographyLabel] ??= []).push(cell);
@@ -105,7 +111,11 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialSe
 
           <div className="border-t border-grid pt-4"><p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">PM review</p><p className="mt-2 text-xs leading-5 text-muted-foreground">The data-led version is ready without edits. Add your own framing only when it improves the client conversation.</p></div>
           <label className="text-sm font-semibold text-navy">Client headline, optional<input name="editorialHeadline" maxLength={120} value={editorialHeadline} onChange={(event) => setEditorialHeadline(event.target.value)} placeholder="A split rental market requires a local read" className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /><span className="mt-1 block text-right text-[10px] font-normal text-muted-foreground">{editorialHeadline.length}/120</span></label>
-          <label className="text-sm font-semibold text-navy">Opening note, optional<textarea name="editorialIntroduction" maxLength={700} rows={5} value={editorialIntroduction} onChange={(event) => setEditorialIntroduction(event.target.value)} placeholder="Add the context you want your client to read before the evidence." className="mt-2 w-full resize-y rounded-md border border-grid px-3 py-2.5 text-sm font-normal leading-6" /><span className="mt-1 block text-right text-[10px] font-normal text-muted-foreground">{editorialIntroduction.length}/700</span></label>
+          <label className="text-sm font-semibold text-navy">Message from your firm, optional<textarea name="editorialIntroduction" maxLength={700} rows={5} value={editorialIntroduction} onChange={(event) => setEditorialIntroduction(event.target.value)} placeholder="Add the context or advice you want this client or prospect to read before the evidence." className="mt-2 w-full resize-y rounded-md border border-grid px-3 py-2.5 text-sm font-normal leading-6" /><span className="mt-1 block text-right text-[10px] font-normal text-muted-foreground">{editorialIntroduction.length}/700</span></label>
+
+          <div className="border-t border-grid pt-4"><p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Company profile, optional</p><p className="mt-2 text-xs leading-5 text-muted-foreground">Add a restrained marketing section near the end of the report and email. Leave these fields blank for a purely editorial market read.</p></div>
+          <label className="text-sm font-semibold text-navy">About your company<textarea name="companyProfile" maxLength={700} rows={4} value={companyProfile} onChange={(event) => setCompanyProfile(event.target.value)} placeholder="Explain who you serve, where you operate, and what makes your property management approach useful." className="mt-2 w-full resize-y rounded-md border border-grid px-3 py-2.5 text-sm font-normal leading-6" /><span className="mt-1 block text-right text-[10px] font-normal text-muted-foreground">{companyProfile.length}/700</span></label>
+          <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-semibold text-navy">CTA label<input name="companyCtaLabel" maxLength={60} value={companyCtaLabel} onChange={(event) => setCompanyCtaLabel(event.target.value)} placeholder="Talk with our team" className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /></label><label className="text-sm font-semibold text-navy">CTA URL<input name="companyCtaUrl" type="url" maxLength={500} value={companyCtaUrl} onChange={(event) => setCompanyCtaUrl(event.target.value)} placeholder="https://yourfirm.com/contact" className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /></label></div>
 
           <div className="border-t border-grid pt-4"><p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Your client-facing brand</p></div>
           <label className="text-sm font-semibold text-navy">Firm name<input name="displayName" required minLength={2} maxLength={120} value={brand.displayName} onChange={(event) => updateBrand("displayName", event.target.value)} className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /></label>
