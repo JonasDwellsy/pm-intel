@@ -49,6 +49,7 @@ test("commercial migration is additive and isolated from analytical storage", ()
 
 test("Stripe webhook verifies its signature before processing", () => {
   const source = readFileSync("src/app/api/market-iq/billing/webhook/route.ts", "utf8");
+  assert.match(source, /STRIPE_MARKET_IQ_WEBHOOK_SECRET \|\| process\.env\.STRIPE_WEBHOOK_SECRET/);
   const signature = source.indexOf("constructEvent");
   const ledger = source.indexOf("marketIqBillingEvent.findUnique");
   const process = source.indexOf("await processEvent");
