@@ -10,15 +10,22 @@ export function MarketIqTrendImporter() {
     setStatus("Importing…");
     try {
       const parsed = JSON.parse(payload);
-      const response = await fetch("/api/market-iq/import/trends", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed),
-      });
-      const result = await response.json();
-      setStatus(response.ok ? `Imported ${result.recordCount ?? 0} trend observations.` : result.error ?? "Import failed.");
-    } catch {
-      setStatus("The snapshot is not valid JSON.");
+      const snapshots = Array.isArray(parsed) ? parsed : [parsed];
+      let imported = 0;
+      for (let index = 0; index < snapshots.length; index += 1) {
+        setStatus(`Importing geography ${index + 1} of ${snapshots.length}…`);
+        const response = await fetch("/api/market-iq/import/trends", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(snapshots[index]),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? `Import failed at geography ${index + 1}.`);
+        imported += result.recordCount ?? 0;
+      }
+      setStatus(`Imported ${imported.toLocaleString()} trend observations across ${snapshots.length} geographies.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The snapshot is not valid JSON.");
     }
   }
 
@@ -29,7 +36,20 @@ export function MarketIqTrendImporter() {
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
         This preview-only utility accepts normalized output from Dwellsy IQ Rent Trends. It does not accept historical listing records.
       </p>
-      <label className="mt-8 block text-sm font-semibold text-navy" htmlFor="trend-payload">Trend snapshot JSON</label>
+      <label className="mt-8 block text-sm font-semibold text-navy" htmlFor="trend-file">Trend snapshot file</label>
+      <input
+        id="trend-file"
+        type="file"
+        accept="application/json,.json"
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          setPayload(await file.text());
+          setStatus(`Loaded ${file.name}. Review the JSON, then import it.`);
+        }}
+        className="mt-2 block w-full rounded-lg border border-grid bg-white p-3 text-sm"
+      />
+      <label className="mt-6 block text-sm font-semibold text-navy" htmlFor="trend-payload">Trend snapshot JSON</label>
       <textarea
         id="trend-payload"
         value={payload}

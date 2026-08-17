@@ -5,6 +5,7 @@ import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { prisma } from "@/lib/prisma";
 import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server";
 import { loadDwellsyProductRollupSeries, loadDwellsyTrendSeries } from "@/lib/dwellsy-source/trends.server";
+import { mapDwellsyTrendRows } from "@/lib/dwellsy-source/trends";
 import { dwellsySourceConfigured } from "@/lib/dwellsy-source/db.server";
 import { loadClevelandListingActivity } from "@/lib/dwellsy-source/listing-events.server";
 import { marketIqDatabaseConfigured, marketIqPrisma } from "@/lib/market-iq/prisma";
@@ -78,6 +79,59 @@ async function loadLiveTrendSource() {
     result: { series: [...(rollups.status === "fulfilled" ? rollups.value.series : fallbackRollups), ...detail.value.series] },
     live: true as const,
   };
+}
+
+async function loadImportedTrendSource() {
+  if (!marketIqDatabaseConfigured()) return null;
+  const rows = await marketIqPrisma.marketIqTrendObservation.findMany({
+    where: {
+      marketId: CLEVELAND_MARKET_ID,
+      dataImport: { status: "complete" },
+    },
+    select: {
+      geographyType: true,
+      geographyValue: true,
+      propertyType: true,
+      bedrooms: true,
+      month: true,
+      observations: true,
+      askingRent: true,
+      yearOverYearPct: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!rows.length) return null;
+
+  // Imports are immutable. When a later refresh contains the same market
+  // point, retain that latest copy without exposing duplicate months.
+  const latest = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const key = [
+      row.geographyType,
+      row.geographyValue,
+      row.propertyType,
+      row.bedrooms,
+      row.month.toISOString().slice(0, 10),
+    ].join(":");
+    latest.set(key, row);
+  }
+  const series = mapDwellsyTrendRows([...latest.values()].map((row) => ({
+    geography_type: row.geographyType as "msa" | "city" | "zip",
+    geography_value: row.geographyValue,
+    geography_label: row.geographyType === "zip"
+      ? `ZIP ${row.geographyValue}`
+      : row.geographyType === "msa"
+        ? "Cleveland-Elyria, OH"
+        : row.geographyValue.replace(/, OH$/, ""),
+    address_type: row.propertyType === "house" ? "House" : "Apartment",
+    bedrooms: row.bedrooms,
+    month: row.month,
+    observations: row.observations,
+    rent: row.askingRent,
+    year_over_year_pct: row.yearOverYearPct,
+  })));
+  return series.length ? { result: { series }, live: true as const } : null;
 }
 
 function completeTrendSeries(source: MarketIqTrendSeries[]) {
@@ -168,7 +222,8 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
         .catch(() => null)
     : Promise.resolve(null);
   const [trendSource, context, marketActivity] = await Promise.all([
-    liveDwellsyRuntimeEnabled
+    loadImportedTrendSource().catch(() => null).then((imported) => imported ?? (
+      liveDwellsyRuntimeEnabled
       ? loadLiveTrendSource().catch((error) => {
           console.error("[Market IQ] Read-only Trends source unavailable", safeSourceError(error));
           return {
@@ -176,7 +231,8 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
             live: false as const,
           };
         })
-      : Promise.resolve({ result: { series: SEEDED_CLEVELAND_TREND_SERIES }, live: false as const }),
+      : Promise.resolve({ result: { series: SEEDED_CLEVELAND_TREND_SERIES }, live: false as const })
+    )),
     analyticalContext,
     liveDwellsyRuntimeEnabled
       ? loadClevelandListingActivity().catch(() => seededClevelandMarketReport.marketActivity)
@@ -236,7 +292,7 @@ export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
   // Bump this key whenever the source adapter or reportability rules change.
   // The callback itself is intentionally small, so relying on its function
   // string would otherwise preserve an obsolete cross-deployment snapshot.
-  ["market-iq-cleveland-live-snapshot-v8"],
+  ["market-iq-cleveland-live-snapshot-v9"],
   { revalidate: 900 },
 );
 
