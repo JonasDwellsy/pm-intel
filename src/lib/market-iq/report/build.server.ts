@@ -107,6 +107,12 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
     || process.env.VERCEL_ENV === "preview"
     || !process.env.VERCEL
   );
+  if (process.env.VERCEL_ENV === "preview" && !liveDwellsyRuntimeEnabled) {
+    console.error("[Market IQ] Read-only Trends runtime is not configured", {
+      hasDatabaseUrl: Boolean(process.env.DWELLSY_DATABASE_URL),
+      liveRuntimeFlag: process.env.DWELLSY_LIVE_RUNTIME_ENABLED === "1",
+    });
+  }
   const analyticalContext = marketIqDatabaseConfigured()
     ? Promise.all([
         loadClevelandHistoricalPulse(),
@@ -200,7 +206,7 @@ export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
   // Bump this key whenever the source adapter or reportability rules change.
   // The callback itself is intentionally small, so relying on its function
   // string would otherwise preserve an obsolete cross-deployment snapshot.
-  ["market-iq-cleveland-live-snapshot-v5"],
+  ["market-iq-cleveland-live-snapshot-v6"],
   { revalidate: 900 },
 );
 
