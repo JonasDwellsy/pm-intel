@@ -54,7 +54,7 @@ export async function MarketIqAppHeader() {
                 <UserButton appearance={{ elements: { avatarBox: "h-[30px] w-[30px]" } }}>
                   <UserButton.MenuItems>
                     <UserButton.Link label="Workspace setup" labelIcon={<span aria-hidden>⚙</span>} href="/market-iq/get-started" />
-                    <UserButton.Link label="Plan and billing" labelIcon={<span aria-hidden>▣</span>} href="/market-iq/subscribe" />
+                    <UserButton.Link label="Account and billing" labelIcon={<span aria-hidden>▣</span>} href="/market-iq/account" />
                   </UserButton.MenuItems>
                 </UserButton>
               </div>

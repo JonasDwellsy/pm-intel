@@ -122,6 +122,24 @@ test("successful checkout hands off automatically to plan-aware activation", () 
   assert.match(finalization, /Continue to setup/);
 });
 
+test("Market IQ provides a self-service account and billing center", () => {
+  const account = readFileSync(
+    join(process.cwd(), "src/app/market-iq/account/page.tsx"),
+    "utf8"
+  );
+  const header = readFileSync(
+    join(process.cwd(), "src/components/market-iq/MarketIqAppHeader.tsx"),
+    "utf8"
+  );
+
+  assert.match(account, /Market IQ settings/);
+  assert.match(account, /Manage billing in Stripe/);
+  assert.match(account, /cancelAtPeriodEnd/);
+  assert.match(account, /past_due/);
+  assert.match(account, /Client Advisory is enabled/);
+  assert.match(header, /href="\/market-iq\/account"/);
+});
+
 test("Market IQ home and detailed market read are distinct routes", () => {
   const home = readFileSync(join(process.cwd(), "src/app/market-iq/page.tsx"), "utf8");
   const market = readFileSync(
