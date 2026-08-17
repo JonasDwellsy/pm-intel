@@ -508,6 +508,7 @@ model Organization {
   marketIqReportSends           MarketIqReportSend[]
   marketIqDistributionCampaigns MarketIqDistributionCampaign[]
   marketIqCampaignRecipients    MarketIqDistributionCampaignRecipient[]
+  marketIqEditionDrafts         MarketIqEditionDraft[]
   marketIqSubscriptions         MarketIqSubscription[]
   marketIqWorkspacePreference   MarketIqWorkspacePreference?
   portfolioIqPortfolios         PortfolioIqPortfolio[]
@@ -654,6 +655,7 @@ model MarketIqReport {
   subjectAddress String? // drill-down/prospect mode only; never the report primitive
   brandProfileId String
   generatedBy    String
+  editionDraftId String?   @unique
   publishedAt    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -666,6 +668,35 @@ model MarketIqReport {
 
   @@index([organizationId, marketId, createdAt(sort: Desc)])
   @@index([status, publishedAt(sort: Desc)])
+}
+
+// A private, idempotent handoff from an authoritative Trends IQ period to PM
+// review. The engine freezes evidence and comparison here, but never creates a
+// public link, distribution campaign, recipient selection, or email.
+model MarketIqEditionDraft {
+  id                     String    @id @default(cuid())
+  organizationId         String
+  marketId               String
+  periodEnd              String
+  status                 String    @default("ready") // ready | reviewing | published | dismissed | superseded
+  sourceKind             String
+  sourceAvailableThrough String
+  scopeFingerprint       String
+  snapshot               String
+  comparison             String
+  materialChangeCount    Int       @default(0)
+  generatedBy            String    @default("recurring-edition-engine")
+  detectedAt             DateTime  @default(now())
+  reviewedAt             DateTime?
+  publishedReportId      String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, marketId, periodEnd])
+  @@index([organizationId, status, detectedAt(sort: Desc)])
+  @@index([marketId, periodEnd])
 }
 
 model MarketIqReportRecipient {

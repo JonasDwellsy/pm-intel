@@ -51,7 +51,7 @@ export default async function MarketIqLaunchPage({
     redirect("/market-iq/subscribe");
   }
 
-  const [organization, reviewedEdition, bootstrapEdition, recipientCount, campaign, deliveredCount] = await Promise.all([
+  const [organization, reviewedEdition, bootstrapEdition, recipientCount, campaign, deliveredCount, recurringDraft] = await Promise.all([
     prisma.organization.findUnique({
       where: { id: organizationId },
       select: {
@@ -93,6 +93,11 @@ export default async function MarketIqLaunchPage({
         organizationId,
         OR: [{ deliveryStatus: "sent" }, { deliveredAt: { not: null } }],
       },
+    }),
+    prisma.marketIqEditionDraft.findFirst({
+      where: { organizationId, marketId: CLEVELAND_MARKET_ID, status: { in: ["ready", "reviewing"] } },
+      orderBy: { detectedAt: "desc" },
+      select: { id: true, periodEnd: true, materialChangeCount: true },
     }),
   ]);
   if (!organization) redirect("/setup-workspace?from=/market-iq/launch");
@@ -168,6 +173,7 @@ export default async function MarketIqLaunchPage({
           {query.published === "1" ? "Edition published. Add or confirm the audience before any delivery." : "Setup complete. Your first edition is ready for review."}
         </p>
       )}
+      {recurringDraft && <section className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-orange-200 bg-orange-50 px-5 py-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-800">New private edition</p><p className="mt-1 text-sm font-semibold text-navy">Trends IQ advanced through {recurringDraft.periodEnd}, with {recurringDraft.materialChangeCount} material {recurringDraft.materialChangeCount === 1 ? "change" : "changes"} flagged for review.</p><p className="mt-1 text-xs text-slate-600">No public link, campaign, audience, or email has been created.</p></div><Link href={`/market-iq/report?edition=draft&draftId=${recurringDraft.id}`} className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">Review draft</Link></section>}
       <header className="grid gap-7 border-b border-grid pb-9 lg:grid-cols-[1fr_380px] lg:items-end">
         <div>
           <p className="dq-eyebrow">First-edition launch</p>

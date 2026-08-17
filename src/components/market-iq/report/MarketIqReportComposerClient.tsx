@@ -45,12 +45,13 @@ function CoverageSummary({ status, count }: { status: MarketIqCoverageStatus; co
   return <div className={`rounded-xl px-4 py-3 ring-1 ${STATUS_STYLE[status]}`}><p className="text-2xl font-semibold">{count}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em]">{status}</p></div>;
 }
 
-export function MarketIqReportComposerClient({ snapshot, initialBrand, initialSelection, source, priorEdition }: {
+export function MarketIqReportComposerClient({ snapshot, initialBrand, initialSelection, source, priorEdition, draftId = null }: {
   snapshot: MarketIqReportSnapshot;
   initialBrand: Brand;
   initialSelection: MarketIqReportScopeSelection;
   source: "dwellsy_trends" | "verified_seed";
   priorEdition: PriorMarketIqEdition | null;
+  draftId?: string | null;
 }) {
   const [selection, setSelection] = useState<MarketIqReportScopeSelection>(initialSelection);
   const [brand, setBrand] = useState<Brand>(initialBrand);
@@ -93,6 +94,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialSe
   return <>
     <section className="mt-8 grid gap-7 xl:grid-cols-[390px_1fr]">
       <form action={publishMarketIqReport} className="h-fit rounded-xl border border-grid bg-white p-5 shadow-sm">
+        {draftId && <input type="hidden" name="draftId" value={draftId} />}
         <p className="dq-eyebrow">Report setup</p><h2 className="dq-h2">Choose the local read</h2>
         <div className="mt-5 grid gap-5">
           <label className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Market<select name="marketId" defaultValue={snapshot.scope.marketId} className="mt-2 w-full rounded-md border border-grid bg-surface-soft px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-navy"><option value={snapshot.scope.marketId}>{snapshot.scope.marketName}</option></select></label>

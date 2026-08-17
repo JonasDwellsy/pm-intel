@@ -61,6 +61,16 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
   const context = await authorizedMarketIqContext();
   if (!context) throw new Error("Market IQ report access is unavailable.");
   if (clipped(formData.get("marketId"), 80) !== CLEVELAND_MARKET_ID) throw new Error("The selected market is not available.");
+  const draftId = clipped(formData.get("draftId"), 80) || null;
+  const editionDraft = draftId ? await prisma.marketIqEditionDraft.findFirst({
+    where: { id: draftId, organizationId: context.organizationId, marketId: CLEVELAND_MARKET_ID, status: { in: ["ready", "reviewing"] } },
+    select: { id: true, snapshot: true, periodEnd: true },
+  }) : null;
+  if (draftId && !editionDraft) {
+    const existing = await prisma.marketIqReport.findUnique({ where: { editionDraftId: draftId }, select: { id: true } });
+    if (existing) redirect(`/market-iq/launch?published=1`);
+    throw new Error("This recurring draft is no longer available for publication.");
+  }
   const displayName = clipped(formData.get("displayName"), 120);
   if (displayName.length < 2) throw new Error("Enter the PM brand name shown to the client.");
   const contactEmail = clipped(formData.get("contactEmail"), 254) || null;
@@ -84,8 +94,10 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
   const selection = parseMarketIqScopeFormData(formData);
   if (!selection.cities.length && !selection.zipCodes.length) throw new Error("Select at least one city or ZIP code.");
   if (!selection.segments.length) throw new Error("Select at least one product segment.");
-  const preview = await buildClevelandComposerPreview(brand);
-  const snapshot = applyMarketIqReportScope(preview.snapshot, selection);
+  const preview = editionDraft ? null : await buildClevelandComposerPreview(brand);
+  const sourceSnapshot = editionDraft ? parseMarketIqReportSnapshot(editionDraft.snapshot) : preview?.snapshot;
+  if (!sourceSnapshot) throw new Error("The reviewed report evidence is unavailable.");
+  const snapshot = applyMarketIqReportScope({ ...sourceSnapshot, brand }, selection);
   const coverage = buildMarketIqCoveragePreflight(snapshot);
   if (!coverage.canPublish) throw new Error("At least one selected geography and segment must have a fresh Trends IQ value before publishing.");
   const priorReport = await prisma.marketIqReport.findFirst({
@@ -131,6 +143,7 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
         subjectAddress: null,
         brandProfileId: brandProfile.id,
         generatedBy: context.userId,
+        editionDraftId: editionDraft?.id ?? null,
         publishedAt: now,
       },
       select: { id: true },
@@ -164,6 +177,12 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
           skipDuplicates: true,
         });
       }
+    }
+    if (editionDraft) {
+      await tx.marketIqEditionDraft.update({
+        where: { id: editionDraft.id },
+        data: { status: "published", reviewedAt: now, publishedReportId: createdReport.id },
+      });
     }
     return { id: createdReport.id, campaignId: campaign.id };
   });
