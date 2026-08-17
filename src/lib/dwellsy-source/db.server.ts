@@ -19,7 +19,10 @@ function sourcePool() {
       connectionString: connectionString(),
       application_name: "market-iq-dwellsy-readonly",
       max: 2,
-      connectionTimeoutMillis: 10_000,
+      // The production Trends database may need to resume a cold compute before
+      // accepting the first preview connection. Give that handshake enough
+      // room while retaining hard query and statement limits below.
+      connectionTimeoutMillis: 30_000,
       idleTimeoutMillis: 30_000,
       statement_timeout: 45_000,
       query_timeout: 50_000,
