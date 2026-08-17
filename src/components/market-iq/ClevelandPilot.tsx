@@ -12,7 +12,6 @@ import { MarketIqDigestPanel } from "@/components/market-iq/MarketIqDigestPanel"
 import { MarketIqAlertHistory } from "@/components/market-iq/MarketIqAlertHistory";
 import type { MarketIqAlertHistoryItem } from "@/lib/market-iq/alert-history.server";
 import type { ClevelandLiveListingPulse } from "@/lib/market-iq/live-listings.server";
-import { MarketIqWorkspaceNav } from "@/components/market-iq/MarketIqWorkspaceNav";
 
 function MetricCard({
   label,
@@ -66,8 +65,6 @@ export function ClevelandPilot({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <MarketIqWorkspaceNav clientAdvisoryEnabled={clientAdvisoryEnabled} />
-
       <header className="grid gap-6 border-b border-grid pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
           <p className="dq-eyebrow">Market watchlist</p>
@@ -117,7 +114,7 @@ export function ClevelandPilot({
         </div>
       </section>
 
-      {trendPulse ? <section aria-labelledby="segments-heading" className="mt-10 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
+      {trendPulse ? <section id="local-areas" aria-labelledby="segments-heading" className="mt-10 grid scroll-mt-32 gap-6 lg:grid-cols-[1.35fr_0.65fr]">
         <div className="rounded-lg border border-grid bg-white p-5 sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>

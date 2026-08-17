@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { MarketIqWorkspaceNav } from "@/components/market-iq/MarketIqWorkspaceNav";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
@@ -168,7 +167,6 @@ export default async function MarketIqLaunchPage({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-      <MarketIqWorkspaceNav />
       {(query.activated === "1" || query.published === "1") && (
         <p className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">
           {query.published === "1" ? "Edition published. Add or confirm the audience before any delivery." : "Setup complete. Your first edition is ready for review."}

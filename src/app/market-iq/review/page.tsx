@@ -1,5 +1,4 @@
 import { notFound, redirect } from "next/navigation";
-import { MarketIqWorkspaceNav } from "@/components/market-iq/MarketIqWorkspaceNav";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
@@ -99,7 +98,6 @@ export default async function MarketIqReviewInboxPage({
   const latestSource = orchestrationItems.find((item) => item.run.sourceAvailableThrough)?.run.sourceAvailableThrough ?? drafts[0]?.sourceAvailableThrough ?? null;
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-    <MarketIqWorkspaceNav />
     {query.draft === "dismissed" && <p className="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700">The draft was dismissed and preserved in the decision history. Nothing was published or sent.</p>}
     {query.check && CHECK_MESSAGES[query.check] && <p className={`mb-6 rounded-xl border px-5 py-3 text-sm font-semibold ${["source_unavailable", "blocked", "baseline_required"].includes(query.check) ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>{CHECK_MESSAGES[query.check]}</p>}
 

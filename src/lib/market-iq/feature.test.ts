@@ -50,8 +50,47 @@ test("the standalone sign-in returns to Market IQ on the same origin", () => {
   );
 
   assert.match(source, /marketIqPreviewEnabled\(\)/);
-  assert.match(source, /forceRedirectUrl: "\/market-iq"/);
+  assert.match(source, /forceRedirectUrl: marketIqRedirectUrl/);
+  assert.match(source, /redirectUrl\?\.startsWith\("\/market-iq"\)/);
   assert.match(source, /marketIqPreview \? "Market IQ" : "Operator IQ"/);
+});
+
+test("Market IQ owns a standalone application shell", () => {
+  const conditionalChrome = readFileSync(
+    join(process.cwd(), "src/components/layout/ConditionalChrome.tsx"),
+    "utf8"
+  );
+  const layout = readFileSync(
+    join(process.cwd(), "src/app/market-iq/layout.tsx"),
+    "utf8"
+  );
+  const header = readFileSync(
+    join(process.cwd(), "src/components/market-iq/MarketIqAppHeader.tsx"),
+    "utf8"
+  );
+  const footer = readFileSync(
+    join(process.cwd(), "src/components/market-iq/MarketIqAppFooter.tsx"),
+    "utf8"
+  );
+
+  assert.match(conditionalChrome, /"\/market-iq"/);
+  assert.match(layout, /<MarketIqAppHeader \/>/);
+  assert.match(layout, /<MarketIqAppFooter \/>/);
+  assert.match(header, />Market IQ</);
+  assert.doesNotMatch(header, /Dwellsy IQ Online|Operator IQ/);
+  assert.doesNotMatch(footer, /Dwellsy IQ Online|Operator IQ/);
+});
+
+test("Market IQ home and detailed market read are distinct routes", () => {
+  const home = readFileSync(join(process.cwd(), "src/app/market-iq/page.tsx"), "utf8");
+  const market = readFileSync(
+    join(process.cwd(), "src/app/market-iq/market/page.tsx"),
+    "utf8"
+  );
+
+  assert.match(home, /Know what changed before the next owner conversation/);
+  assert.match(home, /href="\/market-iq\/market"/);
+  assert.match(market, /<ClevelandPilot/);
 });
 
 test("the standalone preview keeps unauthenticated Market IQ navigation on its own origin", () => {

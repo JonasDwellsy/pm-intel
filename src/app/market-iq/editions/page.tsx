@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { MarketIqWorkspaceNav } from "@/components/market-iq/MarketIqWorkspaceNav";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
@@ -92,7 +91,6 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
   const directoryOnly = recipients.filter((recipient) => !priorAudienceIds.has(recipient.id));
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-    <MarketIqWorkspaceNav />
     <nav className="mt-5 flex items-center gap-2 text-xs font-semibold text-slate-500"><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><span>Edition workflow</span></nav>
     {query.activated === "1" && <p className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Setup complete. Your first saved-scope edition is assembled below.</p>}
     {query.enrollment === "enabled" && <p className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Recurring drafts are enabled. The scheduler will check for a new authoritative Trends IQ period without publishing or emailing anyone.</p>}

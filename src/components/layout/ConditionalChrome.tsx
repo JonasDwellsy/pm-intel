@@ -26,7 +26,7 @@
 
 import { usePathname } from "next/navigation";
 
-const BARE_ROUTES = ["/sign-in", "/sign-up", "/reports/market"];
+const BARE_ROUTES = ["/sign-in", "/sign-up", "/reports/market", "/market-iq"];
 
 export function ConditionalChrome({
   header,
