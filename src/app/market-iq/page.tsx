@@ -78,7 +78,7 @@ export default async function MarketIqHomePage() {
             <h1 className="mt-3 max-w-4xl text-4xl font-bold tracking-tight text-navy sm:text-5xl">Know what changed before the next owner conversation.</h1>
             <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">Market IQ turns Dwellsy’s asking-rent trajectories and current listing activity into one practical local read for your team.</p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/market-iq/market" className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white">Open the Cleveland market read</Link>
+              <Link href="/market-iq/market" className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white">Open market intelligence</Link>
               {advisory ? <Link href={draft ? "/market-iq/review" : "/market-iq/editions"} className="rounded-md border border-navy bg-white px-5 py-3 text-sm font-semibold text-navy">{draft ? "Review the next edition" : "Prepare a client edition"}</Link> : <Link href="/market-iq/subscribe?upgrade=client_advisory" className="rounded-md border border-navy bg-white px-5 py-3 text-sm font-semibold text-navy">Add client sharing</Link>}
             </div>
           </div>

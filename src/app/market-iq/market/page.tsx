@@ -1,13 +1,12 @@
 import { notFound, redirect } from "next/navigation";
-import { ClevelandPilot } from "@/components/market-iq/ClevelandPilot";
+import { MarketIqIntelligenceWorkspace } from "@/components/market-iq/MarketIqIntelligenceWorkspace";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server";
 import { loadClevelandLiveListingPulse } from "@/lib/market-iq/live-listings.server";
-import { loadClevelandMarketReadTrendPulses } from "@/lib/market-iq/trends.server";
+import { loadCachedClevelandMarketIqReportSnapshot } from "@/lib/market-iq/report/build.server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -29,11 +28,22 @@ export default async function MarketIqPage() {
     }
   }
 
-  const [historicalPulse, trendPulses, liveListingPulse] = await Promise.all([
-    loadClevelandHistoricalPulse().catch(() => null),
-    loadClevelandMarketReadTrendPulses(),
+  const [report, liveListingPulse] = await Promise.all([
+    loadCachedClevelandMarketIqReportSnapshot(),
     loadClevelandLiveListingPulse(),
   ]);
 
-  return <ClevelandPilot historicalPulse={historicalPulse} trendPulses={trendPulses} liveListingPulse={liveListingPulse} clientAdvisoryEnabled={access.capabilities.publishClientReports} />;
+  return <MarketIqIntelligenceWorkspace
+    report={report}
+    listingSync={{
+      status: liveListingPulse.status,
+      availableThrough: liveListingPulse.sourceAvailableThrough?.toISOString() ?? null,
+      activeListings: liveListingPulse.activeListings,
+      newEvents: liveListingPulse.newEvents,
+      relistedEvents: liveListingPulse.relistedEvents,
+      priceChangeEvents: liveListingPulse.priceChangeEvents,
+      message: liveListingPulse.message,
+    }}
+    clientAdvisoryEnabled={access.capabilities.publishClientReports}
+  />;
 }

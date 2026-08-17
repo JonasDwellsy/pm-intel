@@ -13,12 +13,12 @@ import type {
   MarketIqTrendPoint,
 } from "@/lib/market-iq/report/report";
 
-type Segment = { propertyType: MarketIqPropertyType; bedrooms: number; label: string };
+export type MarketIqMapSegment = { propertyType: MarketIqPropertyType; bedrooms: number; label: string };
 type Metric = "yoy" | "rent" | "benchmark";
 type MapView = "published" | "msa";
 type MapBounds = [[number, number], [number, number]];
 
-const SEGMENTS: Segment[] = [
+const DEFAULT_SEGMENTS: MarketIqMapSegment[] = [
   { propertyType: "apartment", bedrooms: 1, label: "1-bed apartments" },
   { propertyType: "house", bedrooms: 3, label: "3-bed houses" },
 ];
@@ -256,13 +256,15 @@ export function MarketIqRentMap({
   benchmarks,
   cityCells,
   activity,
+  segments = DEFAULT_SEGMENTS,
 }: {
   points: MarketIqMapPoint[];
   benchmarks: MarketIqMarketCell[];
   cityCells: MarketIqMarketCell[];
   activity?: MarketIqMarketActivity;
+  segments?: MarketIqMapSegment[];
 }) {
-  const [segment, setSegment] = useState<Segment>(SEGMENTS[0]);
+  const [segment, setSegment] = useState<MarketIqMapSegment>(segments[0] ?? DEFAULT_SEGMENTS[0]);
   const [metric, setMetric] = useState<Metric>("yoy");
   const [mapView, setMapView] = useState<MapView>("published");
   const [selectedZip, setSelectedZip] = useState<string | null>(null);
@@ -401,7 +403,7 @@ export function MarketIqRentMap({
 
   return <div>
     <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Map segment">{SEGMENTS.map((option) => {
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Map segment">{segments.map((option) => {
         const active = option.propertyType === segment.propertyType && option.bedrooms === segment.bedrooms;
         return <button key={`${option.propertyType}:${option.bedrooms}`} type="button" onClick={() => { setSegment(option); setSelectedZip(null); }} className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${active ? "border-transparent bg-[var(--report-primary)] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"}`}>{option.label}</button>;
       })}</div>

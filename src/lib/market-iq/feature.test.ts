@@ -149,7 +149,8 @@ test("Market IQ home and detailed market read are distinct routes", () => {
 
   assert.match(home, /Know what changed before the next owner conversation/);
   assert.match(home, /href="\/market-iq\/market"/);
-  assert.match(market, /<ClevelandPilot/);
+  assert.match(market, /<MarketIqIntelligenceWorkspace/);
+  assert.match(market, /loadCachedClevelandMarketIqReportSnapshot/);
 });
 
 test("the standalone navigation does not leak Operator IQ destinations", () => {
@@ -166,7 +167,7 @@ test("the standalone navigation does not leak Operator IQ destinations", () => {
     "utf8"
   );
 
-  assert.match(navigation, /label: "Market read"/);
+  assert.match(navigation, /label: "Market intelligence"/);
   assert.match(navigation, /label: "Sharing"/);
   assert.doesNotMatch(navigation, /label: "Local areas"/);
   assert.doesNotMatch(header, /OrganizationSwitcher/);
@@ -184,8 +185,8 @@ test("the standalone Market read tolerates an empty historical-import database",
     "utf8"
   );
 
-  assert.match(market, /loadClevelandHistoricalPulse\(\)\.catch\(\(\) => null\)/);
-  assert.match(market, /loadClevelandMarketReadTrendPulses/);
+  assert.match(market, /loadCachedClevelandMarketIqReportSnapshot/);
+  assert.match(market, /loadClevelandLiveListingPulse/);
   assert.match(trends, /if \(importedPulses\.length \|\| !marketIqPreviewEnabled\(\)\) return importedPulses/);
 });
 
