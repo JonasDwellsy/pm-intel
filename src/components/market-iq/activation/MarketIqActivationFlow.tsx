@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { completeMarketIqActivation, saveMarketIqActivationProgress } from "@/app/market-iq/get-started/actions";
 import { MarketIqPublicReport } from "@/components/market-iq/report/MarketIqPublicReport";
 import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
+import type { MarketIqEditorialDefaults } from "@/lib/market-iq/report/composer.server";
 import {
   applyMarketIqReportScope,
   buildMarketIqCoveragePreflight,
@@ -26,11 +27,25 @@ function Choice({ value, label, checked, onChange }: { value: string; label: str
   </label>;
 }
 
-export function MarketIqActivationFlow({ snapshot, initialBrand, initialSelection, initialStep, source, completed }: { snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "verified_seed"; completed: boolean }) {
+export function MarketIqActivationFlow({ snapshot, initialBrand, initialEditorialDefaults, initialSelection, initialStep, source, completed, clientAdvisoryEnabled }: { snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialEditorialDefaults: MarketIqEditorialDefaults; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "verified_seed"; completed: boolean; clientAdvisoryEnabled: boolean }) {
   const [step, setStep] = useState(initialStep);
   const [brand, setBrand] = useState(initialBrand);
+  const [editorialDefaults, setEditorialDefaults] = useState(initialEditorialDefaults);
   const [selection, setSelection] = useState(initialSelection);
-  const preview = useMemo(() => applyMarketIqReportScope({ ...snapshot, brand }, selection), [snapshot, brand, selection]);
+  const preview = useMemo(() => applyMarketIqReportScope({
+    ...snapshot,
+    brand,
+    editorial: clientAdvisoryEnabled ? {
+      audienceKind: "client",
+      headline: snapshot.editorial?.headline ?? null,
+      introduction: editorialDefaults.defaultClientMessage,
+      companyProfile: editorialDefaults.companyProfile,
+      companyCtaLabel: editorialDefaults.companyCtaLabel,
+      companyCtaUrl: editorialDefaults.companyCtaUrl,
+      reviewedAt: snapshot.generatedAt,
+      reviewedBy: "Workspace default preview",
+    } : snapshot.editorial,
+  }, selection), [snapshot, brand, editorialDefaults, selection, clientAdvisoryEnabled]);
   const coverage = useMemo(() => buildMarketIqCoveragePreflight(preview), [preview]);
   const validBrand = brand.displayName.trim().length >= 2;
   const validScope = selection.segments.length > 0 && selection.cities.length + selection.zipCodes.length > 0;
@@ -48,6 +63,11 @@ export function MarketIqActivationFlow({ snapshot, initialBrand, initialSelectio
     <input type="hidden" name="contactEmail" value={brand.contactEmail ?? ""} />
     <input type="hidden" name="contactPhone" value={brand.contactPhone ?? ""} />
     <input type="hidden" name="websiteUrl" value={brand.websiteUrl ?? ""} />
+    <input type="hidden" name="defaultClientMessage" value={editorialDefaults.defaultClientMessage ?? ""} />
+    <input type="hidden" name="defaultProspectMessage" value={editorialDefaults.defaultProspectMessage ?? ""} />
+    <input type="hidden" name="companyProfile" value={editorialDefaults.companyProfile ?? ""} />
+    <input type="hidden" name="companyCtaLabel" value={editorialDefaults.companyCtaLabel ?? ""} />
+    <input type="hidden" name="companyCtaUrl" value={editorialDefaults.companyCtaUrl ?? ""} />
     {selection.cities.map((city) => <input key={`city:${city}`} type="hidden" name="cities" value={city} />)}
     {selection.zipCodes.map((zip) => <input key={`zip:${zip}`} type="hidden" name="zipCodes" value={zip} />)}
     {selection.segments.map((segment) => <input key={`segment:${segment}`} type="hidden" name="segments" value={segment} />)}
@@ -65,6 +85,7 @@ export function MarketIqActivationFlow({ snapshot, initialBrand, initialSelectio
         <label className="text-sm font-semibold text-navy">Contact phone<input value={brand.contactPhone ?? ""} onChange={(event) => updateBrand("contactPhone", event.target.value || null)} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
         <label className="text-sm font-semibold text-navy">Website<input type="url" value={brand.websiteUrl ?? ""} onChange={(event) => updateBrand("websiteUrl", event.target.value || null)} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
       </div>
+      {clientAdvisoryEnabled && <div className="mt-8 border-t border-slate-200 pt-7"><p className="text-xs font-bold uppercase tracking-[0.12em] text-teal-700">Advisory messaging defaults</p><h3 className="mt-2 text-xl font-semibold text-navy">Start each edition with the right relationship context</h3><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">These are starting points, not locked copy. Client and prospect reports receive separate messages, while your company profile and CTA can appear in both. Every edition remains editable before publication.</p><div className="mt-5 grid gap-4 lg:grid-cols-2"><label className="text-sm font-semibold text-navy">Default client message<textarea maxLength={700} rows={5} value={editorialDefaults.defaultClientMessage ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, defaultClientMessage: event.target.value || null }))} placeholder="Add the context or advice you typically want current clients to see." className="mt-2 w-full resize-y rounded-md border border-slate-300 px-3 py-2.5 font-normal leading-6" /></label><label className="text-sm font-semibold text-navy">Default prospect message<textarea maxLength={700} rows={5} value={editorialDefaults.defaultProspectMessage ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, defaultProspectMessage: event.target.value || null }))} placeholder="Explain why this local market read is useful to a prospective client." className="mt-2 w-full resize-y rounded-md border border-slate-300 px-3 py-2.5 font-normal leading-6" /></label><label className="text-sm font-semibold text-navy lg:col-span-2">About your company<textarea maxLength={700} rows={4} value={editorialDefaults.companyProfile ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, companyProfile: event.target.value || null }))} placeholder="Describe who you serve, where you operate, and what distinguishes your management approach." className="mt-2 w-full resize-y rounded-md border border-slate-300 px-3 py-2.5 font-normal leading-6" /></label><label className="text-sm font-semibold text-navy">CTA label<input maxLength={60} value={editorialDefaults.companyCtaLabel ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, companyCtaLabel: event.target.value || null }))} placeholder="Talk with our team" className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label><label className="text-sm font-semibold text-navy">CTA URL<input type="url" maxLength={500} value={editorialDefaults.companyCtaUrl ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, companyCtaUrl: event.target.value || null }))} placeholder="https://yourfirm.com/contact" className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label></div></div>}
       <button formAction={saveMarketIqActivationProgress} name="nextStep" value="2" disabled={!validBrand} className="mt-7 rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">Save and continue</button>
     </section>}
 

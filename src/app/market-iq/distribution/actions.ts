@@ -9,6 +9,7 @@ import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.serv
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { deliverMarketIqReportToRecipient } from "@/lib/market-iq/report/delivery.server";
 import { marketIqClipped, marketIqValidEmail } from "@/lib/market-iq/report/form-values";
+import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import { prisma } from "@/lib/prisma";
 
 async function authorizedContext() {
@@ -61,11 +62,14 @@ export async function saveMarketIqCampaignAudience(formData: FormData): Promise<
   if (!context || !campaignId) throw new Error("Distribution draft not found.");
   const campaign = await prisma.marketIqDistributionCampaign.findFirst({
     where: { id: campaignId, organizationId: context.organizationId, status: { in: ["draft", "ready", "partial"] } },
-    select: { id: true, reportId: true },
+    select: { id: true, reportId: true, report: { select: { snapshot: true } } },
   });
   if (!campaign) throw new Error("This distribution draft cannot be edited.");
+  const snapshot = parseMarketIqReportSnapshot(campaign.report.snapshot);
+  if (!snapshot) throw new Error("The published report snapshot is unavailable.");
+  const audienceKind = snapshot.editorial?.audienceKind;
   const recipients = selectedIds.length ? await prisma.marketIqReportRecipient.findMany({
-    where: { id: { in: selectedIds }, organizationId: context.organizationId },
+    where: { id: { in: selectedIds }, organizationId: context.organizationId, ...(audienceKind ? { kind: audienceKind } : {}) },
     select: { id: true },
   }) : [];
   await prisma.$transaction(async (tx) => {
@@ -127,11 +131,16 @@ export async function sendMarketIqCampaignRecipient(formData: FormData): Promise
     where: { id: campaignRecipientId, organizationId: context.organizationId },
     include: {
       campaign: { select: { id: true, status: true } },
-      recipient: { select: { id: true, emailStatus: true, suppressionReason: true } },
-      report: { select: { status: true } },
+      recipient: { select: { id: true, kind: true, emailStatus: true, suppressionReason: true } },
+      report: { select: { status: true, snapshot: true } },
     },
   });
   if (!row || row.report.status !== "published") throw new Error("This delivery is unavailable.");
+  const snapshot = parseMarketIqReportSnapshot(row.report.snapshot);
+  if (!snapshot) throw new Error("The published report snapshot is unavailable.");
+  if (snapshot.editorial?.audienceKind && snapshot.editorial.audienceKind !== row.recipient.kind) {
+    throw new Error("This recipient does not match the reviewed edition audience.");
+  }
   if (row.recipient.emailStatus === "suppressed") {
     await prisma.marketIqDistributionCampaignRecipient.update({
       where: { id: row.id },

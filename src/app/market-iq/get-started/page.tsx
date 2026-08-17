@@ -6,7 +6,7 @@ import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { buildClevelandComposerPreview, defaultMarketIqReportBrand } from "@/lib/market-iq/report/composer.server";
+import { buildClevelandComposerPreview, defaultMarketIqReportBrand, EMPTY_MARKET_IQ_EDITORIAL_DEFAULTS } from "@/lib/market-iq/report/composer.server";
 import { marketIqSelectionFromPreference } from "@/lib/market-iq/workspace-preference";
 import { prisma } from "@/lib/prisma";
 
@@ -21,6 +21,13 @@ export default async function MarketIqGetStartedPage({ searchParams }: { searchP
   const organization = await prisma.organization.findUnique({ where: { id: organizationId }, select: { name: true, brandProfile: true, marketIqWorkspacePreference: true } });
   if (!organization) redirect("/setup-workspace");
   const brand = organization.brandProfile ?? defaultMarketIqReportBrand(organization.name);
+  const editorialDefaults = organization.brandProfile ? {
+    defaultClientMessage: organization.brandProfile.defaultClientMessage,
+    defaultProspectMessage: organization.brandProfile.defaultProspectMessage,
+    companyProfile: organization.brandProfile.companyProfile,
+    companyCtaLabel: organization.brandProfile.companyCtaLabel,
+    companyCtaUrl: organization.brandProfile.companyCtaUrl,
+  } : EMPTY_MARKET_IQ_EDITORIAL_DEFAULTS;
   const preview = await buildClevelandComposerPreview(brand);
   const query = await searchParams;
   const requestedStep = Number(query.step ?? "1");
@@ -30,6 +37,6 @@ export default async function MarketIqGetStartedPage({ searchParams }: { searchP
     <MarketIqWorkspaceNav clientAdvisoryEnabled={access.capabilities.publishClientReports} />
     <header className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px] lg:items-end"><div><p className="dq-eyebrow">Market IQ activation</p><h1 className="dq-h1">{access.capabilities.publishClientReports ? "Set up your client-ready market read" : "Set up your market intelligence workspace"}</h1><p className="mt-4 max-w-4xl text-lg leading-8 text-slate-600">{access.capabilities.publishClientReports ? "A few choices now will make every future advisory faster. No portfolio upload, implementation call, or Dwellsy branding on the client-facing report is required." : "Choose the Cleveland geographies and rental segments your team wants to follow. You can add PM-branded client publishing later without rebuilding this setup."}</p></div><aside className={`rounded-xl border p-5 ${completed ? "border-emerald-200 bg-emerald-50" : "border-teal-200 bg-teal-50"}`}><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-800">Setup status</p><p className="mt-2 text-lg font-semibold text-navy">{completed ? "Active and editable" : organization.brandProfile ? "Draft saved" : "About three minutes"}</p><p className="mt-2 text-sm leading-6 text-slate-600">{completed ? "Changes update future analysis while published editions remain frozen." : "Progress is saved between steps, so you can leave and resume later."}</p></aside></header>
     {query.saved === "1" && <p className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Progress saved. You can safely leave this page and return later.</p>}
-    <MarketIqActivationFlow snapshot={preview.snapshot} initialBrand={brand} initialSelection={marketIqSelectionFromPreference(organization.marketIqWorkspacePreference)} initialStep={initialStep} source={preview.source} completed={completed} />
+    <MarketIqActivationFlow snapshot={preview.snapshot} initialBrand={brand} initialEditorialDefaults={editorialDefaults} initialSelection={marketIqSelectionFromPreference(organization.marketIqWorkspacePreference)} initialStep={initialStep} source={preview.source} completed={completed} clientAdvisoryEnabled={access.capabilities.publishClientReports} />
   </main>;
 }

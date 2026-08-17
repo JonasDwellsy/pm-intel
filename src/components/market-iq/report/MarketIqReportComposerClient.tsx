@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { publishMarketIqReport } from "@/app/market-iq/report/actions";
 import { MarketIqPublicReport } from "@/components/market-iq/report/MarketIqPublicReport";
 import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
+import type { MarketIqEditorialDefaults } from "@/lib/market-iq/report/composer.server";
 import { compareMarketIqEditions, type PriorMarketIqEdition } from "@/lib/market-iq/report/edition-comparison";
 import {
   applyMarketIqReportScope,
@@ -45,21 +46,24 @@ function CoverageSummary({ status, count }: { status: MarketIqCoverageStatus; co
   return <div className={`rounded-xl px-4 py-3 ring-1 ${STATUS_STYLE[status]}`}><p className="text-2xl font-semibold">{count}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em]">{status}</p></div>;
 }
 
-export function MarketIqReportComposerClient({ snapshot, initialBrand, initialSelection, source, priorEdition, draftId = null }: {
+export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEditorialDefaults, initialSelection, source, priorEdition, draftId = null }: {
   snapshot: MarketIqReportSnapshot;
   initialBrand: Brand;
+  initialEditorialDefaults: MarketIqEditorialDefaults;
   initialSelection: MarketIqReportScopeSelection;
   source: "dwellsy_trends" | "verified_seed";
   priorEdition: PriorMarketIqEdition | null;
   draftId?: string | null;
 }) {
+  const initialAudienceKind = snapshot.editorial?.audienceKind ?? "client";
   const [selection, setSelection] = useState<MarketIqReportScopeSelection>(initialSelection);
   const [brand, setBrand] = useState<Brand>(initialBrand);
+  const [audienceKind, setAudienceKind] = useState<"client" | "prospect">(initialAudienceKind);
   const [editorialHeadline, setEditorialHeadline] = useState(snapshot.editorial?.headline ?? "");
-  const [editorialIntroduction, setEditorialIntroduction] = useState(snapshot.editorial?.introduction ?? "");
-  const [companyProfile, setCompanyProfile] = useState(snapshot.editorial?.companyProfile ?? "");
-  const [companyCtaLabel, setCompanyCtaLabel] = useState(snapshot.editorial?.companyCtaLabel ?? "");
-  const [companyCtaUrl, setCompanyCtaUrl] = useState(snapshot.editorial?.companyCtaUrl ?? "");
+  const [editorialIntroduction, setEditorialIntroduction] = useState(snapshot.editorial?.introduction ?? (initialAudienceKind === "prospect" ? initialEditorialDefaults.defaultProspectMessage : initialEditorialDefaults.defaultClientMessage) ?? "");
+  const [companyProfile, setCompanyProfile] = useState(snapshot.editorial?.companyProfile ?? initialEditorialDefaults.companyProfile ?? "");
+  const [companyCtaLabel, setCompanyCtaLabel] = useState(snapshot.editorial?.companyCtaLabel ?? initialEditorialDefaults.companyCtaLabel ?? "");
+  const [companyCtaUrl, setCompanyCtaUrl] = useState(snapshot.editorial?.companyCtaUrl ?? initialEditorialDefaults.companyCtaUrl ?? "");
   const scopedSnapshot = useMemo(() => applyMarketIqReportScope({
     ...snapshot,
     brand: {
@@ -76,6 +80,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialSe
     ...scopedSnapshot,
     editionComparison,
     editorial: {
+      audienceKind,
       headline: editorialHeadline.trim() || null,
       introduction: editorialIntroduction.trim() || null,
       companyProfile: companyProfile.trim() || null,
@@ -84,7 +89,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialSe
       reviewedAt: snapshot.generatedAt,
       reviewedBy: "PM reviewer",
     },
-  }), [scopedSnapshot, editionComparison, editorialHeadline, editorialIntroduction, companyProfile, companyCtaLabel, companyCtaUrl, snapshot.generatedAt]);
+  }), [scopedSnapshot, editionComparison, audienceKind, editorialHeadline, editorialIntroduction, companyProfile, companyCtaLabel, companyCtaUrl, snapshot.generatedAt]);
   const coverage = useMemo(() => buildMarketIqCoveragePreflight(reviewedSnapshot), [reviewedSnapshot]);
   const groupedCoverage = Object.entries(coverage.cells.reduce<Record<string, typeof coverage.cells>>((groups, cell) => {
     (groups[cell.geographyLabel] ??= []).push(cell);
@@ -95,6 +100,11 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialSe
 
   function updateBrand<K extends keyof Brand>(key: K, value: Brand[K]) {
     setBrand((current) => ({ ...current, [key]: value }));
+  }
+
+  function selectAudience(next: "client" | "prospect") {
+    setAudienceKind(next);
+    setEditorialIntroduction(next === "client" ? initialEditorialDefaults.defaultClientMessage ?? "" : initialEditorialDefaults.defaultProspectMessage ?? "");
   }
 
   return <>
@@ -110,6 +120,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialSe
           <fieldset><legend className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Product segments</legend><div className="mt-2 grid gap-2">{MARKET_IQ_REPORT_SEGMENTS.map((segment) => <ScopeOption key={segment.key} name="segments" value={segment.key} label={segment.label} checked={selection.segments.includes(segment.key)} onChange={() => setSelection((current) => ({ ...current, segments: toggleValue(current.segments, segment.key as MarketIqSegmentKey) }))} />)}</div></fieldset>
 
           <div className="border-t border-grid pt-4"><p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">PM review</p><p className="mt-2 text-xs leading-5 text-muted-foreground">The data-led version is ready without edits. Add your own framing only when it improves the client conversation.</p></div>
+          <label className="text-sm font-semibold text-navy">Intended audience<select name="audienceKind" value={audienceKind} onChange={(event) => selectAudience(event.target.value as "client" | "prospect")} className="mt-2 w-full rounded-md border border-grid bg-white px-3 py-2.5 text-sm font-normal"><option value="client">Current clients</option><option value="prospect">Prospective clients</option></select><span className="mt-1 block text-xs font-normal leading-5 text-muted-foreground">Changing the audience loads its saved message template. Distribution will show only matching recipients.</span></label>
           <label className="text-sm font-semibold text-navy">Client headline, optional<input name="editorialHeadline" maxLength={120} value={editorialHeadline} onChange={(event) => setEditorialHeadline(event.target.value)} placeholder="A split rental market requires a local read" className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /><span className="mt-1 block text-right text-[10px] font-normal text-muted-foreground">{editorialHeadline.length}/120</span></label>
           <label className="text-sm font-semibold text-navy">Message from your firm, optional<textarea name="editorialIntroduction" maxLength={700} rows={5} value={editorialIntroduction} onChange={(event) => setEditorialIntroduction(event.target.value)} placeholder="Add the context or advice you want this client or prospect to read before the evidence." className="mt-2 w-full resize-y rounded-md border border-grid px-3 py-2.5 text-sm font-normal leading-6" /><span className="mt-1 block text-right text-[10px] font-normal text-muted-foreground">{editorialIntroduction.length}/700</span></label>
 

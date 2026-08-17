@@ -7,7 +7,7 @@ import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { parseMarketIqBrandForm } from "@/lib/market-iq/report/form-values";
+import { parseMarketIqBrandForm, parseMarketIqEditorialDefaultsForm } from "@/lib/market-iq/report/form-values";
 import { parseMarketIqScopeFormData } from "@/lib/market-iq/report/scope";
 import { prisma } from "@/lib/prisma";
 
@@ -23,6 +23,7 @@ async function activationContext() {
 async function persistActivation(formData: FormData, complete: boolean) {
   const { organizationId, capabilities } = await activationContext();
   const brand = parseMarketIqBrandForm(formData);
+  const editorialDefaults = parseMarketIqEditorialDefaultsForm(formData);
   const selection = parseMarketIqScopeFormData(formData);
   if (complete && !selection.cities.length && !selection.zipCodes.length) throw new Error("Select at least one city or ZIP code.");
   if (complete && !selection.segments.length) throw new Error("Select at least one product segment.");
@@ -30,8 +31,8 @@ async function persistActivation(formData: FormData, complete: boolean) {
   await prisma.$transaction([
     prisma.organizationBrandProfile.upsert({
       where: { organizationId },
-      create: { organizationId, ...brand },
-      update: brand,
+      create: { organizationId, ...brand, ...editorialDefaults },
+      update: { ...brand, ...editorialDefaults },
     }),
     prisma.marketIqWorkspacePreference.upsert({
       where: { organizationId },

@@ -59,9 +59,11 @@ export default async function MarketIqCampaignPage({
   if (!campaign) notFound();
   const snapshot = parseMarketIqReportSnapshot(campaign.report.snapshot);
   if (!snapshot) notFound();
+  const audienceKind = snapshot.editorial?.audienceKind;
+  const eligibleDirectory = audienceKind ? directory.filter((recipient) => recipient.kind === audienceKind) : directory;
   const selectedIds = new Set(campaign.recipients.map((row) => row.recipientId));
   const activeRows = campaign.recipients.filter((row) => row.recipient.emailStatus === "active");
-  const previewRecipient = activeRows[0]?.recipient ?? directory.find((recipient) => recipient.emailStatus === "active") ?? null;
+  const previewRecipient = activeRows[0]?.recipient ?? eligibleDirectory.find((recipient) => recipient.emailStatus === "active") ?? null;
   const reportUrl = `${reportBaseUrl()}/reports/market/${campaign.report.publicToken}`;
   const emailPreview = previewRecipient ? buildMarketIqReportEmail({
     recipientName: previewRecipient.name,
@@ -81,8 +83,8 @@ export default async function MarketIqCampaignPage({
     <section className="mt-8 grid gap-7 xl:grid-cols-[420px_1fr]">
       <form action={saveMarketIqCampaignAudience} className="h-fit rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <input type="hidden" name="campaignId" value={campaign.id} />
-        <p className="dq-eyebrow">Step 1</p><h2 className="dq-h2">Confirm the audience</h2><p className="mt-2 text-sm leading-6 text-slate-600">Previously used recipients are preselected. Suppressed addresses remain visible but cannot be selected.</p>
-        <div className="mt-5 max-h-[560px] divide-y divide-slate-100 overflow-y-auto border-y border-slate-100">{directory.map((recipient) => <label key={recipient.id} className={`flex gap-3 py-4 ${recipient.emailStatus === "suppressed" ? "opacity-55" : "cursor-pointer"}`}><input type="checkbox" name="recipientId" value={recipient.id} defaultChecked={selectedIds.has(recipient.id)} disabled={recipient.emailStatus === "suppressed"} className="mt-1 size-4" /><span className="min-w-0"><span className="block text-sm font-semibold text-navy">{recipient.name}</span><span className="block truncate text-xs text-slate-500">{recipient.email} · {recipient.kind}</span>{recipient.emailStatus === "suppressed" && <span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-rose-700">Suppressed · {recipient.suppressionReason ?? "delivery disabled"}</span>}</span></label>)}</div>
+        <p className="dq-eyebrow">Step 1</p><h2 className="dq-h2">Confirm the audience</h2><p className="mt-2 text-sm leading-6 text-slate-600">This edition was prepared for {audienceKind === "prospect" ? "prospects" : audienceKind === "client" ? "current clients" : "your directory"}. Only matching recipients can be selected. Suppressed addresses remain visible but cannot be selected.</p>
+        <div className="mt-5 max-h-[560px] divide-y divide-slate-100 overflow-y-auto border-y border-slate-100">{eligibleDirectory.map((recipient) => <label key={recipient.id} className={`flex gap-3 py-4 ${recipient.emailStatus === "suppressed" ? "opacity-55" : "cursor-pointer"}`}><input type="checkbox" name="recipientId" value={recipient.id} defaultChecked={selectedIds.has(recipient.id)} disabled={recipient.emailStatus === "suppressed"} className="mt-1 size-4" /><span className="min-w-0"><span className="block text-sm font-semibold text-navy">{recipient.name}</span><span className="block truncate text-xs text-slate-500">{recipient.email} · {recipient.kind}</span>{recipient.emailStatus === "suppressed" && <span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-rose-700">Suppressed · {recipient.suppressionReason ?? "delivery disabled"}</span>}</span></label>)}</div>
         <button className="mt-5 w-full rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white">Save audience and review</button>
       </form>
 

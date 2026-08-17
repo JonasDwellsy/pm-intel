@@ -93,6 +93,8 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
   const companyCtaRaw = clipped(formData.get("companyCtaUrl"), 500);
   const companyCtaUrl = optionalUrl(formData.get("companyCtaUrl"));
   if (companyCtaRaw && !companyCtaUrl) throw new Error("Company CTA URL must be a valid HTTPS address.");
+  const audienceKind = clipped(formData.get("audienceKind"), 20);
+  if (!["client", "prospect"].includes(audienceKind)) throw new Error("Choose whether this edition is for current clients or prospects.");
 
   const now = new Date();
   const selection = parseMarketIqScopeFormData(formData);
@@ -122,6 +124,7 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
     brand,
     editionComparison: compareMarketIqEditions(snapshot, priorEdition),
     editorial: {
+      audienceKind: audienceKind as "client" | "prospect",
       headline: clipped(formData.get("editorialHeadline"), 120) || null,
       introduction: clipped(formData.get("editorialIntroduction"), 700) || null,
       companyProfile: clipped(formData.get("companyProfile"), 700) || null,
@@ -171,11 +174,12 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
           OR: [{ deliveryStatus: "sent" }, { deliveredAt: { not: null } }],
         },
         distinct: ["recipientId"],
-        select: { recipientId: true },
+        select: { recipientId: true, recipient: { select: { kind: true } } },
       });
-      if (priorAudience.length) {
+      const matchingPriorAudience = priorAudience.filter(({ recipient }) => recipient.kind === audienceKind);
+      if (matchingPriorAudience.length) {
         await tx.marketIqDistributionCampaignRecipient.createMany({
-          data: priorAudience.map(({ recipientId }) => ({
+          data: matchingPriorAudience.map(({ recipientId }) => ({
             organizationId: context.organizationId,
             campaignId: campaign.id,
             reportId: createdReport.id,

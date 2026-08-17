@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { buildMarketIqReportSnapshot, isPublicMarketIqReportStatus, parseMarketIqReportSnapshot } from "./report";
 import { canAccessMarketIqReportComposer } from "./access";
 import { buildMarketIqReportEmail } from "./email";
+import { parseMarketIqEditorialDefaultsForm } from "./form-values";
 import { compareMarketIqEditions } from "./edition-comparison";
 import { seededClevelandMarketReport } from "./seeded-cleveland";
 import { applyMarketIqReportScope, buildMarketIqCoveragePreflight, defaultMarketIqScopeSelection, normalizeMarketIqScopeSelection } from "./scope";
@@ -233,6 +234,7 @@ describe("Market IQ edition comparison", () => {
 describe("Market IQ report migration", () => {
   const schema = readFileSync("prisma/schema.prisma", "utf8");
   const migration = readFileSync("prisma/migrations/20260814070000_market_iq_reports/migration.sql", "utf8");
+  const defaultsMigration = readFileSync("prisma/migrations/20260817143000_market_iq_advisory_defaults/migration.sql", "utf8");
   it("adds the isolated report workflow models and relations", () => {
     for (const model of ["OrganizationBrandProfile", "MarketIqReport", "MarketIqReportRecipient", "MarketIqReportSend"]) {
       expect(schema).toMatch(new RegExp(`model ${model} \\{`));
@@ -242,6 +244,41 @@ describe("Market IQ report migration", () => {
     expect(schema).toMatch(/marketIqReportSends\s+MarketIqReportSend\[\]/);
   });
   it("contains no destructive statements", () => { expect(migration).not.toMatch(/^\s*(?:DROP|TRUNCATE|DELETE|UPDATE)\b/im); });
+  it("adds reusable advisory defaults without destructive statements", () => {
+    for (const column of ["defaultClientMessage", "defaultProspectMessage", "companyProfile", "companyCtaLabel", "companyCtaUrl"]) {
+      expect(schema).toMatch(new RegExp(`${column}\\s+String\\?`));
+      expect(defaultsMigration).toContain(`ADD COLUMN "${column}"`);
+    }
+    expect(defaultsMigration).not.toMatch(/^\s*(?:DROP|TRUNCATE|DELETE|UPDATE)\b/im);
+  });
+});
+
+describe("Market IQ advisory defaults", () => {
+  it("parses separate client and prospect templates with an HTTPS CTA", () => {
+    const formData = new FormData();
+    formData.set("defaultClientMessage", "A client note");
+    formData.set("defaultProspectMessage", "A prospect note");
+    formData.set("companyProfile", "A local PM profile");
+    formData.set("companyCtaLabel", "Meet the team");
+    formData.set("companyCtaUrl", "https://example.com/contact");
+    expect(parseMarketIqEditorialDefaultsForm(formData)).toEqual({
+      defaultClientMessage: "A client note",
+      defaultProspectMessage: "A prospect note",
+      companyProfile: "A local PM profile",
+      companyCtaLabel: "Meet the team",
+      companyCtaUrl: "https://example.com/contact",
+    });
+  });
+  it("rejects a non-HTTPS company CTA", () => {
+    const formData = new FormData();
+    formData.set("companyCtaUrl", "http://example.com/contact");
+    expect(() => parseMarketIqEditorialDefaultsForm(formData)).toThrow(/valid HTTPS/);
+  });
+  it("enforces the frozen edition audience again at delivery time", () => {
+    const distributionAction = readFileSync("src/app/market-iq/distribution/actions.ts", "utf8");
+    expect(distributionAction).toMatch(/editorial\?\.audienceKind/);
+    expect(distributionAction).toMatch(/audienceKind !== row\.recipient\.kind/);
+  });
 });
 
 describe("Market IQ report access boundaries", () => {

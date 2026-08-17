@@ -148,6 +148,7 @@ export interface MarketIqReportSnapshot {
   marketActivity?: MarketIqMarketActivity;
   editionComparison?: MarketIqEditionComparison;
   editorial?: {
+    audienceKind?: "client" | "prospect";
     headline: string | null;
     introduction: string | null;
     companyProfile?: string | null;

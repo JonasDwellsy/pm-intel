@@ -624,18 +624,23 @@ model MarketIqWatchlist {
 // buyer and sender; Dwellsy remains a small data-provenance credit inside the
 // immutable report snapshot.
 model OrganizationBrandProfile {
-  id             String   @id @default(cuid())
-  organizationId String   @unique
-  displayName    String
-  logoUrl        String?
-  primaryColor   String
-  accentColor    String
-  contactName    String?
-  contactEmail   String?
-  contactPhone   String?
-  websiteUrl     String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  organizationId         String   @unique
+  displayName            String
+  logoUrl                String?
+  primaryColor           String
+  accentColor            String
+  contactName            String?
+  contactEmail           String?
+  contactPhone           String?
+  websiteUrl             String?
+  defaultClientMessage   String?
+  defaultProspectMessage String?
+  companyProfile         String?
+  companyCtaLabel        String?
+  companyCtaUrl          String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   reports      MarketIqReport[]

@@ -11,6 +11,21 @@ import type { PriorMarketIqEdition } from "@/lib/market-iq/report/edition-compar
 import { marketIqSelectionFromPreference } from "@/lib/market-iq/workspace-preference";
 
 export type MarketIqReportBrandInput = MarketIqReportSnapshot["brand"];
+export type MarketIqEditorialDefaults = {
+  defaultClientMessage: string | null;
+  defaultProspectMessage: string | null;
+  companyProfile: string | null;
+  companyCtaLabel: string | null;
+  companyCtaUrl: string | null;
+};
+
+export const EMPTY_MARKET_IQ_EDITORIAL_DEFAULTS: MarketIqEditorialDefaults = {
+  defaultClientMessage: null,
+  defaultProspectMessage: null,
+  companyProfile: null,
+  companyCtaLabel: null,
+  companyCtaUrl: null,
+};
 
 export function defaultMarketIqReportBrand(organizationName: string): MarketIqReportBrandInput {
   return {
@@ -107,5 +122,12 @@ export async function loadMarketIqReportComposer(organizationId: string) {
     publishedAt: latestPublished.publishedAt?.toISOString() ?? null,
     snapshot: priorSnapshot,
   } : null;
-  return { organization, brand, preview, priorEdition, initialSelection: marketIqSelectionFromPreference(organization.marketIqWorkspacePreference) };
+  const editorialDefaults: MarketIqEditorialDefaults = organization.brandProfile ? {
+    defaultClientMessage: organization.brandProfile.defaultClientMessage,
+    defaultProspectMessage: organization.brandProfile.defaultProspectMessage,
+    companyProfile: organization.brandProfile.companyProfile,
+    companyCtaLabel: organization.brandProfile.companyCtaLabel,
+    companyCtaUrl: organization.brandProfile.companyCtaUrl,
+  } : EMPTY_MARKET_IQ_EDITORIAL_DEFAULTS;
+  return { organization, brand, preview, priorEdition, editorialDefaults, initialSelection: marketIqSelectionFromPreference(organization.marketIqWorkspacePreference) };
 }

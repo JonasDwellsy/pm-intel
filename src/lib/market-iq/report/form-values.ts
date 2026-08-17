@@ -1,4 +1,5 @@
 import type { MarketIqReportBrandInput } from "@/lib/market-iq/report/composer.server";
+import type { MarketIqEditorialDefaults } from "@/lib/market-iq/report/composer.server";
 
 export function marketIqClipped(value: FormDataEntryValue | null, maximum: number) {
   return String(value ?? "").trim().slice(0, maximum);
@@ -44,4 +45,17 @@ export function parseMarketIqBrandForm(formData: FormData): MarketIqReportBrandI
   if (logoRaw && !brand.logoUrl) throw new Error("Logo URL must be a valid HTTPS address.");
   if (websiteRaw && !brand.websiteUrl) throw new Error("Website URL must be a valid HTTPS address.");
   return brand;
+}
+
+export function parseMarketIqEditorialDefaultsForm(formData: FormData): MarketIqEditorialDefaults {
+  const ctaRaw = marketIqClipped(formData.get("companyCtaUrl"), 500);
+  const companyCtaUrl = marketIqOptionalUrl(formData.get("companyCtaUrl"));
+  if (ctaRaw && !companyCtaUrl) throw new Error("Company CTA URL must be a valid HTTPS address.");
+  return {
+    defaultClientMessage: marketIqClipped(formData.get("defaultClientMessage"), 700) || null,
+    defaultProspectMessage: marketIqClipped(formData.get("defaultProspectMessage"), 700) || null,
+    companyProfile: marketIqClipped(formData.get("companyProfile"), 700) || null,
+    companyCtaLabel: marketIqClipped(formData.get("companyCtaLabel"), 60) || null,
+    companyCtaUrl,
+  };
 }
