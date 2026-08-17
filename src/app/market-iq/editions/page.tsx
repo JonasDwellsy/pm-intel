@@ -31,7 +31,7 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
   if (!userId) notFound();
   if (!organizationId) redirect("/setup-workspace");
   if (!access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) redirect("/market-iq/subscribe");
-  const [composer, recipients, publishedCount, recurringDraft] = await Promise.all([
+  const [composer, recipients, publishedCount, recurringDraft, latestOrchestration] = await Promise.all([
     loadMarketIqReportComposer(organizationId),
     prisma.marketIqReportRecipient.findMany({ where: { organizationId }, orderBy: { name: "asc" }, select: { id: true, name: true, email: true, kind: true } }),
     prisma.marketIqReport.count({ where: { organizationId, marketId: CLEVELAND_MARKET_ID, status: "published" } }),
@@ -39,6 +39,16 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
       where: { organizationId, marketId: CLEVELAND_MARKET_ID, status: { in: ["ready", "reviewing"] } },
       orderBy: { detectedAt: "desc" },
       select: { id: true, periodEnd: true, materialChangeCount: true, detectedAt: true },
+    }),
+    prisma.marketIqEditionOrchestrationItem.findFirst({
+      where: { organizationId, marketId: CLEVELAND_MARKET_ID },
+      orderBy: { createdAt: "desc" },
+      select: {
+        status: true,
+        detail: true,
+        createdAt: true,
+        run: { select: { dryRun: true, sourceAvailableThrough: true } },
+      },
     }),
   ]);
   if (!composer) notFound();
@@ -75,6 +85,7 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
       </div>
 
       <aside className="space-y-6">
+        {latestOrchestration && <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="dq-eyebrow">Scheduler health</p><div className="mt-2 flex items-center justify-between gap-3"><h2 className="dq-h2">Last source check</h2><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-600">{latestOrchestration.status}</span></div><p className="mt-3 text-sm leading-6 text-slate-600">{latestOrchestration.detail}</p><p className="mt-3 text-xs text-slate-400">{dateLabel(latestOrchestration.createdAt)}{latestOrchestration.run.sourceAvailableThrough ? ` · source through ${dateLabel(latestOrchestration.run.sourceAvailableThrough)}` : ""}{latestOrchestration.run.dryRun ? " · dry run" : ""}</p></section>}
         <section className="rounded-2xl border border-teal-200 bg-teal-50 p-6"><p className="dq-eyebrow">Recurring edition engine</p><h2 className="dq-h2">{recurringDraft ? "A private draft is ready" : "Check for the next period"}</h2><p className="mt-2 text-sm leading-6 text-slate-600">{recurringDraft ? `The ${dateLabel(recurringDraft.periodEnd)} draft contains ${recurringDraft.materialChangeCount} material ${recurringDraft.materialChangeCount === 1 ? "change" : "changes"}. It has no public link, audience, or email.` : "The engine creates a draft only when authoritative Trends IQ advances beyond the latest published edition. Repeated checks are idempotent."}</p>{recurringDraft ? <Link href={`/market-iq/report?edition=draft&draftId=${recurringDraft.id}`} className="mt-5 block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white">Review private draft</Link> : <form action={checkForRecurringMarketIqEdition}><button className="mt-5 w-full rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white">Check authoritative source</button></form>}<p className="mt-3 text-xs leading-5 text-slate-500">This control cannot publish, select recipients, create a campaign, or send email.</p></section>
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="dq-eyebrow">Readiness</p><h2 className="dq-h2">Publication checks</h2><div className="mt-5 space-y-3">{workflow.checks.map((check) => <article key={check.id} className="rounded-xl border border-slate-200 p-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-navy">{check.label}</p><span className={`rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-wider ring-1 ${STATUS_STYLE[check.status]}`}>{check.status}</span></div><p className="mt-2 text-xs leading-5 text-slate-500">{check.detail}</p></article>)}</div>{workflow.canPrepare ? <Link href="/market-iq/report?edition=next" className="mt-6 block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white">Open review and publish controls</Link> : <p className="mt-6 rounded-md bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">Resolve blocked checks before preparing a client edition.</p>}<p className="mt-3 text-xs leading-5 text-slate-500">Opening the controls does not publish or send anything. Publication freezes the reviewed evidence into a new link.</p></section>
         <section className="rounded-2xl border border-teal-200 bg-teal-50 p-6"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-800">After publication</p><p className="mt-2 text-lg font-semibold text-navy">Return to the audience</p><p className="mt-2 text-sm leading-6 text-slate-600">The distribution center will show the new edition alongside the saved directory and delivery history.</p><Link href="/market-iq/distribution" className="mt-4 inline-block text-sm font-semibold text-teal-800">Open distribution center →</Link></section>

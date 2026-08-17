@@ -509,6 +509,7 @@ model Organization {
   marketIqDistributionCampaigns MarketIqDistributionCampaign[]
   marketIqCampaignRecipients    MarketIqDistributionCampaignRecipient[]
   marketIqEditionDrafts         MarketIqEditionDraft[]
+  marketIqEditionRunItems       MarketIqEditionOrchestrationItem[]
   marketIqSubscriptions         MarketIqSubscription[]
   marketIqWorkspacePreference   MarketIqWorkspacePreference?
   portfolioIqPortfolios         PortfolioIqPortfolio[]
@@ -697,6 +698,54 @@ model MarketIqEditionDraft {
   @@unique([organizationId, marketId, periodEnd])
   @@index([organizationId, status, detectedAt(sort: Desc)])
   @@index([marketId, periodEnd])
+}
+
+// One auditable scheduler pass across commercially eligible Market IQ
+// workspaces. It records source and draft outcomes only. Publication and
+// distribution remain outside this orchestration boundary.
+model MarketIqEditionOrchestrationRun {
+  id                     String    @id @default(cuid())
+  runKey                 String    @unique
+  triggerKind            String    @default("scheduled") // scheduled | manual
+  status                 String    @default("running") // running | completed | completed_with_errors | failed
+  dryRun                 Boolean   @default(false)
+  organizationsEvaluated Int       @default(0)
+  draftsCreated          Int       @default(0)
+  draftsExisting         Int       @default(0)
+  unchangedPeriods       Int       @default(0)
+  blockedOrganizations   Int       @default(0)
+  failedOrganizations    Int       @default(0)
+  sourceAvailableThrough String?
+  error                  String?
+  startedAt              DateTime  @default(now())
+  completedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  items MarketIqEditionOrchestrationItem[]
+
+  @@index([status, startedAt(sort: Desc)])
+  @@index([triggerKind, startedAt(sort: Desc)])
+}
+
+model MarketIqEditionOrchestrationItem {
+  id             String   @id @default(cuid())
+  runId          String
+  organizationId String
+  marketId       String
+  status         String // created | would_create | existing | unchanged | blocked | failed
+  periodEnd      String?
+  draftId        String?
+  detail         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  run          MarketIqEditionOrchestrationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  organization Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, organizationId, marketId])
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([runId, status])
 }
 
 model MarketIqReportRecipient {

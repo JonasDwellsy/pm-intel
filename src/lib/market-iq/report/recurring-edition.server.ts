@@ -11,6 +11,7 @@ import { applyMarketIqReportScope, buildMarketIqCoveragePreflight } from "@/lib/
 
 export type RecurringEditionResult =
   | { state: "draft_created" | "draft_exists"; draftId: string; periodEnd: string; materialChangeCount: number }
+  | { state: "draft_would_create"; draftId: null; periodEnd: string; materialChangeCount: number }
   | { state: "baseline_required" | "source_unavailable" | "same_period" | "blocked"; periodEnd: string | null; detail: string };
 
 function fingerprint(value: unknown) {
@@ -25,6 +26,7 @@ function fingerprint(value: unknown) {
 export async function ensureRecurringMarketIqEditionDraft(
   organizationId: string,
   marketId = CLEVELAND_MARKET_ID,
+  options: { dryRun?: boolean } = {},
 ): Promise<RecurringEditionResult> {
   if (marketId !== CLEVELAND_MARKET_ID) {
     return { state: "blocked", periodEnd: null, detail: "The recurring engine is currently enabled only for the Cleveland pilot market." };
@@ -75,6 +77,9 @@ export async function ensureRecurringMarketIqEditionDraft(
     generatedAt: new Date().toISOString(),
     editionComparison: comparison,
   };
+  if (options.dryRun) {
+    return { state: "draft_would_create", draftId: null, periodEnd: workflow.currentPeriodEnd, materialChangeCount: comparison.findings.length };
+  }
   const draft = await prisma.marketIqEditionDraft.upsert({
     where: { organizationId_marketId_periodEnd: { organizationId, marketId, periodEnd: workflow.currentPeriodEnd } },
     update: {},
