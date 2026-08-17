@@ -9,8 +9,8 @@ const INTELLIGENCE_ITEMS = [
 ] as const;
 
 const ADVISORY_ITEMS = [
-  { href: "/market-iq/editions", label: "Editions", match: (path: string) => path.startsWith("/market-iq/editions") || path.startsWith("/market-iq/review") || path.startsWith("/market-iq/report") },
-  { href: "/market-iq/distribution", label: "Sharing", match: (path: string) => path.startsWith("/market-iq/distribution") },
+  { href: "/market-iq/editions", label: "Client reports", match: (path: string) => path.startsWith("/market-iq/editions") || path.startsWith("/market-iq/review") || path.startsWith("/market-iq/report") || path.startsWith("/market-iq/published") },
+  { href: "/market-iq/distribution", label: "Recipients", match: (path: string) => path.startsWith("/market-iq/distribution") },
 ] as const;
 
 const PUBLIC_ITEMS = [

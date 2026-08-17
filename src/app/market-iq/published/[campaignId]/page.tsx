@@ -85,7 +85,7 @@ export default async function MarketIqPublishedPage({
   const canDistribute = access.capabilities.manageRecipients;
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-    <nav className="mt-5 flex items-center gap-2 text-xs font-semibold text-slate-500"><Link href="/market-iq">Market IQ</Link><span>/</span><Link href="/market-iq/editions">Editions</Link><span>/</span><span>Published</span></nav>
+    <nav className="mt-5 flex items-center gap-2 text-xs font-semibold text-slate-500"><Link href="/market-iq">Market IQ</Link><span>/</span><Link href="/market-iq/editions">Client reports</Link><span>/</span><span>Published</span></nav>
 
     <header className="mt-6 overflow-hidden rounded-3xl bg-navy text-white shadow-sm">
       <div className="grid gap-8 px-6 py-8 sm:px-8 lg:grid-cols-[1fr_370px] lg:items-center lg:px-10 lg:py-10">

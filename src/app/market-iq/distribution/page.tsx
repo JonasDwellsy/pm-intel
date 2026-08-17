@@ -46,7 +46,7 @@ export default async function MarketIqDistributionPage({ searchParams }: { searc
   ]);
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-    <nav className="mt-5 flex items-center gap-2 text-xs font-semibold text-slate-500"><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><Link href="/market-iq/editions" className="hover:text-teal-700">Editions</Link><span>/</span><span>Sharing</span></nav>
+    <nav className="mt-5 flex items-center gap-2 text-xs font-semibold text-slate-500"><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><Link href="/market-iq/editions" className="hover:text-teal-700">Client reports</Link><span>/</span><span>Recipients</span></nav>
     <header className="mt-6 grid gap-6 border-b border-grid pb-8 lg:grid-cols-[1fr_360px] lg:items-end"><div><p className="dq-eyebrow">Recipients</p><h1 className="dq-h1">Share the right market read with the right people</h1><p className="mt-3 max-w-3xl text-[15px] leading-6 text-slate-600">Keep one client and prospect directory, choose a published report, and review its delivery history.</p></div><aside className="rounded-xl border border-teal-200 bg-teal-50 p-5"><p className="text-xs font-bold uppercase tracking-wider text-teal-800">Before you send</p><p className="mt-2 text-sm leading-6 text-slate-700">Saving a recipient does not send an email. You approve each delivery separately.</p></aside></header>
     {query.saved === "1" && <p className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Recipient saved to the organization directory.</p>}
     <section className="mt-8 grid gap-6 lg:grid-cols-[340px_1fr]">

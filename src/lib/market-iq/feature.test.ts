@@ -168,7 +168,7 @@ test("the standalone navigation does not leak Operator IQ destinations", () => {
   );
 
   assert.match(navigation, /label: "Market intelligence"/);
-  assert.match(navigation, /label: "Sharing"/);
+  assert.match(navigation, /label: "Recipients"/);
   assert.doesNotMatch(navigation, /label: "Local areas"/);
   assert.doesNotMatch(header, /OrganizationSwitcher/);
   assert.match(footer, /href="\/market-iq\/account"/);
@@ -293,4 +293,24 @@ test("publishing hands the PM to an immutable edition receipt before distributio
   assert.match(receipt, /Review audience and email/);
   assert.match(receipt, /Each initial send and retry still requires an explicit confirmation/);
   assert.match(receipt, /revokeMarketIqReport/);
+});
+
+test("Client Advisory navigation uses customer language and provides a report library", () => {
+  const navigation = readFileSync(
+    join(process.cwd(), "src/components/market-iq/MarketIqAppNavigation.tsx"),
+    "utf8"
+  );
+  const reports = readFileSync(
+    join(process.cwd(), "src/app/market-iq/editions/page.tsx"),
+    "utf8"
+  );
+
+  assert.match(navigation, /label: "Client reports"/);
+  assert.match(navigation, /label: "Recipients"/);
+  assert.doesNotMatch(navigation, /label: "Editions"/);
+  assert.match(reports, /Report library/);
+  assert.match(reports, /Published links and delivery progress/);
+  assert.match(reports, /Create client report/);
+  assert.match(reports, /Open report receipt/);
+  assert.match(reports, /No public link or email exists yet/);
 });
