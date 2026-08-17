@@ -192,17 +192,24 @@ export async function sendMarketIqCampaignRecipient(formData: FormData): Promise
   });
   const [unfinished, failed] = await Promise.all([
     prisma.marketIqDistributionCampaignRecipient.count({ where: { campaignId: row.campaign.id, status: { in: ["pending", "sending"] } } }),
-    prisma.marketIqDistributionCampaignRecipient.count({ where: { campaignId: row.campaign.id, status: "failed" } }),
+    prisma.marketIqDistributionCampaignRecipient.count({ where: { campaignId: row.campaign.id, status: { in: ["failed", "suppressed"] } } }),
   ]);
+  const nextCampaignStatus = unfinished > 0
+    ? "ready"
+    : failed > 0
+      ? "partial"
+      : "complete";
   await prisma.marketIqDistributionCampaign.update({
     where: { id: row.campaign.id },
-    data: unfinished > 0
-      ? { status: "ready" }
-      : failed > 0
-        ? { status: "partial" }
-        : { status: "complete", completedAt: new Date() },
+    data: nextCampaignStatus === "complete"
+      ? { status: nextCampaignStatus, completedAt: new Date() }
+      : { status: nextCampaignStatus },
   });
   revalidatePath(`/market-iq/distribution/${row.campaign.id}`);
+  revalidatePath(`/market-iq/delivery/${row.campaign.id}`);
   revalidatePath("/market-iq/distribution");
+  if (nextCampaignStatus !== "ready") {
+    redirect(`/market-iq/delivery/${row.campaign.id}?result=${result.status}`);
+  }
   redirect(`/market-iq/distribution/${row.campaign.id}?delivery=${result.status}`);
 }

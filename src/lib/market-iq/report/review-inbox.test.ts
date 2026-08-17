@@ -20,7 +20,7 @@ test("review inbox actions remain outside publication and delivery", async () =>
 
 test("review inbox exposes source history and an explicit safe retry", async () => {
   const page = await readFile("src/app/market-iq/review/page.tsx", "utf8");
-  assert.match(page, /PM review inbox/);
+  assert.match(page, /Review the next client edition/);
   assert.match(page, /Recent source checks/);
   assert.match(page, /Check authoritative source now/);
   assert.match(page, /No report is published and no email is sent/);

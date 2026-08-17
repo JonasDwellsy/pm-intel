@@ -314,3 +314,23 @@ test("Client Advisory navigation uses customer language and provides a report li
   assert.match(reports, /Open report receipt/);
   assert.match(reports, /No public link or email exists yet/);
 });
+
+test("resolved campaigns end in a customer-facing delivery receipt", () => {
+  const actions = readFileSync(
+    join(process.cwd(), "src/app/market-iq/distribution/actions.ts"),
+    "utf8"
+  );
+  const receipt = readFileSync(
+    join(process.cwd(), "src/app/market-iq/delivery/[campaignId]/page.tsx"),
+    "utf8"
+  );
+
+  assert.match(actions, /nextCampaignStatus/);
+  assert.match(actions, /redirect\(`\/market-iq\/delivery\/\$\{row\.campaign\.id\}/);
+  assert.match(receipt, /Delivery receipt/);
+  assert.match(receipt, /Provider accepted/);
+  assert.match(receipt, /One status for each approved recipient/);
+  assert.match(receipt, /It does not infer that an unopened email was read/);
+  assert.match(receipt, /Retry recipient/);
+  assert.match(receipt, /Continue confirmations/);
+});
