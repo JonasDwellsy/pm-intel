@@ -7,7 +7,7 @@ import { buildMarketIqReportEmail } from "./email";
 import { parseMarketIqEditorialDefaultsForm } from "./form-values";
 import { compareMarketIqEditions } from "./edition-comparison";
 import { seededClevelandMarketReport } from "./seeded-cleveland";
-import { applyMarketIqReportScope, buildMarketIqCoveragePreflight, defaultMarketIqScopeSelection, normalizeMarketIqScopeSelection } from "./scope";
+import { applyMarketIqReportScope, buildMarketIqCoveragePreflight, defaultMarketIqScopeSelection, marketIqScopeOptions, normalizeMarketIqScopeSelection } from "./scope";
 import { MarketIqPublicReport } from "@/components/market-iq/report/MarketIqPublicReport";
 
 const baseInput = {
@@ -19,6 +19,29 @@ const baseInput = {
 };
 
 describe("Market IQ local market read assembly", () => {
+  it("derives edition geography from the selected market instead of Cleveland constants", () => {
+    const report = buildMarketIqReportSnapshot({
+      ...baseInput,
+      scope: {
+        ...baseInput.scope,
+        marketId: "san-jose-sunnyvale-santa-clara-ca",
+        marketName: "San Jose–Sunnyvale–Santa Clara, CA MSA",
+        cities: ["San Jose"],
+        zipCodes: ["95112"],
+      },
+      trendSeries: [
+        { geographyType: "city", geographyValue: "San Jose, CA", geographyLabel: "San Jose", propertyType: "apartment", bedrooms: 1, points: [{ rent: 2_700, yearOverYearPct: 1.8, observations: 10, month: "2026-07-01" }] },
+        { geographyType: "zip", geographyValue: "95112", geographyLabel: "ZIP 95112", propertyType: "apartment", bedrooms: 1, points: [{ rent: 2_650, yearOverYearPct: 1.2, observations: 8, month: "2026-07-01" }] },
+      ],
+      mapCenters: { "95112": { latitude: 37.344, longitude: -121.884 } },
+    });
+    expect(marketIqScopeOptions(report)).toMatchObject({ cities: ["San Jose"], zipCodes: ["95112"] });
+    const scoped = applyMarketIqReportScope(report, { cities: ["San Jose"], zipCodes: ["95112"], segments: ["apartment:1"] });
+    expect(scoped.scope.marketId).toBe("san-jose-sunnyvale-santa-clara-ca");
+    expect(scoped.marketRead.cells.map((cell) => cell.geographyValue)).toEqual(["San Jose, CA", "95112"]);
+    expect(scoped.marketMap.points.map((point) => point.zip)).toEqual(["95112"]);
+  });
+
   it("publishes a defensible market cell with level, trajectory, sample, and date", () => {
     const report = buildMarketIqReportSnapshot({ ...baseInput, trendSeries: [{ geographyType: "city", geographyValue: "Cleveland, OH", geographyLabel: "Cleveland", propertyType: "apartment", bedrooms: 1, points: [{ rent: 1_025, yearOverYearPct: 2.5, observations: 20, month: "2026-07-01" }] }] });
     expect(report.marketRead.cells).toHaveLength(1);

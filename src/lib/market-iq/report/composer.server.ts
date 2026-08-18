@@ -2,6 +2,16 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { loadCachedClevelandMarketIqReportSnapshot } from "@/lib/market-iq/report/build.server";
+import { loadCachedColumbusMarketIqReportSnapshot } from "@/lib/market-iq/report/columbus-build.server";
+import { loadCachedSanFranciscoMarketIqReportSnapshot } from "@/lib/market-iq/report/san-francisco-build.server";
+import { loadCachedSanJoseMarketIqReportSnapshot } from "@/lib/market-iq/report/san-jose-build.server";
+import {
+  CLEVELAND_MARKET_ID,
+  COLUMBUS_MARKET_ID,
+  SAN_FRANCISCO_MARKET_ID,
+  SAN_JOSE_MARKET_ID,
+  getMarketIqMarket,
+} from "@/data/market-iq/markets";
 import {
   seededClevelandMarketReport,
 } from "@/lib/market-iq/report/seeded-cleveland";
@@ -9,6 +19,7 @@ import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import type { PriorMarketIqEdition } from "@/lib/market-iq/report/edition-comparison";
 import { marketIqSelectionFromPreference } from "@/lib/market-iq/workspace-preference";
+import { normalizeMarketIqScopeSelectionForSnapshot } from "@/lib/market-iq/report/scope";
 
 export type MarketIqReportBrandInput = MarketIqReportSnapshot["brand"];
 export type MarketIqEditorialDefaults = {
@@ -63,7 +74,25 @@ export async function buildClevelandComposerPreview(brand: MarketIqReportBrandIn
   }
 }
 
-export async function loadMarketIqReportComposer(organizationId: string) {
+export async function buildMarketIqComposerPreview(marketId: string, brand: MarketIqReportBrandInput): Promise<{
+  snapshot: MarketIqReportSnapshot;
+  source: "dwellsy_trends" | "verified_seed";
+}> {
+  if (!getMarketIqMarket(marketId)) throw new Error("The selected Market IQ market is not configured.");
+  if (marketId === CLEVELAND_MARKET_ID) return buildClevelandComposerPreview(brand);
+  const loader = marketId === COLUMBUS_MARKET_ID
+    ? loadCachedColumbusMarketIqReportSnapshot
+    : marketId === SAN_FRANCISCO_MARKET_ID
+      ? loadCachedSanFranciscoMarketIqReportSnapshot
+      : marketId === SAN_JOSE_MARKET_ID
+        ? loadCachedSanJoseMarketIqReportSnapshot
+        : null;
+  if (!loader) throw new Error("The selected Market IQ market is not live.");
+  const snapshot = await loader();
+  return { snapshot: { ...snapshot, brand }, source: "dwellsy_trends" };
+}
+
+export async function loadMarketIqReportComposer(organizationId: string, marketId = CLEVELAND_MARKET_ID) {
   const [organization, latestPublished] = await Promise.all([prisma.organization.findUnique({
     where: { id: organizationId },
     select: {
@@ -72,6 +101,7 @@ export async function loadMarketIqReportComposer(organizationId: string) {
       brandProfile: true,
       marketIqWorkspacePreference: true,
       marketIqReports: {
+        where: { marketId },
         orderBy: { createdAt: "desc" },
         take: 12,
         select: {
@@ -100,13 +130,13 @@ export async function loadMarketIqReportComposer(organizationId: string) {
       },
     },
   }), prisma.marketIqReport.findFirst({
-    where: { organizationId, status: "published" },
+    where: { organizationId, marketId, status: "published" },
     orderBy: { publishedAt: "desc" },
     select: { id: true, periodLabel: true, publishedAt: true, snapshot: true },
   })]);
   if (!organization) return null;
   const brand = organization.brandProfile ?? defaultMarketIqReportBrand(organization.name);
-  const preview = await buildClevelandComposerPreview({
+  const preview = await buildMarketIqComposerPreview(marketId, {
     displayName: brand.displayName,
     logoUrl: brand.logoUrl,
     primaryColor: brand.primaryColor,
@@ -130,5 +160,8 @@ export async function loadMarketIqReportComposer(organizationId: string) {
     companyCtaLabel: organization.brandProfile.companyCtaLabel,
     companyCtaUrl: organization.brandProfile.companyCtaUrl,
   } : EMPTY_MARKET_IQ_EDITORIAL_DEFAULTS;
-  return { organization, brand, preview, priorEdition, editorialDefaults, initialSelection: marketIqSelectionFromPreference(organization.marketIqWorkspacePreference) };
+  const initialSelection = organization.marketIqWorkspacePreference?.defaultMarketId === marketId
+    ? marketIqSelectionFromPreference(organization.marketIqWorkspacePreference, preview.snapshot)
+    : normalizeMarketIqScopeSelectionForSnapshot({}, preview.snapshot);
+  return { organization, brand, preview, priorEdition, editorialDefaults, initialSelection };
 }

@@ -1,8 +1,10 @@
 import {
   defaultMarketIqScopeSelection,
   normalizeMarketIqScopeSelection,
+  normalizeMarketIqScopeSelectionForSnapshot,
   type MarketIqReportScopeSelection,
 } from "@/lib/market-iq/report/scope";
+import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 
 function stringArray(value: string | null | undefined) {
   if (!value) return undefined;
@@ -18,11 +20,16 @@ export function marketIqSelectionFromPreference(preference: {
   defaultCities: string;
   defaultZipCodes: string;
   defaultSegments: string;
-} | null | undefined): MarketIqReportScopeSelection {
-  if (!preference) return defaultMarketIqScopeSelection();
-  return normalizeMarketIqScopeSelection({
+} | null | undefined, snapshot?: MarketIqReportSnapshot): MarketIqReportScopeSelection {
+  if (!preference) return snapshot
+    ? normalizeMarketIqScopeSelectionForSnapshot({}, snapshot)
+    : defaultMarketIqScopeSelection();
+  const input = {
     cities: stringArray(preference.defaultCities),
     zipCodes: stringArray(preference.defaultZipCodes),
     segments: stringArray(preference.defaultSegments) as MarketIqReportScopeSelection["segments"] | undefined,
-  });
+  };
+  return snapshot
+    ? normalizeMarketIqScopeSelectionForSnapshot(input, snapshot)
+    : normalizeMarketIqScopeSelection(input);
 }

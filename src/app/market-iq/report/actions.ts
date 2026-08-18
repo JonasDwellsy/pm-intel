@@ -3,13 +3,13 @@
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
+import { getMarketIqMarket } from "@/data/market-iq/markets";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { marketIqJourneyEventData, marketIqMilestoneDedupeKey } from "@/lib/market-iq/journey-telemetry.server";
-import { buildClevelandComposerPreview, type MarketIqReportBrandInput } from "@/lib/market-iq/report/composer.server";
+import { buildMarketIqComposerPreview, type MarketIqReportBrandInput } from "@/lib/market-iq/report/composer.server";
 import { canAccessMarketIqReportComposer } from "@/lib/market-iq/report/access";
 import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import { compareMarketIqEditions } from "@/lib/market-iq/report/edition-comparison";
@@ -40,7 +40,7 @@ function color(value: FormDataEntryValue | null, fallback: string) {
   return /^#[0-9a-f]{6}$/i.test(raw) ? raw.toUpperCase() : fallback;
 }
 
-async function authorizedMarketIqContext() {
+async function authorizedMarketIqContext(marketId: string) {
   const previewEnabled = marketIqPreviewEnabled();
   if (!previewEnabled) return null;
   const [{ userId, organizationId }, access] = await Promise.all([
@@ -52,7 +52,7 @@ async function authorizedMarketIqContext() {
     userId,
     organizationId,
     hasProduct: access.hasProduct,
-    marketEntitled: isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID),
+    marketEntitled: isMarketEntitled(access.entitlement, marketId),
   });
   if (!allowed || !userId || !organizationId) return null;
   if (!access.capabilities.publishClientReports) return null;
@@ -60,12 +60,13 @@ async function authorizedMarketIqContext() {
 }
 
 export async function publishMarketIqReport(formData: FormData): Promise<void> {
-  const context = await authorizedMarketIqContext();
+  const marketId = clipped(formData.get("marketId"), 80);
+  if (!getMarketIqMarket(marketId)) throw new Error("The selected market is not available.");
+  const context = await authorizedMarketIqContext(marketId);
   if (!context) throw new Error("Market IQ report access is unavailable.");
-  if (clipped(formData.get("marketId"), 80) !== CLEVELAND_MARKET_ID) throw new Error("The selected market is not available.");
   const draftId = clipped(formData.get("draftId"), 80) || null;
   const editionDraft = draftId ? await prisma.marketIqEditionDraft.findFirst({
-    where: { id: draftId, organizationId: context.organizationId, marketId: CLEVELAND_MARKET_ID, status: { in: ["ready", "reviewing"] } },
+    where: { id: draftId, organizationId: context.organizationId, marketId, status: { in: ["ready", "reviewing"] } },
     select: { id: true, snapshot: true, periodEnd: true },
   }) : null;
   if (draftId && !editionDraft) {
@@ -98,17 +99,18 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
   if (!["client", "prospect"].includes(audienceKind)) throw new Error("Choose whether this edition is for current clients or prospects.");
 
   const now = new Date();
-  const selection = parseMarketIqScopeFormData(formData);
-  if (!selection.cities.length && !selection.zipCodes.length) throw new Error("Select at least one city or ZIP code.");
-  if (!selection.segments.length) throw new Error("Select at least one product segment.");
-  const preview = editionDraft ? null : await buildClevelandComposerPreview(brand);
+  const preview = editionDraft ? null : await buildMarketIqComposerPreview(marketId, brand);
   const sourceSnapshot = editionDraft ? parseMarketIqReportSnapshot(editionDraft.snapshot) : preview?.snapshot;
   if (!sourceSnapshot) throw new Error("The reviewed report evidence is unavailable.");
+  if (sourceSnapshot.scope.marketId !== marketId) throw new Error("The reviewed evidence belongs to a different market.");
+  const selection = parseMarketIqScopeFormData(formData, sourceSnapshot);
+  if (!selection.cities.length && !selection.zipCodes.length) throw new Error("Select at least one city or ZIP code.");
+  if (!selection.segments.length) throw new Error("Select at least one product segment.");
   const snapshot = applyMarketIqReportScope({ ...sourceSnapshot, brand }, selection);
   const coverage = buildMarketIqCoveragePreflight(snapshot);
   if (!coverage.canPublish) throw new Error("At least one selected geography and segment must have a fresh Trends IQ value before publishing.");
   const priorReport = await prisma.marketIqReport.findFirst({
-    where: { organizationId: context.organizationId, marketId: CLEVELAND_MARKET_ID, status: "published" },
+    where: { organizationId: context.organizationId, marketId, status: "published" },
     orderBy: { publishedAt: "desc" },
     select: { id: true, periodLabel: true, publishedAt: true, snapshot: true },
   });
@@ -151,7 +153,7 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
     const createdReport = await tx.marketIqReport.create({
       data: {
         organizationId: context.organizationId,
-        marketId: CLEVELAND_MARKET_ID,
+        marketId,
         periodLabel: `${snapshot.scope.periodStart} to ${snapshot.scope.periodEnd}`,
         publicToken,
         status: "published",
@@ -211,7 +213,7 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
         sourceRoute: "/market-iq/report",
         subjectId: createdReport.id,
         dedupeKey: marketIqMilestoneDedupeKey(context.organizationId, "edition"),
-        metadata: { marketId: CLEVELAND_MARKET_ID, recurringDraft: Boolean(editionDraft) },
+        metadata: { marketId, recurringDraft: Boolean(editionDraft) },
       })],
       skipDuplicates: true,
     });
@@ -222,8 +224,9 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
 }
 
 export async function revokeMarketIqReport(formData: FormData): Promise<void> {
-  const context = await authorizedMarketIqContext();
   const reportId = clipped(formData.get("reportId"), 80);
+  const candidate = reportId ? await prisma.marketIqReport.findUnique({ where: { id: reportId }, select: { marketId: true } }) : null;
+  const context = candidate ? await authorizedMarketIqContext(candidate.marketId) : null;
   if (!context || !reportId) throw new Error("Market IQ report update is unavailable.");
   const report = await prisma.marketIqReport.findFirst({
     where: { id: reportId, organizationId: context.organizationId },

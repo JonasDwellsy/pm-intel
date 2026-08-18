@@ -26,6 +26,12 @@ export type MarketIqReportScopeSelection = {
   segments: MarketIqSegmentKey[];
 };
 
+export type MarketIqReportScopeOptions = {
+  cities: string[];
+  zipCodes: string[];
+  segments: typeof MARKET_IQ_REPORT_SEGMENTS[number][];
+};
+
 export type MarketIqCoverageStatus = "reportable" | "stale" | "unavailable";
 export type MarketIqCoverageCell = {
   key: string;
@@ -64,12 +70,40 @@ export function normalizeMarketIqScopeSelection(input: Partial<MarketIqReportSco
   };
 }
 
-export function parseMarketIqScopeFormData(formData: FormData) {
-  return normalizeMarketIqScopeSelection({
+export function marketIqScopeOptions(snapshot: MarketIqReportSnapshot): MarketIqReportScopeOptions {
+  const cities = [...new Set(snapshot.marketRead.cells
+    .filter((cell) => cell.geographyType === "city")
+    .map((cell) => cell.geographyLabel))].sort();
+  const zipCodes = [...new Set(snapshot.marketRead.cells
+    .filter((cell) => cell.geographyType === "zip")
+    .map((cell) => cell.geographyValue))].sort();
+  const availableKeys = new Set(snapshot.marketRead.cells.map((cell) => `${cell.propertyType}:${cell.bedrooms}`));
+  const segments = MARKET_IQ_REPORT_SEGMENTS.filter((segment) => availableKeys.has(segment.key));
+  return { cities, zipCodes, segments };
+}
+
+export function normalizeMarketIqScopeSelectionForSnapshot(
+  input: Partial<MarketIqReportScopeSelection>,
+  snapshot: MarketIqReportSnapshot,
+): MarketIqReportScopeSelection {
+  const options = marketIqScopeOptions(snapshot);
+  const segmentKeys = options.segments.map((segment) => segment.key);
+  return {
+    cities: input.cities === undefined ? options.cities : allowedValues(input.cities, options.cities),
+    zipCodes: input.zipCodes === undefined ? options.zipCodes : allowedValues(input.zipCodes, options.zipCodes),
+    segments: (input.segments === undefined ? segmentKeys : allowedValues(input.segments, segmentKeys)) as MarketIqSegmentKey[],
+  };
+}
+
+export function parseMarketIqScopeFormData(formData: FormData, snapshot?: MarketIqReportSnapshot) {
+  const input = {
     cities: formData.getAll("cities").map(String),
     zipCodes: formData.getAll("zipCodes").map(String),
     segments: formData.getAll("segments").map(String) as MarketIqSegmentKey[],
-  });
+  };
+  return snapshot
+    ? normalizeMarketIqScopeSelectionForSnapshot(input, snapshot)
+    : normalizeMarketIqScopeSelection(input);
 }
 
 function segmentKey(propertyType: MarketIqPropertyType, bedrooms: number): MarketIqSegmentKey | null {
@@ -114,7 +148,7 @@ export function applyMarketIqReportScope(
   snapshot: MarketIqReportSnapshot,
   rawSelection: Partial<MarketIqReportScopeSelection>,
 ): MarketIqReportSnapshot {
-  const selection = normalizeMarketIqScopeSelection(rawSelection);
+  const selection = normalizeMarketIqScopeSelectionForSnapshot(rawSelection, snapshot);
   const cells = snapshot.marketRead.cells
     .filter((cell) => selectedCell(cell, selection))
     .map((cell) => suppressStaleCell(cell, snapshot.scope.periodEnd));
