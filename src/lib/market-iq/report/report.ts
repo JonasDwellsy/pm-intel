@@ -298,7 +298,7 @@ export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): Ma
     marketConditions: input.marketConditions,
     marketActivity: input.marketActivity,
     sources: input.sources,
-    methodNote: "Every published rent input comes from Trends IQ. Overall apartment and house summaries use the median stored on the Trends IQ all-bedroom rows, with year-over-year change calculated from the matching prior-year median in that same Trends series. A published Trends IQ value is treated as reportable because Dwellsy's underlying methodology has already established confidence in that result. Unit counts are retained as source metadata but are not used as an additional publication threshold. Total IQ supports listing volume, velocity, days on market, and recent listing activity only. Census ZCTAs provide the ZIP-area geometry; postal ZIP 44061 has no Census ZCTA polygon.",
+    methodNote: "Every published rent input comes from Trends IQ. Overall apartment and house summaries use the median stored on the Trends IQ all-bedroom rows, with year-over-year change calculated from the matching prior-year median in that same Trends series. A published Trends IQ value is treated as reportable because Dwellsy's underlying methodology has already established confidence in that result. Unit counts are retained as source metadata but are not used as an additional publication threshold. Total IQ supports listing volume, velocity, days on market, and recent listing activity only. Census ZCTAs provide ZIP-area geometry.",
     disclosure: "This report measures advertised asking-market activity. It does not measure occupancy, signed leases, concessions, effective rent, or property-level financial performance.",
   };
 }

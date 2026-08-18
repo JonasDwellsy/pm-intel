@@ -151,11 +151,11 @@ function event(row: EventRow): MarketIqListingEvent | null {
   };
 }
 
-export async function loadClevelandListingActivity(): Promise<MarketIqMarketActivity> {
+export async function loadMarketListingActivity(msaCode: string): Promise<MarketIqMarketActivity> {
   return withDwellsyReadOnly(async (client) => {
     const [eventsResult, countsResult] = await Promise.all([
-      client.query<EventRow>(ACTIVITY_SQL, [CLEVELAND_MSA_CODE]),
-      client.query<CountRow>(COUNTS_SQL, [CLEVELAND_MSA_CODE]),
+      client.query<EventRow>(ACTIVITY_SQL, [msaCode]),
+      client.query<CountRow>(COUNTS_SQL, [msaCode]),
     ]);
     const counts = countsResult.rows[0];
     if (!counts?.as_of) throw new Error("Dwellsy listing activity did not include a usable source timestamp.");
@@ -167,4 +167,8 @@ export async function loadClevelandListingActivity(): Promise<MarketIqMarketActi
       events: eventsResult.rows.map(event).filter((value): value is MarketIqListingEvent => value !== null),
     };
   });
+}
+
+export async function loadClevelandListingActivity() {
+  return loadMarketListingActivity(CLEVELAND_MSA_CODE);
 }

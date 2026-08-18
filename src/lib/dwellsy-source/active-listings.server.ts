@@ -93,12 +93,12 @@ function joinedAddress(address1: string | null, address2: string | null) {
   return parts.length ? parts.join(" ") : null;
 }
 
-export async function loadClevelandActiveListings(): Promise<{
+export async function loadMarketActiveListings(msaCode: string): Promise<{
   listings: DwellsyActiveListing[];
   sourceAvailableThrough: Date;
 }> {
   return withDwellsyReadOnly(async (client) => {
-    const result = await client.query<SourceRow>(ACTIVE_LISTINGS_SQL, [CLEVELAND_MSA_CODE]);
+    const result = await client.query<SourceRow>(ACTIVE_LISTINGS_SQL, [msaCode]);
     const listings = result.rows.map((row): DwellsyActiveListing => {
       const askingRent = Number(row.asking_rent);
       const bedrooms = Number(row.bedrooms);
@@ -139,4 +139,8 @@ export async function loadClevelandActiveListings(): Promise<{
     }
     return { listings, sourceAvailableThrough };
   });
+}
+
+export async function loadClevelandActiveListings() {
+  return loadMarketActiveListings(CLEVELAND_MSA_CODE);
 }

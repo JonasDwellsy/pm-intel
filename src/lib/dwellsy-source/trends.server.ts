@@ -10,7 +10,7 @@ const DWELLSY_TRENDS_SQL = `
   WITH selected_msa_stats AS (
     SELECT 'msa'::text AS geography_type,
            s.msa::text AS geography_value,
-           'Cleveland-Elyria, OH'::text AS geography_label,
+           $7::text AS geography_label,
            s.address_type,
            s.bedrooms,
            s.month,
@@ -18,7 +18,7 @@ const DWELLSY_TRENDS_SQL = `
            s.trends_value AS rent,
            s.rent_change_percentage AS year_over_year_pct
     FROM dwellsy_prod.ai_msa_stats_table s
-    WHERE s.msa = 17460
+    WHERE s.msa = $6::bigint
       AND s.month >= $3::date
       AND s.address_type = ANY($4::text[])
       AND s.bedrooms = ANY($5::int[])
@@ -35,7 +35,7 @@ const DWELLSY_TRENDS_SQL = `
     FROM dwellsy_prod.ai_city_stats_table s
     JOIN dwellsy_prod.city_table c ON c.id = s.city_id
     WHERE c.name = ANY($1::text[])
-      AND c.state = 'OH'
+      AND c.state = $8::text
       AND s.month >= $3::date
       AND s.address_type = ANY($4::text[])
       AND s.bedrooms = ANY($5::int[])
@@ -69,14 +69,14 @@ const DWELLSY_PRODUCT_ROLLUP_SQL = `
   WITH rollup AS (
     SELECT 'msa'::text AS geography_type,
            s.msa::text AS geography_value,
-           'Cleveland-Elyria, OH'::text AS geography_label,
+           $5::text AS geography_label,
            s.address_type,
            s.bedrooms,
            s.month,
            s.count AS observations,
            s.median AS rent
     FROM dwellsy_prod.ai_msa_stats_table s
-    WHERE s.msa = 17460
+    WHERE s.msa = $4::bigint
       AND s.month >= $1::date
       AND s.address_type = ANY($3::text[])
       AND s.bedrooms = 999
@@ -94,7 +94,7 @@ const DWELLSY_PRODUCT_ROLLUP_SQL = `
     FROM dwellsy_prod.ai_city_stats_table s
     JOIN dwellsy_prod.city_table c ON c.id = s.city_id
     JOIN dwellsy_prod.msa_city_table membership ON membership.city_id = s.city_id
-    WHERE membership.msa_code = 17460
+    WHERE membership.msa_code = $4::bigint
       AND s.month >= $1::date
       AND s.address_type = ANY($3::text[])
       AND s.bedrooms = 999
@@ -143,6 +143,9 @@ export async function loadDwellsyTrendSeries(input: {
   zipCodes: string[];
   periodStart: string;
   bedrooms: number[];
+  msaCode?: string;
+  msaLabel?: string;
+  stateCode?: string;
 }) {
   return withDwellsyReadOnly(async (client) => {
     const result = await client.query<DwellsyTrendSourceRow>(DWELLSY_TRENDS_SQL, [
@@ -151,9 +154,12 @@ export async function loadDwellsyTrendSeries(input: {
       input.periodStart,
       ["Apartment", "House"],
       input.bedrooms,
+      input.msaCode ?? "17460",
+      input.msaLabel ?? "Cleveland-Elyria, OH",
+      input.stateCode ?? "OH",
     ]);
     const series = mapDwellsyTrendRows(result.rows);
-    if (!series.length) throw new Error("Dwellsy Trends returned no rows for the selected Cleveland scope.");
+    if (!series.length) throw new Error(`Dwellsy Trends returned no rows for MSA ${input.msaCode ?? "17460"}.`);
     return { series };
   });
 }
@@ -161,15 +167,19 @@ export async function loadDwellsyTrendSeries(input: {
 export async function loadDwellsyProductRollupSeries(input: {
   zipCodes: string[];
   periodStart: string;
+  msaCode?: string;
+  msaLabel?: string;
 }) {
   return withDwellsyReadOnly(async (client) => {
     const result = await client.query<DwellsyTrendSourceRow>(DWELLSY_PRODUCT_ROLLUP_SQL, [
       input.periodStart,
       input.zipCodes,
       ["Apartment", "House"],
+      input.msaCode ?? "17460",
+      input.msaLabel ?? "Cleveland-Elyria, OH",
     ]);
     const series = mapDwellsyTrendRows(result.rows);
-    if (!series.length) throw new Error("Dwellsy Trends returned no 999-bedroom product rollups for Cleveland.");
+    if (!series.length) throw new Error(`Dwellsy Trends returned no 999-bedroom product rollups for MSA ${input.msaCode ?? "17460"}.`);
     return { series };
   });
 }

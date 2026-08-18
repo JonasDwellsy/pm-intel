@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CLEVELAND_MARKET_ID,
+  COLUMBUS_MARKET_ID,
   MARKET_IQ_MARKETS,
   SAN_FRANCISCO_MARKET_ID,
   getMarketIqMarket,
@@ -18,9 +19,10 @@ test("the Market IQ registry has unique deployed IDs, slugs, and CBSA codes", ()
   assert.deepEqual(MARKET_IQ_MARKETS.map((market) => market.cbsaCode), ["17460", "18140", "41860", "41940"]);
 });
 
-test("Cleveland remains the only live adapter during the market foundation build", () => {
+test("Cleveland and Columbus have live market adapters", () => {
   const liveMarkets = MARKET_IQ_MARKETS.filter((market) => market.status === "live");
-  assert.deepEqual(liveMarkets.map((market) => market.id), [CLEVELAND_MARKET_ID]);
+  assert.deepEqual(liveMarkets.map((market) => market.id), [CLEVELAND_MARKET_ID, COLUMBUS_MARKET_ID]);
+  assert.equal(getMarketIqMarket(COLUMBUS_MARKET_ID)?.cbsaCode, "18140");
 });
 
 test("the San Francisco registry entry preserves the deployed entitlement ID", () => {
@@ -30,18 +32,18 @@ test("the San Francisco registry entry preserves the deployed entitlement ID", (
 });
 
 test("the registry filters markets to the organization entitlement", () => {
-  const markets = listEntitledMarketIqMarkets(new Set([CLEVELAND_MARKET_ID, "columbus-oh"]));
-  assert.deepEqual(markets.map((market) => market.id), [CLEVELAND_MARKET_ID, "columbus-oh"]);
+  const markets = listEntitledMarketIqMarkets(new Set([CLEVELAND_MARKET_ID, COLUMBUS_MARKET_ID]));
+  assert.deepEqual(markets.map((market) => market.id), [CLEVELAND_MARKET_ID, COLUMBUS_MARKET_ID]);
   assert.equal(listEntitledMarketIqMarkets(ALL_MARKETS).length, 4);
 });
 
 test("an explicit entitled market wins over the saved preference", () => {
   const market = resolveActiveMarketIqMarket({
-    requestedMarketId: "columbus-oh",
+    requestedMarketId: COLUMBUS_MARKET_ID,
     preferredMarketId: CLEVELAND_MARKET_ID,
     entitlement: ALL_MARKETS,
   });
-  assert.equal(market?.id, "columbus-oh");
+  assert.equal(market?.id, COLUMBUS_MARKET_ID);
 });
 
 test("an unknown or unauthorized request falls back without leaking another market", () => {

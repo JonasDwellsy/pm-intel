@@ -30,7 +30,6 @@ const METRICS: Array<{ value: Metric; label: string }> = [
 ];
 
 const COLORS = { rising: "#147d75", stable: "#93a2b5", softening: "#cc5620", missing: "#e7eaed" } as const;
-const CLEVELAND_MSA_BOUNDS: MapBounds = [[-82.50, 40.86], [-80.82, 41.88]];
 
 function boundsForFeatures(features: FeatureCollection<Geometry, GeoJsonProperties>["features"]): MapBounds | null {
   let west = Number.POSITIVE_INFINITY;
@@ -223,6 +222,8 @@ function ZipDrilldown({
   activity,
   nearby,
   onSelect,
+  marketName,
+  timeZone,
 }: {
   selected: MarketIqMapPoint;
   benchmark?: MarketIqMarketCell;
@@ -230,6 +231,8 @@ function ZipDrilldown({
   activity?: MarketIqMarketActivity;
   nearby: MarketIqMapPoint[];
   onSelect: (zip: string) => void;
+  marketName: string;
+  timeZone: string;
 }) {
   const events = activity?.events.filter((event) => event.zip === selected.zip).slice(0, 5) ?? [];
   return <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.07)]" aria-label={`ZIP ${selected.zip} market detail`}>
@@ -240,12 +243,12 @@ function ZipDrilldown({
     <div className="p-6 lg:p-8">
       <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
         <div><div className="mb-3 flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Trajectory</p><h4 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Twelve-month asking-rent path</h4></div><p className="text-right text-xs text-slate-500">Asking-rent data<br />{monthLabel(selected.month)}</p></div><TrendChart points={selected.series ?? []} /></div>
-        <div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Geographic context</p><h4 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Same product, three levels</h4><div className="mt-3 grid gap-3"><ComparisonCard label={`ZIP ${selected.zip}`} selected={selected} /><ComparisonCard label={selected.primaryCity ?? "Primary municipality"} cell={cityCell} /><ComparisonCard label="Cleveland-Elyria MSA" cell={benchmark} /></div></div>
+        <div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Geographic context</p><h4 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Same product, three levels</h4><div className="mt-3 grid gap-3"><ComparisonCard label={`ZIP ${selected.zip}`} selected={selected} /><ComparisonCard label={selected.primaryCity ?? "Primary municipality"} cell={cityCell} /><ComparisonCard label={marketName} cell={benchmark} /></div></div>
       </div>
       <div className="mt-7 grid gap-5 lg:grid-cols-[1fr_0.85fr_1fr]">
         <article className="rounded-2xl bg-[#eef5f5] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-800">Local context</p><p className="mt-3 text-sm leading-6 text-slate-700">{interpretation(selected, cityCell, benchmark)}</p></article>
         <article className="rounded-2xl border border-slate-200 p-5"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Nearby ZIPs with data</p><div className="mt-3 space-y-2">{nearby.length ? nearby.map((point) => <button type="button" key={point.zip} onClick={() => onSelect(point.zip)} className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left hover:bg-slate-50"><span><strong className="text-sm text-slate-700">{point.zip}</strong><span className="ml-2 text-xs text-slate-400">{distanceMiles(selected, point).toFixed(1)} mi</span></span><span className="text-right text-xs font-semibold text-slate-600">{money(point.rent)}<br />{percentage(point.yearOverYearPct)}</span></button>) : <p className="text-sm text-slate-500">No nearby ZIP values are available for this product.</p>}</div></article>
-        <article className="rounded-2xl border border-slate-200 p-5"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Recent observed activity</p><div className="mt-3 space-y-3">{events.length ? events.map((event) => <div key={event.id} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0"><p className="text-sm font-semibold text-slate-700">{eventLabel(event)}</p><p className="mt-1 text-xs text-slate-400">{new Date(event.observedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York", timeZoneName: "short" })}</p></div>) : <p className="text-sm leading-6 text-slate-500">No recent listing or confirmed price-change events appeared in the current source window for this ZIP.</p>}</div></article>
+        <article className="rounded-2xl border border-slate-200 p-5"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Recent observed activity</p><div className="mt-3 space-y-3">{events.length ? events.map((event) => <div key={event.id} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0"><p className="text-sm font-semibold text-slate-700">{eventLabel(event)}</p><p className="mt-1 text-xs text-slate-400">{new Date(event.observedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone, timeZoneName: "short" })}</p></div>) : <p className="text-sm leading-6 text-slate-500">No recent listing or confirmed price-change events appeared in the current source window for this ZIP.</p>}</div></article>
       </div>
     </div>
   </section>;
@@ -257,12 +260,18 @@ export function MarketIqRentMap({
   cityCells,
   activity,
   segments = DEFAULT_SEGMENTS,
+  marketName,
+  timeZone,
+  boundaryUrl,
 }: {
   points: MarketIqMapPoint[];
   benchmarks: MarketIqMarketCell[];
   cityCells: MarketIqMarketCell[];
   activity?: MarketIqMarketActivity;
   segments?: MarketIqMapSegment[];
+  marketName: string;
+  timeZone: string;
+  boundaryUrl: string;
 }) {
   const [segment, setSegment] = useState<MarketIqMapSegment>(segments[0] ?? DEFAULT_SEGMENTS[0]);
   const [metric, setMetric] = useState<Metric>("yoy");
@@ -323,7 +332,7 @@ export function MarketIqRentMap({
     let cleanup: (() => void) | undefined;
     (async () => {
       try {
-        const [mapboxModule, boundaryResponse] = await Promise.all([import("mapbox-gl"), fetch("/data/cleveland-zcta.geojson")]);
+        const [mapboxModule, boundaryResponse] = await Promise.all([import("mapbox-gl"), fetch(boundaryUrl)]);
         if (!boundaryResponse.ok) throw new Error("ZIP geometry unavailable");
         const boundaries = await boundaryResponse.json() as FeatureCollection<Geometry, GeoJsonProperties>;
         if (cancelled) return;
@@ -352,7 +361,9 @@ export function MarketIqRentMap({
           }),
         };
         const publishedBounds = boundsForFeatures(joined.features.filter((feature) => feature.properties?.supported === true));
-        const initialBounds = mapView === "published" && publishedBounds ? publishedBounds : CLEVELAND_MSA_BOUNDS;
+        const marketBounds = boundsForFeatures(joined.features);
+        if (!marketBounds) throw new Error("ZIP geometry has no usable bounds");
+        const initialBounds = mapView === "published" && publishedBounds ? publishedBounds : marketBounds;
         const mapboxgl = mapboxModule.default;
         mapboxgl.accessToken = token;
         const map = new mapboxgl.Map({
@@ -399,7 +410,7 @@ export function MarketIqRentMap({
       }
     })();
     return () => { cancelled = true; cleanup?.(); };
-  }, [benchmark, filtered, mapView, metric, min, max, segmentPoints]);
+  }, [benchmark, boundaryUrl, filtered, mapView, metric, min, max, segmentPoints]);
 
   return <div>
     <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
@@ -414,7 +425,7 @@ export function MarketIqRentMap({
       <Stat label="ZIP coverage" value={`${filtered.length} ZIPs`} detail="with an asking-rent value for this product" />
       <Stat label="Asking-rent range" value={rents.length ? `${money(Math.min(...rents))} to ${money(Math.max(...rents))}` : "Not published"} detail={benchmark?.rent ? `${money(benchmark.rent)} MSA benchmark` : "MSA comparison unavailable"} />
       <Stat label="Local direction" value={`${rising} up · ${softening} down`} detail={`${filtered.length - rising - softening} within 1% or no YoY read`} />
-      <Stat label="Benchmark month" value={monthLabel(benchmark?.month ?? null)} detail={`${segment.label} · Cleveland-Elyria MSA`} />
+      <Stat label="Benchmark month" value={monthLabel(benchmark?.month ?? null)} detail={`${segment.label} · ${marketName}`} />
     </div>
 
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
@@ -430,7 +441,7 @@ export function MarketIqRentMap({
             <div className="h-2.5 rounded-full" style={{ background: metric === "yoy" || metric === "benchmark" ? "linear-gradient(90deg,#b84016,#e8e6df,#08756e)" : "linear-gradient(90deg,#dbecef,#63a5ab,#164d69)" }} />
             <div className="mt-2 flex justify-between gap-2 text-[10px] font-semibold"><span>{legendLabels.left}</span><span>{legendLabels.middle}</span><span className="text-right">{legendLabels.right}</span></div>
             <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#e7eaed]" />No asking-rent value</span></div>
-            <p className="mt-2 text-[10px] leading-4 text-slate-400">Every available value is colored. Use Full MSA to see all 101 Census ZCTAs in the 102-ZIP market definition.</p>
+            <p className="mt-2 text-[10px] leading-4 text-slate-400">Every available value is colored. Use Full MSA to see the complete configured Census ZCTA geography.</p>
           </div>
         </div>}</div>
 
@@ -447,6 +458,6 @@ export function MarketIqRentMap({
       </aside>
     </div>
 
-    {selected && <ZipDrilldown selected={selected} benchmark={benchmark} cityCell={cityCell} activity={activity} nearby={nearby} onSelect={setSelectedZip} />}
+    {selected && <ZipDrilldown selected={selected} benchmark={benchmark} cityCell={cityCell} activity={activity} nearby={nearby} onSelect={setSelectedZip} marketName={marketName} timeZone={timeZone} />}
   </div>;
 }

@@ -1,6 +1,7 @@
 import "server-only";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { marketIqPrisma } from "@/lib/market-iq/prisma";
+import { loadMarketActiveListings } from "@/lib/dwellsy-source/active-listings.server";
 
 export type ClevelandLiveListingPulse = {
   status: "healthy" | "unavailable";
@@ -16,6 +17,46 @@ export type ClevelandLiveListingPulse = {
   deactivatedEvents: number;
   message: string;
 };
+
+export async function loadDirectMarketListingPulse(input: {
+  marketName: string;
+  msaCode: string;
+}): Promise<ClevelandLiveListingPulse> {
+  try {
+    const source = await loadMarketActiveListings(input.msaCode);
+    const apartmentListings = source.listings.filter((listing) => listing.propertyType === "apartment").length;
+    const houseListings = source.listings.length - apartmentListings;
+    return {
+      status: "healthy",
+      sourceName: "Dwellsy production listing database",
+      sourceAvailableThrough: source.sourceAvailableThrough,
+      activeListings: source.listings.length,
+      apartmentListings,
+      houseListings,
+      newEvents: 0,
+      relistedEvents: 0,
+      reactivatedEvents: 0,
+      priceChangeEvents: 0,
+      deactivatedEvents: 0,
+      message: `Current ${input.marketName} listings are read directly from Dwellsy. Snapshot-based event counts begin after the first synchronized refresh.`,
+    };
+  } catch {
+    return {
+      status: "unavailable",
+      sourceName: "Dwellsy production listing database",
+      sourceAvailableThrough: null,
+      activeListings: 0,
+      apartmentListings: 0,
+      houseListings: 0,
+      newEvents: 0,
+      relistedEvents: 0,
+      reactivatedEvents: 0,
+      priceChangeEvents: 0,
+      deactivatedEvents: 0,
+      message: `Current ${input.marketName} listing inventory is temporarily unavailable. No substitute records are shown.`,
+    };
+  }
+}
 
 export async function loadClevelandLiveListingPulse(): Promise<ClevelandLiveListingPulse> {
   const run = await marketIqPrisma.marketIqListingFeedRun.findFirst({

@@ -2,13 +2,14 @@ import { notFound, redirect } from "next/navigation";
 import { MarketIqIntelligenceWorkspace } from "@/components/market-iq/MarketIqIntelligenceWorkspace";
 import { MarketIqMarketPreparing } from "@/components/market-iq/MarketIqMarketPreparing";
 import { MarketIqMarketSelector } from "@/components/market-iq/MarketIqMarketSelector";
-import { listEntitledMarketIqMarkets } from "@/data/market-iq/markets";
+import { COLUMBUS_MARKET_ID, listEntitledMarketIqMarkets } from "@/data/market-iq/markets";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { loadClevelandLiveListingPulse } from "@/lib/market-iq/live-listings.server";
+import { loadClevelandLiveListingPulse, loadDirectMarketListingPulse } from "@/lib/market-iq/live-listings.server";
 import { resolveActiveMarketIqMarket } from "@/lib/market-iq/markets/selection";
 import { loadCachedClevelandMarketIqReportSnapshot } from "@/lib/market-iq/report/build.server";
+import { loadCachedColumbusMarketIqReportSnapshot } from "@/lib/market-iq/report/columbus-build.server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -55,10 +56,15 @@ export default async function MarketIqPage({
     );
   }
 
-  const [report, liveListingPulse] = await Promise.all([
-    loadCachedClevelandMarketIqReportSnapshot(),
-    loadClevelandLiveListingPulse(),
-  ]);
+  const [report, liveListingPulse] = activeMarket.id === COLUMBUS_MARKET_ID
+    ? await Promise.all([
+        loadCachedColumbusMarketIqReportSnapshot(),
+        loadDirectMarketListingPulse({ marketName: activeMarket.shortLabel, msaCode: activeMarket.cbsaCode }),
+      ])
+    : await Promise.all([
+        loadCachedClevelandMarketIqReportSnapshot(),
+        loadClevelandLiveListingPulse(),
+      ]);
 
   return (
     <>
@@ -67,6 +73,7 @@ export default async function MarketIqPage({
       </div>
       <MarketIqIntelligenceWorkspace
         report={report}
+        market={activeMarket}
         listingSync={{
           status: liveListingPulse.status,
           availableThrough: liveListingPulse.sourceAvailableThrough?.toISOString() ?? null,

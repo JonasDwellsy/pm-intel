@@ -53,7 +53,7 @@ export const MARKET_IQ_MARKETS = [
     stateCodes: ["OH"],
     timeZone: "America/New_York",
     map: { center: [-82.9988, 39.9612], zoom: 8.4 },
-    status: "preparing",
+    status: "live",
   },
   {
     id: SAN_FRANCISCO_MARKET_ID,
@@ -95,4 +95,3 @@ export function listEntitledMarketIqMarkets(entitlement: MarketEntitlement): Mar
   const entitledIds = new Set(filterToEntitled(entitlement, MARKET_IQ_MARKETS.map((market) => market.id)));
   return MARKET_IQ_MARKETS.filter((market) => entitledIds.has(market.id));
 }
-
