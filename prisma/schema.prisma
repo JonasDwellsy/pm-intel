@@ -514,6 +514,8 @@ model Organization {
   marketIqSubscriptions         MarketIqSubscription[]
   marketIqWorkspacePreference   MarketIqWorkspacePreference?
   marketIqJourneyEvents         MarketIqJourneyEvent[]
+  marketIqSupportState          MarketIqWorkspaceSupportState?
+  marketIqSupportEvents         MarketIqWorkspaceSupportEvent[]
   portfolioIqPortfolios         PortfolioIqPortfolio[]
   dwellsyIqInsights             DwellsyIqInsight[]
   portfolioIqOnboardingRequests PortfolioIqOnboardingRequest[]
@@ -620,6 +622,52 @@ model MarketIqJourneyEvent {
   @@index([organizationId, occurredAt(sort: Desc)])
   @@index([organizationId, milestone, status])
   @@index([eventKey, occurredAt(sort: Desc)])
+}
+
+// Internal customer-success state for one Market IQ workspace. This model is
+// intentionally separate from customer-facing report content and from the
+// Operator IQ and Portfolio IQ support models.
+model MarketIqWorkspaceSupportState {
+  id              String    @id @default(cuid())
+  organizationId  String    @unique
+  status          String    @default("open") // open | monitoring | resolved
+  assignedTo      String?
+  assignedUserId  String?
+  followUpAt      DateTime?
+  latestNote      String?
+  updatedByUserId String
+  resolvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events       MarketIqWorkspaceSupportEvent[]
+
+  @@index([status, followUpAt])
+  @@index([assignedUserId, status])
+}
+
+// Append-only audit trail for Market IQ workspace support. Notes and staff
+// assignments remain internal and never render in PM or recipient surfaces.
+model MarketIqWorkspaceSupportEvent {
+  id             String    @id @default(cuid())
+  organizationId String
+  supportStateId String
+  action         String // opened | updated | monitoring | resolved | reopened | note
+  fromStatus     String?
+  toStatus       String
+  assignedTo     String?
+  assignedUserId String?
+  followUpAt     DateTime?
+  note           String?
+  actorUserId    String
+  createdAt      DateTime  @default(now())
+
+  organization Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supportState MarketIqWorkspaceSupportState @relation(fields: [supportStateId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([supportStateId, createdAt(sort: Desc)])
 }
 
 // Market IQ resources are deliberately separate from Operator IQ's WatchList
