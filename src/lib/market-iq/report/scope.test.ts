@@ -7,24 +7,31 @@ import {
   toggleMarketIqSegmentSelection,
 } from "@/lib/market-iq/report/scope";
 
-test("aggregate product selections replace bedroom-level selections", () => {
+test("aggregate product selections select every available view for that product", () => {
   assert.deepEqual(
     toggleMarketIqSegmentSelection(["house:2", "house:3", "apartment:1"], "house:999"),
-    ["apartment:1", "house:999"],
+    ["house:999", "apartment:1", "house:2", "house:3", "house:4"],
   );
 });
 
-test("bedroom-level selections replace the aggregate for that product", () => {
+test("deselecting a bedroom from an all-product selection clears the aggregate state", () => {
   assert.deepEqual(
-    toggleMarketIqSegmentSelection(["house:999", "apartment:999"], "house:4"),
-    ["apartment:999", "house:4"],
+    toggleMarketIqSegmentSelection(["house:999", "house:2", "house:3", "house:4", "apartment:1"], "house:4"),
+    ["apartment:1", "house:2", "house:3"],
   );
 });
 
-test("legacy contradictory selections keep the more specific bedroom choices", () => {
+test("selecting the final bedroom view checks the aggregate product state", () => {
   assert.deepEqual(
-    normalizeMarketIqSegmentSelection(["house:999", "house:2", "house:3", "apartment:999"]),
-    ["house:2", "house:3", "apartment:999"],
+    toggleMarketIqSegmentSelection(["house:2", "house:3"], "house:4"),
+    ["house:999", "house:2", "house:3", "house:4"],
+  );
+});
+
+test("legacy aggregate selections expand to every bedroom view", () => {
+  assert.deepEqual(
+    normalizeMarketIqSegmentSelection(["house:999", "apartment:1"]),
+    ["house:999", "apartment:1", "house:2", "house:3", "house:4"],
   );
 });
 

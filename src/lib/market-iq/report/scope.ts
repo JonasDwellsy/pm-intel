@@ -67,27 +67,40 @@ function isAggregateSegment(value: MarketIqSegmentKey) {
   return value.endsWith(":999");
 }
 
-/**
- * An aggregate product segment and its bedroom-level segments are alternate
- * views of the same product, not additive filters. When legacy input contains
- * both, preserve the more specific bedroom choices.
- */
-export function normalizeMarketIqSegmentSelection(values: MarketIqSegmentKey[]) {
-  const unique = [...new Set(values)];
-  return unique.filter((value) => {
-    if (!isAggregateSegment(value)) return true;
+/** Expand an aggregate product choice into every available view for that product. */
+export function normalizeMarketIqSegmentSelection(
+  values: MarketIqSegmentKey[],
+  availableValues: readonly MarketIqSegmentKey[] = MARKET_IQ_REPORT_SEGMENTS.map((segment) => segment.key),
+) {
+  const selected = new Set(values);
+  for (const value of values) {
+    if (!isAggregateSegment(value)) continue;
     const productType = segmentProductType(value);
-    return !unique.some((candidate) => segmentProductType(candidate) === productType && !isAggregateSegment(candidate));
-  });
+    for (const available of availableValues) {
+      if (segmentProductType(available) === productType) selected.add(available);
+    }
+  }
+  return availableValues.filter((value) => selected.has(value));
 }
 
-export function toggleMarketIqSegmentSelection(values: MarketIqSegmentKey[], value: MarketIqSegmentKey) {
-  if (values.includes(value)) return values.filter((item) => item !== value);
+export function toggleMarketIqSegmentSelection(
+  values: MarketIqSegmentKey[],
+  value: MarketIqSegmentKey,
+  availableValues: readonly MarketIqSegmentKey[] = MARKET_IQ_REPORT_SEGMENTS.map((segment) => segment.key),
+) {
   const productType = segmentProductType(value);
+  const availableGroup = availableValues.filter((item) => segmentProductType(item) === productType);
   if (isAggregateSegment(value)) {
-    return [...values.filter((item) => segmentProductType(item) !== productType), value];
+    const allSelected = availableGroup.every((item) => values.includes(item));
+    if (allSelected) return values.filter((item) => segmentProductType(item) !== productType);
+    return availableValues.filter((item) => values.includes(item) || availableGroup.includes(item));
   }
-  return [...values.filter((item) => item !== `${productType}:999`), value];
+  const aggregate = availableGroup.find(isAggregateSegment);
+  const detailValues = availableGroup.filter((item) => !isAggregateSegment(item));
+  const next = values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
+  const withoutAggregate = aggregate ? next.filter((item) => item !== aggregate) : next;
+  const allDetailsSelected = detailValues.length > 0 && detailValues.every((item) => withoutAggregate.includes(item));
+  return availableValues.filter((item) => withoutAggregate.includes(item) || (allDetailsSelected && item === aggregate));
 }
 
 export function defaultMarketIqScopeSelection(): MarketIqReportScopeSelection {
@@ -133,7 +146,7 @@ export function normalizeMarketIqScopeSelectionForSnapshot(
   return {
     cities: input.cities === undefined ? options.cities : allowedValues(input.cities, options.cities),
     zipCodes: input.zipCodes === undefined ? options.zipCodes : allowedValues(input.zipCodes, options.zipCodes),
-    segments: normalizeMarketIqSegmentSelection((input.segments === undefined ? segmentKeys : allowedValues(input.segments, segmentKeys)) as MarketIqSegmentKey[]),
+    segments: normalizeMarketIqSegmentSelection((input.segments === undefined ? segmentKeys : allowedValues(input.segments, segmentKeys)) as MarketIqSegmentKey[], segmentKeys),
   };
 }
 

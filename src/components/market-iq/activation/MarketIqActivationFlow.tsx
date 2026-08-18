@@ -20,6 +20,12 @@ function toggle(values: string[], value: string) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
 
+function toggleAll(values: string[], availableValues: string[]) {
+  const allSelected = availableValues.length > 0 && availableValues.every((value) => values.includes(value));
+  if (allSelected) return values.filter((value) => !availableValues.includes(value));
+  return [...new Set([...values, ...availableValues])];
+}
+
 function websiteLabel(value: string) {
   try {
     return new URL(value).hostname;
@@ -31,6 +37,13 @@ function websiteLabel(value: string) {
 function Choice({ value, label, checked, onChange }: { value: string; label: string; checked: boolean; onChange: () => void }) {
   return <label className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${checked ? "border-teal-300 bg-teal-50 text-navy" : "border-slate-200 bg-white text-slate-500"}`}>
     <input type="checkbox" value={value} checked={checked} onChange={onChange} className="accent-teal-700" />{label}
+  </label>;
+}
+
+function MasterChoice({ label, description, checked, indeterminate, onChange }: { label: string; description: string; checked: boolean; indeterminate: boolean; onChange: () => void }) {
+  return <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 px-4 py-3 ${checked ? "border-navy bg-slate-50 text-navy" : indeterminate ? "border-teal-300 bg-teal-50/60 text-navy" : "border-slate-300 bg-slate-50 text-navy"}`}>
+    <input ref={(input) => { if (input) input.indeterminate = indeterminate; }} type="checkbox" checked={checked} onChange={onChange} className="mt-0.5 accent-teal-700" />
+    <span><span className="block text-sm font-bold">{label}</span><span className="mt-0.5 block text-xs font-normal text-slate-500">{description}</span></span>
   </label>;
 }
 
@@ -62,6 +75,11 @@ export function MarketIqActivationFlow({ marketId, marketLabel, snapshot, initia
   }, selection), [snapshot, brand, editorialDefaults, selection, clientAdvisoryEnabled]);
   const validBrand = brand.displayName.trim().length >= 2;
   const validScope = selection.segments.length > 0 && selection.cities.length + selection.zipCodes.length > 0;
+  const segmentKeys = scopeOptions.segments.map((segment) => segment.key);
+  const allCitiesSelected = scopeOptions.cities.length > 0 && scopeOptions.cities.every((city) => selection.cities.includes(city));
+  const someCitiesSelected = scopeOptions.cities.some((city) => selection.cities.includes(city));
+  const allZipsSelected = scopeOptions.zipCodes.length > 0 && scopeOptions.zipCodes.every((zip) => selection.zipCodes.includes(zip));
+  const someZipsSelected = scopeOptions.zipCodes.some((zip) => selection.zipCodes.includes(zip));
 
   function updateBrand<K extends keyof Brand>(key: K, value: Brand[K]) {
     setBrand((current) => ({ ...current, [key]: value }));
@@ -151,10 +169,10 @@ export function MarketIqActivationFlow({ marketId, marketLabel, snapshot, initia
     {step === 2 && <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <p className="dq-eyebrow">Your market scope</p><h2 className="dq-h2">Choose what should open first</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{clientAdvisoryEnabled ? "You can change the scope for any individual edition. These selections make the usual client read faster to prepare." : "Choose the cities, ZIPs, and rental segments your team follows most often. You can change the view at any time."}</p>
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Cities</legend><div className="mt-3 grid gap-2 sm:grid-cols-2">{scopeOptions.cities.map((city) => <Choice key={city} value={city} label={city} checked={selection.cities.includes(city)} onChange={() => setSelection((current) => ({ ...current, cities: toggle(current.cities, city) }))} />)}</div></fieldset>
-        <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Product segments</legend><div className="mt-3 grid gap-2">{scopeOptions.segments.map((segment) => <Choice key={segment.key} value={segment.key} label={segment.label} checked={selection.segments.includes(segment.key)} onChange={() => setSelection((current) => ({ ...current, segments: toggleMarketIqSegmentSelection(current.segments, segment.key) }))} />)}</div></fieldset>
+        <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Cities</legend><div className="mt-3"><MasterChoice label="All cities" description="Include every supported city in this market" checked={allCitiesSelected} indeterminate={someCitiesSelected && !allCitiesSelected} onChange={() => setSelection((current) => ({ ...current, cities: toggleAll(current.cities, scopeOptions.cities) }))} /></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{scopeOptions.cities.map((city) => <Choice key={city} value={city} label={city} checked={selection.cities.includes(city)} onChange={() => setSelection((current) => ({ ...current, cities: toggle(current.cities, city) }))} />)}</div></fieldset>
+        <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Product segments</legend><div className="mt-3 grid gap-4">{(["apartment", "house"] as const).map((productType) => { const group = scopeOptions.segments.filter((segment) => segment.propertyType === productType); const aggregate = group.find((segment) => segment.bedrooms === 999); const details = group.filter((segment) => segment.bedrooms !== 999); const groupKeys = group.map((segment) => segment.key); const allSelected = groupKeys.length > 0 && groupKeys.every((key) => selection.segments.includes(key)); const someSelected = groupKeys.some((key) => selection.segments.includes(key)); if (!group.length || !aggregate) return null; return <div key={productType}><MasterChoice label={aggregate.label} description={`Select every ${productType} view below`} checked={allSelected} indeterminate={someSelected && !allSelected} onChange={() => setSelection((current) => ({ ...current, segments: toggleMarketIqSegmentSelection(current.segments, aggregate.key, segmentKeys) }))} /><div className="mt-2 grid gap-2 border-l-2 border-slate-200 pl-3">{details.map((segment) => <Choice key={segment.key} value={segment.key} label={segment.label} checked={selection.segments.includes(segment.key)} onChange={() => setSelection((current) => ({ ...current, segments: toggleMarketIqSegmentSelection(current.segments, segment.key, segmentKeys) }))} />)}</div></div>; })}</div></fieldset>
       </div>
-      <fieldset className="mt-6"><div className="flex items-center justify-between gap-3"><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">ZIP codes</legend><button type="button" onClick={() => setSelection((current) => ({ ...current, zipCodes: current.zipCodes.length === scopeOptions.zipCodes.length ? [] : [...scopeOptions.zipCodes] }))} className="text-xs font-semibold text-teal-700">{selection.zipCodes.length === scopeOptions.zipCodes.length ? "Clear all" : "Use market-wide default"}</button></div><div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-slate-200 p-3"><div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">{scopeOptions.zipCodes.map((zip) => <Choice key={zip} value={zip} label={zip} checked={selection.zipCodes.includes(zip)} onChange={() => setSelection((current) => ({ ...current, zipCodes: toggle(current.zipCodes, zip) }))} />)}</div></div></fieldset>
+      <fieldset className="mt-6"><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">ZIP codes</legend><div className="mt-3"><MasterChoice label="All ZIP codes" description="Include every supported ZIP in this market" checked={allZipsSelected} indeterminate={someZipsSelected && !allZipsSelected} onChange={() => setSelection((current) => ({ ...current, zipCodes: toggleAll(current.zipCodes, scopeOptions.zipCodes) }))} /></div><div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-slate-200 p-3"><div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">{scopeOptions.zipCodes.map((zip) => <Choice key={zip} value={zip} label={zip} checked={selection.zipCodes.includes(zip)} onChange={() => setSelection((current) => ({ ...current, zipCodes: toggle(current.zipCodes, zip) }))} />)}</div></div></fieldset>
       <div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => saveProgress(3)} disabled={!validScope || isSaving} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{isSaving ? "Saving…" : "Save and review"}</button><button type="button" onClick={() => saveProgress(2, false)} disabled={isSaving} className="rounded-md border border-slate-300 px-5 py-3 text-sm font-semibold text-navy">Save for later</button></div>
     </section>}
 
