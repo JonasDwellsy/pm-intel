@@ -110,7 +110,7 @@ export default async function MarketIqHomePage() {
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-7 lg:px-10 lg:py-12">
     <header className="grid gap-7 border-b border-grid pb-9 lg:grid-cols-[1fr_370px] lg:items-end">
-      <div><p className="dq-eyebrow">Your markets</p><h1 className="dq-h1">One place to see what needs attention</h1><p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Compare the latest rental-market read across every market in your plan, then move directly into the local analysis or client-report work that matters.</p></div>
+      <div><p className="dq-eyebrow">Your markets</p><h1 className="dq-h1">One place to see what needs attention</h1><p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Compare the latest rental-market read across every market in your plan, then move directly into the local analysis or client-report work that matters.</p><Link href="/market-iq/briefing" className="mt-5 inline-flex text-sm font-semibold text-teal-700">Open the weekly briefing →</Link></div>
       <aside className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Recommended next action</p><p className="mt-3 text-xl font-semibold leading-7">{nextAction?.headline ?? "Your markets are current"}</p>{nextAction && <Link href={nextAction.actionHref} className="mt-5 inline-flex rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-navy">{nextAction.actionLabel}</Link>}</aside>
     </header>
 

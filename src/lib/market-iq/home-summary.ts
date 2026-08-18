@@ -99,6 +99,8 @@ export function buildMarketIqHomeMarketSummary(input: MarketIqHomeMarketInput) {
   };
 }
 
+export type MarketIqHomeMarketSummary = ReturnType<typeof buildMarketIqHomeMarketSummary>;
+
 export function rankMarketIqHomeMarkets(inputs: MarketIqHomeMarketInput[]) {
   return inputs.map(buildMarketIqHomeMarketSummary).sort((a, b) => b.priority - a.priority);
 }

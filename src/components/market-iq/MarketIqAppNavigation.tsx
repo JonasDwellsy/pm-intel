@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const INTELLIGENCE_ITEMS = [
   { href: "/market-iq", label: "Home", match: (path: string) => path === "/market-iq" },
+  { href: "/market-iq/briefing", label: "Briefing", match: (path: string) => path.startsWith("/market-iq/briefing") },
   { href: "/market-iq/market", label: "Market intelligence", match: (path: string) => path.startsWith("/market-iq/market") },
 ] as const;
 
