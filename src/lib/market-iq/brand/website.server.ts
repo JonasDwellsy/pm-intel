@@ -22,7 +22,7 @@ async function safeUrl(value: string) {
 export async function suggestWebsitePalette(value: string) {
   let url = await safeUrl(value);
   for (let redirectCount = 0; redirectCount < 4; redirectCount += 1) {
-    const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(7_000), headers: { "user-agent": "Dwellsy-Market-IQ-Brand-Setup/1.0" } });
+    const response = await fetch(url, { redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(7_000), headers: { "user-agent": "Dwellsy-Market-IQ-Brand-Setup/1.0" } });
     if (response.status >= 300 && response.status < 400 && response.headers.get("location")) {
       url = await safeUrl(new URL(response.headers.get("location")!, url).toString());
       continue;
@@ -37,7 +37,7 @@ export async function suggestWebsitePalette(value: string) {
     const stylesheets = await Promise.all(stylesheetUrls.map(async (stylesheet) => {
       try {
         await safeUrl(stylesheet.toString());
-        const css = await fetch(stylesheet, { redirect: "error", signal: AbortSignal.timeout(4_000), headers: { "user-agent": "Dwellsy-Market-IQ-Brand-Setup/1.0" } });
+        const css = await fetch(stylesheet, { redirect: "error", cache: "no-store", signal: AbortSignal.timeout(4_000), headers: { "user-agent": "Dwellsy-Market-IQ-Brand-Setup/1.0" } });
         return css.ok ? (await css.text()).slice(0, 500_000) : "";
       } catch {
         return "";

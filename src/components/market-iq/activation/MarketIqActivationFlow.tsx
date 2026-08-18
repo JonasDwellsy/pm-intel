@@ -6,7 +6,7 @@ import { completeMarketIqActivation, saveMarketIqActivationProgress } from "@/ap
 import { MarketIqPublicReport } from "@/components/market-iq/report/MarketIqPublicReport";
 import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import type { MarketIqEditorialDefaults } from "@/lib/market-iq/report/composer.server";
-import { normalizePublicWebsite } from "@/lib/market-iq/brand/website";
+import { normalizePublicWebsite, websiteForSuggestion } from "@/lib/market-iq/brand/website";
 import {
   applyMarketIqReportScope,
   marketIqScopeOptions,
@@ -20,6 +20,14 @@ function toggle(values: string[], value: string) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
 
+function websiteLabel(value: string) {
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return value;
+  }
+}
+
 function Choice({ value, label, checked, onChange }: { value: string; label: string; checked: boolean; onChange: () => void }) {
   return <label className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${checked ? "border-teal-300 bg-teal-50 text-navy" : "border-slate-200 bg-white text-slate-500"}`}>
     <input type="checkbox" value={value} checked={checked} onChange={onChange} className="accent-teal-700" />{label}
@@ -29,6 +37,7 @@ function Choice({ value, label, checked, onChange }: { value: string; label: str
 export function MarketIqActivationFlow({ marketId, marketLabel, snapshot, initialBrand, initialEditorialDefaults, initialSelection, initialStep, source, completed, clientAdvisoryEnabled, logoStorageEnabled }: { marketId: string; marketLabel: string; snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialEditorialDefaults: MarketIqEditorialDefaults; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "verified_seed" | "scope_catalog" | "unavailable"; completed: boolean; clientAdvisoryEnabled: boolean; logoStorageEnabled: boolean }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const websiteInputRef = useRef<HTMLInputElement>(null);
   const [isSaving, startSaving] = useTransition();
   const [step, setStep] = useState(clientAdvisoryEnabled ? initialStep : initialStep === 3 ? 3 : 2);
   const [brand, setBrand] = useState(initialBrand);
@@ -88,13 +97,16 @@ export function MarketIqActivationFlow({ marketId, marketLabel, snapshot, initia
   }
 
   async function suggestColors() {
-    if (!brand.websiteUrl) return setBrandToolStatus("Enter your website first.");
-    setBrandToolStatus("Reading your website colors…");
-    const response = await fetch("/api/market-iq/brand/suggest", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ website: brand.websiteUrl }) });
+    const requestedWebsite = websiteForSuggestion(websiteInputRef.current?.value, brand.websiteUrl);
+    if (!requestedWebsite) return setBrandToolStatus("Enter your website first.");
+    updateBrand("websiteUrl", requestedWebsite);
+    setBrandToolStatus(`Reading colors from ${websiteLabel(requestedWebsite)}…`);
+    const response = await fetch("/api/market-iq/brand/suggest", { method: "POST", cache: "no-store", headers: { "content-type": "application/json" }, body: JSON.stringify({ website: requestedWebsite }) });
     const result = await response.json() as { websiteUrl?: string; primaryColor?: string; accentColor?: string; error?: string };
     if (!response.ok || !result.primaryColor || !result.accentColor) return setBrandToolStatus(result.error ?? "We could not suggest colors from that website.");
+    if (websiteForSuggestion(websiteInputRef.current?.value, null) !== requestedWebsite) return setBrandToolStatus("The website changed while we were reading it. Select Suggest colors again.");
     setBrand((current) => ({ ...current, websiteUrl: result.websiteUrl ?? current.websiteUrl, primaryColor: result.primaryColor!, accentColor: result.accentColor! }));
-    setBrandToolStatus("Suggested colors applied. You can adjust them before saving.");
+    setBrandToolStatus(`Suggested colors from ${websiteLabel(result.websiteUrl ?? requestedWebsite)} applied. You can adjust them before saving.`);
   }
 
   return <form ref={formRef} action={completeMarketIqActivation} className="mt-8">
@@ -129,7 +141,7 @@ export function MarketIqActivationFlow({ marketId, marketLabel, snapshot, initia
         <label className="text-sm font-semibold text-navy">Contact name<input value={brand.contactName ?? ""} onChange={(event) => updateBrand("contactName", event.target.value || null)} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
         <label className="text-sm font-semibold text-navy">Reply-to email<input type="email" value={brand.contactEmail ?? ""} onChange={(event) => updateBrand("contactEmail", event.target.value || null)} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
         <label className="text-sm font-semibold text-navy">Contact phone<input value={brand.contactPhone ?? ""} onChange={(event) => updateBrand("contactPhone", event.target.value || null)} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
-        <label className="text-sm font-semibold text-navy">Website<input type="text" inputMode="url" value={brand.websiteUrl ?? ""} onChange={(event) => updateBrand("websiteUrl", event.target.value || null)} onBlur={(event) => updateBrand("websiteUrl", normalizePublicWebsite(event.target.value) || null)} placeholder="yourfirm.com" className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
+        <label className="text-sm font-semibold text-navy">Website<input ref={websiteInputRef} type="text" inputMode="url" value={brand.websiteUrl ?? ""} onChange={(event) => { updateBrand("websiteUrl", event.target.value || null); setBrandToolStatus(null); }} onBlur={(event) => updateBrand("websiteUrl", normalizePublicWebsite(event.target.value) || null)} placeholder="yourfirm.com" className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
         <div className="sm:col-span-2 flex flex-wrap items-center gap-3"><button type="button" onClick={() => void suggestColors()} className="rounded-md border border-slate-300 px-4 py-2.5 text-sm font-semibold text-navy">Suggest colors from website</button>{brandToolStatus && <p role="status" className="text-sm text-slate-500">{brandToolStatus}</p>}</div>
       </div>
       {clientAdvisoryEnabled && <div className="mt-8 border-t border-slate-200 pt-7"><p className="text-xs font-bold uppercase tracking-[0.12em] text-teal-700">Advisory messaging defaults</p><h3 className="mt-2 text-xl font-semibold text-navy">Start each edition with the right relationship context</h3><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">These are starting points, not locked copy. Client and prospect reports receive separate messages, while your company profile and CTA can appear in both. Every edition remains editable before publication.</p><div className="mt-5 grid gap-4 lg:grid-cols-2"><label className="text-sm font-semibold text-navy">Default client message<textarea maxLength={700} rows={5} value={editorialDefaults.defaultClientMessage ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, defaultClientMessage: event.target.value || null }))} placeholder="Add the context or advice you typically want current clients to see." className="mt-2 w-full resize-y rounded-md border border-slate-300 px-3 py-2.5 font-normal leading-6" /></label><label className="text-sm font-semibold text-navy">Default prospect message<textarea maxLength={700} rows={5} value={editorialDefaults.defaultProspectMessage ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, defaultProspectMessage: event.target.value || null }))} placeholder="Explain why this local market read is useful to a prospective client." className="mt-2 w-full resize-y rounded-md border border-slate-300 px-3 py-2.5 font-normal leading-6" /></label><label className="text-sm font-semibold text-navy lg:col-span-2">About your company<textarea maxLength={700} rows={4} value={editorialDefaults.companyProfile ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, companyProfile: event.target.value || null }))} placeholder="Describe who you serve, where you operate, and what distinguishes your management approach." className="mt-2 w-full resize-y rounded-md border border-slate-300 px-3 py-2.5 font-normal leading-6" /></label><label className="text-sm font-semibold text-navy">CTA label<input maxLength={60} value={editorialDefaults.companyCtaLabel ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, companyCtaLabel: event.target.value || null }))} placeholder="Talk with our team" className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label><label className="text-sm font-semibold text-navy">CTA URL<input type="url" maxLength={500} value={editorialDefaults.companyCtaUrl ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, companyCtaUrl: event.target.value || null }))} placeholder="https://yourfirm.com/contact" className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label></div></div>}

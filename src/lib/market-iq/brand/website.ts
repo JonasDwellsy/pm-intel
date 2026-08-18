@@ -4,6 +4,10 @@ export function normalizePublicWebsite(value: string) {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
+export function websiteForSuggestion(currentInput: string | undefined, savedWebsite: string | null | undefined) {
+  return normalizePublicWebsite(currentInput === undefined ? savedWebsite ?? "" : currentInput);
+}
+
 function rgbToHex(red: number, green: number, blue: number) {
   return `#${[red, green, blue].map((value) => Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0")).join("")}`;
 }
