@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
-import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
-import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 
 export async function POST(request: Request) {
   const [{ userId, organizationId }, access] = await Promise.all([getActiveOrgContext(), resolveViewerMarketIqAccess()]);
-  if (!marketIqPreviewEnabled() || !userId || !organizationId || !access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) return NextResponse.json({ error: "Logo upload is unavailable." }, { status: 403 });
+  if (!marketIqPreviewEnabled() || !userId || !organizationId || !access.hasProduct) return NextResponse.json({ error: "Logo upload is unavailable." }, { status: 403 });
   const token = process.env.MARKET_IQ_BLOB_READ_WRITE_TOKEN ?? process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) return NextResponse.json({ error: "Logo storage has not been connected yet." }, { status: 503 });
   const file = (await request.formData()).get("logo");

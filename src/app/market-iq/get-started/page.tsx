@@ -7,7 +7,7 @@ import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { buildMarketIqComposerPreview, defaultMarketIqReportBrand, EMPTY_MARKET_IQ_EDITORIAL_DEFAULTS } from "@/lib/market-iq/report/composer.server";
+import { defaultMarketIqReportBrand, EMPTY_MARKET_IQ_EDITORIAL_DEFAULTS } from "@/lib/market-iq/report/composer.server";
 import { resolveActiveMarketIqMarket } from "@/lib/market-iq/markets/selection";
 import { marketIqSelectionFromPreference } from "@/lib/market-iq/workspace-preference";
 import { buildMarketIqSetupFallbackSnapshot } from "@/lib/market-iq/report/setup-fallback.server";
@@ -35,19 +35,13 @@ export default async function MarketIqGetStartedPage({ searchParams }: { searchP
     companyCtaLabel: organization.brandProfile.companyCtaLabel,
     companyCtaUrl: organization.brandProfile.companyCtaUrl,
   } : EMPTY_MARKET_IQ_EDITORIAL_DEFAULTS;
-  let preview: Awaited<ReturnType<typeof buildMarketIqComposerPreview>> | {
-    snapshot: ReturnType<typeof buildMarketIqSetupFallbackSnapshot>;
-    source: "unavailable";
+  // Setup needs the market's valid cities, ZIPs, and product segments, not a
+  // live analytical read. Keeping that catalog local prevents a slow or cold
+  // read-only Trends connection from blocking brand and scope configuration.
+  const preview = {
+    snapshot: buildMarketIqSetupFallbackSnapshot(activeMarket.id, brand),
+    source: "scope_catalog" as const,
   };
-  try {
-    preview = await buildMarketIqComposerPreview(activeMarket.id, brand);
-  } catch (error) {
-    console.error("Market IQ setup source unavailable", { marketId: activeMarket.id, error });
-    preview = {
-      snapshot: buildMarketIqSetupFallbackSnapshot(activeMarket.id, brand),
-      source: "unavailable",
-    };
-  }
   const requestedStep = Number(query.step ?? "1");
   const initialStep = Number.isInteger(requestedStep) && requestedStep >= 1 && requestedStep <= 3 ? requestedStep : 1;
   const completed = Boolean(organization.marketIqWorkspacePreference?.onboardingCompletedAt);

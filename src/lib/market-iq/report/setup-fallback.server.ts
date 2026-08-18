@@ -78,15 +78,15 @@ export function buildMarketIqSetupFallbackSnapshot(
     trendSeries,
     mapCenters: scope.centers,
     marketConditions: {
-      heading: "Market source temporarily unavailable",
-      narrative: "Your setup can still be saved. Market values will appear when the read-only Trends connection is available again.",
+      heading: "Market setup catalog",
+      narrative: "Choose the geographies and product segments that should open by default. Current Trends values load in Market intelligence after setup.",
       historical: null,
     },
     sources: [{
       name: "Dwellsy Trends IQ",
       availableThrough: today,
       observationCount: null,
-      note: "Temporarily unavailable during setup. No value has been estimated or substituted.",
+      note: "Setup uses the market catalog and does not estimate or substitute any rent value.",
     }],
   });
 }
