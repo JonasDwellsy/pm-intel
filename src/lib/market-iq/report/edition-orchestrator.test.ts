@@ -37,3 +37,17 @@ test("orchestrator can create only private drafts", async () => {
   assert.match(service, /ensureRecurringMarketIqEditionDraft/);
   assert.doesNotMatch(service, /marketIqReport\.create|marketIqDistributionCampaign\.create|marketIqReportSend\.create|sendgrid|sendMarketIq/);
 });
+
+test("orchestrator follows each workspace default market", async () => {
+  const [orchestrator, recurring, editionsPage] = await Promise.all([
+    readFile("src/lib/market-iq/report/edition-orchestrator.server.ts", "utf8"),
+    readFile("src/lib/market-iq/report/recurring-edition.server.ts", "utf8"),
+    readFile("src/app/market-iq/editions/page.tsx", "utf8"),
+  ]);
+  assert.match(orchestrator, /defaultMarketId/);
+  assert.match(orchestrator, /ensureRecurringMarketIqEditionDraft\(organization\.id, marketId/);
+  assert.doesNotMatch(orchestrator, /marketId: CLEVELAND_MARKET_ID/);
+  assert.match(recurring, /loadMarketIqReportComposer\(organizationId, marketId\)/);
+  assert.match(editionsPage, /resolveActiveMarketIqMarket/);
+  assert.match(editionsPage, /activeMarket\.id/);
+});

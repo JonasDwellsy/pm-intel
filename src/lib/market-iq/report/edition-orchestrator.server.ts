@@ -1,11 +1,7 @@
 import "server-only";
 
-import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
-import {
-  ACTIVE_MARKET_IQ_SUBSCRIPTION_STATUSES,
-  MARKET_IQ_CLIENT_ADVISORY_PLAN,
-  MARKET_IQ_LEGACY_SINGLE_MARKET_PLAN_KEY,
-} from "@/lib/market-iq/billing/plans";
+import { getMarketIqMarket } from "@/data/market-iq/markets";
+import { organizationHasMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { ensureRecurringMarketIqEditionDraft, type RecurringEditionResult } from "@/lib/market-iq/report/recurring-edition.server";
 import { prisma } from "@/lib/prisma";
 
@@ -66,43 +62,24 @@ export async function runMarketIqEditionOrchestrator(input: {
         marketIqWorkspacePreference: {
           is: {
             onboardingCompletedAt: { not: null },
-            defaultMarketId: CLEVELAND_MARKET_ID,
             recurringEditionsEnabled: true,
           },
         },
-        marketIqReports: { some: { marketId: CLEVELAND_MARKET_ID, status: "published" } },
-        OR: [
-          {
-            marketIqSubscriptions: {
-              some: {
-                status: { in: [...ACTIVE_MARKET_IQ_SUBSCRIPTION_STATUSES] },
-                planKey: { in: [MARKET_IQ_CLIENT_ADVISORY_PLAN.key, MARKET_IQ_LEGACY_SINGLE_MARKET_PLAN_KEY] },
-                markets: { some: { marketId: CLEVELAND_MARKET_ID } },
-              },
-            },
-          },
-          {
-            AND: [
-              { marketIqSubscriptions: { none: { status: { in: [...ACTIVE_MARKET_IQ_SUBSCRIPTION_STATUSES] } } } },
-              { productAccess: { some: { productKey: "market_iq" } } },
-              { OR: [{ allMarkets: true }, { marketAccess: { some: { marketId: CLEVELAND_MARKET_ID } } }] },
-            ],
-          },
-        ],
       },
-      select: { id: true },
+      select: { id: true, marketIqWorkspacePreference: { select: { defaultMarketId: true } } },
       orderBy: { id: "asc" },
     });
 
     const counts = { created: 0, existing: 0, unchanged: 0, blocked: 0, failed: 0 };
     let sourceAvailableThrough: string | null = null;
     for (const organization of organizations) {
+      const marketId = organization.marketIqWorkspacePreference?.defaultMarketId ?? "";
       try {
-        const result = await ensureRecurringMarketIqEditionDraft(
-          organization.id,
-          CLEVELAND_MARKET_ID,
-          { dryRun },
-        );
+        const market = getMarketIqMarket(marketId);
+        const hasAccess = market ? await organizationHasMarketIqAccess(organization.id, marketId) : false;
+        const result: RecurringEditionResult = market && market.status === "live" && hasAccess
+          ? await ensureRecurringMarketIqEditionDraft(organization.id, marketId, { dryRun })
+          : { state: "blocked", periodEnd: null, detail: "The default market is unavailable or is not included in this workspace." };
         const status = itemStatus(result);
         if (status === "created" || status === "would_create") counts.created += 1;
         else if (status === "existing") counts.existing += 1;
@@ -115,7 +92,7 @@ export async function runMarketIqEditionOrchestrator(input: {
           data: {
             runId: run.id,
             organizationId: organization.id,
-            marketId: CLEVELAND_MARKET_ID,
+            marketId,
             status,
             periodEnd: result.periodEnd,
             draftId: "draftId" in result ? result.draftId : null,
@@ -128,7 +105,7 @@ export async function runMarketIqEditionOrchestrator(input: {
           data: {
             runId: run.id,
             organizationId: organization.id,
-            marketId: CLEVELAND_MARKET_ID,
+            marketId,
             status: "failed",
             detail: error instanceof Error ? error.message.slice(0, 1_000) : String(error).slice(0, 1_000),
           },

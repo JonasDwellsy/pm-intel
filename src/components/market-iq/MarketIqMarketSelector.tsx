@@ -4,9 +4,11 @@ import type { MarketIqMarketDefinition } from "@/data/market-iq/markets";
 export function MarketIqMarketSelector({
   markets,
   activeMarketId,
+  basePath = "/market-iq/market",
 }: {
   markets: readonly MarketIqMarketDefinition[];
   activeMarketId: string;
+  basePath?: string;
 }) {
   if (markets.length < 2) return null;
 
@@ -23,7 +25,7 @@ export function MarketIqMarketSelector({
             return (
               <Link
                 key={market.id}
-                href={`/market-iq/market?market=${encodeURIComponent(market.id)}`}
+                href={`${basePath}?market=${encodeURIComponent(market.id)}`}
                 aria-current={active ? "page" : undefined}
                 className={active
                   ? "rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white"
@@ -39,4 +41,3 @@ export function MarketIqMarketSelector({
     </section>
   );
 }
-

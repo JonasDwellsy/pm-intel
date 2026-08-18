@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
+import { CLEVELAND_MARKET_ID, getMarketIqMarket } from "@/data/market-iq/markets";
 import { prisma } from "@/lib/prisma";
 import { loadMarketIqReportComposer } from "@/lib/market-iq/report/composer.server";
 import { compareMarketIqEditions } from "@/lib/market-iq/report/edition-comparison";
@@ -28,11 +28,12 @@ export async function ensureRecurringMarketIqEditionDraft(
   marketId = CLEVELAND_MARKET_ID,
   options: { dryRun?: boolean } = {},
 ): Promise<RecurringEditionResult> {
-  if (marketId !== CLEVELAND_MARKET_ID) {
-    return { state: "blocked", periodEnd: null, detail: "The recurring engine is currently enabled only for the Cleveland pilot market." };
+  const market = getMarketIqMarket(marketId);
+  if (!market || market.status !== "live") {
+    return { state: "blocked", periodEnd: null, detail: "This market is not available for recurring editions." };
   }
 
-  const composer = await loadMarketIqReportComposer(organizationId);
+  const composer = await loadMarketIqReportComposer(organizationId, marketId);
   if (!composer) return { state: "blocked", periodEnd: null, detail: "The Market IQ workspace could not be loaded." };
   if (composer.preview.source !== "dwellsy_trends") {
     return { state: "source_unavailable", periodEnd: null, detail: "Authoritative Trends IQ data is unavailable. No draft was created from preview data." };

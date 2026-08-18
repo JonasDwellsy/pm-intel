@@ -25,3 +25,14 @@ test("review inbox exposes source history and an explicit safe retry", async () 
   assert.match(page, /Check authoritative source now/);
   assert.match(page, /No report is published and no email is sent/);
 });
+
+test("review inbox keeps drafts isolated by selected market", async () => {
+  const [page, actions] = await Promise.all([
+    readFile("src/app/market-iq/review/page.tsx", "utf8"),
+    readFile("src/app/market-iq/review/actions.ts", "utf8"),
+  ]);
+  assert.match(page, /resolveActiveMarketIqMarket/);
+  assert.match(page, /marketId: activeMarket\.id/);
+  assert.match(actions, /isMarketEntitled\(context\.entitlement, draft\.marketId\)/);
+  assert.match(actions, /ensureRecurringMarketIqEditionDraft\(context\.organizationId, marketId\)/);
+});
