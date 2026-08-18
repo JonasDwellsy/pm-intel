@@ -7,8 +7,9 @@ import { storeMarketIqReportSourceSnapshot } from "@/lib/market-iq/report/source
 export const runtime = "nodejs";
 
 function authorized(request: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  return Boolean(secret && request.headers.get("authorization") === `Bearer ${secret}`);
+  const supplied = request.headers.get("authorization");
+  const accepted = [process.env.MARKET_IQ_SOURCE_SYNC_TOKEN, process.env.CRON_SECRET].filter(Boolean);
+  return accepted.some((secret) => supplied === `Bearer ${secret}`);
 }
 
 function isolatedPreview(): boolean {
