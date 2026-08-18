@@ -956,6 +956,7 @@ model MarketIqReportRecipient {
   id                String    @id @default(cuid())
   organizationId    String
   name              String
+  companyName       String?
   email             String
   kind              String // client | prospect
   emailStatus       String    @default("active") // active | suppressed

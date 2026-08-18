@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { bulkImportMarketIqRecipients } from "@/app/market-iq/distribution/actions";
+import { isValidMarketIqRecipientEmail, normalizeMarketIqRecipientEmail } from "@/lib/market-iq/recipients/email";
 
 type ImportRow = {
   name: string;
   email: string;
+  companyName: string | null;
   kind: "client" | "prospect";
 };
 
@@ -46,8 +49,9 @@ export function MarketIqRecipientBulkImport() {
       const nameIndex = headers.findIndex((header) => ["name", "fullname", "recipientname", "contactname"].includes(header));
       const emailIndex = headers.findIndex((header) => ["email", "emailaddress", "recipientemail", "contactemail"].includes(header));
       const relationshipIndex = headers.findIndex((header) => ["relationship", "type", "kind", "audience"].includes(header));
+      const companyIndex = headers.findIndex((header) => ["company", "companyname", "organization", "organisation", "firm", "firmname"].includes(header));
       if (nameIndex < 0 || emailIndex < 0) {
-        setError("The first row must include Name and Email columns. Relationship is optional.");
+        setError("The first row must include Name and Email columns. Company and Relationship are optional.");
         return;
       }
 
@@ -56,15 +60,16 @@ export function MarketIqRecipientBulkImport() {
       let invalid = 0;
       for (const record of matrix.slice(1)) {
         const name = String(record[nameIndex] ?? "").trim().slice(0, 120);
-        const email = String(record[emailIndex] ?? "").trim().toLowerCase().slice(0, 254);
+        const email = normalizeMarketIqRecipientEmail(String(record[emailIndex] ?? "")).slice(0, 254);
+        const companyName = companyIndex >= 0 ? String(record[companyIndex] ?? "").trim().slice(0, 160) || null : null;
         if (!name && !email) continue;
-        if (!name || !/^\S+@\S+\.\S+$/.test(email)) {
+        if (!name || !isValidMarketIqRecipientEmail(email)) {
           invalid += 1;
           continue;
         }
         if (seen.has(email)) continue;
         seen.add(email);
-        parsed.push({ name, email, kind: relationshipIndex >= 0 ? relationship(record[relationshipIndex], defaultKind) : defaultKind });
+        parsed.push({ name, email, companyName, kind: relationshipIndex >= 0 ? relationship(record[relationshipIndex], defaultKind) : defaultKind });
         if (parsed.length >= MAX_ROWS) break;
       }
       setRows(parsed);
@@ -79,7 +84,8 @@ export function MarketIqRecipientBulkImport() {
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <p className="dq-eyebrow">Bulk import</p>
       <h2 className="dq-h2">Add a recipient list</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-600">Upload an Excel or CSV file with Name and Email columns. An optional Relationship column can contain Client or Prospect.</p>
+      <p className="mt-2 text-sm leading-6 text-slate-600">Upload an Excel or CSV file with Name and Email columns. Company and Relationship are optional.</p>
+      <Link href="/market-iq/distribution/template" className="mt-3 inline-flex text-sm font-semibold text-teal-800 underline underline-offset-4">Download recipient template</Link>
       <label className="mt-5 block text-sm font-semibold text-navy">Default relationship
         <select value={defaultKind} onChange={(event) => setDefaultKind(event.target.value as "client" | "prospect")} className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 font-normal">
           <option value="client">Current client</option>
@@ -95,7 +101,7 @@ export function MarketIqRecipientBulkImport() {
       {rows.length > 0 && <form action={bulkImportMarketIqRecipients} className="mt-5">
         <input type="hidden" name="recipients" value={JSON.stringify(rows)} />
         <div className="max-h-64 overflow-auto rounded-xl border border-slate-200">
-          <table className="w-full text-left text-xs"><thead className="sticky top-0 bg-slate-50 text-slate-500"><tr><th className="px-3 py-2 font-semibold">Name</th><th className="px-3 py-2 font-semibold">Email</th><th className="px-3 py-2 font-semibold">Relationship</th></tr></thead><tbody className="divide-y divide-slate-100">{rows.slice(0, 100).map((row) => <tr key={row.email}><td className="px-3 py-2 font-medium text-navy">{row.name}</td><td className="px-3 py-2 text-slate-500">{row.email}</td><td className="px-3 py-2 capitalize text-slate-500">{row.kind}</td></tr>)}</tbody></table>
+          <table className="w-full text-left text-xs"><thead className="sticky top-0 bg-slate-50 text-slate-500"><tr><th className="px-3 py-2 font-semibold">Name</th><th className="px-3 py-2 font-semibold">Email</th><th className="px-3 py-2 font-semibold">Company</th><th className="px-3 py-2 font-semibold">Relationship</th></tr></thead><tbody className="divide-y divide-slate-100">{rows.slice(0, 100).map((row) => <tr key={row.email}><td className="px-3 py-2 font-medium text-navy">{row.name}</td><td className="px-3 py-2 text-slate-500">{row.email}</td><td className="px-3 py-2 text-slate-500">{row.companyName || ""}</td><td className="px-3 py-2 capitalize text-slate-500">{row.kind}</td></tr>)}</tbody></table>
         </div>
         {rows.length > 100 && <p className="mt-2 text-xs text-slate-500">Showing the first 100 of {rows.length} valid recipients.</p>}
         <p className="mt-3 text-xs leading-5 text-slate-500">Existing email addresses will be updated rather than duplicated. Bulk import never enrolls anyone in automatic monthly delivery.</p>

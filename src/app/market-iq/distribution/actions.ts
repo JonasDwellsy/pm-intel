@@ -14,6 +14,7 @@ import {
 } from "@/lib/market-iq/journey-telemetry.server";
 import { deliverMarketIqReportToRecipient } from "@/lib/market-iq/report/delivery.server";
 import { marketIqClipped, marketIqValidEmail } from "@/lib/market-iq/report/form-values";
+import { normalizeMarketIqRecipientEmail } from "@/lib/market-iq/recipients/email";
 import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import { prisma } from "@/lib/prisma";
 
@@ -36,7 +37,8 @@ function withLaunchFlow(path: string, enabled: boolean) {
 export async function saveMarketIqRecipient(formData: FormData): Promise<void> {
   const context = await authorizedContext();
   const name = marketIqClipped(formData.get("name"), 120);
-  const email = marketIqClipped(formData.get("email"), 254).toLowerCase();
+  const companyName = marketIqClipped(formData.get("companyName"), 160) || null;
+  const email = normalizeMarketIqRecipientEmail(marketIqClipped(formData.get("email"), 254));
   const kind = marketIqClipped(formData.get("kind"), 20);
   const approveRecurring = marketIqClipped(formData.get("approveRecurringDelivery"), 8) === "1";
   const approvalData = approveRecurring
@@ -45,8 +47,8 @@ export async function saveMarketIqRecipient(formData: FormData): Promise<void> {
   if (!context || !name || !marketIqValidEmail(email) || !["client", "prospect"].includes(kind)) throw new Error("Enter a valid client or prospect.");
   const recipient = await prisma.marketIqReportRecipient.upsert({
     where: { organizationId_email: { organizationId: context.organizationId, email } },
-    create: { organizationId: context.organizationId, name, email, kind, ...approvalData },
-    update: { name, kind, ...approvalData },
+    create: { organizationId: context.organizationId, name, companyName, email, kind, ...approvalData },
+    update: { name, companyName, kind, ...approvalData },
     select: { id: true },
   });
   await recordMarketIqJourneyEvent({
@@ -83,7 +85,8 @@ export async function bulkImportMarketIqRecipients(formData: FormData): Promise<
     const row = value && typeof value === "object" ? value as Record<string, unknown> : {};
     return {
       name: marketIqClipped(String(row.name ?? ""), 120),
-      email: marketIqClipped(String(row.email ?? ""), 254).toLowerCase(),
+      companyName: marketIqClipped(String(row.companyName ?? ""), 160) || null,
+      email: normalizeMarketIqRecipientEmail(marketIqClipped(String(row.email ?? ""), 254)),
       kind: marketIqClipped(String(row.kind ?? ""), 20),
     };
   });
@@ -102,7 +105,11 @@ export async function bulkImportMarketIqRecipients(formData: FormData): Promise<
   await prisma.$transaction(rows.map((row) => prisma.marketIqReportRecipient.upsert({
     where: { organizationId_email: { organizationId: context.organizationId, email: row.email } },
     create: { organizationId: context.organizationId, ...row },
-    update: { name: row.name, kind: row.kind },
+    update: {
+      name: row.name,
+      kind: row.kind,
+      ...(row.companyName ? { companyName: row.companyName } : {}),
+    },
   })));
 
   await recordMarketIqJourneyEvent({

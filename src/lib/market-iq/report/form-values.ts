@@ -1,5 +1,6 @@
 import type { MarketIqReportBrandInput } from "@/lib/market-iq/report/composer.server";
 import type { MarketIqEditorialDefaults } from "@/lib/market-iq/report/composer.server";
+import { isValidMarketIqRecipientEmail } from "@/lib/market-iq/recipients/email";
 
 export function marketIqClipped(value: FormDataEntryValue | null, maximum: number) {
   return String(value ?? "").trim().slice(0, maximum);
@@ -22,7 +23,7 @@ export function marketIqColor(value: FormDataEntryValue | null, fallback: string
 }
 
 export function marketIqValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  return isValidMarketIqRecipientEmail(value);
 }
 
 export function parseMarketIqBrandForm(formData: FormData): MarketIqReportBrandInput {
