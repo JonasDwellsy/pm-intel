@@ -268,7 +268,9 @@ test("the Market Read opens a guided client-edition workflow that freezes select
   assert.doesNotMatch(composer, /Choose the evidence/);
   assert.match(composer, /Using the scope you confirmed during setup/);
   assert.match(composer, /Add your perspective/);
-  assert.match(composer, /Confirm your firm/);
+  assert.doesNotMatch(composer, /Confirm your firm/);
+  assert.match(composer, /Your saved logo, colors, contact details, and company profile will be applied/);
+  assert.match(composer, /name="displayName"/);
   assert.match(composer, /Review and publish/);
   assert.match(composer, /excluded values/);
   assert.match(composer, /name="findingIds"/);
