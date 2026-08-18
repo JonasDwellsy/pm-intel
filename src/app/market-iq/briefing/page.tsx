@@ -1,3 +1,4 @@
+import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
@@ -6,7 +7,7 @@ import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { parseMarketIqBriefingArchivePayload } from "@/lib/market-iq/weekly-briefing";
 import { loadMarketIqWeeklyBriefing } from "@/lib/market-iq/weekly-briefing.server";
 import { prisma } from "@/lib/prisma";
-import { freezeMarketIqWeeklyBriefing } from "./actions";
+import { freezeMarketIqWeeklyBriefing, sendLatestMarketIqBriefingToMe, updateMarketIqBriefingEmailPreference } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -31,13 +32,14 @@ function signed(value: number | null | undefined) {
   return value === null || value === undefined ? "No year-over-year read" : `${value >= 0 ? "+" : ""}${value.toFixed(1)}% YoY`;
 }
 
-export default async function MarketIqBriefingPage({ searchParams }: { searchParams?: Promise<{ saved?: string }> }) {
+export default async function MarketIqBriefingPage({ searchParams }: { searchParams?: Promise<{ saved?: string; preference?: string; delivery?: string }> }) {
   if (!marketIqPreviewEnabled()) notFound();
-  const [access, context] = await Promise.all([resolveViewerMarketIqAccess(), getActiveOrgContext()]);
+  const [access, context, user] = await Promise.all([resolveViewerMarketIqAccess(), getActiveOrgContext(), currentUser()]);
   if (!access.hasProduct) redirect("/market-iq/subscribe");
   if (!context.organizationId) redirect("/setup-workspace");
+  if (!context.userId) notFound();
 
-  const [loaded, archiveRows, params] = await Promise.all([
+  const [loaded, archiveRows, params, emailPreference, latestDelivery] = await Promise.all([
     loadMarketIqWeeklyBriefing({
       organizationId: context.organizationId,
       entitlement: access.entitlement,
@@ -49,7 +51,15 @@ export default async function MarketIqBriefingPage({ searchParams }: { searchPar
       take: 8,
       select: { id: true, weekOf: true, payload: true, createdAt: true },
     }),
-    searchParams ?? Promise.resolve({} as { saved?: string }),
+    searchParams ?? Promise.resolve({} as { saved?: string; preference?: string; delivery?: string }),
+    prisma.marketIqBriefingEmailPreference.findUnique({
+      where: { organizationId_userId: { organizationId: context.organizationId, userId: context.userId } },
+    }),
+    prisma.marketIqBriefingEmailDelivery.findFirst({
+      where: { organizationId: context.organizationId, userId: context.userId },
+      orderBy: { createdAt: "desc" },
+      select: { status: true, recipientEmail: true, sentAt: true, error: true, createdAt: true },
+    }),
   ]);
   if (!loaded) redirect("/setup-workspace");
   if (!loaded.briefing.marketCount) redirect("/market-iq/subscribe");
@@ -59,6 +69,9 @@ export default async function MarketIqBriefingPage({ searchParams }: { searchPar
     return payload ? [{ ...row, payload }] : [];
   });
   const preparedAt = new Date();
+  const signedInEmail = user?.emailAddresses.find((address) => address.id === user.primaryEmailAddressId)?.emailAddress
+    ?? user?.emailAddresses[0]?.emailAddress
+    ?? null;
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-7 lg:px-10 lg:py-12">
     <header className="grid gap-7 border-b border-grid pb-9 lg:grid-cols-[1fr_390px] lg:items-end">
@@ -67,6 +80,8 @@ export default async function MarketIqBriefingPage({ searchParams }: { searchPar
     </header>
 
     {params.saved === "1" && <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800">This week’s briefing is saved. Repeated saves leave the frozen copy unchanged.</div>}
+    {params.preference && <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800">Internal briefing email is {params.preference === "enabled" ? "enabled" : "disabled"} for your signed-in account.</div>}
+    {params.delivery && <div className={`mt-6 rounded-xl border px-5 py-4 text-sm font-semibold ${params.delivery === "sent" || params.delivery === "already_sent" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{params.delivery === "sent" ? "The latest frozen briefing was accepted by SendGrid for your signed-in address." : params.delivery === "already_sent" ? "This frozen briefing was already emailed to your signed-in address." : params.delivery === "not_enabled" ? "Enable your internal briefing email before sending." : params.delivery === "no_archive" ? "Freeze a weekly briefing before emailing it." : "The internal briefing email could not be sent. Review the status below and retry explicitly."}</div>}
 
     <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Markets</p><p className="mt-3 text-3xl font-semibold text-navy">{briefing.marketCount}</p><p className="mt-1 text-xs text-slate-500">included in this briefing</p></article>
@@ -91,6 +106,7 @@ export default async function MarketIqBriefingPage({ searchParams }: { searchPar
 
       <aside className="space-y-6"><section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="dq-eyebrow">Exceptions</p><h2 className="mt-2 text-xl font-semibold text-navy">Markets needing attention</h2><div className="mt-5 space-y-5">{briefing.setupNeeds.map((item) => <div key={item.summary.market.id}><p className="text-sm font-semibold text-navy">{item.summary.market.shortLabel}</p><p className="mt-1 text-xs leading-5 text-slate-500">Choose the saved cities, ZIPs, and product segments for this market.</p><Link href={`/market-iq/get-started?market=${encodeURIComponent(item.summary.market.id)}`} className="mt-2 inline-flex text-xs font-semibold text-teal-700">Configure market →</Link></div>)}{briefing.sourceGaps.map((item) => <div key={item.summary.market.id}><p className="text-sm font-semibold text-navy">{item.summary.market.shortLabel}</p><p className="mt-1 text-xs leading-5 text-slate-500">The authoritative Trends IQ read is temporarily unavailable. Preview fallback values are not shown.</p><Link href={`/market-iq/market?market=${encodeURIComponent(item.summary.market.id)}`} className="mt-2 inline-flex text-xs font-semibold text-teal-700">Open source status →</Link></div>)}{!briefing.setupNeeds.length && !briefing.sourceGaps.length && <p className="text-sm leading-6 text-slate-600">No setup or source exceptions require attention.</p>}</div></section>
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="dq-eyebrow">Briefing archive</p><h2 className="mt-2 text-xl font-semibold text-navy">Frozen weekly reads</h2><div className="mt-5 space-y-4">{archives.length ? archives.map((archive) => <Link href={`/market-iq/briefing/${archive.id}`} key={archive.id} className="block border-t border-slate-100 pt-4 first:border-0 first:pt-0"><p className="text-sm font-semibold text-navy">Week of {dateLabel(archive.weekOf)}</p><p className="mt-1 text-xs leading-5 text-slate-500">{archive.payload.headline}</p><p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{archive.payload.counts.reviews} reviews · {archive.payload.counts.exceptions} exceptions · Open archive</p></Link>) : <p className="text-sm leading-6 text-slate-600">No weekly briefing has been frozen yet.</p>}</div></section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="dq-eyebrow">Your internal email</p><h2 className="mt-2 text-xl font-semibold text-navy">Send a frozen briefing to yourself</h2><p className="mt-2 break-all text-xs text-slate-500">{signedInEmail ?? "No verified Clerk email is available."}</p><form action={updateMarketIqBriefingEmailPreference} className="mt-5"><label className="flex items-start gap-3 text-sm leading-6 text-slate-700"><input type="checkbox" name="enabled" value="yes" defaultChecked={emailPreference?.enabled ?? false} className="mt-1 size-4" /><span>Enable internal briefing email for my signed-in account.<span className="block text-xs text-slate-500">This does not enroll teammates or add a Client Advisory recipient.</span></span></label><button disabled={!signedInEmail} className="mt-4 rounded-md border border-navy px-4 py-2.5 text-sm font-semibold text-navy disabled:opacity-45">Save my preference</button></form>{emailPreference?.enabled && archives.length > 0 && <form action={sendLatestMarketIqBriefingToMe} className="mt-3"><button className="w-full rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white">Email latest frozen briefing to me</button><p className="mt-2 text-xs leading-5 text-slate-500">Every send and retry requires this explicit click.</p></form>}{latestDelivery && <div className="mt-4 border-t border-slate-100 pt-4"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Latest attempt</p><p className="mt-1 text-sm font-semibold capitalize text-navy">{latestDelivery.status}</p><p className="mt-1 text-xs text-slate-500">{latestDelivery.recipientEmail} · {dateLabel(latestDelivery.sentAt ?? latestDelivery.createdAt)}</p>{latestDelivery.error && <p className="mt-2 text-xs leading-5 text-rose-700">{latestDelivery.error}</p>}</div>}</section>
         <section className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Distribution boundary</p><p className="mt-3 text-lg font-semibold">Nothing on this page is sent automatically.</p><p className="mt-2 text-sm leading-6 text-white/70">Client Advisory still requires a reviewed edition, a published link, and explicit approval for each recipient.</p></section></aside>
     </section>
   </main>;

@@ -516,6 +516,8 @@ model Organization {
   marketIqWorkspacePreference   MarketIqWorkspacePreference?
   marketIqMarketPreferences     MarketIqMarketPreference[]
   marketIqBriefingSnapshots     MarketIqBriefingSnapshot[]
+  marketIqBriefingEmailPreferences MarketIqBriefingEmailPreference[]
+  marketIqBriefingEmailDeliveries  MarketIqBriefingEmailDelivery[]
   marketIqJourneyEvents         MarketIqJourneyEvent[]
   marketIqSupportState          MarketIqWorkspaceSupportState?
   marketIqSupportEvents         MarketIqWorkspaceSupportEvent[]
@@ -852,9 +854,56 @@ model MarketIqBriefingSnapshot {
   createdAt       DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  emailDeliveries MarketIqBriefingEmailDelivery[]
 
   @@unique([organizationId, weekOf])
   @@index([organizationId, createdAt(sort: Desc)])
+}
+
+// User-level consent for internal Market IQ briefing delivery. The address is
+// copied from the signed-in Clerk identity when the user opts in. It is not a
+// Client Advisory recipient and cannot be edited to target another person.
+model MarketIqBriefingEmailPreference {
+  id               String    @id @default(cuid())
+  organizationId   String
+  userId           String
+  recipientEmail   String
+  enabled          Boolean   @default(false)
+  enabledAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries  MarketIqBriefingEmailDelivery[]
+
+  @@unique([organizationId, userId])
+  @@index([organizationId, enabled])
+}
+
+// Idempotent internal delivery record. This is deliberately separate from
+// MarketIqReportSend and the Client Advisory recipient/campaign models.
+model MarketIqBriefingEmailDelivery {
+  id               String    @id @default(cuid())
+  organizationId   String
+  snapshotId       String
+  preferenceId     String
+  userId           String
+  recipientEmail   String
+  status           String    @default("sending") // sending | sent | failed
+  attemptCount     Int       @default(1)
+  providerId       String?
+  error            String?
+  sentAt           DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization                     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  snapshot     MarketIqBriefingSnapshot          @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  preference   MarketIqBriefingEmailPreference   @relation(fields: [preferenceId], references: [id], onDelete: Cascade)
+
+  @@unique([snapshotId, userId])
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([preferenceId, status])
 }
 
 model MarketIqReportRecipient {
