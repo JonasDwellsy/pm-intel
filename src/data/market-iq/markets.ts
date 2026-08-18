@@ -77,7 +77,7 @@ export const MARKET_IQ_MARKETS = [
     stateCodes: ["CA"],
     timeZone: "America/Los_Angeles",
     map: { center: [-121.8863, 37.3382], zoom: 8.7 },
-    status: "preparing",
+    status: "live",
   },
 ] as const satisfies readonly MarketIqMarketDefinition[];
 

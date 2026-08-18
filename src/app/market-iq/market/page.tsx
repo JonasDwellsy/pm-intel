@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { MarketIqIntelligenceWorkspace } from "@/components/market-iq/MarketIqIntelligenceWorkspace";
 import { MarketIqMarketPreparing } from "@/components/market-iq/MarketIqMarketPreparing";
 import { MarketIqMarketSelector } from "@/components/market-iq/MarketIqMarketSelector";
-import { CLEVELAND_MARKET_ID, COLUMBUS_MARKET_ID, listEntitledMarketIqMarkets, SAN_FRANCISCO_MARKET_ID } from "@/data/market-iq/markets";
+import { CLEVELAND_MARKET_ID, COLUMBUS_MARKET_ID, listEntitledMarketIqMarkets, SAN_FRANCISCO_MARKET_ID, SAN_JOSE_MARKET_ID } from "@/data/market-iq/markets";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
@@ -11,6 +11,7 @@ import { resolveActiveMarketIqMarket } from "@/lib/market-iq/markets/selection";
 import { loadCachedClevelandMarketIqReportSnapshot } from "@/lib/market-iq/report/build.server";
 import { loadCachedColumbusMarketIqReportSnapshot } from "@/lib/market-iq/report/columbus-build.server";
 import { loadCachedSanFranciscoMarketIqReportSnapshot } from "@/lib/market-iq/report/san-francisco-build.server";
+import { loadCachedSanJoseMarketIqReportSnapshot } from "@/lib/market-iq/report/san-jose-build.server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +62,9 @@ export default async function MarketIqPage({
     ? loadCachedColumbusMarketIqReportSnapshot
     : activeMarket.id === SAN_FRANCISCO_MARKET_ID
       ? loadCachedSanFranciscoMarketIqReportSnapshot
-      : loadCachedClevelandMarketIqReportSnapshot;
+      : activeMarket.id === SAN_JOSE_MARKET_ID
+        ? loadCachedSanJoseMarketIqReportSnapshot
+        : loadCachedClevelandMarketIqReportSnapshot;
   const [report, liveListingPulse] = await Promise.all([
     reportLoader(),
     activeMarket.id === CLEVELAND_MARKET_ID
