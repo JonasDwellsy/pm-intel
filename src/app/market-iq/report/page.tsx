@@ -33,7 +33,25 @@ export default async function MarketIqReportComposerPage({ searchParams }: { sea
   });
   if (!activeMarket || !canAccessMarketIqReportComposer({ previewEnabled, userId, organizationId, hasProduct: access.hasProduct, marketEntitled: isMarketEntitled(access.entitlement, activeMarket.id) })) notFound();
   if (!access.capabilities.publishClientReports) redirect("/market-iq/subscribe?upgrade=client_advisory");
-  const composer = await loadMarketIqReportComposer(organizationId, activeMarket.id);
+  let composer: Awaited<ReturnType<typeof loadMarketIqReportComposer>>;
+  try {
+    composer = await loadMarketIqReportComposer(organizationId, activeMarket.id);
+  } catch (error) {
+    console.error("[Market IQ] Edition review source unavailable", {
+      marketId: activeMarket.id,
+      error: error instanceof Error ? { name: error.name, code: "code" in error ? String(error.code) : undefined } : { name: "UnknownError" },
+    });
+    return <main className="mx-auto w-full max-w-3xl px-5 py-12 sm:px-6 lg:py-16">
+      <nav aria-label="Breadcrumb" className="mb-6 flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground"><Link href={`/market-iq/get-started?market=${encodeURIComponent(activeMarket.id)}&step=2`} className="hover:text-teal-700">Back to {activeMarket.shortLabel} setup</Link><span>/</span><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><span>Edition review</span></nav>
+      <section className="rounded-2xl border border-amber-200 bg-white p-7 shadow-sm sm:p-10">
+        <p className="dq-eyebrow text-amber-700">Your setup was saved</p>
+        <h1 className="mt-3 text-3xl font-bold text-navy">The {activeMarket.shortLabel} edition is taking too long to load</h1>
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600">The read-only Trends IQ source did not respond in time. Market IQ has kept your firm details and market scope, but it will not substitute another market or estimate missing rent values.</p>
+        <div className="mt-7 flex flex-wrap gap-3"><Link href={`/market-iq/report?market=${encodeURIComponent(activeMarket.id)}&from=setup&activated=1&retry=1`} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white">Try loading the edition again</Link><Link href={`/market-iq/get-started?market=${encodeURIComponent(activeMarket.id)}&step=2`} className="rounded-md border border-slate-300 px-5 py-3 text-sm font-semibold text-navy">Return to setup</Link></div>
+        <p className="mt-5 text-xs leading-5 text-slate-400">No report was published and no email was sent.</p>
+      </section>
+    </main>;
+  }
   if (!composer) notFound();
   const draft = query.draftId ? await prisma.marketIqEditionDraft.findFirst({
     where: { id: query.draftId, organizationId, marketId: activeMarket.id, status: { in: ["ready", "reviewing"] } },

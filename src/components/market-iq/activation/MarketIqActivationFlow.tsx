@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useFormStatus } from "react-dom";
 import { completeMarketIqActivation, saveMarketIqActivationProgress } from "@/app/market-iq/get-started/actions";
 import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import type { MarketIqEditorialDefaults } from "@/lib/market-iq/report/composer.server";
@@ -43,6 +44,16 @@ function MasterChoice({ label, description, checked, indeterminate, onChange }: 
     <input ref={(input) => { if (input) input.indeterminate = indeterminate; }} type="checkbox" checked={checked} onChange={onChange} className="mt-0.5 accent-teal-700" />
     <span><span className="block text-sm font-bold">{label}</span><span className="mt-0.5 block text-xs font-normal text-slate-500">{description}</span></span>
   </label>;
+}
+
+function OpenMarketButton({ disabled, sourceUnavailable, clientAdvisoryEnabled }: { disabled: boolean; sourceUnavailable: boolean; clientAdvisoryEnabled: boolean }) {
+  const { pending } = useFormStatus();
+  const label = sourceUnavailable
+    ? "Save setup"
+    : clientAdvisoryEnabled
+      ? "Save and review edition"
+      : "Save and open market";
+  return <button type="submit" disabled={disabled || pending} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{pending ? "Opening edition…" : label}</button>;
 }
 
 export function MarketIqActivationFlow({ marketId, snapshot, initialBrand, initialEditorialDefaults, initialSelection, initialStep, source, clientAdvisoryEnabled, logoStorageEnabled }: { marketId: string; marketLabel: string; snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialEditorialDefaults: MarketIqEditorialDefaults; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "verified_seed" | "scope_catalog" | "unavailable"; completed: boolean; clientAdvisoryEnabled: boolean; logoStorageEnabled: boolean }) {
@@ -158,7 +169,7 @@ export function MarketIqActivationFlow({ marketId, snapshot, initialBrand, initi
         <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Product segments</legend><div className="mt-3 grid gap-4">{(["apartment", "house"] as const).map((productType) => { const group = scopeOptions.segments.filter((segment) => segment.propertyType === productType); const aggregate = group.find((segment) => segment.bedrooms === 999); const details = group.filter((segment) => segment.bedrooms !== 999); const groupKeys = group.map((segment) => segment.key); const allSelected = groupKeys.length > 0 && groupKeys.every((key) => selection.segments.includes(key)); const someSelected = groupKeys.some((key) => selection.segments.includes(key)); if (!group.length || !aggregate) return null; return <div key={productType}><MasterChoice label={aggregate.label} description={`Select every ${productType} view below`} checked={allSelected} indeterminate={someSelected && !allSelected} onChange={() => setSelection((current) => ({ ...current, segments: toggleMarketIqSegmentSelection(current.segments, aggregate.key, segmentKeys) }))} /><div className="mt-2 grid gap-2 border-l-2 border-slate-200 pl-3">{details.map((segment) => <Choice key={segment.key} value={segment.key} label={segment.label} checked={selection.segments.includes(segment.key)} onChange={() => setSelection((current) => ({ ...current, segments: toggleMarketIqSegmentSelection(current.segments, segment.key, segmentKeys) }))} />)}</div></div>; })}</div></fieldset>
       </div>
       <fieldset className="mt-6"><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">ZIP codes</legend><div className="mt-3"><MasterChoice label="All ZIP codes" description="Include every supported ZIP in this market" checked={allZipsSelected} indeterminate={someZipsSelected && !allZipsSelected} onChange={() => setSelection((current) => ({ ...current, zipCodes: toggleAll(current.zipCodes, scopeOptions.zipCodes) }))} /></div><div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-slate-200 p-3"><div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">{scopeOptions.zipCodes.map((zip) => <Choice key={zip} value={zip} label={zip} checked={selection.zipCodes.includes(zip)} onChange={() => setSelection((current) => ({ ...current, zipCodes: toggle(current.zipCodes, zip) }))} />)}</div></div></fieldset>
-      <div className="mt-7 flex flex-wrap items-center gap-3"><button type="submit" disabled={!validBrand || !validScope || isSaving} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{source === "unavailable" ? "Save setup" : clientAdvisoryEnabled ? "Save and review edition" : "Save and open market"}</button><button type="button" onClick={() => saveProgress(2, false)} disabled={isSaving} className="rounded-md border border-slate-300 px-5 py-3 text-sm font-semibold text-navy">Save for later</button><p className="text-xs text-slate-500">{clientAdvisoryEnabled ? "Your current edition will open next. Nothing is published or emailed." : "Your saved market view will open next."}</p></div>
+      <div className="mt-7 flex flex-wrap items-center gap-3"><OpenMarketButton disabled={!validBrand || !validScope || isSaving} sourceUnavailable={source === "unavailable"} clientAdvisoryEnabled={clientAdvisoryEnabled} /><button type="button" onClick={() => saveProgress(2, false)} disabled={isSaving} className="rounded-md border border-slate-300 px-5 py-3 text-sm font-semibold text-navy">Save for later</button><p className="text-xs text-slate-500">{clientAdvisoryEnabled ? "Your current edition will open next. Nothing is published or emailed." : "Your saved market view will open next."}</p></div>
     </section>}
   </form>;
 }
