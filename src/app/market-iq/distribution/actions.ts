@@ -64,6 +64,59 @@ export async function saveMarketIqRecipient(formData: FormData): Promise<void> {
   redirect("/market-iq/distribution?saved=1");
 }
 
+export async function bulkImportMarketIqRecipients(formData: FormData): Promise<void> {
+  const context = await authorizedContext();
+  const raw = marketIqClipped(formData.get("recipients"), 300_000);
+  if (!context || !raw) throw new Error("Choose a recipient spreadsheet to import.");
+
+  let input: unknown;
+  try {
+    input = JSON.parse(raw);
+  } catch {
+    throw new Error("The recipient spreadsheet could not be read.");
+  }
+  if (!Array.isArray(input) || input.length < 1 || input.length > 1_000) {
+    throw new Error("Import between 1 and 1,000 recipients at a time.");
+  }
+
+  const rows = input.map((value) => {
+    const row = value && typeof value === "object" ? value as Record<string, unknown> : {};
+    return {
+      name: marketIqClipped(String(row.name ?? ""), 120),
+      email: marketIqClipped(String(row.email ?? ""), 254).toLowerCase(),
+      kind: marketIqClipped(String(row.kind ?? ""), 20),
+    };
+  });
+  if (rows.some((row) => !row.name || !marketIqValidEmail(row.email) || !["client", "prospect"].includes(row.kind))) {
+    throw new Error("Every imported recipient needs a valid name, email, and relationship.");
+  }
+  if (new Set(rows.map((row) => row.email)).size !== rows.length) {
+    throw new Error("Remove duplicate email addresses from the spreadsheet and try again.");
+  }
+
+  const existing = await prisma.marketIqReportRecipient.findMany({
+    where: { organizationId: context.organizationId, email: { in: rows.map((row) => row.email) } },
+    select: { email: true },
+  });
+  const existingEmails = new Set(existing.map((row) => row.email));
+  await prisma.$transaction(rows.map((row) => prisma.marketIqReportRecipient.upsert({
+    where: { organizationId_email: { organizationId: context.organizationId, email: row.email } },
+    create: { organizationId: context.organizationId, ...row },
+    update: { name: row.name, kind: row.kind },
+  })));
+
+  await recordMarketIqJourneyEvent({
+    organizationId: context.organizationId,
+    actorUserId: context.userId,
+    eventKey: "recipient_bulk_imported",
+    milestone: "recipient",
+    sourceRoute: "/market-iq/distribution",
+    metadata: { imported: rows.length - existingEmails.size, updated: existingEmails.size },
+  });
+  revalidatePath("/market-iq/distribution");
+  redirect(`/market-iq/distribution?imported=${rows.length - existingEmails.size}&updated=${existingEmails.size}`);
+}
+
 export async function setMarketIqRecipientRecurringApproval(formData: FormData): Promise<void> {
   const context = await authorizedContext();
   const recipientId = marketIqClipped(formData.get("recipientId"), 80);
@@ -296,6 +349,7 @@ export async function sendMarketIqCampaignRecipient(formData: FormData): Promise
   revalidatePath(`/market-iq/distribution/${row.campaign.id}`);
   revalidatePath(`/market-iq/delivery/${row.campaign.id}`);
   revalidatePath("/market-iq/distribution");
+  revalidatePath("/market-iq/sharing");
   if (nextCampaignStatus !== "ready") {
     redirect(withLaunchFlow(`/market-iq/delivery/${row.campaign.id}?result=${result.status}`, preserveLaunchFlow));
   }

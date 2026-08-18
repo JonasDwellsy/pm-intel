@@ -8,7 +8,8 @@ const ITEMS = [
   { href: "/market-iq", label: "Market", advisory: false, match: (path: string) => path === "/market-iq" },
   { href: "/market-iq/review", label: "Review inbox", advisory: true, match: (path: string) => path.startsWith("/market-iq/review") },
   { href: "/market-iq/editions", label: "Client reports", advisory: true, match: (path: string) => path.startsWith("/market-iq/editions") || path.startsWith("/market-iq/report") || path.startsWith("/market-iq/published") },
-  { href: "/market-iq/distribution", label: "Recipients", advisory: true, match: (path: string) => path.startsWith("/market-iq/distribution") },
+  { href: "/market-iq/distribution", label: "Recipients", advisory: true, match: (path: string) => path === "/market-iq/distribution" },
+  { href: "/market-iq/sharing", label: "Sharing", advisory: true, match: (path: string) => path.startsWith("/market-iq/sharing") || path.startsWith("/market-iq/distribution/") },
   { href: "/market-iq/get-started", label: "Setup", advisory: false, match: (path: string) => path.startsWith("/market-iq/get-started") },
 ] as const;
 
