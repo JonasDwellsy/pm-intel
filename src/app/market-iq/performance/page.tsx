@@ -140,7 +140,7 @@ export default async function MarketIqPerformancePage() {
     <nav className="flex items-center gap-2 text-xs font-semibold text-slate-500"><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><span>Performance</span></nav>
     <header className="mt-6 grid gap-6 border-b border-grid pb-8 lg:grid-cols-[1fr_360px] lg:items-end">
       <div><p className="dq-eyebrow">Client Advisory performance</p><h1 className="dq-h1">Know what reached clients and what needs attention</h1><p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Review edition delivery, recipient health, and the latest engagement signal for {organization.brandProfile?.displayName ?? organization.name}.</p></div>
-      <aside className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/55">Reporting window</p><p className="mt-2 text-xl font-semibold">Trailing 12 months</p><p className="mt-2 text-sm leading-6 text-white/65">SendGrid delivery evidence through {shortDate(now)}.</p></aside>
+      <aside className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/55">Reporting window</p><p className="mt-2 text-xl font-semibold">Trailing 12 months</p><p className="mt-2 text-sm leading-6 text-white/65">SendGrid delivery evidence through {shortDate(now)}.</p><Link href="/market-iq/performance/briefing" className="mt-5 inline-flex rounded-lg bg-white px-4 py-2 text-sm font-semibold text-navy">Open monthly briefing</Link></aside>
     </header>
 
     <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
