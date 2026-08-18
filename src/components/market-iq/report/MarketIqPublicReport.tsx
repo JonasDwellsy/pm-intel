@@ -120,7 +120,9 @@ export function MarketIqPublicReport({ report, publicToken, preview = false }: {
     : report.marketRead.narrative;
   const headline = report.editorial?.headline || "A split rental market requires a local read";
   const introduction = report.editorial?.introduction || `${lead} Conditions differ by product and location, so the MSA headline is most useful when read alongside city and ZIP trends.`;
-  const edition = report.editionComparison;
+  const edition = report.editionComparison?.state !== "baseline" && report.editionComparison?.findings.length
+    ? report.editionComparison
+    : null;
   const companyProfile = report.editorial?.companyProfile;
   const companyCtaUrl = report.editorial?.companyCtaUrl;
   const companyCtaLabel = report.editorial?.companyCtaLabel || "Talk with our team";

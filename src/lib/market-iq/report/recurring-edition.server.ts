@@ -20,8 +20,8 @@ function fingerprint(value: unknown) {
 
 /**
  * Creates at most one private draft for one authoritative Trends IQ period.
- * This function cannot publish a report, create a campaign, select recipients,
- * or send email. Those remain separate PM-controlled actions.
+ * This function never publishes or sends. The orchestrator may hand the frozen
+ * result to the separate autopilot service after checking saved preferences.
  */
 export async function ensureRecurringMarketIqEditionDraft(
   organizationId: string,

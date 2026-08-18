@@ -32,10 +32,29 @@ test("scheduled endpoint is authenticated and fail-closed behind Market IQ", asy
   assert.match(vercel, /api\/cron\/market-iq-editions/);
 });
 
-test("orchestrator can create only private drafts", async () => {
+test("orchestrator publishes only when monthly autopilot is explicitly enabled", async () => {
   const service = await readFile("src/lib/market-iq/report/edition-orchestrator.server.ts", "utf8");
   assert.match(service, /ensureRecurringMarketIqEditionDraft/);
+  assert.match(service, /publishAndDeliverMarketIqAutopilotEdition/);
+  assert.match(service, /preference\.deliveryMode === "autopilot"/);
+  assert.match(service, /!dryRun && preference\.deliveryMode === "autopilot"/);
   assert.doesNotMatch(service, /marketIqReport\.create|marketIqDistributionCampaign\.create|marketIqReportSend\.create|sendgrid|sendMarketIq/);
+});
+
+test("monthly autopilot is additive, opt-in, and recipient-approved", async () => {
+  const [migration, schema, autopilot] = await Promise.all([
+    readFile("prisma/migrations/20260818233000_market_iq_delivery_mode/migration.sql", "utf8"),
+    readFile("prisma/schema.prisma", "utf8"),
+    readFile("src/lib/market-iq/report/autopilot.server.ts", "utf8"),
+  ]);
+  assert.match(migration, /ADD COLUMN "deliveryMode" TEXT NOT NULL DEFAULT 'review'/);
+  assert.match(migration, /ADD COLUMN "recurringDeliveryApprovedAt" TIMESTAMP\(3\)/);
+  assert.doesNotMatch(migration, /ALTER TABLE "PM"|ALTER TABLE "OperatorSnapshot"|ALTER TABLE "PortfolioIq|DROP TABLE|DROP COLUMN/);
+  assert.match(schema, /deliveryMode\s+String\s+@default\("review"\)/);
+  assert.match(autopilot, /recurringDeliveryApprovedAt: \{ not: null \}/);
+  assert.match(autopilot, /status: "pending"/);
+  assert.match(autopilot, /deliverMarketIqReportToRecipient/);
+  assert.match(autopilot, /where: \{ editionDraftId: draft\.id \}/);
 });
 
 test("orchestrator follows every enrolled organization market", async () => {

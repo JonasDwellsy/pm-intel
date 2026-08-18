@@ -759,9 +759,8 @@ model MarketIqReport {
   @@index([status, publishedAt(sort: Desc)])
 }
 
-// A private, idempotent handoff from an authoritative Trends IQ period to PM
-// review. The engine freezes evidence and comparison here, but never creates a
-// public link, distribution campaign, recipient selection, or email.
+// A private, idempotent handoff from an authoritative Trends IQ period. Review
+// mode leaves it private. Autopilot may publish it through a separate service.
 model MarketIqEditionDraft {
   id                     String    @id @default(cuid())
   organizationId         String
@@ -794,8 +793,8 @@ model MarketIqEditionDraft {
 }
 
 // One auditable scheduler pass across commercially eligible Market IQ
-// workspaces. It records source and draft outcomes only. Publication and
-// distribution remain outside this orchestration boundary.
+// workspaces. It creates drafts and can hand an autopilot draft to the separate
+// publication and delivery service when the saved consent requirements pass.
 model MarketIqEditionOrchestrationRun {
   id                     String    @id @default(cuid())
   runKey                 String    @unique
@@ -962,6 +961,8 @@ model MarketIqReportRecipient {
   emailStatus       String    @default("active") // active | suppressed
   suppressionReason String?
   suppressedAt      DateTime?
+  recurringDeliveryApprovedAt       DateTime?
+  recurringDeliveryApprovedByUserId String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -1057,6 +1058,7 @@ model MarketIqMarketPreference {
   recurringEditionsEnabled Boolean   @default(false)
   recurringEnabledAt       DateTime?
   recurringEnabledByUserId String?
+  deliveryMode             String    @default("review") // review | autopilot
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 

@@ -2,6 +2,7 @@ import "server-only";
 
 import { getMarketIqMarket } from "@/data/market-iq/markets";
 import { organizationHasMarketIqAccess } from "@/lib/market-iq/billing/access.server";
+import { publishAndDeliverMarketIqAutopilotEdition } from "@/lib/market-iq/report/autopilot.server";
 import { ensureRecurringMarketIqEditionDraft, type RecurringEditionResult } from "@/lib/market-iq/report/recurring-edition.server";
 import { prisma } from "@/lib/prisma";
 
@@ -66,7 +67,7 @@ export async function runMarketIqEditionOrchestrator(input: {
         id: true,
         marketIqMarketPreferences: {
           where: { recurringEditionsEnabled: true, configuredAt: { not: null } },
-          select: { marketId: true },
+          select: { marketId: true, deliveryMode: true, recurringEnabledByUserId: true },
           orderBy: { marketId: "asc" },
         },
       },
@@ -87,6 +88,18 @@ export async function runMarketIqEditionOrchestrator(input: {
             ? await ensureRecurringMarketIqEditionDraft(organization.id, marketId, { dryRun })
             : { state: "blocked", periodEnd: null, detail: "The enrolled market is unavailable or is not included in this workspace." };
           const status = itemStatus(result);
+          let detail = resultDetail(result);
+          if (!dryRun && preference.deliveryMode === "autopilot" && "draftId" in result && result.draftId) {
+            const autopilot = await publishAndDeliverMarketIqAutopilotEdition({
+              organizationId: organization.id,
+              marketId,
+              draftId: result.draftId,
+              actorUserId: preference.recurringEnabledByUserId ?? "market-iq-autopilot",
+            });
+            detail += autopilot.state === "published" || autopilot.state === "already_published"
+              ? ` Monthly autopilot published the edition and sent it to ${autopilot.sent} of ${autopilot.approvedRecipients} approved recipients.${autopilot.failed || autopilot.suppressed ? " Unsuccessful deliveries require an explicit retry." : ""}`
+              : " Monthly autopilot did not publish because its saved requirements were not met.";
+          }
           if (status === "created" || status === "would_create") counts.created += 1;
           else if (status === "existing") counts.existing += 1;
           else if (status === "unchanged") counts.unchanged += 1;
@@ -102,7 +115,7 @@ export async function runMarketIqEditionOrchestrator(input: {
               status,
               periodEnd: result.periodEnd,
               draftId: "draftId" in result ? result.draftId : null,
-              detail: resultDetail(result),
+              detail,
             },
           });
         } catch (error) {

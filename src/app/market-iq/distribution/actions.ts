@@ -38,11 +38,15 @@ export async function saveMarketIqRecipient(formData: FormData): Promise<void> {
   const name = marketIqClipped(formData.get("name"), 120);
   const email = marketIqClipped(formData.get("email"), 254).toLowerCase();
   const kind = marketIqClipped(formData.get("kind"), 20);
+  const approveRecurring = marketIqClipped(formData.get("approveRecurringDelivery"), 8) === "1";
+  const approvalData = approveRecurring
+    ? { recurringDeliveryApprovedAt: new Date(), recurringDeliveryApprovedByUserId: context?.userId ?? null }
+    : {};
   if (!context || !name || !marketIqValidEmail(email) || !["client", "prospect"].includes(kind)) throw new Error("Enter a valid client or prospect.");
   const recipient = await prisma.marketIqReportRecipient.upsert({
     where: { organizationId_email: { organizationId: context.organizationId, email } },
-    create: { organizationId: context.organizationId, name, email, kind },
-    update: { name, kind },
+    create: { organizationId: context.organizationId, name, email, kind, ...approvalData },
+    update: { name, kind, ...approvalData },
     select: { id: true },
   });
   await recordMarketIqJourneyEvent({
@@ -58,6 +62,23 @@ export async function saveMarketIqRecipient(formData: FormData): Promise<void> {
   revalidatePath("/market-iq/distribution");
   if (marketIqClipped(formData.get("returnTo"), 20) === "launch") redirect("/market-iq/launch?recipient=1");
   redirect("/market-iq/distribution?saved=1");
+}
+
+export async function setMarketIqRecipientRecurringApproval(formData: FormData): Promise<void> {
+  const context = await authorizedContext();
+  const recipientId = marketIqClipped(formData.get("recipientId"), 80);
+  const approve = marketIqClipped(formData.get("approve"), 8) === "1";
+  const confirmation = marketIqClipped(formData.get("confirmation"), 80);
+  if (!context || !recipientId || (approve && confirmation !== recipientId)) {
+    throw new Error("Confirm this exact recipient before adding them to monthly delivery.");
+  }
+  await prisma.marketIqReportRecipient.updateMany({
+    where: { id: recipientId, organizationId: context.organizationId },
+    data: approve
+      ? { recurringDeliveryApprovedAt: new Date(), recurringDeliveryApprovedByUserId: context.userId }
+      : { recurringDeliveryApprovedAt: null, recurringDeliveryApprovedByUserId: null },
+  });
+  revalidatePath("/market-iq/distribution");
 }
 
 export async function startMarketIqDistributionCampaign(formData: FormData): Promise<void> {

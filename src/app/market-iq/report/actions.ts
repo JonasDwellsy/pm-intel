@@ -97,6 +97,7 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
   if (companyCtaRaw && !companyCtaUrl) throw new Error("Company CTA URL must be a valid HTTPS address.");
   const audienceKind = clipped(formData.get("audienceKind"), 20);
   if (!["client", "prospect"].includes(audienceKind)) throw new Error("Choose whether this edition is for current clients or prospects.");
+  const deliveryMode = clipped(formData.get("deliveryMode"), 20) === "autopilot" ? "autopilot" : "review";
 
   const now = new Date();
   const preview = editionDraft ? null : await buildMarketIqComposerPreview(marketId, brand);
@@ -145,6 +146,31 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
   };
   const publicToken = randomBytes(24).toString("base64url");
   const report = await prisma.$transaction(async (tx) => {
+    await tx.marketIqMarketPreference.upsert({
+      where: { organizationId_marketId: { organizationId: context.organizationId, marketId } },
+      create: {
+        organizationId: context.organizationId,
+        marketId,
+        cities: JSON.stringify(selection.cities),
+        zipCodes: JSON.stringify(selection.zipCodes),
+        segments: JSON.stringify(selection.segments),
+        configuredAt: now,
+        recurringEditionsEnabled: true,
+        recurringEnabledAt: now,
+        recurringEnabledByUserId: context.userId,
+        deliveryMode,
+      },
+      update: {
+        cities: JSON.stringify(selection.cities),
+        zipCodes: JSON.stringify(selection.zipCodes),
+        segments: JSON.stringify(selection.segments),
+        configuredAt: now,
+        recurringEditionsEnabled: true,
+        recurringEnabledAt: now,
+        recurringEnabledByUserId: context.userId,
+        deliveryMode,
+      },
+    });
     const brandProfile = await tx.organizationBrandProfile.upsert({
       where: { organizationId: context.organizationId },
       create: { organizationId: context.organizationId, ...brand },
@@ -213,7 +239,7 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
         sourceRoute: "/market-iq/report",
         subjectId: createdReport.id,
         dedupeKey: marketIqMilestoneDedupeKey(context.organizationId, "edition"),
-        metadata: { marketId, recurringDraft: Boolean(editionDraft) },
+        metadata: { marketId, recurringDraft: Boolean(editionDraft), deliveryMode },
       })],
       skipDuplicates: true,
     });
