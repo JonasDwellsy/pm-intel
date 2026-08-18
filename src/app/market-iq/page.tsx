@@ -1,21 +1,21 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
+import { listEntitledMarketIqMarkets } from "@/data/market-iq/markets";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
-import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPlanForKey } from "@/lib/market-iq/billing/plans";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { loadClevelandLiveListingPulse } from "@/lib/market-iq/live-listings.server";
-import { loadClevelandMarketReadTrendPulses } from "@/lib/market-iq/trends.server";
+import { rankMarketIqHomeMarkets } from "@/lib/market-iq/home-summary";
+import { buildMarketIqComposerPreview, defaultMarketIqReportBrand } from "@/lib/market-iq/report/composer.server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function dateLabel(value: string | Date | null) {
   return value
     ? new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
-    : "Awaiting source";
+    : "None yet";
 }
 
 function monthLabel(value: string | Date | null) {
@@ -24,96 +24,116 @@ function monthLabel(value: string | Date | null) {
     : "Awaiting source";
 }
 
-function percent(value: number) {
-  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+function rent(value: number | null | undefined) {
+  return value ? `$${value.toLocaleString("en-US")}` : "Not available";
 }
+
+function change(value: number | null | undefined) {
+  return value === null || value === undefined ? "No year-over-year read" : `${value >= 0 ? "+" : ""}${value.toFixed(1)}% YoY`;
+}
+
+const STATUS_STYLE: Record<string, string> = {
+  "Review needed": "bg-orange-100 text-orange-900",
+  "Setup needed": "bg-amber-100 text-amber-900",
+  "Source unavailable": "bg-rose-100 text-rose-900",
+  Monitoring: "bg-emerald-100 text-emerald-800",
+  Current: "bg-slate-100 text-slate-700",
+};
 
 export default async function MarketIqHomePage() {
   if (!marketIqPreviewEnabled()) notFound();
-  const access = await resolveViewerMarketIqAccess();
-  if (!access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) redirect("/market-iq/subscribe");
-  const context = await getActiveOrgContext();
+  const [access, context] = await Promise.all([resolveViewerMarketIqAccess(), getActiveOrgContext()]);
+  if (!access.hasProduct) redirect("/market-iq/subscribe");
   if (!context.organizationId) redirect("/setup-workspace");
 
-  const [trendPulses, liveListings, workspace] = await Promise.all([
-    loadClevelandMarketReadTrendPulses(),
-    loadClevelandLiveListingPulse(),
-    prisma.organization.findUnique({
-      where: { id: context.organizationId },
-      select: {
-        name: true,
-        marketIqWorkspacePreference: true,
-        _count: { select: { marketIqReportRecipients: true, marketIqReports: true } },
-        marketIqEditionDrafts: {
-          where: { status: { in: ["ready", "reviewing"] } },
-          orderBy: { detectedAt: "desc" },
-          take: 1,
-          select: { id: true, periodEnd: true, materialChangeCount: true, status: true },
-        },
-        marketIqReportSends: {
-          where: { deliveryStatus: { in: ["sent", "delivered"] } },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { sentAt: true, deliveredAt: true },
-        },
+  const entitledMarkets = listEntitledMarketIqMarkets(access.entitlement);
+  if (!entitledMarkets.length) redirect("/market-iq/subscribe");
+  const workspace = await prisma.organization.findUnique({
+    where: { id: context.organizationId },
+    select: {
+      name: true,
+      brandProfile: true,
+      marketIqWorkspacePreference: true,
+      marketIqMarketPreferences: true,
+      marketIqEditionDrafts: {
+        where: { status: { in: ["ready", "reviewing"] } },
+        orderBy: { detectedAt: "desc" },
+        select: { id: true, marketId: true, periodEnd: true, materialChangeCount: true },
       },
-    }),
-  ]);
+      marketIqReports: {
+        where: { status: "published" },
+        orderBy: { publishedAt: "desc" },
+        select: { marketId: true, publishedAt: true },
+      },
+      _count: { select: { marketIqReportRecipients: true, marketIqReports: true } },
+    },
+  });
   if (!workspace) redirect("/setup-workspace");
 
-  const msa = trendPulses.find((pulse) => pulse.trendSource.geographyType === "msa") ?? trendPulses[0] ?? null;
-  const apartment = msa?.segments.find((segment) => segment.label === "1-bed apartment") ?? null;
-  const house = msa?.segments.find((segment) => segment.label === "3-bed house") ?? null;
-  const onboardingComplete = Boolean(workspace.marketIqWorkspacePreference?.onboardingCompletedAt);
-  const draft = workspace.marketIqEditionDrafts[0] ?? null;
+  const brand = workspace.brandProfile ?? defaultMarketIqReportBrand(workspace.name);
+  const snapshots = await Promise.all(entitledMarkets.map(async (market) => {
+    try {
+      const preview = await buildMarketIqComposerPreview(market.id, brand);
+      return { marketId: market.id, snapshot: preview.snapshot, source: preview.source as "dwellsy_trends" | "verified_seed" };
+    } catch {
+      return { marketId: market.id, snapshot: null, source: "unavailable" as const };
+    }
+  }));
+  const snapshotByMarket = new Map(snapshots.map((item) => [item.marketId, item]));
+  const latestReportByMarket = new Map<string, Date>();
+  for (const report of workspace.marketIqReports) {
+    if (report.publishedAt && !latestReportByMarket.has(report.marketId)) latestReportByMarket.set(report.marketId, report.publishedAt);
+  }
+  const draftByMarket = new Map(workspace.marketIqEditionDrafts.map((draft) => [draft.marketId, draft]));
+  const preferenceByMarket = new Map(workspace.marketIqMarketPreferences.map((preference) => [preference.marketId, preference]));
+  const markets = rankMarketIqHomeMarkets(entitledMarkets.map((market) => {
+    const source = snapshotByMarket.get(market.id);
+    const preference = preferenceByMarket.get(market.id);
+    return {
+      market,
+      snapshot: source?.snapshot ?? null,
+      source: source?.source ?? "unavailable",
+      configured: Boolean(preference?.configuredAt),
+      recurringEnabled: Boolean(preference?.recurringEditionsEnabled),
+      draft: draftByMarket.get(market.id) ?? null,
+      latestPublishedAt: latestReportByMarket.get(market.id) ?? null,
+      clientAdvisoryEnabled: access.capabilities.publishClientReports,
+    };
+  }));
+
+  const draftCount = markets.filter((market) => market.draft).length;
+  const configuredCount = markets.filter((market) => market.configured).length;
+  const currentCount = markets.filter((market) => market.snapshot && market.source === "dwellsy_trends").length;
   const plan = marketIqPlanForKey(access.planKey);
   const advisory = access.capabilities.publishClientReports;
+  const nextAction = markets[0];
 
-  return (
-    <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-7 lg:px-10 lg:py-12">
-      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid gap-8 p-7 sm:p-10 lg:grid-cols-[1fr_390px] lg:items-end lg:p-12">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-700">Cleveland market workspace</p>
-            <h1 className="mt-3 max-w-4xl text-4xl font-bold tracking-tight text-navy sm:text-5xl">Know what changed before the next owner conversation.</h1>
-            <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">Market IQ turns Dwellsy’s asking-rent trajectories and current listing activity into one practical local read for your team.</p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/market-iq/market" className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white">Open market intelligence</Link>
-              {advisory ? <Link href={draft ? "/market-iq/review" : "/market-iq/editions"} className="rounded-md border border-navy bg-white px-5 py-3 text-sm font-semibold text-navy">{draft ? "Review the next edition" : "Prepare a client edition"}</Link> : <Link href="/market-iq/subscribe?upgrade=client_advisory" className="rounded-md border border-navy bg-white px-5 py-3 text-sm font-semibold text-navy">Add client sharing</Link>}
-            </div>
-          </div>
-          <aside className="rounded-2xl bg-navy p-6 text-white">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Current market read</p>
-            <p className="mt-3 text-2xl font-semibold leading-8">{msa?.signal.heading ?? "Cleveland source refresh pending"}</p>
-            <p className="mt-3 text-sm leading-6 text-white/70">{msa?.signal.narrative ?? "The next dated Cleveland read will appear when the monthly Trends data is available."}</p>
-            <p className="mt-4 text-xs text-white/45">Trends IQ through {monthLabel(msa?.trendSource.availableThrough ?? null)}</p>
-          </aside>
-        </div>
-        <div className="grid gap-px bg-slate-200 sm:grid-cols-2 lg:grid-cols-4">
-          <article className="bg-white p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">1-bed apartments</p><p className="mt-2 text-2xl font-semibold text-navy">{apartment ? `$${apartment.rent.toLocaleString("en-US")}` : "Pending"}</p><p className="mt-1 text-sm text-slate-500">{apartment ? `${percent(apartment.yoy)} year over year` : "No current read"}</p></article>
-          <article className="bg-white p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">3-bed houses</p><p className="mt-2 text-2xl font-semibold text-navy">{house ? `$${house.rent.toLocaleString("en-US")}` : "Pending"}</p><p className="mt-1 text-sm text-slate-500">{house ? `${percent(house.yoy)} year over year` : "No current read"}</p></article>
-          <article className="bg-white p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active listings</p><p className="mt-2 text-2xl font-semibold text-navy">{liveListings.status === "healthy" ? liveListings.activeListings.toLocaleString("en-US") : "Pending"}</p><p className="mt-1 text-sm text-slate-500">{liveListings.status === "healthy" ? `Observed ${dateLabel(liveListings.sourceAvailableThrough)}` : "Awaiting synchronized snapshot"}</p></article>
-          <article className="bg-white p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Your plan</p><p className="mt-2 text-2xl font-semibold text-navy">{plan?.tier === "client_advisory" || access.source !== "subscription" ? "Client Advisory" : "Intelligence"}</p><Link href="/market-iq/account" className="mt-1 inline-block text-sm font-semibold text-teal-700">Account and billing →</Link></article>
-        </div>
-      </section>
+  return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-7 lg:px-10 lg:py-12">
+    <header className="grid gap-7 border-b border-grid pb-9 lg:grid-cols-[1fr_370px] lg:items-end">
+      <div><p className="dq-eyebrow">Your markets</p><h1 className="dq-h1">One place to see what needs attention</h1><p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Compare the latest rental-market read across every market in your plan, then move directly into the local analysis or client-report work that matters.</p></div>
+      <aside className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Recommended next action</p><p className="mt-3 text-xl font-semibold leading-7">{nextAction?.headline ?? "Your markets are current"}</p>{nextAction && <Link href={nextAction.actionHref} className="mt-5 inline-flex rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-navy">{nextAction.actionLabel}</Link>}</aside>
+    </header>
 
-      <section className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-700">What deserves attention</p><h2 className="mt-2 text-2xl font-semibold text-navy">Start here</h2></div>
-            <Link href="/market-iq/market#local-areas" className="text-sm font-semibold text-teal-700">Explore local areas →</Link>
-          </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <Link href="/market-iq/market" className="rounded-xl border border-slate-200 bg-slate-50 p-5 transition hover:border-teal-300"><p className="text-sm font-semibold text-navy">Read the market</p><p className="mt-2 text-sm leading-6 text-slate-600">Compare MSA, city, ZIP, apartment, and house trajectories in the current Cleveland view.</p></Link>
-            {advisory ? <Link href={draft ? "/market-iq/review" : "/market-iq/editions"} className="rounded-xl border border-slate-200 bg-slate-50 p-5 transition hover:border-teal-300"><p className="text-sm font-semibold text-navy">{draft ? `${draft.materialChangeCount} changes need review` : "Prepare the next edition"}</p><p className="mt-2 text-sm leading-6 text-slate-600">{draft ? `A private ${dateLabel(draft.periodEnd)} draft is waiting for your review.` : "Add your firm’s commentary, review the data, and create a client-ready link."}</p></Link> : <Link href="/market-iq/subscribe?upgrade=client_advisory" className="rounded-xl border border-slate-200 bg-slate-50 p-5 transition hover:border-teal-300"><p className="text-sm font-semibold text-navy">Prepare reports for clients</p><p className="mt-2 text-sm leading-6 text-slate-600">Client Advisory adds your firm’s branding, recipient management, and email delivery.</p></Link>}
-          </div>
-        </div>
+    <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Markets included</p><p className="mt-3 text-3xl font-semibold text-navy">{markets.length}</p><p className="mt-1 text-xs text-slate-500">{configuredCount} configured</p></article>
+      <article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current data</p><p className="mt-3 text-3xl font-semibold text-navy">{currentCount} of {markets.length}</p><p className="mt-1 text-xs text-slate-500">authoritative market reads available</p></article>
+      <article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Drafts to review</p><p className="mt-3 text-3xl font-semibold text-navy">{draftCount}</p><p className="mt-1 text-xs text-slate-500">private and unsent</p></article>
+      <article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Your plan</p><p className="mt-3 text-2xl font-semibold text-navy">{plan?.tier === "client_advisory" || access.source !== "subscription" ? "Client Advisory" : "Intelligence"}</p><Link href="/market-iq/account" className="mt-1 inline-block text-xs font-semibold text-teal-700">Account and settings →</Link></article>
+    </section>
 
-        <aside className="space-y-5">
-          <section className={`rounded-2xl border p-6 ${onboardingComplete ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">Workspace readiness</p><p className="mt-2 text-xl font-semibold text-navy">{onboardingComplete ? "Your market scope is active" : "Finish your market setup"}</p><p className="mt-2 text-sm leading-6 text-slate-600">{onboardingComplete ? "Your saved geography and segment choices will carry into future analysis." : "Choose the cities, ZIPs, and segments your team wants to follow."}</p><Link href="/market-iq/get-started" className="mt-4 inline-block text-sm font-semibold text-teal-800">{onboardingComplete ? "Edit workspace setup" : "Continue setup"} →</Link></section>
-          {advisory && <section className="rounded-2xl border border-slate-200 bg-white p-6"><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Client channel</p><p className="mt-2 text-xl font-semibold text-navy">{workspace._count.marketIqReportRecipients} saved recipients</p><p className="mt-2 text-sm leading-6 text-slate-600">{workspace._count.marketIqReports} editions created. {workspace.marketIqReportSends[0] ? `Latest delivery activity ${dateLabel(workspace.marketIqReportSends[0].deliveredAt ?? workspace.marketIqReportSends[0].sentAt)}.` : "No report has been sent yet."}</p><Link href="/market-iq/distribution" className="mt-4 inline-block text-sm font-semibold text-teal-800">Open clients and distribution →</Link></section>}
-        </aside>
-      </section>
-    </main>
-  );
+    <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 px-6 py-6 sm:px-8"><div><p className="dq-eyebrow">Market portfolio</p><h2 className="dq-h2">Latest read by market</h2><p className="mt-2 text-sm leading-6 text-slate-600">Markets are ordered by review work, setup needs, source availability, and the size of current rent movement.</p></div><Link href="/market-iq/account" className="text-sm font-semibold text-teal-700">Manage market settings →</Link></div>
+      <div className="divide-y divide-slate-100">{markets.map((item) => <article key={item.market.id} className="grid gap-6 px-6 py-7 sm:px-8 xl:grid-cols-[1.15fr_0.7fr_0.7fr_0.8fr] xl:items-center">
+        <div><div className="flex flex-wrap items-center gap-3"><h3 className="text-xl font-semibold text-navy">{item.market.fullName}</h3><span className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${STATUS_STYLE[item.status] ?? STATUS_STYLE.Current}`}>{item.status}</span></div><p className="mt-3 text-sm font-semibold leading-6 text-navy">{item.headline}</p><p className="mt-2 text-xs text-slate-500">Trends IQ through {monthLabel(item.latestMonth)} · {item.configured ? "Saved scope active" : "Scope not configured"}</p></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">1-bed apartments</p><p className="mt-2 text-xl font-semibold text-navy">{rent(item.apartment?.rent)}</p><p className="mt-1 text-xs text-slate-500">{change(item.apartment?.yearOverYearPct)}</p></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">3-bed houses</p><p className="mt-2 text-xl font-semibold text-navy">{rent(item.house?.rent)}</p><p className="mt-1 text-xs text-slate-500">{change(item.house?.yearOverYearPct)}</p></div>
+        <div className="xl:text-right"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Client reporting</p><p className="mt-2 text-sm font-semibold text-navy">{item.draft ? `Draft through ${dateLabel(item.draft.periodEnd)}` : item.latestPublishedAt ? `Last published ${dateLabel(item.latestPublishedAt)}` : advisory ? "No report published" : "Upgrade available"}</p><div className="mt-4 flex flex-wrap gap-2 xl:justify-end"><Link href={item.actionHref} className="rounded-md bg-navy px-3.5 py-2 text-xs font-semibold text-white">{item.actionLabel}</Link>{item.configured && advisory && <Link href={`/market-iq/editions?market=${encodeURIComponent(item.market.id)}`} className="rounded-md border border-slate-300 px-3.5 py-2 text-xs font-semibold text-navy">Reports</Link>}</div></div>
+      </article>)}</div>
+    </section>
+
+    <section className="mt-8 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+      <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"><p className="dq-eyebrow">How to use this page</p><h2 className="dq-h2">Start with the market, then decide whether it belongs in a client conversation</h2><p className="mt-3 text-sm leading-6 text-slate-600">Open the detailed market read to understand the MSA, city, ZIP, and product-segment evidence. Client Advisory work remains separate and deliberate: review the private draft, add your firm’s perspective, publish the link, then approve each recipient individually.</p></article>
+      <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-6 sm:p-8"><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">Client channel</p><p className="mt-2 text-2xl font-semibold text-navy">{workspace._count.marketIqReportRecipients} saved recipients</p><p className="mt-2 text-sm leading-6 text-slate-600">{workspace._count.marketIqReports} reports created across {markets.length} markets. Reports and recurring drafts remain market-specific.</p>{advisory ? <Link href="/market-iq/distribution" className="mt-5 inline-flex text-sm font-semibold text-teal-800">Open clients and distribution →</Link> : <Link href="/market-iq/subscribe?upgrade=client_advisory" className="mt-5 inline-flex text-sm font-semibold text-teal-800">Add Client Advisory →</Link>}</aside>
+    </section>
+  </main>;
 }
