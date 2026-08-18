@@ -9,7 +9,7 @@ export function marketIqOptionalUrl(value: FormDataEntryValue | null) {
   const raw = marketIqClipped(value, 500);
   if (!raw) return null;
   try {
-    const url = new URL(raw);
+    const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
     return url.protocol === "https:" ? url.toString() : null;
   } catch {
     return null;
@@ -42,15 +42,15 @@ export function parseMarketIqBrandForm(formData: FormData): MarketIqReportBrandI
     contactPhone: marketIqClipped(formData.get("contactPhone"), 40) || null,
     websiteUrl: marketIqOptionalUrl(formData.get("websiteUrl")),
   };
-  if (logoRaw && !brand.logoUrl) throw new Error("Logo URL must be a valid HTTPS address.");
-  if (websiteRaw && !brand.websiteUrl) throw new Error("Website URL must be a valid HTTPS address.");
+  if (logoRaw && !brand.logoUrl) throw new Error("Enter a valid logo address.");
+  if (websiteRaw && !brand.websiteUrl) throw new Error("Enter a valid website address.");
   return brand;
 }
 
 export function parseMarketIqEditorialDefaultsForm(formData: FormData): MarketIqEditorialDefaults {
   const ctaRaw = marketIqClipped(formData.get("companyCtaUrl"), 500);
   const companyCtaUrl = marketIqOptionalUrl(formData.get("companyCtaUrl"));
-  if (ctaRaw && !companyCtaUrl) throw new Error("Company CTA URL must be a valid HTTPS address.");
+  if (ctaRaw && !companyCtaUrl) throw new Error("Enter a valid call-to-action address.");
   return {
     defaultClientMessage: marketIqClipped(formData.get("defaultClientMessage"), 700) || null,
     defaultProspectMessage: marketIqClipped(formData.get("defaultProspectMessage"), 700) || null,

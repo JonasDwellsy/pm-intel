@@ -31,6 +31,7 @@ export async function saveMarketIqRecipient(formData: FormData): Promise<void> {
     update: { name, kind },
   });
   revalidatePath("/market-iq/distribution");
+  if (marketIqClipped(formData.get("returnTo"), 20) === "launch") redirect("/market-iq/launch?recipient=1");
   redirect("/market-iq/distribution?saved=1");
 }
 

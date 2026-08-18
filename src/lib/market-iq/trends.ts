@@ -34,10 +34,12 @@ export interface MarketIqTrendPulse {
 }
 
 const PILOT_SEGMENTS = [
+  { propertyType: "apartment", bedrooms: 0, label: "Studio apartment" },
   { propertyType: "apartment", bedrooms: 1, label: "1-bed apartment" },
   { propertyType: "apartment", bedrooms: 2, label: "2-bed apartment" },
   { propertyType: "house", bedrooms: 2, label: "2-bed house" },
   { propertyType: "house", bedrooms: 3, label: "3-bed house" },
+  { propertyType: "house", bedrooms: 4, label: "4-bed house" },
 ] as const;
 
 export function buildMarketIqTrendPulse(input: {

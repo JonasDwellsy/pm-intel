@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { completeMarketIqActivation, saveMarketIqActivationProgress } from "@/app/market-iq/get-started/actions";
 import { MarketIqPublicReport } from "@/components/market-iq/report/MarketIqPublicReport";
 import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import type { MarketIqEditorialDefaults } from "@/lib/market-iq/report/composer.server";
+import { normalizePublicWebsite } from "@/lib/market-iq/brand/website";
 import {
   applyMarketIqReportScope,
   buildMarketIqCoveragePreflight,
@@ -28,10 +30,15 @@ function Choice({ value, label, checked, onChange }: { value: string; label: str
 }
 
 export function MarketIqActivationFlow({ snapshot, initialBrand, initialEditorialDefaults, initialSelection, initialStep, source, completed, clientAdvisoryEnabled }: { snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialEditorialDefaults: MarketIqEditorialDefaults; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "verified_seed"; completed: boolean; clientAdvisoryEnabled: boolean }) {
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [isSaving, startSaving] = useTransition();
   const [step, setStep] = useState(clientAdvisoryEnabled ? initialStep : initialStep === 3 ? 3 : 2);
   const [brand, setBrand] = useState(initialBrand);
   const [editorialDefaults, setEditorialDefaults] = useState(initialEditorialDefaults);
   const [selection, setSelection] = useState(initialSelection);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [brandToolStatus, setBrandToolStatus] = useState<string | null>(null);
   const preview = useMemo(() => applyMarketIqReportScope({
     ...snapshot,
     brand,
@@ -54,7 +61,46 @@ export function MarketIqActivationFlow({ snapshot, initialBrand, initialEditoria
     setBrand((current) => ({ ...current, [key]: value }));
   }
 
-  return <form action={completeMarketIqActivation} className="mt-8">
+  function saveProgress(nextStep: number, advance = true) {
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
+    formData.set("nextStep", String(nextStep));
+    setNotice(null);
+    startSaving(async () => {
+      try {
+        const result = await saveMarketIqActivationProgress(formData);
+        if (advance) setStep(result.nextStep);
+        setNotice(advance ? "Saved. Moving to the next step." : "Progress saved.");
+        router.replace(`/market-iq/get-started?saved=1&step=${result.nextStep}`, { scroll: false });
+        if (advance) window.scrollTo({ top: 120, behavior: "smooth" });
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "We could not save your changes. Please try again.");
+      }
+    });
+  }
+
+  async function uploadLogo(file: File) {
+    setBrandToolStatus("Uploading logo…");
+    const body = new FormData();
+    body.set("logo", file);
+    const response = await fetch("/api/market-iq/brand/logo", { method: "POST", body });
+    const result = await response.json() as { url?: string; error?: string };
+    if (!response.ok || !result.url) return setBrandToolStatus(result.error ?? "Logo upload failed.");
+    updateBrand("logoUrl", result.url);
+    setBrandToolStatus("Logo uploaded. Save this step to keep it.");
+  }
+
+  async function suggestColors() {
+    if (!brand.websiteUrl) return setBrandToolStatus("Enter your website first.");
+    setBrandToolStatus("Reading your website colors…");
+    const response = await fetch("/api/market-iq/brand/suggest", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ website: brand.websiteUrl }) });
+    const result = await response.json() as { websiteUrl?: string; primaryColor?: string; accentColor?: string; error?: string };
+    if (!response.ok || !result.primaryColor || !result.accentColor) return setBrandToolStatus(result.error ?? "We could not suggest colors from that website.");
+    setBrand((current) => ({ ...current, websiteUrl: result.websiteUrl ?? current.websiteUrl, primaryColor: result.primaryColor!, accentColor: result.accentColor! }));
+    setBrandToolStatus("Suggested colors applied. You can adjust them before saving.");
+  }
+
+  return <form ref={formRef} action={completeMarketIqActivation} className="mt-8">
     <input type="hidden" name="displayName" value={brand.displayName} />
     <input type="hidden" name="logoUrl" value={brand.logoUrl ?? ""} />
     <input type="hidden" name="primaryColor" value={brand.primaryColor} />
@@ -72,21 +118,23 @@ export function MarketIqActivationFlow({ snapshot, initialBrand, initialEditoria
     {selection.zipCodes.map((zip) => <input key={`zip:${zip}`} type="hidden" name="zipCodes" value={zip} />)}
     {selection.segments.map((segment) => <input key={`segment:${segment}`} type="hidden" name="segments" value={segment} />)}
     <div className={`grid gap-3 ${clientAdvisoryEnabled ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>{(clientAdvisoryEnabled ? [{ step: 1, label: "Your firm" }, { step: 2, label: "Your market read" }, { step: 3, label: "Review" }] : [{ step: 2, label: "Your market read" }, { step: 3, label: "Review" }]).map((item, index) => <button key={item.label} type="button" onClick={() => setStep(item.step)} className={`rounded-xl border px-4 py-3 text-left ${step === item.step ? "border-navy bg-navy text-white" : "border-slate-200 bg-white text-slate-500"}`}><span className="block text-[10px] font-bold uppercase tracking-[0.13em]">Step {index + 1}</span><span className="mt-1 block text-sm font-semibold">{item.label}</span></button>)}</div>
+    {notice && <p role="status" className={`mt-4 rounded-lg border px-4 py-3 text-sm font-semibold ${notice.includes("could not") ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>{notice}</p>}
 
     {step === 1 && <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <p className="dq-eyebrow">Client-facing identity</p><h2 className="dq-h2">Make every read feel like it came from your firm</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">These details appear on the interactive report and its email. Dwellsy appears only as the market-data credit.</p>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-semibold text-navy sm:col-span-2">Firm name<input required value={brand.displayName} onChange={(event) => updateBrand("displayName", event.target.value)} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
-        <label className="text-sm font-semibold text-navy sm:col-span-2">Logo URL, optional<input type="url" value={brand.logoUrl ?? ""} onChange={(event) => updateBrand("logoUrl", event.target.value || null)} placeholder="https://yourfirm.com/logo.png" className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /><span className="mt-1 block text-xs font-normal text-slate-400">Use a public HTTPS image URL. Logo upload can be added when asset storage is configured.</span></label>
+        <div className="sm:col-span-2"><p className="text-sm font-semibold text-navy">Company logo, optional</p><div className="mt-2 flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 p-4">{brand.logoUrl ? <img src={brand.logoUrl} alt="Current company logo" className="h-14 max-w-48 object-contain" /> : <div className="flex h-14 w-28 items-center justify-center rounded-lg bg-slate-50 text-xs font-semibold text-slate-400">No logo yet</div>}<label className="cursor-pointer rounded-md border border-slate-300 px-4 py-2.5 text-sm font-semibold text-navy">Upload logo<input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadLogo(file); }} /></label>{brand.logoUrl && <button type="button" onClick={() => updateBrand("logoUrl", null)} className="text-sm font-semibold text-slate-500">Remove</button>}</div><p className="mt-1 text-xs text-slate-400">PNG, JPEG, or WebP, up to 2 MB.</p></div>
         <label className="text-sm font-semibold text-navy">Primary color<input type="color" value={brand.primaryColor} onChange={(event) => updateBrand("primaryColor", event.target.value)} className="mt-2 h-11 w-full rounded-md border bg-white p-1" /></label>
         <label className="text-sm font-semibold text-navy">Accent color<input type="color" value={brand.accentColor} onChange={(event) => updateBrand("accentColor", event.target.value)} className="mt-2 h-11 w-full rounded-md border bg-white p-1" /></label>
         <label className="text-sm font-semibold text-navy">Contact name<input value={brand.contactName ?? ""} onChange={(event) => updateBrand("contactName", event.target.value || null)} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
         <label className="text-sm font-semibold text-navy">Reply-to email<input type="email" value={brand.contactEmail ?? ""} onChange={(event) => updateBrand("contactEmail", event.target.value || null)} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
         <label className="text-sm font-semibold text-navy">Contact phone<input value={brand.contactPhone ?? ""} onChange={(event) => updateBrand("contactPhone", event.target.value || null)} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
-        <label className="text-sm font-semibold text-navy">Website<input type="url" value={brand.websiteUrl ?? ""} onChange={(event) => updateBrand("websiteUrl", event.target.value || null)} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
+        <label className="text-sm font-semibold text-navy">Website<input type="text" inputMode="url" value={brand.websiteUrl ?? ""} onChange={(event) => updateBrand("websiteUrl", event.target.value || null)} onBlur={(event) => updateBrand("websiteUrl", normalizePublicWebsite(event.target.value) || null)} placeholder="yourfirm.com" className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label>
+        <div className="sm:col-span-2 flex flex-wrap items-center gap-3"><button type="button" onClick={() => void suggestColors()} className="rounded-md border border-slate-300 px-4 py-2.5 text-sm font-semibold text-navy">Suggest colors from website</button>{brandToolStatus && <p role="status" className="text-sm text-slate-500">{brandToolStatus}</p>}</div>
       </div>
       {clientAdvisoryEnabled && <div className="mt-8 border-t border-slate-200 pt-7"><p className="text-xs font-bold uppercase tracking-[0.12em] text-teal-700">Advisory messaging defaults</p><h3 className="mt-2 text-xl font-semibold text-navy">Start each edition with the right relationship context</h3><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">These are starting points, not locked copy. Client and prospect reports receive separate messages, while your company profile and CTA can appear in both. Every edition remains editable before publication.</p><div className="mt-5 grid gap-4 lg:grid-cols-2"><label className="text-sm font-semibold text-navy">Default client message<textarea maxLength={700} rows={5} value={editorialDefaults.defaultClientMessage ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, defaultClientMessage: event.target.value || null }))} placeholder="Add the context or advice you typically want current clients to see." className="mt-2 w-full resize-y rounded-md border border-slate-300 px-3 py-2.5 font-normal leading-6" /></label><label className="text-sm font-semibold text-navy">Default prospect message<textarea maxLength={700} rows={5} value={editorialDefaults.defaultProspectMessage ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, defaultProspectMessage: event.target.value || null }))} placeholder="Explain why this local market read is useful to a prospective client." className="mt-2 w-full resize-y rounded-md border border-slate-300 px-3 py-2.5 font-normal leading-6" /></label><label className="text-sm font-semibold text-navy lg:col-span-2">About your company<textarea maxLength={700} rows={4} value={editorialDefaults.companyProfile ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, companyProfile: event.target.value || null }))} placeholder="Describe who you serve, where you operate, and what distinguishes your management approach." className="mt-2 w-full resize-y rounded-md border border-slate-300 px-3 py-2.5 font-normal leading-6" /></label><label className="text-sm font-semibold text-navy">CTA label<input maxLength={60} value={editorialDefaults.companyCtaLabel ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, companyCtaLabel: event.target.value || null }))} placeholder="Talk with our team" className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label><label className="text-sm font-semibold text-navy">CTA URL<input type="url" maxLength={500} value={editorialDefaults.companyCtaUrl ?? ""} onChange={(event) => setEditorialDefaults((current) => ({ ...current, companyCtaUrl: event.target.value || null }))} placeholder="https://yourfirm.com/contact" className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2.5 font-normal" /></label></div></div>}
-      <button formAction={saveMarketIqActivationProgress} name="nextStep" value="2" disabled={!validBrand} className="mt-7 rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">Save and continue</button>
+      <button type="button" onClick={() => saveProgress(2)} disabled={!validBrand || isSaving} className="mt-7 rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{isSaving ? "Saving…" : "Save and continue"}</button>
     </section>}
 
     {step === 2 && <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -96,7 +144,7 @@ export function MarketIqActivationFlow({ snapshot, initialBrand, initialEditoria
         <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Product segments</legend><div className="mt-3 grid gap-2">{MARKET_IQ_REPORT_SEGMENTS.map((segment) => <Choice key={segment.key} value={segment.key} label={segment.label} checked={selection.segments.includes(segment.key)} onChange={() => setSelection((current) => ({ ...current, segments: toggle(current.segments, segment.key) as MarketIqSegmentKey[] }))} />)}</div></fieldset>
       </div>
       <fieldset className="mt-6"><div className="flex items-center justify-between gap-3"><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">ZIP codes</legend><button type="button" onClick={() => setSelection((current) => ({ ...current, zipCodes: current.zipCodes.length === MARKET_IQ_REPORT_ZIPS.length ? [] : [...MARKET_IQ_REPORT_ZIPS] }))} className="text-xs font-semibold text-teal-700">{selection.zipCodes.length === MARKET_IQ_REPORT_ZIPS.length ? "Clear all" : "Use market-wide default"}</button></div><div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-slate-200 p-3"><div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">{MARKET_IQ_REPORT_ZIPS.map((zip) => <Choice key={zip} value={zip} label={zip} checked={selection.zipCodes.includes(zip)} onChange={() => setSelection((current) => ({ ...current, zipCodes: toggle(current.zipCodes, zip) }))} />)}</div></div></fieldset>
-      <div className="mt-7 flex flex-wrap gap-3"><button formAction={saveMarketIqActivationProgress} name="nextStep" value="3" disabled={!validScope} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">Save and review</button><button formAction={saveMarketIqActivationProgress} name="nextStep" value="2" className="rounded-md border border-slate-300 px-5 py-3 text-sm font-semibold text-navy">Save for later</button></div>
+      <div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => saveProgress(3)} disabled={!validScope || isSaving} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{isSaving ? "Saving…" : "Save and review"}</button><button type="button" onClick={() => saveProgress(2, false)} disabled={isSaving} className="rounded-md border border-slate-300 px-5 py-3 text-sm font-semibold text-navy">Save for later</button></div>
     </section>}
 
     {step === 3 && <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

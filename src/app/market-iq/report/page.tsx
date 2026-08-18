@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { MarketIqReportHistory } from "@/components/market-iq/MarketIqReportHistory";
 import { MarketIqReportComposerClient } from "@/components/market-iq/report/MarketIqReportComposerClient";
+import { MarketIqLaunchJourney } from "@/components/market-iq/launch/MarketIqLaunchJourney";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
@@ -14,7 +15,7 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function MarketIqReportComposerPage({ searchParams }: { searchParams: Promise<{ published?: string; delivery?: string; activated?: string; draftId?: string; edition?: string }> }) {
+export default async function MarketIqReportComposerPage({ searchParams }: { searchParams: Promise<{ published?: string; delivery?: string; activated?: string; draftId?: string; edition?: string; flow?: string }> }) {
   const previewEnabled = marketIqPreviewEnabled();
   if (!previewEnabled) notFound();
   const { userId, organizationId } = await getActiveOrgContext();
@@ -35,6 +36,7 @@ export default async function MarketIqReportComposerPage({ searchParams }: { sea
   const workingBrand = draftSnapshot?.brand ?? composer.brand;
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
+    {query.flow === "launch" && <MarketIqLaunchJourney current="edition" />}
     <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><Link href="/market-iq/editions" className="hover:text-teal-700">Client reports</Link><span>/</span><span>Review and publish</span><span>·</span><Link href="/market-iq/distribution" className="hover:text-teal-700">Recipients</Link></nav>
     {query.activated === "1" && <p className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Setup complete. Your saved brand and market defaults are loaded below.</p>}
     {draft && <p className="mb-6 rounded-xl border border-teal-200 bg-teal-50 px-5 py-3 text-sm font-semibold text-teal-900">Private recurring draft loaded for the Trends IQ period ending {draft.periodEnd}. It contains {draft.materialChangeCount} material {draft.materialChangeCount === 1 ? "change" : "changes"} and is not public or attached to an audience.</p>}

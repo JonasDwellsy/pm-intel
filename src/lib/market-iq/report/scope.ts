@@ -11,10 +11,12 @@ export const MARKET_IQ_REPORT_ZIPS: readonly string[] = clevelandMsaZips;
 export const MARKET_IQ_REPORT_SEGMENTS = [
   { key: "apartment:999", propertyType: "apartment", bedrooms: 999, label: "All apartments" },
   { key: "house:999", propertyType: "house", bedrooms: 999, label: "All houses" },
+  { key: "apartment:0", propertyType: "apartment", bedrooms: 0, label: "Studio apartments" },
   { key: "apartment:1", propertyType: "apartment", bedrooms: 1, label: "1-bedroom apartments" },
   { key: "apartment:2", propertyType: "apartment", bedrooms: 2, label: "2-bedroom apartments" },
   { key: "house:2", propertyType: "house", bedrooms: 2, label: "2-bedroom houses" },
   { key: "house:3", propertyType: "house", bedrooms: 3, label: "3-bedroom houses" },
+  { key: "house:4", propertyType: "house", bedrooms: 4, label: "4-bedroom houses" },
 ] as const;
 
 export type MarketIqSegmentKey = typeof MARKET_IQ_REPORT_SEGMENTS[number]["key"];

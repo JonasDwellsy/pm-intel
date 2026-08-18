@@ -58,11 +58,11 @@ async function persistActivation(formData: FormData, complete: boolean) {
   return capabilities;
 }
 
-export async function saveMarketIqActivationProgress(formData: FormData): Promise<void> {
+export async function saveMarketIqActivationProgress(formData: FormData): Promise<{ nextStep: number }> {
   await persistActivation(formData, false);
   const requested = Number(String(formData.get("nextStep") ?? "1"));
   const nextStep = Number.isInteger(requested) && requested >= 1 && requested <= 3 ? requested : 1;
-  redirect(`/market-iq/get-started?saved=1&step=${nextStep}`);
+  return { nextStep };
 }
 
 export async function completeMarketIqActivation(formData: FormData): Promise<void> {
