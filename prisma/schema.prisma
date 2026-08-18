@@ -496,34 +496,35 @@ model Organization {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  memberships                   OrganizationMembership[]
-  watchLists                    WatchList[]
-  pendingWelcomes               PendingWelcome[]
-  marketAccess                  OrganizationMarketAccess[]
-  productAccess                 OrganizationProductAccess[]
-  marketIqWatchlists            MarketIqWatchlist[]
-  brandProfile                  OrganizationBrandProfile?
-  marketIqReports               MarketIqReport[]
-  marketIqReportRecipients      MarketIqReportRecipient[]
-  marketIqReportSends           MarketIqReportSend[]
-  marketIqEmailEvents           MarketIqEmailEvent[]
-  marketIqTestDeliveries        MarketIqTestDelivery[]
-  marketIqDistributionCampaigns MarketIqDistributionCampaign[]
-  marketIqCampaignRecipients    MarketIqDistributionCampaignRecipient[]
-  marketIqEditionDrafts         MarketIqEditionDraft[]
-  marketIqEditionRunItems       MarketIqEditionOrchestrationItem[]
-  marketIqSubscriptions         MarketIqSubscription[]
-  marketIqWorkspacePreference   MarketIqWorkspacePreference?
-  marketIqMarketPreferences     MarketIqMarketPreference[]
-  marketIqBriefingSnapshots     MarketIqBriefingSnapshot[]
+  memberships                      OrganizationMembership[]
+  watchLists                       WatchList[]
+  pendingWelcomes                  PendingWelcome[]
+  marketAccess                     OrganizationMarketAccess[]
+  productAccess                    OrganizationProductAccess[]
+  marketIqWatchlists               MarketIqWatchlist[]
+  brandProfile                     OrganizationBrandProfile?
+  marketIqReports                  MarketIqReport[]
+  marketIqReportRecipients         MarketIqReportRecipient[]
+  marketIqReportSends              MarketIqReportSend[]
+  marketIqEmailEvents              MarketIqEmailEvent[]
+  marketIqTestDeliveries           MarketIqTestDelivery[]
+  marketIqDistributionCampaigns    MarketIqDistributionCampaign[]
+  marketIqCampaignRecipients       MarketIqDistributionCampaignRecipient[]
+  marketIqEditionDrafts            MarketIqEditionDraft[]
+  marketIqEditionRunItems          MarketIqEditionOrchestrationItem[]
+  marketIqSubscriptions            MarketIqSubscription[]
+  marketIqWorkspacePreference      MarketIqWorkspacePreference?
+  marketIqMarketPreferences        MarketIqMarketPreference[]
+  marketIqBriefingSnapshots        MarketIqBriefingSnapshot[]
   marketIqBriefingEmailPreferences MarketIqBriefingEmailPreference[]
   marketIqBriefingEmailDeliveries  MarketIqBriefingEmailDelivery[]
-  marketIqJourneyEvents         MarketIqJourneyEvent[]
-  marketIqSupportState          MarketIqWorkspaceSupportState?
-  marketIqSupportEvents         MarketIqWorkspaceSupportEvent[]
-  portfolioIqPortfolios         PortfolioIqPortfolio[]
-  dwellsyIqInsights             DwellsyIqInsight[]
-  portfolioIqOnboardingRequests PortfolioIqOnboardingRequest[]
+  marketIqBriefingEmailRunItems    MarketIqBriefingEmailRunItem[]
+  marketIqJourneyEvents            MarketIqJourneyEvent[]
+  marketIqSupportState             MarketIqWorkspaceSupportState?
+  marketIqSupportEvents            MarketIqWorkspaceSupportEvent[]
+  portfolioIqPortfolios            PortfolioIqPortfolio[]
+  dwellsyIqInsights                DwellsyIqInsight[]
+  portfolioIqOnboardingRequests    PortfolioIqOnboardingRequest[]
 
   // Hot lookups: "find personal org for user X" (already covered by
   // the @unique on personalForUserId) and "find org by Clerk id"
@@ -853,8 +854,9 @@ model MarketIqBriefingSnapshot {
   createdByUserId String
   createdAt       DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization    Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   emailDeliveries MarketIqBriefingEmailDelivery[]
+  emailRunItems   MarketIqBriefingEmailRunItem[]
 
   @@unique([organizationId, weekOf])
   @@index([organizationId, createdAt(sort: Desc)])
@@ -864,17 +866,18 @@ model MarketIqBriefingSnapshot {
 // copied from the signed-in Clerk identity when the user opts in. It is not a
 // Client Advisory recipient and cannot be edited to target another person.
 model MarketIqBriefingEmailPreference {
-  id               String    @id @default(cuid())
-  organizationId   String
-  userId           String
-  recipientEmail   String
-  enabled          Boolean   @default(false)
-  enabledAt        DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  recipientEmail String
+  enabled        Boolean   @default(false)
+  enabledAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  deliveries  MarketIqBriefingEmailDelivery[]
+  organization Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries   MarketIqBriefingEmailDelivery[]
+  runItems     MarketIqBriefingEmailRunItem[]
 
   @@unique([organizationId, userId])
   @@index([organizationId, enabled])
@@ -883,27 +886,71 @@ model MarketIqBriefingEmailPreference {
 // Idempotent internal delivery record. This is deliberately separate from
 // MarketIqReportSend and the Client Advisory recipient/campaign models.
 model MarketIqBriefingEmailDelivery {
-  id               String    @id @default(cuid())
-  organizationId   String
-  snapshotId       String
-  preferenceId     String
-  userId           String
-  recipientEmail   String
-  status           String    @default("sending") // sending | sent | failed
-  attemptCount     Int       @default(1)
-  providerId       String?
-  error            String?
-  sentAt           DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  organizationId String
+  snapshotId     String
+  preferenceId   String
+  userId         String
+  recipientEmail String
+  status         String    @default("sending") // sending | sent | failed
+  attemptCount   Int       @default(1)
+  providerId     String?
+  error          String?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  organization Organization                     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  snapshot     MarketIqBriefingSnapshot          @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
-  preference   MarketIqBriefingEmailPreference   @relation(fields: [preferenceId], references: [id], onDelete: Cascade)
+  organization Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  snapshot     MarketIqBriefingSnapshot        @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  preference   MarketIqBriefingEmailPreference @relation(fields: [preferenceId], references: [id], onDelete: Cascade)
 
   @@unique([snapshotId, userId])
   @@index([organizationId, createdAt(sort: Desc)])
   @@index([preferenceId, status])
+}
+
+// One auditable pass of the internal briefing scheduler. Phase one is
+// deliberately dry-run only. It records eligibility without sending email.
+model MarketIqBriefingEmailRun {
+  id             String    @id @default(cuid())
+  triggerKind    String    @default("scheduled") // scheduled | manual
+  dryRun         Boolean   @default(true)
+  status         String    @default("running") // running | completed | failed
+  candidateCount Int       @default(0)
+  eligibleCount  Int       @default(0)
+  skippedCount   Int       @default(0)
+  error          String?
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  items MarketIqBriefingEmailRunItem[]
+
+  @@index([status, startedAt(sort: Desc)])
+  @@index([triggerKind, startedAt(sort: Desc)])
+}
+
+model MarketIqBriefingEmailRunItem {
+  id             String   @id @default(cuid())
+  runId          String
+  organizationId String
+  preferenceId   String
+  snapshotId     String?
+  userId         String
+  recipientEmail String
+  status         String // would_send | excluded | no_archive | already_sent | in_progress | retry_requires_click
+  detail         String
+  createdAt      DateTime @default(now())
+
+  run          MarketIqBriefingEmailRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  organization Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  preference   MarketIqBriefingEmailPreference @relation(fields: [preferenceId], references: [id], onDelete: Cascade)
+  snapshot     MarketIqBriefingSnapshot?       @relation(fields: [snapshotId], references: [id], onDelete: SetNull)
+
+  @@unique([runId, preferenceId])
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([runId, status])
 }
 
 model MarketIqReportRecipient {
