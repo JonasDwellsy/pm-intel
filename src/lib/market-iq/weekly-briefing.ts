@@ -65,3 +65,71 @@ export function buildMarketIqWeeklyBriefing(markets: MarketIqWeeklyBriefingMarke
     marketCount: markets.length,
   };
 }
+
+export const MARKET_IQ_BRIEFING_PAYLOAD_VERSION = 1;
+
+export function marketIqBriefingWeekOf(date: Date) {
+  const day = date.getUTCDay();
+  const monday = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() - ((day + 6) % 7)));
+  return monday.toISOString().slice(0, 10);
+}
+
+export function buildMarketIqBriefingArchivePayload(
+  briefing: ReturnType<typeof buildMarketIqWeeklyBriefing>,
+  preparedAt: Date,
+) {
+  return {
+    version: MARKET_IQ_BRIEFING_PAYLOAD_VERSION,
+    preparedAt: preparedAt.toISOString(),
+    weekOf: marketIqBriefingWeekOf(preparedAt),
+    headline: briefing.headline,
+    counts: {
+      markets: briefing.marketCount,
+      currentSources: briefing.currentMarkets.length,
+      reviews: briefing.reviews.length,
+      exceptions: briefing.sourceGaps.length + briefing.setupNeeds.length,
+    },
+    reviews: briefing.reviews.map((item) => ({
+      marketId: item.market.id,
+      marketName: item.market.fullName,
+      periodEnd: String(item.draft.periodEnd),
+      materialChangeCount: item.draft.materialChangeCount,
+      findings: item.findings,
+    })),
+    currentMoves: briefing.currentMoves.map((item) => ({
+      marketId: item.market.id,
+      marketName: item.market.fullName,
+      geographyLabel: item.cell.geographyLabel,
+      segmentLabel: item.cell.label,
+      rent: item.cell.rent,
+      yearOverYearPct: item.cell.yearOverYearPct,
+      sourcePeriodEnd: item.latestMonth,
+    })),
+    exceptions: [
+      ...briefing.setupNeeds.map((item) => ({ marketId: item.summary.market.id, marketName: item.summary.market.fullName, kind: "setup" as const })),
+      ...briefing.sourceGaps.map((item) => ({ marketId: item.summary.market.id, marketName: item.summary.market.fullName, kind: "source" as const })),
+    ],
+    sourcePeriods: Object.fromEntries(briefing.currentMarkets.map((item) => [item.summary.market.id, item.summary.latestMonth])),
+  };
+}
+
+export type MarketIqBriefingArchivePayload = ReturnType<typeof buildMarketIqBriefingArchivePayload>;
+
+export function parseMarketIqBriefingArchivePayload(value: string): MarketIqBriefingArchivePayload | null {
+  try {
+    const parsed = JSON.parse(value) as Partial<MarketIqBriefingArchivePayload>;
+    if (
+      parsed.version !== MARKET_IQ_BRIEFING_PAYLOAD_VERSION
+      || typeof parsed.preparedAt !== "string"
+      || typeof parsed.weekOf !== "string"
+      || typeof parsed.headline !== "string"
+      || !parsed.counts
+      || !Array.isArray(parsed.reviews)
+      || !Array.isArray(parsed.currentMoves)
+      || !Array.isArray(parsed.exceptions)
+    ) return null;
+    return parsed as MarketIqBriefingArchivePayload;
+  } catch {
+    return null;
+  }
+}

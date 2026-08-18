@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { MARKET_IQ_MARKETS } from "@/data/market-iq/markets";
 import type { MarketIqHomeMarketSummary } from "@/lib/market-iq/home-summary";
-import { buildMarketIqWeeklyBriefing, parseMarketIqEditionComparison } from "@/lib/market-iq/weekly-briefing";
+import {
+  buildMarketIqBriefingArchivePayload,
+  buildMarketIqWeeklyBriefing,
+  marketIqBriefingWeekOf,
+  parseMarketIqBriefingArchivePayload,
+  parseMarketIqEditionComparison,
+} from "@/lib/market-iq/weekly-briefing";
 
 function summary(index: number, overrides: Partial<MarketIqHomeMarketSummary> = {}): MarketIqHomeMarketSummary {
   return {
@@ -75,4 +81,18 @@ test("briefing keeps setup and source gaps distinct", () => {
 test("invalid stored comparisons fail closed", () => {
   assert.equal(parseMarketIqEditionComparison("not json"), null);
   assert.equal(parseMarketIqEditionComparison(JSON.stringify({ state: "changed" })), null);
+});
+
+test("briefing archive uses a stable Monday idempotency boundary", () => {
+  assert.equal(marketIqBriefingWeekOf(new Date("2026-08-18T18:00:00Z")), "2026-08-17");
+  assert.equal(marketIqBriefingWeekOf(new Date("2026-08-23T23:59:59Z")), "2026-08-17");
+});
+
+test("archive payload retains compact findings and source periods", () => {
+  const briefing = buildMarketIqWeeklyBriefing([{ summary: summary(0), comparison: null }]);
+  const payload = buildMarketIqBriefingArchivePayload(briefing, new Date("2026-08-18T18:00:00Z"));
+  const parsed = parseMarketIqBriefingArchivePayload(JSON.stringify(payload));
+  assert.equal(parsed?.weekOf, "2026-08-17");
+  assert.equal(parsed?.counts.markets, 1);
+  assert.deepEqual(parsed?.sourcePeriods, { [MARKET_IQ_MARKETS[0]!.id]: "2026-07-31" });
 });

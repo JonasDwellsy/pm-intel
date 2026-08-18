@@ -515,6 +515,7 @@ model Organization {
   marketIqSubscriptions         MarketIqSubscription[]
   marketIqWorkspacePreference   MarketIqWorkspacePreference?
   marketIqMarketPreferences     MarketIqMarketPreference[]
+  marketIqBriefingSnapshots     MarketIqBriefingSnapshot[]
   marketIqJourneyEvents         MarketIqJourneyEvent[]
   marketIqSupportState          MarketIqWorkspaceSupportState?
   marketIqSupportEvents         MarketIqWorkspaceSupportEvent[]
@@ -835,6 +836,25 @@ model MarketIqEditionOrchestrationItem {
   @@unique([runId, organizationId, marketId])
   @@index([organizationId, createdAt(sort: Desc)])
   @@index([runId, status])
+}
+
+// An immutable, internal weekly briefing snapshot. It freezes only compact,
+// aggregated Market IQ findings and source dates. It never publishes a client
+// report, creates a distribution campaign, or sends email.
+model MarketIqBriefingSnapshot {
+  id              String   @id @default(cuid())
+  organizationId  String
+  weekOf          String
+  payloadVersion  Int      @default(1)
+  payload         String
+  sourcePeriods   String   @default("{}")
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, weekOf])
+  @@index([organizationId, createdAt(sort: Desc)])
 }
 
 model MarketIqReportRecipient {
