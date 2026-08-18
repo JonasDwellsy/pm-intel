@@ -204,7 +204,7 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
     return { id: createdReport.id, campaignId: campaign.id };
   });
   revalidatePath("/market-iq/report");
-  redirect(`/market-iq/published/${report.campaignId}`);
+  redirect(`/market-iq/published/${report.campaignId}${clipped(formData.get("flow"), 20) === "launch" ? "?flow=launch" : ""}`);
 }
 
 export async function revokeMarketIqReport(formData: FormData): Promise<void> {

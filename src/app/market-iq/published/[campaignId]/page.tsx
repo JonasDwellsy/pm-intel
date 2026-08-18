@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revokeMarketIqReport } from "@/app/market-iq/report/actions";
 import { CopyMarketReportLink } from "@/components/market-iq/CopyMarketReportLink";
+import { MarketIqLaunchJourney } from "@/components/market-iq/launch/MarketIqLaunchJourney";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
@@ -29,14 +30,17 @@ function relationshipLabel(kind: string | null | undefined) {
 
 export default async function MarketIqPublishedPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ campaignId: string }>;
+  searchParams: Promise<{ flow?: string }>;
 }) {
   if (!marketIqPreviewEnabled()) notFound();
-  const [{ userId, organizationId }, access, route] = await Promise.all([
+  const [{ userId, organizationId }, access, route, query] = await Promise.all([
     getActiveOrgContext(),
     resolveViewerMarketIqAccess(),
     params,
+    searchParams,
   ]);
   if (!userId) notFound();
   if (!organizationId) redirect(`/setup-workspace?from=/market-iq/published/${route.campaignId}`);
@@ -85,6 +89,7 @@ export default async function MarketIqPublishedPage({
   const canDistribute = access.capabilities.manageRecipients;
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
+    {query.flow === "launch" && <MarketIqLaunchJourney current="recipients" />}
     <nav className="mt-5 flex items-center gap-2 text-xs font-semibold text-slate-500"><Link href="/market-iq">Market IQ</Link><span>/</span><Link href="/market-iq/editions">Client reports</Link><span>/</span><span>Published</span></nav>
 
     <header className="mt-6 overflow-hidden rounded-3xl bg-navy text-white shadow-sm">
@@ -103,7 +108,7 @@ export default async function MarketIqPublishedPage({
 
       <aside className="rounded-2xl border border-teal-200 bg-teal-50 p-6 shadow-sm">
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-800">Next step</p><h2 className="mt-2 text-2xl font-semibold text-navy">Choose who should receive it</h2><p className="mt-3 text-sm leading-6 text-slate-700">The distribution draft is ready. Select recipients, inspect the exact email, then confirm each person separately.</p>
-        {canDistribute ? <Link href={`/market-iq/distribution/${campaign.id}`} className="mt-6 block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white">Review audience and email</Link> : <Link href="/market-iq/subscribe?upgrade=client_advisory" className="mt-6 block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white">Add client distribution</Link>}
+        {canDistribute ? <Link href={`/market-iq/distribution/${campaign.id}${query.flow === "launch" ? "?flow=launch" : ""}`} className="mt-6 block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white">Review audience and email</Link> : <Link href="/market-iq/subscribe?upgrade=client_advisory" className="mt-6 block rounded-md bg-navy px-4 py-3 text-center text-sm font-semibold text-white">Add client distribution</Link>}
         <p className="mt-3 text-center text-xs leading-5 text-slate-600">Opening the distribution draft does not send anything.</p>
       </aside>
     </section>

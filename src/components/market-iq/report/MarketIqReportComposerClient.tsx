@@ -46,7 +46,7 @@ function CoverageSummary({ status, count }: { status: MarketIqCoverageStatus; co
   return <div className={`rounded-xl px-4 py-3 ring-1 ${STATUS_STYLE[status]}`}><p className="text-2xl font-semibold">{count}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em]">{status}</p></div>;
 }
 
-export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEditorialDefaults, initialSelection, source, priorEdition, draftId = null }: {
+export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEditorialDefaults, initialSelection, source, priorEdition, draftId = null, launchFlow = false }: {
   snapshot: MarketIqReportSnapshot;
   initialBrand: Brand;
   initialEditorialDefaults: MarketIqEditorialDefaults;
@@ -54,6 +54,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEd
   source: "dwellsy_trends" | "verified_seed";
   priorEdition: PriorMarketIqEdition | null;
   draftId?: string | null;
+  launchFlow?: boolean;
 }) {
   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1);
   const initialAudienceKind = snapshot.editorial?.audienceKind ?? "client";
@@ -131,6 +132,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEd
     <section className="mt-8 grid gap-7 xl:grid-cols-[390px_1fr]">
       <form action={publishMarketIqReport} className="h-fit rounded-xl border border-grid bg-white p-5 shadow-sm">
         {draftId && <input type="hidden" name="draftId" value={draftId} />}
+        {launchFlow && <input type="hidden" name="flow" value="launch" />}
         <input type="hidden" name="findingSelectionApplied" value="1" />
         {selectedFindings.map((finding) => <input key={finding.id} type="hidden" name="findingIds" value={finding.id} />)}
 

@@ -19,6 +19,15 @@ async function authorizedContext() {
   return { organizationId, userId, capabilities: access.capabilities };
 }
 
+function launchFlow(formData: FormData) {
+  return marketIqClipped(formData.get("flow"), 20) === "launch";
+}
+
+function withLaunchFlow(path: string, enabled: boolean) {
+  if (!enabled) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}flow=launch`;
+}
+
 export async function saveMarketIqRecipient(formData: FormData): Promise<void> {
   const context = await authorizedContext();
   const name = marketIqClipped(formData.get("name"), 120);
@@ -53,7 +62,7 @@ export async function startMarketIqDistributionCampaign(formData: FormData): Pro
     data: { organizationId: context.organizationId, reportId, createdByUserId: context.userId },
     select: { id: true },
   });
-  redirect(`/market-iq/distribution/${campaign.id}`);
+  redirect(withLaunchFlow(`/market-iq/distribution/${campaign.id}`, launchFlow(formData)));
 }
 
 export async function saveMarketIqCampaignAudience(formData: FormData): Promise<void> {
@@ -94,7 +103,7 @@ export async function saveMarketIqCampaignAudience(formData: FormData): Promise<
     });
   });
   revalidatePath(`/market-iq/distribution/${campaignId}`);
-  redirect(`/market-iq/distribution/${campaignId}?stage=review`);
+  redirect(withLaunchFlow(`/market-iq/distribution/${campaignId}?stage=review`, launchFlow(formData)));
 }
 
 export async function setMarketIqRecipientSuppression(formData: FormData): Promise<void> {
@@ -122,6 +131,7 @@ export async function setMarketIqRecipientSuppression(formData: FormData): Promi
 }
 
 export async function sendMarketIqCampaignRecipient(formData: FormData): Promise<void> {
+  const preserveLaunchFlow = launchFlow(formData);
   const context = await authorizedContext();
   const campaignRecipientId = marketIqClipped(formData.get("campaignRecipientId"), 80);
   const confirmation = marketIqClipped(formData.get("confirmation"), 80);
@@ -147,7 +157,7 @@ export async function sendMarketIqCampaignRecipient(formData: FormData): Promise
       where: { id: row.id },
       data: { status: "suppressed", lastError: row.recipient.suppressionReason ?? "Recipient is suppressed." },
     });
-    redirect(`/market-iq/distribution/${row.campaign.id}?delivery=suppressed`);
+    redirect(withLaunchFlow(`/market-iq/distribution/${row.campaign.id}?delivery=suppressed`, preserveLaunchFlow));
   }
   const staleSendingBefore = new Date(Date.now() - 5 * 60 * 1_000);
   const claimed = await prisma.marketIqDistributionCampaignRecipient.updateMany({
@@ -161,7 +171,7 @@ export async function sendMarketIqCampaignRecipient(formData: FormData): Promise
     },
     data: { status: "sending", lastError: null, attemptCount: { increment: 1 } },
   });
-  if (claimed.count !== 1) redirect(`/market-iq/distribution/${row.campaign.id}?delivery=unchanged`);
+  if (claimed.count !== 1) redirect(withLaunchFlow(`/market-iq/distribution/${row.campaign.id}?delivery=unchanged`, preserveLaunchFlow));
   await prisma.marketIqDistributionCampaign.update({ where: { id: row.campaign.id }, data: { status: "sending", confirmedAt: new Date() } });
 
   let result: Awaited<ReturnType<typeof deliverMarketIqReportToRecipient>>;
@@ -178,7 +188,7 @@ export async function sendMarketIqCampaignRecipient(formData: FormData): Promise
       data: { status: "failed", lastError: message.slice(0, 1_000) },
     });
     await prisma.marketIqDistributionCampaign.update({ where: { id: row.campaign.id }, data: { status: "partial" } });
-    redirect(`/market-iq/distribution/${row.campaign.id}?delivery=failed`);
+    redirect(withLaunchFlow(`/market-iq/distribution/${row.campaign.id}?delivery=failed`, preserveLaunchFlow));
   }
 
   await prisma.marketIqDistributionCampaignRecipient.update({
@@ -210,7 +220,7 @@ export async function sendMarketIqCampaignRecipient(formData: FormData): Promise
   revalidatePath(`/market-iq/delivery/${row.campaign.id}`);
   revalidatePath("/market-iq/distribution");
   if (nextCampaignStatus !== "ready") {
-    redirect(`/market-iq/delivery/${row.campaign.id}?result=${result.status}`);
+    redirect(withLaunchFlow(`/market-iq/delivery/${row.campaign.id}?result=${result.status}`, preserveLaunchFlow));
   }
-  redirect(`/market-iq/distribution/${row.campaign.id}?delivery=${result.status}`);
+  redirect(withLaunchFlow(`/market-iq/distribution/${row.campaign.id}?delivery=${result.status}`, preserveLaunchFlow));
 }

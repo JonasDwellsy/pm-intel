@@ -39,7 +39,7 @@ function dateLabel(value: Date | null | undefined) {
 export default async function MarketIqLaunchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ activated?: string; published?: string; test?: string }>;
+  searchParams: Promise<{ activated?: string; published?: string; test?: string; recipient?: string }>;
 }) {
   if (!marketIqPreviewEnabled()) notFound();
   const [{ userId, organizationId }, access, query, user] = await Promise.all([
@@ -127,9 +127,9 @@ export default async function MarketIqLaunchPage({
   const activeReport = reviewedEdition ?? bootstrapEdition;
   const campaignHref = campaign
     ? campaign.status === "complete" || campaign.status === "partial"
-      ? `/market-iq/delivery/${campaign.id}`
-      : `/market-iq/distribution/${campaign.id}`
-    : "/market-iq/distribution";
+      ? `/market-iq/delivery/${campaign.id}?flow=launch`
+      : `/market-iq/distribution/${campaign.id}?flow=launch`
+    : "/market-iq/distribution?flow=launch";
   const steps: LaunchStep[] = [
     {
       number: 1,
@@ -196,6 +196,7 @@ export default async function MarketIqLaunchPage({
         </p>
       )}
       {query.test && <p className={`mb-6 rounded-xl border px-5 py-3 text-sm font-semibold ${query.test === "accepted" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}>{query.test === "accepted" ? "The test email was accepted by SendGrid and sent only to your signed-in address." : query.test === "no_report" ? "Publish a reviewed client edition before sending a test." : "The test email was not accepted. Review the diagnostic below before trying again."}</p>}
+      {query.recipient === "1" && <p className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Recipient saved. Prepare the audience when you are ready. No email was sent.</p>}
       {recurringDraft && <section className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-orange-200 bg-orange-50 px-5 py-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-800">New private edition</p><p className="mt-1 text-sm font-semibold text-navy">Trends IQ advanced through {recurringDraft.periodEnd}, with {recurringDraft.materialChangeCount} material {recurringDraft.materialChangeCount === 1 ? "change" : "changes"} flagged for review.</p><p className="mt-1 text-xs text-slate-600">No public link, campaign, audience, or email has been created.</p></div><Link href="/market-iq/review" className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">Open review inbox</Link></section>}
       <header className="grid gap-7 border-b border-grid pb-9 lg:grid-cols-[1fr_380px] lg:items-end">
         <div>
