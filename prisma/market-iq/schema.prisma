@@ -123,6 +123,25 @@ model MarketIqAlert {
   @@index([sourceImportId])
 }
 
+// Frozen, dated evidence used by report review. These snapshots are built
+// from the read-only Dwellsy source and stored in the isolated Market IQ
+// database so a user's review click never depends on a live cross-network
+// query completing in the same request.
+model MarketIqReportSourceSnapshot {
+  id                     String   @id @default(cuid())
+  marketId               String
+  sourceKind             String   @default("dwellsy_trends")
+  sourceAvailableThrough DateTime
+  generatedAt            DateTime
+  snapshot               String
+  checksum               String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@unique([marketId, checksum])
+  @@index([marketId, generatedAt(sort: Desc)])
+}
+
 model MarketIqListing {
   id             String    @id @default(cuid())
   importId       String

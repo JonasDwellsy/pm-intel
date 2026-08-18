@@ -20,6 +20,7 @@ import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import type { PriorMarketIqEdition } from "@/lib/market-iq/report/edition-comparison";
 import { marketIqSelectionFromPreference } from "@/lib/market-iq/workspace-preference";
 import { normalizeMarketIqScopeSelectionForSnapshot } from "@/lib/market-iq/report/scope";
+import { loadLatestMarketIqReportSourceSnapshot } from "@/lib/market-iq/report/source-snapshot.server";
 
 export type MarketIqReportBrandInput = MarketIqReportSnapshot["brand"];
 export type MarketIqEditorialDefaults = {
@@ -55,6 +56,8 @@ export async function buildClevelandComposerPreview(brand: MarketIqReportBrandIn
   snapshot: MarketIqReportSnapshot;
   source: "dwellsy_trends" | "verified_seed";
 }> {
+  const stored = await loadLatestMarketIqReportSourceSnapshot(CLEVELAND_MARKET_ID);
+  if (stored) return { snapshot: { ...stored, brand }, source: "dwellsy_trends" };
   try {
     const snapshot = await loadCachedClevelandMarketIqReportSnapshot();
     return {
@@ -80,6 +83,8 @@ export async function buildMarketIqComposerPreview(marketId: string, brand: Mark
 }> {
   if (!getMarketIqMarket(marketId)) throw new Error("The selected Market IQ market is not configured.");
   if (marketId === CLEVELAND_MARKET_ID) return buildClevelandComposerPreview(brand);
+  const stored = await loadLatestMarketIqReportSourceSnapshot(marketId);
+  if (stored) return { snapshot: { ...stored, brand }, source: "dwellsy_trends" };
   const loader = marketId === COLUMBUS_MARKET_ID
     ? loadCachedColumbusMarketIqReportSnapshot
     : marketId === SAN_FRANCISCO_MARKET_ID
