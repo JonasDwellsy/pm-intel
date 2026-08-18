@@ -132,9 +132,9 @@ export default async function MarketIqPilotTelemetryPage() {
   const stalledCount = rows.filter((row) => row.completedCount < MILESTONES.length).length;
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
-    <nav className="text-xs font-semibold text-slate-500"><Link href="/market-iq/internal/readiness">Internal diagnostics</Link><span className="mx-2">/</span><span>Pilot telemetry</span></nav>
+    <nav className="text-xs font-semibold text-slate-500"><Link href="/market-iq/internal/readiness">Internal diagnostics</Link><span className="mx-2">/</span><Link href="/market-iq/internal/admin">Market IQ admin</Link><span className="mx-2">/</span><span>Pilot telemetry</span></nav>
     <header className="mt-6 grid gap-7 border-b border-grid pb-9 lg:grid-cols-[1fr_360px] lg:items-end">
-      <div><p className="dq-eyebrow">Dwellsy internal</p><h1 className="dq-h1">Market IQ pilot journey</h1><p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">A workspace-level view of the explicit steps from commercial access through the first confirmed customer delivery. It does not collect page views, report content, recipient addresses, or market-data selections.</p></div>
+      <div><p className="dq-eyebrow">Dwellsy internal</p><h1 className="dq-h1">Market IQ pilot journey</h1><p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">A workspace-level view of the explicit steps from commercial access through the first confirmed customer delivery. The journey ledger excludes report content, recipient addresses, and market-data selections.</p></div>
       <aside className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">Pilot status</p><p className="mt-3 text-2xl font-semibold">{completedCount} complete · {stalledCount} in progress</p><p className="mt-2 text-sm leading-6 text-white/70">Workspaces are ordered by the earliest unfinished journey.</p></aside>
     </header>
 
@@ -156,6 +156,6 @@ export default async function MarketIqPilotTelemetryPage() {
       </div>
     </section>
 
-    <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Privacy boundary</p><p className="mt-2 text-sm leading-6 text-slate-600">This view records business milestones and operational failures only. It excludes client and prospect email addresses, report narratives, market selections, and browsing activity.</p></section>
+    <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Privacy boundary</p><p className="mt-2 text-sm leading-6 text-slate-600">This journey view records business milestones and operational failures only. Separate aggregate traffic counts appear in Market IQ admin, but neither system stores client and prospect email addresses, report narratives, market selections, or query strings.</p></section>
   </main>;
 }

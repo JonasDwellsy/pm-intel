@@ -88,6 +88,7 @@ export async function createOrganization(
       // which is how /admin/organizations distinguishes them.
     });
     revalidatePath("/admin/organizations");
+    revalidatePath("/market-iq/internal/admin");
     return { ok: true, clerkOrgId: org.id };
   } catch (err) {
     return { ok: false, error: describeError(err) };
@@ -160,6 +161,7 @@ export async function inviteUserToOrganization(
     // then the invitation is pending in Clerk; we don't mirror those
     // into the DB for this MVP.
     revalidatePath(`/admin/organizations`);
+    revalidatePath("/market-iq/internal/admin");
     return { ok: true, email };
   } catch (err) {
     return { ok: false, error: describeError(err) };
@@ -426,6 +428,7 @@ export async function provisionOrganizationMarketIq(
     await provisionEnterpriseMarketIq({ organizationId, marketId, planKey, provisionedByUserId: userId });
     revalidatePath(`/admin/organizations/${organizationId}`);
     revalidatePath("/market-iq");
+    revalidatePath("/market-iq/internal/admin");
     return { ok: true, message: `${marketIqPlanForKey(planKey)?.name} provisioned for ${market.city}, ${market.state}.` };
   } catch (error) {
     return { ok: false, error: describeError(error) };
@@ -445,5 +448,6 @@ export async function endOrganizationEnterpriseMarketIq(
   if (!ended.count) return { ok: false, error: "Active enterprise provision was not found." };
   revalidatePath(`/admin/organizations/${organizationId}`);
   revalidatePath("/market-iq");
+  revalidatePath("/market-iq/internal/admin");
   return { ok: true, message: "Enterprise Market IQ access ended." };
 }
