@@ -16,3 +16,10 @@ test("freezing is idempotent and cannot send or publish", async () => {
   assert.match(actions, /update: \{\}/);
   assert.doesNotMatch(actions, /sendEmail|sendMarketIq|marketIqReport\.create|marketIqDistributionCampaign\.create/);
 });
+
+test("archive detail is organization scoped and cannot distribute", async () => {
+  const page = await readFile("src/app/market-iq/briefing/[snapshotId]/page.tsx", "utf8");
+  assert.match(page, /where: \{ id: snapshotId, organizationId: context\.organizationId \}/);
+  assert.match(page, /organizationId: context\.organizationId/);
+  assert.doesNotMatch(page, /sendEmail|sendMarketIq|marketIqReport\.create|marketIqDistributionCampaign\.create/);
+});

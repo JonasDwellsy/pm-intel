@@ -115,6 +115,53 @@ export function buildMarketIqBriefingArchivePayload(
 
 export type MarketIqBriefingArchivePayload = ReturnType<typeof buildMarketIqBriefingArchivePayload>;
 
+function moveKey(move: MarketIqBriefingArchivePayload["currentMoves"][number]) {
+  return [move.marketId, move.geographyLabel, move.segmentLabel].join("::");
+}
+
+export function compareMarketIqBriefingArchives(
+  current: MarketIqBriefingArchivePayload,
+  prior: MarketIqBriefingArchivePayload | null,
+) {
+  if (!prior) return null;
+
+  const priorMoves = new Map(prior.currentMoves.map((move) => [moveKey(move), move]));
+  const moveChanges = current.currentMoves.flatMap((move) => {
+    const previous = priorMoves.get(moveKey(move));
+    if (!previous) return [];
+    const rentChange = move.rent !== null && previous.rent !== null ? move.rent - previous.rent : null;
+    const directionChange = move.yearOverYearPct !== null && previous.yearOverYearPct !== null
+      ? move.yearOverYearPct - previous.yearOverYearPct
+      : null;
+    return [{ ...move, previous, rentChange, directionChange }];
+  }).sort((a, b) => Math.abs(b.directionChange ?? 0) - Math.abs(a.directionChange ?? 0));
+
+  const priorExceptions = new Map(prior.exceptions.map((exception) => [`${exception.marketId}::${exception.kind}`, exception]));
+  const currentExceptions = new Map(current.exceptions.map((exception) => [`${exception.marketId}::${exception.kind}`, exception]));
+  const addedExceptions = current.exceptions.filter((exception) => !priorExceptions.has(`${exception.marketId}::${exception.kind}`));
+  const resolvedExceptions = prior.exceptions.filter((exception) => !currentExceptions.has(`${exception.marketId}::${exception.kind}`));
+
+  const priorReviews = new Map(prior.reviews.map((review) => [review.marketId, review]));
+  const reviewChanges = current.reviews.map((review) => ({
+    ...review,
+    previousCount: priorReviews.get(review.marketId)?.materialChangeCount ?? 0,
+    countChange: review.materialChangeCount - (priorReviews.get(review.marketId)?.materialChangeCount ?? 0),
+  }));
+
+  return {
+    countChanges: {
+      markets: current.counts.markets - prior.counts.markets,
+      currentSources: current.counts.currentSources - prior.counts.currentSources,
+      reviews: current.counts.reviews - prior.counts.reviews,
+      exceptions: current.counts.exceptions - prior.counts.exceptions,
+    },
+    moveChanges,
+    reviewChanges,
+    addedExceptions,
+    resolvedExceptions,
+  };
+}
+
 export function parseMarketIqBriefingArchivePayload(value: string): MarketIqBriefingArchivePayload | null {
   try {
     const parsed = JSON.parse(value) as Partial<MarketIqBriefingArchivePayload>;
