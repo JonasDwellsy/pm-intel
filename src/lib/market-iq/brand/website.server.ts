@@ -1,7 +1,7 @@
 import "server-only";
 import dns from "node:dns/promises";
 import net from "node:net";
-import { chooseWebsitePalette, extractWebsiteColors, normalizePublicWebsite } from "./website";
+import { chooseWebsitePalette, extractWebsiteColorOccurrences, normalizePublicWebsite } from "./website";
 
 function privateAddress(address: string) {
   if (net.isIPv4(address)) {
@@ -43,8 +43,8 @@ export async function suggestWebsitePalette(value: string) {
         return "";
       }
     }));
-    const colors = extractWebsiteColors([html, ...stylesheets].join("\n"));
-    if (theme && /^#[0-9a-f]{6}$/i.test(theme)) colors.unshift(theme.toLowerCase());
+    const colors = extractWebsiteColorOccurrences([html, ...stylesheets].join("\n"));
+    if (theme && /^#[0-9a-f]{6}$/i.test(theme)) colors.unshift(...Array(20).fill(theme.toLowerCase()));
     return { websiteUrl: url.toString(), ...chooseWebsitePalette(colors) };
   }
   throw new Error("That website redirected too many times.");
