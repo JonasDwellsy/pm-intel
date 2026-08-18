@@ -113,6 +113,7 @@ export const PUBLIC_BUYBOX_PATTERNS = [
   "/api/market-iq/import/history",
   "/api/market-iq/import/trends",
   "/api/market-iq/source/dwellsy/refresh",
+  "/api/market-iq/source-snapshots",
   // Stripe signs this request independently. The route verifies the raw-body
   // signature before any billing mutation and must not be intercepted by Clerk.
   "/api/market-iq/billing/webhook",
