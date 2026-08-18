@@ -64,12 +64,18 @@ test("portfolio email sends attach stable linkage and do not claim delivery on A
 
 test("Market IQ report sends use the shared signed webhook without exposing owner-facing Dwellsy branding", () => {
   const events = readFileSync("src/lib/email/sendgrid-events.server.ts", "utf8");
-  const action = readFileSync("src/app/market-iq/report/actions.ts", "utf8");
+  const migration = readFileSync("prisma/migrations/20260818030000_market_iq_email_event_ledger/migration.sql", "utf8");
+  const delivery = readFileSync("src/lib/market-iq/report/delivery.server.ts", "utf8");
   const email = readFileSync("src/lib/market-iq/report/email.ts", "utf8");
   assert.match(events, /market_iq_report/);
   assert.match(events, /marketIqReportSend\.updateMany/);
-  assert.match(action, /dwellsy_kind: "market_iq_report"/);
-  assert.match(action, /fromName: snapshot\.brand\.displayName/);
+  assert.match(events, /marketIqEmailEvent\.create/);
+  assert.match(events, /P2002/);
+  assert.match(migration, /CREATE TABLE "MarketIqEmailEvent"/);
+  assert.match(migration, /providerEventId_key/);
+  assert.doesNotMatch(migration, /DROP TABLE|DROP COLUMN|ALTER TABLE "PropertyManager"|ALTER TABLE "CanonicalOperator"|ALTER TABLE "WatchList"/);
+  assert.match(delivery, /dwellsy_kind: "market_iq_report"/);
+  assert.match(delivery, /fromName: snapshot\.brand\.displayName/);
   assert.doesNotMatch(email, /Open Market IQ|Operator IQ/);
   assert.match(email, /Market data by Dwellsy IQ/);
 });

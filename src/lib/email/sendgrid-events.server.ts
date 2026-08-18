@@ -41,43 +41,61 @@ export async function processSendgridEvent(event: SendgridWebhookEvent): Promise
   const occurredAt = sendgridOccurredAt(event);
   if (link.kind === "market_iq_report") {
     const failure = isSendgridFailure(type);
-    await prisma.$transaction(async (tx) => {
-      const delivery = await tx.marketIqReportSend.findUnique({ where: { id: link.recordId }, select: { recipientId: true } });
-      const campaignDelivery = await tx.marketIqDistributionCampaignRecipient.findFirst({ where: { sendId: link.recordId }, select: { campaignId: true } });
-      await tx.marketIqReportSend.updateMany({
-        where: { id: link.recordId, OR: [{ lastEmailEventAt: null }, { lastEmailEventAt: { lte: occurredAt } }] },
-        data: {
-          lastEmailEventAt: occurredAt,
-          lastEmailEventType: type,
-          ...(type === "delivered"
-            ? { deliveryStatus: "sent", deliveredAt: occurredAt, deliveryError: null }
-            : failure
-              ? { deliveryStatus: "failed", deliveryError: clean.reason ?? `SendGrid reported ${type}` }
-              : {}),
-        },
-      });
-      if (type === "delivered" || failure) {
-        await tx.marketIqDistributionCampaignRecipient.updateMany({
-          where: { sendId: link.recordId },
-          data: type === "delivered"
-            ? { status: "sent", lastError: null }
-            : { status: "failed", lastError: clean.reason ?? `SendGrid reported ${type}` },
-        });
-      }
-      if (failure && delivery) {
-        await tx.marketIqReportRecipient.update({
-          where: { id: delivery.recipientId },
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.marketIqEmailEvent.create({
           data: {
-            emailStatus: "suppressed",
-            suppressionReason: clean.reason ?? `SendGrid reported ${type}`,
-            suppressedAt: occurredAt,
+            providerEventId,
+            organizationId: link.organizationId,
+            reportSendId: link.recordId,
+            providerMessageId: clean.providerMessageId,
+            eventType: type,
+            occurredAt,
+            reason: clean.reason,
+            responseCode: clean.responseCode,
+            engagementStrength: sendgridEngagementStrength(type),
           },
         });
-      }
-      if (failure && campaignDelivery) {
-        await tx.marketIqDistributionCampaign.update({ where: { id: campaignDelivery.campaignId }, data: { status: "partial", completedAt: null } });
-      }
-    });
+        const delivery = await tx.marketIqReportSend.findUnique({ where: { id: link.recordId }, select: { recipientId: true } });
+        const campaignDelivery = await tx.marketIqDistributionCampaignRecipient.findFirst({ where: { sendId: link.recordId }, select: { campaignId: true } });
+        await tx.marketIqReportSend.updateMany({
+          where: { id: link.recordId, OR: [{ lastEmailEventAt: null }, { lastEmailEventAt: { lte: occurredAt } }] },
+          data: {
+            lastEmailEventAt: occurredAt,
+            lastEmailEventType: type,
+            ...(type === "delivered"
+              ? { deliveryStatus: "sent", deliveredAt: occurredAt, deliveryError: null }
+              : failure
+                ? { deliveryStatus: "failed", deliveryError: clean.reason ?? `SendGrid reported ${type}` }
+                : {}),
+          },
+        });
+        if (type === "delivered" || failure) {
+          await tx.marketIqDistributionCampaignRecipient.updateMany({
+            where: { sendId: link.recordId },
+            data: type === "delivered"
+              ? { status: "sent", lastError: null }
+              : { status: "failed", lastError: clean.reason ?? `SendGrid reported ${type}` },
+          });
+        }
+        if (failure && delivery) {
+          await tx.marketIqReportRecipient.update({
+            where: { id: delivery.recipientId },
+            data: {
+              emailStatus: "suppressed",
+              suppressionReason: clean.reason ?? `SendGrid reported ${type}`,
+              suppressedAt: occurredAt,
+            },
+          });
+        }
+        if (failure && campaignDelivery) {
+          await tx.marketIqDistributionCampaign.update({ where: { id: campaignDelivery.campaignId }, data: { status: "partial", completedAt: null } });
+        }
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return "duplicate";
+      throw error;
+    }
     return "recorded";
   }
   try {

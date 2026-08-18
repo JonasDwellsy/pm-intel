@@ -506,6 +506,7 @@ model Organization {
   marketIqReports               MarketIqReport[]
   marketIqReportRecipients      MarketIqReportRecipient[]
   marketIqReportSends           MarketIqReportSend[]
+  marketIqEmailEvents           MarketIqEmailEvent[]
   marketIqTestDeliveries        MarketIqTestDelivery[]
   marketIqDistributionCampaigns MarketIqDistributionCampaign[]
   marketIqCampaignRecipients    MarketIqDistributionCampaignRecipient[]
@@ -943,11 +944,36 @@ model MarketIqReportSend {
   organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   report       MarketIqReport          @relation(fields: [reportId], references: [id], onDelete: Cascade)
   recipient    MarketIqReportRecipient @relation(fields: [recipientId], references: [id], onDelete: Restrict)
+  events       MarketIqEmailEvent[]
 
   @@index([organizationId, deliveryStatus, createdAt(sort: Desc)])
   @@index([reportId, createdAt(sort: Desc)])
   @@index([recipientId, createdAt(sort: Desc)])
   @@index([deliveryProviderId])
+}
+
+// Append-only SendGrid evidence for Market IQ distribution. Provider event
+// IDs are unique so webhook retries cannot inflate edition or recipient
+// engagement. This begins prospectively and does not infer past events.
+model MarketIqEmailEvent {
+  id                 String   @id @default(cuid())
+  providerEventId    String   @unique
+  organizationId     String
+  reportSendId       String
+  providerMessageId  String?
+  eventType          String
+  occurredAt         DateTime
+  reason             String?
+  responseCode       String?
+  engagementStrength String   @default("operational") // operational | directional | explicit
+  createdAt          DateTime @default(now())
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reportSend   MarketIqReportSend @relation(fields: [reportSendId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, eventType, occurredAt(sort: Desc)])
+  @@index([reportSendId, eventType, occurredAt(sort: Desc)])
+  @@index([providerMessageId])
 }
 
 // A PM-requested verification email sent only to the signed-in user's Clerk
