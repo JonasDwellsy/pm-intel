@@ -10,8 +10,8 @@ import { normalizePublicWebsite, websiteForSuggestion } from "@/lib/market-iq/br
 import {
   applyMarketIqReportScope,
   marketIqScopeOptions,
+  toggleMarketIqSegmentSelection,
   type MarketIqReportScopeSelection,
-  type MarketIqSegmentKey,
 } from "@/lib/market-iq/report/scope";
 
 type Brand = MarketIqReportSnapshot["brand"];
@@ -152,7 +152,7 @@ export function MarketIqActivationFlow({ marketId, marketLabel, snapshot, initia
       <p className="dq-eyebrow">Your market scope</p><h2 className="dq-h2">Choose what should open first</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{clientAdvisoryEnabled ? "You can change the scope for any individual edition. These selections make the usual client read faster to prepare." : "Choose the cities, ZIPs, and rental segments your team follows most often. You can change the view at any time."}</p>
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Cities</legend><div className="mt-3 grid gap-2 sm:grid-cols-2">{scopeOptions.cities.map((city) => <Choice key={city} value={city} label={city} checked={selection.cities.includes(city)} onChange={() => setSelection((current) => ({ ...current, cities: toggle(current.cities, city) }))} />)}</div></fieldset>
-        <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Product segments</legend><div className="mt-3 grid gap-2">{scopeOptions.segments.map((segment) => <Choice key={segment.key} value={segment.key} label={segment.label} checked={selection.segments.includes(segment.key)} onChange={() => setSelection((current) => ({ ...current, segments: toggle(current.segments, segment.key) as MarketIqSegmentKey[] }))} />)}</div></fieldset>
+        <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Product segments</legend><div className="mt-3 grid gap-2">{scopeOptions.segments.map((segment) => <Choice key={segment.key} value={segment.key} label={segment.label} checked={selection.segments.includes(segment.key)} onChange={() => setSelection((current) => ({ ...current, segments: toggleMarketIqSegmentSelection(current.segments, segment.key) }))} />)}</div></fieldset>
       </div>
       <fieldset className="mt-6"><div className="flex items-center justify-between gap-3"><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">ZIP codes</legend><button type="button" onClick={() => setSelection((current) => ({ ...current, zipCodes: current.zipCodes.length === scopeOptions.zipCodes.length ? [] : [...scopeOptions.zipCodes] }))} className="text-xs font-semibold text-teal-700">{selection.zipCodes.length === scopeOptions.zipCodes.length ? "Clear all" : "Use market-wide default"}</button></div><div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-slate-200 p-3"><div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">{scopeOptions.zipCodes.map((zip) => <Choice key={zip} value={zip} label={zip} checked={selection.zipCodes.includes(zip)} onChange={() => setSelection((current) => ({ ...current, zipCodes: toggle(current.zipCodes, zip) }))} />)}</div></div></fieldset>
       <div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => saveProgress(3)} disabled={!validScope || isSaving} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{isSaving ? "Saving…" : "Save and review"}</button><button type="button" onClick={() => saveProgress(2, false)} disabled={isSaving} className="rounded-md border border-slate-300 px-5 py-3 text-sm font-semibold text-navy">Save for later</button></div>

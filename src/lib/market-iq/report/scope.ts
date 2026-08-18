@@ -59,11 +59,42 @@ function allowedValues(values: string[], allowed: readonly string[]) {
   return [...new Set(values.filter((value) => allowed.includes(value)))];
 }
 
+function segmentProductType(value: MarketIqSegmentKey) {
+  return value.split(":", 1)[0];
+}
+
+function isAggregateSegment(value: MarketIqSegmentKey) {
+  return value.endsWith(":999");
+}
+
+/**
+ * An aggregate product segment and its bedroom-level segments are alternate
+ * views of the same product, not additive filters. When legacy input contains
+ * both, preserve the more specific bedroom choices.
+ */
+export function normalizeMarketIqSegmentSelection(values: MarketIqSegmentKey[]) {
+  const unique = [...new Set(values)];
+  return unique.filter((value) => {
+    if (!isAggregateSegment(value)) return true;
+    const productType = segmentProductType(value);
+    return !unique.some((candidate) => segmentProductType(candidate) === productType && !isAggregateSegment(candidate));
+  });
+}
+
+export function toggleMarketIqSegmentSelection(values: MarketIqSegmentKey[], value: MarketIqSegmentKey) {
+  if (values.includes(value)) return values.filter((item) => item !== value);
+  const productType = segmentProductType(value);
+  if (isAggregateSegment(value)) {
+    return [...values.filter((item) => segmentProductType(item) !== productType), value];
+  }
+  return [...values.filter((item) => item !== `${productType}:999`), value];
+}
+
 export function defaultMarketIqScopeSelection(): MarketIqReportScopeSelection {
   return {
     cities: [...MARKET_IQ_REPORT_CITIES],
     zipCodes: [...MARKET_IQ_REPORT_ZIPS],
-    segments: MARKET_IQ_REPORT_SEGMENTS.map((segment) => segment.key),
+    segments: normalizeMarketIqSegmentSelection(MARKET_IQ_REPORT_SEGMENTS.map((segment) => segment.key)),
   };
 }
 
@@ -71,7 +102,9 @@ export function normalizeMarketIqScopeSelection(input: Partial<MarketIqReportSco
   const defaults = defaultMarketIqScopeSelection();
   const cities = input.cities === undefined ? defaults.cities : allowedValues(input.cities, MARKET_IQ_REPORT_CITIES);
   const zipCodes = input.zipCodes === undefined ? defaults.zipCodes : allowedValues(input.zipCodes, MARKET_IQ_REPORT_ZIPS);
-  const segments = input.segments === undefined ? defaults.segments : allowedValues(input.segments, MARKET_IQ_REPORT_SEGMENTS.map((segment) => segment.key)) as MarketIqSegmentKey[];
+  const segments = input.segments === undefined
+    ? defaults.segments
+    : normalizeMarketIqSegmentSelection(allowedValues(input.segments, MARKET_IQ_REPORT_SEGMENTS.map((segment) => segment.key)) as MarketIqSegmentKey[]);
   return {
     cities,
     zipCodes,
@@ -100,7 +133,7 @@ export function normalizeMarketIqScopeSelectionForSnapshot(
   return {
     cities: input.cities === undefined ? options.cities : allowedValues(input.cities, options.cities),
     zipCodes: input.zipCodes === undefined ? options.zipCodes : allowedValues(input.zipCodes, options.zipCodes),
-    segments: (input.segments === undefined ? segmentKeys : allowedValues(input.segments, segmentKeys)) as MarketIqSegmentKey[],
+    segments: normalizeMarketIqSegmentSelection((input.segments === undefined ? segmentKeys : allowedValues(input.segments, segmentKeys)) as MarketIqSegmentKey[]),
   };
 }
 
@@ -141,7 +174,7 @@ export function parseMarketIqSetupScopeFormData(formData: FormData, marketId: st
   return {
     cities: safeCityValues(formData.getAll("cities")),
     zipCodes: allowedValues(formData.getAll("zipCodes").map(String), allowedZips),
-    segments: allowedValues(formData.getAll("segments").map(String), allowedSegments) as MarketIqSegmentKey[],
+    segments: normalizeMarketIqSegmentSelection(allowedValues(formData.getAll("segments").map(String), allowedSegments) as MarketIqSegmentKey[]),
   } satisfies MarketIqReportScopeSelection;
 }
 
