@@ -7,6 +7,11 @@ import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
+import {
+  marketIqJourneyEventData,
+  marketIqMilestoneDedupeKey,
+  recordMarketIqJourneyEvent,
+} from "@/lib/market-iq/journey-telemetry.server";
 import { deliverMarketIqReportToRecipient } from "@/lib/market-iq/report/delivery.server";
 import { marketIqClipped, marketIqValidEmail } from "@/lib/market-iq/report/form-values";
 import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
@@ -34,10 +39,21 @@ export async function saveMarketIqRecipient(formData: FormData): Promise<void> {
   const email = marketIqClipped(formData.get("email"), 254).toLowerCase();
   const kind = marketIqClipped(formData.get("kind"), 20);
   if (!context || !name || !marketIqValidEmail(email) || !["client", "prospect"].includes(kind)) throw new Error("Enter a valid client or prospect.");
-  await prisma.marketIqReportRecipient.upsert({
+  const recipient = await prisma.marketIqReportRecipient.upsert({
     where: { organizationId_email: { organizationId: context.organizationId, email } },
     create: { organizationId: context.organizationId, name, email, kind },
     update: { name, kind },
+    select: { id: true },
+  });
+  await recordMarketIqJourneyEvent({
+    organizationId: context.organizationId,
+    actorUserId: context.userId,
+    eventKey: "first_recipient_saved",
+    milestone: "recipient",
+    sourceRoute: "/market-iq/distribution",
+    subjectId: recipient.id,
+    dedupeKey: marketIqMilestoneDedupeKey(context.organizationId, "recipient"),
+    metadata: { kind },
   });
   revalidatePath("/market-iq/distribution");
   if (marketIqClipped(formData.get("returnTo"), 20) === "launch") redirect("/market-iq/launch?recipient=1");
@@ -101,6 +117,21 @@ export async function saveMarketIqCampaignAudience(formData: FormData): Promise<
       where: { id: campaignId },
       data: { status: recipients.length ? "ready" : "draft" },
     });
+    if (recipients.length) {
+      await tx.marketIqJourneyEvent.createMany({
+        data: [marketIqJourneyEventData({
+          organizationId: context.organizationId,
+          actorUserId: context.userId,
+          eventKey: "first_campaign_audience_confirmed",
+          milestone: "audience",
+          sourceRoute: `/market-iq/distribution/${campaignId}`,
+          subjectId: campaignId,
+          dedupeKey: marketIqMilestoneDedupeKey(context.organizationId, "audience"),
+          metadata: { recipientCount: recipients.length },
+        })],
+        skipDuplicates: true,
+      });
+    }
   });
   revalidatePath(`/market-iq/distribution/${campaignId}`);
   redirect(withLaunchFlow(`/market-iq/distribution/${campaignId}?stage=review`, launchFlow(formData)));
@@ -188,6 +219,16 @@ export async function sendMarketIqCampaignRecipient(formData: FormData): Promise
       data: { status: "failed", lastError: message.slice(0, 1_000) },
     });
     await prisma.marketIqDistributionCampaign.update({ where: { id: row.campaign.id }, data: { status: "partial" } });
+    await recordMarketIqJourneyEvent({
+      organizationId: context.organizationId,
+      actorUserId: context.userId,
+      eventKey: "recipient_delivery_failed",
+      milestone: "delivery",
+      status: "failed",
+      sourceRoute: `/market-iq/distribution/${row.campaign.id}`,
+      subjectId: row.id,
+      metadata: { campaignId: row.campaign.id, attempt: row.attemptCount + 1 },
+    });
     redirect(withLaunchFlow(`/market-iq/distribution/${row.campaign.id}?delivery=failed`, preserveLaunchFlow));
   }
 
@@ -215,6 +256,21 @@ export async function sendMarketIqCampaignRecipient(formData: FormData): Promise
     data: nextCampaignStatus === "complete"
       ? { status: nextCampaignStatus, completedAt: new Date() }
       : { status: nextCampaignStatus },
+  });
+  await recordMarketIqJourneyEvent({
+    organizationId: context.organizationId,
+    actorUserId: context.userId,
+    eventKey: result.status === "sent" || result.status === "already_sent"
+      ? "first_recipient_delivery_confirmed"
+      : `recipient_delivery_${result.status}`,
+    milestone: "delivery",
+    status: result.status === "sent" || result.status === "already_sent" ? "completed" : "failed",
+    sourceRoute: `/market-iq/distribution/${row.campaign.id}`,
+    subjectId: row.id,
+    dedupeKey: result.status === "sent" || result.status === "already_sent"
+      ? marketIqMilestoneDedupeKey(context.organizationId, "delivery")
+      : null,
+    metadata: { campaignId: row.campaign.id, providerStatus: result.status, attempt: row.attemptCount + 1 },
   });
   revalidatePath(`/market-iq/distribution/${row.campaign.id}`);
   revalidatePath(`/market-iq/delivery/${row.campaign.id}`);

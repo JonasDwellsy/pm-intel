@@ -513,6 +513,7 @@ model Organization {
   marketIqEditionRunItems       MarketIqEditionOrchestrationItem[]
   marketIqSubscriptions         MarketIqSubscription[]
   marketIqWorkspacePreference   MarketIqWorkspacePreference?
+  marketIqJourneyEvents         MarketIqJourneyEvent[]
   portfolioIqPortfolios         PortfolioIqPortfolio[]
   dwellsyIqInsights             DwellsyIqInsight[]
   portfolioIqOnboardingRequests PortfolioIqOnboardingRequest[]
@@ -594,6 +595,31 @@ model MarketIqBillingEvent {
   updatedAt     DateTime  @updatedAt
 
   @@index([status, createdAt(sort: Desc)])
+}
+
+// A deliberately small event ledger for the Market IQ customer journey. It
+// records explicit workflow transitions rather than page views or analytical
+// behavior. Stable dedupe keys preserve the first time a workspace reaches a
+// milestone while retry and failure events remain individually auditable.
+model MarketIqJourneyEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorUserId    String?
+  eventKey       String
+  milestone      String // access | setup | edition | test | recipient | audience | delivery
+  status         String   @default("completed") // started | completed | failed
+  sourceRoute    String?
+  subjectId      String?
+  dedupeKey      String?  @unique
+  metadata       String   @default("{}")
+  occurredAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, occurredAt(sort: Desc)])
+  @@index([organizationId, milestone, status])
+  @@index([eventKey, occurredAt(sort: Desc)])
 }
 
 // Market IQ resources are deliberately separate from Operator IQ's WatchList

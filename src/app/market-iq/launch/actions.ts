@@ -9,6 +9,7 @@ import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
+import { marketIqMilestoneDedupeKey, recordMarketIqJourneyEvent } from "@/lib/market-iq/journey-telemetry.server";
 import { marketIqReportBaseUrl } from "@/lib/market-iq/report/delivery.server";
 import { buildMarketIqReportEmail } from "@/lib/market-iq/report/email";
 import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
@@ -86,6 +87,17 @@ export async function sendMarketIqLaunchTest(formData: FormData): Promise<void> 
     data: result.ok
       ? { status: "accepted", providerId: result.id || null, sentAt: new Date(), error: null }
       : { status: "failed", error: result.error.slice(0, 1_000) },
+  });
+  await recordMarketIqJourneyEvent({
+    organizationId,
+    actorUserId: userId,
+    eventKey: result.ok ? "first_test_delivery_accepted" : "test_delivery_failed",
+    milestone: "test",
+    status: result.ok ? "completed" : "failed",
+    sourceRoute: "/market-iq/launch",
+    subjectId: delivery.id,
+    dedupeKey: result.ok ? marketIqMilestoneDedupeKey(organizationId, "test") : null,
+    metadata: { providerAccepted: result.ok },
   });
   revalidatePath("/market-iq/launch");
   redirect(`/market-iq/launch?test=${result.ok ? "accepted" : "failed"}`);

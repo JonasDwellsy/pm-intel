@@ -2,6 +2,7 @@ import "server-only";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { isMarketIqBillingInterval, MARKET_IQ_CLIENT_ADVISORY_PLAN, marketIqPlanForKey, type MarketIqBillingInterval, type MarketIqPlanKey } from "@/lib/market-iq/billing/plans";
+import { marketIqJourneyEventData, marketIqMilestoneDedupeKey } from "@/lib/market-iq/journey-telemetry.server";
 
 function dateFromUnix(value: number | null | undefined): Date | null {
   return typeof value === "number" ? new Date(value * 1000) : null;
@@ -63,6 +64,19 @@ export async function provisionEnterpriseMarketIq(input: {
         });
     await tx.marketIqSubscriptionMarket.deleteMany({ where: { subscriptionId: subscription.id } });
     await tx.marketIqSubscriptionMarket.create({ data: { subscriptionId: subscription.id, marketId: input.marketId } });
+    await tx.marketIqJourneyEvent.createMany({
+      data: [marketIqJourneyEventData({
+        organizationId: input.organizationId,
+        actorUserId: input.provisionedByUserId,
+        eventKey: "commercial_access_activated",
+        milestone: "access",
+        sourceRoute: "/admin/organizations",
+        subjectId: subscription.id,
+        dedupeKey: marketIqMilestoneDedupeKey(input.organizationId, "access"),
+        metadata: { source: "enterprise", planKey: input.planKey, marketId: input.marketId },
+      })],
+      skipDuplicates: true,
+    });
     return subscription;
   });
 }
@@ -145,6 +159,20 @@ async function syncStripeMarketIqSubscriptionWithContext(
       create: { subscriptionId: row.id, marketId },
       update: {},
     });
+    if (subscription.status === "active" || subscription.status === "trialing") {
+      await tx.marketIqJourneyEvent.createMany({
+        data: [marketIqJourneyEventData({
+          organizationId,
+          eventKey: "commercial_access_activated",
+          milestone: "access",
+          sourceRoute: "/api/market-iq/billing/webhook",
+          subjectId: row.id,
+          dedupeKey: marketIqMilestoneDedupeKey(organizationId, "access"),
+          metadata: { source: "stripe", planKey, billingInterval, marketId },
+        })],
+        skipDuplicates: true,
+      });
+    }
     return row;
   });
 }

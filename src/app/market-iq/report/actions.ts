@@ -8,6 +8,7 @@ import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
+import { marketIqJourneyEventData, marketIqMilestoneDedupeKey } from "@/lib/market-iq/journey-telemetry.server";
 import { buildClevelandComposerPreview, type MarketIqReportBrandInput } from "@/lib/market-iq/report/composer.server";
 import { canAccessMarketIqReportComposer } from "@/lib/market-iq/report/access";
 import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
@@ -201,6 +202,19 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
         data: { status: "published", reviewedAt: now, publishedReportId: createdReport.id },
       });
     }
+    await tx.marketIqJourneyEvent.createMany({
+      data: [marketIqJourneyEventData({
+        organizationId: context.organizationId,
+        actorUserId: context.userId,
+        eventKey: "first_edition_published",
+        milestone: "edition",
+        sourceRoute: "/market-iq/report",
+        subjectId: createdReport.id,
+        dedupeKey: marketIqMilestoneDedupeKey(context.organizationId, "edition"),
+        metadata: { marketId: CLEVELAND_MARKET_ID, recurringDraft: Boolean(editionDraft) },
+      })],
+      skipDuplicates: true,
+    });
     return { id: createdReport.id, campaignId: campaign.id };
   });
   revalidatePath("/market-iq/report");
