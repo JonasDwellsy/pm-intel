@@ -15,7 +15,7 @@ import { resolveActiveMarketIqMarket } from "@/lib/market-iq/markets/selection";
 
 export const dynamic = "force-dynamic";
 
-export default async function MarketIqReportComposerPage({ searchParams }: { searchParams: Promise<{ published?: string; delivery?: string; activated?: string; draftId?: string; edition?: string; flow?: string; market?: string }> }) {
+export default async function MarketIqReportComposerPage({ searchParams }: { searchParams: Promise<{ published?: string; delivery?: string; activated?: string; draftId?: string; edition?: string; flow?: string; from?: string; market?: string }> }) {
   const previewEnabled = marketIqPreviewEnabled();
   if (!previewEnabled) notFound();
   const [{ userId, organizationId }, query] = await Promise.all([getActiveOrgContext(), searchParams]);
@@ -45,8 +45,8 @@ export default async function MarketIqReportComposerPage({ searchParams }: { sea
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
     {query.flow === "launch" && <MarketIqLaunchJourney current="edition" />}
-    <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-xs font-semibold text-muted-foreground"><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><Link href={`/market-iq/editions?market=${encodeURIComponent(activeMarket.id)}`} className="hover:text-teal-700">Client reports</Link><span>/</span><span>Review and publish</span><span>·</span><Link href="/market-iq/distribution" className="hover:text-teal-700">Recipients</Link></nav>
-    {query.activated === "1" && <p className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Setup complete. Your saved brand and market defaults are loaded below.</p>}
+    <nav aria-label="Breadcrumb" className="mb-6 flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">{query.from === "setup" && <><Link href={`/market-iq/get-started?market=${encodeURIComponent(activeMarket.id)}&step=2`} className="hover:text-teal-700">Back to {activeMarket.shortLabel} setup</Link><span>/</span></>}<Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><Link href={`/market-iq/editions?market=${encodeURIComponent(activeMarket.id)}`} className="hover:text-teal-700">Client reports</Link><span>/</span><span>Review and publish</span><span>·</span><Link href="/market-iq/distribution" className="hover:text-teal-700">Recipients</Link></nav>
+    {query.activated === "1" && <p className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Setup saved. Review the current {activeMarket.shortLabel} edition below. It remains private until you publish it, and no email is sent from this page.</p>}
     {draft && <p className="mb-6 rounded-xl border border-teal-200 bg-teal-50 px-5 py-3 text-sm font-semibold text-teal-900">Private recurring draft loaded for the Trends IQ period ending {draft.periodEnd}. It contains {draft.materialChangeCount} material {draft.materialChangeCount === 1 ? "change" : "changes"} and is not public or attached to an audience.</p>}
     <header className="grid gap-7 border-b border-grid pb-8 lg:grid-cols-[1fr_360px] lg:items-end">
       <div><p className="dq-eyebrow">Client advisory</p><h1 className="dq-h1">Prepare a {activeMarket.shortLabel} local market read</h1><p className="mt-3 max-w-3xl text-[15px] leading-6 text-muted-foreground">Turn validated Trends IQ rent levels and direction into an interactive, client-ready read under your firm’s brand. Publishing freezes the evidence and creates a revocable public link.</p></div>

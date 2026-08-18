@@ -3,12 +3,10 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { completeMarketIqActivation, saveMarketIqActivationProgress } from "@/app/market-iq/get-started/actions";
-import { MarketIqPublicReport } from "@/components/market-iq/report/MarketIqPublicReport";
 import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import type { MarketIqEditorialDefaults } from "@/lib/market-iq/report/composer.server";
 import { normalizePublicWebsite, websiteForSuggestion } from "@/lib/market-iq/brand/website";
 import {
-  applyMarketIqReportScope,
   marketIqScopeOptions,
   toggleMarketIqSegmentSelection,
   type MarketIqReportScopeSelection,
@@ -47,32 +45,18 @@ function MasterChoice({ label, description, checked, indeterminate, onChange }: 
   </label>;
 }
 
-export function MarketIqActivationFlow({ marketId, marketLabel, snapshot, initialBrand, initialEditorialDefaults, initialSelection, initialStep, source, completed, clientAdvisoryEnabled, logoStorageEnabled }: { marketId: string; marketLabel: string; snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialEditorialDefaults: MarketIqEditorialDefaults; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "verified_seed" | "scope_catalog" | "unavailable"; completed: boolean; clientAdvisoryEnabled: boolean; logoStorageEnabled: boolean }) {
+export function MarketIqActivationFlow({ marketId, snapshot, initialBrand, initialEditorialDefaults, initialSelection, initialStep, source, clientAdvisoryEnabled, logoStorageEnabled }: { marketId: string; marketLabel: string; snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialEditorialDefaults: MarketIqEditorialDefaults; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "verified_seed" | "scope_catalog" | "unavailable"; completed: boolean; clientAdvisoryEnabled: boolean; logoStorageEnabled: boolean }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const websiteInputRef = useRef<HTMLInputElement>(null);
   const [isSaving, startSaving] = useTransition();
-  const [step, setStep] = useState(clientAdvisoryEnabled ? initialStep : initialStep === 3 ? 3 : 2);
+  const [step, setStep] = useState(clientAdvisoryEnabled && initialStep === 1 ? 1 : 2);
   const [brand, setBrand] = useState(initialBrand);
   const [editorialDefaults, setEditorialDefaults] = useState(initialEditorialDefaults);
   const [selection, setSelection] = useState(initialSelection);
   const [notice, setNotice] = useState<string | null>(null);
   const [brandToolStatus, setBrandToolStatus] = useState<string | null>(null);
   const scopeOptions = useMemo(() => marketIqScopeOptions(snapshot), [snapshot]);
-  const preview = useMemo(() => applyMarketIqReportScope({
-    ...snapshot,
-    brand,
-    editorial: clientAdvisoryEnabled ? {
-      audienceKind: "client",
-      headline: snapshot.editorial?.headline ?? null,
-      introduction: editorialDefaults.defaultClientMessage,
-      companyProfile: editorialDefaults.companyProfile,
-      companyCtaLabel: editorialDefaults.companyCtaLabel,
-      companyCtaUrl: editorialDefaults.companyCtaUrl,
-      reviewedAt: snapshot.generatedAt,
-      reviewedBy: "Workspace default preview",
-    } : snapshot.editorial,
-  }, selection), [snapshot, brand, editorialDefaults, selection, clientAdvisoryEnabled]);
   const validBrand = brand.displayName.trim().length >= 2;
   const validScope = selection.segments.length > 0 && selection.cities.length + selection.zipCodes.length > 0;
   const segmentKeys = scopeOptions.segments.map((segment) => segment.key);
@@ -129,6 +113,7 @@ export function MarketIqActivationFlow({ marketId, marketLabel, snapshot, initia
 
   return <form ref={formRef} action={completeMarketIqActivation} className="mt-8">
     <input type="hidden" name="marketId" value={marketId} />
+    <input type="hidden" name="nextStep" value="2" />
     <input type="hidden" name="sourceAvailable" value={source === "unavailable" ? "0" : "1"} />
     <input type="hidden" name="displayName" value={brand.displayName} />
     <input type="hidden" name="logoUrl" value={brand.logoUrl ?? ""} />
@@ -146,7 +131,7 @@ export function MarketIqActivationFlow({ marketId, marketLabel, snapshot, initia
     {selection.cities.map((city) => <input key={`city:${city}`} type="hidden" name="cities" value={city} />)}
     {selection.zipCodes.map((zip) => <input key={`zip:${zip}`} type="hidden" name="zipCodes" value={zip} />)}
     {selection.segments.map((segment) => <input key={`segment:${segment}`} type="hidden" name="segments" value={segment} />)}
-    <div className={`grid gap-3 ${clientAdvisoryEnabled ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>{(clientAdvisoryEnabled ? [{ step: 1, label: "Your firm" }, { step: 2, label: "Your market read" }, { step: 3, label: "Review" }] : [{ step: 2, label: "Your market read" }, { step: 3, label: "Review" }]).map((item, index) => <button key={item.label} type="button" onClick={() => setStep(item.step)} className={`rounded-xl border px-4 py-3 text-left ${step === item.step ? "border-navy bg-navy text-white" : "border-slate-200 bg-white text-slate-500"}`}><span className="block text-[10px] font-bold uppercase tracking-[0.13em]">Step {index + 1}</span><span className="mt-1 block text-sm font-semibold">{item.label}</span></button>)}</div>
+    <div className={`grid gap-3 ${clientAdvisoryEnabled ? "sm:grid-cols-2" : "sm:grid-cols-1"}`}>{(clientAdvisoryEnabled ? [{ step: 1, label: "Your firm" }, { step: 2, label: "Your market scope" }] : [{ step: 2, label: "Your market scope" }]).map((item, index) => <button key={item.label} type="button" onClick={() => setStep(item.step)} className={`rounded-xl border px-4 py-3 text-left ${step === item.step ? "border-navy bg-navy text-white" : "border-slate-200 bg-white text-slate-500"}`}><span className="block text-[10px] font-bold uppercase tracking-[0.13em]">Step {index + 1}</span><span className="mt-1 block text-sm font-semibold">{item.label}</span></button>)}</div>
     {notice && <p role="status" className={`mt-4 rounded-lg border px-4 py-3 text-sm font-semibold ${notice.includes("could not") ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>{notice}</p>}
 
     {step === 1 && <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -173,12 +158,7 @@ export function MarketIqActivationFlow({ marketId, marketLabel, snapshot, initia
         <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Product segments</legend><div className="mt-3 grid gap-4">{(["apartment", "house"] as const).map((productType) => { const group = scopeOptions.segments.filter((segment) => segment.propertyType === productType); const aggregate = group.find((segment) => segment.bedrooms === 999); const details = group.filter((segment) => segment.bedrooms !== 999); const groupKeys = group.map((segment) => segment.key); const allSelected = groupKeys.length > 0 && groupKeys.every((key) => selection.segments.includes(key)); const someSelected = groupKeys.some((key) => selection.segments.includes(key)); if (!group.length || !aggregate) return null; return <div key={productType}><MasterChoice label={aggregate.label} description={`Select every ${productType} view below`} checked={allSelected} indeterminate={someSelected && !allSelected} onChange={() => setSelection((current) => ({ ...current, segments: toggleMarketIqSegmentSelection(current.segments, aggregate.key, segmentKeys) }))} /><div className="mt-2 grid gap-2 border-l-2 border-slate-200 pl-3">{details.map((segment) => <Choice key={segment.key} value={segment.key} label={segment.label} checked={selection.segments.includes(segment.key)} onChange={() => setSelection((current) => ({ ...current, segments: toggleMarketIqSegmentSelection(current.segments, segment.key, segmentKeys) }))} />)}</div></div>; })}</div></fieldset>
       </div>
       <fieldset className="mt-6"><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">ZIP codes</legend><div className="mt-3"><MasterChoice label="All ZIP codes" description="Include every supported ZIP in this market" checked={allZipsSelected} indeterminate={someZipsSelected && !allZipsSelected} onChange={() => setSelection((current) => ({ ...current, zipCodes: toggleAll(current.zipCodes, scopeOptions.zipCodes) }))} /></div><div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-slate-200 p-3"><div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">{scopeOptions.zipCodes.map((zip) => <Choice key={zip} value={zip} label={zip} checked={selection.zipCodes.includes(zip)} onChange={() => setSelection((current) => ({ ...current, zipCodes: toggle(current.zipCodes, zip) }))} />)}</div></div></fieldset>
-      <div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => saveProgress(3)} disabled={!validScope || isSaving} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{isSaving ? "Saving…" : "Save and review"}</button><button type="button" onClick={() => saveProgress(2, false)} disabled={isSaving} className="rounded-md border border-slate-300 px-5 py-3 text-sm font-semibold text-navy">Save for later</button></div>
-    </section>}
-
-    {step === 3 && <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 p-6"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="dq-eyebrow">Ready to activate</p><h2 className="dq-h2">{clientAdvisoryEnabled ? `Your ${marketLabel} recurring edition starts here` : `Your ${marketLabel} intelligence workspace is ready`}</h2><p className="mt-2 text-sm text-slate-600">{selection.cities.length} cities, {selection.zipCodes.length} ZIPs, and {selection.segments.length} product segments selected.</p></div><div className="flex gap-3"><button type="button" onClick={() => setStep(2)} className="rounded-md border border-slate-300 px-4 py-2.5 text-sm font-semibold text-navy">Edit</button><button disabled={!validBrand || !validScope} className="rounded-md bg-navy px-5 py-2.5 text-sm font-semibold text-white">{source === "unavailable" ? "Save setup and return home" : completed ? (clientAdvisoryEnabled ? "Save changes and open edition" : "Save changes and open market") : (clientAdvisoryEnabled ? "Activate and prepare first edition" : "Activate and open market")}</button></div></div><div className="mt-5 grid gap-3 sm:grid-cols-3"><article className="rounded-xl bg-slate-50 p-4"><p className="text-2xl font-semibold text-navy">{selection.cities.length}</p><p className="mt-1 text-xs text-slate-500">cities selected</p></article><article className="rounded-xl bg-slate-50 p-4"><p className="text-2xl font-semibold text-navy">{selection.zipCodes.length}</p><p className="mt-1 text-xs text-slate-500">ZIPs selected</p></article><article className={`rounded-xl p-4 ${source === "unavailable" ? "bg-amber-50" : "bg-emerald-50"}`}><p className="text-sm font-semibold text-navy">{source === "unavailable" ? "Trends IQ temporarily unavailable" : source === "scope_catalog" ? "Market setup ready" : source === "dwellsy_trends" ? "Live Trends IQ" : "Preview seed"}</p><p className="mt-1 text-xs text-slate-500">{source === "unavailable" ? "Setup can be saved; no market value will be estimated or substituted" : source === "scope_catalog" ? "Current Trends values load in Market intelligence after setup" : source === "dwellsy_trends" ? (clientAdvisoryEnabled ? "Ready for edition review" : "Ready for market exploration") : "Activation can continue; publication remains blocked"}</p></article></div></div>
-      {source === "unavailable" ? <div className="p-8"><div className="rounded-xl border border-amber-200 bg-amber-50 p-6"><p className="text-lg font-semibold text-navy">Your market settings are ready to save</p><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">The read-only Trends connection did not respond while this page loaded. Your selections can still be configured now. Market values and edition review will resume when the source is available, and no value will be estimated in the meantime.</p></div></div> : source === "scope_catalog" ? <div className="p-8"><div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6"><p className="text-lg font-semibold text-navy">Your scope is ready</p><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Activate these defaults to open the current {marketLabel} market read. Setup uses the market catalog so a source refresh never holds up this form.</p></div></div> : <div className="max-h-[760px] overflow-y-auto"><MarketIqPublicReport report={preview} preview /></div>}
+      <div className="mt-7 flex flex-wrap items-center gap-3"><button type="submit" disabled={!validBrand || !validScope || isSaving} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{source === "unavailable" ? "Save setup" : clientAdvisoryEnabled ? "Save and review edition" : "Save and open market"}</button><button type="button" onClick={() => saveProgress(2, false)} disabled={isSaving} className="rounded-md border border-slate-300 px-5 py-3 text-sm font-semibold text-navy">Save for later</button><p className="text-xs text-slate-500">{clientAdvisoryEnabled ? "Your current edition will open next. Nothing is published or emailed." : "Your saved market view will open next."}</p></div>
     </section>}
   </form>;
 }

@@ -94,7 +94,7 @@ async function persistActivation(formData: FormData, complete: boolean) {
   revalidatePath("/market-iq/get-started");
   revalidatePath(`/market-iq/report?market=${encodeURIComponent(marketId)}`);
   revalidatePath(`/market-iq/market?market=${encodeURIComponent(marketId)}`);
-  return capabilities;
+  return { capabilities, marketId };
 }
 
 export async function saveMarketIqActivationProgress(formData: FormData): Promise<{ nextStep: number }> {
@@ -105,9 +105,11 @@ export async function saveMarketIqActivationProgress(formData: FormData): Promis
 }
 
 export async function completeMarketIqActivation(formData: FormData): Promise<void> {
-  const capabilities = await persistActivation(formData, true);
+  const { capabilities, marketId } = await persistActivation(formData, true);
   if (String(formData.get("sourceAvailable") ?? "1") !== "1") {
-    redirect("/market-iq?activated=1&source=unavailable");
+    redirect(`/market-iq?activated=1&source=unavailable&market=${encodeURIComponent(marketId)}`);
   }
-  redirect(capabilities.publishClientReports ? "/market-iq/launch?activated=1" : "/market-iq?activated=1");
+  redirect(capabilities.publishClientReports
+    ? `/market-iq/report?market=${encodeURIComponent(marketId)}&from=setup&activated=1`
+    : `/market-iq/market?market=${encodeURIComponent(marketId)}&activated=1`);
 }
