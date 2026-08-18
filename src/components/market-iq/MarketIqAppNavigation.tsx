@@ -11,6 +11,7 @@ const INTELLIGENCE_ITEMS = [
 const ADVISORY_ITEMS = [
   { href: "/market-iq/editions", label: "Client reports", match: (path: string) => path.startsWith("/market-iq/editions") || path.startsWith("/market-iq/review") || path.startsWith("/market-iq/report") || path.startsWith("/market-iq/published") },
   { href: "/market-iq/distribution", label: "Recipients", match: (path: string) => path.startsWith("/market-iq/distribution") },
+  { href: "/market-iq/performance", label: "Performance", match: (path: string) => path.startsWith("/market-iq/performance") },
 ] as const;
 
 const PUBLIC_ITEMS = [
