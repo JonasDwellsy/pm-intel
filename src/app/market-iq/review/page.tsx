@@ -54,16 +54,20 @@ export default async function MarketIqReviewInboxPage({
   if (!organizationId) redirect("/setup-workspace?from=/market-iq/review");
   if (!access.hasProduct) redirect("/market-iq/subscribe");
   if (!access.capabilities.useRecurringEditions) redirect("/market-iq/subscribe?upgrade=client_advisory");
-  const preference = await prisma.marketIqWorkspacePreference.findUnique({
+  const workspacePreference = await prisma.marketIqWorkspacePreference.findUnique({
     where: { organizationId },
     select: { recurringEditionsEnabled: true, defaultMarketId: true },
   });
   const activeMarket = resolveActiveMarketIqMarket({
     requestedMarketId: query.market,
-    preferredMarketId: preference?.defaultMarketId,
+    preferredMarketId: workspacePreference?.defaultMarketId,
     entitlement: access.entitlement,
   });
   if (!activeMarket || !isMarketEntitled(access.entitlement, activeMarket.id)) redirect("/market-iq/subscribe");
+  const preference = await prisma.marketIqMarketPreference.findUnique({
+    where: { organizationId_marketId: { organizationId, marketId: activeMarket.id } },
+    select: { recurringEditionsEnabled: true },
+  });
   const entitledMarkets = listEntitledMarketIqMarkets(access.entitlement);
 
   const [drafts, recentDecisions, orchestrationItems] = await Promise.all([
@@ -141,7 +145,7 @@ export default async function MarketIqReviewInboxPage({
       </div>
 
       <aside className="space-y-6">
-        <section className="rounded-2xl border border-teal-200 bg-teal-50 p-6"><p className="dq-eyebrow">Source check</p><h2 className="dq-h2">{preference?.recurringEditionsEnabled && preference.defaultMarketId === activeMarket.id ? "Recurring drafts are on" : "Recurring drafts are paused"}</h2><p className="mt-2 text-sm leading-6 text-slate-600">Run the same safe, organization-scoped check used by the scheduler. It can only create or find a private draft.</p><form action={retryMarketIqEditionCheck}><input type="hidden" name="marketId" value={activeMarket.id} /><button className="mt-5 w-full rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white">Check authoritative source now</button></form><p className="mt-3 text-xs leading-5 text-slate-500">Safe to retry. No report is published and no email is sent.</p></section>
+        <section className="rounded-2xl border border-teal-200 bg-teal-50 p-6"><p className="dq-eyebrow">Source check</p><h2 className="dq-h2">{preference?.recurringEditionsEnabled ? "Recurring drafts are on" : "Recurring drafts are paused"}</h2><p className="mt-2 text-sm leading-6 text-slate-600">Run the same safe, organization-scoped check used by the scheduler. It can only create or find a private draft.</p><form action={retryMarketIqEditionCheck}><input type="hidden" name="marketId" value={activeMarket.id} /><button className="mt-5 w-full rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white">Check authoritative source now</button></form><p className="mt-3 text-xs leading-5 text-slate-500">Safe to retry. No report is published and no email is sent.</p></section>
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-200 p-6"><p className="dq-eyebrow">Automation history</p><h2 className="dq-h2">Recent source checks</h2></div>{orchestrationItems.length ? <div className="divide-y divide-slate-100">{orchestrationItems.map((item) => <article key={item.id} className="p-5"><div className="flex items-center justify-between gap-3"><span className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${["created", "existing", "would_create"].includes(item.status) ? "bg-emerald-50 text-emerald-800" : ["blocked", "failed"].includes(item.status) ? "bg-amber-50 text-amber-900" : "bg-slate-100 text-slate-600"}`}>{item.status.replace("_", " ")}</span><span className="text-[10px] text-slate-400">{dateTimeLabel(item.createdAt)}</span></div><p className="mt-3 text-xs leading-5 text-slate-600">{item.detail}</p><p className="mt-2 text-[10px] uppercase tracking-wider text-slate-400">{item.run.triggerKind}{item.run.dryRun ? " · dry run" : ""}{item.periodEnd ? ` · period ${item.periodEnd}` : ""}</p></article>)}</div> : <p className="p-6 text-sm leading-6 text-slate-600">No scheduled or manual source checks have been recorded for this workspace yet.</p>}</section>
 

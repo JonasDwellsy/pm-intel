@@ -514,6 +514,7 @@ model Organization {
   marketIqEditionRunItems       MarketIqEditionOrchestrationItem[]
   marketIqSubscriptions         MarketIqSubscription[]
   marketIqWorkspacePreference   MarketIqWorkspacePreference?
+  marketIqMarketPreferences     MarketIqMarketPreference[]
   marketIqJourneyEvents         MarketIqJourneyEvent[]
   marketIqSupportState          MarketIqWorkspaceSupportState?
   marketIqSupportEvents         MarketIqWorkspaceSupportEvent[]
@@ -924,6 +925,30 @@ model MarketIqWorkspacePreference {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([defaultMarketId])
+}
+
+// Market-specific Market IQ settings. The workspace preference above remains
+// the organization-wide onboarding and default-market record; these rows let
+// each entitled market retain its own scope and recurring-edition enrollment.
+model MarketIqMarketPreference {
+  id                       String    @id @default(cuid())
+  organizationId           String
+  marketId                 String
+  cities                   String    @default("[]")
+  zipCodes                 String    @default("[]")
+  segments                 String    @default("[]")
+  configuredAt             DateTime?
+  recurringEditionsEnabled Boolean   @default(false)
+  recurringEnabledAt       DateTime?
+  recurringEnabledByUserId String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, marketId])
+  @@index([marketId])
+  @@index([organizationId, recurringEditionsEnabled])
 }
 
 model MarketIqReportSend {

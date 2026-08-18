@@ -52,23 +52,25 @@ export async function setMarketIqRecurringEnrollment(formData: FormData): Promis
   const [organization, composer, organizationHasAccess] = await Promise.all([
     prisma.organization.findUnique({
       where: { id: organizationId },
-      select: { brandProfile: { select: { id: true } }, marketIqWorkspacePreference: true },
+      select: {
+        brandProfile: { select: { id: true } },
+        marketIqWorkspacePreference: true,
+        marketIqMarketPreferences: { where: { marketId }, take: 1 },
+      },
     }),
     loadMarketIqReportComposer(organizationId, marketId),
     organizationHasMarketIqAccess(organizationId, marketId),
   ]);
-  const preference = organization?.marketIqWorkspacePreference ?? null;
-  if (!preference) throw new Error("Complete Market IQ activation before changing recurring enrollment.");
-  if (preference.defaultMarketId !== marketId) {
-    throw new Error("Recurring editions can be enabled only for the default market selected in report setup.");
-  }
+  const workspacePreference = organization?.marketIqWorkspacePreference ?? null;
+  const preference = organization?.marketIqMarketPreferences[0] ?? null;
+  if (!workspacePreference || !preference) throw new Error("Configure this market before changing recurring enrollment.");
 
   if (enabled) {
     const selection = marketIqSelectionFromPreference(preference);
     const readiness = buildEditionEnrollmentReadiness({
       hasCommercialAccess: organizationHasAccess,
       hasBrandProfile: Boolean(organization?.brandProfile),
-      onboardingCompleted: Boolean(preference.onboardingCompletedAt),
+      onboardingCompleted: Boolean(workspacePreference.onboardingCompletedAt && preference.configuredAt),
       hasSavedGeography: selection.cities.length > 0 || selection.zipCodes.length > 0,
       hasSavedSegment: selection.segments.length > 0,
       sourceIsAuthoritative: composer?.preview.source === "dwellsy_trends",
@@ -81,8 +83,8 @@ export async function setMarketIqRecurringEnrollment(formData: FormData): Promis
     }
   }
 
-  await prisma.marketIqWorkspacePreference.update({
-    where: { organizationId },
+  await prisma.marketIqMarketPreference.update({
+    where: { organizationId_marketId: { organizationId, marketId } },
     data: enabled
       ? { recurringEditionsEnabled: true, recurringEnabledAt: new Date(), recurringEnabledByUserId: userId }
       : { recurringEditionsEnabled: false, recurringEnabledAt: null, recurringEnabledByUserId: null },

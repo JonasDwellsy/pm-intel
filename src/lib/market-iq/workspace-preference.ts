@@ -17,17 +17,20 @@ function stringArray(value: string | null | undefined) {
 }
 
 export function marketIqSelectionFromPreference(preference: {
-  defaultCities: string;
-  defaultZipCodes: string;
-  defaultSegments: string;
+  defaultCities?: string;
+  defaultZipCodes?: string;
+  defaultSegments?: string;
+  cities?: string;
+  zipCodes?: string;
+  segments?: string;
 } | null | undefined, snapshot?: MarketIqReportSnapshot): MarketIqReportScopeSelection {
   if (!preference) return snapshot
     ? normalizeMarketIqScopeSelectionForSnapshot({}, snapshot)
     : defaultMarketIqScopeSelection();
   const input = {
-    cities: stringArray(preference.defaultCities),
-    zipCodes: stringArray(preference.defaultZipCodes),
-    segments: stringArray(preference.defaultSegments) as MarketIqReportScopeSelection["segments"] | undefined,
+    cities: stringArray(preference.cities ?? preference.defaultCities),
+    zipCodes: stringArray(preference.zipCodes ?? preference.defaultZipCodes),
+    segments: stringArray(preference.segments ?? preference.defaultSegments) as MarketIqReportScopeSelection["segments"] | undefined,
   };
   return snapshot
     ? normalizeMarketIqScopeSelectionForSnapshot(input, snapshot)

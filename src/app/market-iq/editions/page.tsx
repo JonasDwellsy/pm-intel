@@ -40,16 +40,17 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
     searchParams,
     prisma.organization.findUnique({
       where: { id: organizationId },
-      select: { brandProfile: { select: { id: true } }, marketIqWorkspacePreference: true },
+      select: { brandProfile: { select: { id: true } }, marketIqWorkspacePreference: true, marketIqMarketPreferences: true },
     }),
   ]);
-  const preference = organizationSetup?.marketIqWorkspacePreference ?? null;
+  const workspacePreference = organizationSetup?.marketIqWorkspacePreference ?? null;
   const activeMarket = resolveActiveMarketIqMarket({
     requestedMarketId: query.market,
-    preferredMarketId: preference?.defaultMarketId,
+    preferredMarketId: workspacePreference?.defaultMarketId,
     entitlement: access.entitlement,
   });
   if (!activeMarket || !isMarketEntitled(access.entitlement, activeMarket.id)) redirect("/market-iq/subscribe");
+  const preference = organizationSetup?.marketIqMarketPreferences.find((item) => item.marketId === activeMarket.id) ?? null;
   const entitledMarkets = listEntitledMarketIqMarkets(access.entitlement);
   const [composer, recipients, recentReports, recurringDraft, latestOrchestration, organizationHasAccess] = await Promise.all([
     loadMarketIqReportComposer(organizationId, activeMarket.id),
@@ -99,18 +100,17 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
   const comparison = compareMarketIqEditions(current, prior);
   const coverage = buildMarketIqCoveragePreflight(current);
   const workflow = buildMarketIqEditionWorkflow({ current, prior: prior?.snapshot ?? null, source: composer.preview.source, coverageCounts: coverage.counts, comparison });
-  const isRecurringMarket = preference?.defaultMarketId === activeMarket.id;
-  const savedSelection = isRecurringMarket ? marketIqSelectionFromPreference(preference) : composer.initialSelection;
+  const savedSelection = preference ? marketIqSelectionFromPreference(preference) : composer.initialSelection;
   const enrollmentReadiness = buildEditionEnrollmentReadiness({
     hasCommercialAccess: organizationHasAccess,
     hasBrandProfile: Boolean(organizationSetup?.brandProfile),
-    onboardingCompleted: Boolean(preference?.onboardingCompletedAt),
+    onboardingCompleted: Boolean(workspacePreference?.onboardingCompletedAt && preference?.configuredAt),
     hasSavedGeography: savedSelection.cities.length > 0 || savedSelection.zipCodes.length > 0,
     hasSavedSegment: savedSelection.segments.length > 0,
     sourceIsAuthoritative: composer.preview.source === "dwellsy_trends",
     sourceAvailableThrough: current.scope.periodEnd,
     hasPublishedBaseline: Boolean(composer.priorEdition),
-    recurringEditionsEnabled: Boolean(preference?.recurringEditionsEnabled && isRecurringMarket),
+    recurringEditionsEnabled: Boolean(preference?.recurringEditionsEnabled),
   });
   const latestSends = prior ? await prisma.marketIqReportSend.findMany({
     where: { organizationId, reportId: prior.id, deliveryStatus: { in: ["sent", "delivered"] } },
@@ -148,7 +148,7 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
     <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="grid gap-6 border-b border-slate-200 bg-slate-50 p-6 lg:grid-cols-[1fr_340px] lg:items-center">
         <div><p className="dq-eyebrow">Recurring report readiness</p><h2 className="dq-h2">{enrollmentReadiness.readyForScheduler ? "This workspace is enrolled" : enrollmentReadiness.prerequisitesPassed ? "Ready to enroll" : `${enrollmentReadiness.blockers.length} ${enrollmentReadiness.blockers.length === 1 ? "check needs" : "checks need"} attention`}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">The scheduler checks daily and creates at most one private draft when authoritative Trends IQ advances. It cannot publish a report, select recipients, create a campaign, or send email.</p></div>
-        <div className={`rounded-xl border p-5 ${enrollmentReadiness.readyForScheduler ? "border-emerald-200 bg-emerald-50" : enrollmentReadiness.prerequisitesPassed ? "border-teal-200 bg-teal-50" : "border-amber-200 bg-amber-50"}`}><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Enrollment</p><p className="mt-2 text-xl font-semibold text-navy">{enrollmentReadiness.enrolled ? "Recurring drafts on" : "Recurring drafts off"}</p>{enrollmentReadiness.prerequisitesPassed && isRecurringMarket ? <form action={setMarketIqRecurringEnrollment} className="mt-4"><input type="hidden" name="marketId" value={activeMarket.id} /><input type="hidden" name="enabled" value={enrollmentReadiness.enrolled ? "false" : "true"} /><button className={`w-full rounded-md px-4 py-2.5 text-sm font-semibold ${enrollmentReadiness.enrolled ? "border border-slate-300 bg-white text-navy" : "bg-navy text-white"}`}>{enrollmentReadiness.enrolled ? "Pause recurring drafts" : "Enable recurring drafts"}</button></form> : <p className="mt-3 text-xs leading-5 text-slate-600">{isRecurringMarket ? "Resolve the failed checks below before enrollment can be enabled." : `Recurring drafts currently follow your default market. Make ${activeMarket.shortLabel} the default in report setup to enroll it.`}</p>}</div>
+        <div className={`rounded-xl border p-5 ${enrollmentReadiness.readyForScheduler ? "border-emerald-200 bg-emerald-50" : enrollmentReadiness.prerequisitesPassed ? "border-teal-200 bg-teal-50" : "border-amber-200 bg-amber-50"}`}><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Enrollment</p><p className="mt-2 text-xl font-semibold text-navy">{enrollmentReadiness.enrolled ? "Recurring drafts on" : "Recurring drafts off"}</p>{enrollmentReadiness.prerequisitesPassed ? <form action={setMarketIqRecurringEnrollment} className="mt-4"><input type="hidden" name="marketId" value={activeMarket.id} /><input type="hidden" name="enabled" value={enrollmentReadiness.enrolled ? "false" : "true"} /><button className={`w-full rounded-md px-4 py-2.5 text-sm font-semibold ${enrollmentReadiness.enrolled ? "border border-slate-300 bg-white text-navy" : "bg-navy text-white"}`}>{enrollmentReadiness.enrolled ? "Pause recurring drafts" : "Enable recurring drafts"}</button></form> : <p className="mt-3 text-xs leading-5 text-slate-600">Configure {activeMarket.shortLabel} and resolve the failed checks below before enrollment can be enabled.</p>}</div>
       </div>
       <div className="grid gap-px bg-slate-200 sm:grid-cols-2 xl:grid-cols-3">{enrollmentReadiness.checks.map((check) => <article key={check.id} className="bg-white p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-navy">{check.label}</p><p className="mt-2 text-xs leading-5 text-slate-500">{check.detail}</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${check.passed ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>{check.passed ? "Passed" : "Required"}</span></div>{check.remedyHref && <Link href={check.remedyHref} className="mt-3 inline-block text-xs font-semibold text-teal-800">{check.remedyLabel} →</Link>}</article>)}</div>
     </section>

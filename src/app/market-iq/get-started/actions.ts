@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
+import { CLEVELAND_MARKET_ID, getMarketIqMarket } from "@/data/market-iq/markets";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
@@ -12,17 +12,20 @@ import { parseMarketIqBrandForm, parseMarketIqEditorialDefaultsForm } from "@/li
 import { parseMarketIqScopeFormData } from "@/lib/market-iq/report/scope";
 import { prisma } from "@/lib/prisma";
 
-async function activationContext() {
+async function activationContext(marketId: string) {
   if (!marketIqPreviewEnabled()) throw new Error("Market IQ setup is unavailable.");
   const [{ userId, organizationId }, access] = await Promise.all([getActiveOrgContext(), resolveViewerMarketIqAccess()]);
-  if (!userId || !organizationId || !access.hasProduct || !isMarketEntitled(access.entitlement, CLEVELAND_MARKET_ID)) {
+  if (!userId || !organizationId || !access.hasProduct || !getMarketIqMarket(marketId) || !isMarketEntitled(access.entitlement, marketId)) {
     throw new Error("Market IQ access is unavailable.");
   }
   return { organizationId, userId, capabilities: access.capabilities };
 }
 
 async function persistActivation(formData: FormData, complete: boolean) {
-  const { organizationId, userId, capabilities } = await activationContext();
+  const requestedMarketId = String(formData.get("marketId") ?? "").trim();
+  const marketId = requestedMarketId ? getMarketIqMarket(requestedMarketId)?.id : CLEVELAND_MARKET_ID;
+  if (!marketId) throw new Error("The selected Market IQ market is unavailable.");
+  const { organizationId, userId, capabilities } = await activationContext(marketId);
   const brand = parseMarketIqBrandForm(formData);
   const editorialDefaults = parseMarketIqEditorialDefaultsForm(formData);
   const selection = parseMarketIqScopeFormData(formData);
@@ -41,18 +44,35 @@ async function persistActivation(formData: FormData, complete: boolean) {
       where: { organizationId },
       create: {
         organizationId,
-        defaultMarketId: CLEVELAND_MARKET_ID,
+        defaultMarketId: marketId,
         defaultCities: JSON.stringify(selection.cities),
         defaultZipCodes: JSON.stringify(selection.zipCodes),
         defaultSegments: JSON.stringify(selection.segments),
         onboardingCompletedAt: complete ? now : null,
       },
       update: {
-        defaultMarketId: CLEVELAND_MARKET_ID,
+        defaultMarketId: marketId,
         defaultCities: JSON.stringify(selection.cities),
         defaultZipCodes: JSON.stringify(selection.zipCodes),
         defaultSegments: JSON.stringify(selection.segments),
         ...(complete ? { onboardingCompletedAt: now } : {}),
+      },
+    }),
+    prisma.marketIqMarketPreference.upsert({
+      where: { organizationId_marketId: { organizationId, marketId } },
+      create: {
+        organizationId,
+        marketId,
+        cities: JSON.stringify(selection.cities),
+        zipCodes: JSON.stringify(selection.zipCodes),
+        segments: JSON.stringify(selection.segments),
+        configuredAt: complete ? now : null,
+      },
+      update: {
+        cities: JSON.stringify(selection.cities),
+        zipCodes: JSON.stringify(selection.zipCodes),
+        segments: JSON.stringify(selection.segments),
+        ...(complete ? { configuredAt: now } : {}),
       },
     }),
     prisma.marketIqJourneyEvent.createMany({
@@ -66,13 +86,14 @@ async function persistActivation(formData: FormData, complete: boolean) {
         dedupeKey: complete
           ? marketIqMilestoneDedupeKey(organizationId, "setup")
           : `market-iq:${organizationId}:setup:step:${savedStep}`,
-        metadata: { step: savedStep },
+        metadata: { step: savedStep, marketId },
       })],
       skipDuplicates: true,
     }),
   ]);
   revalidatePath("/market-iq/get-started");
-  revalidatePath("/market-iq/report");
+  revalidatePath(`/market-iq/report?market=${encodeURIComponent(marketId)}`);
+  revalidatePath(`/market-iq/market?market=${encodeURIComponent(marketId)}`);
   return capabilities;
 }
 

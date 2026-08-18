@@ -59,57 +59,64 @@ export async function runMarketIqEditionOrchestrator(input: {
     const organizations = await prisma.organization.findMany({
       where: {
         brandProfile: { isNot: null },
-        marketIqWorkspacePreference: {
-          is: {
-            onboardingCompletedAt: { not: null },
-            recurringEditionsEnabled: true,
-          },
+        marketIqWorkspacePreference: { is: { onboardingCompletedAt: { not: null } } },
+        marketIqMarketPreferences: { some: { recurringEditionsEnabled: true, configuredAt: { not: null } } },
+      },
+      select: {
+        id: true,
+        marketIqMarketPreferences: {
+          where: { recurringEditionsEnabled: true, configuredAt: { not: null } },
+          select: { marketId: true },
+          orderBy: { marketId: "asc" },
         },
       },
-      select: { id: true, marketIqWorkspacePreference: { select: { defaultMarketId: true } } },
       orderBy: { id: "asc" },
     });
 
     const counts = { created: 0, existing: 0, unchanged: 0, blocked: 0, failed: 0 };
     let sourceAvailableThrough: string | null = null;
+    let marketsEvaluated = 0;
     for (const organization of organizations) {
-      const marketId = organization.marketIqWorkspacePreference?.defaultMarketId ?? "";
-      try {
-        const market = getMarketIqMarket(marketId);
-        const hasAccess = market ? await organizationHasMarketIqAccess(organization.id, marketId) : false;
-        const result: RecurringEditionResult = market && market.status === "live" && hasAccess
-          ? await ensureRecurringMarketIqEditionDraft(organization.id, marketId, { dryRun })
-          : { state: "blocked", periodEnd: null, detail: "The default market is unavailable or is not included in this workspace." };
-        const status = itemStatus(result);
-        if (status === "created" || status === "would_create") counts.created += 1;
-        else if (status === "existing") counts.existing += 1;
-        else if (status === "unchanged") counts.unchanged += 1;
-        else counts.blocked += 1;
-        if (result.periodEnd && (!sourceAvailableThrough || result.periodEnd > sourceAvailableThrough)) {
-          sourceAvailableThrough = result.periodEnd;
+      for (const preference of organization.marketIqMarketPreferences) {
+        marketsEvaluated += 1;
+        const marketId = preference.marketId;
+        try {
+          const market = getMarketIqMarket(marketId);
+          const hasAccess = market ? await organizationHasMarketIqAccess(organization.id, marketId) : false;
+          const result: RecurringEditionResult = market && market.status === "live" && hasAccess
+            ? await ensureRecurringMarketIqEditionDraft(organization.id, marketId, { dryRun })
+            : { state: "blocked", periodEnd: null, detail: "The enrolled market is unavailable or is not included in this workspace." };
+          const status = itemStatus(result);
+          if (status === "created" || status === "would_create") counts.created += 1;
+          else if (status === "existing") counts.existing += 1;
+          else if (status === "unchanged") counts.unchanged += 1;
+          else counts.blocked += 1;
+          if (result.periodEnd && (!sourceAvailableThrough || result.periodEnd > sourceAvailableThrough)) {
+            sourceAvailableThrough = result.periodEnd;
+          }
+          await prisma.marketIqEditionOrchestrationItem.create({
+            data: {
+              runId: run.id,
+              organizationId: organization.id,
+              marketId,
+              status,
+              periodEnd: result.periodEnd,
+              draftId: "draftId" in result ? result.draftId : null,
+              detail: resultDetail(result),
+            },
+          });
+        } catch (error) {
+          counts.failed += 1;
+          await prisma.marketIqEditionOrchestrationItem.create({
+            data: {
+              runId: run.id,
+              organizationId: organization.id,
+              marketId,
+              status: "failed",
+              detail: error instanceof Error ? error.message.slice(0, 1_000) : String(error).slice(0, 1_000),
+            },
+          });
         }
-        await prisma.marketIqEditionOrchestrationItem.create({
-          data: {
-            runId: run.id,
-            organizationId: organization.id,
-            marketId,
-            status,
-            periodEnd: result.periodEnd,
-            draftId: "draftId" in result ? result.draftId : null,
-            detail: resultDetail(result),
-          },
-        });
-      } catch (error) {
-        counts.failed += 1;
-        await prisma.marketIqEditionOrchestrationItem.create({
-          data: {
-            runId: run.id,
-            organizationId: organization.id,
-            marketId,
-            status: "failed",
-            detail: error instanceof Error ? error.message.slice(0, 1_000) : String(error).slice(0, 1_000),
-          },
-        });
       }
     }
 
@@ -117,7 +124,7 @@ export async function runMarketIqEditionOrchestrator(input: {
       where: { id: run.id },
       data: {
         status: counts.failed > 0 ? "completed_with_errors" : "completed",
-        organizationsEvaluated: organizations.length,
+        organizationsEvaluated: marketsEvaluated,
         draftsCreated: counts.created,
         draftsExisting: counts.existing,
         unchangedPeriods: counts.unchanged,

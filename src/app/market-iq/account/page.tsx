@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
+import { listEntitledMarketIqMarkets } from "@/data/market-iq/markets";
 import { isActiveMarketIqSubscriptionStatus, marketIqFoundingPriceCents, marketIqPlanForKey, marketIqPlanPriceLabel } from "@/lib/market-iq/billing/plans";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { marketIqSelectionFromPreference } from "@/lib/market-iq/workspace-preference";
@@ -30,6 +31,7 @@ export default async function MarketIqAccountPage() {
       name: true,
       brandProfile: { select: { displayName: true } },
       marketIqWorkspacePreference: true,
+      marketIqMarketPreferences: true,
       marketIqSubscriptions: { orderBy: { createdAt: "desc" }, take: 8, include: { markets: true } },
       _count: { select: { marketIqReportRecipients: true, marketIqReports: true } },
     },
@@ -45,10 +47,11 @@ export default async function MarketIqAccountPage() {
   const price = plan && subscription ? marketIqPlanPriceLabel(marketIqFoundingPriceCents(plan, subscription.billingInterval === "year" ? "year" : "month")) : null;
   const scope = organization.marketIqWorkspacePreference;
   const selection = marketIqSelectionFromPreference(scope);
+  const entitledMarkets = listEntitledMarketIqMarkets(access.entitlement);
 
   return <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-7 lg:px-10 lg:py-12">
     <header className="grid gap-6 border-b border-grid pb-8 lg:grid-cols-[1fr_330px] lg:items-end">
-      <div><p className="dq-eyebrow">Account and workspace</p><h1 className="dq-h1">Market IQ settings</h1><p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Review your plan, billing status, Cleveland access, and workspace setup.</p></div>
+      <div><p className="dq-eyebrow">Account and workspace</p><h1 className="dq-h1">Market IQ settings</h1><p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Review your plan, billing status, market access, and saved settings.</p></div>
       <aside className="rounded-2xl bg-navy p-6 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/55">Signed-in workspace</p><p className="mt-2 text-xl font-semibold">{organization.name}</p><p className="mt-2 text-sm text-white/65">{role === "org:admin" ? "Organization administrator" : "Organization member"}</p></aside>
     </header>
 
@@ -60,6 +63,8 @@ export default async function MarketIqAccountPage() {
       {subscription?.status === "past_due" && <div className="border-t border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-950 sm:px-8"><strong>Payment needs attention.</strong> Market access remains available during the grace period. An organization administrator can update the payment method in Stripe.</div>}
       {subscription?.cancelAtPeriodEnd && <div className="border-t border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-950 sm:px-8"><strong>Cancellation is scheduled.</strong> Access continues through {dateLabel(subscription.currentPeriodEnd)}.</div>}
     </section>
+
+    <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-200 p-6 sm:p-8"><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-orange-700">Entitled markets</p><h2 className="mt-2 text-2xl font-semibold text-navy">Saved scope and recurring-report status</h2><p className="mt-2 text-sm leading-6 text-slate-600">Each market keeps its own city, ZIP, segment, and recurring-edition settings.</p></div><div className="grid gap-px bg-slate-200 md:grid-cols-2">{entitledMarkets.map((market) => { const preference = organization.marketIqMarketPreferences.find((item) => item.marketId === market.id); const marketSelection = marketIqSelectionFromPreference(preference); return <article key={market.id} className="bg-white p-6"><div className="flex items-start justify-between gap-3"><div><p className="text-lg font-semibold text-navy">{market.fullName}</p><p className="mt-2 text-xs leading-5 text-slate-500">{preference ? `${marketSelection.cities.length} cities, ${marketSelection.zipCodes.length} ZIPs, ${marketSelection.segments.length} segments` : "No saved scope yet"}</p></div><span className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${preference?.configuredAt ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>{preference?.configuredAt ? "Configured" : "Set up"}</span></div><div className="mt-5 flex items-center justify-between gap-3"><p className="text-xs font-semibold text-slate-500">Recurring drafts: <span className="text-navy">{preference?.recurringEditionsEnabled ? "On" : "Off"}</span></p><Link href={`/market-iq/get-started?market=${encodeURIComponent(market.id)}`} className="text-sm font-semibold text-teal-700">Configure →</Link></div></article>; })}</div></section>
 
     <section className="mt-6 grid gap-6 lg:grid-cols-2">
       <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-orange-700">Market workspace</p><h2 className="mt-2 text-2xl font-semibold text-navy">{setupComplete ? "Cleveland scope is active" : "Setup is incomplete"}</h2></div><span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${setupComplete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{setupComplete ? "Ready" : "Action needed"}</span></div><p className="mt-3 text-sm leading-6 text-slate-600">{scope ? `${selection.cities.length} cities, ${selection.zipCodes.length} ZIPs, and ${selection.segments.length} rental segments are saved as your default view.` : "Choose the Cleveland geographies and rental segments your team wants to follow."}</p><Link href="/market-iq/get-started" className="mt-5 inline-flex text-sm font-semibold text-teal-700">{setupComplete ? "Edit market setup" : "Complete market setup"} →</Link></article>

@@ -100,6 +100,7 @@ export async function loadMarketIqReportComposer(organizationId: string, marketI
       name: true,
       brandProfile: true,
       marketIqWorkspacePreference: true,
+      marketIqMarketPreferences: { where: { marketId }, take: 1 },
       marketIqReports: {
         where: { marketId },
         orderBy: { createdAt: "desc" },
@@ -160,8 +161,11 @@ export async function loadMarketIqReportComposer(organizationId: string, marketI
     companyCtaLabel: organization.brandProfile.companyCtaLabel,
     companyCtaUrl: organization.brandProfile.companyCtaUrl,
   } : EMPTY_MARKET_IQ_EDITORIAL_DEFAULTS;
-  const initialSelection = organization.marketIqWorkspacePreference?.defaultMarketId === marketId
-    ? marketIqSelectionFromPreference(organization.marketIqWorkspacePreference, preview.snapshot)
-    : normalizeMarketIqScopeSelectionForSnapshot({}, preview.snapshot);
+  const marketPreference = organization.marketIqMarketPreferences[0] ?? null;
+  const initialSelection = marketPreference
+    ? marketIqSelectionFromPreference(marketPreference, preview.snapshot)
+    : organization.marketIqWorkspacePreference?.defaultMarketId === marketId
+      ? marketIqSelectionFromPreference(organization.marketIqWorkspacePreference, preview.snapshot)
+      : normalizeMarketIqScopeSelectionForSnapshot({}, preview.snapshot);
   return { organization, brand, preview, priorEdition, editorialDefaults, initialSelection };
 }

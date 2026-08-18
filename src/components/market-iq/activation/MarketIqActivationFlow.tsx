@@ -10,9 +10,7 @@ import { normalizePublicWebsite } from "@/lib/market-iq/brand/website";
 import {
   applyMarketIqReportScope,
   buildMarketIqCoveragePreflight,
-  MARKET_IQ_REPORT_CITIES,
-  MARKET_IQ_REPORT_SEGMENTS,
-  MARKET_IQ_REPORT_ZIPS,
+  marketIqScopeOptions,
   type MarketIqReportScopeSelection,
   type MarketIqSegmentKey,
 } from "@/lib/market-iq/report/scope";
@@ -29,7 +27,7 @@ function Choice({ value, label, checked, onChange }: { value: string; label: str
   </label>;
 }
 
-export function MarketIqActivationFlow({ snapshot, initialBrand, initialEditorialDefaults, initialSelection, initialStep, source, completed, clientAdvisoryEnabled, logoStorageEnabled }: { snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialEditorialDefaults: MarketIqEditorialDefaults; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "verified_seed"; completed: boolean; clientAdvisoryEnabled: boolean; logoStorageEnabled: boolean }) {
+export function MarketIqActivationFlow({ marketId, marketLabel, snapshot, initialBrand, initialEditorialDefaults, initialSelection, initialStep, source, completed, clientAdvisoryEnabled, logoStorageEnabled }: { marketId: string; marketLabel: string; snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialEditorialDefaults: MarketIqEditorialDefaults; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "verified_seed"; completed: boolean; clientAdvisoryEnabled: boolean; logoStorageEnabled: boolean }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [isSaving, startSaving] = useTransition();
@@ -39,6 +37,7 @@ export function MarketIqActivationFlow({ snapshot, initialBrand, initialEditoria
   const [selection, setSelection] = useState(initialSelection);
   const [notice, setNotice] = useState<string | null>(null);
   const [brandToolStatus, setBrandToolStatus] = useState<string | null>(null);
+  const scopeOptions = useMemo(() => marketIqScopeOptions(snapshot), [snapshot]);
   const preview = useMemo(() => applyMarketIqReportScope({
     ...snapshot,
     brand,
@@ -71,7 +70,7 @@ export function MarketIqActivationFlow({ snapshot, initialBrand, initialEditoria
         const result = await saveMarketIqActivationProgress(formData);
         if (advance) setStep(result.nextStep);
         setNotice(advance ? "Saved. Moving to the next step." : "Progress saved.");
-        router.replace(`/market-iq/get-started?saved=1&step=${result.nextStep}`, { scroll: false });
+        router.replace(`/market-iq/get-started?saved=1&step=${result.nextStep}&market=${encodeURIComponent(marketId)}`, { scroll: false });
         if (advance) window.scrollTo({ top: 120, behavior: "smooth" });
       } catch (error) {
         setNotice(error instanceof Error ? error.message : "We could not save your changes. Please try again.");
@@ -101,6 +100,7 @@ export function MarketIqActivationFlow({ snapshot, initialBrand, initialEditoria
   }
 
   return <form ref={formRef} action={completeMarketIqActivation} className="mt-8">
+    <input type="hidden" name="marketId" value={marketId} />
     <input type="hidden" name="displayName" value={brand.displayName} />
     <input type="hidden" name="logoUrl" value={brand.logoUrl ?? ""} />
     <input type="hidden" name="primaryColor" value={brand.primaryColor} />
@@ -140,15 +140,15 @@ export function MarketIqActivationFlow({ snapshot, initialBrand, initialEditoria
     {step === 2 && <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <p className="dq-eyebrow">Your market scope</p><h2 className="dq-h2">Choose what should open first</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{clientAdvisoryEnabled ? "You can change the scope for any individual edition. These selections make the usual client read faster to prepare." : "Choose the cities, ZIPs, and rental segments your team follows most often. You can change the view at any time."}</p>
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Cities</legend><div className="mt-3 grid gap-2 sm:grid-cols-2">{MARKET_IQ_REPORT_CITIES.map((city) => <Choice key={city} value={city} label={city} checked={selection.cities.includes(city)} onChange={() => setSelection((current) => ({ ...current, cities: toggle(current.cities, city) }))} />)}</div></fieldset>
-        <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Product segments</legend><div className="mt-3 grid gap-2">{MARKET_IQ_REPORT_SEGMENTS.map((segment) => <Choice key={segment.key} value={segment.key} label={segment.label} checked={selection.segments.includes(segment.key)} onChange={() => setSelection((current) => ({ ...current, segments: toggle(current.segments, segment.key) as MarketIqSegmentKey[] }))} />)}</div></fieldset>
+        <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Cities</legend><div className="mt-3 grid gap-2 sm:grid-cols-2">{scopeOptions.cities.map((city) => <Choice key={city} value={city} label={city} checked={selection.cities.includes(city)} onChange={() => setSelection((current) => ({ ...current, cities: toggle(current.cities, city) }))} />)}</div></fieldset>
+        <fieldset><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">Product segments</legend><div className="mt-3 grid gap-2">{scopeOptions.segments.map((segment) => <Choice key={segment.key} value={segment.key} label={segment.label} checked={selection.segments.includes(segment.key)} onChange={() => setSelection((current) => ({ ...current, segments: toggle(current.segments, segment.key) as MarketIqSegmentKey[] }))} />)}</div></fieldset>
       </div>
-      <fieldset className="mt-6"><div className="flex items-center justify-between gap-3"><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">ZIP codes</legend><button type="button" onClick={() => setSelection((current) => ({ ...current, zipCodes: current.zipCodes.length === MARKET_IQ_REPORT_ZIPS.length ? [] : [...MARKET_IQ_REPORT_ZIPS] }))} className="text-xs font-semibold text-teal-700">{selection.zipCodes.length === MARKET_IQ_REPORT_ZIPS.length ? "Clear all" : "Use market-wide default"}</button></div><div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-slate-200 p-3"><div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">{MARKET_IQ_REPORT_ZIPS.map((zip) => <Choice key={zip} value={zip} label={zip} checked={selection.zipCodes.includes(zip)} onChange={() => setSelection((current) => ({ ...current, zipCodes: toggle(current.zipCodes, zip) }))} />)}</div></div></fieldset>
+      <fieldset className="mt-6"><div className="flex items-center justify-between gap-3"><legend className="text-xs font-bold uppercase tracking-wider text-slate-500">ZIP codes</legend><button type="button" onClick={() => setSelection((current) => ({ ...current, zipCodes: current.zipCodes.length === scopeOptions.zipCodes.length ? [] : [...scopeOptions.zipCodes] }))} className="text-xs font-semibold text-teal-700">{selection.zipCodes.length === scopeOptions.zipCodes.length ? "Clear all" : "Use market-wide default"}</button></div><div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-slate-200 p-3"><div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">{scopeOptions.zipCodes.map((zip) => <Choice key={zip} value={zip} label={zip} checked={selection.zipCodes.includes(zip)} onChange={() => setSelection((current) => ({ ...current, zipCodes: toggle(current.zipCodes, zip) }))} />)}</div></div></fieldset>
       <div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => saveProgress(3)} disabled={!validScope || isSaving} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{isSaving ? "Saving…" : "Save and review"}</button><button type="button" onClick={() => saveProgress(2, false)} disabled={isSaving} className="rounded-md border border-slate-300 px-5 py-3 text-sm font-semibold text-navy">Save for later</button></div>
     </section>}
 
     {step === 3 && <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 p-6"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="dq-eyebrow">Ready to activate</p><h2 className="dq-h2">{clientAdvisoryEnabled ? "Your first recurring edition starts here" : "Your Cleveland intelligence workspace is ready"}</h2><p className="mt-2 text-sm text-slate-600">{selection.cities.length} cities, {selection.zipCodes.length} ZIPs, and {selection.segments.length} product segments selected.</p></div><div className="flex gap-3"><button type="button" onClick={() => setStep(2)} className="rounded-md border border-slate-300 px-4 py-2.5 text-sm font-semibold text-navy">Edit</button><button disabled={!validBrand || !validScope} className="rounded-md bg-navy px-5 py-2.5 text-sm font-semibold text-white">{completed ? (clientAdvisoryEnabled ? "Save changes and open edition" : "Save changes and open market") : (clientAdvisoryEnabled ? "Activate and prepare first edition" : "Activate and open market")}</button></div></div><div className="mt-5 grid gap-3 sm:grid-cols-3"><article className="rounded-xl bg-slate-50 p-4"><p className="text-2xl font-semibold text-navy">{coverage.counts.reportable}</p><p className="mt-1 text-xs text-slate-500">reportable Trends IQ cells</p></article><article className="rounded-xl bg-slate-50 p-4"><p className="text-2xl font-semibold text-navy">{coverage.counts.unavailable}</p><p className="mt-1 text-xs text-slate-500">unavailable combinations disclosed</p></article><article className={`rounded-xl p-4 ${source === "dwellsy_trends" ? "bg-emerald-50" : "bg-amber-50"}`}><p className="text-sm font-semibold text-navy">{source === "dwellsy_trends" ? "Live Trends IQ" : "Preview seed"}</p><p className="mt-1 text-xs text-slate-500">{source === "dwellsy_trends" ? (clientAdvisoryEnabled ? "Ready for edition review" : "Ready for market exploration") : "Activation can continue; publication remains blocked"}</p></article></div></div>
+      <div className="border-b border-slate-200 p-6"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="dq-eyebrow">Ready to activate</p><h2 className="dq-h2">{clientAdvisoryEnabled ? `Your ${marketLabel} recurring edition starts here` : `Your ${marketLabel} intelligence workspace is ready`}</h2><p className="mt-2 text-sm text-slate-600">{selection.cities.length} cities, {selection.zipCodes.length} ZIPs, and {selection.segments.length} product segments selected.</p></div><div className="flex gap-3"><button type="button" onClick={() => setStep(2)} className="rounded-md border border-slate-300 px-4 py-2.5 text-sm font-semibold text-navy">Edit</button><button disabled={!validBrand || !validScope} className="rounded-md bg-navy px-5 py-2.5 text-sm font-semibold text-white">{completed ? (clientAdvisoryEnabled ? "Save changes and open edition" : "Save changes and open market") : (clientAdvisoryEnabled ? "Activate and prepare first edition" : "Activate and open market")}</button></div></div><div className="mt-5 grid gap-3 sm:grid-cols-3"><article className="rounded-xl bg-slate-50 p-4"><p className="text-2xl font-semibold text-navy">{coverage.counts.reportable}</p><p className="mt-1 text-xs text-slate-500">reportable Trends IQ cells</p></article><article className="rounded-xl bg-slate-50 p-4"><p className="text-2xl font-semibold text-navy">{coverage.counts.unavailable}</p><p className="mt-1 text-xs text-slate-500">unavailable combinations disclosed</p></article><article className={`rounded-xl p-4 ${source === "dwellsy_trends" ? "bg-emerald-50" : "bg-amber-50"}`}><p className="text-sm font-semibold text-navy">{source === "dwellsy_trends" ? "Live Trends IQ" : "Preview seed"}</p><p className="mt-1 text-xs text-slate-500">{source === "dwellsy_trends" ? (clientAdvisoryEnabled ? "Ready for edition review" : "Ready for market exploration") : "Activation can continue; publication remains blocked"}</p></article></div></div>
       <div className="max-h-[760px] overflow-y-auto"><MarketIqPublicReport report={preview} preview /></div>
     </section>}
   </form>;
