@@ -1,4 +1,4 @@
-export const CLEVELAND_MARKET_ID = "cleveland-elyria-mentor-oh";
+export { CLEVELAND_MARKET_ID } from "@/data/market-iq/markets";
 
 export const clevelandPilot = {
   market: "Cleveland–Elyria, OH",
