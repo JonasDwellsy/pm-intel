@@ -4,158 +4,26 @@ import { unstable_cache } from "next/cache";
 import columbusZctaCenters from "@/data/market-iq/columbus-zcta-centers.json";
 import columbusZips from "@/data/market-iq/columbus-msa-zips.json";
 import { COLUMBUS_MARKET_ID, getMarketIqMarket } from "@/data/market-iq/markets";
-import { loadMarketActiveListings } from "@/lib/dwellsy-source/active-listings.server";
-import { loadMarketListingActivity } from "@/lib/dwellsy-source/listing-events.server";
-import { loadDwellsyProductRollupSeries, loadDwellsyTrendSeries } from "@/lib/dwellsy-source/trends.server";
-import {
-  buildMarketIqReportSnapshot,
-  type MarketIqReportSnapshot,
-  type MarketIqTrendSeries,
-} from "@/lib/market-iq/report/report";
+import { buildLiveMarketIqReportSnapshot } from "@/lib/market-iq/report/market-build.server";
+import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 
 const MARKET = getMarketIqMarket(COLUMBUS_MARKET_ID)!;
-const PERIOD_START = "2025-04-01";
-const DETAIL_BEDROOMS = [0, 1, 2, 3, 4];
-const DISPLAY_SEGMENTS = [
-  { propertyType: "apartment" as const, bedrooms: 0 },
-  { propertyType: "apartment" as const, bedrooms: 1 },
-  { propertyType: "apartment" as const, bedrooms: 2 },
-  { propertyType: "house" as const, bedrooms: 2 },
-  { propertyType: "house" as const, bedrooms: 3 },
-  { propertyType: "house" as const, bedrooms: 4 },
-];
 
-function monthEnd(month: string) {
-  const value = new Date(`${month.slice(0, 7)}-01T00:00:00Z`);
-  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
-}
-
-function completeTrendSeries(source: MarketIqTrendSeries[], cities: string[], zips: string[]) {
-  const result = [...source];
-  const existing = new Set(result.map((series) => `${series.geographyType}:${series.geographyValue}:${series.propertyType}:${series.bedrooms}`));
-  for (const [geographyType, values] of [["city", cities], ["zip", zips]] as const) {
-    for (const value of values) {
-      const geographyValue = geographyType === "city" ? `${value}, OH` : value;
-      const geographyLabel = geographyType === "city" ? value : `ZIP ${value}`;
-      for (const segment of DISPLAY_SEGMENTS) {
-        const key = `${geographyType}:${geographyValue}:${segment.propertyType}:${segment.bedrooms}`;
-        if (!existing.has(key)) result.push({ geographyType, geographyValue, geographyLabel, ...segment, points: [] });
-      }
-    }
-  }
-  return result;
-}
-
-function primaryCities(rows: Awaited<ReturnType<typeof loadMarketActiveListings>>["listings"]) {
-  const grouped = new Map<string, Map<string, number>>();
-  for (const row of rows) {
-    if (!row.postalCode || !row.city) continue;
-    const cities = grouped.get(row.postalCode) ?? new Map<string, number>();
-    cities.set(row.city, (cities.get(row.city) ?? 0) + 1);
-    grouped.set(row.postalCode, cities);
-  }
-  return Object.fromEntries([...grouped].map(([zip, cities]) => [zip, [...cities].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null]));
-}
-
-export async function buildColumbusMarketIqReportSnapshot(input?: {
+export function buildColumbusMarketIqReportSnapshot(input?: {
   generatedAt?: Date;
   brand?: MarketIqReportSnapshot["brand"];
 }) {
-  const activeSource = await loadMarketActiveListings(MARKET.cbsaCode);
-  const cities = [...new Set(activeSource.listings.map((listing) => listing.city).filter((city): city is string => Boolean(city)))].sort();
-  const activeZips = activeSource.listings
-    .map((listing) => listing.postalCode)
-    .filter((zip): zip is string => Boolean(zip));
-  const zips = [...new Set([...columbusZips, ...activeZips])].sort();
-  const [detail, rollups, marketActivity] = await Promise.all([
-    loadDwellsyTrendSeries({
-      cities,
-      zipCodes: zips,
-      periodStart: PERIOD_START,
-      bedrooms: DETAIL_BEDROOMS,
-      msaCode: MARKET.cbsaCode,
-      msaLabel: MARKET.fullName,
-      stateCode: "OH",
-    }),
-    loadDwellsyProductRollupSeries({
-      zipCodes: zips,
-      periodStart: PERIOD_START,
-      msaCode: MARKET.cbsaCode,
-      msaLabel: MARKET.fullName,
-    }),
-    loadMarketListingActivity(MARKET.cbsaCode).catch(() => undefined),
-  ]);
-  const trendSeries = completeTrendSeries([...rollups.series, ...detail.series], cities, zips);
-  const latestTrendMonth = trendSeries.flatMap((series) => series.points).map((point) => point.month).sort().at(-1);
-  if (!latestTrendMonth) throw new Error("Dwellsy Trends returned no Columbus observations.");
-  const availableThrough = monthEnd(latestTrendMonth);
-  const cityByZip = primaryCities(activeSource.listings);
-  const mapCenters = Object.fromEntries(Object.entries(columbusZctaCenters).map(([zip, center]) => [zip, {
-    ...center,
-    primaryCity: cityByZip[zip] ?? null,
-  }]));
-
-  return buildMarketIqReportSnapshot({
-    generatedAt: input?.generatedAt ?? new Date(),
-    brand: input?.brand ?? {
-      displayName: "Market IQ",
-      logoUrl: null,
-      primaryColor: "#173B57",
-      accentColor: "#B96D3A",
-      contactName: null,
-      contactEmail: null,
-      contactPhone: null,
-      websiteUrl: null,
-    },
-    scope: {
-      marketId: MARKET.id,
-      marketName: MARKET.fullName,
-      cities,
-      zipCodes: zips,
-      segments: ["All apartments", "All houses", "Apartments by bedroom", "Houses by bedroom"],
-      periodStart: PERIOD_START,
-      periodEnd: availableThrough,
-      seededExample: false,
-    },
-    trendSeries,
-    mapCenters,
-    marketConditions: {
-      heading: "Current listing context is available",
-      narrative: "Total IQ supplies current inventory and recent listing activity for Columbus. No Cleveland historical snapshot or other market's historical context is substituted.",
-      historical: null,
-    },
-    marketActivity,
-    sources: [
-      {
-        name: "Dwellsy IQ Trends",
-        availableThrough,
-        observationCount: null,
-        note: "The exclusive source for every published aggregated rent level and rent change. Every available Trends IQ value is reportable.",
-      },
-      {
-        name: "Total IQ active listings",
-        availableThrough: activeSource.sourceAvailableThrough.toISOString().slice(0, 10),
-        observationCount: activeSource.listings.length,
-        note: "Used for current listing inventory, geography discovery, and map context. It is not used to calculate aggregated prices.",
-      },
-      ...(marketActivity ? [{
-        name: "Total IQ listing activity feed",
-        availableThrough: marketActivity.asOf.slice(0, 10),
-        observationCount: marketActivity.events.length,
-        note: "Used for recent listing and confirmed price-change activity only.",
-      }] : []),
-      {
-        name: "U.S. Census Bureau ZCTAs",
-        availableThrough: "2020-01-01",
-        observationCount: Object.keys(columbusZctaCenters).length,
-        note: `Provides shaded Census ZCTA boundaries for ${Object.keys(columbusZctaCenters).length} Columbus-area ZIPs discovered in the current Dwellsy market universe.`,
-      },
-    ],
+  return buildLiveMarketIqReportSnapshot({
+    market: MARKET,
+    zips: columbusZips,
+    zctaCenters: columbusZctaCenters,
+    generatedAt: input?.generatedAt,
+    brand: input?.brand,
   });
 }
 
 export const loadCachedColumbusMarketIqReportSnapshot = unstable_cache(
   () => buildColumbusMarketIqReportSnapshot(),
-  ["market-iq-columbus-live-snapshot-v1"],
+  ["market-iq-columbus-live-snapshot-v2"],
   { revalidate: 900 },
 );

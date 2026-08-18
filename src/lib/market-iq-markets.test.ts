@@ -19,9 +19,9 @@ test("the Market IQ registry has unique deployed IDs, slugs, and CBSA codes", ()
   assert.deepEqual(MARKET_IQ_MARKETS.map((market) => market.cbsaCode), ["17460", "18140", "41860", "41940"]);
 });
 
-test("Cleveland and Columbus have live market adapters", () => {
+test("Cleveland, Columbus, and San Francisco have live market adapters", () => {
   const liveMarkets = MARKET_IQ_MARKETS.filter((market) => market.status === "live");
-  assert.deepEqual(liveMarkets.map((market) => market.id), [CLEVELAND_MARKET_ID, COLUMBUS_MARKET_ID]);
+  assert.deepEqual(liveMarkets.map((market) => market.id), [CLEVELAND_MARKET_ID, COLUMBUS_MARKET_ID, SAN_FRANCISCO_MARKET_ID]);
   assert.equal(getMarketIqMarket(COLUMBUS_MARKET_ID)?.cbsaCode, "18140");
 });
 

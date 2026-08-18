@@ -65,7 +65,7 @@ export const MARKET_IQ_MARKETS = [
     stateCodes: ["CA"],
     timeZone: "America/Los_Angeles",
     map: { center: [-122.2711, 37.8044], zoom: 8.2 },
-    status: "preparing",
+    status: "live",
   },
   {
     id: SAN_JOSE_MARKET_ID,

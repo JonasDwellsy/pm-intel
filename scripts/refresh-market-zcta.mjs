@@ -19,7 +19,7 @@ if (!Array.isArray(collection.features)) throw new Error("Census TIGERweb return
 
 const received = new Set(collection.features.map((feature) => String(feature.properties?.ZCTA5 ?? feature.properties?.GEOID ?? "")));
 const missing = zips.filter((zip) => !received.has(zip));
-if (missing.length) throw new Error(`Missing ${marketName} ZCTAs: ${missing.join(", ")}`);
+if (!collection.features.length) throw new Error(`Census TIGERweb returned no ${marketName} ZCTAs`);
 
 collection.name = `${marketName} ZCTAs`;
 collection.source = "U.S. Census Bureau TIGERweb ACS2025, 2020 Census ZIP Code Tabulation Areas";
@@ -31,4 +31,4 @@ const centers = Object.fromEntries(collection.features.map((feature) => [String(
 
 await fs.writeFile(new URL(`../public/data/${slug}-zcta.geojson`, import.meta.url), `${JSON.stringify(collection)}\n`);
 await fs.writeFile(new URL(`../src/data/market-iq/${slug}-zcta-centers.json`, import.meta.url), `${JSON.stringify(centers, null, 2)}\n`);
-console.log(`Wrote ${collection.features.length} ${marketName} ZCTAs and centers.`);
+console.log(`Wrote ${collection.features.length} ${marketName} ZCTAs and centers.${missing.length ? ` ${missing.length} postal ZIPs have no Census ZCTA: ${missing.join(", ")}.` : ""}`);
