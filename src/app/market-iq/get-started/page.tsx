@@ -10,6 +10,7 @@ import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { buildMarketIqComposerPreview, defaultMarketIqReportBrand, EMPTY_MARKET_IQ_EDITORIAL_DEFAULTS } from "@/lib/market-iq/report/composer.server";
 import { resolveActiveMarketIqMarket } from "@/lib/market-iq/markets/selection";
 import { marketIqSelectionFromPreference } from "@/lib/market-iq/workspace-preference";
+import { buildMarketIqSetupFallbackSnapshot } from "@/lib/market-iq/report/setup-fallback.server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,19 @@ export default async function MarketIqGetStartedPage({ searchParams }: { searchP
     companyCtaLabel: organization.brandProfile.companyCtaLabel,
     companyCtaUrl: organization.brandProfile.companyCtaUrl,
   } : EMPTY_MARKET_IQ_EDITORIAL_DEFAULTS;
-  const preview = await buildMarketIqComposerPreview(activeMarket.id, brand);
+  let preview: Awaited<ReturnType<typeof buildMarketIqComposerPreview>> | {
+    snapshot: ReturnType<typeof buildMarketIqSetupFallbackSnapshot>;
+    source: "unavailable";
+  };
+  try {
+    preview = await buildMarketIqComposerPreview(activeMarket.id, brand);
+  } catch (error) {
+    console.error("Market IQ setup source unavailable", { marketId: activeMarket.id, error });
+    preview = {
+      snapshot: buildMarketIqSetupFallbackSnapshot(activeMarket.id, brand),
+      source: "unavailable",
+    };
+  }
   const requestedStep = Number(query.step ?? "1");
   const initialStep = Number.isInteger(requestedStep) && requestedStep >= 1 && requestedStep <= 3 ? requestedStep : 1;
   const completed = Boolean(organization.marketIqWorkspacePreference?.onboardingCompletedAt);

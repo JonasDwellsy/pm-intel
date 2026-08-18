@@ -9,7 +9,7 @@ import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.serv
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { marketIqJourneyEventData, marketIqMilestoneDedupeKey } from "@/lib/market-iq/journey-telemetry.server";
 import { parseMarketIqBrandForm, parseMarketIqEditorialDefaultsForm } from "@/lib/market-iq/report/form-values";
-import { parseMarketIqScopeFormData } from "@/lib/market-iq/report/scope";
+import { parseMarketIqSetupScopeFormData } from "@/lib/market-iq/report/scope";
 import { prisma } from "@/lib/prisma";
 
 async function activationContext(marketId: string) {
@@ -28,7 +28,7 @@ async function persistActivation(formData: FormData, complete: boolean) {
   const { organizationId, userId, capabilities } = await activationContext(marketId);
   const brand = parseMarketIqBrandForm(formData);
   const editorialDefaults = parseMarketIqEditorialDefaultsForm(formData);
-  const selection = parseMarketIqScopeFormData(formData);
+  const selection = parseMarketIqSetupScopeFormData(formData, marketId);
   if (complete && !selection.cities.length && !selection.zipCodes.length) throw new Error("Select at least one city or ZIP code.");
   if (complete && !selection.segments.length) throw new Error("Select at least one product segment.");
   const now = new Date();
@@ -106,5 +106,8 @@ export async function saveMarketIqActivationProgress(formData: FormData): Promis
 
 export async function completeMarketIqActivation(formData: FormData): Promise<void> {
   const capabilities = await persistActivation(formData, true);
+  if (String(formData.get("sourceAvailable") ?? "1") !== "1") {
+    redirect("/market-iq?activated=1&source=unavailable");
+  }
   redirect(capabilities.publishClientReports ? "/market-iq/launch?activated=1" : "/market-iq?activated=1");
 }

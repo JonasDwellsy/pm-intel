@@ -5,6 +5,15 @@ import {
   type MarketIqReportSnapshot,
 } from "@/lib/market-iq/report/report";
 import clevelandMsaZips from "@/data/market-iq/cleveland-msa-zips.json";
+import columbusMsaZips from "@/data/market-iq/columbus-msa-zips.json";
+import sanFranciscoMsaZips from "@/data/market-iq/san-francisco-msa-zips.json";
+import sanJoseMsaZips from "@/data/market-iq/san-jose-msa-zips.json";
+import {
+  CLEVELAND_MARKET_ID,
+  COLUMBUS_MARKET_ID,
+  SAN_FRANCISCO_MARKET_ID,
+  SAN_JOSE_MARKET_ID,
+} from "@/data/market-iq/markets";
 
 export const MARKET_IQ_REPORT_CITIES = ["Cleveland", "Cleveland Heights", "Euclid", "Garfield Heights", "Lakewood", "Lorain", "Maple Heights", "Willoughby"] as const;
 export const MARKET_IQ_REPORT_ZIPS: readonly string[] = clevelandMsaZips;
@@ -104,6 +113,36 @@ export function parseMarketIqScopeFormData(formData: FormData, snapshot?: Market
   return snapshot
     ? normalizeMarketIqScopeSelectionForSnapshot(input, snapshot)
     : normalizeMarketIqScopeSelection(input);
+}
+
+const MARKET_ZIPS: Record<string, readonly string[]> = {
+  [CLEVELAND_MARKET_ID]: clevelandMsaZips,
+  [COLUMBUS_MARKET_ID]: columbusMsaZips,
+  [SAN_FRANCISCO_MARKET_ID]: sanFranciscoMsaZips,
+  [SAN_JOSE_MARKET_ID]: sanJoseMsaZips,
+};
+
+function safeCityValues(values: FormDataEntryValue[]) {
+  return [...new Set(values
+    .map(String)
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0 && value.length <= 100))]
+    .slice(0, 150);
+}
+
+/**
+ * Setup actions cannot depend on the read-only Trends connection. Validate
+ * submitted scope against the selected market's static geography instead of
+ * the legacy Cleveland defaults used by the original single-market build.
+ */
+export function parseMarketIqSetupScopeFormData(formData: FormData, marketId: string) {
+  const allowedZips = MARKET_ZIPS[marketId] ?? [];
+  const allowedSegments = MARKET_IQ_REPORT_SEGMENTS.map((segment) => segment.key);
+  return {
+    cities: safeCityValues(formData.getAll("cities")),
+    zipCodes: allowedValues(formData.getAll("zipCodes").map(String), allowedZips),
+    segments: allowedValues(formData.getAll("segments").map(String), allowedSegments) as MarketIqSegmentKey[],
+  } satisfies MarketIqReportScopeSelection;
 }
 
 function segmentKey(propertyType: MarketIqPropertyType, bedrooms: number): MarketIqSegmentKey | null {
