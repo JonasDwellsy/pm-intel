@@ -264,11 +264,13 @@ test("the Market Read opens a guided client-edition workflow that freezes select
     "utf8"
   );
 
-  assert.match(marketWorkspace, /href="\/market-iq\/report\?from=market-read"/);
-  assert.match(composer, /Choose the evidence/);
+  assert.match(marketWorkspace, /\/market-iq\/report\?from=market-read&market=/);
+  assert.doesNotMatch(composer, /Choose the evidence/);
+  assert.match(composer, /Using the scope you confirmed during setup/);
   assert.match(composer, /Add your perspective/);
   assert.match(composer, /Confirm your firm/);
   assert.match(composer, /Review and publish/);
+  assert.match(composer, /excluded values/);
   assert.match(composer, /name="findingIds"/);
   assert.match(composer, /id="client-preview"/);
   assert.match(action, /findingSelectionApplied/);
