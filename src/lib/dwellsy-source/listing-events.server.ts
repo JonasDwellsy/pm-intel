@@ -14,6 +14,8 @@ type EventRow = {
   asking_rent: string | number;
   previous_rent: string | number | null;
   observed_at: Date | string;
+  listing_id: string | number;
+  media: unknown;
 };
 
 type CountRow = {
@@ -51,7 +53,9 @@ const ACTIVITY_SQL = `
            listing.bedrooms,
            listing.listing_amount AS asking_rent,
            NULL::numeric AS previous_rent,
-           listing.listing_create_time AS observed_at
+           listing.listing_create_time AS observed_at,
+           listing.listing_id,
+           listing.media
     FROM dwellsy_prod.active_listing_table listing
     WHERE listing.msa_code = $1::bigint
       AND listing.active_listing_status = 'active'
@@ -73,7 +77,9 @@ const ACTIVITY_SQL = `
            listing.bedrooms,
            price.listing_amount AS asking_rent,
            price.previous_amount AS previous_rent,
-           price.created_at AS observed_at
+           price.created_at AS observed_at,
+           listing.listing_id,
+           listing.media
     FROM recent_price_logs price
     JOIN dwellsy_prod.active_listing_table listing ON listing.listing_id = price.listing_id
     WHERE listing.msa_code = $1::bigint
@@ -133,11 +139,30 @@ const COUNTS_SQL = `
   FROM source_counts CROSS JOIN confirmed_changes
 `;
 
+function primaryImageUrl(value: unknown): string | null {
+  try {
+    const media = typeof value === "string" ? JSON.parse(value) : value;
+    if (!Array.isArray(media)) return null;
+    const images = media.filter((item): item is Record<string, unknown> =>
+      Boolean(item) && typeof item === "object" && item.media_type === "image",
+    );
+    const preferred = images.find((item) => item.status === "active" && typeof item.media_url === "string")
+      ?? images.find((item) => typeof item.media_url === "string");
+    if (!preferred || typeof preferred.media_url !== "string") return null;
+    const url = new URL(preferred.media_url);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function event(row: EventRow): MarketIqListingEvent | null {
   if (!row.city || !row.postal_code) return null;
   const askingRent = Number(row.asking_rent);
   const bedrooms = Number(row.bedrooms);
   if (!Number.isFinite(askingRent) || !Number.isFinite(bedrooms)) return null;
+  const listingId = String(row.listing_id);
+  if (!/^\d+$/.test(listingId)) return null;
   return {
     id: row.event_id,
     eventType: row.event_type,
@@ -148,6 +173,8 @@ function event(row: EventRow): MarketIqListingEvent | null {
     askingRent,
     previousRent: row.previous_rent === null ? null : Number(row.previous_rent),
     observedAt: new Date(row.observed_at).toISOString(),
+    imageUrl: primaryImageUrl(row.media),
+    listingUrl: `https://dwellsy.com/details/${listingId}`,
   };
 }
 

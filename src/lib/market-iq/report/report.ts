@@ -65,6 +65,8 @@ export type MarketIqListingEvent = {
   askingRent: number;
   previousRent: number | null;
   observedAt: string;
+  imageUrl?: string | null;
+  listingUrl?: string | null;
 };
 
 export type MarketIqMarketActivity = {

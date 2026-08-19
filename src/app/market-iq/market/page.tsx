@@ -42,23 +42,41 @@ function timeoutAfter<T>(promise: Promise<T>, milliseconds: number): Promise<T> 
   });
 }
 
+const LONG_HISTORY_SEGMENTS = new Set([
+  "apartment:999",
+  "apartment:0",
+  "apartment:1",
+  "apartment:2",
+  "house:999",
+  "house:2",
+  "house:3",
+  "house:4",
+]);
+
+function hasLongMsaHistory(report: MarketIqReportSnapshot) {
+  const msaCells = report.marketRead.cells.filter((cell) =>
+    cell.geographyType === "msa" && LONG_HISTORY_SEGMENTS.has(`${cell.propertyType}:${cell.bedrooms}`),
+  );
+  return msaCells.length === LONG_HISTORY_SEGMENTS.size && msaCells.every((cell) => cell.series.length >= 30);
+}
+
 async function loadReportWithoutBlockingPage(
   marketId: string,
   liveLoader: () => Promise<MarketIqReportSnapshot>,
 ): Promise<MarketIqReportSnapshot | null> {
   const persisted = await loadLatestMarketIqReportSourceSnapshot(marketId);
-  if (persisted) return persisted;
+  if (persisted && hasLongMsaHistory(persisted)) return persisted;
 
   try {
     const report = await timeoutAfter(liveLoader(), 8_000);
     await storeMarketIqReportSourceSnapshot(report);
     return report;
   } catch (error) {
-    console.warn("Market IQ could not refresh a market without a persisted snapshot.", {
+    console.warn("Market IQ could not refresh a market source snapshot.", {
       marketId,
       error: error instanceof Error ? error.message : String(error),
     });
-    return null;
+    return persisted;
   }
 }
 
