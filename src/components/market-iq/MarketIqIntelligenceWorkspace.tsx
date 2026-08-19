@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { MarketIqActivityTicker } from "@/components/market-iq/report/MarketIqActivityTicker";
+import { MarketIqDecisionBrief } from "@/components/market-iq/MarketIqDecisionBrief";
 import { MarketIqRentMap, type MarketIqMapSegment } from "@/components/market-iq/report/MarketIqRentMap";
 import type { MarketIqGeographyType, MarketIqMarketCell, MarketIqReportSnapshot, MarketIqTrendPoint } from "@/lib/market-iq/report/report";
 import type { MarketIqMarketDefinition } from "@/data/market-iq/markets";
@@ -82,12 +83,6 @@ function BenchmarkCard({ cell, marketName }: { cell: MarketIqMarketCell; marketN
   </article>;
 }
 
-function SummaryMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-    <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">{label}</p><p className="mt-3 text-3xl font-semibold tracking-tight text-navy">{value}</p><p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p>
-  </article>;
-}
-
 export function MarketIqIntelligenceWorkspace({ report, market, listingSync, clientAdvisoryEnabled }: { report: MarketIqReportSnapshot; market: MarketIqMarketDefinition; listingSync: ListingSync; clientAdvisoryEnabled: boolean }) {
   const reportable = report.marketRead.cells.filter((cell) => cell.status === "reportable" && cell.rent !== null);
   const msaCells = reportable.filter((cell) => cell.geographyType === "msa");
@@ -97,12 +92,6 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
     const cell = msaCells.find((candidate) => candidate.propertyType === segment.propertyType && candidate.bedrooms === segment.bedrooms);
     return cell ? [cell] : [];
   });
-  const directional = reportable.filter((cell) => cell.yearOverYearPct !== null);
-  const largestMove = [...directional].sort((a, b) => Math.abs(b.yearOverYearPct ?? 0) - Math.abs(a.yearOverYearPct ?? 0))[0] ?? null;
-  const rising = directional.filter((cell) => (cell.yearOverYearPct ?? 0) >= 1).length;
-  const softening = directional.filter((cell) => (cell.yearOverYearPct ?? 0) <= -1).length;
-  const supportedCities = new Set(cityCells.map((cell) => cell.geographyLabel)).size;
-  const supportedZips = new Set(zipCells.map((cell) => cell.geographyValue)).size;
   const latestMonth = reportable.map((cell) => cell.month).filter((value): value is string => Boolean(value)).sort().at(-1) ?? null;
 
   const [geographyType, setGeographyType] = useState<Extract<MarketIqGeographyType, "city" | "zip">>("city");
@@ -117,8 +106,6 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
   const visibleRows = showAll ? localRows : localRows.slice(0, 12);
   const maxRent = Math.max(1, ...localRows.map((cell) => cell.rent ?? 0));
   const activitySource = report.sources.find((source) => source.name.includes("listing activity feed"));
-  const conditions = report.marketConditions.historical;
-
   return <main style={{ "--report-primary": "#17324a", "--report-accent": "#c16f36" } as CSSProperties} className="mx-auto w-full max-w-[1500px] px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
     <header className="overflow-hidden rounded-3xl bg-navy text-white shadow-[0_24px_70px_rgba(15,31,63,0.18)]">
       <div className="grid gap-8 px-6 py-8 sm:px-9 sm:py-10 lg:grid-cols-[1fr_340px] lg:items-end lg:px-12">
@@ -129,9 +116,9 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
       </div>
     </header>
 
-    <section aria-label="Market summary" className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><SummaryMetric label="Municipality coverage" value={`${supportedCities} cities`} detail="with at least one current Trends value" /><SummaryMetric label="ZIP coverage" value={`${supportedZips} ZIPs`} detail="with at least one current Trends value" /><SummaryMetric label="Local direction" value={`${rising} up · ${softening} down`} detail="across current city and ZIP segment values" /><SummaryMetric label="Largest current move" value={largestMove ? percentage(largestMove.yearOverYearPct) : "Not available"} detail={largestMove ? `${largestMove.geographyLabel} · ${largestMove.label}` : "No year-over-year values available"} /></section>
+    <MarketIqDecisionBrief report={report} marketName={market.shortLabel} />
 
-    {report.marketActivity && report.marketActivity.events.length > 0 && <section className="mt-8"><MarketIqActivityTicker activity={report.marketActivity} /></section>}
+    {report.marketActivity && report.marketActivity.events.length > 0 && <section className="mt-8"><MarketIqActivityTicker activity={report.marketActivity} marketName={market.shortLabel} /></section>}
 
     <section id="trajectories" className="mt-12 scroll-mt-28"><div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end"><div><p className="dq-eyebrow">MSA trajectories</p><h2 className="dq-h2">Apartments and houses are not moving together</h2></div><p className="max-w-2xl text-sm leading-6 text-slate-500">Each chart shows the stored monthly asking-rent path for one consistent product definition. The cards are analytical benchmarks, not property-level rent recommendations.</p></div><div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{benchmarkCells.map((cell) => <BenchmarkCard key={cell.key} cell={cell} marketName={market.fullName} />)}</div></section>
 
@@ -143,9 +130,7 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4"><div><p className="font-semibold text-navy">{geographyType === "city" ? "Municipality" : "ZIP"} ranking</p><p className="mt-1 text-xs text-slate-500">{localRows.length} current Trends values</p></div><p className="text-xs font-semibold text-slate-400">{month(localRows[0]?.month ?? null)}</p></div><div className="divide-y divide-slate-100">{visibleRows.map((cell, index) => <article key={cell.key} className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 px-5 py-3.5"><span className="grid h-7 w-7 place-items-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">{index + 1}</span><div className="min-w-0"><div className="flex items-center justify-between gap-3"><p className="truncate text-sm font-semibold text-navy">{cell.geographyLabel}</p><p className="text-sm font-semibold tabular-nums text-navy">{money(cell.rent)}</p></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-teal" style={{ width: `${Math.max(4, ((cell.rent ?? 0) / maxRent) * 100)}%` }} /></div></div><span className={`min-w-[70px] rounded-full px-2.5 py-1 text-center text-xs font-bold tabular-nums ${directionClass(cell.yearOverYearPct)}`}>{percentage(cell.yearOverYearPct)}</span></article>)}{!visibleRows.length && <p className="px-5 py-10 text-center text-sm text-slate-500">No Trends value is available for this selection.</p>}</div>{localRows.length > 12 && <button type="button" onClick={() => setShowAll((value) => !value)} className="w-full border-t border-slate-100 px-5 py-3 text-sm font-semibold text-teal-700 hover:bg-slate-50">{showAll ? "Show the first 12" : `Show all ${localRows.length}`}</button>}</div>
     </div></section>
 
-    <section className="mt-14 grid gap-5 lg:grid-cols-2"><article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="dq-eyebrow">Listing context</p><h2 className="dq-h2">{conditions ? report.marketConditions.heading : "Current listing context is unavailable"}</h2>{conditions ? <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4"><div><p className="text-xs text-slate-500">Active at cutoff</p><p className="mt-1 text-2xl font-semibold text-navy">{conditions.activeAtCutoff.toLocaleString()}</p></div><div><p className="text-xs text-slate-500">New, 30 days</p><p className="mt-1 text-2xl font-semibold text-navy">{conditions.newListings30d.toLocaleString()}</p></div><div><p className="text-xs text-slate-500">30-day change</p><p className="mt-1 text-2xl font-semibold text-navy">{percentage(conditions.newListingsChange)}</p></div><div><p className="text-xs text-slate-500">Median DOM</p><p className="mt-1 text-2xl font-semibold text-navy">{Math.round(conditions.medianDom)} days</p></div></div> : <p className="mt-4 text-sm leading-6 text-slate-500">No historical listing snapshot is substituted.</p>}<p className="mt-5 border-t border-slate-100 pt-4 text-xs leading-5 text-slate-500">Listing measures provide market context. They are never used to calculate aggregated rent.</p></article>
-      <article className={`rounded-2xl border p-6 shadow-sm ${listingSync.status === "healthy" ? "border-teal-200 bg-teal-50" : "border-orange-200 bg-orange-50"}`}><p className="dq-eyebrow">Listing synchronization</p><h2 className="dq-h2">{listingSync.status === "healthy" ? "Current listing feed is connected" : "Current listing snapshot is pending"}</h2><p className="mt-4 text-sm leading-6 text-slate-600">{listingSync.message}</p>{listingSync.status === "healthy" && <div className="mt-5 grid grid-cols-3 gap-3"><div><p className="text-2xl font-semibold text-navy">{listingSync.activeListings.toLocaleString()}</p><p className="text-xs text-slate-500">active listings</p></div><div><p className="text-2xl font-semibold text-navy">{(listingSync.newEvents + listingSync.relistedEvents).toLocaleString()}</p><p className="text-xs text-slate-500">new or relisted</p></div><div><p className="text-2xl font-semibold text-navy">{listingSync.priceChangeEvents.toLocaleString()}</p><p className="text-xs text-slate-500">price changes</p></div></div>}{activitySource && <p className="mt-5 border-t border-current/10 pt-4 text-xs text-slate-500">Recent activity source through {activitySource.availableThrough}.</p>}</article>
-    </section>
+    <section className="mt-14"><article className={`rounded-2xl border p-6 shadow-sm ${listingSync.status === "healthy" ? "border-teal-200 bg-teal-50" : "border-orange-200 bg-orange-50"}`}><p className="dq-eyebrow">Current listing synchronization</p><h2 className="dq-h2">{listingSync.status === "healthy" ? "The listing feed is connected" : "The current listing snapshot is pending"}</h2><p className="mt-4 text-sm leading-6 text-slate-600">{listingSync.message}</p>{listingSync.status === "healthy" && <div className="mt-5 grid grid-cols-3 gap-3"><div><p className="text-2xl font-semibold text-navy">{listingSync.activeListings.toLocaleString()}</p><p className="text-xs text-slate-500">active listings</p></div><div><p className="text-2xl font-semibold text-navy">{(listingSync.newEvents + listingSync.relistedEvents).toLocaleString()}</p><p className="text-xs text-slate-500">new or relisted</p></div><div><p className="text-2xl font-semibold text-navy">{listingSync.priceChangeEvents.toLocaleString()}</p><p className="text-xs text-slate-500">price changes</p></div></div>}{activitySource && <p className="mt-5 border-t border-current/10 pt-4 text-xs text-slate-500">Recent activity source through {activitySource.availableThrough}.</p>}</article></section>
 
     <section id="sources" className="mt-14 scroll-mt-28 border-t border-slate-200 pt-8"><div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end"><div><p className="dq-eyebrow">Sources and limits</p><h2 className="dq-h2">Know what each number represents</h2></div><p className="max-w-2xl text-sm leading-6 text-slate-500">This is asking-market intelligence. It does not represent occupancy, signed leases, concessions, effective rent, or property financial performance.</p></div><div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{report.sources.map((source) => <article key={`${source.name}:${source.availableThrough}`} className="rounded-xl border border-slate-200 bg-white p-5"><p className="font-semibold text-navy">{source.name}</p><p className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Available through {source.availableThrough}</p><p className="mt-3 text-sm leading-6 text-slate-600">{source.note}</p></article>)}</div></section>
   </main>;

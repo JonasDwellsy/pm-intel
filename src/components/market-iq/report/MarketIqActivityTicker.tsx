@@ -23,10 +23,10 @@ function ActivityItem({ event }: { event: MarketIqListingEvent }) {
   </article>;
 }
 
-export function MarketIqActivityTicker({ activity }: { activity: MarketIqMarketActivity }) {
+export function MarketIqActivityTicker({ activity, marketName = "the market" }: { activity: MarketIqMarketActivity; marketName?: string }) {
   const events = activity.events.slice(0, 10);
   if (!events.length) return null;
-  return <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.04)]" aria-label="Recent Cleveland listing activity">
+  return <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.04)]" aria-label={`Recent ${marketName} listing activity`}>
     <div className="flex flex-col border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6"><div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--report-accent)]">The market right now</p><h2 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Recent listing activity</h2></div><div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500 sm:mt-0"><span><strong className="text-slate-800">{activity.newListings24h}</strong> new in 24h</span><span><strong className="text-slate-800">{activity.sourceUpdates24h}</strong> source updates</span>{activity.confirmedPriceChanges24h > 0 && <span><strong className="text-slate-800">{activity.confirmedPriceChanges24h}</strong> confirmed price changes</span>}</div></div>
     <div className="market-iq-ticker-mask overflow-hidden" tabIndex={0} aria-label="Scroll recent listing events">
       <div className="market-iq-ticker-track flex w-max hover:[animation-play-state:paused] focus-within:[animation-play-state:paused]">
