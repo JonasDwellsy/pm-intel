@@ -102,7 +102,7 @@ test("monitoring-run migration and cron remain isolated and authenticated", asyn
   const [sql, route, vercel, watchServer] = await Promise.all([
     readFile("prisma/migrations/20260811060000_portfolio_iq_monitoring_runs/migration.sql", "utf8"),
     readFile("src/app/api/cron/portfolio-iq-monitoring/route.ts", "utf8"),
-    readFile("vercel.json", "utf8"),
+    readFile("vercel.ts", "utf8"),
     readFile("src/lib/portfolio-iq/watch.server.ts", "utf8"),
   ]);
   assert.match(sql, /CREATE TABLE "PortfolioIqMonitoringRun"/);
