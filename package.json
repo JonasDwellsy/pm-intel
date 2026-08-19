@@ -12,6 +12,7 @@
     "test:watch-list": "node --import tsx --test src/lib/*.test.ts src/lib/scorecard/*.test.ts src/lib/watch-list/*.test.ts src/lib/operators/*.test.ts src/lib/auth/*.test.ts src/lib/styles/*.test.ts src/lib/ask-tools/*.test.ts",
     "test:components": "vitest run",
     "test:components:watch": "vitest",
+    "test:browser": "playwright test",
     "migrate:to-orgs": "tsx scripts/migrate-to-orgs.ts",
     "migrate:to-orgs:dry-run": "tsx scripts/migrate-to-orgs.ts --dry-run",
     "audit:metrics": "tsx scripts/audit-metrics.ts",
@@ -65,6 +66,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

@@ -1,0 +1,78 @@
+import { expect, test, type Page } from "@playwright/test";
+
+test.beforeEach(async ({ context, page }) => {
+  await context.route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.hostname === "127.0.0.1") {
+      await route.continue();
+      return;
+    }
+    await route.abort("blockedbyclient");
+  });
+  await page.goto("/sign-in");
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+});
+
+async function signIn(page: Page) {
+  await page.getByTestId("sign-in").click();
+  await expect(page).toHaveURL(/\/market-iq$/);
+}
+
+test("signs in and reaches Market IQ Home", async ({ page }) => {
+  await signIn(page);
+
+  await expect(page.getByRole("heading", { name: "Market IQ Home" })).toBeVisible();
+  await expect(page.getByTestId("home-current-market")).toHaveText("Cleveland-Elyria, OH MSA");
+});
+
+test("switches Cleveland and Columbus without leaking market data or branding", async ({ page }) => {
+  await signIn(page);
+  await page.getByRole("link", { name: "Market Intelligence" }).click();
+
+  await expect(page.getByTestId("market-panel")).toContainText("Cleveland-Elyria, OH MSA");
+  await expect(page.getByTestId("market-brand")).toHaveText("Lakefront Property Management");
+  await expect(page.getByTestId("market-rent")).toHaveText("$1,240");
+  await expect(page.getByTestId("market-panel")).not.toContainText("Capital City Management");
+
+  await page.getByRole("button", { name: "Columbus" }).click();
+  await expect(page).toHaveURL(/market=columbus-oh/);
+  await expect(page.getByTestId("market-panel")).toContainText("Columbus, OH MSA");
+  await expect(page.getByTestId("market-brand")).toHaveText("Capital City Management");
+  await expect(page.getByTestId("market-rent")).toHaveText("$1,610");
+  await expect(page.getByTestId("market-panel")).not.toContainText("Lakefront Property Management");
+  await expect(page.getByTestId("market-panel")).not.toContainText("$1,240");
+});
+
+test("configures and saves a market, then opens edition review", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/market-iq/market?market=columbus-oh");
+  await page.getByTestId("configure-market").click();
+  await page.getByTestId("market-setup-form").getByRole("button", { name: "Save and review edition" }).click();
+
+  await expect(page).toHaveURL(/\/market-iq\/review\?market=columbus-oh/);
+  await expect(page.getByTestId("edition-review")).toContainText("Configuration saved");
+  await expect(page.getByTestId("edition-review")).toContainText("Capital City Management");
+  await expect(page.getByTestId("edition-review")).toContainText("City: primary");
+  await expect(page.getByTestId("edition-review")).toContainText("Nothing has been published or emailed");
+});
+
+test("imports a recipient and prepares a delivery without sending email", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/market-iq/distribution");
+  await page.getByTestId("recipient-import").setInputFiles({
+    name: "recipients.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("Name,Email,Company,Relationship\nAvery Owner,avery@example.com,Example Housing,Current client"),
+  });
+
+  await expect(page.getByTestId("recipient-row")).toContainText("Avery Owner");
+  await expect(page.getByTestId("recipient-row")).toContainText("avery@example.com");
+  await expect(page.getByTestId("recipient-row")).toContainText("Example Housing");
+  await page.getByRole("button", { name: "Prepare delivery" }).click();
+  await expect(page.getByTestId("delivery-recipient")).toHaveText("Avery Owner");
+  await page.getByTestId("prepare-delivery").click();
+
+  await expect(page.getByTestId("delivery-status")).toContainText("Delivery prepared, not sent");
+  await expect(page.getByTestId("email-send-count")).toHaveText("Emails sent: 0");
+});
