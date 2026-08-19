@@ -18,6 +18,7 @@ import {
 } from "@/lib/market-iq/report/source-snapshot.server";
 import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import type { ClevelandLiveListingPulse } from "@/lib/market-iq/live-listings.server";
+import { emptyListingSupplySummary } from "@/lib/market-iq/listing-supply";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -82,6 +83,7 @@ async function loadReportWithoutBlockingPage(
 
 function unavailableListingPulse(marketName: string): ClevelandLiveListingPulse {
   return {
+    ...emptyListingSupplySummary(),
     status: "unavailable",
     sourceName: "Dwellsy production listing database",
     sourceAvailableThrough: null,
@@ -187,6 +189,15 @@ export default async function MarketIqPage({
           status: liveListingPulse.status,
           availableThrough: liveListingPulse.sourceAvailableThrough?.toISOString() ?? null,
           activeListings: liveListingPulse.activeListings,
+          apartmentListings: liveListingPulse.apartmentListings,
+          houseListings: liveListingPulse.houseListings,
+          ageObservedListings: liveListingPulse.ageObservedListings,
+          medianActiveAgeDays: liveListingPulse.medianActiveAgeDays,
+          activeOver30Days: liveListingPulse.activeOver30Days,
+          activeOver30SharePct: liveListingPulse.activeOver30SharePct,
+          activatedLast7Days: liveListingPulse.activatedLast7Days,
+          activatedLast30Days: liveListingPulse.activatedLast30Days,
+          listingAgeBuckets: liveListingPulse.listingAgeBuckets,
           newEvents: liveListingPulse.newEvents,
           relistedEvents: liveListingPulse.relistedEvents,
           priceChangeEvents: liveListingPulse.priceChangeEvents,

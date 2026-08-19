@@ -9,11 +9,21 @@ import { MarketIqDecisionBrief } from "@/components/market-iq/MarketIqDecisionBr
 import { MarketIqRentMap, type MarketIqMapSegment } from "@/components/market-iq/report/MarketIqRentMap";
 import type { MarketIqGeographyType, MarketIqMarketCell, MarketIqReportSnapshot, MarketIqTrendPoint } from "@/lib/market-iq/report/report";
 import type { MarketIqMarketDefinition } from "@/data/market-iq/markets";
+import type { ListingAgeBucket } from "@/lib/market-iq/listing-supply";
 
 type ListingSync = {
   status: "healthy" | "unavailable";
   availableThrough: string | null;
   activeListings: number;
+  apartmentListings: number;
+  houseListings: number;
+  ageObservedListings: number;
+  medianActiveAgeDays: number | null;
+  activeOver30Days: number;
+  activeOver30SharePct: number | null;
+  activatedLast7Days: number;
+  activatedLast30Days: number;
+  listingAgeBuckets: ListingAgeBucket[];
   newEvents: number;
   relistedEvents: number;
   priceChangeEvents: number;
@@ -44,6 +54,16 @@ function percentage(value: number | null) {
 function month(value: string | null) {
   if (!value) return "Date unavailable";
   return new Date(`${value.slice(0, 7)}-15T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+function snapshotDate(value: string | null) {
+  if (!value) return "Date unavailable";
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function directionClass(value: number | null) {
@@ -120,12 +140,14 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
     .sort((a, b) => sortMode === "rent" ? (b.rent ?? 0) - (a.rent ?? 0) : a.geographyLabel.localeCompare(b.geographyLabel));
   const visibleRows = showAll ? localRows : localRows.slice(0, 12);
   const maxRent = Math.max(1, ...localRows.map((cell) => cell.rent ?? 0));
-  const activitySource = report.sources.find((source) => source.name.includes("listing activity feed"));
+  const inventoryTotal = listingSync.apartmentListings + listingSync.houseListings;
+  const apartmentShare = inventoryTotal > 0 ? (listingSync.apartmentListings / inventoryTotal) * 100 : 0;
+  const maxAgeBucket = Math.max(1, ...listingSync.listingAgeBuckets.map((bucket) => bucket.count));
   return <main style={{ "--report-primary": "#17324a", "--report-accent": "#c16f36" } as CSSProperties} className="mx-auto w-full max-w-[1500px] px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
     <header className="overflow-hidden rounded-3xl bg-navy text-white shadow-[0_24px_70px_rgba(15,31,63,0.18)]">
       <div className="grid gap-8 px-6 py-8 sm:px-9 sm:py-10 lg:grid-cols-[1fr_340px] lg:items-end lg:px-12">
         <div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/55">Internal market intelligence</p><h1 className="mt-4 max-w-4xl text-4xl font-semibold tracking-tight sm:text-5xl">{market.name} rental market</h1><p className="mt-4 max-w-3xl text-base leading-7 text-white/72">Understand the market before the next pricing, leasing, or owner conversation. Compare broad rent direction with the local patterns underneath it.</p>
-          <div className="mt-6 flex flex-wrap gap-2 text-xs font-semibold text-white/75"><a href="#trajectories" className="rounded-full border border-white/20 px-3 py-2 hover:bg-white/10">Trajectories</a><a href="#local-map" className="rounded-full border border-white/20 px-3 py-2 hover:bg-white/10">ZIP map</a><a href="#local-ranking" className="rounded-full border border-white/20 px-3 py-2 hover:bg-white/10">Local ranking</a><a href="#sources" className="rounded-full border border-white/20 px-3 py-2 hover:bg-white/10">Sources</a></div>
+          <div className="mt-6 flex flex-wrap gap-2 text-xs font-semibold text-white/75"><a href="#trajectories" className="rounded-full border border-white/20 px-3 py-2 hover:bg-white/10">Trajectories</a><a href="#local-map" className="rounded-full border border-white/20 px-3 py-2 hover:bg-white/10">ZIP map</a><a href="#local-ranking" className="rounded-full border border-white/20 px-3 py-2 hover:bg-white/10">Local ranking</a><a href="#inventory" className="rounded-full border border-white/20 px-3 py-2 hover:bg-white/10">Inventory</a><a href="#sources" className="rounded-full border border-white/20 px-3 py-2 hover:bg-white/10">Sources</a></div>
         </div>
         <aside className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-sm"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">Latest Trends month</p><p className="mt-2 text-3xl font-semibold">{month(latestMonth)}</p><p className="mt-3 text-sm leading-6 text-white/65">Every aggregated rent level and trajectory on this page comes directly from Dwellsy Trends.</p>{clientAdvisoryEnabled ? <Link href={`/market-iq/report?from=market-read&market=${encodeURIComponent(market.id)}`} className="mt-4 inline-block text-sm font-semibold text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">Use this read in a client report</Link> : <Link href="/market-iq/subscribe?upgrade=client_advisory" className="mt-4 inline-block text-sm font-semibold text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">Learn about client reporting</Link>}</aside>
       </div>
@@ -147,7 +169,20 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4"><div><p className="font-semibold text-navy">{geographyType === "city" ? "Municipality" : "ZIP"} ranking</p><p className="mt-1 text-xs text-slate-500">{localRows.length} current Trends values</p></div><p className="text-xs font-semibold text-slate-400">{month(localRows[0]?.month ?? null)}</p></div><div className="divide-y divide-slate-100">{visibleRows.map((cell, index) => <article key={cell.key} className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 px-5 py-3.5"><span className="grid h-7 w-7 place-items-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">{index + 1}</span><div className="min-w-0"><div className="flex items-center justify-between gap-3"><p className="truncate text-sm font-semibold text-navy">{cell.geographyLabel}</p><p className="text-sm font-semibold tabular-nums text-navy">{money(cell.rent)}</p></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-teal" style={{ width: `${Math.max(4, ((cell.rent ?? 0) / maxRent) * 100)}%` }} /></div></div><span className={`min-w-[70px] rounded-full px-2.5 py-1 text-center text-xs font-bold tabular-nums ${directionClass(cell.yearOverYearPct)}`}>{percentage(cell.yearOverYearPct)}</span></article>)}{!visibleRows.length && <p className="px-5 py-10 text-center text-sm text-slate-500">No Trends value is available for this selection.</p>}</div>{localRows.length > 12 && <button type="button" onClick={() => setShowAll((value) => !value)} className="w-full border-t border-slate-100 px-5 py-3 text-sm font-semibold text-teal-700 hover:bg-slate-50">{showAll ? "Show the first 12" : `Show all ${localRows.length}`}</button>}</div>
     </div></section>
 
-    {listingSync.status === "healthy" && <section className="mt-14"><div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end"><div><p className="dq-eyebrow">Supply and listing activity</p><h2 className="dq-h2">What is entering and changing in the market</h2></div><p className="max-w-2xl text-sm leading-6 text-slate-500">These listing counts provide current supply context. They are kept separate from aggregated rent calculations.</p></div><div className="mt-6 grid gap-4 sm:grid-cols-3"><article className="rounded-2xl border border-slate-200 bg-white p-6"><p className="text-3xl font-semibold text-navy">{listingSync.activeListings.toLocaleString()}</p><p className="mt-1 text-sm font-semibold text-slate-600">Active listings</p></article><article className="rounded-2xl border border-slate-200 bg-white p-6"><p className="text-3xl font-semibold text-navy">{(listingSync.newEvents + listingSync.relistedEvents).toLocaleString()}</p><p className="mt-1 text-sm font-semibold text-slate-600">New or relisted</p></article><article className="rounded-2xl border border-slate-200 bg-white p-6"><p className="text-3xl font-semibold text-navy">{listingSync.priceChangeEvents.toLocaleString()}</p><p className="mt-1 text-sm font-semibold text-slate-600">Price changes</p></article></div>{activitySource && <p className="mt-3 text-xs text-slate-500">Recent activity source through {activitySource.availableThrough}.</p>}</section>}
+    {listingSync.status === "healthy" && <section id="inventory" className="mt-14 scroll-mt-28">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end"><div><p className="dq-eyebrow">Inventory and active listing age</p><h2 className="dq-h2">How much product is available, and how long it has been active</h2></div><p className="max-w-2xl text-sm leading-6 text-slate-500">A point-in-time view of observed active listings. These measures describe supply and marketing duration. They are not used to calculate aggregated rent.</p></div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Active inventory</p><p className="mt-3 text-3xl font-semibold text-navy">{listingSync.activeListings.toLocaleString()}</p><p className="mt-2 text-sm text-slate-500">Observed apartments and houses</p></article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Median observed listing age</p><p className="mt-3 text-3xl font-semibold text-navy">{listingSync.medianActiveAgeDays === null ? "Not available" : `${listingSync.medianActiveAgeDays} days`}</p><p className="mt-2 text-sm text-slate-500">Across {listingSync.ageObservedListings.toLocaleString()} listings with an activation date</p></article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Active 31+ days</p><p className="mt-3 text-3xl font-semibold text-navy">{listingSync.activeOver30SharePct === null ? "Not available" : `${listingSync.activeOver30SharePct.toFixed(1)}%`}</p><p className="mt-2 text-sm text-slate-500">{listingSync.activeOver30Days.toLocaleString()} observed active listings</p></article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Activated in 30 days</p><p className="mt-3 text-3xl font-semibold text-navy">{listingSync.activatedLast30Days.toLocaleString()}</p><p className="mt-2 text-sm text-slate-500">{listingSync.activatedLast7Days.toLocaleString()} activated in the last 7 days</p></article>
+      </div>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Inventory mix</p><h3 className="mt-2 text-xl font-semibold text-navy">Apartments and houses</h3></div><p className="text-xs font-semibold text-slate-400">{inventoryTotal.toLocaleString()} classified listings</p></div><div className="mt-7 flex h-4 overflow-hidden rounded-full bg-slate-100"><div className="bg-[#1b6e8c]" style={{ width: `${apartmentShare}%` }} /><div className="bg-[#c16f36]" style={{ width: `${inventoryTotal > 0 ? 100 - apartmentShare : 0}%` }} /></div><div className="mt-5 grid grid-cols-2 gap-4"><div><p className="text-2xl font-semibold text-navy">{listingSync.apartmentListings.toLocaleString()}</p><p className="mt-1 text-sm text-slate-500">Apartments</p></div><div><p className="text-2xl font-semibold text-navy">{listingSync.houseListings.toLocaleString()}</p><p className="mt-1 text-sm text-slate-500">Houses</p></div></div></article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Active listing age</p><h3 className="mt-2 text-xl font-semibold text-navy">Where current inventory sits</h3></div><p className="text-xs font-semibold text-slate-400">{listingSync.ageObservedListings.toLocaleString()} observed</p></div>{listingSync.ageObservedListings > 0 ? <div className="mt-6 space-y-3">{listingSync.listingAgeBuckets.map((bucket) => <div key={bucket.key} className="grid grid-cols-[54px_minmax(0,1fr)_48px] items-center gap-3"><p className="text-xs font-semibold text-slate-500">{bucket.label}</p><div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-teal" style={{ width: `${(bucket.count / maxAgeBucket) * 100}%` }} /></div><p className="text-right text-xs font-semibold tabular-nums text-navy">{bucket.count.toLocaleString()}</p></div>)}</div> : <p className="mt-8 rounded-xl bg-slate-50 px-4 py-6 text-sm leading-6 text-slate-500">Listing lifecycle timestamps are not available in the current snapshot, so active listing age cannot be calculated.</p>}</article>
+      </div>
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5"><div className="flex flex-wrap gap-x-8 gap-y-3 text-sm"><p><span className="font-semibold text-navy">{(listingSync.newEvents + listingSync.relistedEvents).toLocaleString()}</span> <span className="text-slate-500">new or relisted events</span></p><p><span className="font-semibold text-navy">{listingSync.priceChangeEvents.toLocaleString()}</span> <span className="text-slate-500">confirmed price changes</span></p></div><p className="mt-4 text-xs leading-5 text-slate-500">Observed active listing age is measured from listing activation among listings still active. It is not vacancy duration, lease-up time, or time to a signed lease. Point-in-time source through {snapshotDate(listingSync.availableThrough)}.</p></div>
+    </section>}
 
     <section id="sources" className="mt-14 scroll-mt-28 border-t border-slate-200 pt-8"><div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end"><div><p className="dq-eyebrow">Sources and limits</p><h2 className="dq-h2">Know what each number represents</h2></div><p className="max-w-2xl text-sm leading-6 text-slate-500">This is asking-market intelligence. It does not represent occupancy, signed leases, concessions, effective rent, or property financial performance.</p></div><div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{report.sources.map((source) => <article key={`${source.name}:${source.availableThrough}`} className="rounded-xl border border-slate-200 bg-white p-5"><p className="font-semibold text-navy">{source.name}</p><p className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Available through {source.availableThrough}</p><p className="mt-3 text-sm leading-6 text-slate-600">{source.note}</p></article>)}</div></section>
   </main>;

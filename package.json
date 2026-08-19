@@ -16,7 +16,8 @@
     "audit:metrics": "tsx scripts/audit-metrics.ts",
     "market-iq:import-history": "tsx scripts/import-market-iq-history.ts",
     "market-iq:generate": "prisma generate --schema prisma/market-iq/schema.prisma",
-    "market-iq:migrate": "tsx scripts/deploy-market-iq-migrations.ts"
+    "market-iq:migrate": "tsx scripts/deploy-market-iq-migrations.ts",
+    "market-iq:audit-zips": "node --import tsx scripts/audit-market-iq-zips.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
