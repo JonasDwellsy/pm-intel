@@ -65,3 +65,20 @@ test("Cleveland pilot coupling cannot spread beyond the documented baseline", ()
 
   assert.deepEqual(coupledFiles, [...CLEVELAND_COUPLING_BASELINE].sort());
 });
+
+test("the shared Market Intelligence route uses the market data service boundary", () => {
+  const source = readFileSync("src/app/market-iq/market/page.tsx", "utf8");
+  const forbiddenImports = [
+    "@/lib/market-iq/report/build.server",
+    "@/lib/market-iq/report/columbus-build.server",
+    "@/lib/market-iq/report/san-francisco-build.server",
+    "@/lib/market-iq/report/san-jose-build.server",
+    "@/lib/market-iq/live-listings.server",
+    "@/lib/market-iq/report/source-snapshot.server",
+  ];
+
+  assert.equal(source.includes("@/lib/market-iq/data/service.server"), true);
+  for (const forbiddenImport of forbiddenImports) {
+    assert.equal(source.includes(forbiddenImport), false, `Shared route imports ${forbiddenImport}`);
+  }
+});
