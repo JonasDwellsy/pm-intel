@@ -2,19 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { marketIqClientReportingTab, marketIqProductArea } from "@/lib/market-iq/navigation";
+import {
+  MARKET_IQ_CLIENT_REPORTING_ROUTES,
+  MARKET_IQ_MARKET_INTELLIGENCE_ROUTES,
+  marketIqClientReportingTab,
+  marketIqProductArea,
+} from "@/lib/market-iq/navigation";
 
 const MARKET_INTELLIGENCE_ITEMS = [
-  { id: "overview", href: "/market-iq/market", label: "Market overview" },
-  { id: "briefing", href: "/market-iq/briefing", label: "Weekly briefing" },
+  { id: "overview", href: MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.overview, label: "Market overview" },
+  { id: "briefing", href: MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.briefing, label: "Weekly briefing" },
 ] as const;
 
 const CLIENT_REPORTING_ITEMS = [
-  { id: "overview", href: "/market-iq/client-reporting", label: "Overview" },
-  { id: "reports", href: "/market-iq/editions", label: "Reports" },
-  { id: "recipients", href: "/market-iq/distribution", label: "Recipients" },
-  { id: "delivery", href: "/market-iq/sharing", label: "Delivery" },
-  { id: "performance", href: "/market-iq/performance", label: "Performance" },
+  { id: "overview", href: MARKET_IQ_CLIENT_REPORTING_ROUTES.overview, label: "Overview" },
+  { id: "reports", href: MARKET_IQ_CLIENT_REPORTING_ROUTES.reports, label: "Reports" },
+  { id: "recipients", href: MARKET_IQ_CLIENT_REPORTING_ROUTES.recipients, label: "Recipients" },
+  { id: "delivery", href: MARKET_IQ_CLIENT_REPORTING_ROUTES.delivery, label: "Delivery" },
+  { id: "performance", href: MARKET_IQ_CLIENT_REPORTING_ROUTES.performance, label: "Performance" },
 ] as const;
 
 export function MarketIqSectionNavigation() {

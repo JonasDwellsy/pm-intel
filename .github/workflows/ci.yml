@@ -43,10 +43,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # tsc imports @prisma/client types, which are code-generated from the
-      # schema. Generate reads prisma/schema.prisma only — no DB connection.
-      - name: Generate Prisma client
-        run: npx prisma generate
+      # tsc imports both the control-plane and isolated Market IQ Prisma
+      # clients. Generation reads schemas only and does not connect to a DB.
+      - name: Generate Prisma clients
+        run: npm run prisma:generate
 
       # The --max-old-space-size=8192 workaround that used to live here is gone:
       # prisma/seed.ts now reads the seed at runtime instead of importing it, so

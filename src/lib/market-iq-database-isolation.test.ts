@@ -63,8 +63,12 @@ test("project database fallback is locked to the authorized Market IQ preview", 
   const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
     scripts: Record<string, string>;
   };
-  assert.match(packageJson.scripts["vercel-build"], /prisma\/market-iq\/schema\.prisma/);
-  assert.match(packageJson.scripts["vercel-build"], /deploy-market-iq-migrations/);
+  assert.match(packageJson.scripts["vercel-build"], /prisma:generate/);
+  assert.doesNotMatch(packageJson.scripts["vercel-build"], /migrate|seed|export_name_corrections/);
+  assert.match(packageJson.scripts["prisma:generate"], /prisma\/market-iq\/schema\.prisma/);
+  assert.match(packageJson.scripts["market-iq:migrate"], /deploy-market-iq-migrations/);
+  assert.match(packageJson.scripts["db:migrate"], /db:migrate:control/);
+  assert.match(packageJson.scripts["db:migrate"], /market-iq:migrate/);
 });
 
 test("customer watchlists remain organization-scoped in the primary database", () => {
