@@ -15,7 +15,7 @@ import type {
 
 export type MarketIqMapSegment = { propertyType: MarketIqPropertyType; bedrooms: number; label: string };
 type Metric = "yoy" | "rent";
-type DirectionBand = "rising" | "holding" | "softening";
+type DirectionBand = "rising" | "holding" | "softening" | "unavailable";
 type MapBounds = [[number, number], [number, number]];
 
 const DEFAULT_SEGMENTS: MarketIqMapSegment[] = [
@@ -23,12 +23,12 @@ const DEFAULT_SEGMENTS: MarketIqMapSegment[] = [
   { propertyType: "house", bedrooms: 3, label: "3-bed houses" },
 ];
 
-const METRICS: Array<{ value: Metric; label: string }> = [
-  { value: "yoy", label: "Rent direction" },
-  { value: "rent", label: "Asking rent" },
+const METRICS: Array<{ value: Metric; label: string; description: string }> = [
+  { value: "rent", label: "Asking rent", description: "Broadest published coverage" },
+  { value: "yoy", label: "Annual direction", description: "Where a year-over-year read exists" },
 ];
 
-const COLORS = { rising: "#147d75", stable: "#d7ab55", softening: "#cc5620", missing: "#e5edf4" } as const;
+const COLORS = { rising: "#147d75", stable: "#d7ab55", softening: "#cc5620", rentOnly: "#8b9bb5", missing: "#edf1f5" } as const;
 
 function boundsForFeatures(features: FeatureCollection<Geometry, GeoJsonProperties>["features"]): MapBounds | null {
   let west = Number.POSITIVE_INFINITY;
@@ -66,13 +66,14 @@ function percentage(value: number | null) {
 }
 
 function directionBand(value: number | null): DirectionBand {
-  if (value === null || Math.abs(value) < 3) return "holding";
+  if (value === null) return "unavailable";
+  if (Math.abs(value) < 3) return "holding";
   return value > 0 ? "rising" : "softening";
 }
 
 function directionLabel(value: number | null) {
   const band = directionBand(value);
-  return band === "rising" ? "Rising" : band === "softening" ? "Softening" : "Holding steady";
+  return band === "rising" ? "Rising" : band === "softening" ? "Softening" : band === "holding" ? "Holding steady" : "Direction unavailable";
 }
 
 function monthLabel(value: string | null) {
@@ -93,8 +94,8 @@ function metricValue(point: MarketIqMapPoint, metric: Metric) {
 function mapPaint(metric: Metric, min: number, max: number): ExpressionSpecification {
   if (metric === "yoy") return [
     "case",
-    ["==", ["get", "coverageStatus"], "unavailable"], COLORS.missing,
-    ["==", ["get", "supported"], false], "#d9dee4",
+    ["==", ["get", "rentAvailable"], false], COLORS.missing,
+    ["==", ["get", "directionAvailable"], false], COLORS.rentOnly,
     ["<=", ["get", "metricValue"], -3], COLORS.softening,
     [">=", ["get", "metricValue"], 3], COLORS.rising,
     COLORS.stable,
@@ -102,8 +103,7 @@ function mapPaint(metric: Metric, min: number, max: number): ExpressionSpecifica
   const middle = min + (max - min) / 2;
   return [
     "case",
-    ["==", ["get", "coverageStatus"], "unavailable"], COLORS.missing,
-    ["==", ["get", "supported"], false], "#d9dee4",
+    ["==", ["get", "rentAvailable"], false], COLORS.missing,
     ["interpolate", ["linear"], ["get", "metricValue"], min, "#dbecef", middle, "#63a5ab", max, "#164d69"],
   ] as ExpressionSpecification;
 }
@@ -117,7 +117,7 @@ function legend(metric: Metric, min: number, max: number) {
 function MapFallback({ tokenMissing }: { tokenMissing: boolean }) {
   return <div className="grid min-h-[570px] place-items-center rounded-2xl bg-[#edf1f2] p-8">
     <div className="max-w-md text-center">
-      <p className="text-sm font-semibold text-slate-700">{tokenMissing ? "Map unavailable" : "No supported ZIP series for this segment"}</p>
+      <p className="text-sm font-semibold text-slate-700">{tokenMissing ? "Map unavailable" : "No published ZIP asking-rent values for this segment"}</p>
       <p className="mt-2 text-sm leading-6 text-slate-500">{tokenMissing
         ? "The analytical summary remains available. The shaded ZIP map will appear after the public Mapbox token is available."
         : "No broader city or MSA rent is substituted. Choose another benchmark segment to see ZIP-level asking-rent values."}</p>
@@ -180,7 +180,7 @@ function ComparisonCard({ label, cell, selected }: { label: string; cell?: Marke
   const supported = selected ? selected.status === "reportable" : cell?.status === "reportable";
   return <div className={`rounded-2xl border p-4 ${supported ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50"}`}>
     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{label}</p>
-    {supported ? <><div className="mt-2 flex items-baseline justify-between gap-3"><p className="text-2xl font-semibold text-[var(--report-primary)]">{money(rent)}</p><p className={`text-sm font-bold ${directionBand(yoy) === "rising" ? "text-teal-700" : directionBand(yoy) === "softening" ? "text-orange-700" : "text-slate-500"}`}>{directionLabel(yoy)}</p></div><p className="mt-2 text-xs text-slate-500">Asking-rent data · {monthLabel(date)}</p></> : <p className="mt-3 text-sm leading-5 text-slate-500">No asking-rent value is available</p>}
+    {supported ? <><div className="mt-2 flex items-baseline justify-between gap-3"><p className="text-2xl font-semibold text-[var(--report-primary)]">{money(rent)}</p><p className={`text-sm font-bold ${directionBand(yoy) === "rising" ? "text-teal-700" : directionBand(yoy) === "softening" ? "text-orange-700" : "text-slate-500"}`}>{directionLabel(yoy)}</p></div><p className="mt-2 text-xs text-slate-500">Asking-rent data · {monthLabel(date)}</p></> : <p className="mt-3 text-sm leading-5 text-slate-500">No published asking rent is available</p>}
   </div>;
 }
 
@@ -205,7 +205,9 @@ function interpretation(selected: MarketIqMapPoint, city: MarketIqMarketCell | u
     ? "has a rising annual direction"
     : directionBand(selected.yearOverYearPct) === "softening"
       ? "has a softening annual direction"
-      : "is holding broadly steady";
+      : directionBand(selected.yearOverYearPct) === "holding"
+        ? "is holding broadly steady"
+        : "has a published asking rent, but no annual direction is available";
   const versusMsa = selected.rent && msa?.rent
     ? selected.rent > msa.rent * 1.05
       ? "above"
@@ -278,7 +280,7 @@ export function MarketIqRentMap({
   boundaryUrl: string;
 }) {
   const [segment, setSegment] = useState<MarketIqMapSegment>(segments[0] ?? DEFAULT_SEGMENTS[0]);
-  const [metric, setMetric] = useState<Metric>("yoy");
+  const [metric, setMetric] = useState<Metric>("rent");
   const [selectedZip, setSelectedZip] = useState<string | null>(null);
   const [mapFailed, setMapFailed] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -327,8 +329,11 @@ export function MarketIqRentMap({
     .sort((a, b) => distanceMiles(selected, a) - distanceMiles(selected, b))
     .slice(0, 3) : [];
   const rents = filtered.map((point) => point.rent).filter((value): value is number => value !== null);
-  const rising = filtered.filter((point) => directionBand(point.yearOverYearPct) === "rising").length;
-  const softening = filtered.filter((point) => directionBand(point.yearOverYearPct) === "softening").length;
+  const directionPoints = filtered.filter((point) => point.yearOverYearPct !== null);
+  const rising = directionPoints.filter((point) => directionBand(point.yearOverYearPct) === "rising").length;
+  const softening = directionPoints.filter((point) => directionBand(point.yearOverYearPct) === "softening").length;
+  const holding = directionPoints.length - rising - softening;
+  const directionMissing = filtered.length - directionPoints.length;
   const legendLabels = legend(metric, min, max);
   const tokenMissing = !process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -361,12 +366,14 @@ export function MarketIqRentMap({
             const point = segmentPointByZip.get(zip);
             const reportablePoint = pointByZip.get(zip);
             const value = reportablePoint ? metricValue(reportablePoint, metric) : null;
-            const coverageStatus = reportablePoint ? "reportable" : "unavailable";
+            const rentAvailable = reportablePoint?.rent !== null && reportablePoint?.rent !== undefined;
+            const directionAvailable = rentAvailable && reportablePoint?.yearOverYearPct !== null && reportablePoint?.yearOverYearPct !== undefined;
             return { ...feature, properties: {
               ...feature.properties,
               zip,
-              supported: value !== null,
-              coverageStatus,
+              supported: metric === "rent" ? rentAvailable : directionAvailable,
+              rentAvailable,
+              directionAvailable,
               metricValue: value ?? 0,
               rent: reportablePoint?.rent ?? null,
               rentLabel: money(reportablePoint?.rent ?? null),
@@ -394,10 +401,10 @@ export function MarketIqRentMap({
         map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-right");
         map.on("load", () => {
           map.addSource("market-iq-zips", { type: "geojson", data: joined });
-          map.addLayer({ id: "market-iq-fill", type: "fill", source: "market-iq-zips", paint: { "fill-color": mapPaint(metric, min, max), "fill-opacity": ["case", ["==", ["get", "supported"], true], 0.88, 0.3] } });
-          map.addLayer({ id: "market-iq-lines", type: "line", source: "market-iq-zips", paint: { "line-color": ["case", ["==", ["get", "supported"], true], "#ffffff", "#cbd3db"], "line-width": ["case", ["==", ["get", "supported"], true], 1.7, 0.8], "line-opacity": 0.95 } });
+          map.addLayer({ id: "market-iq-fill", type: "fill", source: "market-iq-zips", paint: { "fill-color": mapPaint(metric, min, max), "fill-opacity": ["case", ["==", ["get", "rentAvailable"], true], 0.88, 0.34] } });
+          map.addLayer({ id: "market-iq-lines", type: "line", source: "market-iq-zips", paint: { "line-color": ["case", ["==", ["get", "rentAvailable"], true], "#ffffff", "#cbd3db"], "line-width": ["case", ["==", ["get", "rentAvailable"], true], 1.7, 0.8], "line-opacity": 0.95 } });
           map.addLayer({ id: "market-iq-selected", type: "line", source: "market-iq-zips", filter: ["==", ["get", "zip"], selectedZipRef.current ?? ""], paint: { "line-color": "#0f172a", "line-width": 4 } });
-          map.addLayer({ id: "market-iq-labels", type: "symbol", source: "market-iq-zips", filter: ["==", ["get", "supported"], true], layout: { "text-field": ["format", ["get", "zip"], { "font-scale": 0.88 }, "\n", {}, metric === "rent" ? ["get", "rentLabel"] : ["get", "directionLabel"], { "font-scale": 0.92 }], "text-size": 11, "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"], "text-allow-overlap": false, "text-padding": 8 }, paint: { "text-color": "#17324a", "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.6 } });
+          map.addLayer({ id: "market-iq-labels", type: "symbol", source: "market-iq-zips", filter: ["==", ["get", "rentAvailable"], true], layout: { "text-field": ["format", ["get", "zip"], { "font-scale": 0.88 }, "\n", {}, metric === "rent" ? ["get", "rentLabel"] : ["case", ["==", ["get", "directionAvailable"], true], ["get", "directionLabel"], "Rent published"], { "font-scale": 0.92 }], "text-size": 11, "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"], "text-allow-overlap": false, "text-padding": 8 }, paint: { "text-color": "#17324a", "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.6 } });
           const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: 10 });
           map.on("mousemove", "market-iq-fill", (event) => {
             map.getCanvas().style.cursor = "pointer";
@@ -408,9 +415,11 @@ export function MarketIqRentMap({
             const title = document.createElement("strong");
             title.textContent = `ZIP ${properties.zip}`;
             const detail = document.createElement("div");
-            detail.textContent = properties.supported
-              ? `${properties.rentLabel} · ${properties.directionLabel}`
-              : "No asking-rent value for this product";
+            detail.textContent = !properties.rentAvailable
+              ? "No published asking rent for this product"
+              : metric === "yoy" && !properties.directionAvailable
+                ? `${properties.rentLabel} asking rent · annual direction unavailable`
+                : `${properties.rentLabel} · ${properties.directionLabel}`;
             body.append(title, detail);
             popup.setLngLat(event.lngLat).setDOMContent(body).addTo(map);
           });
@@ -434,11 +443,14 @@ export function MarketIqRentMap({
         const active = option.propertyType === segment.propertyType && option.bedrooms === segment.bedrooms;
         return <button key={`${option.propertyType}:${option.bedrooms}`} type="button" onClick={() => { setSegment(option); setSelectedZip(null); }} className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${active ? "border-transparent bg-[var(--report-primary)] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"}`}>{option.label}</button>;
       })}</div>
-      <div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Map measure">{METRICS.map((option) => <button key={option.value} type="button" onClick={() => setMetric(option.value)} className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${metric === option.value ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>{option.label}</button>)}</div>
+      <div className="w-full rounded-2xl bg-slate-100 p-1.5 sm:w-[430px]" role="group" aria-label="Map color">
+        <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Map color</p>
+        <div className="grid grid-cols-2 gap-1">{METRICS.map((option) => <button key={option.value} type="button" aria-pressed={metric === option.value} onClick={() => setMetric(option.value)} className={`rounded-xl px-3 py-2 text-left transition ${metric === option.value ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:bg-white/60 hover:text-slate-800"}`}><span className="block text-xs font-semibold">{option.label}</span><span className="mt-0.5 block text-[10px] leading-4">{option.description}</span></button>)}</div>
+      </div>
     </div>
 
     <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Stat label="Market pattern" value={`${rising} rising · ${softening} softening`} detail={`${filtered.length - rising - softening} holding steady for the selected product`} />
+      <Stat label="Market pattern" value={`${rising} rising · ${softening} softening`} detail={`${holding} holding steady${directionMissing ? ` · ${directionMissing} rent-only ZIPs` : ""}`} />
       <Stat label="Asking-rent range" value={rents.length ? `${money(Math.min(...rents))} to ${money(Math.max(...rents))}` : "Not published"} detail={benchmark?.rent ? `${money(benchmark.rent)} MSA benchmark` : "MSA comparison unavailable"} />
       <Stat label="MSA asking rent" value={money(benchmark?.rent ?? null)} detail={`${directionLabel(benchmark?.yearOverYearPct ?? null)} for the selected product`} />
       <Stat label="Benchmark month" value={monthLabel(benchmark?.month ?? null)} detail={`${segment.label} · ${marketName}`} />
@@ -452,8 +464,8 @@ export function MarketIqRentMap({
           <div className="pointer-events-none absolute bottom-4 left-4 w-[230px] rounded-xl border border-white/70 bg-white/95 px-4 py-3 text-xs text-slate-600 shadow-sm backdrop-blur">
             <div className="h-2.5 rounded-full" style={{ background: metric === "yoy" ? `linear-gradient(90deg,${COLORS.softening},${COLORS.stable},${COLORS.rising})` : "linear-gradient(90deg,#dbecef,#63a5ab,#164d69)" }} />
             <div className="mt-2 flex justify-between gap-2 text-[10px] font-semibold"><span>{legendLabels.left}</span><span>{legendLabels.middle}</span><span className="text-right">{legendLabels.right}</span></div>
-            <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#e5edf4]" />No asking-rent value</span></div>
-            <p className="mt-2 text-[10px] leading-4 text-slate-400">Every published ZIP value is colored. Direction bands reduce the emphasis on noisy point estimates.</p>
+            <div className="mt-2 space-y-1 border-t border-slate-200 pt-2 text-[10px] text-slate-500">{metric === "yoy" && <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#8b9bb5]" />Asking rent published, annual direction unavailable</span>}<span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#edf1f5]" />No published asking rent</span></div>
+            <p className="mt-2 text-[10px] leading-4 text-slate-400">Asking rent opens with the broadest published ZIP coverage. Annual direction is shown only where a year-over-year read exists.</p>
           </div>
         </div>}</div>
 
