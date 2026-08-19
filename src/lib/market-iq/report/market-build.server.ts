@@ -10,7 +10,7 @@ import {
   type MarketIqTrendSeries,
 } from "@/lib/market-iq/report/report";
 
-const PERIOD_START = "2025-04-01";
+const PERIOD_START = "2023-08-01";
 const DETAIL_BEDROOMS = [0, 1, 2, 3, 4];
 const DISPLAY_SEGMENTS = [
   { propertyType: "apartment" as const, bedrooms: 0 },

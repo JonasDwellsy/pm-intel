@@ -213,7 +213,7 @@ function buildCell(series: MarketIqTrendSeries): MarketIqMarketCell {
     observations: latest?.observations ?? 0,
     month: latest?.month ?? null,
     valueBasis: latest?.valueBasis,
-    series: reportable ? points.slice(-12) : [],
+    series: reportable ? points.slice(-36) : [],
     status: reportable ? "reportable" : "suppressed",
     suppressionReason: reportable
       ? null

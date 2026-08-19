@@ -229,8 +229,8 @@ describe("Market IQ edition comparison", () => {
     const html = renderToStaticMarkup(<MarketIqPublicReport report={report} preview />);
     expect(html).toContain("Cleveland conditions worth discussing");
     expect(html).toContain("A PM-authored opening for the client.");
-    expect(html).toContain("Since the last market read");
-    expect(html).toContain("This is the launch baseline");
+    expect(html).not.toContain("Since the last market read");
+    expect(html).not.toContain("This is the launch baseline");
     expect(html).toContain("Market data by Dwellsy IQ");
     expect(html).not.toContain("Trends IQ");
     expect(html).not.toContain("Total IQ");
@@ -298,7 +298,7 @@ describe("Market IQ advisory defaults", () => {
   it("rejects a non-HTTPS company CTA", () => {
     const formData = new FormData();
     formData.set("companyCtaUrl", "http://example.com/contact");
-    expect(() => parseMarketIqEditorialDefaultsForm(formData)).toThrow(/valid HTTPS/);
+    expect(() => parseMarketIqEditorialDefaultsForm(formData)).toThrow(/valid call-to-action address/);
   });
   it("enforces the frozen edition audience again at delivery time", () => {
     const distributionAction = readFileSync("src/app/market-iq/distribution/actions.ts", "utf8");

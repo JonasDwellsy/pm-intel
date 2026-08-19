@@ -14,8 +14,7 @@ import type {
 } from "@/lib/market-iq/report/report";
 
 export type MarketIqMapSegment = { propertyType: MarketIqPropertyType; bedrooms: number; label: string };
-type Metric = "yoy" | "rent" | "benchmark";
-type MapView = "published" | "msa";
+type Metric = "yoy" | "rent";
 type DirectionBand = "rising" | "holding" | "softening";
 type MapBounds = [[number, number], [number, number]];
 
@@ -27,10 +26,9 @@ const DEFAULT_SEGMENTS: MarketIqMapSegment[] = [
 const METRICS: Array<{ value: Metric; label: string }> = [
   { value: "yoy", label: "Rent direction" },
   { value: "rent", label: "Asking rent" },
-  { value: "benchmark", label: "Versus MSA" },
 ];
 
-const COLORS = { rising: "#147d75", stable: "#93a2b5", softening: "#cc5620", missing: "#e7eaed" } as const;
+const COLORS = { rising: "#147d75", stable: "#d7ab55", softening: "#cc5620", missing: "#e5edf4" } as const;
 
 function boundsForFeatures(features: FeatureCollection<Geometry, GeoJsonProperties>["features"]): MapBounds | null {
   let west = Number.POSITIVE_INFINITY;
@@ -77,14 +75,6 @@ function directionLabel(value: number | null) {
   return band === "rising" ? "Rising" : band === "softening" ? "Softening" : "Holding steady";
 }
 
-function recentSeriesDirection(points: MarketIqTrendPoint[] | undefined): DirectionBand | null {
-  if (!points || points.length < 6) return null;
-  const first = points[0]?.rent;
-  const last = points.at(-1)?.rent;
-  if (!first || !last) return null;
-  return directionBand(((last / first) - 1) * 100);
-}
-
 function monthLabel(value: string | null) {
   if (!value) return "No supported month";
   return new Date(`${value.slice(0, 7)}-15T00:00:00Z`).toLocaleDateString("en-US", {
@@ -94,15 +84,9 @@ function monthLabel(value: string | null) {
   });
 }
 
-function relative(point: MarketIqMapPoint, benchmark: MarketIqMarketCell | undefined) {
-  if (!point.rent || !benchmark?.rent) return null;
-  return ((point.rent / benchmark.rent) - 1) * 100;
-}
-
-function metricValue(point: MarketIqMapPoint, metric: Metric, benchmark: MarketIqMarketCell | undefined) {
+function metricValue(point: MarketIqMapPoint, metric: Metric) {
   if (metric === "yoy") return point.yearOverYearPct;
   if (metric === "rent") return point.rent;
-  if (metric === "benchmark") return relative(point, benchmark);
   return null;
 }
 
@@ -113,13 +97,7 @@ function mapPaint(metric: Metric, min: number, max: number): ExpressionSpecifica
     ["==", ["get", "supported"], false], "#d9dee4",
     ["<=", ["get", "metricValue"], -3], COLORS.softening,
     [">=", ["get", "metricValue"], 3], COLORS.rising,
-    "#d8ddd9",
-  ] as ExpressionSpecification;
-  if (metric === "benchmark") return [
-    "case",
-    ["==", ["get", "coverageStatus"], "unavailable"], COLORS.missing,
-    ["==", ["get", "supported"], false], "#d9dee4",
-    ["interpolate", ["linear"], ["get", "metricValue"], -15, "#b84016", -5, "#e7956e", 0, "#e8e6df", 5, "#75bcb5", 15, "#08756e"],
+    COLORS.stable,
   ] as ExpressionSpecification;
   const middle = min + (max - min) / 2;
   return [
@@ -132,7 +110,6 @@ function mapPaint(metric: Metric, min: number, max: number): ExpressionSpecifica
 
 function legend(metric: Metric, min: number, max: number) {
   if (metric === "yoy") return { left: "Softening", middle: "Holding steady", right: "Rising" };
-  if (metric === "benchmark") return { left: "Below MSA", middle: "At MSA", right: "Above MSA" };
   if (metric === "rent") return { left: money(min), middle: money(min + (max - min) / 2), right: money(max) };
   return { left: money(min), middle: money(min + (max - min) / 2), right: money(max) };
 }
@@ -156,6 +133,15 @@ function Stat({ label, value, detail }: { label: string; value: string; detail: 
   </div>;
 }
 
+function smoothPath(coords: Array<{ x: number; y: number }>) {
+  if (coords.length < 2) return "";
+  return coords.slice(1).reduce((path, point, index) => {
+    const previous = coords[index];
+    const midpoint = (previous.x + point.x) / 2;
+    return `${path} C ${midpoint},${previous.y} ${midpoint},${point.y} ${point.x},${point.y}`;
+  }, `M ${coords[0].x},${coords[0].y}`);
+}
+
 function TrendChart({ points }: { points: MarketIqTrendPoint[] }) {
   if (points.length < 2) return <div className="grid h-44 place-items-center rounded-2xl bg-slate-50 text-sm text-slate-400">Only the latest supported observation is available.</div>;
   const values = points.map((point) => point.rent);
@@ -169,11 +155,11 @@ function TrendChart({ points }: { points: MarketIqTrendPoint[] }) {
     y: 22 + ((max - point.rent) / range) * (height - 54),
     point,
   }));
-  const path = coords.map((point) => `${point.x},${point.y}`).join(" ");
+  const mid = min + range / 2;
   return <div className="rounded-2xl bg-slate-50 px-3 pb-3 pt-4">
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-44 w-full" role="img" aria-label="Recent asking-rent observations">
-      <line x1="28" y1={height - 22} x2={width - 28} y2={height - 22} stroke="#cbd5e1" strokeWidth="1" />
-      <polyline points={path} fill="none" stroke="var(--report-accent)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-44 w-full" role="img" aria-label="Three-year asking-rent trajectory with dollar scale">
+      {[{ y: 22, value: max }, { y: 22 + (height - 54) / 2, value: mid }, { y: height - 32, value: min }].map((line) => <g key={line.y}><line x1="28" y1={line.y} x2={width - 28} y2={line.y} stroke="#dbe4eb" strokeWidth="1" /><text x={width - 30} y={line.y - 4} textAnchor="end" fontSize="11" fill="#8190a3">{money(line.value)}</text></g>)}
+      <path d={smoothPath(coords)} fill="none" stroke="var(--report-accent)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
       {coords.map(({ x, y, point }, index) => <g key={point.month}>
         <circle cx={x} cy={y} r={index === coords.length - 1 ? 6 : 4} fill="var(--report-primary)" stroke="#fff" strokeWidth="2" />
         {(index === 0 || index === coords.length - 1) && <text x={x} y={Math.max(14, y - 12)} textAnchor={index === 0 ? "start" : "end"} fontSize="18" fontWeight="700" fill="#17324a">{money(point.rent)}</text>}
@@ -181,7 +167,7 @@ function TrendChart({ points }: { points: MarketIqTrendPoint[] }) {
     </svg>
     <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.11em] text-slate-400">
       <span>{monthLabel(points[0]?.month ?? null)}</span>
-      <span>{points.length} monthly observations</span>
+      <span>{points.length} monthly observations · smoothed display</span>
       <span>{monthLabel(points.at(-1)?.month ?? null)}</span>
     </div>
   </div>;
@@ -260,7 +246,7 @@ function ZipDrilldown({
     </div>
     <div className="p-6 lg:p-8">
       <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-        <div><div className="mb-3 flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Recent observations</p><h4 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Asking-rent path</h4></div><p className="text-right text-xs text-slate-500">{selected.series?.length ?? 0} published months<br />through {monthLabel(selected.month)}</p></div><TrendChart points={selected.series ?? []} /></div>
+        <div><div className="mb-3 flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Longer view</p><h4 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Three-year asking-rent path</h4></div><p className="text-right text-xs text-slate-500">{selected.series?.length ?? 0} published months<br />through {monthLabel(selected.month)}</p></div><TrendChart points={selected.series ?? []} /></div>
         <div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Geographic context</p><h4 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">Same product, three levels</h4><div className="mt-3 grid gap-3"><ComparisonCard label={`ZIP ${selected.zip}`} selected={selected} /><ComparisonCard label={selected.primaryCity ?? "Primary municipality"} cell={cityCell} /><ComparisonCard label={marketName} cell={benchmark} /></div></div>
       </div>
       <div className="mt-7 grid gap-5 lg:grid-cols-[1fr_0.85fr_1fr]">
@@ -293,7 +279,6 @@ export function MarketIqRentMap({
 }) {
   const [segment, setSegment] = useState<MarketIqMapSegment>(segments[0] ?? DEFAULT_SEGMENTS[0]);
   const [metric, setMetric] = useState<Metric>("yoy");
-  const [mapView, setMapView] = useState<MapView>("msa");
   const [selectedZip, setSelectedZip] = useState<string | null>(null);
   const [mapFailed, setMapFailed] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -322,18 +307,17 @@ export function MarketIqRentMap({
       cell.status === "reportable" &&
       cell.rent !== null
     );
-    const recentDirection = recentSeriesDirection(point.series);
-    if (!matchingCity || !recentDirection) return false;
-    return recentDirection === directionBand(point.yearOverYearPct);
+    return Boolean(matchingCity && (point.series?.length ?? 0) >= 2);
   }), [benchmark?.rent, cityCells, filtered, segment]);
-  const ranked = useMemo(() => [...completePoints].sort((a, b) =>
-    Math.abs(b.yearOverYearPct ?? 0) - Math.abs(a.yearOverYearPct ?? 0) ||
-    b.observations - a.observations
-  ), [completePoints]);
-  const values = filtered.map((point) => metricValue(point, metric, benchmark)).filter((value): value is number => value !== null);
+  const ranked = useMemo(() => {
+    const ordered = [...completePoints].sort((a, b) => (a.rent ?? 0) - (b.rent ?? 0));
+    if (ordered.length <= 5) return ordered;
+    return [0.1, 0.3, 0.5, 0.7, 0.9].map((quantile) => ordered[Math.round((ordered.length - 1) * quantile)]);
+  }, [completePoints]);
+  const values = filtered.map((point) => metricValue(point, metric)).filter((value): value is number => value !== null);
   const min = values.length ? Math.min(...values) : 0;
   const max = values.length ? Math.max(...values) : 1;
-  const selected = selectedZip ? completePoints.find((point) => point.zip === selectedZip) ?? null : ranked[0] ?? null;
+  const selected = selectedZip ? completePoints.find((point) => point.zip === selectedZip) ?? null : ranked[Math.floor(ranked.length / 2)] ?? null;
   const cityCell = selected?.primaryCity ? cityCells.find((cell) =>
     cell.geographyLabel === selected.primaryCity &&
     cell.propertyType === segment.propertyType &&
@@ -376,7 +360,7 @@ export function MarketIqRentMap({
             const zip = String(feature.properties?.ZCTA5 ?? feature.properties?.GEOID ?? "");
             const point = segmentPointByZip.get(zip);
             const reportablePoint = pointByZip.get(zip);
-            const value = reportablePoint ? metricValue(reportablePoint, metric, benchmark) : null;
+            const value = reportablePoint ? metricValue(reportablePoint, metric) : null;
             const coverageStatus = reportablePoint ? "reportable" : "unavailable";
             return { ...feature, properties: {
               ...feature.properties,
@@ -394,16 +378,14 @@ export function MarketIqRentMap({
             } };
           }),
         };
-        const publishedBounds = boundsForFeatures(joined.features.filter((feature) => feature.properties?.supported === true));
         const marketBounds = boundsForFeatures(joined.features);
         if (!marketBounds) throw new Error("ZIP geometry has no usable bounds");
-        const initialBounds = mapView === "published" && publishedBounds ? publishedBounds : marketBounds;
         const mapboxgl = mapboxModule.default;
         mapboxgl.accessToken = token;
         const map = new mapboxgl.Map({
           container,
           style: "mapbox://styles/mapbox/light-v11",
-          bounds: initialBounds,
+          bounds: marketBounds,
           fitBoundsOptions: { padding: 62, maxZoom: 10.25 },
           attributionControl: false,
         });
@@ -415,7 +397,7 @@ export function MarketIqRentMap({
           map.addLayer({ id: "market-iq-fill", type: "fill", source: "market-iq-zips", paint: { "fill-color": mapPaint(metric, min, max), "fill-opacity": ["case", ["==", ["get", "supported"], true], 0.88, 0.3] } });
           map.addLayer({ id: "market-iq-lines", type: "line", source: "market-iq-zips", paint: { "line-color": ["case", ["==", ["get", "supported"], true], "#ffffff", "#cbd3db"], "line-width": ["case", ["==", ["get", "supported"], true], 1.7, 0.8], "line-opacity": 0.95 } });
           map.addLayer({ id: "market-iq-selected", type: "line", source: "market-iq-zips", filter: ["==", ["get", "zip"], selectedZipRef.current ?? ""], paint: { "line-color": "#0f172a", "line-width": 4 } });
-          map.addLayer({ id: "market-iq-labels", type: "symbol", source: "market-iq-zips", filter: ["==", ["get", "supported"], true], layout: { "text-field": ["format", ["get", "zip"], { "font-scale": 0.88 }, "\n", {}, metric === "rent" ? ["get", "rentLabel"] : metric === "yoy" ? ["get", "directionLabel"] : ["concat", ["to-string", ["round", ["get", "metricValue"]]], "%"], { "font-scale": 0.92 }], "text-size": 11, "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"], "text-allow-overlap": false, "text-padding": 8 }, paint: { "text-color": "#17324a", "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.6 } });
+          map.addLayer({ id: "market-iq-labels", type: "symbol", source: "market-iq-zips", filter: ["==", ["get", "supported"], true], layout: { "text-field": ["format", ["get", "zip"], { "font-scale": 0.88 }, "\n", {}, metric === "rent" ? ["get", "rentLabel"] : ["get", "directionLabel"], { "font-scale": 0.92 }], "text-size": 11, "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"], "text-allow-overlap": false, "text-padding": 8 }, paint: { "text-color": "#17324a", "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.6 } });
           const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: 10 });
           map.on("mousemove", "market-iq-fill", (event) => {
             map.getCanvas().style.cursor = "pointer";
@@ -444,7 +426,7 @@ export function MarketIqRentMap({
       }
     })();
     return () => { cancelled = true; cleanup?.(); };
-  }, [benchmark, boundaryUrl, completePoints, filtered, mapView, metric, min, max, segmentPoints]);
+  }, [boundaryUrl, completePoints, filtered, metric, min, max, segmentPoints]);
 
   return <div>
     <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
@@ -456,9 +438,9 @@ export function MarketIqRentMap({
     </div>
 
     <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Stat label="ZIP coverage" value={`${filtered.length} ZIPs`} detail="with an asking-rent value for this product" />
+      <Stat label="Market pattern" value={`${rising} rising · ${softening} softening`} detail={`${filtered.length - rising - softening} holding steady for the selected product`} />
       <Stat label="Asking-rent range" value={rents.length ? `${money(Math.min(...rents))} to ${money(Math.max(...rents))}` : "Not published"} detail={benchmark?.rent ? `${money(benchmark.rent)} MSA benchmark` : "MSA comparison unavailable"} />
-      <Stat label="Local direction" value={`${rising} rising · ${softening} softening`} detail={`${filtered.length - rising - softening} holding steady or without an annual direction`} />
+      <Stat label="MSA asking rent" value={money(benchmark?.rent ?? null)} detail={`${directionLabel(benchmark?.yearOverYearPct ?? null)} for the selected product`} />
       <Stat label="Benchmark month" value={monthLabel(benchmark?.month ?? null)} detail={`${segment.label} · ${marketName}`} />
     </div>
 
@@ -467,20 +449,16 @@ export function MarketIqRentMap({
         ? <MapFallback tokenMissing={tokenMissing || mapFailed} />
         : <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-[0_20px_55px_rgba(15,23,42,0.08)]">
           <div ref={containerRef} className="h-[620px] w-full" role="img" aria-label={`Shaded ZIP-level map for ${segment.label}`} />
-          <div className="absolute left-4 top-4 flex rounded-xl border border-white/80 bg-white/95 p-1 text-[11px] font-semibold text-slate-500 shadow-sm backdrop-blur" role="group" aria-label="Map extent">
-            <button type="button" onClick={() => setMapView("msa")} className={`rounded-lg px-3 py-2 transition ${mapView === "msa" ? "bg-[var(--report-primary)] text-white" : "hover:bg-slate-100 hover:text-slate-800"}`}>Market view</button>
-            <button type="button" onClick={() => setMapView("published")} className={`rounded-lg px-3 py-2 transition ${mapView === "published" ? "bg-[var(--report-primary)] text-white" : "hover:bg-slate-100 hover:text-slate-800"}`}>Focus on data</button>
-          </div>
           <div className="pointer-events-none absolute bottom-4 left-4 w-[230px] rounded-xl border border-white/70 bg-white/95 px-4 py-3 text-xs text-slate-600 shadow-sm backdrop-blur">
-            <div className="h-2.5 rounded-full" style={{ background: metric === "yoy" || metric === "benchmark" ? "linear-gradient(90deg,#b84016,#e8e6df,#08756e)" : "linear-gradient(90deg,#dbecef,#63a5ab,#164d69)" }} />
+            <div className="h-2.5 rounded-full" style={{ background: metric === "yoy" ? `linear-gradient(90deg,${COLORS.softening},${COLORS.stable},${COLORS.rising})` : "linear-gradient(90deg,#dbecef,#63a5ab,#164d69)" }} />
             <div className="mt-2 flex justify-between gap-2 text-[10px] font-semibold"><span>{legendLabels.left}</span><span>{legendLabels.middle}</span><span className="text-right">{legendLabels.right}</span></div>
-            <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#e7eaed]" />No asking-rent value</span></div>
+            <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] text-slate-500"><span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#e5edf4]" />No asking-rent value</span></div>
             <p className="mt-2 text-[10px] leading-4 text-slate-400">Every published ZIP value is colored. Direction bands reduce the emphasis on noisy point estimates.</p>
           </div>
         </div>}</div>
 
       <aside className="overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-label="ZIP market spotlights">
-        <div className="border-b border-slate-100 px-5 py-4"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Local direction to watch</p><h3 className="mt-1 text-lg font-semibold text-[var(--report-primary)]">Complete local reads</h3><p className="mt-1 text-xs leading-5 text-slate-500">Only ZIPs with a consistent trajectory and complete city and MSA context appear here.</p></div>
+        <div className="border-b border-slate-100 px-5 py-4"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">Representative local patterns</p><h3 className="mt-1 text-lg font-semibold text-[var(--report-primary)]">Across the rent range</h3><p className="mt-1 text-xs leading-5 text-slate-500">Examples span lower-, middle-, and higher-rent ZIPs. Extreme one-month composition shifts are not promoted as headlines.</p></div>
         <div className="p-2">{ranked.slice(0, 5).map((point, index) => {
           const active = selected?.zip === point.zip;
           return <button key={point.zip} type="button" onClick={() => setSelectedZip(point.zip)} className={`w-full rounded-xl px-3 py-3 text-left transition ${active ? "bg-slate-100 ring-1 ring-slate-300" : "hover:bg-slate-50"}`}>
@@ -489,9 +467,11 @@ export function MarketIqRentMap({
         })}</div>
         {!ranked.length && <div className="p-5 text-sm leading-6 text-slate-500">No ZIP currently has a complete city comparison and a consistent multi-month path for this product. The map still shows every published ZIP value.</div>}
         {selected && <div className="border-t border-slate-100 bg-slate-50 px-5 py-4"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Selected area</p><p className="mt-1 font-semibold text-slate-800">ZIP {selected.zip} · {money(selected.rent)}</p><p className="mt-1 text-xs text-slate-500">{directionLabel(selected.yearOverYearPct)} · {monthLabel(selected.month)}</p></div>}
-        <div className="border-t border-slate-100 px-5 py-3 text-[11px] leading-5 text-slate-500">All published ZIP values appear on the map. Local spotlights use the stricter completeness test described above.</div>
+        <div className="border-t border-slate-100 px-5 py-3 text-[11px] leading-5 text-slate-500">Every published ZIP value appears on the map. Uncolored areas do not have a published value for this exact product.</div>
       </aside>
     </div>
+
+    <aside className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-slate-700"><strong className="text-navy">Understanding local moves.</strong> A ZIP trend describes the asking-rent mix visible in that local market. A new lease-up, the arrival or disappearance of a property, or a change in bedroom mix can move the market statistic sharply even when rents for an individual apartment have not changed by the same amount.</aside>
 
     {selected && <ZipDrilldown selected={selected} benchmark={benchmark} cityCell={cityCell} activity={activity} nearby={nearby} onSelect={setSelectedZip} marketName={marketName} timeZone={timeZone} />}
   </div>;
