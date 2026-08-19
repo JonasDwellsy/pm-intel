@@ -2,18 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { marketIqProductArea } from "@/lib/market-iq/navigation";
 
 const INTELLIGENCE_ITEMS = [
-  { href: "/market-iq", label: "Home", match: (path: string) => path === "/market-iq" },
-  { href: "/market-iq/briefing", label: "Briefing", match: (path: string) => path.startsWith("/market-iq/briefing") },
-  { href: "/market-iq/market", label: "Market intelligence", match: (path: string) => path.startsWith("/market-iq/market") },
+  { href: "/market-iq", label: "Home", area: "home" },
+  { href: "/market-iq/market", label: "Market intelligence", area: "market-intelligence" },
 ] as const;
 
 const ADVISORY_ITEMS = [
-  { href: "/market-iq/editions", label: "Client reports", match: (path: string) => path.startsWith("/market-iq/editions") || path.startsWith("/market-iq/review") || path.startsWith("/market-iq/report") || path.startsWith("/market-iq/published") },
-  { href: "/market-iq/distribution", label: "Recipients", match: (path: string) => path === "/market-iq/distribution" },
-  { href: "/market-iq/sharing", label: "Sharing", match: (path: string) => path.startsWith("/market-iq/sharing") || path.startsWith("/market-iq/distribution/") || path.startsWith("/market-iq/delivery/") },
-  { href: "/market-iq/performance", label: "Performance", match: (path: string) => path.startsWith("/market-iq/performance") },
+  { href: "/market-iq/editions", label: "Client reporting", area: "client-reporting" },
 ] as const;
 
 const PUBLIC_ITEMS = [
@@ -25,17 +22,18 @@ const PUBLIC_ITEMS = [
 
 export function MarketIqAppNavigation({ signedIn, hasProduct, clientAdvisoryEnabled }: { signedIn: boolean; hasProduct: boolean; clientAdvisoryEnabled: boolean }) {
   const pathname = usePathname() ?? "";
+  const currentArea = marketIqProductArea(pathname);
   const items = signedIn && hasProduct
     ? [...INTELLIGENCE_ITEMS, ...(clientAdvisoryEnabled ? ADVISORY_ITEMS : [])]
     : signedIn
-      ? [{ href: "/market-iq/subscribe", label: "Plans", match: (path: string) => path.startsWith("/market-iq/subscribe") }]
-    : PUBLIC_ITEMS.map((item) => ({ ...item, match: () => false }));
+      ? [{ href: "/market-iq/subscribe", label: "Plans", area: null }]
+    : PUBLIC_ITEMS.map((item) => ({ ...item, area: null }));
 
   return (
     <>
       <nav aria-label="Market IQ" className="hidden items-center gap-1 lg:flex">
         {items.map((item) => {
-          const active = item.match(pathname);
+          const active = item.area ? currentArea === item.area : pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
@@ -60,7 +58,7 @@ export function MarketIqAppNavigation({ signedIn, hasProduct, clientAdvisoryEnab
         </summary>
         <nav aria-label="Market IQ mobile" className="absolute right-0 top-12 z-50 w-64 rounded-xl border border-grid bg-white p-2 shadow-xl">
           {items.map((item) => {
-            const active = item.match(pathname);
+            const active = item.area ? currentArea === item.area : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}

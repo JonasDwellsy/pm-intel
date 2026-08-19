@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { MarketIqAppFooter } from "@/components/market-iq/MarketIqAppFooter";
 import { MarketIqAppHeader } from "@/components/market-iq/MarketIqAppHeader";
+import { MarketIqSectionNavigation } from "@/components/market-iq/MarketIqSectionNavigation";
 import { MarketIqTrafficBeacon } from "@/components/market-iq/internal/MarketIqTrafficBeacon";
 
 export const metadata: Metadata = {
@@ -14,6 +15,7 @@ export default function MarketIqLayout({ children }: { children: React.ReactNode
     <div className="flex min-h-screen flex-col bg-[#f7f7f4] text-foreground">
       <MarketIqTrafficBeacon />
       <MarketIqAppHeader />
+      <MarketIqSectionNavigation />
       <div className="flex-1">{children}</div>
       <MarketIqAppFooter />
     </div>
