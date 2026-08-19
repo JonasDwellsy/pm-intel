@@ -9,12 +9,14 @@ describe("Market IQ navigation", () => {
 
   it("groups the reporting workflow under Client reporting", () => {
     expect(marketIqProductArea("/market-iq/editions")).toBe("client-reporting");
+    expect(marketIqProductArea("/market-iq/client-reporting")).toBe("client-reporting");
     expect(marketIqProductArea("/market-iq/distribution")).toBe("client-reporting");
     expect(marketIqProductArea("/market-iq/sharing")).toBe("client-reporting");
     expect(marketIqProductArea("/market-iq/performance")).toBe("client-reporting");
   });
 
-  it("distinguishes the four Client reporting work areas", () => {
+  it("distinguishes the five Client reporting work areas", () => {
+    expect(marketIqClientReportingTab("/market-iq/client-reporting")).toBe("overview");
     expect(marketIqClientReportingTab("/market-iq/editions")).toBe("reports");
     expect(marketIqClientReportingTab("/market-iq/distribution")).toBe("recipients");
     expect(marketIqClientReportingTab("/market-iq/distribution/campaign-1")).toBe("delivery");

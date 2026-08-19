@@ -2,7 +2,7 @@ import "server-only";
 import type { MarketEntitlement } from "@/lib/auth/market-entitlements";
 import { listEntitledMarketIqMarkets } from "@/data/market-iq/markets";
 import { rankMarketIqHomeMarkets } from "@/lib/market-iq/home-summary";
-import { buildMarketIqComposerPreview, defaultMarketIqReportBrand } from "@/lib/market-iq/report/composer.server";
+import { loadMarketIqMarketSummaries } from "@/lib/market-iq/market-summary.server";
 import { buildMarketIqWeeklyBriefing, parseMarketIqEditionComparison } from "@/lib/market-iq/weekly-briefing";
 import { prisma } from "@/lib/prisma";
 
@@ -32,16 +32,7 @@ export async function loadMarketIqWeeklyBriefing(input: {
   });
   if (!workspace) return null;
 
-  const brand = workspace.brandProfile ?? defaultMarketIqReportBrand(workspace.name);
-  const snapshots = await Promise.all(entitledMarkets.map(async (market) => {
-    try {
-      const preview = await buildMarketIqComposerPreview(market.id, brand);
-      return { marketId: market.id, snapshot: preview.snapshot, source: preview.source as "dwellsy_trends" | "verified_seed" };
-    } catch {
-      return { marketId: market.id, snapshot: null, source: "unavailable" as const };
-    }
-  }));
-  const snapshotByMarket = new Map(snapshots.map((item) => [item.marketId, item]));
+  const summaryByMarket = await loadMarketIqMarketSummaries(entitledMarkets.map((market) => market.id));
   const draftByMarket = new Map(workspace.marketIqEditionDrafts.map((draft) => [draft.marketId, draft]));
   const preferenceByMarket = new Map(workspace.marketIqMarketPreferences.map((preference) => [preference.marketId, preference]));
   const latestReportByMarket = new Map<string, Date>();
@@ -50,12 +41,12 @@ export async function loadMarketIqWeeklyBriefing(input: {
   }
 
   const summaries = rankMarketIqHomeMarkets(entitledMarkets.map((market) => {
-    const source = snapshotByMarket.get(market.id);
+    const marketSummary = summaryByMarket.get(market.id) ?? null;
     const preference = preferenceByMarket.get(market.id);
     return {
       market,
-      snapshot: source?.snapshot ?? null,
-      source: source?.source ?? "unavailable",
+      marketSummary,
+      source: marketSummary ? "dwellsy_trends" : "unavailable",
       configured: Boolean(preference?.configuredAt),
       recurringEnabled: Boolean(preference?.recurringEditionsEnabled),
       draft: draftByMarket.get(market.id) ?? null,

@@ -7,6 +7,7 @@ import {
   parseMarketIqReportSnapshot,
   type MarketIqReportSnapshot,
 } from "@/lib/market-iq/report/report";
+import { storeMarketIqMarketSummary } from "@/lib/market-iq/market-summary.server";
 
 function sourceAvailableThrough(snapshot: MarketIqReportSnapshot): Date {
   const trendsSource = snapshot.sources.find((source) => source.name === "Dwellsy IQ Trends");
@@ -30,7 +31,7 @@ export async function loadLatestMarketIqReportSourceSnapshot(
 export async function storeMarketIqReportSourceSnapshot(snapshot: MarketIqReportSnapshot) {
   const serialized = JSON.stringify(snapshot);
   const checksum = createHash("sha256").update(serialized).digest("hex");
-  return marketIqPrisma.marketIqReportSourceSnapshot.upsert({
+  const stored = await marketIqPrisma.marketIqReportSourceSnapshot.upsert({
     where: { marketId_checksum: { marketId: snapshot.scope.marketId, checksum } },
     create: {
       marketId: snapshot.scope.marketId,
@@ -49,4 +50,6 @@ export async function storeMarketIqReportSourceSnapshot(snapshot: MarketIqReport
       checksum: true,
     },
   });
+  await storeMarketIqMarketSummary(snapshot);
+  return stored;
 }

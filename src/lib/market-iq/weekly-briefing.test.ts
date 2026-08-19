@@ -13,7 +13,7 @@ import {
 function summary(index: number, overrides: Partial<MarketIqHomeMarketSummary> = {}): MarketIqHomeMarketSummary {
   return {
     market: MARKET_IQ_MARKETS[index]!,
-    snapshot: null,
+    marketSummary: null,
     source: "dwellsy_trends",
     configured: true,
     recurringEnabled: true,

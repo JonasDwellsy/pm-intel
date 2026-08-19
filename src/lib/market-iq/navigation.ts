@@ -1,6 +1,7 @@
 export type MarketIqProductArea = "home" | "market-intelligence" | "client-reporting" | null;
 
 const CLIENT_REPORTING_PREFIXES = [
+  "/market-iq/client-reporting",
   "/market-iq/editions",
   "/market-iq/review",
   "/market-iq/report",
@@ -23,6 +24,7 @@ export function marketIqProductArea(pathname: string): MarketIqProductArea {
 }
 
 export function marketIqClientReportingTab(pathname: string) {
+  if (pathname.startsWith("/market-iq/client-reporting")) return "overview";
   if (pathname.startsWith("/market-iq/distribution") && pathname !== "/market-iq/distribution") return "delivery";
   if (pathname === "/market-iq/distribution") return "recipients";
   if (pathname.startsWith("/market-iq/sharing") || pathname.startsWith("/market-iq/delivery")) return "delivery";

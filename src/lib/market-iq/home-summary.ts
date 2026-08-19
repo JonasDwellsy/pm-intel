@@ -1,9 +1,9 @@
 import type { MarketIqMarketDefinition } from "@/data/market-iq/markets";
-import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
+import type { MarketIqPersistedMarketSummary } from "@/lib/market-iq/market-summary.server";
 
 export type MarketIqHomeMarketInput = {
   market: MarketIqMarketDefinition;
-  snapshot: MarketIqReportSnapshot | null;
+  marketSummary: MarketIqPersistedMarketSummary | null;
   source: "dwellsy_trends" | "verified_seed" | "unavailable";
   configured: boolean;
   recurringEnabled: boolean;
@@ -12,26 +12,11 @@ export type MarketIqHomeMarketInput = {
   clientAdvisoryEnabled: boolean;
 };
 
-function msaCell(snapshot: MarketIqReportSnapshot | null, propertyType: "apartment" | "house", bedrooms: number) {
-  return snapshot?.marketRead.cells.find((cell) =>
-    cell.geographyType === "msa"
-    && cell.propertyType === propertyType
-    && cell.bedrooms === bedrooms
-    && cell.status === "reportable",
-  ) ?? null;
-}
-
-function notableLocalCell(snapshot: MarketIqReportSnapshot | null) {
-  return snapshot?.marketRead.cells
-    .filter((cell) => cell.geographyType !== "msa" && cell.status === "reportable" && cell.yearOverYearPct !== null)
-    .sort((a, b) => Math.abs(b.yearOverYearPct ?? 0) - Math.abs(a.yearOverYearPct ?? 0))[0] ?? null;
-}
-
 export function buildMarketIqHomeMarketSummary(input: MarketIqHomeMarketInput) {
-  const apartment = msaCell(input.snapshot, "apartment", 1);
-  const house = msaCell(input.snapshot, "house", 3);
-  const notable = notableLocalCell(input.snapshot);
-  const latestMonth = input.snapshot?.scope.periodEnd ?? null;
+  const apartment = input.marketSummary?.apartment1 ?? null;
+  const house = input.marketSummary?.house3 ?? null;
+  const notable = input.marketSummary?.notable ?? null;
+  const latestMonth = input.marketSummary?.sourceAvailableThrough ?? null;
 
   if (input.draft) {
     return {
@@ -63,7 +48,7 @@ export function buildMarketIqHomeMarketSummary(input: MarketIqHomeMarketInput) {
     };
   }
 
-  if (!input.snapshot || input.source !== "dwellsy_trends") {
+  if (!input.marketSummary || input.source !== "dwellsy_trends") {
     return {
       ...input,
       apartment: null,

@@ -10,6 +10,7 @@ const MARKET_INTELLIGENCE_ITEMS = [
 ] as const;
 
 const CLIENT_REPORTING_ITEMS = [
+  { id: "overview", href: "/market-iq/client-reporting", label: "Overview" },
   { id: "reports", href: "/market-iq/editions", label: "Reports" },
   { id: "recipients", href: "/market-iq/distribution", label: "Recipients" },
   { id: "delivery", href: "/market-iq/sharing", label: "Delivery" },

@@ -10,7 +10,7 @@ const INTELLIGENCE_ITEMS = [
 ] as const;
 
 const ADVISORY_ITEMS = [
-  { href: "/market-iq/editions", label: "Client reporting", area: "client-reporting" },
+  { href: "/market-iq/client-reporting", label: "Client reporting", area: "client-reporting" },
 ] as const;
 
 const PUBLIC_ITEMS = [
