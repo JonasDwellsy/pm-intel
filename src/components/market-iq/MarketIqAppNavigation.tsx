@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { marketIqProductArea } from "@/lib/market-iq/navigation";
+import { MARKET_IQ_CANONICAL_ROUTES, marketIqProductArea } from "@/lib/market-iq/navigation";
 
 const INTELLIGENCE_ITEMS = [
-  { href: "/market-iq", label: "Home", area: "home" },
-  { href: "/market-iq/market", label: "Market intelligence", area: "market-intelligence" },
+  { href: MARKET_IQ_CANONICAL_ROUTES.home, label: "Home", area: "home" },
+  { href: MARKET_IQ_CANONICAL_ROUTES.marketIntelligence, label: "Market intelligence", area: "market-intelligence" },
 ] as const;
 
 const ADVISORY_ITEMS = [
-  { href: "/market-iq/client-reporting", label: "Client reporting", area: "client-reporting" },
+  { href: MARKET_IQ_CANONICAL_ROUTES.clientReporting, label: "Client reporting", area: "client-reporting" },
 ] as const;
 
 const PUBLIC_ITEMS = [

@@ -1,5 +1,25 @@
 export type MarketIqProductArea = "home" | "market-intelligence" | "client-reporting" | null;
 
+export const MARKET_IQ_CANONICAL_ROUTES = {
+  home: "/market-iq",
+  marketIntelligence: "/market-iq/market",
+  clientReporting: "/market-iq/client-reporting",
+  account: "/market-iq/account",
+} as const;
+
+export const MARKET_IQ_MARKET_INTELLIGENCE_ROUTES = {
+  overview: MARKET_IQ_CANONICAL_ROUTES.marketIntelligence,
+  briefing: "/market-iq/briefing",
+} as const;
+
+export const MARKET_IQ_CLIENT_REPORTING_ROUTES = {
+  overview: MARKET_IQ_CANONICAL_ROUTES.clientReporting,
+  reports: "/market-iq/editions",
+  recipients: "/market-iq/distribution",
+  delivery: "/market-iq/sharing",
+  performance: "/market-iq/performance",
+} as const;
+
 const CLIENT_REPORTING_PREFIXES = [
   "/market-iq/client-reporting",
   "/market-iq/editions",
@@ -13,7 +33,7 @@ const CLIENT_REPORTING_PREFIXES = [
 ] as const;
 
 export function marketIqProductArea(pathname: string): MarketIqProductArea {
-  if (pathname === "/market-iq") return "home";
+  if (pathname === MARKET_IQ_CANONICAL_ROUTES.home) return "home";
   if (pathname.startsWith("/market-iq/market") || pathname.startsWith("/market-iq/briefing")) {
     return "market-intelligence";
   }
