@@ -46,6 +46,14 @@ test("the runtime route requires an admin and forces the live authoritative sour
   assert.match(route, /storeMarketIqReportSourceSnapshot\(snapshot\)/);
   assert.match(route, /status: "blocked"/);
   assert.doesNotMatch(route, /error\.message/);
+
+  const readiness = readFileSync(
+    "src/app/market-iq/internal/readiness/page.tsx",
+    "utf8",
+  );
+  assert.match(readiness, /action="\/api\/market-iq\/source\/trends\/refresh"/);
+  assert.match(readiness, /method="post"/);
+  assert.match(readiness, /Refresh Cleveland from Trends/);
 });
 
 test("the Cleveland builder bypasses imported observations only when live-only is requested", () => {
