@@ -7,6 +7,7 @@ import {
   SEED_CONTENT_VERSION,
   type SeedFailurePoint,
 } from "../../prisma/seed";
+import { LEGACY_OWNER_ID } from "../../src/lib/watch-list/store";
 
 const databaseUrl = process.env.SEED_TEST_DATABASE_URL;
 const seedData = JSON.parse(
@@ -22,7 +23,16 @@ async function captureState(client: PrismaClient) {
   const pmSlug = seedData.pms[0].slug;
   const canonicalSlug = Object.keys(seedData.canonicalOperators)[0];
 
-  const [counts, market, pm, canonical, brief, starterList, fingerprint] =
+  const [
+    counts,
+    market,
+    pm,
+    canonical,
+    brief,
+    customerStarterList,
+    legacyStarterList,
+    fingerprint,
+  ] =
     await Promise.all([
       Promise.all([
         client.market.count(),
@@ -52,17 +62,30 @@ async function captureState(client: PrismaClient) {
         where: { ownerId: "rollback-sentinel-owner" },
         select: { name: true, ownerId: true },
       }),
+      client.watchList.findFirst({
+        where: { ownerId: LEGACY_OWNER_ID },
+        select: { name: true, ownerId: true },
+      }),
       client.appSetting.findUnique({
         where: { key: "seed_content_version" },
         select: { value: true },
       }),
     ]);
 
-  return { counts, market, pm, canonical, brief, starterList, fingerprint };
+  return {
+    counts,
+    market,
+    pm,
+    canonical,
+    brief,
+    customerStarterList,
+    legacyStarterList,
+    fingerprint,
+  };
 }
 
 test(
-  "an interrupted production-shaped replacement rolls back counts and content",
+  "seed replacement is atomic and deletes only legacy starter watch lists",
   { skip: databaseUrl ? false : "SEED_TEST_DATABASE_URL is not configured" },
   async () => {
     assert.ok(databaseUrl);
@@ -114,6 +137,12 @@ test(
           ownerId: "rollback-sentinel-owner",
         },
       });
+      await client.watchList.create({
+        data: {
+          name: "Evernest-Style SFR Density Build-Out",
+          ownerId: LEGACY_OWNER_ID,
+        },
+      });
       await client.appSetting.update({
         where: { key: "seed_content_version" },
         data: { value: "rollback-sentinel-fingerprint" },
@@ -159,6 +188,12 @@ test(
       assert.equal(
         await client.watchList.count({
           where: { ownerId: "rollback-sentinel-owner" },
+        }),
+        1
+      );
+      assert.equal(
+        await client.watchList.count({
+          where: { ownerId: LEGACY_OWNER_ID },
         }),
         0
       );
