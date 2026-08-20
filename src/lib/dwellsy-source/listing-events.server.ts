@@ -2,11 +2,21 @@ import "server-only";
 
 import { CLEVELAND_MSA_CODE } from "@/lib/dwellsy-source/active-listings.server";
 import { withDwellsyReadOnly } from "@/lib/dwellsy-source/db.server";
-import type { MarketIqListingEvent, MarketIqMarketActivity, MarketIqPropertyType } from "@/lib/market-iq/report/report";
+import {
+  buildDwellsyPropertyUrl,
+  formatMarketIqListingAddress,
+  type MarketIqListingEvent,
+  type MarketIqMarketActivity,
+  type MarketIqPropertyType,
+} from "@/lib/market-iq/report/report";
 
 type EventRow = {
   event_id: string;
   event_type: "new_listing" | "price_change";
+  property_id: string | number;
+  address_1: string | null;
+  address_2: string | null;
+  address_3: string | null;
   city: string | null;
   postal_code: string | null;
   property_type: "Apartment" | "House";
@@ -14,7 +24,6 @@ type EventRow = {
   asking_rent: string | number;
   previous_rent: string | number | null;
   observed_at: Date | string;
-  listing_id: string | number;
   media: unknown;
 };
 
@@ -47,6 +56,10 @@ const ACTIVITY_SQL = `
   new_events AS (
     SELECT CONCAT('new:', listing.listing_id::text) AS event_id,
            'new_listing'::text AS event_type,
+           listing.property_id,
+           listing.address_1,
+           listing.address_2,
+           listing.address_3,
            listing.address_city AS city,
            listing.address_zip AS postal_code,
            listing.property_category AS property_type,
@@ -54,7 +67,6 @@ const ACTIVITY_SQL = `
            listing.listing_amount AS asking_rent,
            NULL::numeric AS previous_rent,
            listing.listing_create_time AS observed_at,
-           listing.listing_id,
            listing.media
     FROM dwellsy_prod.active_listing_table listing
     WHERE listing.msa_code = $1::bigint
@@ -71,6 +83,10 @@ const ACTIVITY_SQL = `
   price_events AS (
     SELECT CONCAT('price:', price.id::text) AS event_id,
            'price_change'::text AS event_type,
+           listing.property_id,
+           listing.address_1,
+           listing.address_2,
+           listing.address_3,
            listing.address_city AS city,
            listing.address_zip AS postal_code,
            listing.property_category AS property_type,
@@ -78,7 +94,6 @@ const ACTIVITY_SQL = `
            price.listing_amount AS asking_rent,
            price.previous_amount AS previous_rent,
            price.created_at AS observed_at,
-           listing.listing_id,
            listing.media
     FROM recent_price_logs price
     JOIN dwellsy_prod.active_listing_table listing ON listing.listing_id = price.listing_id
@@ -161,11 +176,13 @@ function event(row: EventRow): MarketIqListingEvent | null {
   const askingRent = Number(row.asking_rent);
   const bedrooms = Number(row.bedrooms);
   if (!Number.isFinite(askingRent) || !Number.isFinite(bedrooms)) return null;
-  const listingId = String(row.listing_id);
-  if (!/^\d+$/.test(listingId)) return null;
+  const address = formatMarketIqListingAddress([row.address_1, row.address_2, row.address_3]);
+  const listingUrl = buildDwellsyPropertyUrl(row.property_id);
+  if (!address || !listingUrl) return null;
   return {
     id: row.event_id,
     eventType: row.event_type,
+    address,
     city: row.city,
     zip: row.postal_code,
     propertyType: row.property_type.toLowerCase() as MarketIqPropertyType,
@@ -174,7 +191,7 @@ function event(row: EventRow): MarketIqListingEvent | null {
     previousRent: row.previous_rent === null ? null : Number(row.previous_rent),
     observedAt: new Date(row.observed_at).toISOString(),
     imageUrl: primaryImageUrl(row.media),
-    listingUrl: `https://dwellsy.com/details/${listingId}`,
+    listingUrl,
   };
 }
 

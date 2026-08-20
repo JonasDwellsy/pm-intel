@@ -14,6 +14,8 @@ import {
   buildMarketIqReportSnapshot,
   isPublicMarketIqReportStatus,
   parseMarketIqReportSnapshot,
+  trendHistoryQueryStart,
+  trendHistoryWindowStart,
   type MarketIqReportSnapshot,
   type MarketIqTrendSeries,
 } from "@/lib/market-iq/report/report";
@@ -64,15 +66,15 @@ function safeSourceError(error: unknown) {
   };
 }
 
-async function loadLiveTrendSource() {
+async function loadLiveTrendSource(periodStart: string) {
   const [detail, rollups] = await Promise.all([
     loadDwellsyTrendSeries({
       cities: REPORT_CITIES,
       zipCodes: REPORT_ZIPS,
-      periodStart: "2025-04-01",
+      periodStart,
       bedrooms: REPORT_BEDROOMS,
     }),
-    loadDwellsyProductRollupSeries({ zipCodes: REPORT_ZIPS, periodStart: "2025-04-01" }),
+    loadDwellsyProductRollupSeries({ zipCodes: REPORT_ZIPS, periodStart }),
   ]);
   return {
     result: { series: [...rollups.series, ...detail.series] },
@@ -184,6 +186,8 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
   brand?: MarketIqReportSnapshot["brand"];
   sourceMode?: "prefer_imported" | "live_only";
 }) {
+  const generatedAt = input?.generatedAt ?? new Date();
+  const trendQueryStart = trendHistoryQueryStart(generatedAt);
   const liveDwellsyRuntimeEnabled = dwellsySourceConfigured() && (
     process.env.DWELLSY_LIVE_RUNTIME_ENABLED === "1"
     || process.env.VERCEL_ENV === "preview"
@@ -219,7 +223,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
       if (!liveDwellsyRuntimeEnabled) {
         throw new Error("The authoritative Dwellsy Trends source is not configured.");
       }
-      return loadLiveTrendSource();
+      return loadLiveTrendSource(trendQueryStart);
     }).catch((error) => {
       console.error("[Market IQ] Read-only Trends source unavailable", safeSourceError(error));
       throw error;
@@ -237,11 +241,12 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
   const latestTrendMonth = reportablePoints.map((point) => point.month).sort().at(-1);
   if (!latestTrendMonth) throw new Error("Dwellsy Trends returned no Cleveland observations.");
   const trendAvailableThrough = monthEnd(latestTrendMonth);
+  const trendWindowStart = trendHistoryWindowStart(latestTrendMonth);
   const historicalPulse = context?.historicalPulse;
   const activityAvailableThrough = marketActivity?.asOf.slice(0, 10);
 
   return buildMarketIqReportSnapshot({
-    generatedAt: input?.generatedAt ?? new Date(),
+    generatedAt,
     brand: input?.brand ?? {
       displayName: "Market IQ",
       logoUrl: null,
@@ -258,7 +263,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
       cities: reportCities.length ? reportCities : REPORT_CITIES,
       zipCodes: REPORT_ZIPS,
       segments: ["All apartments", "All houses", "Apartments by bedroom", "Houses by bedroom"],
-      periodStart: "2025-04-01",
+      periodStart: trendWindowStart,
       periodEnd: trendAvailableThrough,
       seededExample: false,
     },
@@ -303,7 +308,7 @@ export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
   // Bump this key whenever the source adapter or reportability rules change.
   // The callback itself is intentionally small, so relying on its function
   // string would otherwise preserve an obsolete cross-deployment snapshot.
-  ["market-iq-cleveland-live-snapshot-v10"],
+  ["market-iq-cleveland-live-snapshot-v11"],
   { revalidate: 900 },
 );
 

@@ -11,6 +11,7 @@ const activity: MarketIqMarketActivity = {
   events: [{
     id: "new:123",
     eventType: "new_listing",
+    address: "100 Main St, Apt 4",
     city: "Columbus",
     zip: "43215",
     propertyType: "apartment",
@@ -19,7 +20,7 @@ const activity: MarketIqMarketActivity = {
     previousRent: null,
     observedAt: "2026-08-18T21:30:00.000Z",
     imageUrl: "https://media.example.com/listing.webp",
-    listingUrl: "https://dwellsy.com/details/123",
+    listingUrl: "https://dwellsy.com/details/456",
   }],
 };
 
@@ -29,7 +30,8 @@ describe("MarketIqActivityTicker", () => {
 
     expect(container.querySelector('img[src="https://media.example.com/listing.webp"]')).not.toBeNull();
     const links = screen.getAllByRole("link", { name: /view 1-bed apartment listing in columbus on dwellsy/i });
-    expect(links[0].getAttribute("href")).toBe("https://dwellsy.com/details/123");
+    expect(screen.getAllByText("100 Main St, Apt 4")).toHaveLength(2);
+    expect(links[0].getAttribute("href")).toBe("https://dwellsy.com/details/456");
     expect(links[0].getAttribute("target")).toBe("_blank");
   });
 });

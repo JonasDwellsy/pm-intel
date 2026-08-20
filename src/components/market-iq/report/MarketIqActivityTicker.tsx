@@ -19,11 +19,11 @@ function time(value: string) {
 
 function ActivityItem({ event, duplicate = false }: { event: MarketIqListingEvent; duplicate?: boolean }) {
   const priceChanged = event.eventType === "price_change" && event.previousRent !== null;
-  const content = <article className="flex w-[350px] shrink-0 items-center gap-3 border-r border-slate-200 px-4 py-3.5">
+  const content = <article className="flex min-h-28 w-[390px] shrink-0 items-center gap-3 border-r border-slate-200 px-4 py-3.5">
     {event.imageUrl
       ? <img src={event.imageUrl} alt="" className="h-16 w-20 shrink-0 rounded-lg bg-slate-100 object-cover" loading="lazy" referrerPolicy="no-referrer" />
       : <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-lg text-sm font-bold ${priceChanged ? "bg-amber-100 text-amber-800" : "bg-teal-100 text-teal-800"}`}>{priceChanged ? "$" : "+"}</span>}
-    <div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3"><p className="truncate text-sm font-semibold text-slate-800">{event.city} · {event.zip}</p><time className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">{time(event.observedAt)} ET</time></div><p className="mt-1 text-xs text-slate-500">{priceChanged ? "Asking rent changed" : "New listing"} · {product(event)}</p><div className="mt-0.5 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-[var(--report-primary)]">{priceChanged && <span className="mr-1 font-normal text-slate-400 line-through">{money(event.previousRent ?? 0)}</span>}{money(event.askingRent)}</p>{event.listingUrl && <span className="shrink-0 text-[10px] font-semibold text-teal-700">View on Dwellsy ↗</span>}</div></div>
+    <div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3"><p className="truncate text-sm font-semibold text-slate-800">{event.city} · {event.zip}</p><time className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">{time(event.observedAt)} ET</time></div><p className="mt-1 min-h-8 text-xs leading-4 text-slate-600">{event.address ?? "Address unavailable"}</p><p className="text-xs text-slate-500">{priceChanged ? "Asking rent changed" : "New listing"} · {product(event)}</p><div className="mt-0.5 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-[var(--report-primary)]">{priceChanged && <span className="mr-1 font-normal text-slate-400 line-through">{money(event.previousRent ?? 0)}</span>}{money(event.askingRent)}</p>{event.listingUrl && <span className="shrink-0 text-[10px] font-semibold text-teal-700">View on Dwellsy ↗</span>}</div></div>
   </article>;
   if (!event.listingUrl) return content;
   return <a href={event.listingUrl} target="_blank" rel="noreferrer" tabIndex={duplicate ? -1 : undefined} className="block outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-600" aria-label={`View ${product(event)} listing in ${event.city} on Dwellsy`}>{content}</a>;
@@ -40,6 +40,6 @@ export function MarketIqActivityTicker({ activity, marketName = "the market" }: 
         <div className="flex" aria-hidden="true">{events.map((event) => <ActivityItem key={`copy:${event.id}`} event={event} duplicate />)}</div>
       </div>
     </div>
-    <p className="border-t border-slate-100 bg-slate-50 px-5 py-2 text-[10px] leading-4 text-slate-400">Observed listing events only. Addresses are withheld from this market-level read. Source current through {new Date(activity.asOf).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })} ET.</p>
+    <p className="border-t border-slate-100 bg-slate-50 px-5 py-2 text-[10px] leading-4 text-slate-400">Observed listing events only. Each address and link identifies the source property shown. Source current through {new Date(activity.asOf).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })} ET.</p>
   </section>;
 }
