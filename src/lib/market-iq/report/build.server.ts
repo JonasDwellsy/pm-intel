@@ -294,11 +294,22 @@ export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
   { revalidate: 900 },
 );
 
-export async function loadPublicMarketIqReport(publicToken: string): Promise<MarketIqReportSnapshot | null> {
+export type PublicMarketIqReportState =
+  | { state: "available"; report: MarketIqReportSnapshot }
+  | { state: "unavailable" }
+  | { state: "not_found" };
+
+export async function loadPublicMarketIqReportState(publicToken: string): Promise<PublicMarketIqReportState> {
   const stored = await prisma.marketIqReport.findUnique({
     where: { publicToken },
     select: { status: true, snapshot: true },
   }).catch(() => null);
-  if (stored && isPublicMarketIqReportStatus(stored.status)) return parseMarketIqReportSnapshot(stored.snapshot);
-  return null;
+  if (!stored || !isPublicMarketIqReportStatus(stored.status)) return { state: "not_found" };
+  const report = parseMarketIqReportSnapshot(stored.snapshot);
+  return report ? { state: "available", report } : { state: "unavailable" };
+}
+
+export async function loadPublicMarketIqReport(publicToken: string): Promise<MarketIqReportSnapshot | null> {
+  const result = await loadPublicMarketIqReportState(publicToken);
+  return result.state === "available" ? result.report : null;
 }

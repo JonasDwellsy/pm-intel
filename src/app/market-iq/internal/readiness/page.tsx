@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { CLEVELAND_MARKET_ID } from "@/data/market-iq/markets";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { loadCachedClevelandMarketIqReportSnapshot } from "@/lib/market-iq/report/build.server";
+import { loadMarketIqRecordedSourceReadiness } from "@/lib/market-iq/source-readiness.server";
+import type { MarketIqRecordedSourceReadiness } from "@/lib/market-iq/source-readiness";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -28,15 +30,33 @@ function dateTime(value: Date | string | null | undefined) {
   return value ? new Date(value).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" }) : "None recorded";
 }
 
-async function sourceCheck() {
-  try {
-    const snapshot = await loadCachedClevelandMarketIqReportSnapshot();
-    const reportable = snapshot.marketRead.cells.filter((cell) => cell.status === "reportable").length;
-    const trends = snapshot.sources.find((source) => source.name === "Dwellsy IQ Trends");
-    return { ok: !snapshot.scope.seededExample && Boolean(trends), source: "dwellsy_trends", through: trends?.availableThrough ?? snapshot.scope.periodEnd, reportable };
-  } catch (error) {
-    return { ok: false, source: "unavailable", through: null, reportable: 0, error: error instanceof Error ? error.message : String(error) };
+function sourceReadinessCheck(source: MarketIqRecordedSourceReadiness): Check {
+  if (source.state === "saved_report_available") {
+    return {
+      label: "Authoritative Trends",
+      status: "ready",
+      detail: `Verified saved evidence through ${dateTime(source.sourceAvailableThrough)}; recorded ${dateTime(source.generatedAt)}.`,
+    };
   }
+  if (source.state === "source_not_configured") {
+    return { label: "Authoritative Trends", status: "blocked", detail: "The read-only Trends source is not configured. No live connection was attempted by this page." };
+  }
+  if (source.state === "source_unreachable") {
+    return {
+      label: "Authoritative Trends",
+      status: "blocked",
+      detail: source.lastAttempt
+        ? `The latest recorded source attempt did not complete. Status ${source.lastAttempt.status}; attempted ${dateTime(source.lastAttempt.completedAt ?? source.lastAttempt.startedAt)}.`
+        : "Recorded Market IQ source evidence is unreachable. No live source connection was attempted by this page.",
+    };
+  }
+  return {
+    label: "Authoritative Trends",
+    status: "blocked",
+    detail: source.lastAttempt
+      ? `No verified saved report is available. Latest recorded source status ${source.lastAttempt.status} at ${dateTime(source.lastAttempt.completedAt ?? source.lastAttempt.startedAt)}.`
+      : "No verified saved report or source attempt is recorded.",
+  };
 }
 
 export default async function MarketIqInternalReadinessPage() {
@@ -63,7 +83,7 @@ export default async function MarketIqInternalReadinessPage() {
         marketIqReportSends: { orderBy: { createdAt: "desc" }, take: 1, select: { deliveryStatus: true, sentAt: true, deliveredAt: true, deliveryError: true } },
       },
     }),
-    sourceCheck(),
+    loadMarketIqRecordedSourceReadiness(CLEVELAND_MARKET_ID),
     prisma.marketIqEditionOrchestrationRun.findFirst({ orderBy: { startedAt: "desc" }, select: { status: true, dryRun: true, startedAt: true, completedAt: true, sourceAvailableThrough: true, error: true } }),
     prisma.marketIqBillingEvent.count({ where: { status: "failed" } }),
   ]);
@@ -82,7 +102,7 @@ export default async function MarketIqInternalReadinessPage() {
   const infrastructure: Check[] = [
     { label: "Isolated preview", status: process.env.VERCEL_ENV === "preview" && process.env.MARKET_IQ_PREVIEW_ENABLED === "1" ? "ready" : "blocked", detail: `VERCEL_ENV=${process.env.VERCEL_ENV ?? "unset"}; Market IQ preview flag ${configured("MARKET_IQ_PREVIEW_ENABLED") ? "present" : "missing"}.` },
     { label: "Market IQ database", status: configured("DATABASE_URL") && configured("DATABASE_URL_UNPOOLED") ? "ready" : "blocked", detail: "Application and migration database connections are checked by presence only. Secret values are never displayed." },
-    { label: "Authoritative Trends", status: source.ok ? "ready" : "blocked", detail: source.ok ? `${source.reportable} reportable cells through ${source.through}; source ${source.source}.` : `Source ${source.source}; ${source.error ?? "no authoritative snapshot available"}.` },
+    sourceReadinessCheck(source),
     { label: "Mapbox", status: configured("NEXT_PUBLIC_MAPBOX_TOKEN") ? "ready" : "attention", detail: configured("NEXT_PUBLIC_MAPBOX_TOKEN") ? "Public browser map token is configured." : "NEXT_PUBLIC_MAPBOX_TOKEN is missing." },
     { label: "Logo storage", status: configured("MARKET_IQ_BLOB_READ_WRITE_TOKEN") || configured("BLOB_READ_WRITE_TOKEN") ? "ready" : "attention", detail: configured("MARKET_IQ_BLOB_READ_WRITE_TOKEN") || configured("BLOB_READ_WRITE_TOKEN") ? "Vercel Blob storage is connected for firm logo uploads." : "Logo upload is disabled until a preview Blob store is connected. Setup and report publication remain available without a logo." },
     { label: "SendGrid", status: configured("SENDGRID_API_KEY") && configured("DIGEST_FROM_EMAIL") ? "ready" : "blocked", detail: configured("SENDGRID_API_KEY") && configured("DIGEST_FROM_EMAIL") ? "API key and verified sender setting are configured." : "SENDGRID_API_KEY or DIGEST_FROM_EMAIL is missing." },

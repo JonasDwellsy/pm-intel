@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { listEntitledMarketIqMarkets } from "@/data/market-iq/markets";
+import { MarketIqDataUnavailable } from "@/components/market-iq/MarketIqDataUnavailable";
 import { MarketIqMarketSelector } from "@/components/market-iq/MarketIqMarketSelector";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
@@ -52,8 +53,16 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
   if (!activeMarket || !isMarketEntitled(access.entitlement, activeMarket.id)) redirect("/market-iq/subscribe");
   const preference = organizationSetup?.marketIqMarketPreferences.find((item) => item.marketId === activeMarket.id) ?? null;
   const entitledMarkets = listEntitledMarketIqMarkets(access.entitlement);
-  const [composer, recipients, recentReports, recurringDraft, latestOrchestration, organizationHasAccess] = await Promise.all([
-    loadMarketIqReportComposer(organizationId, activeMarket.id),
+  const [composerResult, recipients, recentReports, recurringDraft, latestOrchestration, organizationHasAccess] = await Promise.all([
+    loadMarketIqReportComposer(organizationId, activeMarket.id)
+      .then((composer) => ({ composer, failed: false }))
+      .catch((error) => {
+        console.error("[Market IQ] Client report source unavailable", {
+          marketId: activeMarket.id,
+          name: error instanceof Error ? error.name : "UnknownError",
+        });
+        return { composer: null, failed: true };
+      }),
     prisma.marketIqReportRecipient.findMany({ where: { organizationId }, orderBy: { name: "asc" }, select: { id: true, name: true, email: true, kind: true } }),
     prisma.marketIqReport.findMany({
       where: { organizationId, marketId: activeMarket.id },
@@ -94,6 +103,17 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
     }),
     organizationHasMarketIqAccess(organizationId, activeMarket.id),
   ]);
+  const composer = composerResult.composer;
+  if (composerResult.failed) {
+    return <main className="mx-auto w-full max-w-3xl px-5 py-12 sm:px-6 lg:py-16">
+      <MarketIqDataUnavailable
+        title={`${activeMarket.shortLabel} market data unavailable`}
+        detail="A verified saved Trends IQ report is not available for client-report preparation. Existing published reports and delivery history remain unchanged."
+        primaryAction={{ href: `/market-iq/editions?market=${encodeURIComponent(activeMarket.id)}`, label: "Try again" }}
+        secondaryAction={{ href: `/market-iq/market?market=${encodeURIComponent(activeMarket.id)}`, label: "Return to market intelligence" }}
+      />
+    </main>;
+  }
   if (!composer) notFound();
   const current = applyMarketIqReportScope(composer.preview.snapshot, composer.initialSelection);
   const prior = composer.priorEdition ? { ...composer.priorEdition, snapshot: applyMarketIqReportScope(composer.priorEdition.snapshot, composer.initialSelection) } : null;
@@ -129,7 +149,7 @@ export default async function MarketIqEditionsPage({ searchParams }: { searchPar
     {query.enrollment === "enabled" && <p className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-800">Recurring drafts are on. Market IQ will prepare a private draft when the monthly rent data advances.</p>}
     {query.enrollment === "disabled" && <p className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700">Recurring drafts are paused for this workspace. Existing reports and drafts were preserved.</p>}
     {query.refresh === "same_period" && <p className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700">The reporting month has not changed, so no new draft was created.</p>}
-    {query.refresh === "source_unavailable" && <p className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-900">The latest rent data is temporarily unavailable. No draft was created.</p>}
+    {query.refresh === "source_unavailable" && <p className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-900">The latest rent data is unavailable. No draft was created.</p>}
     <header className="mt-6 grid gap-7 border-b border-grid pb-8 lg:grid-cols-[1fr_360px] lg:items-end"><div><p className="dq-eyebrow">Client reports</p><h1 className="dq-h1">Your published market reads and upcoming work</h1><p className="mt-3 max-w-3xl text-[15px] leading-6 text-slate-600">Open a published client link, continue a distribution draft, or prepare the next {activeMarket.shortLabel} report when new rent data is available.</p><Link href="/market-iq/get-started" className="mt-4 inline-block text-sm font-semibold text-teal-800">Edit brand and report defaults →</Link></div><aside className="rounded-xl bg-navy p-5 text-white"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">Next report</p><p className="mt-2 text-xl font-semibold">{workflow.state === "launch" ? "First report" : workflow.state === "new_period" ? "New data available" : "Current month"}</p><p className="mt-2 text-sm leading-6 text-white/70">Current cutoff: {dateLabel(workflow.currentPeriodEnd)}{workflow.priorPeriodEnd ? ` · Prior cutoff: ${dateLabel(workflow.priorPeriodEnd)}` : ""}</p></aside></header>
 
     <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rent values</p><p className="mt-3 text-3xl font-semibold text-navy">{coverage.counts.reportable}</p><p className="mt-1 text-xs text-slate-500">in your saved market scope</p></article><article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Material changes</p><p className="mt-3 text-3xl font-semibold text-navy">{comparison.findings.length}</p><p className="mt-1 text-xs text-slate-500">since the prior report</p></article><article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Prior recipients</p><p className="mt-3 text-3xl font-semibold text-navy">{priorAudience.length}</p><p className="mt-1 text-xs text-slate-500">available for the next report</p></article><article className="rounded-xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Published reports</p><p className="mt-3 text-3xl font-semibold text-navy">{publishedCount}</p><p className="mt-1 text-xs text-slate-500">in recent report history</p></article></section>
