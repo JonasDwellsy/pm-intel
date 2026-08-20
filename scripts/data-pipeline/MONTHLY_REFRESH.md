@@ -110,13 +110,72 @@ from `scripts/data-pipeline/`.
    `methodologyVersion` v0.7 / `designVersion` v2.0 unchanged, and **`dataAsOf`
    advanced to the new cutoff**.
 
-10. **Commit + open the deploy PR.** On merge, `vercel-build` re-seeds
-    (`SEED_CONTENT_VERSION` changed) and `captureOperatorSnapshots` writes the
-    new month's snapshot. Do NOT run `prisma db seed` locally.
+10. **Commit + open the data-release PR.** Review the generated data diff and
+    wait for CI plus the Vercel preview. `vercel-build` only compiles the app;
+    it does not migrate or seed a database.
 
-11. **Confirm the change surfaces populated:** once ≥2 monthly snapshots exist,
+11. **Apply the approved production data release** using the controlled
+    procedure below. This is the step that runs the seed and writes the new
+    month's operator snapshots.
+
+12. **Confirm the change surfaces populated:** once ≥2 monthly snapshots exist,
     a market brief's "since last period" block and the national brief show real
     month-over-month movement, and the digests have deltas to send.
+
+## Production release boundary
+
+Vercel deployments are build-only. They run `prisma generate` and `next build`
+but never migrate, seed, or export data. This keeps code-only deployments from
+writing to production and makes the shipped artifact reproducible.
+
+### Schema release
+
+Only an authorized operator may apply a migration. Before merging code that
+depends on a new schema, confirm the migration is backward-compatible with the
+currently deployed application, confirm the shell's existing `DATABASE_URL`
+and `DATABASE_URL_UNPOOLED` target the intended Operator IQ production database
+without printing either value, and run this from the repository root:
+
+```bash
+npm run db:migrate:production
+```
+
+Confirm Prisma reports no pending migrations, then merge and verify the normal
+production deployment. A migration that is not backward-compatible needs a
+staged expand-and-contract release and must not use this one-step procedure.
+
+### Monthly data release
+
+The seed prepares replacement rows in memory and commits its deletes, batched
+inserts, snapshot capture, count checks, and fingerprint in one transaction over
+the unpooled connection. Readers continue seeing the prior complete dataset
+until the replacement commits. Treat it as a controlled production operation,
+not a deployment side effect.
+
+1. Merge the reviewed data-release PR and wait for the production deployment
+   to report Ready.
+2. Confirm there is no concurrent deployment or data operation. Create or
+   confirm a recoverable database restore point immediately before the run.
+3. In an authorized shell whose existing `DATABASE_URL` and
+   `DATABASE_URL_UNPOOLED` both target Operator IQ production, run the
+   command-scoped forced seed. The seed prefers the unpooled URL. Do not persist
+   `FORCE_SEED` in Vercel or print either database URL.
+
+   ```bash
+   FORCE_SEED=true npm run db:seed:production
+   ```
+
+4. Compare the reported market and PM totals with the committed seed, confirm
+   the content-version stamp was written, and smoke-test the homepage, one
+   market, one operator, and the current monthly brief.
+5. If the seed exits before completion, stop and verify the prior fingerprint,
+   row counts, and spot checks remain intact. The transaction should have rolled
+   back automatically. Investigate before another attempt. Only restore the pre-run recovery point
+   if those checks disagree, and do not use a redeploy as recovery.
+
+`data:export-name-corrections` remains an offline pipeline command. Run it
+before `build-operator-universe.ts`, review and commit the generated JSON, and
+never rely on a Vercel build's disposable filesystem to preserve its output.
 
 ## Individual-home extract → `PropertyHome` (owner-run, after the pipeline)
 
@@ -184,4 +243,5 @@ the outbound email push is gated.
 
 The data export is manual (the pipeline can't pull it), so the monthly trigger
 is a standing calendar item, not automation. When the export lands, run steps
-1–10; the deploy handles the snapshot capture.
+1–12. The authorized production data-release step handles snapshot capture;
+the Vercel deployment does not write data.
