@@ -34,7 +34,7 @@ function sourceFiles(root: string): string[] {
   return readdirSync(root).flatMap((entry) => {
     const file = path.join(root, entry);
     if (statSync(file).isDirectory()) return sourceFiles(file);
-    if (!/\.(ts|tsx)$/.test(file) || file.endsWith(".test.ts")) return [];
+    if (!/\.(ts|tsx)$/.test(file) || /\.test\.(ts|tsx)$/.test(file)) return [];
     return [file];
   });
 }
@@ -66,6 +66,23 @@ test("Cleveland pilot coupling cannot spread beyond the documented baseline", ()
   assert.deepEqual(coupledFiles, [...CLEVELAND_COUPLING_BASELINE].sort());
 });
 
+test("production source never imports the seeded Cleveland report module", () => {
+  const seededImport = /from\s+["'][^"']*seeded-cleveland["']/;
+  const importers = sourceFiles("src")
+    .filter((file) => seededImport.test(readFileSync(file, "utf8")))
+    .sort();
+
+  assert.deepEqual(importers, []);
+});
+
+test("Market IQ development workspace activation never creates report evidence", () => {
+  const source = readFileSync("src/app/setup-workspace/actions.ts", "utf8");
+
+  assert.match(source, /marketIqDevelopmentPreviewEnabled\(\)/);
+  assert.doesNotMatch(source, /marketIqReport\.(create|upsert)/);
+  assert.doesNotMatch(source, /preview-bootstrap|PREVIEW_BASELINE_TOKEN/);
+});
+
 test("the shared Market Intelligence route uses the market data service boundary", () => {
   const source = readFileSync("src/app/market-iq/market/page.tsx", "utf8");
   const forbiddenImports = [
@@ -81,4 +98,21 @@ test("the shared Market Intelligence route uses the market data service boundary
   for (const forbiddenImport of forbiddenImports) {
     assert.equal(source.includes(forbiddenImport), false, `Shared route imports ${forbiddenImport}`);
   }
+});
+
+test("interactive Market IQ reads persisted evidence and Cleveland source builds fail closed", () => {
+  const service = readFileSync("src/lib/market-iq/data/service.server.ts", "utf8");
+  const clevelandBuild = readFileSync("src/lib/market-iq/report/build.server.ts", "utf8");
+  const composer = readFileSync("src/lib/market-iq/report/composer.server.ts", "utf8");
+  const reportParser = readFileSync("src/lib/market-iq/report/report.ts", "utf8");
+
+  assert.match(service, /refreshReport: false/);
+  assert.doesNotMatch(clevelandBuild, /SEEDED_CLEVELAND_TREND_SERIES/);
+  assert.doesNotMatch(clevelandBuild, /seededClevelandMarketReport/);
+  assert.doesNotMatch(clevelandBuild, /SEEDED_CLEVELAND_REPORT_TOKEN/);
+  assert.doesNotMatch(composer, /seededClevelandMarketReport/);
+  assert.doesNotMatch(composer, /generatedAt: new Date\(\)\.toISOString\(\)/);
+  assert.match(reportParser, /parsed\.scope\.seededExample !== false/);
+  assert.match(clevelandBuild, /throw new Error\("The authoritative Dwellsy Trends source is not configured\."\)/);
+  assert.match(clevelandBuild, /Promise\.all\(\[\s*loadDwellsyTrendSeries/);
 });

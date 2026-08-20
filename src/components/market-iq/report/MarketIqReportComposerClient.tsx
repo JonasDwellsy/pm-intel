@@ -33,7 +33,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEd
   initialBrand: Brand;
   initialEditorialDefaults: MarketIqEditorialDefaults;
   initialSelection: MarketIqReportScopeSelection;
-  source: "dwellsy_trends" | "verified_seed";
+  source: "dwellsy_trends";
   priorEdition: PriorMarketIqEdition | null;
   initialDeliveryMode?: DeliveryMode;
   draftId?: string | null;

@@ -16,12 +16,7 @@ import {
   type MarketIqReportSnapshot,
   type MarketIqTrendSeries,
 } from "@/lib/market-iq/report/report";
-import {
-  SEEDED_CLEVELAND_REPORT_TOKEN,
-  CLEVELAND_ZIP_CENTERS,
-  SEEDED_CLEVELAND_TREND_SERIES,
-  seededClevelandMarketReport,
-} from "@/lib/market-iq/report/seeded-cleveland";
+import { CLEVELAND_ZIP_CENTERS } from "@/lib/market-iq/geography/cleveland-zip-centers";
 import { MARKET_IQ_REPORT_CITIES, MARKET_IQ_REPORT_ZIPS } from "@/lib/market-iq/report/scope";
 
 const REPORT_CITIES = [...MARKET_IQ_REPORT_CITIES];
@@ -61,7 +56,7 @@ function safeSourceError(error: unknown) {
 }
 
 async function loadLiveTrendSource() {
-  const [detail, rollups] = await Promise.allSettled([
+  const [detail, rollups] = await Promise.all([
     loadDwellsyTrendSeries({
       cities: REPORT_CITIES,
       zipCodes: REPORT_ZIPS,
@@ -70,13 +65,8 @@ async function loadLiveTrendSource() {
     }),
     loadDwellsyProductRollupSeries({ zipCodes: REPORT_ZIPS, periodStart: "2025-04-01" }),
   ]);
-  if (detail.status === "rejected") throw detail.reason;
-  if (rollups.status === "rejected") {
-    console.error("[Market IQ] Trends product rollups unavailable", safeSourceError(rollups.reason));
-  }
-  const fallbackRollups = SEEDED_CLEVELAND_TREND_SERIES.filter((series) => series.bedrooms === 999);
   return {
-    result: { series: [...(rollups.status === "fulfilled" ? rollups.value.series : fallbackRollups), ...detail.value.series] },
+    result: { series: [...rollups.series, ...detail.series] },
     live: true as const,
   };
 }
@@ -222,36 +212,44 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
         .catch(() => null)
     : Promise.resolve(null);
   const [trendSource, context, marketActivity] = await Promise.all([
-    loadImportedTrendSource().catch(() => null).then((imported) => imported ?? (
-      liveDwellsyRuntimeEnabled
-      ? loadLiveTrendSource().catch((error) => {
-          console.error("[Market IQ] Read-only Trends source unavailable", safeSourceError(error));
-          return {
-            result: { series: SEEDED_CLEVELAND_TREND_SERIES },
-            live: false as const,
-          };
-        })
-      : Promise.resolve({ result: { series: SEEDED_CLEVELAND_TREND_SERIES }, live: false as const })
-    )),
+    loadImportedTrendSource().catch(() => null).then((imported) => {
+      if (imported) return imported;
+      if (!liveDwellsyRuntimeEnabled) {
+        throw new Error("The authoritative Dwellsy Trends source is not configured.");
+      }
+      return loadLiveTrendSource();
+    }).catch((error) => {
+      console.error("[Market IQ] Read-only Trends source unavailable", safeSourceError(error));
+      throw error;
+    }),
     analyticalContext,
     liveDwellsyRuntimeEnabled
-      ? loadClevelandListingActivity().catch(() => seededClevelandMarketReport.marketActivity)
-      : Promise.resolve(seededClevelandMarketReport.marketActivity),
+      ? loadClevelandListingActivity().catch(() => undefined)
+      : Promise.resolve(undefined),
   ]);
   const trendSeries = completeTrendSeries(trendSource.result.series);
   const reportCities = [...new Set(trendSeries
     .filter((series) => series.geographyType === "city" && series.bedrooms === 999 && series.points.length > 0)
     .map((series) => series.geographyLabel))].sort();
   const reportablePoints = trendSeries.flatMap((series) => series.points);
-  const historicalSource = seededClevelandMarketReport.sources.find((source) => source.name === "Total IQ observed listings");
-  const latestTrendMonth = reportablePoints.map((point) => point.month).sort().at(-1) ?? seededClevelandMarketReport.scope.periodEnd;
+  const latestTrendMonth = reportablePoints.map((point) => point.month).sort().at(-1);
+  if (!latestTrendMonth) throw new Error("Dwellsy Trends returned no Cleveland observations.");
   const trendAvailableThrough = monthEnd(latestTrendMonth);
   const historicalPulse = context?.historicalPulse;
   const activityAvailableThrough = marketActivity?.asOf.slice(0, 10);
 
   return buildMarketIqReportSnapshot({
     generatedAt: input?.generatedAt ?? new Date(),
-    brand: input?.brand ?? seededClevelandMarketReport.brand,
+    brand: input?.brand ?? {
+      displayName: "Market IQ",
+      logoUrl: null,
+      primaryColor: "#173B57",
+      accentColor: "#B96D3A",
+      contactName: null,
+      contactEmail: null,
+      contactPhone: null,
+      websiteUrl: null,
+    },
     scope: {
       marketId: CLEVELAND_MARKET_ID,
       marketName: "Cleveland-Elyria, OH",
@@ -272,15 +270,15 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
       heading: historicalPulse.historical.newListingsChange >= 0 ? "New listing supply expanded into the cutoff" : "New listing supply contracted into the cutoff",
       narrative: `${historicalPulse.decisionRead} These are Total IQ listing-activity measures and are kept separate from Trends IQ rent statistics.`,
       historical: historicalPulse.historical,
-    } : seededClevelandMarketReport.marketConditions,
+    } : {
+      heading: "Historical listing context is not available",
+      narrative: "No historical listing measure is substituted. Trends IQ remains the exclusive source for every published rent level and rent change.",
+      historical: null,
+    },
     marketActivity,
     sources: [
-      { name: "Dwellsy IQ Trends", availableThrough: trendAvailableThrough, observationCount: null, note: trendSource.live
-        ? "The exclusive source for every published aggregated rent level and rent change. Overall product summaries use the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Every available Trends IQ value is reportable."
-        : "The exclusive source for every published aggregated rent level and rent change. This source-dated snapshot uses the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Every available Trends IQ value is reportable." },
-      historicalPulse
-        ? { name: "Total IQ observed listings", availableThrough: historicalPulse.historicalSource.availableThrough, observationCount: historicalPulse.historicalSource.recordCount, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." }
-        : historicalSource ?? { name: "Total IQ observed listings", availableThrough: "2026-07-31", observationCount: null, note: "Used only for listing activity and geographic context. It is not used to calculate aggregated prices." },
+      { name: "Dwellsy IQ Trends", availableThrough: trendAvailableThrough, observationCount: null, note: "The exclusive source for every published aggregated rent level and rent change. Overall product summaries use the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Every available Trends IQ value is reportable." },
+      ...(historicalPulse ? [{ name: "Total IQ observed listings", availableThrough: historicalPulse.historicalSource.availableThrough, observationCount: historicalPulse.historicalSource.recordCount, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." }] : []),
       ...(activityAvailableThrough ? [{ name: "Total IQ listing activity feed", availableThrough: activityAvailableThrough, observationCount: marketActivity?.events.length ?? null, note: "Used only for the recent-listing ticker and source activity counts. It is not used to calculate aggregated prices." }] : []),
       { name: "U.S. Census Bureau ZCTAs", availableThrough: "2020-01-01", observationCount: REPORT_ZIPS.length - 1, note: "Provides 101 shaded ZIP Code Tabulation Area boundaries for the 102 active postal ZIPs in the Dwellsy Cleveland-Elyria MSA definition. Postal ZIP 44061 has no Census ZCTA polygon." },
     ],
@@ -297,13 +295,6 @@ export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
 );
 
 export async function loadPublicMarketIqReport(publicToken: string): Promise<MarketIqReportSnapshot | null> {
-  const previewEnabled = process.env.MARKET_IQ_PREVIEW_ENABLED === "1"
-    || process.env.VERCEL_ENV === "preview"
-    || process.env.NODE_ENV !== "production";
-  if (previewEnabled && publicToken === SEEDED_CLEVELAND_REPORT_TOKEN) {
-    return loadCachedClevelandMarketIqReportSnapshot();
-  }
-
   const stored = await prisma.marketIqReport.findUnique({
     where: { publicToken },
     select: { status: true, snapshot: true },

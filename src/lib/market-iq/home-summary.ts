@@ -4,7 +4,7 @@ import type { MarketIqPersistedMarketSummary } from "@/lib/market-iq/market-summ
 export type MarketIqHomeMarketInput = {
   market: MarketIqMarketDefinition;
   marketSummary: MarketIqPersistedMarketSummary | null;
-  source: "dwellsy_trends" | "verified_seed" | "unavailable";
+  source: "dwellsy_trends" | "unavailable";
   configured: boolean;
   recurringEnabled: boolean;
   draft: { id: string; periodEnd: Date | string; materialChangeCount: number } | null;

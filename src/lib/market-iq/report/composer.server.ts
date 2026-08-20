@@ -12,9 +12,6 @@ import {
   SAN_JOSE_MARKET_ID,
   getMarketIqMarket,
 } from "@/data/market-iq/markets";
-import {
-  seededClevelandMarketReport,
-} from "@/lib/market-iq/report/seeded-cleveland";
 import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import { parseMarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 import type { PriorMarketIqEdition } from "@/lib/market-iq/report/edition-comparison";
@@ -54,32 +51,20 @@ export function defaultMarketIqReportBrand(organizationName: string): MarketIqRe
 
 export async function buildClevelandComposerPreview(brand: MarketIqReportBrandInput): Promise<{
   snapshot: MarketIqReportSnapshot;
-  source: "dwellsy_trends" | "verified_seed";
+  source: "dwellsy_trends";
 }> {
   const stored = await loadLatestMarketIqReportSourceSnapshot(CLEVELAND_MARKET_ID);
   if (stored) return { snapshot: { ...stored, brand }, source: "dwellsy_trends" };
-  try {
-    const snapshot = await loadCachedClevelandMarketIqReportSnapshot();
-    return {
-      snapshot: { ...snapshot, brand },
-      source: "dwellsy_trends",
-    };
-  } catch (error) {
-    if (process.env.MARKET_IQ_PREVIEW_ENABLED !== "1" && process.env.VERCEL_ENV !== "preview") throw error;
-    return {
-      snapshot: {
-        ...seededClevelandMarketReport,
-        generatedAt: new Date().toISOString(),
-        brand,
-      },
-      source: "verified_seed",
-    };
-  }
+  const snapshot = await loadCachedClevelandMarketIqReportSnapshot();
+  return {
+    snapshot: { ...snapshot, brand },
+    source: "dwellsy_trends",
+  };
 }
 
 export async function buildMarketIqComposerPreview(marketId: string, brand: MarketIqReportBrandInput): Promise<{
   snapshot: MarketIqReportSnapshot;
-  source: "dwellsy_trends" | "verified_seed";
+  source: "dwellsy_trends";
 }> {
   if (!getMarketIqMarket(marketId)) throw new Error("The selected Market IQ market is not configured.");
   if (marketId === CLEVELAND_MARKET_ID) return buildClevelandComposerPreview(brand);

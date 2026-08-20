@@ -6,8 +6,8 @@ test("creates a draft only after authoritative Trends advances", () => {
   assert.deepEqual(decideRecurringEdition({ source: "dwellsy_trends", currentPeriodEnd: "2026-08-31", priorPeriodEnd: "2026-07-31", readinessPassed: true, draftExists: false }), { action: "create" });
 });
 
-test("never creates a recurring draft from preview seed data", () => {
-  assert.deepEqual(decideRecurringEdition({ source: "verified_seed", currentPeriodEnd: "2026-08-31", priorPeriodEnd: "2026-07-31", readinessPassed: true, draftExists: false }), { action: "skip", reason: "source_unavailable" });
+test("never creates a recurring draft when the source is unavailable", () => {
+  assert.deepEqual(decideRecurringEdition({ source: "unavailable", currentPeriodEnd: "2026-08-31", priorPeriodEnd: "2026-07-31", readinessPassed: true, draftExists: false }), { action: "skip", reason: "source_unavailable" });
 });
 
 test("same-period checks and retries are idempotent", () => {

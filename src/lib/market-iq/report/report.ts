@@ -230,6 +230,7 @@ export function parseMarketIqReportSnapshot(value: string): MarketIqReportSnapsh
       parsed.version !== MARKET_IQ_REPORT_VERSION ||
       !parsed.brand?.displayName ||
       !parsed.scope?.marketName ||
+      parsed.scope.seededExample !== false ||
       !Array.isArray(parsed.marketRead?.cells) ||
       !Array.isArray(parsed.sources)
     ) return null;

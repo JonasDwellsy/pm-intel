@@ -15,7 +15,7 @@ test("multi-market home ranks review work before configured and unconfigured mar
   assert.match(ranked[1]?.actionHref ?? "", /get-started/);
 });
 
-test("multi-market home never presents verified seed values as current market intelligence", () => {
+test("multi-market home never presents unavailable values as current market intelligence", () => {
   const [cleveland] = MARKET_IQ_MARKETS;
   const summary = rankMarketIqHomeMarkets([{
     market: cleveland,
@@ -36,7 +36,7 @@ test("multi-market home never presents verified seed values as current market in
       house3: null,
       notable: null,
     },
-    source: "verified_seed",
+    source: "unavailable",
     configured: true,
     recurringEnabled: false,
     draft: null,
