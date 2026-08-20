@@ -492,6 +492,30 @@ WEBSITE_VERDICTS_PATH = os.path.join(
 )
 
 
+ENRICHMENT_PATH = os.path.join(REPO_ROOT, "src", "data", "company_enrichment.json")
+
+
+def load_enrichment(path=ENRICHMENT_PATH):
+    """companyId -> Dwellsy company-page scrape record.
+
+    Read alongside the website verdicts so a blank website can say WHICH kind
+    of blank it is. Those imply opposite next steps: "never scraped" means go
+    run enrich_company_websites.py; "no website on file" means we already
+    looked and Dwellsy lists none, so stop waiting on that signal and decide
+    on geography, scale and classification instead.
+
+    Peak Property Management in Bozeman is the case that forced the
+    distinction — checked, page parsed cleanly, and Dwellsy simply carries no
+    URL for it.
+    """
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return {str(k): v for k, v in data.items()} if isinstance(data, dict) else {}
+
+
 def load_website_verdicts(path=WEBSITE_VERDICTS_PATH):
     """companyId -> stored website verdict, keyed as a string.
 
@@ -533,6 +557,7 @@ def propose_canonicals(merged, new_market_ids, baseline_canonical_path=None):
     new_market_ids = set(new_market_ids)
     pms = merged["pms"]
     verdicts = load_website_verdicts()
+    enrichment = load_enrichment()
 
     def member(pm):
         """Proposal member row + whatever disambiguating evidence we hold."""
@@ -550,10 +575,17 @@ def propose_canonicals(merged, new_market_ids, baseline_canonical_path=None):
         if v and v.get("verdict"):
             row["websiteVerdict"] = v["verdict"]
         # Say so explicitly rather than leaving the key absent — a silent gap
-        # reads as "no website" when it means "never scraped". New markets land
-        # here until enrich_company_websites.py runs for them.
+        # reads as "no website" when it might mean "never looked". Name which
+        # blank this is, because the two point the reviewer opposite ways.
         if row["website"] is None:
-            row["websiteEvidence"] = "not scraped"
+            enr = enrichment.get(str(cid)) if cid is not None else None
+            if enr is None:
+                row["websiteEvidence"] = "not scraped"
+            elif enr.get("error"):
+                row["websiteEvidence"] = "scrape failed"
+            else:
+                # Company page parsed and carries no URL — a real finding.
+                row["websiteEvidence"] = "no website on file"
         return row
 
     # Index existing canonical entities by normalized name of their member PMs.
@@ -635,10 +667,12 @@ def propose_canonicals(merged, new_market_ids, baseline_canonical_path=None):
             "START WITH `distinct_websites`. More than one distinct domain "
             "across the members is strong evidence of separate companies — "
             "reject. One shared domain is strong evidence for the merge. "
-            "`website: null` with `websiteEvidence: \"not scraped\"` means we "
-            "have no URL, NOT that the operator has none; run "
-            "enrich_company_websites.py for the market and re-propose before "
-            "deciding on thin evidence.\n\n"
+            "A null `website` names which kind of blank it is: "
+            "`not scraped` means nobody has looked — run "
+            "enrich_company_websites.py then re-propose; `no website on file` "
+            "means we looked and Dwellsy carries no URL, so decide on "
+            "geography, scale and classification instead of waiting on it; "
+            "`scrape failed` means retry.\n\n"
             "DO NOT treat a missing parentCompanyId as evidence of separate "
             "companies. 67 of 188 accepted canonical groups have no "
             "parentCompanyId on any member (Mission Rock Residential spans 11 "

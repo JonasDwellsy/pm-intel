@@ -2,6 +2,7 @@ import unittest
 from merge import (
     link_by_parent_id,
     load_curated_canon_slugs,
+    load_enrichment,
     load_website_verdicts,
     propose_canonicals,
 )
@@ -95,12 +96,23 @@ class ProposalWebsiteEvidence(unittest.TestCase):
         # Two distinct domains is the signal that makes this a reject.
         self.assertGreaterEqual(len(pair["distinct_websites"]), 2)
 
-    def test_unscraped_is_labelled_not_silently_blank(self):
-        # A missing URL means "never scraped", not "has no website". Leaving the
-        # key absent would read as the latter.
+    def test_blank_website_names_which_kind_of_blank(self):
+        # "never looked" and "looked, none on file" point the reviewer opposite
+        # ways, so a bare null is not good enough. Peak Bozeman is the real
+        # case: scraped 2026-08-20, page parsed, Dwellsy carries no URL.
         out = propose_canonicals(self._merged(), ["bozeman-mt"])
         boz = next(m for m in out["new_pairs"][0]["members"] if m["slug"] == "peak-boz")
-        self.assertEqual(boz["websiteEvidence"], "not scraped")
+        self.assertEqual(boz["websiteEvidence"], "no website on file")
+
+    def test_never_scraped_is_distinguished_from_no_website(self):
+        merged = self._merged()
+        # A companyId absent from company_enrichment.json entirely.
+        merged["pms"].append(
+            _prop_pm("bozeman-mt", "peak-ghost", "Peak Property Management", "999999999")
+        )
+        out = propose_canonicals(merged, ["bozeman-mt"])
+        ghost = next(m for m in out["new_pairs"][0]["members"] if m["slug"] == "peak-ghost")
+        self.assertEqual(ghost["websiteEvidence"], "not scraped")
 
     def test_parent_ids_are_surfaced_for_context(self):
         out = propose_canonicals(self._merged(), ["bozeman-mt"])
@@ -115,6 +127,7 @@ class ProposalWebsiteEvidence(unittest.TestCase):
         text = out["_instructions"]
         self.assertIn("distinct_websites", text)
         self.assertIn("not scraped", text)
+        self.assertIn("no website on file", text)
         self.assertIn("parentCompanyId", text)
         self.assertIn("REJECT", text)
 
@@ -126,6 +139,15 @@ class LoadWebsiteVerdicts(unittest.TestCase):
         # Fort Collins Peak — the record that settled the real decision.
         self.assertIn("191153", v)
         self.assertTrue(v["191153"].get("url"))
+
+    def test_enrichment_distinguishes_checked_from_absent(self):
+        e = load_enrichment()
+        self.assertGreater(len(e), 1000)
+        # Peak Bozeman: checked, parsed, no URL on file.
+        rec = e.get("463937")
+        self.assertIsNotNone(rec, "Peak Bozeman should be in the enrichment cache")
+        self.assertIsNone(rec.get("website"))
+        self.assertTrue(rec.get("checkedAt"))
 
     def test_missing_file_is_not_fatal(self):
         # The proposal is still useful without evidence; it just costs more.
