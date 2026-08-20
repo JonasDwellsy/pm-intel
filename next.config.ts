@@ -1,7 +1,35 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import { INDEXING_ENABLED } from "./src/lib/seo";
 
 const nextConfig: NextConfig = {
+  // Site-wide search-engine opt-out. This is the mechanism that actually keeps
+  // Operator IQ out of the index, and it lives here rather than in page
+  // metadata for two reasons:
+  //
+  //   1. It covers EVERY response — routes, static assets, API responses, PDFs
+  //      — not just pages that remember to declare `robots` metadata.
+  //   2. It cannot be overridden by a page. One page really did hardcode
+  //      `robots: { index: true }` (the market briefs), which would have
+  //      silently defeated a layout-level noindex.
+  //
+  // Crawling is deliberately still allowed in robots.txt: Google has to fetch
+  // a URL to see this header. See src/lib/seo.ts for why blocking the crawl
+  // instead would leave us listed but snippet-less.
+  //
+  // `noarchive` additionally suppresses the cached copy, so a page that was
+  // already crawled doesn't linger in a cache after it drops out of results.
+  async headers() {
+    if (INDEXING_ENABLED) return [];
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+        ],
+      },
+    ];
+  },
   // Permanent (301) redirect from the legacy /operator (singular)
   // path to the v0.11 /operators (plural) route. The plural was
   // introduced in PR #43 as the canonical operator-level scorecard
