@@ -10,6 +10,7 @@ import { dwellsySourceConfigured } from "@/lib/dwellsy-source/db.server";
 import { loadClevelandListingActivity } from "@/lib/dwellsy-source/listing-events.server";
 import { marketIqDatabaseConfigured, marketIqPrisma } from "@/lib/market-iq/prisma";
 import {
+  buildCurrentMonthUnavailableCuts,
   buildMarketIqReportSnapshot,
   isPublicMarketIqReportStatus,
   parseMarketIqReportSnapshot,
@@ -21,7 +22,15 @@ import { MARKET_IQ_REPORT_CITIES, MARKET_IQ_REPORT_ZIPS } from "@/lib/market-iq/
 
 const REPORT_CITIES = [...MARKET_IQ_REPORT_CITIES];
 const REPORT_ZIPS = [...MARKET_IQ_REPORT_ZIPS];
-const REPORT_BEDROOMS = [1, 2, 3];
+const REPORT_DETAIL_SEGMENTS = [
+  { propertyType: "apartment" as const, bedrooms: 0 },
+  { propertyType: "apartment" as const, bedrooms: 1 },
+  { propertyType: "apartment" as const, bedrooms: 2 },
+  { propertyType: "house" as const, bedrooms: 2 },
+  { propertyType: "house" as const, bedrooms: 3 },
+  { propertyType: "house" as const, bedrooms: 4 },
+];
+const REPORT_BEDROOMS = [...new Set(REPORT_DETAIL_SEGMENTS.map((segment) => segment.bedrooms))];
 
 function safeSourceError(error: unknown) {
   if (!error || typeof error !== "object") return { name: "UnknownError", code: null };
@@ -129,23 +138,13 @@ function completeTrendSeries(source: MarketIqTrendSeries[]) {
   const existing = new Set(result.map((item) => `${item.geographyType}:${item.geographyValue}:${item.propertyType}:${item.bedrooms}`));
   for (const city of REPORT_CITIES) {
     const geographyValue = `${city}, OH`;
-    for (const segment of [
-      { propertyType: "apartment" as const, bedrooms: 1 },
-      { propertyType: "apartment" as const, bedrooms: 2 },
-      { propertyType: "house" as const, bedrooms: 2 },
-      { propertyType: "house" as const, bedrooms: 3 },
-    ]) {
+    for (const segment of REPORT_DETAIL_SEGMENTS) {
       const key = `city:${geographyValue}:${segment.propertyType}:${segment.bedrooms}`;
       if (!existing.has(key)) result.push({ geographyType: "city", geographyValue, geographyLabel: city, ...segment, points: [] });
     }
   }
   for (const zip of REPORT_ZIPS) {
-    for (const segment of [
-      { propertyType: "apartment" as const, bedrooms: 1 },
-      { propertyType: "apartment" as const, bedrooms: 2 },
-      { propertyType: "house" as const, bedrooms: 2 },
-      { propertyType: "house" as const, bedrooms: 3 },
-    ]) {
+    for (const segment of REPORT_DETAIL_SEGMENTS) {
       const key = `zip:${zip}:${segment.propertyType}:${segment.bedrooms}`;
       if (!existing.has(key)) result.push({ geographyType: "zip", geographyValue: zip, geographyLabel: `ZIP ${zip}`, ...segment, points: [] });
     }
@@ -265,10 +264,21 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
     },
     trendSeries,
     mapCenters: context ? { ...CLEVELAND_ZIP_CENTERS, ...averageZipCenters(context.coordinateRows) } : CLEVELAND_ZIP_CENTERS,
-    unavailableCuts: [{
-      label: "Small multifamily versus large multifamily",
-      reason: "Not published because community-size fields conflict for known Cleveland communities. Apartments remain grouped by bedroom until community identity is corrected.",
-    }],
+    unavailableCuts: [
+      ...buildCurrentMonthUnavailableCuts({
+        trendSeries,
+        currentMonth: latestTrendMonth,
+        geographies: [
+          { geographyType: "msa", geographyValue: "17460", label: "Cleveland-Elyria MSA" },
+          { geographyType: "city", geographyValue: "Cleveland, OH", label: "Cleveland city" },
+        ],
+        segments: REPORT_DETAIL_SEGMENTS,
+      }),
+      {
+        label: "Small multifamily versus large multifamily",
+        reason: "Not published because community-size fields conflict for known Cleveland communities. Apartments remain grouped by bedroom until community identity is corrected.",
+      },
+    ],
     marketConditions: historicalPulse ? {
       heading: historicalPulse.historical.newListingsChange >= 0 ? "New listing supply expanded into the cutoff" : "New listing supply contracted into the cutoff",
       narrative: `${historicalPulse.decisionRead} These are Total IQ listing-activity measures and are kept separate from Trends IQ rent statistics.`,

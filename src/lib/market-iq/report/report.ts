@@ -195,6 +195,53 @@ export function segmentLabel(propertyType: MarketIqPropertyType, bedrooms: numbe
   return `${bedroom} ${propertyType === "house" ? "houses" : "apartments"}`;
 }
 
+export function buildCurrentMonthUnavailableCuts(input: {
+  trendSeries: MarketIqTrendSeries[];
+  currentMonth: string;
+  geographies: Array<{
+    geographyType: MarketIqGeographyType;
+    geographyValue: string;
+    label: string;
+  }>;
+  segments: Array<{
+    propertyType: MarketIqPropertyType;
+    bedrooms: number;
+  }>;
+}): MarketIqReportSnapshot["marketRead"]["unavailableCuts"] {
+  const monthLabel = (value: string) => new Date(`${value.slice(0, 7)}-15T00:00:00Z`).toLocaleDateString(
+    "en-US",
+    { month: "long", year: "numeric", timeZone: "UTC" },
+  );
+
+  return input.segments.flatMap((segment) => {
+    const missing = input.geographies.flatMap((geography) => {
+      const series = input.trendSeries.find((candidate) =>
+        candidate.geographyType === geography.geographyType &&
+        candidate.geographyValue === geography.geographyValue &&
+        candidate.propertyType === segment.propertyType &&
+        candidate.bedrooms === segment.bedrooms,
+      );
+      const hasCurrentMonth = series?.points.some((point) => point.month === input.currentMonth) ?? false;
+      return hasCurrentMonth ? [] : [{ ...geography, latestMonth: series?.points.map((point) => point.month).sort().at(-1) ?? null }];
+    });
+    if (!missing.length) return [];
+
+    const locations = missing.map((geography) => geography.label);
+    const locationText = locations.length === 1
+      ? locations[0]
+      : `${locations.slice(0, -1).join(", ")} or ${locations.at(-1)}`;
+    const latestMonths = [...new Set(missing.map((geography) => geography.latestMonth).filter((value): value is string => Boolean(value)))];
+    const latestText = latestMonths.length === 1
+      ? ` The latest available evidence for the missing ${missing.length === 1 ? "location is" : "locations is"} ${monthLabel(latestMonths[0])}.`
+      : " No earlier value is substituted for the missing current-month evidence.";
+
+    return [{
+      label: `${segmentLabel(segment.propertyType, segment.bedrooms)} · ${monthLabel(input.currentMonth)}`,
+      reason: `Dwellsy IQ Trends did not publish a ${monthLabel(input.currentMonth)} value for ${locationText}.${latestText}`,
+    }];
+  });
+}
+
 function buildCell(series: MarketIqTrendSeries): MarketIqMarketCell {
   const points = [...series.points]
     .filter((point) => point.rent > 0)
