@@ -1,9 +1,8 @@
-// Seed runs as part of vercel-build on every deploy. Re-seeding 575
-// PMs row-by-row against Neon was tripping P1017 ("Server has closed
-// the connection") on connection-pool starvation roughly once per
-// week, which aborts the deploy. Most deploys are code-only and don't
-// change data, so we now skip the seed when the DB already matches
-// the JSON (isDataCurrent() check at the top of main()).
+// Seed is a deliberate production data-release command. It must never run as
+// part of vercel-build: the replacement is destructive and row-by-row, so a
+// database interruption can leave the live dataset incomplete. Most manual
+// invocations are still cheap because isDataCurrent() skips work when the DB
+// already matches the committed JSON.
 //
 // FORCE_SEED=true bypasses the skip and runs the full seed regardless.
 // Use it when:
@@ -14,7 +13,7 @@
 //   - you just want belt-and-braces confidence during a methodology
 //     release
 //
-// Local-dev examples:
+// Authorized production-release examples (after creating a recovery point):
 //   npx prisma db seed                       # skip if current
 //   FORCE_SEED=true npx prisma db seed       # always re-seed
 
@@ -68,7 +67,7 @@ const prisma = new PrismaClient();
 // v0.8 — portfolio-size multipliers (k_house, k_apt), read once at the start of
 // the seed run from the admin-tunable AppSetting rows. buildScorecard() reads
 // this when computing portfolioEstimate, so a change to the admin knobs takes
-// effect on the next deploy (re-seed), not live.
+// effect on the next deliberate seed, not live.
 let SEED_MULTIPLIERS: PortfolioMultipliers = DEFAULT_MULTIPLIERS;
 
 async function loadSeedMultipliers(): Promise<void> {
@@ -797,14 +796,14 @@ export interface PortfolioEstimate {
 //
 // Bumped whenever the size methodology changes. isDataCurrent() compares the
 // DB's stored portfolioEstimate.methodologyVersion to this, so a code-only
-// methodology change re-seeds on the next deploy without needing FORCE_SEED.
+// methodology change makes the next deliberate seed run without FORCE_SEED.
 const SIZE_METHODOLOGY_VERSION = "v0.8.1-house-apt-turnover-band";
 
 // Content fingerprint of the committed seed inputs (scorecard_data.json +
 // company_enrichment.json). isDataCurrent() compares this to the value stored
 // in AppSetting after the last successful seed; ANY change to either file
-// yields a new hash → automatic re-seed on the next deploy, no FORCE_SEED
-// needed. This is the general guard the narrow spot-checks (concession fields,
+// yields a new hash, so the next deliberate seed does not need FORCE_SEED.
+// This is the general guard the narrow spot-checks (concession fields,
 // size version, PM count, market cities) missed — a reclassification, marketing
 // rescale, or recovered-website change trips it where those don't. Stable for
 // unchanged content (parse order is deterministic per file); reformatting the
@@ -813,8 +812,8 @@ const SEED_CONTENT_VERSION_KEY = "seed_content_version";
 // Salt for the content fingerprint. Bump this string whenever buildScorecard's
 // EMITTED SHAPE changes without the input JSON changing — e.g. wiring a new
 // pipeline field through the seed normalizer. Folding it into the hash forces a
-// one-time re-seed on the next deploy even though scorecard_data.json is byte-
-// identical, so the new column shape actually lands. (v1 = propertyDetail
+// one-time re-seed on the next deliberate run even though scorecard_data.json
+// is byte-identical, so the new column shape actually lands. (v1 = propertyDetail
 // passthrough — the JSON already carried it from the #260 reseed, but
 // buildScorecard was dropping it, so the fingerprint alone wouldn't re-trigger.
 // v2 = managementModel, computed+baked at seed time from the listing shape +
@@ -1240,7 +1239,7 @@ export function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardDat
 //     so the fingerprint is unlikely to collide with stale data).
 //
 // Three cheap reads (count + findFirst + findUnique) vs 600+ writes
-// in the full seed. Worth it for the deploy-time savings.
+// in the full seed. Worth it for faster no-op checks.
 async function isDataCurrent(): Promise<boolean> {
   // Seed-content fingerprint — the comprehensive guard. If either committed
   // input file changed since the last successful seed, the hash differs and we
@@ -1271,7 +1270,7 @@ async function isDataCurrent(): Promise<boolean> {
   }
 
   // Spot-check PM. Picked at module-build time rather than randomized
-  // so reseed decisions stay deterministic across deploys. If the
+  // so reseed decisions stay deterministic across invocations. If the
   // operator ever disappears from the seed we fall through to a
   // re-seed (the lookup returns null), which is the right behavior.
   const SPOT_SLUG = "invitation-homes-phoenix-az";
@@ -1349,7 +1348,7 @@ async function isDataCurrent(): Promise<boolean> {
   // v0.6.4 Patch 5 hotfix — market.city drift check. PR #98 shipped DFW
   // with market.city="Dallas" (so the URL was /property-managers/texas/dallas,
   // not the /dallas-fort-worth we'd told users); fixing it requires the next
-  // deploy to actually re-seed even though the PM count is unchanged. We
+  // deliberate seed to run even though the PM count is unchanged. We
   // walk every JSON market and confirm the DB row carries a matching city.
   // Any mismatch — added market, renamed city, manual DB edit — flips us
   // back to a full re-seed, which is the safe default.
@@ -1390,8 +1389,8 @@ async function main() {
   );
 
   // Skip the full row-by-row seed when the DB already matches the JSON.
-  // Avoids exhausting Neon's connection pool on code-only deploys (the
-  // bulk of them). FORCE_SEED=true bypasses for manual refreshes or
+  // Avoids exhausting Neon's connection pool on unnecessary manual runs.
+  // FORCE_SEED=true bypasses for controlled data refreshes or
   // when the spot-check might miss a shape change.
   if (process.env.FORCE_SEED === "true") {
     console.log(
@@ -1458,7 +1457,7 @@ async function main() {
   // The cache key on MarketBrief is (marketSlug, methodologyVersion,
   // dataAsOf), which would have caught a methodology-version bump
   // but not the within-version data drift this seed represents.
-  // First visit per market after deploy will regenerate prose against
+  // First visit per market after the seed will regenerate prose against
   // the fresh data.
   await prisma.marketBrief.deleteMany();
   await prisma.pM.deleteMany();
@@ -1788,11 +1787,11 @@ async function main() {
 
   // v0.16 (PR #57) — Operator snapshot capture for the watch-list
   // change-detection feedback loop. Writes one OperatorSnapshot row
-  // per PM, stamped with data.dataAsOf (NOT the deploy time) so the
+  // per PM, stamped with data.dataAsOf (NOT the seed time) so the
   // snapshot cadence inherits the monthly data-refresh cadence.
   //
   // Idempotent: the @@unique([pmSlug, snapshotDate]) constraint
-  // means re-deploys against the same JSON no-op. We use
+  // means repeated seeds against the same JSON no-op. We use
   // createMany({ skipDuplicates: true }) so this is safe both when
   // isDataCurrent() WOULD have skipped the seed (manually run with
   // FORCE_SEED=true) and when it's a genuine new month of data.
@@ -1804,7 +1803,7 @@ async function main() {
 
   // Stamp the content fingerprint LAST, so it only advances after a fully
   // successful seed. A run that throws partway leaves the old (or no) value,
-  // and the next deploy re-seeds. Read back by isDataCurrent().
+  // and the next deliberate seed runs again. Read back by isDataCurrent().
   await prisma.appSetting.upsert({
     where: { key: SEED_CONTENT_VERSION_KEY },
     create: {
@@ -1822,7 +1821,7 @@ async function main() {
 /**
  * Capture per-operator snapshots into OperatorSnapshot. One row per
  * PM, stamped with snapshotDate = dataAsOf (the data-cutoff date,
- * not the deploy time). Safe to call on every seed run — the unique
+ * not the seed time). Safe to call on every seed run — the unique
  * constraint silently dedupes re-runs against the same data.
  */
 async function captureOperatorSnapshots(

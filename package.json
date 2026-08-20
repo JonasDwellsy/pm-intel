@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && prisma db seed && tsx scripts/data-pipeline/export_name_corrections.ts && next build",
+    "vercel-build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "test:watch-list": "node --import tsx --test src/lib/*.test.ts src/lib/scorecard/*.test.ts src/lib/watch-list/*.test.ts src/lib/operators/*.test.ts src/lib/auth/*.test.ts src/lib/styles/*.test.ts src/lib/ask-tools/*.test.ts",
@@ -13,7 +13,10 @@
     "test:components:watch": "vitest",
     "migrate:to-orgs": "tsx scripts/migrate-to-orgs.ts",
     "migrate:to-orgs:dry-run": "tsx scripts/migrate-to-orgs.ts --dry-run",
-    "audit:metrics": "tsx scripts/audit-metrics.ts"
+    "audit:metrics": "tsx scripts/audit-metrics.ts",
+    "db:migrate:production": "prisma migrate deploy",
+    "db:seed:production": "prisma db seed",
+    "data:export-name-corrections": "tsx scripts/data-pipeline/export_name_corrections.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
