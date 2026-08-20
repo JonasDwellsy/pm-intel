@@ -3,6 +3,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
+import { shouldRunMarketIqPreviewMigrations } from "../../scripts/run-market-iq-preview-migrations";
+
 const ANALYTICAL_DELEGATES = [
   "marketIqDataImport",
   "marketIqListing",
@@ -64,11 +66,57 @@ test("project database fallback is locked to the authorized Market IQ preview", 
     scripts: Record<string, string>;
   };
   assert.match(packageJson.scripts["vercel-build"], /prisma:generate/);
-  assert.doesNotMatch(packageJson.scripts["vercel-build"], /migrate|seed|export_name_corrections/);
+  assert.match(
+    packageJson.scripts["vercel-build"],
+    /run-market-iq-preview-migrations/,
+  );
+  assert.doesNotMatch(
+    packageJson.scripts["vercel-build"],
+    /market-iq:migrate|seed|export_name_corrections/,
+  );
   assert.match(packageJson.scripts["prisma:generate"], /prisma\/market-iq\/schema\.prisma/);
   assert.match(packageJson.scripts["market-iq:migrate"], /deploy-market-iq-migrations/);
   assert.match(packageJson.scripts["db:migrate"], /db:migrate:control/);
   assert.match(packageJson.scripts["db:migrate"], /market-iq:migrate/);
+});
+
+test("Vercel runs Market IQ migrations only for the isolated preview project", () => {
+  const isolatedMarketIqPreview = {
+    VERCEL_ENV: "preview",
+    VERCEL_PROJECT_PRODUCTION_URL: "market-iq-mu.vercel.app",
+    MARKET_IQ_PREVIEW_ENABLED: "1",
+    MARKET_IQ_USE_PROJECT_DATABASE: "1",
+  };
+
+  assert.equal(shouldRunMarketIqPreviewMigrations(isolatedMarketIqPreview), true);
+  assert.equal(
+    shouldRunMarketIqPreviewMigrations({
+      ...isolatedMarketIqPreview,
+      VERCEL_ENV: "production",
+    }),
+    false,
+  );
+  assert.equal(
+    shouldRunMarketIqPreviewMigrations({
+      ...isolatedMarketIqPreview,
+      VERCEL_PROJECT_PRODUCTION_URL: "intel.iq.dwellsy.com",
+    }),
+    false,
+  );
+  assert.equal(
+    shouldRunMarketIqPreviewMigrations({
+      ...isolatedMarketIqPreview,
+      MARKET_IQ_PREVIEW_ENABLED: undefined,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldRunMarketIqPreviewMigrations({
+      ...isolatedMarketIqPreview,
+      MARKET_IQ_USE_PROJECT_DATABASE: undefined,
+    }),
+    false,
+  );
 });
 
 test("customer watchlists remain organization-scoped in the primary database", () => {
