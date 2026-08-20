@@ -73,6 +73,18 @@
   "url": "https://realtynowpm.com/",
   "verdict": "inconclusive"
  },
+ "105050": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "we manage",
+   "property owners"
+  ],
+  "url": "https://rdpropertymanagement.propertyware.com/",
+  "verdict": "third_party"
+ },
  "105055": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -149,6 +161,14 @@
   "url": "https://www.texasrenters.com",
   "verdict": "third_party"
  },
+ "105084": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "http://eenpropertymanagementinc.com",
+  "verdict": "inconclusive"
+ },
  "105087": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -216,6 +236,19 @@
    "property owners"
   ],
   "url": "https://time2rent.com/",
+  "verdict": "third_party"
+ },
+ "105115": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owners login",
+   "free rental analysis",
+   "professional property management",
+   "our services",
+   "property owners"
+  ],
+  "url": "http://www.viennapm.com",
   "verdict": "third_party"
  },
  "105116": {
@@ -450,12 +483,48 @@
   "url": "https://www.provisionrealestateandpropertymanagement.com/",
   "verdict": "third_party"
  },
+ "105311": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "we manage",
+   "landlord",
+   "property owners"
+  ],
+  "url": "http://jjpm.net",
+  "verdict": "third_party"
+ },
+ "105330": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "we manage",
+   "management fee",
+   "leasing fee",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://woodminstermanagement.com/",
+  "verdict": "third_party"
+ },
  "105346": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
   "error": "HTTP Error 403: Forbidden",
   "matched": [],
   "url": "https://neohiorents.com/",
+  "verdict": "inconclusive"
+ },
+ "105359": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://divine.properties/",
   "verdict": "inconclusive"
  },
  "105364": {
@@ -718,6 +787,18 @@
   "url": "https://missionrockres.com",
   "verdict": "third_party"
  },
+ "106693": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "we manage",
+   "property owners"
+  ],
+  "url": "https://cbpm.propertyware.com/",
+  "verdict": "third_party"
+ },
  "106697": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -804,6 +885,25 @@
   "url": "https://www.homeium.co",
   "verdict": "third_party"
  },
+ "116093": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "let us manage",
+   "management fee",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "http://www.rentpros.com",
+  "verdict": "third_party"
+ },
  "119437": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -830,6 +930,14 @@
   "error": "HTTP Error 403: Forbidden",
   "matched": [],
   "url": "https://www.fultongrace.com/",
+  "verdict": "inconclusive"
+ },
+ "128471": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://www.missionpm.com",
   "verdict": "inconclusive"
  },
  "129201": {
@@ -897,6 +1005,23 @@
   "url": "https://tcpm.com",
   "verdict": "third_party"
  },
+ "190435": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "for property owners",
+   "management services",
+   "we manage",
+   "professional property management",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://platinumbozeman.com",
+  "verdict": "third_party"
+ },
  "190444": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -915,12 +1040,32 @@
   "url": "https://deerwoods.com",
   "verdict": "inconclusive"
  },
+ "190447": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://sgpropertymanage.com",
+  "verdict": "inconclusive"
+ },
  "190449": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
   "matched": [],
   "url": "https://preferredmanagementusa.com",
   "verdict": "inconclusive"
+ },
+ "190452": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "our services"
+  ],
+  "url": "https://mpmoakland.com",
+  "verdict": "third_party"
  },
  "190466": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -1059,6 +1204,27 @@
   "url": "https://vpmsc.com",
   "verdict": "third_party"
  },
+ "190564": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "management services",
+   "we manage",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://baysidemgmt.com",
+  "verdict": "third_party"
+ },
+ "190571": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://ukcatsoncampus.managebuilding.com/Resident/public/home",
+  "verdict": "owner_operator"
+ },
  "190573": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -1177,6 +1343,22 @@
   "url": "https://point-west.com",
   "verdict": "inconclusive"
  },
+ "190749": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "property management services",
+   "management services",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://landmarkpmg.com",
+  "verdict": "third_party"
+ },
  "190755": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -1240,6 +1422,13 @@
   "error": "HTTP Error 404: Not Found",
   "matched": [],
   "url": "https://olsonpropertyservices.com",
+  "verdict": "inconclusive"
+ },
+ "190819": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://nathanspm.com",
   "verdict": "inconclusive"
  },
  "190827": {
@@ -1310,12 +1499,28 @@
   "url": "https://rodweaver.com",
   "verdict": "inconclusive"
  },
+ "190944": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://myhomepath.com",
+  "verdict": "inconclusive"
+ },
  "190962": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
   "matched": [],
   "url": "https://simpsonpropertiesnc.managebuilding.com/Resident/public/home",
   "verdict": "inconclusive"
+ },
+ "190994": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://mavericksrealty.com",
+  "verdict": "owner_operator"
  },
  "191009": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -1359,6 +1564,13 @@
   "url": "https://bdhomespropertymanagement.managebuilding.com/Resident/public/home",
   "verdict": "inconclusive"
  },
+ "191134": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://tahoepropertymanagement.net",
+  "verdict": "inconclusive"
+ },
  "191142": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -1387,6 +1599,18 @@
    "property owners"
   ],
   "url": "https://winwoodproperties.com/",
+  "verdict": "third_party"
+ },
+ "191217": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "professional property management",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://a1bestrentals.com",
   "verdict": "third_party"
  },
  "191234": {
@@ -1507,6 +1731,15 @@
   "url": "https://mauzyproperties.com",
   "verdict": "third_party"
  },
+ "191604": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://vpmfresno.com",
+  "verdict": "owner_operator"
+ },
  "191611": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -1545,6 +1778,24 @@
   "url": "https://oaksofleaguecity.com",
   "verdict": "inconclusive"
  },
+ "191679": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://502view.managebuilding.com/Resident/public/home",
+  "verdict": "owner_operator"
+ },
+ "191682": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://theequitygroupinc.com",
+  "verdict": "owner_operator"
+ },
  "191739": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -1574,6 +1825,14 @@
   "confidence": null,
   "matched": [],
   "url": "https://awbcorp.com",
+  "verdict": "inconclusive"
+ },
+ "191832": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 404: Not Found",
+  "matched": [],
+  "url": "https://harvestreg.com",
   "verdict": "inconclusive"
  },
  "191855": {
@@ -1736,6 +1995,17 @@
   "url": "https://spousesbuyinghouses.com",
   "verdict": "third_party"
  },
+ "192199": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "we manage",
+   "our services",
+   "tenant placement"
+  ],
+  "url": "https://hinmanagement.com",
+  "verdict": "third_party"
+ },
  "192234": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -1765,6 +2035,16 @@
   "matched": [],
   "url": "https://bluestonetx.com",
   "verdict": "inconclusive"
+ },
+ "192291": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties",
+   "resident portal"
+  ],
+  "url": "https://thecalagents.com",
+  "verdict": "owner_operator"
  },
  "192293": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -1919,6 +2199,15 @@
   "url": "https://lreillc.com",
   "verdict": "third_party"
  },
+ "192729": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our portfolio"
+  ],
+  "url": "https://varoinc.com",
+  "verdict": "owner_operator"
+ },
  "192856": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -1946,6 +2235,27 @@
   "url": "https://trueeastnashville.com",
   "verdict": "owner_operator"
  },
+ "192949": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our portfolio"
+  ],
+  "url": "https://taylorrealtygroup.net",
+  "verdict": "owner_operator"
+ },
+ "192951": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "we manage",
+   "landlord"
+  ],
+  "url": "https://wprents.com",
+  "verdict": "third_party"
+ },
  "192953": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -1955,6 +2265,19 @@
    "property owners"
   ],
   "url": "https://wildermgmt.com",
+  "verdict": "third_party"
+ },
+ "192964": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://cityrealestategroup.com",
   "verdict": "third_party"
  },
  "192967": {
@@ -2068,6 +2391,13 @@
   "url": "https://prolinkre.com",
   "verdict": "inconclusive"
  },
+ "193438": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://thegilmartins.com",
+  "verdict": "inconclusive"
+ },
  "193469": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -2126,6 +2456,24 @@
   "url": "https://gsm-p.com",
   "verdict": "third_party"
  },
+ "193663": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://mscprops.com",
+  "verdict": "third_party"
+ },
  "193670": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -2159,6 +2507,15 @@
    "tenant placement"
   ],
   "url": "https://nuhomellc.com",
+  "verdict": "third_party"
+ },
+ "193709": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner login"
+  ],
+  "url": "https://structure-properties.com",
   "verdict": "third_party"
  },
  "193727": {
@@ -2483,6 +2840,24 @@
   "url": "https://vargasteam.net",
   "verdict": "inconclusive"
  },
+ "194876": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner login",
+   "we manage",
+   "property owners"
+  ],
+  "url": "https://woodhammanagement.com",
+  "verdict": "third_party"
+ },
+ "194892": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://homesforjacksonville.com",
+  "verdict": "inconclusive"
+ },
  "194923": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -2506,6 +2881,14 @@
   ],
   "url": "https://holbrookhawesllc.managebuilding.com",
   "verdict": "owner_operator"
+ },
+ "195026": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 503: Service Temporarily Unavailable",
+  "matched": [],
+  "url": "https://humrickhouserealty.com",
+  "verdict": "inconclusive"
  },
  "195051": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -2626,6 +3009,20 @@
   "url": "https://homewarddfw.com",
   "verdict": "inconclusive"
  },
+ "195420": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "for property owners",
+   "we manage",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://ipisacramento.com",
+  "verdict": "third_party"
+ },
  "195425": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -2681,6 +3078,19 @@
   "matched": [],
   "url": "https://mnm.homes",
   "verdict": "inconclusive"
+ },
+ "195552": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "professional property management",
+   "our services"
+  ],
+  "url": "https://mtlpropertiesllc.com",
+  "verdict": "third_party"
  },
  "195666": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -2743,12 +3153,26 @@
   "url": "https://rentwithfrank.com",
   "verdict": "inconclusive"
  },
+ "195759": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://royalkeyproperty.com",
+  "verdict": "inconclusive"
+ },
  "195790": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
   "error": "HTTP Error 403: Forbidden",
   "matched": [],
   "url": "https://spiazzarealty.com",
+  "verdict": "inconclusive"
+ },
+ "195801": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://skyboxrealty.com",
   "verdict": "inconclusive"
  },
  "195852": {
@@ -2961,6 +3385,13 @@
   "error": "HTTP Error 403: Forbidden",
   "matched": [],
   "url": "https://www.simpsonpropertygroup.com",
+  "verdict": "inconclusive"
+ },
+ "30946": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://www.fulcrumproperty.com/",
   "verdict": "inconclusive"
  },
  "30949": {
@@ -3256,6 +3687,13 @@
   "url": "https://8zrentals.com",
   "verdict": "third_party"
  },
+ "31939": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://901res.com",
+  "verdict": "inconclusive"
+ },
  "31951": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -3263,6 +3701,20 @@
   "matched": [],
   "url": "https://aplusrocks.com",
   "verdict": "inconclusive"
+ },
+ "31956": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner login",
+   "property management services",
+   "management services",
+   "we manage",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://atobpropertymanagement.com",
+  "verdict": "third_party"
  },
  "31968": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -3283,6 +3735,50 @@
    "property owners"
   ],
   "url": "https://aplushomerentals.com",
+  "verdict": "third_party"
+ },
+ "31992": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "we manage"
+  ],
+  "url": "https://aaapm.com",
+  "verdict": "third_party"
+ },
+ "32013": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "for property owners",
+   "management services",
+   "professional property management",
+   "property owners"
+  ],
+  "url": "https://ablepm.com",
+  "verdict": "third_party"
+ },
+ "32018": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management",
+   "management fee",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://abornproperties.com",
   "verdict": "third_party"
  },
  "32045": {
@@ -3351,6 +3847,24 @@
    "property owners"
   ],
   "url": "https://www.secondavenue.com",
+  "verdict": "third_party"
+ },
+ "32092": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "free rental analysis",
+   "property management services",
+   "for property owners",
+   "management services",
+   "leasing fee",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://actionproperties.net",
   "verdict": "third_party"
  },
  "32095": {
@@ -3438,6 +3952,18 @@
    "tenant placement"
   ],
   "url": "https://advantagepropertymgmt.com",
+  "verdict": "third_party"
+ },
+ "32137": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "management services",
+   "professional property management",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://adventpropertiesinc.com",
   "verdict": "third_party"
  },
  "32165": {
@@ -3537,6 +4063,37 @@
   "url": "https://all3realty.com",
   "verdict": "third_party"
  },
+ "32231": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "we manage",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://allaboutrealty.net",
+  "verdict": "third_party"
+ },
+ "32240": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management",
+   "management fee",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://alleastbayproperties.com",
+  "verdict": "third_party"
+ },
  "32249": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -3549,6 +4106,21 @@
    "property owners"
   ],
   "url": "https://allpropropertytn.com",
+  "verdict": "third_party"
+ },
+ "32251": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://allpropertyca.com",
   "verdict": "third_party"
  },
  "32257": {
@@ -3610,6 +4182,22 @@
  },
  "32323": {
   "checkedAt": "2026-07-20T23:24:13Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "property management services",
+   "management services",
+   "professional property management",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://goaltos.com",
+  "verdict": "third_party"
+ },
+ "32324": {
+  "checkedAt": "2026-08-20T23:31:09Z",
   "confidence": "high",
   "matched": [
    "owner portal",
@@ -3709,6 +4297,21 @@
   "url": "https://amerivisionproperties.com",
   "verdict": "third_party"
  },
+ "32387": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "list your property",
+   "property management services",
+   "for property owners",
+   "management services",
+   "professional property management",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://amoresf.com",
+  "verdict": "third_party"
+ },
  "32389": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -3718,6 +4321,32 @@
   ],
   "url": "https://amperecapitalgroup.com",
   "verdict": "owner_operator"
+ },
+ "32402": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "management fee",
+   "leasing fee",
+   "our services"
+  ],
+  "url": "https://anchorealtyinc.com",
+  "verdict": "third_party"
+ },
+ "32403": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "management fee",
+   "leasing fee",
+   "our services"
+  ],
+  "url": "https://anchorealtyinc.com",
+  "verdict": "third_party"
  },
  "32408": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -3893,6 +4522,28 @@
   "url": "https://armadaproperties.com",
   "verdict": "third_party"
  },
+ "32544": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management",
+   "property owners"
+  ],
+  "url": "https://armstrong-property.com",
+  "verdict": "third_party"
+ },
+ "32553": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://arrowheadhousing.com",
+  "verdict": "inconclusive"
+ },
  "32564": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -3962,6 +4613,20 @@
   "url": "https://aspenmgt.net",
   "verdict": "inconclusive"
  },
+ "32599": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management",
+   "property owners"
+  ],
+  "url": "https://aspenpropertiesbozeman.com",
+  "verdict": "third_party"
+ },
  "32608": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -4020,6 +4685,17 @@
   "url": "https://athomeaptskc.com",
   "verdict": "inconclusive"
  },
+ "32664": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services"
+  ],
+  "url": "https://atlantisproperties.net",
+  "verdict": "third_party"
+ },
  "32669": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -4028,6 +4704,14 @@
   ],
   "url": "https://atlasmgmtpdx.com",
   "verdict": "third_party"
+ },
+ "32670": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://atlasbayarea.com",
+  "verdict": "inconclusive"
  },
  "32672": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -4111,6 +4795,19 @@
   "url": "https://avenueoneresidential.com",
   "verdict": "third_party"
  },
+ "32741": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management"
+  ],
+  "url": "https://bnbre.com",
+  "verdict": "third_party"
+ },
  "32742": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -4175,6 +4872,37 @@
   "url": "https://bamliving.com",
   "verdict": "third_party"
  },
+ "32781": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "property management services",
+   "for property owners",
+   "management services",
+   "we manage",
+   "management fee",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://bancalsf.com",
+  "verdict": "third_party"
+ },
+ "32787": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://bankstonpm.com",
+  "verdict": "third_party"
+ },
  "32796": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -4183,6 +4911,15 @@
   ],
   "url": "https://bargeproperties.com",
   "verdict": "owner_operator"
+ },
+ "32808": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner login"
+  ],
+  "url": "https://barringeripm.com",
+  "verdict": "third_party"
  },
  "32809": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -4211,6 +4948,33 @@
    "landlord"
   ],
   "url": "https://barshayandpeters.com",
+  "verdict": "third_party"
+ },
+ "32816": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://bartelspm.com",
+  "verdict": "inconclusive"
+ },
+ "32828": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://bayaptadvisors.com",
+  "verdict": "inconclusive"
+ },
+ "32836": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "we manage",
+   "our services"
+  ],
+  "url": "https://baypropertygroup.com",
   "verdict": "third_party"
  },
  "32837": {
@@ -4243,6 +5007,17 @@
    "tenant placement"
   ],
   "url": "https://baymgmtgroup.com",
+  "verdict": "third_party"
+ },
+ "32843": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "property owners"
+  ],
+  "url": "https://eliteapts.com",
   "verdict": "third_party"
  },
  "32855": {
@@ -4278,6 +5053,14 @@
   ],
   "url": "https://beacon.cc",
   "verdict": "third_party"
+ },
+ "32881": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1081)>",
+  "matched": [],
+  "url": "https://beaconprop.com",
+  "verdict": "inconclusive"
  },
  "32882": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -4347,6 +5130,20 @@
   "matched": [],
   "url": "https://benleedsproperties.com",
   "verdict": "inconclusive"
+ },
+ "32944": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "for property owners",
+   "management services",
+   "we manage",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://benchmarkrental.com",
+  "verdict": "third_party"
  },
  "32952": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -4434,12 +5231,46 @@
   "url": "https://bervininc.com",
   "verdict": "inconclusive"
  },
+ "32997": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owners login",
+   "property management services",
+   "for property owners",
+   "management services",
+   "we manage",
+   "our services",
+   "become a client",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://bestproperty4u.com",
+  "verdict": "third_party"
+ },
+ "33019": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "resident portal"
+  ],
+  "url": "https://bglein.com",
+  "verdict": "owner_operator"
+ },
  "33026": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
   "error": "HTTP Error 403: Forbidden",
   "matched": [],
   "url": "https://bhbindy.net",
+  "verdict": "inconclusive"
+ },
+ "33037": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://bielinski.com/apartments",
   "verdict": "inconclusive"
  },
  "33057": {
@@ -4513,6 +5344,23 @@
    "our services"
   ],
   "url": "https://bluedogrva.com",
+  "verdict": "third_party"
+ },
+ "33134": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "free rental analysis",
+   "property management services",
+   "for property owners",
+   "management services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://bluelinepm.com",
   "verdict": "third_party"
  },
  "33151": {
@@ -4709,6 +5557,19 @@
   "url": "https://brinkpm.com",
   "verdict": "third_party"
  },
+ "33329": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "management fee",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://brittaincommercial.net",
+  "verdict": "third_party"
+ },
  "33340": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -4753,6 +5614,13 @@
   ],
   "url": "https://brownandglenn.com",
   "verdict": "third_party"
+ },
+ "33359": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://browninvestmentgroup.com",
+  "verdict": "inconclusive"
  },
  "33362": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -4861,6 +5729,25 @@
   "url": "https://byersandharvey.com",
   "verdict": "third_party"
  },
+ "334524": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "property management services",
+   "management services",
+   "we manage",
+   "let us manage",
+   "professional property management",
+   "management fee",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://www.starrpm.com/",
+  "verdict": "third_party"
+ },
  "33459": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -4880,6 +5767,14 @@
   "url": "https://mycfrp.com",
   "verdict": "inconclusive"
  },
+ "33478": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://cagoldenproperties.com",
+  "verdict": "inconclusive"
+ },
  "33485": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -4888,6 +5783,67 @@
    "our services"
   ],
   "url": "https://cadmangroup.net",
+  "verdict": "third_party"
+ },
+ "33491": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "we manage"
+  ],
+  "url": "https://calbaypm.com",
+  "verdict": "third_party"
+ },
+ "33493": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "owners login",
+   "free rental analysis",
+   "property management services",
+   "for property owners",
+   "management services",
+   "we manage",
+   "let us manage",
+   "professional property management",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://calwestrents.com",
+  "verdict": "third_party"
+ },
+ "33495": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "we manage",
+   "let us manage",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://calwestern.com",
+  "verdict": "third_party"
+ },
+ "33504": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://allstarproperties.org",
   "verdict": "third_party"
  },
  "33509": {
@@ -4974,6 +5930,18 @@
   "url": "https://crainfo.com",
   "verdict": "third_party"
  },
+ "33587": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services"
+  ],
+  "url": "https://capitalrealtygrp.com",
+  "verdict": "third_party"
+ },
  "33618": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -5049,6 +6017,17 @@
   "url": "https://wlvpm.com",
   "verdict": "inconclusive"
  },
+ "33708": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "we manage"
+  ],
+  "url": "https://cedarproperties.com",
+  "verdict": "third_party"
+ },
  "33710": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -5069,6 +6048,19 @@
    "property owners"
   ],
   "url": "https://celticproperties.net",
+  "verdict": "third_party"
+ },
+ "33732": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://centralcalmgmt.com",
   "verdict": "third_party"
  },
  "33736": {
@@ -5175,6 +6167,14 @@
   "url": "https://century21northhomes.com/rentals",
   "verdict": "third_party"
  },
+ "33830": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.",
+  "matched": [],
+  "url": "https://czre.co",
+  "verdict": "inconclusive"
+ },
  "33834": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -5196,6 +6196,14 @@
   ],
   "url": "https://champrentalskc.com",
   "verdict": "owner_operator"
+ },
+ "33849": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://chandlerproperties.com",
+  "verdict": "inconclusive"
  },
  "33854": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -5290,6 +6298,21 @@
   "matched": [],
   "url": "https://zhouagency.com",
   "verdict": "inconclusive"
+ },
+ "33960": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://citywiderentalsmke.com",
+  "verdict": "third_party"
  },
  "339648": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -5386,6 +6409,21 @@
    "property owners"
   ],
   "url": "https://canyonlandcompany.net",
+  "verdict": "third_party"
+ },
+ "34026": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management",
+   "management fee",
+   "our services"
+  ],
+  "url": "https://cmpmi.com",
   "verdict": "third_party"
  },
  "34053": {
@@ -5497,6 +6535,19 @@
   "url": "https://baltimoreturnkeyrentals.com/property",
   "verdict": "inconclusive"
  },
+ "34181": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://crpmrealty.com",
+  "verdict": "third_party"
+ },
  "34188": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -5557,6 +6608,19 @@
   "url": "https://concept360propertymanagement.com",
   "verdict": "inconclusive"
  },
+ "34224": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "our services"
+  ],
+  "url": "https://connectbozeman.com",
+  "verdict": "third_party"
+ },
  "34225": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -5567,6 +6631,18 @@
    "property owners"
   ],
   "url": "https://connectedpm.com",
+  "verdict": "third_party"
+ },
+ "34228": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://conradpm.com",
   "verdict": "third_party"
  },
  "34232": {
@@ -5609,6 +6685,33 @@
   "url": "https://coreredevelopment.com",
   "verdict": "owner_operator"
  },
+ "34276": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "management services",
+   "we manage",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://cornerstonepm.net",
+  "verdict": "third_party"
+ },
+ "34280": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "management fee",
+   "property owners"
+  ],
+  "url": "https://cornerstonepropmgt.com",
+  "verdict": "third_party"
+ },
  "34282": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -5619,6 +6722,13 @@
   "url": "https://managedbycornerstone.com",
   "verdict": "third_party"
  },
+ "34284": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://cornerstonerealtyofmurfreesboro.com",
+  "verdict": "inconclusive"
+ },
  "34303": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -5628,6 +6738,19 @@
    "our services"
   ],
   "url": "https://costare.com",
+  "verdict": "third_party"
+ },
+ "34314": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "management fee",
+   "our services"
+  ],
+  "url": "https://countrysidepm.com",
   "verdict": "third_party"
  },
  "34328": {
@@ -5647,6 +6770,18 @@
    "property owners"
   ],
   "url": "https://coxpremier.com",
+  "verdict": "third_party"
+ },
+ "34338": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "we manage",
+   "professional property management"
+  ],
+  "url": "https://crm-properties.com",
   "verdict": "third_party"
  },
  "34339": {
@@ -5719,6 +6854,16 @@
   "url": "https://rentcryeleike.com",
   "verdict": "third_party"
  },
+ "34413": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services"
+  ],
+  "url": "https://csmontana.com",
+  "verdict": "third_party"
+ },
  "34426": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -5726,6 +6871,16 @@
   "matched": [],
   "url": "https://curatorpm.com",
   "verdict": "inconclusive"
+ },
+ "34433": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties",
+   "resident portal"
+  ],
+  "url": "https://cvhomes.com",
+  "verdict": "owner_operator"
  },
  "34436": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -5739,6 +6894,19 @@
    "landlord"
   ],
   "url": "https://cwsparks.com",
+  "verdict": "third_party"
+ },
+ "34439": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "property owners"
+  ],
+  "url": "https://cybusmanagement.com",
   "verdict": "third_party"
  },
  "34455": {
@@ -5763,6 +6931,13 @@
   "url": "https://ca-mgmt.com",
   "verdict": "third_party"
  },
+ "34464": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://dandsdev.com",
+  "verdict": "inconclusive"
+ },
  "34476": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -5770,6 +6945,19 @@
   "matched": [],
   "url": "https://dallaspropertymanagementpros.com",
   "verdict": "inconclusive"
+ },
+ "34478": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "our services"
+  ],
+  "url": "https://irentwoodland.com",
+  "verdict": "third_party"
  },
  "34484": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -5852,6 +7040,24 @@
   ],
   "url": "https://dayandassociatespm.com",
   "verdict": "third_party"
+ },
+ "34528": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services"
+  ],
+  "url": "https://daystarpropertyservices.com",
+  "verdict": "third_party"
+ },
+ "34533": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>",
+  "matched": [],
+  "url": "https://dilussobuiding.com",
+  "verdict": "inconclusive"
  },
  "34535": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -6005,6 +7211,16 @@
   "url": "https://dgeinvestments.com",
   "verdict": "inconclusive"
  },
+ "34664": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "management services",
+   "our services"
+  ],
+  "url": "https://diablopacific.com",
+  "verdict": "third_party"
+ },
  "34667": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -6063,6 +7279,17 @@
   "url": "https://discoverproperties.net",
   "verdict": "third_party"
  },
+ "34703": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "landlord"
+  ],
+  "url": "https://discoinvest.com",
+  "verdict": "third_party"
+ },
  "34730": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -6108,6 +7335,13 @@
   ],
   "url": "https://desertmastersrealty.com",
   "verdict": "third_party"
+ },
+ "34750": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://dobbsrealtygroup.com",
+  "verdict": "inconclusive"
  },
  "34752": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -6174,6 +7408,19 @@
   "matched": [],
   "url": "https://drexelproperties.com",
   "verdict": "inconclusive"
+ },
+ "34821": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "professional property management",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://drysdalepm.com",
+  "verdict": "third_party"
  },
  "34827": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -6255,6 +7502,24 @@
   "url": "https://eandgrealestate.com",
   "verdict": "third_party"
  },
+ "34895": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "free rental analysis",
+   "for property owners",
+   "we manage",
+   "let us manage",
+   "professional property management",
+   "management fee",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://eastbaypmc.com",
+  "verdict": "third_party"
+ },
  "34904": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -6291,6 +7556,14 @@
   "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid f",
   "matched": [],
   "url": "https://elisebickel.com",
+  "verdict": "inconclusive"
+ },
+ "34924": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [Errno 61] Connection refused>",
+  "matched": [],
+  "url": "https://eamanagers.com",
   "verdict": "inconclusive"
  },
  "34926": {
@@ -6355,6 +7628,33 @@
   "url": "https://eglproperties.com",
   "verdict": "third_party"
  },
+ "34962": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "our services"
+  ],
+  "url": "https://ehpropertymanagement.com",
+  "verdict": "third_party"
+ },
+ "34963": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "management fee",
+   "leasing fee",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://ehomesofbakersfield.com",
+  "verdict": "third_party"
+ },
  "34964": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -6390,6 +7690,13 @@
   ],
   "url": "https://elitproperties.com",
   "verdict": "owner_operator"
+ },
+ "35009": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://eliteridgecrest.com",
+  "verdict": "inconclusive"
  },
  "35014": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -6453,6 +7760,20 @@
   "url": "https://ellishomesource.com",
   "verdict": "third_party"
  },
+ "35041": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://karpe.com",
+  "verdict": "third_party"
+ },
  "35050": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -6470,6 +7791,46 @@
   ],
   "url": "https://emmettochs.com",
   "verdict": "owner_operator"
+ },
+ "35070": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "management fee",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://empowerrealtygroup.com",
+  "verdict": "third_party"
+ },
+ "35090": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "we manage",
+   "landlord"
+  ],
+  "url": "https://rentenigma.com",
+  "verdict": "third_party"
+ },
+ "35108": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management"
+  ],
+  "url": "https://epicrea.com",
+  "verdict": "third_party"
  },
  "35116": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -6489,6 +7850,16 @@
   "matched": [],
   "url": "https://myequitymanagement.com",
   "verdict": "inconclusive"
+ },
+ "35128": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "our services",
+   "landlord"
+  ],
+  "url": "https://ermapts.com",
+  "verdict": "third_party"
  },
  "35137": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -6586,6 +7957,18 @@
   "url": "https://evolvedenver.com",
   "verdict": "inconclusive"
  },
+ "35218": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://executivepropertymgt.com",
+  "verdict": "third_party"
+ },
  "35221": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -6604,6 +7987,13 @@
   "confidence": null,
   "matched": [],
   "url": "https://fwproperties.com",
+  "verdict": "inconclusive"
+ },
+ "35256": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://fadcal.com",
   "verdict": "inconclusive"
  },
  "35263": {
@@ -6752,6 +8142,18 @@
   "url": "https://firstselectpropertymanagement.com",
   "verdict": "inconclusive"
  },
+ "35375": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "professional property management",
+   "property owners"
+  ],
+  "url": "https://firststatewiderealty.com",
+  "verdict": "third_party"
+ },
  "35381": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -6783,6 +8185,32 @@
   "url": "https://fishrentalpm.com",
   "verdict": "third_party"
  },
+ "35395": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://homesbyfivestar.com",
+  "verdict": "third_party"
+ },
+ "35396": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "let us manage",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://gofivestarpm.com",
+  "verdict": "third_party"
+ },
  "35411": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -6811,6 +8239,32 @@
   "matched": [],
   "url": "https://flarealtyinvestments.com",
   "verdict": "inconclusive"
+ },
+ "35443": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our communities"
+  ],
+  "url": "https://rentwithfocus.com",
+  "verdict": "owner_operator"
+ },
+ "35448": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "property management services",
+   "for property owners",
+   "management services",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://forbesgrouppm.com",
+  "verdict": "third_party"
  },
  "35452": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -6844,6 +8298,19 @@
    "landlord"
   ],
   "url": "https://fortunerealproperty.com",
+  "verdict": "third_party"
+ },
+ "35479": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner login",
+   "we manage",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://foundationhomes.com",
   "verdict": "third_party"
  },
  "35484": {
@@ -6904,6 +8371,23 @@
   "url": "https://frame.la",
   "verdict": "inconclusive"
  },
+ "35528": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management",
+   "management fee",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://fresnomanagementcompany.com",
+  "verdict": "third_party"
+ },
  "35537": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -6931,6 +8415,18 @@
   "matched": [],
   "url": "https://fry-properties.com",
   "verdict": "inconclusive"
+ },
+ "35552": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "professional property management"
+  ],
+  "url": "https://fullhousemgt.com",
+  "verdict": "third_party"
  },
  "35556": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -6990,6 +8486,19 @@
   "url": "https://futurevisionproperty.com",
   "verdict": "third_party"
  },
+ "35591": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "tenant placement"
+  ],
+  "url": "https://creekstopeaksrentals.com",
+  "verdict": "third_party"
+ },
  "35600": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -7032,6 +8541,16 @@
   "url": "https://gatepropertiesinc.com",
   "verdict": "inconclusive"
  },
+ "35631": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services"
+  ],
+  "url": "https://gbrrealestate.com",
+  "verdict": "third_party"
+ },
  "35632": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -7045,6 +8564,17 @@
    "tenant placement"
   ],
   "url": "https://gbtinvestments.com",
+  "verdict": "third_party"
+ },
+ "35638": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "our services"
+  ],
+  "url": "https://gcmrealty.com",
   "verdict": "third_party"
  },
  "35642": {
@@ -7215,6 +8745,15 @@
   "url": "https://goldenbeemanagement.com",
   "verdict": "third_party"
  },
+ "35778": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "resident portal"
+  ],
+  "url": "https://g2properties.com",
+  "verdict": "owner_operator"
+ },
  "35811": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -7232,6 +8771,23 @@
    "tenant placement"
   ],
   "url": "https://goodlifemgmt.com",
+  "verdict": "third_party"
+ },
+ "35823": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner login",
+   "property management services",
+   "for property owners",
+   "management services",
+   "professional property management",
+   "management fee",
+   "leasing fee",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://gpmsf.com",
   "verdict": "third_party"
  },
  "35841": {
@@ -7257,6 +8813,13 @@
   "confidence": null,
   "matched": [],
   "url": "https://gpspropertygroup.com",
+  "verdict": "inconclusive"
+ },
+ "35843": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://gpspropertymanagement.com",
   "verdict": "inconclusive"
  },
  "35845": {
@@ -7307,6 +8870,15 @@
   "matched": [],
   "url": "https://granitestudentliving.com",
   "verdict": "inconclusive"
+ },
+ "35869": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://rentgranville.com",
+  "verdict": "owner_operator"
  },
  "35892": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -7382,6 +8954,30 @@
   "url": "https://rentsphx.com",
   "verdict": "inconclusive"
  },
+ "35967": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner login",
+   "for property owners",
+   "management services",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://goldenstatepropertymanagement.com",
+  "verdict": "third_party"
+ },
+ "35969": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our communities",
+   "resident portal"
+  ],
+  "url": "https://gsfpi.com",
+  "verdict": "owner_operator"
+ },
  "35970": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -7440,6 +9036,14 @@
   ],
   "url": "https://hmheckleco.com",
   "verdict": "third_party"
+ },
+ "36013": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://handmpropertymanagement.com",
+  "verdict": "inconclusive"
  },
  "36014": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -7557,6 +9161,29 @@
   "url": "https://hartrent.com",
   "verdict": "third_party"
  },
+ "36096": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "we manage"
+  ],
+  "url": "https://hartzpropertymanagement.com",
+  "verdict": "third_party"
+ },
+ "36110": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services"
+  ],
+  "url": "https://havenrents.com",
+  "verdict": "third_party"
+ },
  "36112": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -7616,6 +9243,26 @@
    "property owners"
   ],
   "url": "https://vrhayes.com",
+  "verdict": "third_party"
+ },
+ "36140": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "we manage",
+   "let us manage",
+   "professional property management",
+   "leasing fee",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://hcmpm.com",
   "verdict": "third_party"
  },
  "36162": {
@@ -7682,6 +9329,13 @@
   "url": "https://heritagerealestates.org",
   "verdict": "inconclusive"
  },
+ "36202": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://heritagerealtysanmateo.com",
+  "verdict": "inconclusive"
+ },
  "36205": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -7692,6 +9346,15 @@
    "property owners"
   ],
   "url": "https://boswellrentals.com",
+  "verdict": "third_party"
+ },
+ "36208": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal"
+  ],
+  "url": "https://hermosapropertymanagement.com",
   "verdict": "third_party"
  },
  "36217": {
@@ -7876,6 +9539,19 @@
   "url": "https://honoreproperties.com",
   "verdict": "third_party"
  },
+ "36388": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services",
+   "tenant placement"
+  ],
+  "url": "https://horizonproperties.com",
+  "verdict": "third_party"
+ },
  "36391": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -7981,6 +9657,14 @@
   "url": "https://howardmanagement.com",
   "verdict": "third_party"
  },
+ "36430": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid f",
+  "matched": [],
+  "url": "https://hrurealty.com",
+  "verdict": "inconclusive"
+ },
  "36454": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -8001,6 +9685,21 @@
    "property owners"
   ],
   "url": "https://huntahome.com",
+  "verdict": "third_party"
+ },
+ "36457": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "for property owners",
+   "management services",
+   "we manage",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://hunterpeyton.com",
   "verdict": "third_party"
  },
  "36463": {
@@ -8094,6 +9793,28 @@
   "url": "https://iconre.org",
   "verdict": "third_party"
  },
+ "36522": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>",
+  "matched": [],
+  "url": "https://impropertiesinc.com",
+  "verdict": "inconclusive"
+ },
+ "36526": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://jblonline.net",
+  "verdict": "third_party"
+ },
  "36538": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -8128,6 +9849,16 @@
    "owner portal"
   ],
   "url": "https://indianolamanagement.com",
+  "verdict": "third_party"
+ },
+ "36555": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services"
+  ],
+  "url": "https://infinitemontana.com",
   "verdict": "third_party"
  },
  "36558": {
@@ -8211,6 +9942,18 @@
   "url": "https://innovativerealtyfl.com",
   "verdict": "inconclusive"
  },
+ "36592": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "for property owners",
+   "management services",
+   "property owners"
+  ],
+  "url": "https://integrityinvest.com",
+  "verdict": "third_party"
+ },
  "36599": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -8232,6 +9975,16 @@
    "list your rental"
   ],
   "url": "https://35rsolutions.com",
+  "verdict": "third_party"
+ },
+ "36602": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "management services",
+   "we manage"
+  ],
+  "url": "https://icrealty.com",
   "verdict": "third_party"
  },
  "36605": {
@@ -8261,6 +10014,16 @@
   "url": "https://inveserve.com",
   "verdict": "third_party"
  },
+ "36614": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "free rental analysis",
+   "tenant placement"
+  ],
+  "url": "https://investpm.com",
+  "verdict": "third_party"
+ },
  "36620": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -8282,6 +10045,28 @@
   ],
   "url": "https://ipropmgmt.com",
   "verdict": "third_party"
+ },
+ "36645": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://ipsfresno.com",
+  "verdict": "third_party"
+ },
+ "36662": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>",
+  "matched": [],
+  "url": "https://wironhorsemgmt.com",
+  "verdict": "inconclusive"
  },
  "36663": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -8458,6 +10243,19 @@
   "url": "https://jsilvarealty.com",
   "verdict": "inconclusive"
  },
+ "36886": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "we manage",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://jprentnow.com",
+  "verdict": "third_party"
+ },
  "36893": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -8468,6 +10266,16 @@
   ],
   "url": "https://joonmanagement.com",
   "verdict": "third_party"
+ },
+ "36898": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our communities",
+   "our properties"
+  ],
+  "url": "https://milwaukeeluxuryapartments.com",
+  "verdict": "owner_operator"
  },
  "36939": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -8494,6 +10302,19 @@
   "url": "https://kigcapital.com",
   "verdict": "third_party"
  },
+ "36951": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "professional property management",
+   "our services"
+  ],
+  "url": "https://kaerealestate.com",
+  "verdict": "third_party"
+ },
  "36963": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -8502,6 +10323,29 @@
    "management services"
   ],
   "url": "https://kapeproperties.com",
+  "verdict": "third_party"
+ },
+ "36973": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://kasaproperties.com",
+  "verdict": "third_party"
+ },
+ "36974": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "we manage"
+  ],
+  "url": "https://kasdorfproperties.com",
   "verdict": "third_party"
  },
  "36980": {
@@ -8531,6 +10375,16 @@
    "property owners"
   ],
   "url": "https://kbrealtygroup.com",
+  "verdict": "third_party"
+ },
+ "36989": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "we manage"
+  ],
+  "url": "https://kbsres.com",
   "verdict": "third_party"
  },
  "36990": {
@@ -8570,6 +10424,13 @@
   "url": "https://greengroup.biz",
   "verdict": "inconclusive"
  },
+ "37045": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://everestmwamba.com",
+  "verdict": "inconclusive"
+ },
  "37053": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -8601,6 +10462,26 @@
   "matched": [],
   "url": "https://keypropmgt.com",
   "verdict": "inconclusive"
+ },
+ "37067": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "free rental analysis",
+   "property management services",
+   "for property owners",
+   "management services",
+   "we manage",
+   "management fee",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://keyrealtycenterpm.com",
+  "verdict": "third_party"
  },
  "37072": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -8659,6 +10540,19 @@
   "url": "https://kcgrealty.com",
   "verdict": "inconclusive"
  },
+ "37111": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://keystonebrokers.net",
+  "verdict": "third_party"
+ },
  "37117": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -8690,6 +10584,37 @@
   ],
   "url": "https://kh.properties",
   "verdict": "owner_operator"
+ },
+ "37124": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1081)>",
+  "matched": [],
+  "url": "https://kikumotorealestate.com",
+  "verdict": "inconclusive"
+ },
+ "37126": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "for property owners",
+   "management services",
+   "property owners"
+  ],
+  "url": "https://kimbrielrealtypm.com",
+  "verdict": "third_party"
+ },
+ "37133": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "our services"
+  ],
+  "url": "https://kingproperties.com",
+  "verdict": "third_party"
  },
  "37140": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -8745,6 +10670,27 @@
   "url": "https://kismetproperties.com",
   "verdict": "third_party"
  },
+ "37159": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services"
+  ],
+  "url": "https://kjaxproperty.com",
+  "verdict": "third_party"
+ },
+ "37168": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "resident portal"
+  ],
+  "url": "https://kleemax.com",
+  "verdict": "owner_operator"
+ },
  "37170": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -8760,6 +10706,16 @@
    "our services"
   ],
   "url": "https://klsfinancial.com",
+  "verdict": "third_party"
+ },
+ "37174": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "management services",
+   "we manage"
+  ],
+  "url": "https://km3mgmt.com",
   "verdict": "third_party"
  },
  "37178": {
@@ -8845,6 +10801,18 @@
   "url": "https://leproperties.com",
   "verdict": "third_party"
  },
+ "37255": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "professional property management",
+   "our services"
+  ],
+  "url": "https://llpm.com",
+  "verdict": "third_party"
+ },
  "37277": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -8859,11 +10827,37 @@
   "url": "https://lagunaserrano.net",
   "verdict": "inconclusive"
  },
+ "37292": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "property management services",
+   "for property owners",
+   "management services",
+   "we manage",
+   "professional property management",
+   "management fee",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://lakevalleyproperties.com",
+  "verdict": "third_party"
+ },
  "37302": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
   "matched": [],
   "url": "https://lakeviewassociates.com",
+  "verdict": "inconclusive"
+ },
+ "37310": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid f",
+  "matched": [],
+  "url": "https://landquestwi.com",
   "verdict": "inconclusive"
  },
  "37316": {
@@ -8948,6 +10942,15 @@
   "url": "https://lbpm.com",
   "verdict": "third_party"
  },
+ "37380": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "acquisitions"
+  ],
+  "url": "https://lcmfunds.com",
+  "verdict": "owner_operator"
+ },
  "37387": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -9000,6 +11003,21 @@
    "landlord"
   ],
   "url": "https://leasingtexas.com",
+  "verdict": "third_party"
+ },
+ "37416": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://lpmsiliconvalley.com",
   "verdict": "third_party"
  },
  "37426": {
@@ -9105,6 +11123,19 @@
   "url": "https://southlooplife.com",
   "verdict": "inconclusive"
  },
+ "37562": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "property owners"
+  ],
+  "url": "https://locatorpm.com",
+  "verdict": "third_party"
+ },
  "37564": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -9155,6 +11186,18 @@
   "url": "https://lrspropertymanagement.com",
   "verdict": "third_party"
  },
+ "37635": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "management services",
+   "management fee",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://lunaproperties.biz",
+  "verdict": "third_party"
+ },
  "37638": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -9163,6 +11206,21 @@
   ],
   "url": "https://www.enclavepm.com/",
   "verdict": "owner_operator"
+ },
+ "37655": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "list your property",
+   "property management services",
+   "management services",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://golyonpm.com",
+  "verdict": "third_party"
  },
  "37661": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -9189,6 +11247,25 @@
   "url": "https://mapmanagement.com",
   "verdict": "third_party"
  },
+ "37670": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services"
+  ],
+  "url": "https://mproperties.com",
+  "verdict": "third_party"
+ },
+ "37675": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://mdatkinson.com",
+  "verdict": "inconclusive"
+ },
  "37676": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -9197,6 +11274,13 @@
   ],
   "url": "https://mfishmanco.com",
   "verdict": "owner_operator"
+ },
+ "37688": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://neufeldrentals.com",
+  "verdict": "inconclusive"
  },
  "37691": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -9246,6 +11330,18 @@
   "matched": [],
   "url": "https://malenohomes.com",
   "verdict": "inconclusive"
+ },
+ "37773": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "we manage",
+   "property owners"
+  ],
+  "url": "https://managementassociatesmt.com",
+  "verdict": "third_party"
  },
  "37779": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -9327,6 +11423,13 @@
   "url": "https://markandersen.com",
   "verdict": "third_party"
  },
+ "37827": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://wi-rent.com",
+  "verdict": "inconclusive"
+ },
  "37832": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -9335,6 +11438,31 @@
    "our services"
   ],
   "url": "https://mymarketplacerealty.com",
+  "verdict": "third_party"
+ },
+ "37836": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "professional property management",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://marplespropertymanagement.com",
+  "verdict": "third_party"
+ },
+ "37844": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "we manage"
+  ],
+  "url": "https://marshallperryinc.com",
   "verdict": "third_party"
  },
  "37853": {
@@ -9351,6 +11479,29 @@
    "property owners"
   ],
   "url": "https://miprops.com",
+  "verdict": "third_party"
+ },
+ "37870": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://matelprop.com",
+  "verdict": "third_party"
+ },
+ "37882": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services"
+  ],
+  "url": "https://matusichraich.com",
   "verdict": "third_party"
  },
  "37888": {
@@ -9370,6 +11521,17 @@
   ],
   "url": "https://maviunlimited.com",
   "verdict": "third_party"
+ },
+ "37889": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our communities",
+   "our properties",
+   "resident portal"
+  ],
+  "url": "https://mhprentals.com",
+  "verdict": "owner_operator"
  },
  "37914": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -9412,6 +11574,13 @@
   ],
   "url": "https://mcnallymanagement.com",
   "verdict": "third_party"
+ },
+ "37990": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://mejolaproperties.com",
+  "verdict": "inconclusive"
  },
  "38013": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -9568,6 +11737,18 @@
   "url": "https://midwestpropertyresources.com",
   "verdict": "third_party"
  },
+ "38149": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services"
+  ],
+  "url": "https://millcreekmgt.com",
+  "verdict": "third_party"
+ },
  "38153": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -9590,6 +11771,20 @@
   "url": "https://mdrents.com",
   "verdict": "third_party"
  },
+ "38157": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://millerandhinkle.com",
+  "verdict": "third_party"
+ },
  "38175": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -9600,6 +11795,16 @@
    "property owners"
   ],
   "url": "https://mnapts.com",
+  "verdict": "third_party"
+ },
+ "38191": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services"
+  ],
+  "url": "https://www.Clemmerco.com",
   "verdict": "third_party"
  },
  "38193": {
@@ -9624,6 +11829,27 @@
   "matched": [],
   "url": "https://mizzrealty.com",
   "verdict": "inconclusive"
+ },
+ "38214": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://mjmlanddev.com",
+  "verdict": "owner_operator"
+ },
+ "38222": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "management fee",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://mkeleasing.com",
+  "verdict": "third_party"
  },
  "38238": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -9689,6 +11915,14 @@
   "url": "https://mcapartmentsla.com",
   "verdict": "third_party"
  },
+ "38275": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>",
+  "matched": [],
+  "url": "https://missoulapartments.biz",
+  "verdict": "inconclusive"
+ },
  "38278": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -9717,6 +11951,16 @@
   "url": "https://morganpropertysolutions.com",
   "verdict": "inconclusive"
  },
+ "38304": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services"
+  ],
+  "url": "https://morgenson.com",
+  "verdict": "third_party"
+ },
  "38314": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -9743,6 +11987,24 @@
    "tenant placement"
   ],
   "url": "https://mosaicpropertiesaz.com",
+  "verdict": "third_party"
+ },
+ "38320": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "property management services",
+   "for property owners",
+   "management services",
+   "we manage",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://mossrealestategroup.com",
   "verdict": "third_party"
  },
  "38333": {
@@ -9882,6 +12144,13 @@
   "url": "https://myplaceclarksville.com",
   "verdict": "third_party"
  },
+ "38406": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://myerhoffassociates.com",
+  "verdict": "inconclusive"
+ },
  "38412": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -9898,6 +12167,21 @@
   "url": "https://napierera.com",
   "verdict": "inconclusive"
  },
+ "38435": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner login",
+   "owners login",
+   "management services",
+   "we manage",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://nationalcommercialpropertymanagement.com",
+  "verdict": "third_party"
+ },
  "38440": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -9905,6 +12189,15 @@
   "matched": [],
   "url": "https://mndreamteam.com",
   "verdict": "inconclusive"
+ },
+ "38443": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal"
+  ],
+  "url": "https://npmliving.com",
+  "verdict": "third_party"
  },
  "38445": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -9962,6 +12255,21 @@
   "url": "https://nesttenders.com",
   "verdict": "third_party"
  },
+ "38493": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner login",
+   "free rental analysis",
+   "list your property",
+   "property management services",
+   "management services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://newbridgemanagement.com",
+  "verdict": "third_party"
+ },
  "38500": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -10016,6 +12324,19 @@
   "url": "https://nhsproperties.com",
   "verdict": "third_party"
  },
+ "38557": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "our services"
+  ],
+  "url": "https://nielsenproperty.com",
+  "verdict": "third_party"
+ },
  "38558": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -10031,6 +12352,19 @@
    "owner portal"
   ],
   "url": "https://nokomispm.com",
+  "verdict": "third_party"
+ },
+ "38586": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "we manage",
+   "management fee",
+   "our services"
+  ],
+  "url": "https://norcalrealty.us",
   "verdict": "third_party"
  },
  "38591": {
@@ -10154,6 +12488,17 @@
   "url": "https://nxtrealty.com",
   "verdict": "inconclusive"
  },
+ "38713": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "property owners"
+  ],
+  "url": "https://oaktreepropertygroup.com",
+  "verdict": "third_party"
+ },
  "38724": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -10262,6 +12607,20 @@
   "url": "https://openpathrealty.com",
   "verdict": "third_party"
  },
+ "38827": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://openworldproperties.com",
+  "verdict": "third_party"
+ },
  "38832": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -10325,6 +12684,14 @@
   "url": "https://orleansdev.com",
   "verdict": "inconclusive"
  },
+ "38873": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.",
+  "matched": [],
+  "url": "https://orvickmanagementgroup.com",
+  "verdict": "inconclusive"
+ },
  "38881": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -10350,11 +12717,28 @@
   "url": "https://pacapartments.com",
   "verdict": "inconclusive"
  },
+ "38913": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://p2propertymanagement.com",
+  "verdict": "owner_operator"
+ },
  "38914": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
   "matched": [],
   "url": "https://pabstkinney.com",
+  "verdict": "inconclusive"
+ },
+ "38920": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1081)>",
+  "matched": [],
+  "url": "https://pac-cap.com",
   "verdict": "inconclusive"
  },
  "38922": {
@@ -10391,6 +12775,20 @@
    "our services"
   ],
   "url": "https://pspmla.com",
+  "verdict": "third_party"
+ },
+ "38947": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://pacificapros.com",
   "verdict": "third_party"
  },
  "38956": {
@@ -10439,6 +12837,22 @@
   "url": "https://parkrpm.com",
   "verdict": "third_party"
  },
+ "39035": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://parkoneprop.com",
+  "verdict": "third_party"
+ },
  "39037": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -10472,6 +12886,32 @@
   "matched": [],
   "url": "https://parrandabernathy.com",
   "verdict": "inconclusive"
+ },
+ "39061": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "management fee",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://paseopropertiessf.com",
+  "verdict": "third_party"
+ },
+ "39090": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "property owners"
+  ],
+  "url": "https://pchpm.com",
+  "verdict": "third_party"
  },
  "39094": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -10542,6 +12982,24 @@
   "url": "https://pennantinvestment.com",
   "verdict": "third_party"
  },
+ "39152": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "we manage"
+  ],
+  "url": "https://perchak.com",
+  "verdict": "third_party"
+ },
+ "39163": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://performancerents.com",
+  "verdict": "inconclusive"
+ },
  "39214": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -10554,6 +13012,15 @@
   ],
   "url": "https://picketfenceproperties.com",
   "verdict": "third_party"
+ },
+ "39217": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our portfolio"
+  ],
+  "url": "https://pieperproperties.com",
+  "verdict": "owner_operator"
  },
  "39228": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -10636,6 +13103,17 @@
   "url": "https://ncfindahome.com",
   "verdict": "third_party"
  },
+ "39297": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services"
+  ],
+  "url": "https://pleasantonmanagement.com",
+  "verdict": "third_party"
+ },
  "39305": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -10683,6 +13161,20 @@
    "owner portal"
   ],
   "url": "https://pollardandbagby.com",
+  "verdict": "third_party"
+ },
+ "39344": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "for property owners",
+   "management services",
+   "we manage",
+   "property owners"
+  ],
+  "url": "https://portfoliopropertymgt.com",
   "verdict": "third_party"
  },
  "39363": {
@@ -10820,6 +13312,18 @@
   "url": "https://1storlandorealestate.com",
   "verdict": "inconclusive"
  },
+ "39480": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "property management services",
+   "management services"
+  ],
+  "url": "https://presidentialpm.com",
+  "verdict": "third_party"
+ },
  "39538": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -10863,6 +13367,35 @@
   "url": "https://proactive-propertymanagement.com",
   "verdict": "inconclusive"
  },
+ "39562": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management"
+  ],
+  "url": "https://ppm4you.com",
+  "verdict": "third_party"
+ },
+ "39563": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "for property owners",
+   "management services",
+   "we manage",
+   "professional property management",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://ppm4rent.com",
+  "verdict": "third_party"
+ },
  "39567": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -10870,6 +13403,20 @@
   "matched": [],
   "url": "https://ppmiservices.net",
   "verdict": "inconclusive"
+ },
+ "39571": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://prorealtymanagement.com",
+  "verdict": "third_party"
  },
  "39573": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -10879,6 +13426,19 @@
   "url": "https://prospm.com",
   "verdict": "inconclusive"
  },
+ "39582": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "for property owners",
+   "management services",
+   "professional property management",
+   "property owners"
+  ],
+  "url": "https://progressivesf.com",
+  "verdict": "third_party"
+ },
  "39583": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -10886,6 +13446,18 @@
   "matched": [],
   "url": "https://propropinc.com",
   "verdict": "inconclusive"
+ },
+ "39586": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://projectmanagementinc.net",
+  "verdict": "third_party"
  },
  "39603": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -10953,6 +13525,14 @@
   "url": "https://propertymattersrealty.com",
   "verdict": "third_party"
  },
+ "39688": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://propertypartnersmt.com",
+  "verdict": "inconclusive"
+ },
  "39691": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -10997,6 +13577,33 @@
   "url": "https://tenantcarecenter.com",
   "verdict": "inconclusive"
  },
+ "39718": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services"
+  ],
+  "url": "https://pmcrentalsllc.com",
+  "verdict": "third_party"
+ },
+ "39720": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "professional property management",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://ppmrental.com",
+  "verdict": "third_party"
+ },
  "39721": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -11032,6 +13639,17 @@
    "tenant placement"
   ],
   "url": "https://pyramiscompany.com",
+  "verdict": "third_party"
+ },
+ "39778": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "our services"
+  ],
+  "url": "https://qpmsac.com",
   "verdict": "third_party"
  },
  "39793": {
@@ -11071,6 +13689,17 @@
   "url": "https://wemanageproperty.com",
   "verdict": "third_party"
  },
+ "39804": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "landlord"
+  ],
+  "url": "https://rghill.com",
+  "verdict": "third_party"
+ },
  "39807": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -11108,6 +13737,13 @@
   "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>",
   "matched": [],
   "url": "https://ralpropertymgmt.com",
+  "verdict": "inconclusive"
+ },
+ "39837": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://ralstonmanagementgroup.com",
   "verdict": "inconclusive"
  },
  "39846": {
@@ -11378,6 +14014,17 @@
   "url": "https://realestateop.com",
   "verdict": "third_party"
  },
+ "40013": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "property owners"
+  ],
+  "url": "https://rmcsf.com",
+  "verdict": "third_party"
+ },
  "40034": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -11498,6 +14145,13 @@
   ],
   "url": "https://rpmeclipse.com",
   "verdict": "third_party"
+ },
+ "40095": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://expressrpm.com",
+  "verdict": "inconclusive"
  },
  "40099": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -11749,6 +14403,41 @@
   "url": "https://realtyexecutivesleasing.com",
   "verdict": "third_party"
  },
+ "40259": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "professional property management",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://realtymanagement.com",
+  "verdict": "third_party"
+ },
+ "40262": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid f",
+  "matched": [],
+  "url": "https://sactorealty.com",
+  "verdict": "inconclusive"
+ },
+ "40268": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "property owners"
+  ],
+  "url": "https://realtyroundup.com",
+  "verdict": "third_party"
+ },
  "40292": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -11822,6 +14511,19 @@
    "owner login"
   ],
   "url": "https://redsidepartners.com",
+  "verdict": "third_party"
+ },
+ "40325": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "professional property management",
+   "property owners"
+  ],
+  "url": "https://redwoodlandingproperties.com",
   "verdict": "third_party"
  },
  "40330": {
@@ -11904,6 +14606,22 @@
   "url": "https://rpmindiana.com",
   "verdict": "inconclusive"
  },
+ "40409": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "free rental analysis",
+   "management services",
+   "we manage",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://renewtn.com",
+  "verdict": "third_party"
+ },
  "40464": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -11934,6 +14652,18 @@
    "tenant placement"
   ],
   "url": "https://rentalmanagementone.com",
+  "verdict": "third_party"
+ },
+ "40470": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "for property owners",
+   "management services",
+   "property owners"
+  ],
+  "url": "https://rentalprofessionals.net",
   "verdict": "third_party"
  },
  "40474": {
@@ -11986,6 +14716,14 @@
   "url": "https://rentersrealtyonline.com",
   "verdict": "third_party"
  },
+ "40499": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://renterswarehouse.com/milwaukee",
+  "verdict": "inconclusive"
+ },
  "40508": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -12012,6 +14750,22 @@
   "url": "https://renttheburgh.com",
   "verdict": "inconclusive"
  },
+ "40540": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "property management services",
+   "management services",
+   "we manage",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://residentialequitymgmt.com",
+  "verdict": "third_party"
+ },
  "40541": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -12025,6 +14779,23 @@
   "matched": [],
   "url": "https://rpmdallas.com",
   "verdict": "inconclusive"
+ },
+ "40558": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "professional property management",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://resultspm01.com",
+  "verdict": "third_party"
  },
  "40562": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -12111,6 +14882,13 @@
   "url": "https://rivercityland.com",
   "verdict": "inconclusive"
  },
+ "40640": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://riverplacelofts.com",
+  "verdict": "inconclusive"
+ },
  "40641": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -12121,6 +14899,20 @@
    "our services"
   ],
   "url": "https://riverregionrental.com",
+  "verdict": "third_party"
+ },
+ "40644": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "management services",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://rivervalleypropertymanagement.com",
   "verdict": "third_party"
  },
  "40654": {
@@ -12144,6 +14936,27 @@
    "our services"
   ],
   "url": "https://rmirealtygroup.com",
+  "verdict": "third_party"
+ },
+ "40687": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://rnbhomes.com",
+  "verdict": "owner_operator"
+ },
+ "40688": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "professional property management",
+   "landlord"
+  ],
+  "url": "https://rnbelkgrove.com",
   "verdict": "third_party"
  },
  "40701": {
@@ -12296,6 +15109,21 @@
   "url": "https://rpmexecutives.com",
   "verdict": "inconclusive"
  },
+ "40808": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://rpmfresno.com",
+  "verdict": "third_party"
+ },
  "40812": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -12395,6 +15223,32 @@
   "url": "https://sigrentals.com",
   "verdict": "third_party"
  },
+ "40887": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management",
+   "tenant placement"
+  ],
+  "url": "https://saccityrentals.com",
+  "verdict": "third_party"
+ },
+ "40888": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "professional property management",
+   "our services"
+  ],
+  "url": "https://sacramentorentals.com",
+  "verdict": "third_party"
+ },
  "40918": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -12430,6 +15284,26 @@
   "matched": [],
   "url": "https://apartments4la.com",
   "verdict": "inconclusive"
+ },
+ "40983": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.",
+  "matched": [],
+  "url": "https://saylandpm.com",
+  "verdict": "inconclusive"
+ },
+ "40989": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "professional property management"
+  ],
+  "url": "https://scpropsm.com",
+  "verdict": "third_party"
  },
  "41000": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -12568,6 +15442,13 @@
   "url": "https://secondstory.properties",
   "verdict": "third_party"
  },
+ "41071": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://spre.com",
+  "verdict": "inconclusive"
+ },
  "41072": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -12601,6 +15482,17 @@
    "property owners"
   ],
   "url": "https://selectleasingstl.com",
+  "verdict": "third_party"
+ },
+ "41089": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "free rental analysis",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://yc.selectpropmgt.com",
   "verdict": "third_party"
  },
  "41090": {
@@ -12639,11 +15531,40 @@
   "url": "https://sevynandcompany.com",
   "verdict": "inconclusive"
  },
+ "41126": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://sextongroupre.com",
+  "verdict": "third_party"
+ },
+ "41128": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://sfcityrents.com",
+  "verdict": "third_party"
+ },
  "41129": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
   "matched": [],
   "url": "https://sfshannon.com",
+  "verdict": "inconclusive"
+ },
+ "41134": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://sgrealestateco.com",
   "verdict": "inconclusive"
  },
  "41137": {
@@ -12675,6 +15596,13 @@
   ],
   "url": "https://slrealty.net",
   "verdict": "third_party"
+ },
+ "41155": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://shawprop.com",
+  "verdict": "inconclusive"
  },
  "41158": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -12733,6 +15661,13 @@
   "confidence": null,
   "matched": [],
   "url": "https://signaturepropertylemont.com",
+  "verdict": "inconclusive"
+ },
+ "41231": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://siliconvalleylofts.com",
   "verdict": "inconclusive"
  },
  "41236": {
@@ -12931,6 +15866,28 @@
   "url": "https://snjpropertymanagement.com",
   "verdict": "third_party"
  },
+ "41343": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property owners"
+  ],
+  "url": "https://perfectplace.space",
+  "verdict": "third_party"
+ },
+ "41344": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "leasing fee",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://snshn.co",
+  "verdict": "third_party"
+ },
  "41354": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -12987,6 +15944,25 @@
   "matched": [],
   "url": "https://sreventures.com",
   "verdict": "inconclusive"
+ },
+ "41484": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://spectrarem.com",
+  "verdict": "inconclusive"
+ },
+ "41485": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "our services"
+  ],
+  "url": "https://screis.com",
+  "verdict": "third_party"
  },
  "41489": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -13047,11 +16023,30 @@
   "url": "https://stallardonline.com",
   "verdict": "third_party"
  },
+ "41558": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "property owners"
+  ],
+  "url": "https://spmrentals.com",
+  "verdict": "third_party"
+ },
  "41559": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
   "matched": [],
   "url": "https://sirottproperties.com",
+  "verdict": "inconclusive"
+ },
+ "41564": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://scprent.com",
   "verdict": "inconclusive"
  },
  "41575": {
@@ -13294,6 +16289,22 @@
   "url": "https://suprapropertymanagement.com",
   "verdict": "third_party"
  },
+ "41795": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "we manage",
+   "professional property management",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://sutroproperties.com",
+  "verdict": "third_party"
+ },
  "41806": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -13369,6 +16380,21 @@
   "url": "https://talleyproperties.com",
   "verdict": "third_party"
  },
+ "41867": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "we manage",
+   "management fee",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://tamprop.com",
+  "verdict": "third_party"
+ },
  "41895": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -13409,6 +16435,24 @@
    "tenant placement"
   ],
   "url": "https://teixeirapm.com",
+  "verdict": "third_party"
+ },
+ "41935": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "list your property",
+   "property management services",
+   "management services",
+   "management fee",
+   "our services",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://tenantplanet.com",
   "verdict": "third_party"
  },
  "41956": {
@@ -13512,6 +16556,23 @@
   "url": "https://exceptionalarcadia.com",
   "verdict": "owner_operator"
  },
+ "42021": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner login",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "we manage",
+   "management fee",
+   "our services",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://equitygroupinc.com",
+  "verdict": "third_party"
+ },
  "42022": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -13541,6 +16602,20 @@
   "matched": [],
   "url": "https://thegoldgroup.co",
   "verdict": "inconclusive"
+ },
+ "42060": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://housingguild.com",
+  "verdict": "third_party"
  },
  "42065": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -13708,6 +16783,16 @@
   "url": "https://weilermanagement.com",
   "verdict": "third_party"
  },
+ "42179": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property owners"
+  ],
+  "url": "https://thescafinegroup.com",
+  "verdict": "third_party"
+ },
  "42182": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -13764,6 +16849,18 @@
   "url": "https://tidewaterproperty.com",
   "verdict": "third_party"
  },
+ "42262": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services"
+  ],
+  "url": "https://timcarrgrouprentals.com",
+  "verdict": "third_party"
+ },
  "42284": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -13805,6 +16902,28 @@
    "landlord"
   ],
   "url": "https://tcrecorp.com",
+  "verdict": "third_party"
+ },
+ "42347": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error timed out>",
+  "matched": [],
+  "url": "https://totalpropertymgmt.com",
+  "verdict": "inconclusive"
+ },
+ "42348": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "management fee",
+   "leasing fee",
+   "landlord"
+  ],
+  "url": "https://mytotalproperty.com",
   "verdict": "third_party"
  },
  "42353": {
@@ -13862,6 +16981,17 @@
    "property owners"
   ],
   "url": "https://tradewindsgroup.com",
+  "verdict": "third_party"
+ },
+ "42392": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services"
+  ],
+  "url": "https://transcapitalpm.com",
   "verdict": "third_party"
  },
  "42409": {
@@ -13958,6 +17088,20 @@
    "landlord"
   ],
   "url": "https://turnkeyal.com",
+  "verdict": "third_party"
+ },
+ "42519": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://turnbullrealestateservices.com",
   "verdict": "third_party"
  },
  "42520": {
@@ -14089,6 +17233,28 @@
   "url": "https://valleyincome.com",
   "verdict": "third_party"
  },
+ "42680": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://valleymanagementgroupinc.com",
+  "verdict": "inconclusive"
+ },
+ "42681": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "free rental analysis",
+   "we manage",
+   "professional property management",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://valleyoakca.com",
+  "verdict": "third_party"
+ },
  "42692": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -14109,6 +17275,17 @@
    "our services"
   ],
   "url": "https://vanguardmanagement.net",
+  "verdict": "third_party"
+ },
+ "42709": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "management services",
+   "management fee",
+   "our services"
+  ],
+  "url": "https://vaughnrealty.com",
   "verdict": "third_party"
  },
  "42726": {
@@ -14411,6 +17588,29 @@
   "url": "https://welcomehomerents.com",
   "verdict": "third_party"
  },
+ "42981": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "we manage",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://wellingtonpropertyco.com",
+  "verdict": "third_party"
+ },
+ "42985": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our communities"
+  ],
+  "url": "https://wellstonapts.com",
+  "verdict": "owner_operator"
+ },
  "42993": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -14431,6 +17631,24 @@
   "matched": [],
   "url": "https://918rent.com",
   "verdict": "inconclusive"
+ },
+ "43018": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid f",
+  "matched": [],
+  "url": "https://buysellmanage.com",
+  "verdict": "inconclusive"
+ },
+ "43029": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "professional property management",
+   "landlord"
+  ],
+  "url": "https://westgaterealestate.com",
+  "verdict": "third_party"
  },
  "43030": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -14496,6 +17714,26 @@
   "url": "https://whiteglovepm.com",
   "verdict": "third_party"
  },
+ "43070": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal"
+  ],
+  "url": "https://whitehouserealestate.net",
+  "verdict": "third_party"
+ },
+ "43079": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "our services"
+  ],
+  "url": "https://whitleymgt.com",
+  "verdict": "third_party"
+ },
  "43087": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -14504,6 +17742,35 @@
   ],
   "url": "https://wickerparkapartments.com",
   "verdict": "owner_operator"
+ },
+ "43090": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "we manage"
+  ],
+  "url": "https://wiechmannenterprises.com",
+  "verdict": "third_party"
+ },
+ "43096": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://wilburproperties.com",
+  "verdict": "third_party"
+ },
+ "43105": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://wilkinsprop.com",
+  "verdict": "inconclusive"
  },
  "43126": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -14577,6 +17844,20 @@
   "url": "https://woodcompanies.com",
   "verdict": "owner_operator"
  },
+ "43196": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "our services",
+   "landlord",
+   "property owners"
+  ],
+  "url": "https://woodlakeanchor.net",
+  "verdict": "third_party"
+ },
  "43215": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -14627,6 +17908,18 @@
   "url": "https://wpmsouth.com",
   "verdict": "third_party"
  },
+ "43224": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "we manage",
+   "landlord"
+  ],
+  "url": "https://wrightequities.com",
+  "verdict": "third_party"
+ },
  "43228": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -14675,6 +17968,17 @@
   ],
   "url": "https://zpropertiesgroup.com",
   "verdict": "owner_operator"
+ },
+ "43296": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "property owners"
+  ],
+  "url": "https://zabace.com",
+  "verdict": "third_party"
  },
  "43299": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -14750,6 +18054,20 @@
   "url": "https://www.lighthousepropertymanagement.com",
   "verdict": "inconclusive"
  },
+ "462487": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "property management services",
+   "management services",
+   "we manage",
+   "landlord"
+  ],
+  "url": "https://wpmwi.com",
+  "verdict": "third_party"
+ },
  "463909": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -14806,6 +18124,16 @@
   ],
   "url": "https://elonmanagement.com/",
   "verdict": "owner_operator"
+ },
+ "498721": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "we manage",
+   "landlord"
+  ],
+  "url": "https://minkinmgmt.com/",
+  "verdict": "third_party"
  },
  "50207": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -15031,6 +18359,16 @@
   "url": "https://ethospropertiesinc.com/",
   "verdict": "inconclusive"
  },
+ "518851": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "our services"
+  ],
+  "url": "https://www.eraweeksandbrowning.com/",
+  "verdict": "third_party"
+ },
  "521372": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -15142,6 +18480,24 @@
   "url": "https://mn.purepm.co/",
   "verdict": "third_party"
  },
+ "551092": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "property management services",
+   "for property owners",
+   "management services",
+   "we manage",
+   "professional property management",
+   "our services",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "http://www.mmproperties.com",
+  "verdict": "third_party"
+ },
  "56794": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -15174,6 +18530,22 @@
   "url": "https://www.fogelman.com",
   "verdict": "owner_operator"
  },
+ "57394": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://www.ptlamgmt.com",
+  "verdict": "inconclusive"
+ },
+ "58888": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://www.incomepropertyspecialists.com",
+  "verdict": "inconclusive"
+ },
  "590362": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -15202,6 +18574,19 @@
   "url": "https://anchor.agency",
   "verdict": "third_party"
  },
+ "59425": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "owner login",
+   "management services",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://citibrokersrealestate.com",
+  "verdict": "third_party"
+ },
  "59442": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "medium",
@@ -15228,6 +18613,28 @@
   ],
   "url": "https://copperbay.com",
   "verdict": "owner_operator"
+ },
+ "59488": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://dhapartmenthomes.com",
+  "verdict": "inconclusive"
+ },
+ "59496": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://dolcevitaapartments.com",
+  "verdict": "inconclusive"
+ },
+ "59515": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://encorewisconsin.com",
+  "verdict": "inconclusive"
  },
  "59517": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -15394,6 +18801,15 @@
   "url": "https://www.mavenpropertiesnw.com",
   "verdict": "third_party"
  },
+ "59791": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://mdi.rent",
+  "verdict": "owner_operator"
+ },
  "59820": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -15427,6 +18843,13 @@
   ],
   "url": "https://dallasmetroplexhomes.com",
   "verdict": "third_party"
+ },
+ "59843": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://newtonsano.com",
+  "verdict": "inconclusive"
  },
  "59845": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -15506,6 +18929,20 @@
   "url": "https://mypillario.com",
   "verdict": "third_party"
  },
+ "59921": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "property management services",
+   "management services",
+   "professional property management",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://ppmnorcal.com",
+  "verdict": "third_party"
+ },
  "59925": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -15522,6 +18959,15 @@
    "property owners"
   ],
   "url": "https://prcmanagementservices.com",
+  "verdict": "third_party"
+ },
+ "59938": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal"
+  ],
+  "url": "https://primepropertypm.com",
   "verdict": "third_party"
  },
  "59943": {
@@ -15606,6 +19052,28 @@
   "url": "https://rpmendeavor.com",
   "verdict": "third_party"
  },
+ "60038": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "management fee",
+   "landlord"
+  ],
+  "url": "https://sacdelt.com",
+  "verdict": "third_party"
+ },
+ "60055": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [Errno 8] nodename nor servname provided, or not known>",
+  "matched": [],
+  "url": "https://sevillepropertymanagement.com",
+  "verdict": "inconclusive"
+ },
  "60063": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -15624,12 +19092,34 @@
   "url": "https://sns-management.com",
   "verdict": "owner_operator"
  },
+ "60087": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "property management services",
+   "management services",
+   "we manage",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://stonecreekpm.com",
+  "verdict": "third_party"
+ },
  "60119": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
   "matched": [],
   "url": "https://thirdrockproperties.com",
   "verdict": "inconclusive"
+ },
+ "60162": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://upholdings.net",
+  "verdict": "owner_operator"
  },
  "60189": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -15777,6 +19267,24 @@
   "url": "https://aspirepropertymanagement.com",
   "verdict": "inconclusive"
  },
+ "699372": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "for property owners",
+   "our services",
+   "property owners"
+  ],
+  "url": "https://astoundrealestate.com",
+  "verdict": "third_party"
+ },
+ "699391": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://badger-management.com",
+  "verdict": "inconclusive"
+ },
  "699419": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -15828,6 +19336,14 @@
   "url": "https://cbrentals931.managebuilding.com/Resident/public/rentals",
   "verdict": "inconclusive"
  },
+ "699603": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://clearviewre.com",
+  "verdict": "inconclusive"
+ },
  "699629": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -15843,6 +19359,13 @@
   ],
   "url": "https://coppervalleypm.com/",
   "verdict": "third_party"
+ },
+ "699634": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "matched": [],
+  "url": "https://corefourrealty.com",
+  "verdict": "inconclusive"
  },
  "699706": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -15933,6 +19456,21 @@
   ],
   "url": "https://gulfcoastpalms.com",
   "verdict": "owner_operator"
+ },
+ "699931": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "we manage",
+   "landlord",
+   "tenant placement"
+  ],
+  "url": "https://hardinpm.com",
+  "verdict": "third_party"
  },
  "699952": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -16210,6 +19748,14 @@
   "url": "https://providentialnw.com",
   "verdict": "inconclusive"
  },
+ "700547": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "<urlopen error [Errno 61] Connection refused>",
+  "matched": [],
+  "url": "https://rajproperties.com",
+  "verdict": "inconclusive"
+ },
  "700571": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -16271,6 +19817,14 @@
   "confidence": null,
   "matched": [],
   "url": "https://rmrpm.com",
+  "verdict": "inconclusive"
+ },
+ "700739": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": null,
+  "error": "HTTP Error 403: Forbidden",
+  "matched": [],
+  "url": "https://shockwaveproperties.com",
   "verdict": "inconclusive"
  },
  "700757": {
@@ -16392,6 +19946,15 @@
   "url": "https://updownpm.com",
   "verdict": "third_party"
  },
+ "701048": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://viridismgmt.com",
+  "verdict": "owner_operator"
+ },
  "701054": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": null,
@@ -16454,6 +20017,19 @@
   "matched": [],
   "url": "https://techrealtyllc.com",
   "verdict": "inconclusive"
+ },
+ "703164": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "management services",
+   "professional property management",
+   "our services",
+   "landlord"
+  ],
+  "url": "https://brickandmortarsf.com",
+  "verdict": "third_party"
  },
  "703177": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -16527,6 +20103,19 @@
    "management services"
   ],
   "url": "https://enginerealty.com",
+  "verdict": "third_party"
+ },
+ "703232": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner login",
+   "property management services",
+   "for property owners",
+   "management services",
+   "property owners"
+  ],
+  "url": "https://incomepropertiesinc.com",
   "verdict": "third_party"
  },
  "703235": {
@@ -16685,6 +20274,16 @@
   "url": "https://oceanrealty.homes",
   "verdict": "inconclusive"
  },
+ "703418": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "management services",
+   "property owners"
+  ],
+  "url": "https://hudsonmcdonald.com",
+  "verdict": "third_party"
+ },
  "703425": {
   "checkedAt": "2026-07-20T23:24:13Z",
   "confidence": "high",
@@ -16711,6 +20310,15 @@
   "matched": [],
   "url": "https://taylorkastner.com",
   "verdict": "inconclusive"
+ },
+ "703520": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "medium",
+  "matched": [
+   "our properties"
+  ],
+  "url": "https://hlsgholdings.com",
+  "verdict": "owner_operator"
  },
  "703533": {
   "checkedAt": "2026-07-20T23:24:13Z",
@@ -16740,6 +20348,23 @@
    "tenant placement"
   ],
   "url": "https://flatmint.com",
+  "verdict": "third_party"
+ },
+ "703678": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "management services",
+   "we manage",
+   "management fee",
+   "leasing fee",
+   "landlord",
+   "property owners",
+   "tenant placement"
+  ],
+  "url": "https://perchcolorado.com",
   "verdict": "third_party"
  },
  "703731": {
@@ -16840,6 +20465,19 @@
   "matched": [],
   "url": "https://ncgchicago.com/",
   "verdict": "inconclusive"
+ },
+ "829678": {
+  "checkedAt": "2026-08-20T23:31:09Z",
+  "confidence": "high",
+  "matched": [
+   "owner portal",
+   "free rental analysis",
+   "property management services",
+   "management services",
+   "landlord"
+  ],
+  "url": "http://www.intempuspropertymanagement.com",
+  "verdict": "third_party"
  },
  "841736": {
   "checkedAt": "2026-07-20T23:24:13Z",
