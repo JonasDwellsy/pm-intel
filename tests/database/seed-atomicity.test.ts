@@ -9,7 +9,27 @@ import {
 } from "../../prisma/seed";
 import { LEGACY_OWNER_ID } from "../../src/lib/watch-list/store";
 
-const databaseUrl = process.env.SEED_TEST_DATABASE_URL;
+type SeedTestEnvironment = {
+  CI?: string;
+  SEED_TEST_DATABASE_URL?: string;
+};
+
+function resolveSeedTestDatabaseUrl(environment: SeedTestEnvironment) {
+  const databaseUrl = environment.SEED_TEST_DATABASE_URL?.trim();
+  const ciValue = environment.CI?.trim().toLowerCase();
+  const inCi = Boolean(ciValue && ciValue !== "false" && ciValue !== "0");
+  if (inCi && !databaseUrl) {
+    throw new Error(
+      "SEED_TEST_DATABASE_URL is required when CI is enabled; refusing to skip seed atomicity"
+    );
+  }
+  return databaseUrl || undefined;
+}
+
+const databaseUrl = resolveSeedTestDatabaseUrl({
+  CI: process.env.CI,
+  SEED_TEST_DATABASE_URL: process.env.SEED_TEST_DATABASE_URL,
+});
 const seedData = JSON.parse(
   readFileSync(new URL("../../src/data/scorecard_data.json", import.meta.url), "utf8")
 ) as {
@@ -17,6 +37,15 @@ const seedData = JSON.parse(
   pms: Array<{ slug: string }>;
   canonicalOperators: Record<string, unknown>;
 };
+
+test("CI fails loudly when its disposable seed database is missing", () => {
+  assert.throws(
+    () => resolveSeedTestDatabaseUrl({ CI: "true" }),
+    /SEED_TEST_DATABASE_URL is required when CI is enabled/
+  );
+  assert.equal(resolveSeedTestDatabaseUrl({}), undefined);
+  assert.equal(resolveSeedTestDatabaseUrl({ CI: "false" }), undefined);
+});
 
 async function captureState(client: PrismaClient) {
   const marketId = seedData.markets[0].id;
