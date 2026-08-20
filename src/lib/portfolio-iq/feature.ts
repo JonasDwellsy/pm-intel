@@ -3,3 +3,9 @@ export function portfolioIqPreviewEnabled(
 ): boolean {
   return value === "1";
 }
+
+export function portfolioIqSchedulerEnabled(
+  value = process.env.PORTFOLIO_IQ_SCHEDULER_ENABLED
+): boolean {
+  return value === "1";
+}
