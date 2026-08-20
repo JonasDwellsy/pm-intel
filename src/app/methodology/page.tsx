@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { fmtDate } from "@/lib/format";
 import { QuadrantGrid } from "@/components/scorecard/QuadrantGrid";
 import { SectionAnchor } from "@/components/methodology/SectionAnchor";
+import { TableScroll } from "@/components/methodology/TableScroll";
 import { FormulaBlock, Op } from "@/components/methodology/FormulaBlock";
 import {
   GlossaryTable,
@@ -421,56 +422,58 @@ export default async function MethodologyPage() {
                 Every operator we observe therefore sits in exactly one of three
                 states.
               </p>
-              <table className="dq-table">
-                <thead>
-                  <tr>
-                    <th>State</th>
-                    <th>What it means</th>
-                    <th>How it appears</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>
-                      <strong>Ranked</strong>
-                    </td>
-                    <td>
-                      Clears both eligibility tests and has listing activity
-                      inside the recency window.
-                    </td>
-                    <td>
-                      Scorecard, ranked lists, and a seat in every cohort
-                      baseline.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <strong>Dormant</strong>
-                    </td>
-                    <td>
-                      Clears both eligibility tests and has a real 12-month
-                      record, but no listing event — creation or deactivation —
-                      inside the recency window.
-                    </td>
-                    <td>
-                      Scorecard, labeled <em>Dormant</em> with the date of the
-                      last listing we observed. Held out of ranked lists and
-                      cohort baselines; reachable behind a toggle on the market
-                      page.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <strong>Not eligible</strong>
-                    </td>
-                    <td>
-                      Falls short on listing count or address diversity, or is
-                      removed by a category exclusion (below).
-                    </td>
-                    <td>No scorecard.</td>
-                  </tr>
-                </tbody>
-              </table>
+              <TableScroll>
+                <table className="dq-table">
+                  <thead>
+                    <tr>
+                      <th>State</th>
+                      <th>What it means</th>
+                      <th>How it appears</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <strong>Ranked</strong>
+                      </td>
+                      <td>
+                        Clears both eligibility tests and has listing activity
+                        inside the recency window.
+                      </td>
+                      <td>
+                        Scorecard, ranked lists, and a seat in every cohort
+                        baseline.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <strong>Dormant</strong>
+                      </td>
+                      <td>
+                        Clears both eligibility tests and has a real 12-month
+                        record, but no listing event — creation or deactivation —
+                        inside the recency window.
+                      </td>
+                      <td>
+                        Scorecard, labeled <em>Dormant</em> with the date of the
+                        last listing we observed. Held out of ranked lists and
+                        cohort baselines; reachable behind a toggle on the market
+                        page.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <strong>Not eligible</strong>
+                      </td>
+                      <td>
+                        Falls short on listing count or address diversity, or is
+                        removed by a category exclusion (below).
+                      </td>
+                      <td>No scorecard.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </TableScroll>
               <p>
                 The recency window is{" "}
                 <span className="dq-chip dq-tnum">60 days</span>, measured from
@@ -1536,36 +1539,38 @@ export default async function MethodologyPage() {
                   Weights for operators with Community Visibility computed:
                 </strong>
               </p>
-              <table className="dq-table">
-                <thead>
-                  <tr>
-                    <th>Component</th>
-                    <th className="num">Weight</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Days on Market (DOM)</td>
-                    <td className="num dq-tnum">30%</td>
-                  </tr>
-                  <tr>
-                    <td>Tenant Retention</td>
-                    <td className="num dq-tnum">30%</td>
-                  </tr>
-                  <tr>
-                    <td>Rent Performance</td>
-                    <td className="num dq-tnum">10%</td>
-                  </tr>
-                  <tr>
-                    <td>Marketing Quality</td>
-                    <td className="num dq-tnum">15%</td>
-                  </tr>
-                  <tr>
-                    <td>Community Visibility</td>
-                    <td className="num dq-tnum">15%</td>
-                  </tr>
-                </tbody>
-              </table>
+              <TableScroll>
+                <table className="dq-table">
+                  <thead>
+                    <tr>
+                      <th>Component</th>
+                      <th className="num">Weight</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Days on Market (DOM)</td>
+                      <td className="num dq-tnum">30%</td>
+                    </tr>
+                    <tr>
+                      <td>Tenant Retention</td>
+                      <td className="num dq-tnum">30%</td>
+                    </tr>
+                    <tr>
+                      <td>Rent Performance</td>
+                      <td className="num dq-tnum">10%</td>
+                    </tr>
+                    <tr>
+                      <td>Marketing Quality</td>
+                      <td className="num dq-tnum">15%</td>
+                    </tr>
+                    <tr>
+                      <td>Community Visibility</td>
+                      <td className="num dq-tnum">15%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </TableScroll>
 
               <p className="mt-7">
                 <strong>
@@ -1575,32 +1580,34 @@ export default async function MethodologyPage() {
                 below the visibility gate, and for MF/BTR operators under the
                 12-month tenure threshold):
               </p>
-              <table className="dq-table">
-                <thead>
-                  <tr>
-                    <th>Component</th>
-                    <th className="num">Weight</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Days on Market</td>
-                    <td className="num dq-tnum">35.3%</td>
-                  </tr>
-                  <tr>
-                    <td>Tenant Retention</td>
-                    <td className="num dq-tnum">35.3%</td>
-                  </tr>
-                  <tr>
-                    <td>Rent Performance</td>
-                    <td className="num dq-tnum">11.8%</td>
-                  </tr>
-                  <tr>
-                    <td>Marketing Quality</td>
-                    <td className="num dq-tnum">17.6%</td>
-                  </tr>
-                </tbody>
-              </table>
+              <TableScroll>
+                <table className="dq-table">
+                  <thead>
+                    <tr>
+                      <th>Component</th>
+                      <th className="num">Weight</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Days on Market</td>
+                      <td className="num dq-tnum">35.3%</td>
+                    </tr>
+                    <tr>
+                      <td>Tenant Retention</td>
+                      <td className="num dq-tnum">35.3%</td>
+                    </tr>
+                    <tr>
+                      <td>Rent Performance</td>
+                      <td className="num dq-tnum">11.8%</td>
+                    </tr>
+                    <tr>
+                      <td>Marketing Quality</td>
+                      <td className="num dq-tnum">17.6%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </TableScroll>
               <p>
                 The 15% normally allocated to Community Visibility
                 redistributes proportionally to the other four components.
@@ -1976,290 +1983,292 @@ export default async function MethodologyPage() {
                 interpreted in their original frame.
               </p>
               <p>Recent versions:</p>
-              <table className="dq-table">
-                <thead>
-                  <tr>
-                    <th>Version</th>
-                    <th>Date</th>
-                    <th>Change</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="dq-mono whitespace-nowrap">v0.7</td>
-                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
-                      July 2026
-                    </td>
-                    <td>
-                      <strong>
-                        Methodology overhaul across metrics, identity, and
-                        surface.
-                      </strong>{" "}
-                      34 covered markets; 3,649 eligible operators.{" "}
-                      <strong>Tenant Retention</strong> replaced the
-                      re-lease-gap median with a Kaplan-Meier survival estimate —
-                      S(18), the share of tenancies reaching 18 months — with a
-                      qualification gate (≥25 observations reaching 18 months, ≥5
-                      turnover events), suppress-and-reweight when unqualified,
-                      and a 60-day recency gate that dropped stale operators
-                      outright — since replaced by the dormant tier, which keeps
-                      them visible and labeled instead (see{" "}
-                      <a href="#operator-states">§01</a>).{" "}
-                      <strong>Rent Stability</strong> was removed entirely.{" "}
-                      <strong>Operator classification</strong> gained an
-                      apartment-dominant override (house share ≤ 10% → MF/BTR,
-                      applied before the concentrated-share bands), reshaping the
-                      distribution (Hybrid 342 → 119; Small MF/BTR Independent is
-                      now the second-largest cell). <strong>Marketing
-                      Discipline</strong> was recalibrated (p90 rescale, a new
-                      photos sub-score, and a length-plus-content-richness
-                      description sub-score). <strong>Portfolio size</strong>{" "}
-                      moved to a unit-type turnover model (house urus × 3.3 +
-                      apartment urus × 2.6, admin-tunable, with a low–high band),
-                      superseding the earlier cohort-banded estimator.{" "}
-                      <strong>Operator identity</strong> is now ID-based across
-                      markets (parentCompanyId authoritative, curated name
-                      mapping as fallback) plus a within-market fragment-merge
-                      system for id-churned operators; category exclusions
-                      (data-platform company types and a curated denylist) and
-                      broker-vs-property-manager cohort partitioning were
-                      documented. On the surface, the redesigned scorecard
-                      (design v2.0) became the default and the earlier Classic
-                      layout was retired: rank and composite are never surfaced
-                      (the composite stays internal, breaking ties in star-tied
-                      lists), and the standalone Lending Signals block was folded
-                      into Scale &amp; Fit on the web (kept as a three-signal PDF
-                      page; the Vacancy Signal was retired).
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="dq-mono whitespace-nowrap">v0.6.4</td>
-                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
-                      May 21, 2026
-                    </td>
-                    <td>
-                      <strong>Watch List foundation (PR 1 of ~5).</strong> Data
-                      layer + filter evaluator + fit-scoring engine + CRUD
-                      API for user-defined target lists. Saved buy
-                      boxes hold three layers of criteria — required
-                      (deal-breakers), preferred (weighted preferences
-                      that drive a 0-100 fit score), excluded (negative
-                      filters) — applied across the full operator
-                      universe to produce a ranked target list with
-                      per-criterion breakdown. Field catalog covers
-                      Geographic, Scale (incl. v0.7 portfolio estimates),
-                      Asset, Trajectory, and Operator dimensions. Two
-                      starter templates seeded — Evernest-style SFR
-                      density build-out + Genstone-style integrated
-                      services — drawn verbatim from the watch-list spec&rsquo;s
-                      worked examples. No editor UI yet (ships in PR 2);
-                      minimal admin view at{" "}
-                      <span className="dq-mono">/watch-lists</span> for
-                      verification. Methodology cohorts + ranking
-                      unchanged — Watch List is a screening surface on top
-                      of the existing scorecard universe, not a metric
-                      revision.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="dq-mono whitespace-nowrap">v0.6.4</td>
-                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
-                      May 21, 2026
-                    </td>
-                    <td>
-                      <strong>Portfolio Size Estimator</strong>. New
-                      size-banded model that estimates total managed
-                      units per operator from observed URU activity,
-                      keyed on Dwellsy 7-cell × URU bands. Calibrated
-                      against a 70 operator-market sample with
-                      per-cohort medians + P25/P75 confidence bands.
-                      Surfaces on scorecard Layer 5 with cohort
-                      attribution and a&nbsp;
-                      <Link
-                        href="/methodology/portfolio-estimator"
-                        className="text-teal hover:underline"
-                      >
-                        full methodology page
-                      </Link>
-                      . Estimates also baked into the canonical-
-                      operator aggregateStats blob so cross-market
-                      profiles can sum the bands across member PMs.
-                      Large MF/BTR cohorts receive an explicit
-                      &ldquo;insufficient calibration data&rdquo;
-                      treatment (n is too small to estimate reliably);
-                      those scorecards prompt for a verified
-                      self-report via the claim flow rather than
-                      pretending to a number. Methodology version
-                      unchanged (still v0.6.4) — no cohort or ranking
-                      changes; estimator is context only and does not
-                      feed the composite.{" "}
-                      <em>
-                        (Superseded in v0.7 by the unit-type turnover model —
-                        see §10 and the portfolio-estimator page.)
-                      </em>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="dq-mono whitespace-nowrap">v0.6.4</td>
-                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
-                      May 19, 2026
-                    </td>
-                    <td>
-                      Patch 1 — <strong>canonical operator identity</strong>.
-                      Same operator running across multiple markets is now
-                      grouped under a single canonical entity via name
-                      normalization (strip <span className="dq-mono">LLC</span>
-                      , <span className="dq-mono">Inc</span>,{" "}
-                      <span className="dq-mono">Ltd</span>,{" "}
-                      <span className="dq-mono">Co</span>,{" "}
-                      <span className="dq-mono">Corp</span> suffixes;
-                      lowercase, normalize whitespace). 22 multi-market
-                      canonical entities baked at seed time covering 60 of
-                      575 PM records — Invitation Homes (4 markets), Mission
-                      Rock Residential (5), First Keys Homes (5), and others.
-                      New <span className="dq-mono">/operators/[canonicalSlug]</span>{" "}
-                      cross-market profile route with aggregate footprint,
-                      modal classification (most-frequent 7-cell with
-                      lexicographic tiebreaker), and per-market scorecard
-                      cards. Search results group multi-market operators
-                      under a new <strong>Cross-market operators</strong>{" "}
-                      section above ranked single-market results.
-                      State-level operator counts deduplicate by canonical
-                      identity (a PM appearing in three in-state MSAs counts
-                      once on the state page). Scorecard Layer 1 gains a{" "}
-                      <strong>cross-market badge</strong> linking to the
-                      canonical profile when the operator is multi-market.
-                      Normalization is conservative — substantive tokens like{" "}
-                      <em>Property Management</em>, <em>Realty</em>, and{" "}
-                      <em>Group</em> are preserved; false-positive collisions
-                      were manually reviewed and excluded. See §07 sub-anchor
-                      on canonical operator identity. Cohort unchanged from
-                      v0.6.3.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="dq-mono whitespace-nowrap">v0.6.3</td>
-                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
-                      May 19, 2026
-                    </td>
-                    <td>
-                      Market headline reframe. New Market Snapshot tiles for{" "}
-                      <strong>active operators</strong> (≥3 listings T12) and{" "}
-                      <strong>market rent growth T12</strong> with a national
-                      benchmark line (Patches 1 + 3). T6M eligibility label
-                      corrected to T12 on the tile and on §01 — production
-                      always used T12; the surfaced label had drifted (Patch 2,
-                      no cohort change). Submarket-aware active-operator
-                      counts and footprint-eligible counts when{" "}
-                      <span className="dq-mono">?submarket=</span> is active;
-                      DOM and rent-growth tiles retain MSA scope with explicit
-                      annotation because submarket-level computation requires
-                      listing-level geography work scheduled for v0.7. Subheader
-                      strip beneath the H1 removed (data duplicated by tiles
-                      and footer). Patch 4 added{" "}
-                      <strong>star-count list ordering</strong> (gold count
-                      desc, silver count desc, composite rank asc) with{" "}
-                      <span className="dq-mono">★N ☆M</span> chips on each
-                      row; the Operator landscape grid migrated to the v0.6.2
-                      7-cell taxonomy with median rent-vs-comp as a third
-                      per-cell metric. Patch 5 added{" "}
-                      <strong>state landing pages</strong> at{" "}
-                      <span className="dq-mono">/property-managers/[state]</span>{" "}
-                      with operator-weighted state aggregates pooled across
-                      in-state MSAs (see §07 sub-anchor on state aggregates).
-                      Patch 6 added{" "}
-                      <strong>share-of-market trajectory</strong> to scorecard
-                      Layer 5 — operator&rsquo;s share of ranked-cohort listing
-                      activity year-over-year, computed across continuing
-                      operators with ≥30 listings in both T12 and the prior
-                      T24-T12 window. An initial absolute-trajectory version
-                      was rejected after a pressure test surfaced pipeline-
-                      coverage, thin-baseline, and survivor biases; the
-                      revised share-based metric neutralizes the first two
-                      and partially addresses the third. Surfaced as a context
-                      signal only — no star treatment, not used in ranking.
-                      See §07 sub-anchor on share trajectory.
-                      Cohort unchanged from v0.6.2.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="dq-mono whitespace-nowrap">v0.6.2</td>
-                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
-                      May 17, 2026
-                    </td>
-                    <td>
-                      Seven covered markets (Chattanooga, Jacksonville,
-                      Nashville, Memphis, Knoxville, Clarksville, Phoenix);
-                      572 eligible PMs. Eight methodology patches enabling
-                      the v1.0 scorecard design: 7-cell taxonomy (MF/BTR
-                      split by median community size), multi-level percentile
-                      rank computation (primary / fallback / MSA), star
-                      system per metric, Rent Stability methodology fix
-                      (12-quarter raw-listings volatility, spec; pipeline
-                      catch-up in v0.7), Tenancy short-history caveat,
-                      unit-count precision data (urusT12 /
-                      observedCommunities / observedCommunityTotalUnits as
-                      distinguishable fields), Geographic Concentration
-                      pre-computation, and pre-computed scorecard text
-                      (executive summaries, distinguishing characteristics,
-                      map narratives) with operator-dignity validation at
-                      generation time. Ships paired with design v1.0.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="dq-mono whitespace-nowrap">v0.6.1</td>
-                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
-                      May 17, 2026
-                    </td>
-                    <td>
-                      Three covered markets (Chattanooga, Jacksonville,
-                      Nashville). Community Visibility denominator switched
-                      to <em>top_down_community_count</em>; default turnover
-                      rate dropped from 40% to 20%; anomaly flag retired.
-                      Institutional/Independent classification considers
-                      cross-market observed units.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="dq-mono whitespace-nowrap">v0.6</td>
-                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
-                      May 16, 2026
-                    </td>
-                    <td>
-                      Operator classification redefined on both axes.
-                      Coverage Confidence renamed to Community Visibility and
-                      reformulated. Rent level removed from composite; Rent
-                      Performance added. Composite weights rebalanced toward
-                      operator behavior. SFR Credibility deferred.
-                      Methodology page rewritten to articulate operator-type
-                      asymmetry honestly.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="dq-mono whitespace-nowrap">v0.3.4</td>
-                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
-                      Mar 5, 2026
-                    </td>
-                    <td>
-                      Final Chattanooga-only release. Coverage Confidence
-                      chip promoted to headline row. Superseded by v0.6 (and
-                      reformulated entirely under v0.6.1).
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="dq-mono whitespace-nowrap">v0.3.0–v0.3.3</td>
-                    <td className="dq-mono whitespace-nowrap text-muted-foreground">
-                      Nov 2025 – Feb 2026
-                    </td>
-                    <td>
-                      Iterative refinements during initial Chattanooga
-                      calibration. Tenancy methodology stabilized at
-                      episode-clustering with 180-day window and unit-weighted
-                      median.
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <TableScroll>
+                <table className="dq-table">
+                  <thead>
+                    <tr>
+                      <th>Version</th>
+                      <th>Date</th>
+                      <th>Change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="dq-mono whitespace-nowrap">v0.7</td>
+                      <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                        July 2026
+                      </td>
+                      <td>
+                        <strong>
+                          Methodology overhaul across metrics, identity, and
+                          surface.
+                        </strong>{" "}
+                        34 covered markets; 3,649 eligible operators.{" "}
+                        <strong>Tenant Retention</strong> replaced the
+                        re-lease-gap median with a Kaplan-Meier survival estimate —
+                        S(18), the share of tenancies reaching 18 months — with a
+                        qualification gate (≥25 observations reaching 18 months, ≥5
+                        turnover events), suppress-and-reweight when unqualified,
+                        and a 60-day recency gate that dropped stale operators
+                        outright — since replaced by the dormant tier, which keeps
+                        them visible and labeled instead (see{" "}
+                        <a href="#operator-states">§01</a>).{" "}
+                        <strong>Rent Stability</strong> was removed entirely.{" "}
+                        <strong>Operator classification</strong> gained an
+                        apartment-dominant override (house share ≤ 10% → MF/BTR,
+                        applied before the concentrated-share bands), reshaping the
+                        distribution (Hybrid 342 → 119; Small MF/BTR Independent is
+                        now the second-largest cell). <strong>Marketing
+                        Discipline</strong> was recalibrated (p90 rescale, a new
+                        photos sub-score, and a length-plus-content-richness
+                        description sub-score). <strong>Portfolio size</strong>{" "}
+                        moved to a unit-type turnover model (house urus × 3.3 +
+                        apartment urus × 2.6, admin-tunable, with a low–high band),
+                        superseding the earlier cohort-banded estimator.{" "}
+                        <strong>Operator identity</strong> is now ID-based across
+                        markets (parentCompanyId authoritative, curated name
+                        mapping as fallback) plus a within-market fragment-merge
+                        system for id-churned operators; category exclusions
+                        (data-platform company types and a curated denylist) and
+                        broker-vs-property-manager cohort partitioning were
+                        documented. On the surface, the redesigned scorecard
+                        (design v2.0) became the default and the earlier Classic
+                        layout was retired: rank and composite are never surfaced
+                        (the composite stays internal, breaking ties in star-tied
+                        lists), and the standalone Lending Signals block was folded
+                        into Scale &amp; Fit on the web (kept as a three-signal PDF
+                        page; the Vacancy Signal was retired).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="dq-mono whitespace-nowrap">v0.6.4</td>
+                      <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                        May 21, 2026
+                      </td>
+                      <td>
+                        <strong>Watch List foundation (PR 1 of ~5).</strong> Data
+                        layer + filter evaluator + fit-scoring engine + CRUD
+                        API for user-defined target lists. Saved buy
+                        boxes hold three layers of criteria — required
+                        (deal-breakers), preferred (weighted preferences
+                        that drive a 0-100 fit score), excluded (negative
+                        filters) — applied across the full operator
+                        universe to produce a ranked target list with
+                        per-criterion breakdown. Field catalog covers
+                        Geographic, Scale (incl. v0.7 portfolio estimates),
+                        Asset, Trajectory, and Operator dimensions. Two
+                        starter templates seeded — Evernest-style SFR
+                        density build-out + Genstone-style integrated
+                        services — drawn verbatim from the watch-list spec&rsquo;s
+                        worked examples. No editor UI yet (ships in PR 2);
+                        minimal admin view at{" "}
+                        <span className="dq-mono">/watch-lists</span> for
+                        verification. Methodology cohorts + ranking
+                        unchanged — Watch List is a screening surface on top
+                        of the existing scorecard universe, not a metric
+                        revision.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="dq-mono whitespace-nowrap">v0.6.4</td>
+                      <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                        May 21, 2026
+                      </td>
+                      <td>
+                        <strong>Portfolio Size Estimator</strong>. New
+                        size-banded model that estimates total managed
+                        units per operator from observed URU activity,
+                        keyed on Dwellsy 7-cell × URU bands. Calibrated
+                        against a 70 operator-market sample with
+                        per-cohort medians + P25/P75 confidence bands.
+                        Surfaces on scorecard Layer 5 with cohort
+                        attribution and a&nbsp;
+                        <Link
+                          href="/methodology/portfolio-estimator"
+                          className="text-teal hover:underline"
+                        >
+                          full methodology page
+                        </Link>
+                        . Estimates also baked into the canonical-
+                        operator aggregateStats blob so cross-market
+                        profiles can sum the bands across member PMs.
+                        Large MF/BTR cohorts receive an explicit
+                        &ldquo;insufficient calibration data&rdquo;
+                        treatment (n is too small to estimate reliably);
+                        those scorecards prompt for a verified
+                        self-report via the claim flow rather than
+                        pretending to a number. Methodology version
+                        unchanged (still v0.6.4) — no cohort or ranking
+                        changes; estimator is context only and does not
+                        feed the composite.{" "}
+                        <em>
+                          (Superseded in v0.7 by the unit-type turnover model —
+                          see §10 and the portfolio-estimator page.)
+                        </em>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="dq-mono whitespace-nowrap">v0.6.4</td>
+                      <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                        May 19, 2026
+                      </td>
+                      <td>
+                        Patch 1 — <strong>canonical operator identity</strong>.
+                        Same operator running across multiple markets is now
+                        grouped under a single canonical entity via name
+                        normalization (strip <span className="dq-mono">LLC</span>
+                        , <span className="dq-mono">Inc</span>,{" "}
+                        <span className="dq-mono">Ltd</span>,{" "}
+                        <span className="dq-mono">Co</span>,{" "}
+                        <span className="dq-mono">Corp</span> suffixes;
+                        lowercase, normalize whitespace). 22 multi-market
+                        canonical entities baked at seed time covering 60 of
+                        575 PM records — Invitation Homes (4 markets), Mission
+                        Rock Residential (5), First Keys Homes (5), and others.
+                        New <span className="dq-mono">/operators/[canonicalSlug]</span>{" "}
+                        cross-market profile route with aggregate footprint,
+                        modal classification (most-frequent 7-cell with
+                        lexicographic tiebreaker), and per-market scorecard
+                        cards. Search results group multi-market operators
+                        under a new <strong>Cross-market operators</strong>{" "}
+                        section above ranked single-market results.
+                        State-level operator counts deduplicate by canonical
+                        identity (a PM appearing in three in-state MSAs counts
+                        once on the state page). Scorecard Layer 1 gains a{" "}
+                        <strong>cross-market badge</strong> linking to the
+                        canonical profile when the operator is multi-market.
+                        Normalization is conservative — substantive tokens like{" "}
+                        <em>Property Management</em>, <em>Realty</em>, and{" "}
+                        <em>Group</em> are preserved; false-positive collisions
+                        were manually reviewed and excluded. See §07 sub-anchor
+                        on canonical operator identity. Cohort unchanged from
+                        v0.6.3.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="dq-mono whitespace-nowrap">v0.6.3</td>
+                      <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                        May 19, 2026
+                      </td>
+                      <td>
+                        Market headline reframe. New Market Snapshot tiles for{" "}
+                        <strong>active operators</strong> (≥3 listings T12) and{" "}
+                        <strong>market rent growth T12</strong> with a national
+                        benchmark line (Patches 1 + 3). T6M eligibility label
+                        corrected to T12 on the tile and on §01 — production
+                        always used T12; the surfaced label had drifted (Patch 2,
+                        no cohort change). Submarket-aware active-operator
+                        counts and footprint-eligible counts when{" "}
+                        <span className="dq-mono">?submarket=</span> is active;
+                        DOM and rent-growth tiles retain MSA scope with explicit
+                        annotation because submarket-level computation requires
+                        listing-level geography work scheduled for v0.7. Subheader
+                        strip beneath the H1 removed (data duplicated by tiles
+                        and footer). Patch 4 added{" "}
+                        <strong>star-count list ordering</strong> (gold count
+                        desc, silver count desc, composite rank asc) with{" "}
+                        <span className="dq-mono">★N ☆M</span> chips on each
+                        row; the Operator landscape grid migrated to the v0.6.2
+                        7-cell taxonomy with median rent-vs-comp as a third
+                        per-cell metric. Patch 5 added{" "}
+                        <strong>state landing pages</strong> at{" "}
+                        <span className="dq-mono">/property-managers/[state]</span>{" "}
+                        with operator-weighted state aggregates pooled across
+                        in-state MSAs (see §07 sub-anchor on state aggregates).
+                        Patch 6 added{" "}
+                        <strong>share-of-market trajectory</strong> to scorecard
+                        Layer 5 — operator&rsquo;s share of ranked-cohort listing
+                        activity year-over-year, computed across continuing
+                        operators with ≥30 listings in both T12 and the prior
+                        T24-T12 window. An initial absolute-trajectory version
+                        was rejected after a pressure test surfaced pipeline-
+                        coverage, thin-baseline, and survivor biases; the
+                        revised share-based metric neutralizes the first two
+                        and partially addresses the third. Surfaced as a context
+                        signal only — no star treatment, not used in ranking.
+                        See §07 sub-anchor on share trajectory.
+                        Cohort unchanged from v0.6.2.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="dq-mono whitespace-nowrap">v0.6.2</td>
+                      <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                        May 17, 2026
+                      </td>
+                      <td>
+                        Seven covered markets (Chattanooga, Jacksonville,
+                        Nashville, Memphis, Knoxville, Clarksville, Phoenix);
+                        572 eligible PMs. Eight methodology patches enabling
+                        the v1.0 scorecard design: 7-cell taxonomy (MF/BTR
+                        split by median community size), multi-level percentile
+                        rank computation (primary / fallback / MSA), star
+                        system per metric, Rent Stability methodology fix
+                        (12-quarter raw-listings volatility, spec; pipeline
+                        catch-up in v0.7), Tenancy short-history caveat,
+                        unit-count precision data (urusT12 /
+                        observedCommunities / observedCommunityTotalUnits as
+                        distinguishable fields), Geographic Concentration
+                        pre-computation, and pre-computed scorecard text
+                        (executive summaries, distinguishing characteristics,
+                        map narratives) with operator-dignity validation at
+                        generation time. Ships paired with design v1.0.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="dq-mono whitespace-nowrap">v0.6.1</td>
+                      <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                        May 17, 2026
+                      </td>
+                      <td>
+                        Three covered markets (Chattanooga, Jacksonville,
+                        Nashville). Community Visibility denominator switched
+                        to <em>top_down_community_count</em>; default turnover
+                        rate dropped from 40% to 20%; anomaly flag retired.
+                        Institutional/Independent classification considers
+                        cross-market observed units.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="dq-mono whitespace-nowrap">v0.6</td>
+                      <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                        May 16, 2026
+                      </td>
+                      <td>
+                        Operator classification redefined on both axes.
+                        Coverage Confidence renamed to Community Visibility and
+                        reformulated. Rent level removed from composite; Rent
+                        Performance added. Composite weights rebalanced toward
+                        operator behavior. SFR Credibility deferred.
+                        Methodology page rewritten to articulate operator-type
+                        asymmetry honestly.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="dq-mono whitespace-nowrap">v0.3.4</td>
+                      <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                        Mar 5, 2026
+                      </td>
+                      <td>
+                        Final Chattanooga-only release. Coverage Confidence
+                        chip promoted to headline row. Superseded by v0.6 (and
+                        reformulated entirely under v0.6.1).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="dq-mono whitespace-nowrap">v0.3.0–v0.3.3</td>
+                      <td className="dq-mono whitespace-nowrap text-muted-foreground">
+                        Nov 2025 – Feb 2026
+                      </td>
+                      <td>
+                        Iterative refinements during initial Chattanooga
+                        calibration. Tenancy methodology stabilized at
+                        episode-clustering with 180-day window and unit-weighted
+                        median.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </TableScroll>
               <p className="mt-6">
                 Data is refreshed monthly. The current snapshot reflects
                 listing activity through {dataAsOfLabel}.
