@@ -111,7 +111,40 @@ Required files in the data directory:
    operators usually unchanged unless the new market shares operators with
    existing ones (covered next).
 
-7. **Propose canonical-mapping extensions.** Look for new-market operators
+7. **Enrich operator websites for the new market — do this BEFORE proposing
+   canonicals.** The proposal step surfaces each member's website URL as
+   review evidence, and a URL is the fastest way to tell two same-named
+   operators apart. Operators from a brand-new market have never been
+   scraped, so they arrive as `"website": null` with
+   `"websiteEvidence": "not scraped"` — which is exactly when you most need
+   the signal.
+
+   ```bash
+   python3 enrich_company_websites.py     # scrape Dwellsy company pages for URLs
+   python3 classify_management_website.py # read each site, emit the verdict
+   ```
+
+   Both run over **all** operators — there is no `--market` filter. They skip
+   records they already have, so a run after adding one market only does the
+   new work, but budget for it: `enrich` has an 0.8s politeness delay per
+   request by default (`--delay`), and `--sample N` caps a run if you want to
+   spot-check first.
+
+   Together these refresh `src/data/management_model_website.json` (companyId →
+   URL + verdict), which also feeds the management-model signal on scorecards.
+
+   Coverage is partial by nature: roughly half of operators list no website on
+   Dwellsy at all, so some members will legitimately stay `not scraped`. Don't
+   re-run `--recover` hoping to fix those — a 95-operator re-probe of
+   already-checked empties recovered zero.
+
+   Skipping it is not fatal — the proposal still works, it just costs you the
+   evidence. Real case: "Peak Property Management" was proposed as one entity
+   across Fort Collins CO, Richmond VA and Bozeman MT. Fort Collins and
+   Richmond had stored URLs (`peakproperty.net` vs a Richmond domain) which
+   settled it instantly; Bozeman, freshly added, had none.
+
+8. **Propose canonical-mapping extensions.** Look for new-market operators
    that should be canonicalized (cross-market entities already canonicalized
    elsewhere, e.g. Invitation Homes in Seattle joining the existing
    `invitation-homes` canonical). Writes a proposal JSON for you to review;
@@ -133,7 +166,7 @@ Required files in the data directory:
      canonical entity. Lower confidence — generic names like "Real Estate
      Group" or "Property Management LLC" hit lots of false positives here.
 
-8. **Curate the decisions JSON.** Copy `canonical_decisions_v064_p2.json`
+9. **Curate the decisions JSON.** Copy `canonical_decisions_v064_p2.json`
    to a new file (e.g., `canonical_decisions_v064_p3.json` for the next
    release), keep the accepted decisions, add new ones from the proposal.
    Each entry has `canonical_slug`, `canonical_name` (used as the
@@ -142,25 +175,25 @@ Required files in the data directory:
    documentation. Rejected proposals can also be recorded for audit
    trail.
 
-9. **Apply the canonical decisions.** Patches the affected per-market
+10. **Apply the canonical decisions.** Patches the affected per-market
    JSONs in place (with timestamped backups).
 
    ```bash
    python3 apply_canonicals.py --decisions canonical_decisions_v064_p3.json --apply
    ```
 
-10. **Apply the merge.** Snapshots the existing scorecard_data.json to
+11. **Apply the merge.** Snapshots the existing scorecard_data.json to
     `.bak.<timestamp>`, then writes the merged JSON in place.
 
     ```bash
     python3 merge.py --apply
     ```
 
-11. **Eyeball the generated data locally** on `npm run dev` — visit
+12. **Eyeball the generated data locally** on `npm run dev` — visit
     `/property-managers/<state>/<city>` and a couple of operator pages.
     Spot-check before pushing.
 
-12. **Commit + push.** Vercel builds do not seed any database. After review and
+13. **Commit + push.** Vercel builds do not seed any database. After review and
     merge, follow the controlled production data-release procedure in
     `MONTHLY_REFRESH.md`; do not run the seed merely to test a PR.
 
