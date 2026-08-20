@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { siteRobotsMetadata } from "@/lib/seo";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { clerkAppearance } from "@/lib/clerk-appearance";
@@ -51,6 +52,11 @@ const siteUrl =
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  // Belt-and-braces alongside the X-Robots-Tag header in next.config.ts. The
+  // header is authoritative and covers every response; this emits the
+  // <meta name="robots"> too, so the intent survives any proxy or CDN that
+  // strips response headers. Driven by the same flag so they can't disagree.
+  robots: siteRobotsMetadata(),
   title: {
     default: "Operator IQ — Select, screen & monitor property managers",
     template: "%s · Operator IQ",

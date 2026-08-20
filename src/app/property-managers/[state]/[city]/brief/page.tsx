@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { siteRobotsMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
@@ -82,7 +83,10 @@ export async function generateMetadata({
     description,
     alternates: { canonical: data.market.briefUrl },
     openGraph: { title, description, type: "article" },
-    robots: { index: true, follow: true },
+    // Follows the site-wide switch. This page used to hardcode
+    // `{ index: true }`, which would have overridden a layout-level noindex
+    // and made market briefs the one indexable surface by accident.
+    robots: siteRobotsMetadata(),
   };
 }
 

@@ -6,9 +6,18 @@ import {
   stateCodeToSlug,
 } from "@/lib/slugify";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+import { INDEXING_ENABLED, resolveSiteUrl } from "@/lib/seo";
+
+const SITE_URL = resolveSiteUrl();
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Deliberately empty while the site is unindexed. /sitemap.xml is a
+  // well-known path crawlers probe directly, and an empty valid sitemap is a
+  // far better answer than the 4,794 http://localhost:3000 URLs this used to
+  // serve in production. Every generator below is left intact and gated, so
+  // flipping INDEXING_ENABLED restores the real sitemap in one edit.
+  if (!INDEXING_ENABLED) return [];
+
   const markets = await prisma.market.findMany({
     include: { pms: { select: { slug: true } } },
   });

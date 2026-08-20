@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { siteRobotsMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
@@ -30,7 +31,9 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     alternates: { canonical: "/briefs/national" },
     openGraph: { title, description, type: "article" },
-    robots: { index: true, follow: true },
+    // Follows the site-wide switch (see src/lib/seo.ts). Hardcoded
+    // `{ index: true }` here would override the blanket noindex header.
+    robots: siteRobotsMetadata(),
   };
 }
 
