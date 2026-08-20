@@ -1,5 +1,5 @@
 {
-  "_comment": "Dot registry for the /property-managers coverage map. A market's live/available STATUS is DERIVED AT RUNTIME from the seed (src/lib/markets-coverage.ts): an entry is 'live' iff its slug matches a seeded market id in markets-summary.json, else 'available' (upon request). LIVE entries MUST use the full MSA market id as their slug so the match works; available-only metros use any unique slug. The status field stored here is an advisory snapshot \u2014 the runtime derive is authoritative, so adding/removing a market in markets.json self-corrects the map without hand-editing status. To add an available metro, append {slug,name,shortName,centroid,status:'available'}.",
+  "_comment": "Dot registry for the /property-managers coverage map. A market's live/available STATUS is DERIVED AT RUNTIME from the seed (src/lib/markets-coverage.ts): an entry is 'live' iff its slug matches a seeded market id in markets-summary.json, else 'available' (upon request). LIVE entries MUST use the full MSA market id as their slug so the match works; available-only metros use any unique slug. The status field stored here is an advisory snapshot — the runtime derive is authoritative, so adding/removing a market in markets.json self-corrects the map without hand-editing status. To add an available metro, append {slug,name,shortName,centroid,status:'available'}.",
   "markets": [
     {
       "slug": "baltimore-towson-md",
@@ -33,6 +33,17 @@
       },
       "status": "live",
       "marketPageHref": "/property-managers/colorado/boulder"
+    },
+    {
+      "slug": "bozeman-mt",
+      "name": "Bozeman, MT MSA",
+      "shortName": "Bozeman",
+      "centroid": {
+        "lat": 45.677,
+        "lng": -111.0429
+      },
+      "status": "live",
+      "marketPageHref": "/property-managers/montana/bozeman"
     },
     {
       "slug": "charlotte-gastonia-rock-hill-nc-sc",

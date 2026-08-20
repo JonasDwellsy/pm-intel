@@ -2,6 +2,7 @@ import { GatedLink } from "@/components/auth/GatedLink";
 import { fmtDays, fmtInt } from "@/lib/format";
 import { sizeBandLabel } from "@/lib/operator-size-bands";
 import { quadrantColor } from "@/lib/quadrant-colors";
+import { managementModelLabel } from "@/lib/management-model/resolve";
 import { StarSummaryChip } from "@/components/scorecard/StarSummaryChip";
 import { AddToWatchList } from "@/components/watch-list/AddToWatchList";
 import type { PMListItem as PMListItemData } from "@/lib/types";
@@ -98,6 +99,16 @@ export function PMListItem({
   const displayShare = submarket ? submarket.share : pm.primaryCityShare;
   const displayCity = submarket ? submarket.displayName : pm.primaryCity;
 
+  // Management model: label plus the confidence + basis behind it on hover,
+  // matching how the scorecard header presents the same value.
+  const mm = pm.managementModel ?? null;
+  const mmLabel = managementModelLabel(mm?.model);
+  const mmTitle = mm
+    ? mm.confidence
+      ? `${mm.confidence[0].toUpperCase()}${mm.confidence.slice(1)} confidence · ${mm.basis}`
+      : mm.basis
+    : undefined;
+
   const rentToneClass =
     rent.tone === "good"
       ? "text-good"
@@ -116,6 +127,15 @@ export function PMListItem({
   // quadrants). Now: gold/silver star → green ("top-tier DOM for this
   // cohort"), null → neutral navy. Matches the rent-vs-comp column's
   // semantic-coloring pattern.
+  // Concession tone mirrors the scorecard's watch-item tiering: heavy
+  // discounting (>=40%) is the threshold where it stops being seasonal noise
+  // and starts being a lease-up signal worth noticing. Neutral below that —
+  // some concession use is normal and colouring it red would cry wolf.
+  const concessionToneClass =
+    pm.concessionRate != null && pm.concessionRate >= 0.4
+      ? "text-orange"
+      : "text-navy";
+
   const domToneClass =
     pm.domStar === "gold" || pm.domStar === "silver"
       ? "text-good"
@@ -192,6 +212,22 @@ export function PMListItem({
                   Dormant
                 </span>
               )}
+              {/* Inferred hireability. An owner scanning a market first needs
+                  to know which of these they can actually engage — that signal
+                  already exists on the scorecard, the watch list and the PDF,
+                  and was the one thing missing from the row that precedes them
+                  all. "Unknown" is rendered too, and deliberately: it means
+                  verify directly, not "no", and hiding it would read as an
+                  answer we don't have. Owner-operator always carries its
+                  "(likely)" hedge from the shared label map. */}
+              {mmLabel && (
+                <span
+                  title={mmTitle}
+                  className="dq-badge inline-flex items-center rounded-full border border-grid bg-white px-2.5 py-1 text-[11px] font-medium tracking-[0.02em] text-muted-foreground"
+                >
+                  {mmLabel}
+                </span>
+              )}
               <span
                 className="dq-badge inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-[0.02em]"
                 style={{ color: color.fg, backgroundColor: color.soft }}
@@ -240,11 +276,13 @@ export function PMListItem({
             </p>
           </div>
 
-          {/* Middle: mini-metrics. Concession column hidden until v0.7
-              sources concession rates — v0.6.2 surfaces no concession
-              data, so the column rendered "—" universally and read as a
-              data gap rather than the deferred state it actually is. */}
-          <div className="grid grid-cols-2 gap-5">
+          {/* Middle: mini-metrics. The concession column was hidden while the
+              pipeline sourced no concession data — it would have rendered "—"
+              universally and read as a data gap. Every seeded operator now
+              carries a rate, so it earns its place. Shown only when the
+              operator has one: a real 0% ("advertises none") and a missing
+              value are different claims, and "—" for the latter is honest. */}
+          <div className="grid grid-cols-3 gap-5">
             <MiniMetric
               label="DOM (T12)"
               value={fmtDays(pm.domT12)}
@@ -254,6 +292,15 @@ export function PMListItem({
               label="Rent vs comp"
               value={rent.text}
               className={"dq-mono " + rentToneClass}
+            />
+            <MiniMetric
+              label="Concessions"
+              value={
+                pm.concessionRate === null || pm.concessionRate === undefined
+                  ? "—"
+                  : `${Math.round(pm.concessionRate * 100)}%`
+              }
+              className={"dq-mono " + concessionToneClass}
             />
           </div>
 

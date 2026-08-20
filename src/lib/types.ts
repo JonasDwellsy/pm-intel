@@ -504,6 +504,11 @@ export interface PMListItem {
   // Additive optional fields used by the market landing operator cards.
   rentVsComp: number | null;
   concessionRate: number | null;
+  /** Inferred "can I hire them" signal — third-party manager / owner-operator
+   *  (likely) / unknown, with the confidence and basis behind it. Baked at
+   *  seed time by resolveManagementModel(); already surfaced on scorecards,
+   *  watch lists and the PDF. Optional so hand-built fixtures stay valid. */
+  managementModel?: ManagementModel | null;
   accentColor: string | null;
   coverageMapPoints: CoverageMapPoint[];
   /** v0.6.2 composite star (gold/silver/null) and cohort label — surfaced

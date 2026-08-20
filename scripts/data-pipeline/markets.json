@@ -475,6 +475,17 @@
       "primaryCity": "San Jose",
       "csvFile": "merged_san-jose-sunnyvale-santa-clara-ca_20260805.csv",
       "dataAsOf": "2026-08-05"
+    },
+    {
+      "id": "bozeman-mt",
+      "outputSlug": "bozeman",
+      "msaCode": "14580",
+      "msaFullName": "Bozeman, MT MSA",
+      "name": "Bozeman",
+      "state": "MT",
+      "primaryCity": "Bozeman",
+      "csvFile": "merged_bozeman-mt_20260820.csv",
+      "dataAsOf": "2026-08-20"
     }
   ]
 }

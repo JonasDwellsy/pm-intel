@@ -266,6 +266,7 @@ const MARKETS: Array<{
   { slug: "modesto", id: "modesto-ca", city: "Modesto", state: "CA", stateSlug: "california", citySlug: "modesto" },
   { slug: "san-francisco", id: "san-francisco-oakland-berkeley-ca", city: "San Francisco", state: "CA", stateSlug: "california", citySlug: "san-francisco" },
   { slug: "san-jose", id: "san-jose-sunnyvale-santa-clara-ca", city: "San Jose", state: "CA", stateSlug: "california", citySlug: "san-jose" },
+  { slug: "bozeman", id: "bozeman-mt", city: "Bozeman", state: "MT", stateSlug: "montana", citySlug: "bozeman" },
 ];
 const MIN_T12 = 3;
 

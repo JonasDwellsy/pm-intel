@@ -122,6 +122,40 @@ from `scripts/data-pipeline/`.
     a market brief's "since last period" block and the national brief show real
     month-over-month movement, and the digests have deltas to send.
 
+## Digest crons are PAUSED
+
+`vercel.json` ships an empty `crons` array. Both digest jobs — the watch-list
+change digest (was 13:00 UTC daily) and the market-brief digest (14:00 UTC) —
+are currently disabled.
+
+Why: on 2026-08-20 a production seed created snapshot `2026-08-20`. Diffing it
+against the previous snapshot (`2026-08-07`) surfaces 35 operators with changed
+`topMSAs` and nothing else — real cross-market footprint additions that
+accumulated in the committed seed but were never snapshotted, because
+deployments stopped seeding on 2026-08-19 and no manual seed had run since.
+Left enabled, the digest would have reported those as "Entered a new market"
+for the current period, which misdates changes that happened earlier.
+
+The digest keys its bookkeeping on `snapshotDate` (`WatchListDigestRun` has one
+row per snapshot), so the pause only defers; it does not lose the run.
+
+TO RE-ENABLE, restore the two entries in `vercel.json`:
+
+```json
+{
+  "crons": [
+    { "path": "/api/cron/watch-list-digest", "schedule": "0 13 * * *" },
+    { "path": "/api/cron/brief-digest", "schedule": "0 14 * * *" }
+  ]
+}
+```
+
+Before re-enabling, decide what should happen to the `2026-08-20` snapshot.
+Either accept that its `topMSAs` deltas will be reported once, or let the next
+monthly refresh land first so the diff is taken against a snapshot the digest
+has already accounted for. Dry-run either way — `?dryRun=1` composes and counts
+without sending.
+
 ## Production release boundary
 
 Vercel deployments are build-only. They run `prisma generate` and `next build`

@@ -233,7 +233,11 @@ export function toPmListItem(row: PmRowForList): PMListItem {
       sc.rentPerformance?.delta !== undefined && sc.rentPerformance?.delta !== null
         ? sc.rentPerformance.delta * 100
         : null,
-    concessionRate: null,
+    // Wired through as of the market-row refresh. This was hardcoded null
+    // while the pipeline had no concession data; every seeded operator now
+    // carries a rate, so hardcoding null was suppressing a live signal.
+    concessionRate: sc.concessionRate ?? null,
+    managementModel: sc.managementModel ?? null,
     accentColor: sc.pm.accentColor ?? null,
     coverageMapPoints: sc.geographicCoverage.coverageMapPoints ?? [],
     // v0.6.2 / v1.0 — composite star + cohort name surface on the market
