@@ -46,6 +46,7 @@ export async function loadMarketIqMarketDataWithDependencies(input: {
   market: MarketIqMarketDefinition;
   adapter: MarketIqMarketDataAdapter;
   repository: MarketIqMarketDataRepository;
+  refreshReport?: boolean;
   now?: Date;
   reportTimeoutMs?: number;
   listingTimeoutMs?: number;
@@ -55,7 +56,7 @@ export async function loadMarketIqMarketDataWithDependencies(input: {
   let usedPersistedSnapshot = Boolean(persisted);
   let refreshFailed = false;
 
-  if (!persisted || !hasLongMsaHistory(persisted)) {
+  if (input.refreshReport !== false && (!persisted || !hasLongMsaHistory(persisted))) {
     try {
       report = await timeoutAfter(input.adapter.loadReport(), input.reportTimeoutMs ?? 8_000);
       await input.repository.storeReport(report);

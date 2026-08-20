@@ -82,3 +82,14 @@ test("the shared Market Intelligence route uses the market data service boundary
     assert.equal(source.includes(forbiddenImport), false, `Shared route imports ${forbiddenImport}`);
   }
 });
+
+test("interactive Market IQ reads persisted evidence and Cleveland source builds fail closed", () => {
+  const service = readFileSync("src/lib/market-iq/data/service.server.ts", "utf8");
+  const clevelandBuild = readFileSync("src/lib/market-iq/report/build.server.ts", "utf8");
+
+  assert.match(service, /refreshReport: false/);
+  assert.doesNotMatch(clevelandBuild, /SEEDED_CLEVELAND_TREND_SERIES/);
+  assert.doesNotMatch(clevelandBuild, /seededClevelandMarketReport/);
+  assert.match(clevelandBuild, /throw new Error\("The authoritative Dwellsy Trends source is not configured\."\)/);
+  assert.match(clevelandBuild, /Promise\.all\(\[\s*loadDwellsyTrendSeries/);
+});

@@ -170,6 +170,26 @@ test("a current complete snapshot avoids an unnecessary Trends refresh", async (
   assert.deepEqual(result.issues, []);
 });
 
+test("an interactive persisted-only read never starts a live source build", async () => {
+  const deps = dependencies({
+    persisted: null,
+    refreshed: reportFixture({ availableThrough: "2026-07-31", historyMonths: 36 }),
+  });
+  const result = await loadMarketIqMarketDataWithDependencies({
+    market: MARKET,
+    adapter: deps.adapter,
+    repository: deps.repository,
+    refreshReport: false,
+    now: new Date("2026-08-19T00:00:00.000Z"),
+  });
+
+  assert.equal(result.report, null);
+  assert.equal(result.freshness, "missing");
+  assert.equal(result.usedPersistedSnapshot, false);
+  assert.equal(deps.reportLoads(), 0);
+  assert.deepEqual(deps.stored, []);
+});
+
 test("a partial snapshot is replaced and persisted when refresh succeeds", async () => {
   const persisted = reportFixture({ availableThrough: "2026-07-31", historyMonths: 12 });
   const refreshed = reportFixture({ availableThrough: "2026-07-31", historyMonths: 36 });
