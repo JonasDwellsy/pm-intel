@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { buildCurrentMonthUnavailableCuts, buildMarketIqReportSnapshot, isPublicMarketIqReportStatus, parseMarketIqReportSnapshot } from "./report";
+import { buildCurrentMonthUnavailableCuts, buildDwellsyPropertyUrl, buildMarketIqReportSnapshot, formatMarketIqListingAddress, isPublicMarketIqReportStatus, parseMarketIqReportSnapshot, trendHistoryQueryStart, trendHistoryWindowStart } from "./report";
 import { canAccessMarketIqReportComposer } from "./access";
 import { buildMarketIqReportEmail } from "./email";
 import { parseMarketIqEditorialDefaultsForm } from "./form-values";
@@ -19,6 +19,34 @@ const baseInput = {
 };
 
 describe("Market IQ local market read assembly", () => {
+  it("uses property identifiers for Dwellsy links and formats source street addresses", () => {
+    expect(buildDwellsyPropertyUrl(21_028_706)).toBe("https://dwellsy.com/details/21028706");
+    expect(buildDwellsyPropertyUrl("not-an-id")).toBeNull();
+    expect(formatMarketIqListingAddress(["3567 Bosworth Rd", "Apt 2", null])).toBe("3567 Bosworth Rd, Apt 2");
+    const adapter = readFileSync("src/lib/dwellsy-source/listing-events.server.ts", "utf8");
+    expect(adapter).toContain("listing.property_id");
+    expect(adapter).toContain("buildDwellsyPropertyUrl(row.property_id)");
+    expect(adapter).not.toContain("details/${listingId}");
+  });
+
+  it("requests enough history and publishes an exact trailing 36-month window", () => {
+    expect(trendHistoryQueryStart(new Date("2026-08-20T12:00:00Z"))).toBe("2022-08-01");
+    expect(trendHistoryWindowStart("2026-07-01")).toBe("2023-08-01");
+    const points = Array.from({ length: 40 }, (_, index) => ({
+      rent: 900 + index,
+      yearOverYearPct: 1,
+      observations: 20,
+      month: new Date(Date.UTC(2023, 3 + index, 1)).toISOString().slice(0, 10),
+    }));
+    const report = buildMarketIqReportSnapshot({
+      ...baseInput,
+      trendSeries: [{ geographyType: "msa", geographyValue: "17460", geographyLabel: "Cleveland-Elyria, OH", propertyType: "apartment", bedrooms: 1, points }],
+    });
+    expect(report.marketRead.cells[0]?.series).toHaveLength(36);
+    expect(report.marketRead.cells[0]?.series[0]?.month).toBe("2023-08-01");
+    expect(report.marketRead.cells[0]?.series.at(-1)?.month).toBe("2026-07-01");
+  });
+
   it("records every standard cut missing from the current source month without inventing a cause", () => {
     const current = (geographyType: "msa" | "city", geographyValue: string, propertyType: "apartment" | "house", bedrooms: number, month: string) => ({
       geographyType,

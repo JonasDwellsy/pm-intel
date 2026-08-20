@@ -58,6 +58,7 @@ export type MarketIqMapPoint = {
 export type MarketIqListingEvent = {
   id: string;
   eventType: "new_listing" | "price_change";
+  address?: string | null;
   city: string;
   zip: string;
   propertyType: MarketIqPropertyType;
@@ -68,6 +69,31 @@ export type MarketIqListingEvent = {
   imageUrl?: string | null;
   listingUrl?: string | null;
 };
+
+export function buildDwellsyPropertyUrl(propertyId: string | number) {
+  const value = String(propertyId);
+  return /^\d+$/.test(value) ? `https://dwellsy.com/details/${value}` : null;
+}
+
+export function formatMarketIqListingAddress(parts: Array<string | null | undefined>) {
+  const address = parts.map((part) => part?.trim()).filter((part): part is string => Boolean(part)).join(", ");
+  return address || null;
+}
+
+function offsetMonth(value: Date, months: number) {
+  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + months, 1)).toISOString().slice(0, 10);
+}
+
+export function trendHistoryQueryStart(referenceDate: Date) {
+  // Fetch four calendar years, then publish at most the latest 36 actual
+  // observations per cell. The extra year preserves a complete trajectory
+  // when an otherwise valid source series has occasional unpublished months.
+  return offsetMonth(referenceDate, -48);
+}
+
+export function trendHistoryWindowStart(latestMonth: string) {
+  return offsetMonth(new Date(`${latestMonth.slice(0, 7)}-01T00:00:00Z`), -35);
+}
 
 export type MarketIqMarketActivity = {
   asOf: string;
