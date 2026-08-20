@@ -1799,10 +1799,12 @@ export async function runSeed(
         data: canonicalRows,
       });
 
-      // v0.13 (PR #50) — remove the two obsolete pre-auth starter rows. Real
-      // user watch lists are outside the replacement and remain untouched.
+      // v0.13 (PR #50) — remove only the two obsolete pre-auth starter rows.
+      // A customer may legitimately reuse either name, so ownership is part
+      // of the deletion identity.
       await tx.watchList.deleteMany({
         where: {
+          ownerId: "legacy-pre-auth",
           name: {
             in: [
               "Evernest-Style SFR Density Build-Out",
