@@ -45,6 +45,8 @@ test("the runtime route requires an admin and forces the live authoritative sour
   assert.match(route, /snapshot\.scope\.seededExample/);
   assert.match(route, /storeMarketIqReportSourceSnapshot\(snapshot\)/);
   assert.match(route, /status: "blocked"/);
+  assert.match(route, /readiness\?refresh=stored/);
+  assert.match(route, /303/);
   assert.doesNotMatch(route, /error\.message/);
 
   const readiness = readFileSync(

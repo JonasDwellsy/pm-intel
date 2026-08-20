@@ -18,7 +18,7 @@ function observationCount(snapshot: Awaited<ReturnType<typeof buildClevelandMark
   );
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   const { userId } = await auth();
   if (!marketIqReportSourceRefreshEnabled(process.env) || !userId || !isAdminUser(userId)) {
     return Response.json({ error: "Not found." }, { status: 404 });
@@ -59,14 +59,10 @@ export async function POST() {
         completedAt: new Date(),
       },
     });
-    return Response.json({
-      status: "stored",
-      marketId: stored.marketId,
-      sourceAvailableThrough: stored.sourceAvailableThrough.toISOString().slice(0, 10),
-      generatedAt: stored.generatedAt.toISOString(),
-      checksum: stored.checksum,
-      recordCount: records,
-    });
+    return Response.redirect(
+      new URL("/market-iq/internal/readiness?refresh=stored", request.url),
+      303,
+    );
   } catch (error) {
     if (refreshId) {
       await marketIqPrisma.marketIqSourceRefresh.update({
