@@ -56,7 +56,7 @@ function OpenMarketButton({ disabled, sourceUnavailable, clientAdvisoryEnabled }
   return <button type="submit" disabled={disabled || pending} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{pending ? "Opening edition…" : label}</button>;
 }
 
-export function MarketIqActivationFlow({ marketId, snapshot, initialBrand, initialEditorialDefaults, initialSelection, initialStep, source, clientAdvisoryEnabled, logoStorageEnabled }: { marketId: string; marketLabel: string; snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialEditorialDefaults: MarketIqEditorialDefaults; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "verified_seed" | "scope_catalog" | "unavailable"; completed: boolean; clientAdvisoryEnabled: boolean; logoStorageEnabled: boolean }) {
+export function MarketIqActivationFlow({ marketId, snapshot, initialBrand, initialEditorialDefaults, initialSelection, initialStep, source, clientAdvisoryEnabled, logoStorageEnabled }: { marketId: string; marketLabel: string; snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialEditorialDefaults: MarketIqEditorialDefaults; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "scope_catalog" | "unavailable"; completed: boolean; clientAdvisoryEnabled: boolean; logoStorageEnabled: boolean }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const websiteInputRef = useRef<HTMLInputElement>(null);

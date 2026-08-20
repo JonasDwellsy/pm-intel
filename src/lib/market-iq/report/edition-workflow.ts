@@ -19,7 +19,7 @@ export type MarketIqEditionWorkflow = {
 export function buildMarketIqEditionWorkflow(input: {
   current: MarketIqReportSnapshot;
   prior: MarketIqReportSnapshot | null;
-  source: "dwellsy_trends" | "verified_seed";
+  source: "dwellsy_trends" | "unavailable";
   coverageCounts: Record<MarketIqCoverageStatus, number>;
   comparison: MarketIqEditionComparison;
 }) : MarketIqEditionWorkflow {
@@ -33,7 +33,7 @@ export function buildMarketIqEditionWorkflow(input: {
       id: "source",
       label: "Validated rent source",
       status: sourceReady ? "ready" : "blocked",
-      detail: sourceReady ? "Rent levels and trajectories are loaded from Dwellsy Trends IQ." : "The live Trends IQ source is unavailable. A preview seed cannot be published as a recurring client edition.",
+      detail: sourceReady ? "Rent levels and trajectories are loaded from Dwellsy Trends IQ." : "The authoritative Trends IQ source is unavailable. An edition cannot be prepared.",
     },
     {
       id: "freshness",

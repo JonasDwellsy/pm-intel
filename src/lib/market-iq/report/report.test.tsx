@@ -58,7 +58,12 @@ describe("Market IQ local market read assembly", () => {
   });
 
   it("parses only Revision 4 market-read snapshots", () => {
-    expect(parseMarketIqReportSnapshot(JSON.stringify(seededClevelandMarketReport))).toEqual(seededClevelandMarketReport);
+    const authoritative = {
+      ...seededClevelandMarketReport,
+      scope: { ...seededClevelandMarketReport.scope, seededExample: false },
+    };
+    expect(parseMarketIqReportSnapshot(JSON.stringify(authoritative))).toEqual(authoritative);
+    expect(parseMarketIqReportSnapshot(JSON.stringify(seededClevelandMarketReport))).toBeNull();
     expect(parseMarketIqReportSnapshot('{"version":1}')).toBeNull();
     expect(parseMarketIqReportSnapshot("not json")).toBeNull();
   });

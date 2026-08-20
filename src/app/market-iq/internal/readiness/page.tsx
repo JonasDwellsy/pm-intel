@@ -33,7 +33,7 @@ async function sourceCheck() {
     const snapshot = await loadCachedClevelandMarketIqReportSnapshot();
     const reportable = snapshot.marketRead.cells.filter((cell) => cell.status === "reportable").length;
     const trends = snapshot.sources.find((source) => source.name === "Dwellsy IQ Trends");
-    return { ok: !snapshot.scope.seededExample && Boolean(trends), source: snapshot.scope.seededExample ? "verified_seed" : "dwellsy_trends", through: trends?.availableThrough ?? snapshot.scope.periodEnd, reportable };
+    return { ok: !snapshot.scope.seededExample && Boolean(trends), source: "dwellsy_trends", through: trends?.availableThrough ?? snapshot.scope.periodEnd, reportable };
   } catch (error) {
     return { ok: false, source: "unavailable", through: null, reportable: 0, error: error instanceof Error ? error.message : String(error) };
   }

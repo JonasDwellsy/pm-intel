@@ -16,10 +16,7 @@ import {
   type MarketIqReportSnapshot,
   type MarketIqTrendSeries,
 } from "@/lib/market-iq/report/report";
-import {
-  SEEDED_CLEVELAND_REPORT_TOKEN,
-  CLEVELAND_ZIP_CENTERS,
-} from "@/lib/market-iq/report/seeded-cleveland";
+import { CLEVELAND_ZIP_CENTERS } from "@/lib/market-iq/report/seeded-cleveland";
 import { MARKET_IQ_REPORT_CITIES, MARKET_IQ_REPORT_ZIPS } from "@/lib/market-iq/report/scope";
 
 const REPORT_CITIES = [...MARKET_IQ_REPORT_CITIES];
@@ -298,13 +295,6 @@ export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
 );
 
 export async function loadPublicMarketIqReport(publicToken: string): Promise<MarketIqReportSnapshot | null> {
-  const previewEnabled = process.env.MARKET_IQ_PREVIEW_ENABLED === "1"
-    || process.env.VERCEL_ENV === "preview"
-    || process.env.NODE_ENV !== "production";
-  if (previewEnabled && publicToken === SEEDED_CLEVELAND_REPORT_TOKEN) {
-    return loadCachedClevelandMarketIqReportSnapshot();
-  }
-
   const stored = await prisma.marketIqReport.findUnique({
     where: { publicToken },
     select: { status: true, snapshot: true },

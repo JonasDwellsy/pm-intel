@@ -86,10 +86,16 @@ test("the shared Market Intelligence route uses the market data service boundary
 test("interactive Market IQ reads persisted evidence and Cleveland source builds fail closed", () => {
   const service = readFileSync("src/lib/market-iq/data/service.server.ts", "utf8");
   const clevelandBuild = readFileSync("src/lib/market-iq/report/build.server.ts", "utf8");
+  const composer = readFileSync("src/lib/market-iq/report/composer.server.ts", "utf8");
+  const reportParser = readFileSync("src/lib/market-iq/report/report.ts", "utf8");
 
   assert.match(service, /refreshReport: false/);
   assert.doesNotMatch(clevelandBuild, /SEEDED_CLEVELAND_TREND_SERIES/);
   assert.doesNotMatch(clevelandBuild, /seededClevelandMarketReport/);
+  assert.doesNotMatch(clevelandBuild, /SEEDED_CLEVELAND_REPORT_TOKEN/);
+  assert.doesNotMatch(composer, /seededClevelandMarketReport/);
+  assert.doesNotMatch(composer, /generatedAt: new Date\(\)\.toISOString\(\)/);
+  assert.match(reportParser, /parsed\.scope\.seededExample !== false/);
   assert.match(clevelandBuild, /throw new Error\("The authoritative Dwellsy Trends source is not configured\."\)/);
   assert.match(clevelandBuild, /Promise\.all\(\[\s*loadDwellsyTrendSeries/);
 });

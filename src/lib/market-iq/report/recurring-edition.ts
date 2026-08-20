@@ -3,7 +3,7 @@ export type RecurringEditionDecision =
   | { action: "skip"; reason: "source_unavailable" | "baseline_required" | "same_period" | "blocked" | "draft_exists" };
 
 export function decideRecurringEdition(input: {
-  source: "dwellsy_trends" | "verified_seed";
+  source: "dwellsy_trends" | "unavailable";
   currentPeriodEnd: string | null;
   priorPeriodEnd: string | null;
   readinessPassed: boolean;

@@ -13,8 +13,8 @@ test("edition workflow recognizes a new source period", () => {
   assert.equal(result.canPrepare, true);
 });
 
-test("edition workflow blocks a seed from becoming a recurring client edition", () => {
-  const result = buildMarketIqEditionWorkflow({ current: seededClevelandMarketReport, prior: null, source: "verified_seed", coverageCounts: { reportable: 4, stale: 0, unavailable: 0 }, comparison: { ...comparison, state: "baseline" } });
+test("edition workflow blocks an unavailable source from becoming a recurring client edition", () => {
+  const result = buildMarketIqEditionWorkflow({ current: seededClevelandMarketReport, prior: null, source: "unavailable", coverageCounts: { reportable: 4, stale: 0, unavailable: 0 }, comparison: { ...comparison, state: "baseline" } });
   assert.equal(result.canPrepare, false);
   assert.equal(result.checks.find((check) => check.id === "source")?.status, "blocked");
 });
