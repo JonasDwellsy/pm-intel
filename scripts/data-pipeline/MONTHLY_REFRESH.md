@@ -146,17 +146,20 @@ staged expand-and-contract release and must not use this one-step procedure.
 
 ### Monthly data release
 
-The current seed is not atomic. It deletes and reconstructs markets, property
-managers, and canonical operators, so treat each run as a controlled production
-operation rather than a deployment side effect.
+The seed prepares replacement rows in memory and commits its deletes, batched
+inserts, snapshot capture, count checks, and fingerprint in one transaction over
+the unpooled connection. Readers continue seeing the prior complete dataset
+until the replacement commits. Treat it as a controlled production operation,
+not a deployment side effect.
 
 1. Merge the reviewed data-release PR and wait for the production deployment
    to report Ready.
 2. Confirm there is no concurrent deployment or data operation. Create or
    confirm a recoverable database restore point immediately before the run.
-3. In an authorized shell whose existing `DATABASE_URL` targets Operator IQ
-   production, run the command-scoped forced seed. Do not persist `FORCE_SEED`
-   in Vercel or print the database URL.
+3. In an authorized shell whose existing `DATABASE_URL` and
+   `DATABASE_URL_UNPOOLED` both target Operator IQ production, run the
+   command-scoped forced seed. The seed prefers the unpooled URL. Do not persist
+   `FORCE_SEED` in Vercel or print either database URL.
 
    ```bash
    FORCE_SEED=true npm run db:seed:production
@@ -165,12 +168,10 @@ operation rather than a deployment side effect.
 4. Compare the reported market and PM totals with the committed seed, confirm
    the content-version stamp was written, and smoke-test the homepage, one
    market, one operator, and the current monthly brief.
-5. If the seed exits before completion, stop. Treat production data as partial,
-   restore the pre-run recovery point, and investigate before attempting
-   another seed. Do not use a redeploy as recovery.
-
-Making the seed atomic is a separate follow-up. Until that lands, the recovery
-point and single-authorized-operator procedure are mandatory controls.
+5. If the seed exits before completion, stop and verify the prior fingerprint,
+   row counts, and spot checks remain intact. The transaction should have rolled
+   back automatically. Investigate before another attempt. Only restore the pre-run recovery point
+   if those checks disagree, and do not use a redeploy as recovery.
 
 `data:export-name-corrections` remains an offline pipeline command. Run it
 before `build-operator-universe.ts`, review and commit the generated JSON, and

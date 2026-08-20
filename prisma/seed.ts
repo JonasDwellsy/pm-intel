@@ -1,8 +1,8 @@
 // Seed is a deliberate production data-release command. It must never run as
-// part of vercel-build: the replacement is destructive and row-by-row, so a
-// database interruption can leave the live dataset incomplete. Most manual
-// invocations are still cheap because isDataCurrent() skips work when the DB
-// already matches the committed JSON.
+// part of vercel-build. The replacement rows are prepared in memory, inserted
+// in batches, and committed in one transaction through the unpooled connection,
+// so readers see either the old complete dataset or the new complete dataset.
+// isDataCurrent() still skips work when the DB matches the committed JSON.
 //
 // FORCE_SEED=true bypasses the skip and runs the full seed regardless.
 // Use it when:
@@ -20,7 +20,7 @@
 import crypto from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 // The seed blob is READ AT RUNTIME, not imported.
 //
 // `import seedData from "…/scorecard_data.json"` made TypeScript infer the
@@ -62,7 +62,39 @@ import {
   type WebsiteVerdict,
 } from "@/lib/management-model/resolve";
 
-const prisma = new PrismaClient();
+const seedDatasourceUrl =
+  process.env.DATABASE_URL_UNPOOLED?.trim() ||
+  process.env.DATABASE_URL?.trim();
+const prisma = seedDatasourceUrl
+  ? new PrismaClient({ datasourceUrl: seedDatasourceUrl })
+  : new PrismaClient();
+
+export type SeedFailurePoint = "after-delete" | "before-fingerprint";
+
+export type SeedRunOptions = {
+  force?: boolean;
+  failAt?: SeedFailurePoint;
+};
+
+const PM_CREATE_BATCH_SIZE = 250;
+const SEED_TRANSACTION_TIMEOUT_MS = 120_000;
+
+function inBatches<T>(rows: T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let index = 0; index < rows.length; index += size) {
+    batches.push(rows.slice(index, index + size));
+  }
+  return batches;
+}
+
+function injectFailure(
+  actual: SeedFailurePoint | undefined,
+  point: SeedFailurePoint
+) {
+  if (actual === point) {
+    throw new Error(`[seed-test] injected failure at ${point}`);
+  }
+}
 
 // v0.8 — portfolio-size multipliers (k_house, k_apt), read once at the start of
 // the seed run from the admin-tunable AppSetting rows. buildScorecard() reads
@@ -70,9 +102,9 @@ const prisma = new PrismaClient();
 // effect on the next deliberate seed, not live.
 let SEED_MULTIPLIERS: PortfolioMultipliers = DEFAULT_MULTIPLIERS;
 
-async function loadSeedMultipliers(): Promise<void> {
+async function loadSeedMultipliers(client: PrismaClient): Promise<void> {
   try {
-    const rows = await prisma.appSetting.findMany({
+    const rows = await client.appSetting.findMany({
       where: { key: { in: ["portfolio_k_house", "portfolio_k_apt"] } },
     });
     const byKey = new Map(rows.map((r) => [r.key, Number(r.value)]));
@@ -819,7 +851,7 @@ const SEED_CONTENT_VERSION_KEY = "seed_content_version";
 // v2 = managementModel, computed+baked at seed time from the listing shape +
 // management_model_website.json — no pipeline re-run needed to pick it up.)
 const SEED_SHAPE_VERSION = "v2-managementModel";
-const SEED_CONTENT_VERSION = crypto
+export const SEED_CONTENT_VERSION = crypto
   .createHash("sha256")
   .update(SEED_SHAPE_VERSION)
   .update(JSON.stringify(data))
@@ -1240,12 +1272,12 @@ export function buildScorecard(pm: AnyRecord, market: InputMarket): ScorecardDat
 //
 // Three cheap reads (count + findFirst + findUnique) vs 600+ writes
 // in the full seed. Worth it for faster no-op checks.
-async function isDataCurrent(): Promise<boolean> {
+async function isDataCurrent(client: PrismaClient): Promise<boolean> {
   // Seed-content fingerprint — the comprehensive guard. If either committed
   // input file changed since the last successful seed, the hash differs and we
   // re-seed. Catches everything the field-level spot-checks below can't (7-cell
   // reclassification, marketing scores, recovered websites, etc.).
-  const dbSeedVer = await prisma.appSetting.findUnique({
+  const dbSeedVer = await client.appSetting.findUnique({
     where: { key: SEED_CONTENT_VERSION_KEY },
   });
   if (dbSeedVer?.value !== SEED_CONTENT_VERSION) {
@@ -1255,7 +1287,7 @@ async function isDataCurrent(): Promise<boolean> {
     return false;
   }
 
-  const pmCount = await prisma.pM.count();
+  const pmCount = await client.pM.count();
   if (pmCount !== data.pms.length) {
     console.log(
       `[seed] PM count mismatch: DB has ${pmCount}, JSON has ${data.pms.length}. Re-seeding.`
@@ -1263,7 +1295,7 @@ async function isDataCurrent(): Promise<boolean> {
     return false;
   }
 
-  const firstMarket = await prisma.market.findFirst();
+  const firstMarket = await client.market.findFirst();
   if (!firstMarket) {
     console.log("[seed] No market records found. Re-seeding.");
     return false;
@@ -1283,7 +1315,7 @@ async function isDataCurrent(): Promise<boolean> {
     );
     return false;
   }
-  const dbPm = await prisma.pM.findUnique({
+  const dbPm = await client.pM.findUnique({
     where: { slug: SPOT_SLUG },
     select: {
       concessionListingCount: true,
@@ -1353,7 +1385,7 @@ async function isDataCurrent(): Promise<boolean> {
   // Any mismatch — added market, renamed city, manual DB edit — flips us
   // back to a full re-seed, which is the safe default.
   for (const m of data.markets) {
-    const dbMarket = await prisma.market.findUnique({
+    const dbMarket = await client.market.findUnique({
       where: { id: asString(m.id) },
       select: { city: true },
     });
@@ -1374,7 +1406,10 @@ async function isDataCurrent(): Promise<boolean> {
   return true;
 }
 
-async function main() {
+export async function runSeed(
+  client: PrismaClient,
+  options: SeedRunOptions = {}
+): Promise<void> {
   console.log(
     `Seeding from methodology ${data.methodologyVersion}` +
       (data.designVersion ? `, design ${data.designVersion}` : "") +
@@ -1383,7 +1418,7 @@ async function main() {
 
   // Load the admin-tunable portfolio-size multipliers before building any
   // scorecard (buildScorecard → estimatePortfolioSize reads SEED_MULTIPLIERS).
-  await loadSeedMultipliers();
+  await loadSeedMultipliers(client);
   console.log(
     `Portfolio multipliers: k_house=${SEED_MULTIPLIERS.kHouse} k_apt=${SEED_MULTIPLIERS.kApt}`
   );
@@ -1392,11 +1427,11 @@ async function main() {
   // Avoids exhausting Neon's connection pool on unnecessary manual runs.
   // FORCE_SEED=true bypasses for controlled data refreshes or
   // when the spot-check might miss a shape change.
-  if (process.env.FORCE_SEED === "true") {
+  if (options.force) {
     console.log(
       "[seed] FORCE_SEED=true — re-seeding regardless of current state."
     );
-  } else if (await isDataCurrent()) {
+  } else if (await isDataCurrent(client)) {
     console.log("[seed] ✓ Data already current. Skipping seed.");
     return;
   }
@@ -1448,27 +1483,12 @@ async function main() {
     }
   }
 
-  // Idempotent: clear PMs first (FK to Market), then Markets. Also
-  // wipe the MarketBrief LLM cache — when a re-seed runs, the
-  // underlying market data has changed (otherwise the isDataCurrent
-  // skip-check above would have exited already), so cached brief
-  // prose may reference stale numbers (e.g., the national benchmark
-  // line shifted from +0.84% to +0.31% with the Alabama expansion).
-  // The cache key on MarketBrief is (marketSlug, methodologyVersion,
-  // dataAsOf), which would have caught a methodology-version bump
-  // but not the within-version data drift this seed represents.
-  // First visit per market after the seed will regenerate prose against
-  // the fresh data.
-  await prisma.marketBrief.deleteMany();
-  await prisma.pM.deleteMany();
-  await prisma.market.deleteMany();
-
   // Re-apply admin name corrections (durable applier). The corrections
   // table is never wiped by this seed, so read it now and stamp the
   // in-memory data before rows are (re)created — mirrors how
   // applyCanonicalOverrides stamps identity. Live edits made via
   // /admin/names are thus reproduced on every reseed.
-  const corrections = await prisma.operatorNameCorrection.findMany({
+  const corrections = await client.operatorNameCorrection.findMany({
     select: {
       targetKind: true,
       targetKey: true,
@@ -1495,9 +1515,9 @@ async function main() {
     }
   }
 
+  const marketRows: Prisma.MarketCreateManyInput[] = [];
   for (const m of data.markets) {
-    await prisma.market.create({
-      data: {
+    marketRows.push({
         id: m.id,
         msaCode: m.msaCode,
         city: m.city,
@@ -1535,10 +1555,9 @@ async function main() {
         // cohort comparison line. asInt() returns null on missing/junk
         // input; we coerce to 0 so the DB default is consistent.
         operatorsWithConcessions: asInt(m.operatorsWithConcessions) ?? 0,
-      },
     });
-    console.log(`  ✓ market: ${m.id} (${m.fullName})`);
   }
+  console.log(`  ✓ prepared ${marketRows.length} market row(s)`);
 
   // v0.6.3 quick-wins — deterministic slug-collision disambiguation.
   // The upstream Python pipeline occasionally produces two PMs whose
@@ -1574,6 +1593,7 @@ async function main() {
   >();
   let pmCount = 0;
   let disambiguatedCount = 0;
+  const pmRows: Prisma.PMCreateManyInput[] = [];
 
   // Stable sort: marketId (string) → original slug → name. Mutates a
   // shallow-copied array so we don't surprise downstream consumers of
@@ -1628,8 +1648,7 @@ async function main() {
       portfolioEstimateBySlug.set(slug, scorecard.portfolioEstimate);
     }
 
-    await prisma.pM.create({
-      data: {
+    pmRows.push({
         slug,
         name: asString(pm.name),
         marketId,
@@ -1690,7 +1709,6 @@ async function main() {
               pm.concessionSamples.filter((s) => typeof s === "string")
             )
           : "[]",
-      },
     });
     pmCount += 1;
   }
@@ -1700,8 +1718,8 @@ async function main() {
   // PMs are tracked solely via the PM table's canonicalOperatorId
   // column). marketIds + pmSlugs + aggregateStats stored as JSON
   // strings (SQLite has no native JSON type).
-  await prisma.canonicalOperator.deleteMany();
   let canonicalCount = 0;
+  const canonicalRows: Prisma.CanonicalOperatorCreateManyInput[] = [];
   for (const entity of Object.values(data.canonicalOperators ?? {})) {
     if (!entity || typeof entity !== "object") continue;
     if (!entity.canonicalSlug) continue;
@@ -1743,78 +1761,116 @@ async function main() {
         totalMemberCount: entity.pmSlugs?.length ?? 0,
       },
     };
-    await prisma.canonicalOperator.create({
-      data: {
+    canonicalRows.push({
         canonicalSlug: entity.canonicalSlug,
         canonicalName: entity.canonicalName ?? entity.canonicalSlug,
         marketIds: JSON.stringify(entity.marketIds ?? []),
         pmSlugs: JSON.stringify(entity.pmSlugs ?? []),
         marketCount: entity.marketCount ?? (entity.marketIds?.length ?? 0),
         aggregateStats: JSON.stringify(aggregateWithEstimate),
-      },
     });
     canonicalCount += 1;
   }
   console.log(
     `  ✓ canonical operators: ${canonicalCount} multi-market entities seeded`
   );
+  const snapshotRows = buildOperatorSnapshotRows(
+    pmRows,
+    data.dataAsOf,
+    data.methodologyVersion
+  );
 
-  // v0.13 (PR #50) — Per-user auth. Saved watch lists are now owned by
-  // the authenticated Clerk user; the two org-shared starter rows
-  // (Evernest-style SFR density + Genstone-style integrated services)
-  // that previous seeds created had ownerId="shared" and would be
-  // invisible to every real user under the new model. We delete them
-  // on every reseed so they don't recreate themselves. Acquirers who
-  // want those starting points use the editable templates in
-  // src/lib/watch-list/templates.ts — clonable from /watch-lists/new.
-  await prisma.watchList.deleteMany({
-    where: { name: { in: [
-      "Evernest-Style SFR Density Build-Out",
-      "Genstone-Style Integrated Services",
-    ] } },
-  });
-  console.log("  ✓ watch lists: pre-auth starter rows cleared (templates live in src/lib/watch-list/templates.ts)");
+  const transactionResult = await client.$transaction(
+    async (tx) => {
+      // Readers continue to see the old committed dataset until this entire
+      // replacement commits. Any error rolls back the deletes and every write.
+      await tx.marketBrief.deleteMany();
+      await tx.pM.deleteMany();
+      await tx.market.deleteMany();
+      await tx.canonicalOperator.deleteMany();
+      injectFailure(options.failAt, "after-delete");
 
-  const marketCount = await prisma.market.count();
-  const dbPmCount = await prisma.pM.count();
+      const insertedMarkets = await tx.market.createMany({ data: marketRows });
+      let insertedPms = 0;
+      for (const batch of inBatches(pmRows, PM_CREATE_BATCH_SIZE)) {
+        insertedPms += (await tx.pM.createMany({ data: batch })).count;
+      }
+      const insertedCanonicals = await tx.canonicalOperator.createMany({
+        data: canonicalRows,
+      });
+
+      // v0.13 (PR #50) — remove the two obsolete pre-auth starter rows. Real
+      // user watch lists are outside the replacement and remain untouched.
+      await tx.watchList.deleteMany({
+        where: {
+          name: {
+            in: [
+              "Evernest-Style SFR Density Build-Out",
+              "Genstone-Style Integrated Services",
+            ],
+          },
+        },
+      });
+
+      if (
+        insertedMarkets.count !== marketRows.length ||
+        insertedPms !== pmRows.length ||
+        insertedCanonicals.count !== canonicalRows.length
+      ) {
+        throw new Error(
+          `[seed] Insert count mismatch: markets ${insertedMarkets.count}/${marketRows.length}, ` +
+            `PMs ${insertedPms}/${pmRows.length}, canonicals ${insertedCanonicals.count}/${canonicalRows.length}`
+        );
+      }
+
+      const marketCount = await tx.market.count();
+      const dbPmCount = await tx.pM.count();
+      let snapshotCount = 0;
+      for (const batch of inBatches(snapshotRows, PM_CREATE_BATCH_SIZE)) {
+        snapshotCount += (
+          await tx.operatorSnapshot.createMany({
+            data: batch,
+            skipDuplicates: true,
+          })
+        ).count;
+      }
+
+      injectFailure(options.failAt, "before-fingerprint");
+
+      // Stamp the fingerprint last. It becomes visible only with the complete
+      // replacement, so it can never describe a partial dataset.
+      await tx.appSetting.upsert({
+        where: { key: SEED_CONTENT_VERSION_KEY },
+        create: {
+          key: SEED_CONTENT_VERSION_KEY,
+          value: SEED_CONTENT_VERSION,
+          type: "string",
+          description:
+            "sha256 fingerprint of the committed Operator IQ seed inputs. Drives the isDataCurrent() guard.",
+        },
+        update: { value: SEED_CONTENT_VERSION },
+      });
+
+      return { marketCount, dbPmCount, snapshotCount };
+    },
+    {
+      maxWait: 10_000,
+      timeout: SEED_TRANSACTION_TIMEOUT_MS,
+    }
+  );
+
   const dupeSuffix =
     disambiguatedCount > 0
       ? `, ${disambiguatedCount} slug collision(s) disambiguated`
       : "";
   console.log(
-    `\nSeed complete: ${marketCount} market(s), ${dbPmCount} PM(s) (processed ${pmCount}${dupeSuffix}).`
+    `\nSeed complete: ${transactionResult.marketCount} market(s), ` +
+      `${transactionResult.dbPmCount} PM(s) (processed ${pmCount}${dupeSuffix}).`
   );
-
-  // v0.16 (PR #57) — Operator snapshot capture for the watch-list
-  // change-detection feedback loop. Writes one OperatorSnapshot row
-  // per PM, stamped with data.dataAsOf (NOT the seed time) so the
-  // snapshot cadence inherits the monthly data-refresh cadence.
-  //
-  // Idempotent: the @@unique([pmSlug, snapshotDate]) constraint
-  // means repeated seeds against the same JSON no-op. We use
-  // createMany({ skipDuplicates: true }) so this is safe both when
-  // isDataCurrent() WOULD have skipped the seed (manually run with
-  // FORCE_SEED=true) and when it's a genuine new month of data.
-  //
-  // Reads off the already-written PM rows so we don't have to
-  // re-derive star fields from the JSON; the scorecardData column
-  // is the canonical source.
-  await captureOperatorSnapshots(data.dataAsOf, data.methodologyVersion);
-
-  // Stamp the content fingerprint LAST, so it only advances after a fully
-  // successful seed. A run that throws partway leaves the old (or no) value,
-  // and the next deliberate seed runs again. Read back by isDataCurrent().
-  await prisma.appSetting.upsert({
-    where: { key: SEED_CONTENT_VERSION_KEY },
-    create: {
-      key: SEED_CONTENT_VERSION_KEY,
-      value: SEED_CONTENT_VERSION,
-      type: "string",
-      description:
-        "sha256 fingerprint of the committed seed inputs (scorecard_data.json + company_enrichment.json). Drives the isDataCurrent() auto-reseed guard.",
-    },
-    update: { value: SEED_CONTENT_VERSION },
-  });
+  console.log("  ✓ watch lists: obsolete pre-auth starter rows cleared");
+  console.log(
+    `  ✓ operator snapshots: ${transactionResult.snapshotCount} new row(s) written`
+  );
   console.log(`[seed] ✓ Stamped ${SEED_CONTENT_VERSION_KEY}=${SEED_CONTENT_VERSION}`);
 }
 
@@ -1824,25 +1880,12 @@ async function main() {
  * not the seed time). Safe to call on every seed run — the unique
  * constraint silently dedupes re-runs against the same data.
  */
-async function captureOperatorSnapshots(
+function buildOperatorSnapshotRows(
+  pms: Prisma.PMCreateManyInput[],
   dataAsOf: string,
   methodologyVersion: string
-): Promise<void> {
+): Prisma.OperatorSnapshotCreateManyInput[] {
   const snapshotDate = new Date(dataAsOf);
-
-  // Read every PM. We need pmSlug, marketId, canonicalOperatorId,
-  // t12ListingsBySubmarket, concessionRate, and scorecardData
-  // (for the embedded star + portfolio + eligibility fields).
-  const pms = await prisma.pM.findMany({
-    select: {
-      slug: true,
-      marketId: true,
-      canonicalOperatorId: true,
-      t12ListingsBySubmarket: true,
-      concessionRate: true,
-      scorecardData: true,
-    },
-  });
 
   // Build canonical-operator → marketIds map so each PM snapshot
   // can carry the FULL canonical footprint as topMSAs. For
@@ -1862,24 +1905,7 @@ async function captureOperatorSnapshots(
     set.add(pm.marketId);
   }
 
-  const rows: Array<{
-    pmSlug: string;
-    snapshotDate: Date;
-    methodologyVersion: string;
-    starsPerMetric: string;
-    starGoldCount: number;
-    starSilverCount: number;
-    estimatedPortfolioPoint: number | null;
-    estimatedPortfolioBand: string | null;
-    topMSAs: string;
-    topSubmarkets: string;
-    concessionRate: number | null;
-    isEligibleForRanking: boolean;
-    t12ListingsCount: number | null;
-    quadrant7Cell: string | null;
-    operatorStatus: string | null;
-    lastListingDate: string | null;
-  }> = [];
+  const rows: Prisma.OperatorSnapshotCreateManyInput[] = [];
 
   for (const pm of pms) {
     type ScorecardShape = {
@@ -1943,7 +1969,7 @@ async function captureOperatorSnapshots(
     // Active submarkets: parse the JSON map column off the PM row,
     // keep slugs where listing count > 0.
     const activeSubmarkets: string[] = [];
-    if (pm.t12ListingsBySubmarket) {
+    if (typeof pm.t12ListingsBySubmarket === "string") {
       try {
         const parsed = JSON.parse(pm.t12ListingsBySubmarket) as Record<
           string,
@@ -1974,7 +2000,7 @@ async function captureOperatorSnapshots(
       estimatedPortfolioBand: band,
       topMSAs: JSON.stringify(canonicalMarkets),
       topSubmarkets: JSON.stringify(activeSubmarkets),
-      concessionRate: pm.concessionRate,
+      concessionRate: pm.concessionRate ?? null,
       isEligibleForRanking: t12Listings >= 30,
       t12ListingsCount: t12Listings,
       quadrant7Cell: sc.quadrant7Cell ?? null,
@@ -1986,13 +2012,7 @@ async function captureOperatorSnapshots(
     });
   }
 
-  const result = await prisma.operatorSnapshot.createMany({
-    data: rows,
-    skipDuplicates: true,
-  });
-  console.log(
-    `  ✓ operator snapshots: ${result.count} row(s) written for dataAsOf ${dataAsOf} (${rows.length - result.count} already present, skipped)`
-  );
+  return rows;
 }
 
 // Only run the seeder when this file is executed directly — `prisma db seed`
@@ -2006,7 +2026,7 @@ const RUN_DIRECTLY = process.argv.some((a) =>
   /prisma[/\\]seed\.(ts|js|mjs|cjs)$/.test(a)
 );
 if (RUN_DIRECTLY) {
-  main()
+  runSeed(prisma, { force: process.env.FORCE_SEED === "true" })
     .catch((err) => {
       console.error(err);
       process.exit(1);
