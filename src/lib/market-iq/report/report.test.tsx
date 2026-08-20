@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { buildMarketIqReportSnapshot, isPublicMarketIqReportStatus, parseMarketIqReportSnapshot } from "./report";
+import { buildCurrentMonthUnavailableCuts, buildMarketIqReportSnapshot, isPublicMarketIqReportStatus, parseMarketIqReportSnapshot } from "./report";
 import { canAccessMarketIqReportComposer } from "./access";
 import { buildMarketIqReportEmail } from "./email";
 import { parseMarketIqEditorialDefaultsForm } from "./form-values";
@@ -19,6 +19,57 @@ const baseInput = {
 };
 
 describe("Market IQ local market read assembly", () => {
+  it("records every standard cut missing from the current source month without inventing a cause", () => {
+    const current = (geographyType: "msa" | "city", geographyValue: string, propertyType: "apartment" | "house", bedrooms: number, month: string) => ({
+      geographyType,
+      geographyValue,
+      geographyLabel: geographyType === "msa" ? "Cleveland-Elyria, OH" : "Cleveland",
+      propertyType,
+      bedrooms,
+      points: [{ rent: 1_000, yearOverYearPct: 1, observations: 10, month }],
+    });
+    const segments = [
+      { propertyType: "apartment" as const, bedrooms: 0 },
+      { propertyType: "apartment" as const, bedrooms: 1 },
+      { propertyType: "apartment" as const, bedrooms: 2 },
+      { propertyType: "house" as const, bedrooms: 2 },
+      { propertyType: "house" as const, bedrooms: 3 },
+      { propertyType: "house" as const, bedrooms: 4 },
+    ];
+    const trendSeries = (["msa", "city"] as const).flatMap((geographyType) => segments.map((segment) => current(
+      geographyType,
+      geographyType === "msa" ? "17460" : "Cleveland, OH",
+      segment.propertyType,
+      segment.bedrooms,
+      (segment.bedrooms === 1 || segment.bedrooms === 3) ? "2026-07-01" : "2026-06-01",
+    )));
+
+    const unavailable = buildCurrentMonthUnavailableCuts({
+      trendSeries,
+      currentMonth: "2026-07-01",
+      geographies: [
+        { geographyType: "msa", geographyValue: "17460", label: "Cleveland-Elyria MSA" },
+        { geographyType: "city", geographyValue: "Cleveland, OH", label: "Cleveland city" },
+      ],
+      segments,
+    });
+
+    expect(unavailable.map((cut) => cut.label)).toEqual([
+      "Studio apartments · July 2026",
+      "2-bedroom apartments · July 2026",
+      "2-bedroom houses · July 2026",
+      "4-bedroom houses · July 2026",
+    ]);
+    expect(unavailable.every((cut) => cut.reason === "Dwellsy IQ Trends did not publish a July 2026 value for Cleveland-Elyria MSA or Cleveland city. The latest available evidence for the missing locations is June 2026.")).toBe(true);
+    expect(JSON.stringify(unavailable)).not.toMatch(/threshold|suppression|maturity|coverage change/i);
+  });
+
+  it("renders unavailable source cuts in the internal market workspace", () => {
+    const source = readFileSync("src/components/market-iq/MarketIqIntelligenceWorkspace.tsx", "utf8");
+    expect(source).toContain("report.marketRead.unavailableCuts.map");
+    expect(source).toContain("What the latest source month did not publish");
+  });
+
   it("derives edition geography from the selected market instead of Cleveland constants", () => {
     const report = buildMarketIqReportSnapshot({
       ...baseInput,
