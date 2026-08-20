@@ -1,0 +1,41 @@
+{
+  "detail": {
+    "request": {
+      "type": "msa",
+      "location": "17460",
+      "period_start": "2026-06-01",
+      "period_end": "2026-06-01",
+      "bedrooms": null
+    },
+    "geographyLabel": "Cleveland-Elyria, OH MSA",
+    "response": {
+      "location": "17460",
+      "period": { "start": "2026-06-01", "end": "2026-06-01" },
+      "rent_stats": [
+        { "month": "2026-06-01", "bedrooms": 0, "address_type": "Apartment", "count": 14, "trends_value": 832, "rent_change_percentage": -2.21 },
+        { "month": "2026-06-01", "bedrooms": 1, "address_type": "Apartment", "count": 204, "trends_value": 995, "rent_change_percentage": 7.57 },
+        { "month": "2026-06-01", "bedrooms": 2, "address_type": "Apartment", "count": 202, "trends_value": 1160, "rent_change_percentage": -3.33 },
+        { "month": "2026-06-01", "bedrooms": 2, "address_type": "House", "count": 58, "trends_value": 1168, "rent_change_percentage": 2.3 },
+        { "month": "2026-06-01", "bedrooms": 3, "address_type": "House", "count": 157, "trends_value": 1508, "rent_change_percentage": 2.68 },
+        { "month": "2026-06-01", "bedrooms": 4, "address_type": "House", "count": 36, "trends_value": 1633, "rent_change_percentage": -2.72 }
+      ],
+      "type": "msa"
+    }
+  },
+  "rollupProbe": {
+    "request": {
+      "type": "msa",
+      "location": "17460",
+      "period_start": "2026-06-01",
+      "period_end": "2026-06-01",
+      "bedrooms": 999
+    },
+    "geographyLabel": "Cleveland-Elyria, OH MSA",
+    "response": {
+      "location": "17460",
+      "period": { "start": "2026-06-01", "end": "2026-06-01" },
+      "rent_stats": [],
+      "type": "msa"
+    }
+  }
+}
