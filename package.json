@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:watch-list": "node --import tsx --test src/lib/*.test.ts src/lib/scorecard/*.test.ts src/lib/watch-list/*.test.ts src/lib/operators/*.test.ts src/lib/auth/*.test.ts src/lib/styles/*.test.ts src/lib/ask-tools/*.test.ts",
+    "test:seed-atomicity": "node --import tsx --test tests/database/seed-atomicity.test.ts",
     "test:components": "vitest run",
     "test:components:watch": "vitest",
     "test:browser": "playwright test",
@@ -23,6 +24,8 @@
     "db:migrate:control": "prisma migrate deploy",
     "db:migrate": "npm run db:migrate:control && npm run market-iq:migrate",
     "db:seed:local": "prisma db seed",
+    "db:migrate:production": "prisma migrate deploy",
+    "db:seed:production": "prisma db seed",
     "data:export-name-corrections": "tsx scripts/data-pipeline/export_name_corrections.ts"
   },
   "dependencies": {
