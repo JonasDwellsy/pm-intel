@@ -487,6 +487,38 @@ def normalize_name(name):
     return s
 
 
+WEBSITE_VERDICTS_PATH = os.path.join(
+    REPO_ROOT, "src", "data", "management_model_website.json"
+)
+
+
+def load_website_verdicts(path=WEBSITE_VERDICTS_PATH):
+    """companyId -> stored website verdict, keyed as a string.
+
+    Produced by enrich_company_websites.py + classify_management_website.py for
+    the management-model signal. Read here purely as REVIEW EVIDENCE: the URL
+    is the single fastest way to tell whether two same-named operators are one
+    company or two, and it was already sitting in the repo unused by this step.
+
+    Concretely: "Peak Property Management" was proposed as one cross-market
+    entity across Fort Collins CO, Richmond VA and Bozeman MT. Two of the three
+    had a stored URL — peakproperty.net and a Richmond domain — and a reviewer
+    seeing those side by side rejects in seconds. Without them the same call
+    took parentCompanyId archaeology plus outside searches, and the first
+    argument reached that way was wrong: 67 of 188 accepted canonical groups
+    have no parentCompanyId on any member, so its absence proves nothing.
+
+    Missing file or malformed JSON is not fatal — the proposal is still useful
+    without the evidence, it just costs the reviewer more.
+    """
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return {str(k): v for k, v in data.items()} if isinstance(data, dict) else {}
+
+
 def propose_canonicals(merged, new_market_ids, baseline_canonical_path=None):
     """Find PMs in new markets whose normalized name matches a PM in
     another market. Returns a proposal dict for human review.
@@ -500,6 +532,29 @@ def propose_canonicals(merged, new_market_ids, baseline_canonical_path=None):
     """
     new_market_ids = set(new_market_ids)
     pms = merged["pms"]
+    verdicts = load_website_verdicts()
+
+    def member(pm):
+        """Proposal member row + whatever disambiguating evidence we hold."""
+        row = {"slug": pm["slug"], "name": pm["name"], "marketId": pm["marketId"]}
+        cid = pm.get("companyId")
+        if cid is not None:
+            row["companyId"] = cid
+        if pm.get("parentCompanyId") is not None:
+            row["parentCompanyId"] = pm["parentCompanyId"]
+            if pm.get("parentCompanyName"):
+                row["parentCompanyName"] = pm["parentCompanyName"]
+        v = verdicts.get(str(cid)) if cid is not None else None
+        # website is the load-bearing field; the rest is context.
+        row["website"] = (v or {}).get("url")
+        if v and v.get("verdict"):
+            row["websiteVerdict"] = v["verdict"]
+        # Say so explicitly rather than leaving the key absent — a silent gap
+        # reads as "no website" when it means "never scraped". New markets land
+        # here until enrich_company_websites.py runs for them.
+        if row["website"] is None:
+            row["websiteEvidence"] = "not scraped"
+        return row
 
     # Index existing canonical entities by normalized name of their member PMs.
     existing_canonicals = merged.get("canonicalOperators", {})
@@ -530,8 +585,7 @@ def propose_canonicals(merged, new_market_ids, baseline_canonical_path=None):
             existing_cid = canonical_norm_index[norm]
             existing = existing_canonicals[existing_cid]
             new_pms_to_add = [
-                {"slug": pm["slug"], "name": pm["name"], "marketId": pm["marketId"]}
-                for pm in group if pm["marketId"] in new_market_ids
+                member(pm) for pm in group if pm["marketId"] in new_market_ids
             ]
             if new_pms_to_add:
                 extend_existing.append({
@@ -555,10 +609,12 @@ def propose_canonicals(merged, new_market_ids, baseline_canonical_path=None):
         new_pairs.append({
             "normalized_name": norm,
             "display_name": group[0]["name"],
-            "members": [
-                {"slug": pm["slug"], "name": pm["name"], "marketId": pm["marketId"]}
-                for pm in group
-            ],
+            "members": [member(pm) for pm in group],
+            # Pre-computed so the reviewer doesn't have to eyeball domains:
+            # >1 distinct website is strong evidence of distinct companies.
+            "distinct_websites": sorted(
+                {m["website"] for m in (member(pm) for pm in group) if m["website"]}
+            ),
         })
 
     return {
@@ -571,15 +627,32 @@ def propose_canonicals(merged, new_market_ids, baseline_canonical_path=None):
         "extend_existing": extend_existing,
         "new_pairs": new_pairs,
         "_instructions": (
-            "REVIEW THIS PROPOSAL BY HAND. Each entry under 'extend_existing' "
-            "should fold the listed PMs into the existing canonical entity "
-            "(verify they really are the same operator — Mapbox same-name "
-            "false positives are common with generic names like 'Real Estate "
-            "Group'). Each entry under 'new_pairs' creates a brand-new "
-            "canonical entity — verify the name match isn't a coincidence "
-            "across distinct operators. Once curated, fold the approved "
-            "decisions into a new canonical_mapping_v064_p2_<N>markets.json "
-            "and re-run merge.py --apply."
+            "REVIEW THIS PROPOSAL BY HAND. Proposals are matched on NORMALIZED "
+            "NAME ALONE, so a generic name ('Peak Property Management', 'Real "
+            "Estate Group') will pair unrelated companies. 'extend_existing' "
+            "folds PMs into an existing canonical entity; 'new_pairs' creates a "
+            "new one.\n\n"
+            "START WITH `distinct_websites`. More than one distinct domain "
+            "across the members is strong evidence of separate companies — "
+            "reject. One shared domain is strong evidence for the merge. "
+            "`website: null` with `websiteEvidence: \"not scraped\"` means we "
+            "have no URL, NOT that the operator has none; run "
+            "enrich_company_websites.py for the market and re-propose before "
+            "deciding on thin evidence.\n\n"
+            "DO NOT treat a missing parentCompanyId as evidence of separate "
+            "companies. 67 of 188 accepted canonical groups have no "
+            "parentCompanyId on any member (Mission Rock Residential spans 11 "
+            "markets that way), so its absence proves nothing. A SHARED "
+            "parentCompanyId across members is meaningful; its absence is not.\n\n"
+            "Weigh geography and classification too: non-adjacent states plus "
+            "small per-market footprints point to distinct local operators, "
+            "while a genuine multi-market operator is usually institutional. "
+            "When still unsure, REJECT — a wrong merge publishes a false claim "
+            "about named businesses and is what a client sees, while a missed "
+            "linkage is invisible and can be curated in later.\n\n"
+            "Once curated, fold the approved decisions into a new "
+            "canonical_mapping_v064_p2_<N>markets.json and re-run "
+            "merge.py --apply."
         ),
     }
 
