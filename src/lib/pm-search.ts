@@ -99,6 +99,12 @@ export type PMSearchResult =
       totalUrusT12: number;
       /** DBA / former-name aliases folded into the Fuse "aliases" key. */
       aliases?: string[];
+      /** v0.8 dormant tier. Present only when EVERY market this operator rolls
+       *  up is dormant — quiet in some markets but listing in others is
+       *  ordinary operator behaviour and gets no label. Absent = no chip, so
+       *  an index built before this field renders unchanged. */
+      status?: "dormant";
+      lastListingDate?: string | null;
       href: string;
       score: number;
       /** The specific alias string Fuse matched on, when the hit came
@@ -167,6 +173,8 @@ interface IndexFile {
     totalT24T12Listings: number;
     totalUrusT12: number;
     aliases?: string[];
+    status?: "dormant";
+    lastListingDate?: string | null;
   }>;
   // richer-search — one entry per market so an MSA full-name / bare-city
   // / state-name query surfaces the market landing page alongside operator

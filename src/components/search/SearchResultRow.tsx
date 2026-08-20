@@ -144,6 +144,15 @@ export function SearchResultRow({
       ? result.matchedAlias
       : undefined;
 
+  // v0.8 dormant tier — ranked and canonical rows both carry a status; the
+  // tracked and market tiers have no such concept. Narrow via `in` so the
+  // union stays honest rather than casting.
+  const isDormant =
+    (result.tier === "ranked" || result.tier === "canonical") &&
+    result.status === "dormant";
+  const dormantSince =
+    isDormant && "lastListingDate" in result ? result.lastListingDate : null;
+
   const memberKey = operatorMemberKey(result);
 
   return (
@@ -179,8 +188,16 @@ export function SearchResultRow({
                 dormant operator beside ranked ones — without it the row reads
                 as a claim they're currently active. Absent status = active, so
                 a search index built before this field renders exactly as
-                before rather than mislabelling anyone. */}
-            {result.tier === "ranked" && result.status === "dormant" && (
+                before rather than mislabelling anyone.
+
+                Applies to canonical (multi-market) rows too. The builder sets
+                their status only when EVERY market rolls up dormant, so this
+                never labels an operator that is merely quiet in some of its
+                markets — that is ordinary behaviour, not a whole-operator
+                state. Without it the rollup row was the one place a fully
+                quiet operator still read as active, and it is the row an
+                owner is most likely to click. */}
+            {isDormant && (
               <span className="shrink-0 rounded-full border border-[#F3D7B3] bg-orange-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-orange-700">
                 Dormant
               </span>
@@ -190,14 +207,12 @@ export function SearchResultRow({
             className={`mt-0.5 truncate text-muted-foreground ${subSize}`}
           >
             {subtitle}
-            {result.tier === "ranked" &&
-              result.status === "dormant" &&
-              result.lastListingDate && (
-                <>
-                  <span className="mx-1.5 text-muted-2">·</span>
-                  no listings since {fmtSearchDate(result.lastListingDate)}
-                </>
-              )}
+            {isDormant && dormantSince && (
+              <>
+                <span className="mx-1.5 text-muted-2">·</span>
+                no listings since {fmtSearchDate(dormantSince)}
+              </>
+            )}
           </p>
           {matchedAlias && (
             <p className={`mt-0.5 truncate text-muted-2 ${subSize}`}>
