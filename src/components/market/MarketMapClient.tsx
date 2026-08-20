@@ -139,11 +139,35 @@ export function MarketMapClient({
             [mapBounds.west, mapBounds.south],
             [mapBounds.east, mapBounds.north],
           ],
-          fitBoundsOptions: { padding: 40 },
-          interactive: false,
+          // maxZoom caps the initial fit so a tightly-clustered market
+          // (Bozeman, say) lands at neighborhood level rather than zooming
+          // to building level. Spread markets fit naturally below the cap.
+          fitBoundsOptions: { padding: 40, maxZoom: 13 },
+          // Interactive so an owner can zoom into a submarket and see which
+          // operators are actually where — the whole point of plotting
+          // addresses. Mirrors the scorecard coverage map, which got this
+          // treatment in v0.21; this one was simply never upgraded.
+          //
+          // cooperativeGestures keeps page-scroll from hijacking into zoom:
+          // it takes Cmd/Ctrl+scroll or a two-finger trackpad gesture, or
+          // the +/- buttons. Without it, scrolling past a full-width map
+          // traps the reader.
+          interactive: true,
+          cooperativeGestures: true,
+          // Floor lets users pull back to full-MSA context (the grey
+          // backdrop dots give geographic reference); ceiling reaches
+          // street level without zooming into nothing.
+          minZoom: 6,
+          maxZoom: 16,
           attributionControl: { compact: false },
         }) as MapInstance;
         map = m;
+
+        // Zoom +/- buttons — the discoverable, scroll-trap-free way to zoom.
+        // No compass/pitch: this is a flat 2D reference map.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const NavCtl = (mapboxgl as any).NavigationControl;
+        m.addControl(new NavCtl({ showCompass: false, visualizePitch: false }), "top-right");
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         m.addControl(new (mapboxgl as any).ScaleControl({ unit: "imperial" }), "bottom-right");

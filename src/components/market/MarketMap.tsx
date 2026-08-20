@@ -33,9 +33,11 @@ export function MarketMap({ view }: { view: LoadedMarket }) {
 
   return (
     <section className="dq-section">
+      {/* No numbered eyebrow. "Section 03" was a relic of an earlier
+          layout that had a 01 and 02 above it; on this page it was the only
+          numbered heading, so it labelled a sequence that didn't exist. */}
       <header className="mb-7">
-        <p className="dq-eyebrow">Section 03</p>
-        <h2 className="dq-h2 mt-1.5">Coverage map</h2>
+        <h2 className="dq-h2">Coverage map</h2>
         <div className="dq-section-rule" />
       </header>
 
