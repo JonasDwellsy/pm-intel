@@ -57,6 +57,7 @@ import {
   type PortfolioMultipliers,
 } from "../src/lib/operator-size";
 import { applyCorrectionsToSeedData } from "../src/lib/operators/name-correction";
+import { LEGACY_OWNER_ID } from "../src/lib/watch-list/store";
 import {
   resolveManagementModel,
   type WebsiteVerdict,
@@ -1804,7 +1805,7 @@ export async function runSeed(
       // of the deletion identity.
       await tx.watchList.deleteMany({
         where: {
-          ownerId: "legacy-pre-auth",
+          ownerId: LEGACY_OWNER_ID,
           name: {
             in: [
               "Evernest-Style SFR Density Build-Out",

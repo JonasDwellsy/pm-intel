@@ -7,6 +7,7 @@ import {
   SEED_CONTENT_VERSION,
   type SeedFailurePoint,
 } from "../../prisma/seed";
+import { LEGACY_OWNER_ID } from "../../src/lib/watch-list/store";
 
 const databaseUrl = process.env.SEED_TEST_DATABASE_URL;
 const seedData = JSON.parse(
@@ -62,7 +63,7 @@ async function captureState(client: PrismaClient) {
         select: { name: true, ownerId: true },
       }),
       client.watchList.findFirst({
-        where: { ownerId: "legacy-pre-auth" },
+        where: { ownerId: LEGACY_OWNER_ID },
         select: { name: true, ownerId: true },
       }),
       client.appSetting.findUnique({
@@ -139,7 +140,7 @@ test(
       await client.watchList.create({
         data: {
           name: "Evernest-Style SFR Density Build-Out",
-          ownerId: "legacy-pre-auth",
+          ownerId: LEGACY_OWNER_ID,
         },
       });
       await client.appSetting.update({
@@ -192,7 +193,7 @@ test(
       );
       assert.equal(
         await client.watchList.count({
-          where: { ownerId: "legacy-pre-auth" },
+          where: { ownerId: LEGACY_OWNER_ID },
         }),
         0
       );
