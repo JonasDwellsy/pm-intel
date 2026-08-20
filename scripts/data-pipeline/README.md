@@ -156,19 +156,13 @@ Required files in the data directory:
     python3 merge.py --apply
     ```
 
-11. **Run the seed locally** to confirm it loads cleanly:
-
-    ```bash
-    FORCE_SEED=true npx prisma db seed
-    ```
-
-12. **Eyeball the new market** on `npm run dev` — visit
+11. **Eyeball the generated data locally** on `npm run dev` — visit
     `/property-managers/<state>/<city>` and a couple of operator pages.
     Spot-check before pushing.
 
-13. **Commit + push.** Vercel re-runs the seed on deploy. The Preview
-    deployment renders against the new seed — eyeball the new-market pages
-    there before merging the PR to production.
+12. **Commit + push.** Vercel builds do not seed any database. After review and
+    merge, follow the controlled production data-release procedure in
+    `MONTHLY_REFRESH.md`; do not run the seed merely to test a PR.
 
 ## Refresh an existing market (new data)
 
@@ -177,8 +171,9 @@ Required files in the data directory:
 3. `python3 pipeline.py --market <id>` — output overwrites the old per-market JSON.
 4. `python3 merge.py` (dry-run) to see what changed.
 5. `python3 merge.py --apply` to write the new seed.
-6. `FORCE_SEED=true npx prisma db seed` locally.
-7. Commit + push. The PR shows the seed diff for review.
+6. Commit + push. The PR shows the seed diff for review.
+7. After approval and merge, follow the controlled production data-release
+   procedure in `MONTHLY_REFRESH.md`.
 
 ## Refresh ALL markets
 
