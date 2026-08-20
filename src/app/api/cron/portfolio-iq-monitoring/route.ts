@@ -1,4 +1,5 @@
 import { runPortfolioMonitoring } from "@/lib/portfolio-iq/monitoring-run.server";
+import { portfolioIqSchedulerEnabled } from "@/lib/portfolio-iq/feature";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -7,6 +8,9 @@ export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!portfolioIqSchedulerEnabled()) {
+    return Response.json({ error: "Portfolio IQ scheduler is disabled" }, { status: 404 });
   }
   const url = new URL(request.url);
   try {
