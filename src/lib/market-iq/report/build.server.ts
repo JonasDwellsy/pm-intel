@@ -183,6 +183,7 @@ function averageZipCenters(rows: Array<{ postalCode: string | null; latitude: nu
 export async function buildClevelandMarketIqReportSnapshot(input?: {
   generatedAt?: Date;
   brand?: MarketIqReportSnapshot["brand"];
+  sourceMode?: "prefer_imported" | "live_only";
 }) {
   const liveDwellsyRuntimeEnabled = dwellsySourceConfigured() && (
     process.env.DWELLSY_LIVE_RUNTIME_ENABLED === "1"
@@ -212,7 +213,9 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
         .catch(() => null)
     : Promise.resolve(null);
   const [trendSource, context, marketActivity] = await Promise.all([
-    loadImportedTrendSource().catch(() => null).then((imported) => {
+    (input?.sourceMode === "live_only"
+      ? Promise.resolve(null)
+      : loadImportedTrendSource().catch(() => null)).then((imported) => {
       if (imported) return imported;
       if (!liveDwellsyRuntimeEnabled) {
         throw new Error("The authoritative Dwellsy Trends source is not configured.");
