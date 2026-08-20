@@ -34,7 +34,7 @@ function sourceFiles(root: string): string[] {
   return readdirSync(root).flatMap((entry) => {
     const file = path.join(root, entry);
     if (statSync(file).isDirectory()) return sourceFiles(file);
-    if (!/\.(ts|tsx)$/.test(file) || file.endsWith(".test.ts")) return [];
+    if (!/\.(ts|tsx)$/.test(file) || /\.test\.(ts|tsx)$/.test(file)) return [];
     return [file];
   });
 }
@@ -64,6 +64,23 @@ test("Cleveland pilot coupling cannot spread beyond the documented baseline", ()
     .sort();
 
   assert.deepEqual(coupledFiles, [...CLEVELAND_COUPLING_BASELINE].sort());
+});
+
+test("production source never imports the seeded Cleveland report module", () => {
+  const seededImport = /from\s+["'][^"']*seeded-cleveland["']/;
+  const importers = sourceFiles("src")
+    .filter((file) => seededImport.test(readFileSync(file, "utf8")))
+    .sort();
+
+  assert.deepEqual(importers, []);
+});
+
+test("Market IQ development workspace activation never creates report evidence", () => {
+  const source = readFileSync("src/app/setup-workspace/actions.ts", "utf8");
+
+  assert.match(source, /marketIqDevelopmentPreviewEnabled\(\)/);
+  assert.doesNotMatch(source, /marketIqReport\.(create|upsert)/);
+  assert.doesNotMatch(source, /preview-bootstrap|PREVIEW_BASELINE_TOKEN/);
 });
 
 test("the shared Market Intelligence route uses the market data service boundary", () => {

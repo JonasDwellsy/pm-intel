@@ -5,11 +5,19 @@ import { redirect } from "next/navigation";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 import { marketIqDevelopmentPreviewEnabled } from "@/lib/market-iq/feature";
-import { seededClevelandMarketReport } from "@/lib/market-iq/report/seeded-cleveland";
 import { prisma } from "@/lib/prisma";
 
 const PREVIEW_PILOT_CLERK_ORG_ID = "preview_market_iq_cleveland_pilot";
-const PREVIEW_BASELINE_TOKEN = "preview-cleveland-market-read";
+const PREVIEW_PILOT_BRAND = {
+  displayName: "Harborview Residential",
+  logoUrl: null,
+  primaryColor: "#173B57",
+  accentColor: "#B96D3A",
+  contactName: "Client Advisory Team",
+  contactEmail: "advisory@example.com",
+  contactPhone: null,
+  websiteUrl: null,
+};
 
 function safeMarketIqReturnTo(value: FormDataEntryValue | null): string {
   if (typeof value !== "string") return "/market-iq/launch";
@@ -20,7 +28,7 @@ function safeMarketIqReturnTo(value: FormDataEntryValue | null): string {
 }
 
 /**
- * Explicitly connect a Clerk development user to the one seeded, entitled
+ * Explicitly connect a Clerk development user to the one isolated, entitled
  * Cleveland pilot organization. This action cannot run in production, cannot
  * run with a production Clerk key, and fails closed unless the isolated
  * Preview database contains exactly one eligible organization.
@@ -48,9 +56,6 @@ export async function activateMarketIqDevelopmentWorkspace(
       ],
       memberships: { some: {} },
       brandProfile: { isNot: null },
-      marketIqReports: {
-        some: { marketId: CLEVELAND_MARKET_ID, status: "published" },
-      },
     },
     orderBy: { createdAt: "asc" },
     take: 2,
@@ -95,39 +100,14 @@ export async function activateMarketIqDevelopmentWorkspace(
       create: { organizationId: organization.id, marketId: CLEVELAND_MARKET_ID },
       update: {},
     });
-    const brandProfile = await tx.organizationBrandProfile.upsert({
+    await tx.organizationBrandProfile.upsert({
       where: { organizationId: organization.id },
       create: {
         organizationId: organization.id,
-        ...seededClevelandMarketReport.brand,
+        ...PREVIEW_PILOT_BRAND,
       },
       update: {},
     });
-
-    const existingBaseline = await tx.marketIqReport.findUnique({
-      where: { publicToken: PREVIEW_BASELINE_TOKEN },
-      select: { id: true, organizationId: true },
-    });
-    if (existingBaseline && existingBaseline.organizationId !== organization.id) {
-      throw new Error("The isolated preview baseline belongs to another workspace.");
-    }
-    if (!existingBaseline) {
-      await tx.marketIqReport.create({
-        data: {
-          organizationId: organization.id,
-          marketId: CLEVELAND_MARKET_ID,
-          periodLabel: `${seededClevelandMarketReport.scope.periodStart} to ${seededClevelandMarketReport.scope.periodEnd}`,
-          publicToken: PREVIEW_BASELINE_TOKEN,
-          status: "published",
-          scope: JSON.stringify(seededClevelandMarketReport.scope),
-          snapshot: JSON.stringify(seededClevelandMarketReport),
-          subjectAddress: null,
-          brandProfileId: brandProfile.id,
-          generatedBy: "preview-bootstrap",
-          publishedAt: new Date(),
-        },
-      });
-    }
 
     await tx.organizationMembership.upsert({
       where: { userId_organizationId: { userId, organizationId: organization.id } },

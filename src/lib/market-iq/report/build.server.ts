@@ -16,7 +16,7 @@ import {
   type MarketIqReportSnapshot,
   type MarketIqTrendSeries,
 } from "@/lib/market-iq/report/report";
-import { CLEVELAND_ZIP_CENTERS } from "@/lib/market-iq/report/seeded-cleveland";
+import { CLEVELAND_ZIP_CENTERS } from "@/lib/market-iq/geography/cleveland-zip-centers";
 import { MARKET_IQ_REPORT_CITIES, MARKET_IQ_REPORT_ZIPS } from "@/lib/market-iq/report/scope";
 
 const REPORT_CITIES = [...MARKET_IQ_REPORT_CITIES];
