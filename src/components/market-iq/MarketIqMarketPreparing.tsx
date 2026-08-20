@@ -19,7 +19,7 @@ export function MarketIqMarketPreparing({
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-navy sm:text-5xl">{market.name}</h1>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
             {sourceUnavailable
-              ? "The saved market read is not available yet, and the live Trends source did not respond in time. Nothing has been substituted. Please try this market again after the source refresh completes."
+              ? "A verified saved market read is not available. Nothing has been substituted. Please try this market again after the source refresh completes."
               : "This market is registered and ready for its intelligence adapter. Trends coverage has been confirmed, but the city, ZIP, map, and narrative layers have not yet passed Market IQ review."}
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
@@ -37,7 +37,7 @@ export function MarketIqMarketPreparing({
             <div>
               <dt className="text-slate-500">Status</dt>
               <dd className="mt-1 font-semibold text-navy">
-                {sourceUnavailable ? "Waiting for a saved or live Trends read" : "Geography and segment review"}
+                {sourceUnavailable ? "Waiting for a verified saved Trends read" : "Geography and segment review"}
               </dd>
             </div>
           </dl>

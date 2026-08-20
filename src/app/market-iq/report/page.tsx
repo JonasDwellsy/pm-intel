@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { MarketIqDataUnavailable } from "@/components/market-iq/MarketIqDataUnavailable";
 import { MarketIqReportHistory } from "@/components/market-iq/MarketIqReportHistory";
 import { MarketIqReportComposerClient } from "@/components/market-iq/report/MarketIqReportComposerClient";
 import { MarketIqLaunchJourney } from "@/components/market-iq/launch/MarketIqLaunchJourney";
@@ -43,13 +44,12 @@ export default async function MarketIqReportComposerPage({ searchParams }: { sea
     });
     return <main className="mx-auto w-full max-w-3xl px-5 py-12 sm:px-6 lg:py-16">
       <nav aria-label="Breadcrumb" className="mb-6 flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground"><Link href={`/market-iq/get-started?market=${encodeURIComponent(activeMarket.id)}&step=2`} className="hover:text-teal-700">Back to {activeMarket.shortLabel} setup</Link><span>/</span><Link href="/market-iq" className="hover:text-teal-700">Market IQ</Link><span>/</span><span>Edition review</span></nav>
-      <section className="rounded-2xl border border-amber-200 bg-white p-7 shadow-sm sm:p-10">
-        <p className="dq-eyebrow text-amber-700">Your setup was saved</p>
-        <h1 className="mt-3 text-3xl font-bold text-navy">The {activeMarket.shortLabel} edition is taking too long to load</h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600">The read-only Trends IQ source did not respond in time. Market IQ has kept your firm details and market scope, but it will not substitute another market or estimate missing rent values.</p>
-        <div className="mt-7 flex flex-wrap gap-3"><Link href={`/market-iq/report?market=${encodeURIComponent(activeMarket.id)}&from=setup&activated=1&retry=1`} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white">Try loading the edition again</Link><Link href={`/market-iq/get-started?market=${encodeURIComponent(activeMarket.id)}&step=2`} className="rounded-md border border-slate-300 px-5 py-3 text-sm font-semibold text-navy">Return to setup</Link></div>
-        <p className="mt-5 text-xs leading-5 text-slate-400">No report was published and no email was sent.</p>
-      </section>
+      <MarketIqDataUnavailable
+        title={`${activeMarket.shortLabel} market data unavailable`}
+        detail="A verified saved Trends IQ report is not available for review. Market IQ kept your firm details and market scope, but it will not substitute another market or estimate missing rent values."
+        primaryAction={{ href: `/market-iq/report?market=${encodeURIComponent(activeMarket.id)}&from=setup&activated=1&retry=1`, label: "Try again" }}
+        secondaryAction={{ href: `/market-iq/get-started?market=${encodeURIComponent(activeMarket.id)}&step=2`, label: "Return to setup" }}
+      />
     </main>;
   }
   if (!composer) notFound();
