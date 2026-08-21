@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 import { marketIqDevelopmentPreviewEnabled } from "@/lib/market-iq/feature";
+import { MARKET_IQ_APPLICATION_PATH, safeMarketIqReturnTo } from "@/lib/market-iq/entry";
 import { prisma } from "@/lib/prisma";
 
 const PREVIEW_PILOT_CLERK_ORG_ID = "preview_market_iq_cleveland_pilot";
@@ -19,14 +20,6 @@ const PREVIEW_PILOT_BRAND = {
   websiteUrl: null,
 };
 
-function safeMarketIqReturnTo(value: FormDataEntryValue | null): string {
-  if (typeof value !== "string") return "/market-iq/launch";
-  if (!value.startsWith("/market-iq") || value.startsWith("//")) {
-    return "/market-iq/launch";
-  }
-  return value;
-}
-
 /**
  * Explicitly connect a Clerk development user to the one isolated, entitled
  * Cleveland pilot organization. This action cannot run in production, cannot
@@ -36,7 +29,11 @@ function safeMarketIqReturnTo(value: FormDataEntryValue | null): string {
 export async function activateMarketIqDevelopmentWorkspace(
   formData: FormData
 ): Promise<void> {
-  const returnTo = safeMarketIqReturnTo(formData.get("returnTo"));
+  const requestedReturnTo = formData.get("returnTo");
+  const returnTo = safeMarketIqReturnTo(
+    typeof requestedReturnTo === "string" ? requestedReturnTo : null,
+    MARKET_IQ_APPLICATION_PATH
+  );
   if (!marketIqDevelopmentPreviewEnabled()) redirect("/setup-workspace");
 
   const { userId } = await auth();

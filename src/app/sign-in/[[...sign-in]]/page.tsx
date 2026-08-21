@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { SignIn } from "@clerk/nextjs";
+import {
+  MARKET_IQ_APPLICATION_PATH,
+  safeMarketIqReturnTo,
+} from "@/lib/market-iq/entry";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 
 // /sign-in — Clerk-managed sign-in route.
@@ -93,16 +97,6 @@ function signInContext(redirectUrl: string | undefined, marketIqPreview: boolean
  * specific Market IQ route the user originally requested. Only relative
  * Market IQ paths are accepted so this cannot become an open redirect.
  */
-function marketIqReturnTo(redirectUrl: string | undefined): string {
-  if (
-    redirectUrl?.startsWith("/market-iq") &&
-    !redirectUrl.startsWith("//")
-  ) {
-    return redirectUrl;
-  }
-  return "/market-iq/launch";
-}
-
 export default async function SignInPage({
   searchParams,
 }: {
@@ -111,7 +105,10 @@ export default async function SignInPage({
   const { redirect_url } = await searchParams;
   const marketIqPreview = marketIqPreviewEnabled();
   const ctx = signInContext(redirect_url, marketIqPreview);
-  const marketIqRedirectUrl = marketIqReturnTo(redirect_url);
+  const marketIqRedirectUrl = safeMarketIqReturnTo(
+    redirect_url,
+    MARKET_IQ_APPLICATION_PATH
+  );
   const fallbackRedirectUrl = marketIqPreview
     ? marketIqRedirectUrl
     : "/watch-lists";

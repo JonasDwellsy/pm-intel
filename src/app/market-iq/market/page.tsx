@@ -7,6 +7,7 @@ import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { loadMarketIqMarketData } from "@/lib/market-iq/data/service.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
+import { MARKET_IQ_APPLICATION_PATH } from "@/lib/market-iq/entry";
 import { resolveActiveMarketIqMarket } from "@/lib/market-iq/markets/selection";
 import { loadListingSupplyHistory } from "@/lib/market-iq/listing-supply-history.server";
 import { prisma } from "@/lib/prisma";
@@ -24,10 +25,19 @@ export default async function MarketIqPage({
   // and cannot add database load to the existing Operator IQ application.
   if (!marketIqPreviewEnabled()) notFound();
 
+  const [{ organizationId }, query] = await Promise.all([
+    getActiveOrgContext(),
+    searchParams,
+  ]);
+  if (!organizationId) {
+    redirect(
+      `/setup-workspace?from=${encodeURIComponent(MARKET_IQ_APPLICATION_PATH)}`
+    );
+  }
+
   const access = await resolveViewerMarketIqAccess();
   if (!access.hasProduct) redirect("/market-iq/subscribe");
 
-  const [{ organizationId }, query] = await Promise.all([getActiveOrgContext(), searchParams]);
   const preference = organizationId
     ? await prisma.marketIqWorkspacePreference.findUnique({
       where: { organizationId },
@@ -42,7 +52,11 @@ export default async function MarketIqPage({
   if (!activeMarket) redirect("/market-iq/subscribe");
 
   if (access.source === "subscription") {
-    if (organizationId && !preference?.onboardingCompletedAt) redirect("/market-iq/get-started");
+    if (!preference?.onboardingCompletedAt) {
+      redirect(
+        `/market-iq/get-started?market=${encodeURIComponent(activeMarket.id)}&returnTo=${encodeURIComponent(MARKET_IQ_APPLICATION_PATH)}`
+      );
+    }
   }
 
   const entitledMarkets = listEntitledMarketIqMarkets(access.entitlement);

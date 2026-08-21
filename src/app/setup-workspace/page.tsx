@@ -23,6 +23,7 @@ import { auth } from "@clerk/nextjs/server";
 import { activateMarketIqDevelopmentWorkspace } from "@/app/setup-workspace/actions";
 import { getActiveOrgId } from "@/lib/auth/active-org";
 import { marketIqDevelopmentPreviewEnabled } from "@/lib/market-iq/feature";
+import { MARKET_IQ_APPLICATION_PATH } from "@/lib/market-iq/entry";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export default async function SetupWorkspacePage({ searchParams }: PageProps) {
   const { from, activation } = await searchParams;
   const developmentPreview = marketIqDevelopmentPreviewEnabled();
   const returnTo = sanitizeReturnTo(
-    from ?? (developmentPreview ? "/market-iq/launch" : undefined)
+    from ?? (developmentPreview ? MARKET_IQ_APPLICATION_PATH : undefined)
   );
 
   const { userId } = await auth();

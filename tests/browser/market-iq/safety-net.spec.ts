@@ -16,14 +16,43 @@ test.beforeEach(async ({ context, page }) => {
 
 async function signIn(page: Page) {
   await page.getByTestId("sign-in").click();
-  await expect(page).toHaveURL(/\/market-iq$/);
+  await expect(page).toHaveURL(/\/market-iq\/market$/);
 }
 
-test("signs in and reaches Market IQ Home", async ({ page }) => {
-  await signIn(page);
+test("moves from the public marketing page through sign-in to Market Intelligence", async ({ page }) => {
+  await page.goto("/market-iq/welcome");
+  await expect(page.getByRole("heading", { name: "See where local rents are moving, then explain why it matters." })).toBeVisible();
+  await page.getByRole("link", { name: "Customer sign in" }).click();
+  await expect(page).toHaveURL(/\/sign-in\?redirect_url=%2Fmarket-iq%2Fmarket/);
+  await page.getByTestId("sign-in").click();
 
-  await expect(page.getByRole("heading", { name: "Market IQ Home" })).toBeVisible();
-  await expect(page.getByTestId("home-current-market")).toHaveText("Cleveland-Elyria, OH MSA");
+  await expect(page).toHaveURL(/\/market-iq\/market$/);
+  await expect(page.getByRole("heading", { name: "Market Intelligence" })).toBeVisible();
+  await expect(page.getByTestId("market-panel")).toContainText("Cleveland-Elyria, OH MSA");
+});
+
+test("returns a customer to Market Intelligence after required workspace setup", async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem("market-iq-test-state", JSON.stringify({ accessState: "setup" })));
+  await page.goto("/market-iq/welcome");
+  await page.getByRole("link", { name: "Customer sign in" }).click();
+  await page.getByTestId("sign-in").click();
+
+  await expect(page).toHaveURL(/\/setup-workspace\?from=%2Fmarket-iq%2Fmarket/);
+  await expect(page.getByRole("heading", { name: "Activate your Market IQ workspace" })).toBeVisible();
+  await page.getByTestId("complete-setup").click();
+  await expect(page).toHaveURL(/\/market-iq\/market$/);
+  await expect(page.getByRole("heading", { name: "Market Intelligence" })).toBeVisible();
+});
+
+test("shows a Market IQ access page when the signed-in workspace has no product access", async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem("market-iq-test-state", JSON.stringify({ accessState: "none" })));
+  await page.goto("/market-iq/welcome");
+  await page.getByRole("link", { name: "Customer sign in" }).click();
+  await page.getByTestId("sign-in").click();
+
+  await expect(page).toHaveURL(/\/market-iq\/subscribe$/);
+  await expect(page.getByRole("heading", { name: "Market IQ access" })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("Operator IQ");
 });
 
 test("switches Cleveland and Columbus without leaking market data or branding", async ({ page }) => {

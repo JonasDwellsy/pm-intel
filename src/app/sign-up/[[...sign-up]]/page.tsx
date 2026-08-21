@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { marketIqSignInPath } from "@/lib/market-iq/entry";
+import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 
 // v0.21 — /sign-up — contact-sales page.
 //
@@ -29,6 +31,11 @@ export const metadata: Metadata = {
 };
 
 export default function SignUpPage() {
+  const marketIqPreview = marketIqPreviewEnabled();
+  const productName = marketIqPreview ? "Market IQ" : "Operator IQ";
+  const signInPath = marketIqPreview ? marketIqSignInPath() : "/sign-in";
+  const subject = encodeURIComponent(`${productName} access`);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-soft px-6 py-12">
       <div className="flex w-full max-w-[440px] flex-col items-center gap-7">
@@ -43,7 +50,7 @@ export default function SignUpPage() {
           />
           <span aria-hidden className="h-4 w-px bg-grid" />
           <span className="text-[13px] font-semibold tracking-[-0.005em]">
-            Operator IQ
+            {productName}
           </span>
         </div>
 
@@ -52,10 +59,10 @@ export default function SignUpPage() {
             By invitation only
           </h1>
           <p className="text-[14px] leading-relaxed text-muted-foreground">
-            Operator IQ is currently sold through enterprise sales —
-            self-serve signup is closed. Already have an account?{" "}
+            {productName} is currently sold through enterprise sales. Self-serve
+            signup is closed. Already have an account?{" "}
             <Link
-              href="/sign-in"
+              href={signInPath}
               className="font-semibold text-navy underline-offset-2 hover:underline"
             >
               Sign in
@@ -69,7 +76,7 @@ export default function SignUpPage() {
             Interested in access for your team?
           </p>
           <a
-            href={`mailto:${SALES_EMAIL}?subject=Operator%20IQ%20enterprise%20access`}
+            href={`mailto:${SALES_EMAIL}?subject=${subject}`}
             className="inline-flex h-10 items-center justify-center rounded-md bg-navy px-5 text-[14px] font-semibold text-white hover:bg-navy-700"
           >
             Contact sales
