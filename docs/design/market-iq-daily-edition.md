@@ -222,14 +222,21 @@ is the cleanest available answer to why anyone would open this daily.
 > does not measure concessions). No parser existed. PR #363 builds one from
 > scratch.
 >
-> **Required acceptance criterion, not yet met:** the classifier must handle
-> negation. As shipped it is pure keyword regex with no negation guard, so
-> "no free month," "no move-in special," "application fee is not waived," and
-> "no credit" all classify as concessions (verified by adversarial test). For a
-> credibility product this is the primary failure mode and must be fixed before
-> the section is customer-visible: reject a match when a negator ("no", "not",
-> "n't", "without") precedes the matched span, and add negation cases to the
-> test suite.
+> **Negation criterion — met (PR #363, commit `c1b46e8`).** The classifier
+> originally shipped as pure keyword regex with no negation guard, so "no free
+> month," "no move-in special," "application fee is not waived," and "no credit"
+> all misclassified as concessions (found by adversarial test). Fixed on both
+> layers: a TypeScript `isNegated()` guard and a SQL `AND NOT ... ~* negated`
+> pre-filter, each rejecting a match when a negator ("no", "not", "n't",
+> "without") sits within 24 characters before the matched span. Re-verified: all
+> four false positives now reject; all true positives still classify.
+>
+> **Known, accepted limitation.** The guard is position-based, not clause-aware,
+> so it over-rejects when a negator sits within 24 chars of a genuine offer
+> ("No pets. One month free" is missed). This is a false negative — the safe
+> direction for a credibility product, since the section never publishes a false
+> concession, only occasionally omits a real one. Optional future refinement:
+> make the guard clause-aware (ignore a negator across a sentence boundary).
 
 ---
 
