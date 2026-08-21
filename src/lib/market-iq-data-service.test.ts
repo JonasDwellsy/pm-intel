@@ -3,7 +3,12 @@ import test from "node:test";
 
 import type { MarketIqMarketDefinition } from "@/data/market-iq/markets";
 import { emptyListingSupplySummary } from "@/lib/market-iq/listing-supply";
-import { MARKET_IQ_REPORT_VERSION, type MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
+import {
+  MARKET_IQ_REPORT_VERSION,
+  MARKET_IQ_SNAPSHOT_CONTRACT_VERSION,
+  MARKET_IQ_TRENDS_HISTORY_MONTHS,
+  type MarketIqReportSnapshot,
+} from "@/lib/market-iq/report/report";
 import { loadMarketIqMarketDataWithDependencies } from "@/lib/market-iq/data/service";
 import type {
   MarketIqListingPulse,
@@ -70,6 +75,10 @@ function reportFixture(input: { availableThrough: string; historyMonths: number 
 
   return {
     version: MARKET_IQ_REPORT_VERSION,
+    dataContract: {
+      version: MARKET_IQ_SNAPSHOT_CONTRACT_VERSION,
+      trendsHistoryMonths: MARKET_IQ_TRENDS_HISTORY_MONTHS,
+    },
     generatedAt: `${input.availableThrough}T12:00:00.000Z`,
     brand: {
       displayName: "Fixture Property Management",

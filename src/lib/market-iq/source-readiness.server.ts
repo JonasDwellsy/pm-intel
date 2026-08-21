@@ -5,6 +5,7 @@ import {
   resolveMarketIqRecordedSourceReadiness,
   type MarketIqRecordedSourceReadiness,
 } from "@/lib/market-iq/source-readiness";
+import { parseCurrentMarketIqReportSourceSnapshot } from "@/lib/market-iq/report/report";
 
 export async function loadMarketIqRecordedSourceReadiness(
   marketId: string,
@@ -20,11 +21,12 @@ export async function loadMarketIqRecordedSourceReadiness(
   }
 
   try {
-    const [savedSnapshot, lastAttempt] = await Promise.all([
-      marketIqPrisma.marketIqReportSourceSnapshot.findFirst({
+    const [savedSnapshots, lastAttempt] = await Promise.all([
+      marketIqPrisma.marketIqReportSourceSnapshot.findMany({
         where: { marketId, sourceKind: "dwellsy_trends" },
         orderBy: [{ sourceAvailableThrough: "desc" }, { generatedAt: "desc" }],
-        select: { sourceAvailableThrough: true, generatedAt: true },
+        take: 20,
+        select: { sourceAvailableThrough: true, generatedAt: true, snapshot: true },
       }),
       marketIqPrisma.marketIqSourceRefresh.findFirst({
         where: { marketId, sourceKind: "trends" },
@@ -32,10 +34,18 @@ export async function loadMarketIqRecordedSourceReadiness(
         select: { status: true, startedAt: true, completedAt: true },
       }),
     ]);
+    const compatibleSnapshot = savedSnapshots.find(
+      (candidate) => parseCurrentMarketIqReportSourceSnapshot(candidate.snapshot) !== null,
+    );
+    const savedSnapshot = compatibleSnapshot ?? savedSnapshots[0] ?? null;
     return resolveMarketIqRecordedSourceReadiness({
       sourceConfigured,
       evidenceStoreReachable: true,
-      savedSnapshot,
+      savedSnapshot: savedSnapshot ? {
+        sourceAvailableThrough: savedSnapshot.sourceAvailableThrough,
+        generatedAt: savedSnapshot.generatedAt,
+        contractCompatible: Boolean(compatibleSnapshot),
+      } : null,
       lastAttempt,
     });
   } catch (error) {

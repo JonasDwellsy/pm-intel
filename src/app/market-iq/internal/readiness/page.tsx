@@ -38,6 +38,13 @@ function sourceReadinessCheck(source: MarketIqRecordedSourceReadiness): Check {
       detail: `Verified saved evidence through ${dateTime(source.sourceAvailableThrough)}; recorded ${dateTime(source.generatedAt)}.`,
     };
   }
+  if (source.state === "saved_report_incompatible") {
+    return {
+      label: "Authoritative Trends",
+      status: "blocked",
+      detail: `Saved evidence through ${dateTime(source.sourceAvailableThrough)} was created under an older analytical contract. Refresh Cleveland from Trends before using this deployment.`,
+    };
+  }
   if (source.state === "source_not_configured") {
     return { label: "Authoritative Trends", status: "blocked", detail: "The read-only Trends source is not configured. No live connection was attempted by this page." };
   }

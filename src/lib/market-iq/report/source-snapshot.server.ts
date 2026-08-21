@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 
 import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import {
-  parseMarketIqReportSnapshot,
+  parseCurrentMarketIqReportSourceSnapshot,
   type MarketIqReportSnapshot,
 } from "@/lib/market-iq/report/report";
 import { storeMarketIqMarketSummary } from "@/lib/market-iq/market-summary.server";
@@ -20,16 +20,24 @@ function sourceAvailableThrough(snapshot: MarketIqReportSnapshot): Date {
 export async function loadLatestMarketIqReportSourceSnapshot(
   marketId: string,
 ): Promise<MarketIqReportSnapshot | null> {
-  const stored = await marketIqPrisma.marketIqReportSourceSnapshot.findFirst({
+  const stored = await marketIqPrisma.marketIqReportSourceSnapshot.findMany({
     where: { marketId, sourceKind: "dwellsy_trends" },
     orderBy: [{ sourceAvailableThrough: "desc" }, { generatedAt: "desc" }],
+    take: 20,
     select: { snapshot: true },
   });
-  return stored ? parseMarketIqReportSnapshot(stored.snapshot) : null;
+  for (const candidate of stored) {
+    const snapshot = parseCurrentMarketIqReportSourceSnapshot(candidate.snapshot);
+    if (snapshot) return snapshot;
+  }
+  return null;
 }
 
 export async function storeMarketIqReportSourceSnapshot(snapshot: MarketIqReportSnapshot) {
   const serialized = JSON.stringify(snapshot);
+  if (!parseCurrentMarketIqReportSourceSnapshot(serialized)) {
+    throw new Error("The Market IQ source snapshot does not satisfy the current analytical contract.");
+  }
   const checksum = createHash("sha256").update(serialized).digest("hex");
   const stored = await marketIqPrisma.marketIqReportSourceSnapshot.upsert({
     where: { marketId_checksum: { marketId: snapshot.scope.marketId, checksum } },
