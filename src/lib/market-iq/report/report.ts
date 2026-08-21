@@ -1,3 +1,14 @@
+import type {
+  MarketIqMarketActivity,
+  MarketIqMarketActivityAvailability,
+} from "@/lib/market-iq/listing-events";
+
+export type {
+  MarketIqListingEvent,
+  MarketIqMarketActivity,
+  MarketIqMarketActivityAvailability,
+} from "@/lib/market-iq/listing-events";
+
 export const MARKET_IQ_REPORT_VERSION = 3 as const;
 
 export type MarketIqPropertyType = "apartment" | "house";
@@ -55,21 +66,6 @@ export type MarketIqMapPoint = {
   series: MarketIqTrendPoint[];
 };
 
-export type MarketIqListingEvent = {
-  id: string;
-  eventType: "new_listing" | "price_change";
-  address?: string | null;
-  city: string;
-  zip: string;
-  propertyType: MarketIqPropertyType;
-  bedrooms: number;
-  askingRent: number;
-  previousRent: number | null;
-  observedAt: string;
-  imageUrl?: string | null;
-  listingUrl?: string | null;
-};
-
 export function buildDwellsyPropertyUrl(propertyId: string | number) {
   const value = String(propertyId);
   return /^\d+$/.test(value) ? `https://dwellsy.com/details/${value}` : null;
@@ -94,15 +90,6 @@ export function trendHistoryQueryStart(referenceDate: Date) {
 export function trendHistoryWindowStart(latestMonth: string) {
   return offsetMonth(new Date(`${latestMonth.slice(0, 7)}-01T00:00:00Z`), -35);
 }
-
-export type MarketIqMarketActivity = {
-  asOf: string;
-  newListings24h: number;
-  sourceUpdates24h: number;
-  confirmedPriceChanges24h: number;
-  eventsTruncated?: boolean;
-  events: MarketIqListingEvent[];
-};
 
 export type MarketIqEditionFinding = {
   id: string;
@@ -174,7 +161,7 @@ export interface MarketIqReportSnapshot {
       medianDom: number;
     } | null;
   };
-  marketActivity?: MarketIqMarketActivity;
+  marketActivity?: MarketIqMarketActivityAvailability;
   editionComparison?: MarketIqEditionComparison;
   editorial?: {
     audienceKind?: "client" | "prospect";
@@ -203,7 +190,7 @@ export type MarketIqReportBuildInput = {
   trendSeries: MarketIqTrendSeries[];
   mapCenters?: Record<string, { latitude: number; longitude: number; primaryCity?: string | null }>;
   marketConditions: MarketIqReportSnapshot["marketConditions"];
-  marketActivity?: MarketIqMarketActivity;
+  marketActivity?: MarketIqMarketActivityAvailability;
   sources: MarketIqReportSnapshot["sources"];
   unavailableCuts?: MarketIqReportSnapshot["marketRead"]["unavailableCuts"];
 };
@@ -308,7 +295,23 @@ export function parseMarketIqReportSnapshot(value: string): MarketIqReportSnapsh
       !Array.isArray(parsed.marketRead?.cells) ||
       !Array.isArray(parsed.sources)
     ) return null;
-    return parsed as MarketIqReportSnapshot;
+    const snapshot = parsed as MarketIqReportSnapshot;
+    const legacyActivity = parsed.marketActivity as unknown;
+    if (
+      legacyActivity &&
+      typeof legacyActivity === "object" &&
+      !("state" in legacyActivity) &&
+      "asOf" in legacyActivity &&
+      "events" in legacyActivity &&
+      typeof legacyActivity.asOf === "string" &&
+      Array.isArray(legacyActivity.events)
+    ) {
+      snapshot.marketActivity = {
+        state: "available",
+        activity: legacyActivity as MarketIqMarketActivity,
+      };
+    }
+    return snapshot;
   } catch {
     return null;
   }

@@ -5,10 +5,14 @@ import { withDwellsyReadOnly } from "@/lib/dwellsy-source/db.server";
 import {
   buildDwellsyPropertyUrl,
   formatMarketIqListingAddress,
-  type MarketIqListingEvent,
-  type MarketIqMarketActivity,
   type MarketIqPropertyType,
 } from "@/lib/market-iq/report/report";
+import type {
+  MarketIqListingEvent,
+  MarketIqMarketActivity,
+  MarketIqMarketActivityAvailability,
+} from "@/lib/market-iq/listing-events";
+import { readMarketIqActivityAvailability } from "@/lib/market-iq/listing-events";
 
 type EventRow = {
   event_id: string;
@@ -225,6 +229,17 @@ export async function loadMarketListingActivity(msaCode: string): Promise<Market
   });
 }
 
+export async function loadMarketListingActivityAvailability(
+  msaCode: string,
+  attemptedAt = new Date(),
+): Promise<MarketIqMarketActivityAvailability> {
+  return readMarketIqActivityAvailability(() => loadMarketListingActivity(msaCode), attemptedAt);
+}
+
 export async function loadClevelandListingActivity() {
   return loadMarketListingActivity(CLEVELAND_MSA_CODE);
+}
+
+export async function loadClevelandListingActivityAvailability(attemptedAt = new Date()) {
+  return loadMarketListingActivityAvailability(CLEVELAND_MSA_CODE, attemptedAt);
 }

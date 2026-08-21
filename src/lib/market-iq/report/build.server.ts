@@ -7,7 +7,8 @@ import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server"
 import { loadDwellsyProductRollupSeries, loadDwellsyTrendSeries } from "@/lib/dwellsy-source/trends.server";
 import { mapDwellsyTrendRows } from "@/lib/dwellsy-source/trends";
 import { dwellsySourceConfigured } from "@/lib/dwellsy-source/db.server";
-import { loadClevelandListingActivity } from "@/lib/dwellsy-source/listing-events.server";
+import { loadClevelandListingActivityAvailability } from "@/lib/dwellsy-source/listing-events.server";
+import { availableMarketIqActivity } from "@/lib/market-iq/listing-events";
 import { marketIqDatabaseConfigured, marketIqPrisma } from "@/lib/market-iq/prisma";
 import {
   buildCurrentMonthUnavailableCuts,
@@ -215,7 +216,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
         // Total IQ context instead of failing the public report.
         .catch(() => null)
     : Promise.resolve(null);
-  const [trendSource, context, marketActivity] = await Promise.all([
+  const [trendSource, context, marketActivityAvailability] = await Promise.all([
     (input?.sourceMode === "live_only"
       ? Promise.resolve(null)
       : loadImportedTrendSource().catch(() => null)).then((imported) => {
@@ -230,8 +231,8 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
     }),
     analyticalContext,
     liveDwellsyRuntimeEnabled
-      ? loadClevelandListingActivity().catch(() => undefined)
-      : Promise.resolve(undefined),
+      ? loadClevelandListingActivityAvailability()
+      : Promise.resolve({ state: "unavailable" as const, attemptedAt: new Date().toISOString() }),
   ]);
   const trendSeries = completeTrendSeries(trendSource.result.series);
   const reportCities = [...new Set(trendSeries
@@ -243,6 +244,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
   const trendAvailableThrough = monthEnd(latestTrendMonth);
   const trendWindowStart = trendHistoryWindowStart(latestTrendMonth);
   const historicalPulse = context?.historicalPulse;
+  const marketActivity = availableMarketIqActivity(marketActivityAvailability);
   const activityAvailableThrough = marketActivity?.asOf.slice(0, 10);
 
   return buildMarketIqReportSnapshot({
@@ -293,7 +295,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
       narrative: "No historical listing measure is substituted. Trends IQ remains the exclusive source for every published rent level and rent change.",
       historical: null,
     },
-    marketActivity,
+    marketActivity: marketActivityAvailability,
     sources: [
       { name: "Dwellsy IQ Trends", availableThrough: trendAvailableThrough, observationCount: null, note: "The exclusive source for every published aggregated rent level and rent change. Overall product summaries use the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Every available Trends IQ value is reportable." },
       ...(historicalPulse ? [{ name: "Total IQ observed listings", availableThrough: historicalPulse.historicalSource.availableThrough, observationCount: historicalPulse.historicalSource.recordCount, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." }] : []),
@@ -308,7 +310,7 @@ export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
   // Bump this key whenever the source adapter or reportability rules change.
   // The callback itself is intentionally small, so relying on its function
   // string would otherwise preserve an obsolete cross-deployment snapshot.
-  ["market-iq-cleveland-live-snapshot-v11"],
+  ["market-iq-cleveland-live-snapshot-v12"],
   { revalidate: 900 },
 );
 
