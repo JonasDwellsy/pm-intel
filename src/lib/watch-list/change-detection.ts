@@ -18,7 +18,8 @@
 //                           transition, or estimated → not / vice versa)
 //   - portfolio.size        estimatedPortfolioPoint moves ≥20%
 //   - market.added/dropped  topMSAs set delta
-//   - submarket.added/dropped  topSubmarkets set delta
+//   - submarket.added/dropped  topSubmarkets set delta, gated on a net
+//                           count move of >= SUBMARKET_NET_THRESHOLD
 //   - concession.transition  concessionRate presence flips (null ↔ value)
 //   - concession.shift       concessionRate moves ≥5 percentage points
 //   - eligibility.flip      isEligibleForRanking flips
@@ -109,6 +110,17 @@ export const CONCESSION_SHIFT_THRESHOLD_PP = 5;
  *  direction surfaces; smaller movements ride the band-change
  *  signal (which catches confidence-tier transitions independently). */
 export const PORTFOLIO_SIZE_THRESHOLD_PCT = 0.2;
+
+/** Minimum NET change in submarket count before the footprint move is
+ *  reported. A submarket enters `topSubmarkets` at >0 listings, so a net move
+ *  of ±1 is indistinguishable from a single listing drifting across a
+ *  boundary — and that is the common case: over the Jul-17 → Aug-20 pair, 708
+ *  of the 1,104 operators with any submarket change had a delta of exactly one
+ *  slug, and 115 were pure churn (equal in and out, net zero).
+ *
+ *  Requiring 2 keeps footprint moves a reader can act on and drops the wobble:
+ *  1,104 → 225 operators, 1,759 → 611 change rows on that same pair. */
+export const SUBMARKET_NET_THRESHOLD = 2;
 
 /** All five metric keys, in the order the banner + detail table
  *  iterate them. Order matters for deterministic output across
@@ -239,17 +251,31 @@ export function diffSnapshots(
     }
   }
 
-  // Submarket coverage — same pattern, on topSubmarkets.
+  // Submarket coverage — same set delta as markets, but gated on a NET count
+  // move of at least SUBMARKET_NET_THRESHOLD.
+  //
+  // Unlike topMSAs, membership here is "at least one listing in the T12
+  // window", so the set churns for the same reason the portfolio range did:
+  // marginal submarkets flip in and out as the window slides. Reporting each
+  // flip as a discrete event claims a precision the data does not carry.
+  // Gating on the net count keeps genuine expansion and contraction while
+  // dropping single-slug wobble and in-one-out-one churn.
+  //
+  // The individual submarkets are still enumerated once the gate passes, so a
+  // reader who gets the alert still sees exactly which ones moved.
   const priorSubmarkets = new Set(prior.topSubmarkets);
   const currentSubmarkets = new Set(current.topSubmarkets);
-  for (const sm of currentSubmarkets) {
-    if (!priorSubmarkets.has(sm)) {
-      changes.push({ type: "submarket_added", submarketSlug: sm });
+  const netSubmarketMove = Math.abs(currentSubmarkets.size - priorSubmarkets.size);
+  if (netSubmarketMove >= SUBMARKET_NET_THRESHOLD) {
+    for (const sm of currentSubmarkets) {
+      if (!priorSubmarkets.has(sm)) {
+        changes.push({ type: "submarket_added", submarketSlug: sm });
+      }
     }
-  }
-  for (const sm of priorSubmarkets) {
-    if (!currentSubmarkets.has(sm)) {
-      changes.push({ type: "submarket_dropped", submarketSlug: sm });
+    for (const sm of priorSubmarkets) {
+      if (!currentSubmarkets.has(sm)) {
+        changes.push({ type: "submarket_dropped", submarketSlug: sm });
+      }
     }
   }
 
