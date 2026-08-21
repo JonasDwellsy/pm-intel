@@ -2,8 +2,9 @@ import "server-only";
 
 import type { MarketIqMarketDefinition } from "@/data/market-iq/markets";
 import { loadMarketActiveListings } from "@/lib/dwellsy-source/active-listings.server";
-import { loadMarketListingActivity } from "@/lib/dwellsy-source/listing-events.server";
+import { loadMarketListingActivityAvailability } from "@/lib/dwellsy-source/listing-events.server";
 import { loadDwellsyProductRollupSeries, loadDwellsyTrendSeries } from "@/lib/dwellsy-source/trends.server";
+import { availableMarketIqActivity } from "@/lib/market-iq/listing-events";
 import {
   buildMarketIqReportSnapshot,
   type MarketIqReportSnapshot,
@@ -64,6 +65,7 @@ export async function buildLiveMarketIqReportSnapshot(input: {
   brand?: MarketIqReportSnapshot["brand"];
 }) {
   const { market } = input;
+  const generatedAt = input.generatedAt ?? new Date();
   const stateCode = market.stateCodes[0];
   if (!stateCode) throw new Error(`${market.fullName} has no configured state code.`);
   const activeSource = await loadMarketActiveListings(market.cbsaCode);
@@ -71,7 +73,7 @@ export async function buildLiveMarketIqReportSnapshot(input: {
   const activeZips = activeSource.listings.map((listing) => listing.postalCode).filter((zip): zip is string => Boolean(zip));
   const cities = [...new Set([...(input.cities ?? []), ...activeCities])].sort();
   const zips = [...new Set([...input.zips, ...activeZips])].sort();
-  const [detail, rollups, marketActivity] = await Promise.all([
+  const [detail, rollups, marketActivityAvailability] = await Promise.all([
     loadDwellsyTrendSeries({
       cities,
       zipCodes: zips,
@@ -87,7 +89,7 @@ export async function buildLiveMarketIqReportSnapshot(input: {
       msaCode: market.cbsaCode,
       msaLabel: market.fullName,
     }),
-    loadMarketListingActivity(market.cbsaCode).catch(() => undefined),
+    loadMarketListingActivityAvailability(market.cbsaCode),
   ]);
   const trendSeries = completeTrendSeries([...rollups.series, ...detail.series], cities, zips, stateCode);
   const latestTrendMonth = trendSeries.flatMap((series) => series.points).map((point) => point.month).sort().at(-1);
@@ -99,8 +101,10 @@ export async function buildLiveMarketIqReportSnapshot(input: {
     primaryCity: cityByZip[zip] ?? null,
   }]));
 
+  const marketActivity = availableMarketIqActivity(marketActivityAvailability);
+
   return buildMarketIqReportSnapshot({
-    generatedAt: input.generatedAt ?? new Date(),
+    generatedAt,
     brand: input.brand ?? {
       displayName: "Market IQ",
       logoUrl: null,
@@ -128,7 +132,7 @@ export async function buildLiveMarketIqReportSnapshot(input: {
       narrative: `Total IQ supplies current inventory and recent listing activity for ${market.shortLabel}. No other market's historical context is substituted.`,
       historical: null,
     },
-    marketActivity,
+    marketActivity: marketActivityAvailability,
     sources: [
       {
         name: "Dwellsy IQ Trends",

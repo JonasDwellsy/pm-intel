@@ -163,6 +163,23 @@ describe("Market IQ local market read assembly", () => {
     expect(parseMarketIqReportSnapshot("not json")).toBeNull();
   });
 
+  it("normalizes source-dated activity from older saved snapshots into the availability contract", () => {
+    const legacyActivity = {
+      asOf: "2026-08-14T23:00:00.000Z",
+      newListings24h: 1,
+      sourceUpdates24h: 2,
+      confirmedPriceChanges24h: 0,
+      events: [],
+    };
+    const parsed = parseMarketIqReportSnapshot(JSON.stringify({
+      ...seededClevelandMarketReport,
+      scope: { ...seededClevelandMarketReport.scope, seededExample: false },
+      marketActivity: legacyActivity,
+    }));
+
+    expect(parsed?.marketActivity).toEqual({ state: "available", activity: legacyActivity });
+  });
+
   it("ships source-dated ZIP Trends cells in the Cleveland preview snapshot", () => {
     expect(seededClevelandMarketReport.marketRead.cells.find((cell) => cell.key === "44113:apartment:1")).toMatchObject({
       status: "reportable",
@@ -216,10 +233,9 @@ describe("Market IQ local market read assembly", () => {
     expect(cells.every((cell) => cell.valueBasis === "trends_value")).toBe(true);
   });
 
-  it("ships a source-dated market activity tape without exposing addresses", () => {
-    expect(seededClevelandMarketReport.marketActivity).toMatchObject({ newListings24h: 45, sourceUpdates24h: 396 });
-    expect(seededClevelandMarketReport.marketActivity?.events.length).toBeGreaterThan(4);
-    expect(JSON.stringify(seededClevelandMarketReport.marketActivity)).not.toMatch(/address|listingId|propertyId/i);
+  it("does not supply seeded listing events to daily sections", () => {
+    expect(seededClevelandMarketReport.marketActivity).toBeUndefined();
+    expect(JSON.stringify(seededClevelandMarketReport)).not.toMatch(/seed:new|seed:price/);
   });
 
   it("includes current MSA bedroom benchmarks with published Trends trajectories", () => {
