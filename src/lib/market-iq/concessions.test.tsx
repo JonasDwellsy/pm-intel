@@ -21,6 +21,21 @@ describe("advertised concession parsing", () => {
     expect(parseAdvertisedConcession(text)).toBeNull();
   });
 
+  it.each([
+    "No free month is offered.",
+    "There is no move-in special at this time.",
+    "The application fee is not waived.",
+    "No credit is available.",
+    "Apply without a rent credit.",
+    "The application fee isn't waived.",
+  ])("rejects negated concession language: %s", (text) => {
+    expect(parseAdvertisedConcession(text)).toBeNull();
+  });
+
+  it("does not let an earlier unrelated negation suppress a real offer", () => {
+    expect(parseAdvertisedConcession("No pets are permitted at this community. Apply today for one month free.")).toMatchObject({ kind: "free_rent" });
+  });
+
   it("returns a short evidence excerpt rather than the full listing text", () => {
     const concession = parseAdvertisedConcession(`${"A spacious apartment. ".repeat(12)}Apply now for two months free. ${"Terms apply. ".repeat(12)}`);
     expect(concession?.evidence).toMatch(/two months free/i);

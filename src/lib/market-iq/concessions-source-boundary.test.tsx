@@ -25,6 +25,17 @@ describe("daily concessions source boundary", () => {
     assert.match(daily, /advertised, not verified/i);
   });
 
+  it("applies a bounded negation guard in both the SQL pre-filter and classifier", () => {
+    assert.match(reader, /CONCESSION_SQL_NEGATED_PATTERN/);
+    assert.match(reader, /\(no\|not\|without\)/);
+    assert.match(reader, /n\['’\]t/);
+    assert.match(reader, /\{0,24\}/);
+    assert.match(reader, /AND NOT CONCAT_WS\(' ', canonical\.listing_title/);
+    assert.match(parser, /NEGATION_WINDOW_CHARACTERS = 24/);
+    assert.match(parser, /NEGATOR_PATTERN/);
+    assert.match(parser, /isNegated\(text, match\.index, match\[0\]\.length\)/);
+  });
+
   it("does not import monthly trend types or derive a rent trend", () => {
     for (const source of [reader, parser, daily]) {
       assert.doesNotMatch(source, /MarketIqTrendPoint|MarketIqTrendSeries/);

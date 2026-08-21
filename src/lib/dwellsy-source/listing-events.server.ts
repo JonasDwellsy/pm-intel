@@ -59,6 +59,10 @@ const CONCESSION_SQL_PATTERN = [
   String.raw`\mdeposit\M.{0,20}\mspecial\M`,
   String.raw`\m(move[ -]?in|leasing|lease|rent)\M.{0,24}\m(special|discount)\M`,
 ].join("|");
+const CONCESSION_SQL_NEGATED_PATTERN = [
+  String.raw`(\m(no|not|without)\M|n['’]t).{0,24}(${CONCESSION_SQL_PATTERN})`,
+  String.raw`\m(application|admin|fee)\M.{0,16}(\m(no|not|without)\M|n['’]t).{0,16}\m(waived|free)\M`,
+].join("|");
 
 const ACTIVITY_SQL = `
   WITH recent_price_logs AS (
@@ -142,6 +146,7 @@ const ACTIVITY_SQL = `
       AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
       AND listing.listing_create_time >= NOW() - INTERVAL '24 hours'
       AND CONCAT_WS(' ', canonical.listing_title, canonical.listing_short_text, canonical.listing_long_text) ~* $concession$${CONCESSION_SQL_PATTERN}$concession$
+      AND NOT CONCAT_WS(' ', canonical.listing_title, canonical.listing_short_text, canonical.listing_long_text) ~* $negated$${CONCESSION_SQL_NEGATED_PATTERN}$negated$
   ),
   price_events AS (
     SELECT CONCAT('price:', price.id::text) AS event_id,

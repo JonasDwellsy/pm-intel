@@ -36,6 +36,14 @@ const CONCESSION_PATTERNS: Array<{
   },
 ];
 
+const NEGATION_WINDOW_CHARACTERS = 24;
+const NEGATOR_PATTERN = /(?:\b(?:no|not|without)\b|n['’]t\b)/i;
+
+function isNegated(text: string, matchIndex: number, matchLength: number) {
+  const contextStart = Math.max(0, matchIndex - NEGATION_WINDOW_CHARACTERS);
+  return NEGATOR_PATTERN.test(text.slice(contextStart, matchIndex + matchLength));
+}
+
 function evidenceAround(text: string, matchIndex: number, matchLength: number) {
   const start = Math.max(0, matchIndex - 45);
   const end = Math.min(text.length, matchIndex + matchLength + 75);
@@ -49,6 +57,7 @@ export function parseAdvertisedConcession(value: string | null | undefined): Mar
   for (const candidate of CONCESSION_PATTERNS) {
     const match = candidate.pattern.exec(text);
     if (!match || match.index === undefined) continue;
+    if (isNegated(text, match.index, match[0].length)) continue;
     return {
       kind: candidate.kind,
       label: candidate.label,
