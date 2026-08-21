@@ -2,6 +2,13 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  // Vercel exposes the branch, commit, and deployment hostname at runtime, but
+  // not the time the artifact was built. Freeze a non-secret build timestamp
+  // into the artifact so Market IQ diagnostics can distinguish two deployments
+  // of the same commit without making a Vercel API call during page render.
+  env: {
+    MARKET_IQ_BUILD_TIMESTAMP: new Date().toISOString(),
+  },
   // Permanent (301) redirect from the legacy /operator (singular)
   // path to the v0.11 /operators (plural) route. The plural was
   // introduced in PR #43 as the canonical operator-level scorecard
