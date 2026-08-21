@@ -2,12 +2,18 @@ import type {
   MarketIqMarketActivity,
   MarketIqMarketActivityAvailability,
 } from "@/lib/market-iq/listing-events";
+import type { MarketIqTimeToResolutionAvailability } from "@/lib/market-iq/time-to-resolution";
 
 export type {
   MarketIqListingEvent,
   MarketIqMarketActivity,
   MarketIqMarketActivityAvailability,
 } from "@/lib/market-iq/listing-events";
+export type {
+  MarketIqResolutionSegment,
+  MarketIqTimeToResolution,
+  MarketIqTimeToResolutionAvailability,
+} from "@/lib/market-iq/time-to-resolution";
 
 export const MARKET_IQ_REPORT_VERSION = 3 as const;
 
@@ -162,6 +168,7 @@ export interface MarketIqReportSnapshot {
     } | null;
   };
   marketActivity?: MarketIqMarketActivityAvailability;
+  timeToResolution?: MarketIqTimeToResolutionAvailability;
   editionComparison?: MarketIqEditionComparison;
   editorial?: {
     audienceKind?: "client" | "prospect";
@@ -191,6 +198,7 @@ export type MarketIqReportBuildInput = {
   mapCenters?: Record<string, { latitude: number; longitude: number; primaryCity?: string | null }>;
   marketConditions: MarketIqReportSnapshot["marketConditions"];
   marketActivity?: MarketIqMarketActivityAvailability;
+  timeToResolution?: MarketIqTimeToResolutionAvailability;
   sources: MarketIqReportSnapshot["sources"];
   unavailableCuts?: MarketIqReportSnapshot["marketRead"]["unavailableCuts"];
 };
@@ -377,8 +385,9 @@ export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): Ma
     },
     marketConditions: input.marketConditions,
     marketActivity: input.marketActivity,
+    timeToResolution: input.timeToResolution,
     sources: input.sources,
-    methodNote: "Every published rent input comes from Trends IQ. Overall apartment and house summaries use the median stored on the Trends IQ all-bedroom rows, with year-over-year change calculated from the matching prior-year median in that same Trends series. A published Trends IQ value is treated as reportable because Dwellsy's underlying methodology has already established confidence in that result. Unit counts are retained as source metadata but are not used as an additional publication threshold. Total IQ supports listing volume, velocity, days on market, and recent listing activity only. Census ZCTAs provide ZIP-area geometry.",
+    methodNote: "Every published rent input comes from Trends IQ. Overall apartment and house summaries use the median stored on the Trends IQ all-bedroom rows, with year-over-year change calculated from the matching prior-year median in that same Trends series. A published Trends IQ value is treated as reportable because Dwellsy's underlying methodology has already established confidence in that result. Unit counts are retained as source metadata but are not used as an additional publication threshold. Total IQ supports listing volume, live listing age, time-to-resolution distributions, and recent listing activity only. Census ZCTAs provide ZIP-area geometry.",
     disclosure: "This report measures advertised asking-market activity. It does not measure occupancy, signed leases, concessions, effective rent, or property-level financial performance.",
   };
 }

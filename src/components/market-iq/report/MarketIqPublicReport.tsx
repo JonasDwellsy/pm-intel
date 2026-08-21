@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import Image from "next/image";
 import { MarketIqRentMap } from "@/components/market-iq/report/MarketIqRentMap";
 import { MarketIqDailyEvents } from "@/components/market-iq/report/MarketIqDailyEvents";
+import { MarketIqTimeToResolution } from "@/components/market-iq/report/MarketIqTimeToResolution";
 import type { MarketIqMarketCell, MarketIqReportSnapshot, MarketIqTrendPoint } from "@/lib/market-iq/report/report";
 import { availableMarketIqActivity } from "@/lib/market-iq/listing-events";
 import { getMarketIqMarket } from "@/data/market-iq/markets";
@@ -28,6 +29,7 @@ function change(value: number | null, suffix = true) {
 
 function publicSourceName(name: string) {
   if (name.includes("Trends")) return "Asking-rent trends";
+  if (name.includes("inactive listings")) return "Time-to-resolution observations";
   if (name.includes("listing activity feed")) return "Recent listing activity";
   if (name.includes("observed listings")) return "Listing activity history";
   return name;
@@ -142,6 +144,7 @@ export function MarketIqPublicReport({ report, publicToken, preview = false }: {
       {edition && <section className="mt-10 overflow-hidden rounded-3xl border border-slate-200 bg-white"><div className="grid gap-5 border-b border-slate-100 bg-slate-50 px-7 py-7 sm:px-9 lg:grid-cols-[1fr_auto] lg:items-start"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--report-accent)]">Since the last market read</p><h2 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--report-primary)]">{edition.heading}</h2><p className="mt-3 max-w-3xl leading-7 text-slate-600">{edition.narrative}</p></div><span className="h-fit rounded-full bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 ring-1 ring-slate-200">{edition.state}</span></div>{edition.findings.length > 0 && <div className="grid divide-y divide-slate-100 lg:grid-cols-2 lg:divide-x lg:divide-y-0">{edition.findings.map((finding, index) => <article key={finding.id} className={`p-7 sm:p-9 ${index > 1 ? "lg:border-t lg:border-slate-100" : ""}`}><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${finding.importance === "high" ? "bg-orange-50 text-orange-800" : "bg-slate-100 text-slate-600"}`}>{finding.importance}</span><span className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">{finding.geographyLabel}</span></div><h3 className="mt-4 text-lg font-semibold leading-7 text-[var(--report-primary)]">{finding.headline}</h3><p className="mt-3 text-sm leading-6 text-slate-600">{finding.detail}</p></article>)}</div>}</section>}
 
       {report.marketActivity && <div className="mt-10"><MarketIqDailyEvents availability={report.marketActivity} marketName={market?.shortLabel ?? report.scope.marketName} timeZone={market?.timeZone ?? "America/New_York"} /></div>}
+      {report.timeToResolution && <div className="mt-10"><MarketIqTimeToResolution availability={report.timeToResolution} marketName={market?.shortLabel ?? report.scope.marketName} timeZone={market?.timeZone ?? "America/New_York"} /></div>}
 
       <section className="mt-16"><div className="grid gap-4 lg:grid-cols-[0.75fr_1.25fr] lg:items-end"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--report-accent)]">Local market map</p><h2 className="mt-3 text-3xl font-semibold tracking-tight text-[var(--report-primary)]">See how asking rents vary locally</h2></div><p className="max-w-2xl leading-7 text-slate-600 lg:justify-self-end">Switch between published asking rents and annual direction, then select a ZIP to view its three-year path, municipal comparison, MSA benchmark, nearby markets, and recent listing activity.</p></div><div className="mt-8"><MarketIqRentMap points={report.marketMap.points} benchmarks={reportable.filter((cell) => cell.geographyType === "msa")} cityCells={cityBenchmarkCells} activity={marketActivity} marketName={market?.fullName ?? report.scope.marketName} timeZone={market?.timeZone ?? "America/New_York"} boundaryUrl={`/data/${market?.slug ?? "cleveland"}-zcta.geojson`} /></div></section>
 
