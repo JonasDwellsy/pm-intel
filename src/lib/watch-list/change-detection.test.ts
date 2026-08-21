@@ -10,6 +10,7 @@ import { strict as assert } from "node:assert";
 import {
   CONCESSION_SHIFT_THRESHOLD_PP,
   PORTFOLIO_SIZE_THRESHOLD_PCT,
+  SUBMARKET_NET_THRESHOLD,
   diffSnapshots,
   summariseChanges,
   type OperatorChange,
@@ -225,22 +226,54 @@ test("market dropped surfaces one change per removed MSA", () => {
   assert.deepEqual(changes[0], { type: "market_dropped", marketId: "knoxville-tn" });
 });
 
-test("submarket added + dropped surface as separate per-submarket changes", () => {
+test("in-one-out-one submarket churn surfaces nothing", () => {
+  // Net zero. Membership in topSubmarkets is ">=1 listing in the T12 window",
+  // so this is indistinguishable from one listing drifting across a boundary.
+  // 115 operators looked exactly like this on the Jul-17 → Aug-20 pair.
   const prior = makeSnapshot({ topSubmarkets: ["north", "south"] });
   const current = makeSnapshot({ topSubmarkets: ["north", "east"] });
+  assert.deepEqual(diffSnapshots(prior, current), []);
+});
+
+test("a single added submarket surfaces nothing", () => {
+  // Net +1 — the most common shape by far (708 of 1,104 operators) and below
+  // the floor of what one listing can distinguish.
+  const prior = makeSnapshot({ topSubmarkets: ["north", "south"] });
+  const current = makeSnapshot({ topSubmarkets: ["north", "south", "east"] });
+  assert.deepEqual(diffSnapshots(prior, current), []);
+});
+
+test("a net footprint move of 2+ enumerates every submarket that moved", () => {
+  // The gate is on the NET count, but once it passes the reader still sees
+  // exactly which submarkets changed — including the dropped one.
+  const prior = makeSnapshot({ topSubmarkets: ["north", "south"] });
+  const current = makeSnapshot({ topSubmarkets: ["north", "east", "west", "up"] });
   const changes = diffSnapshots(prior, current);
-  const adds = changes.filter((c) => c.type === "submarket_added");
-  const drops = changes.filter((c) => c.type === "submarket_dropped");
-  assert.equal(adds.length, 1);
-  assert.equal(drops.length, 1);
-  assert.equal(
-    (adds[0] as Extract<OperatorChange, { type: "submarket_added" }>).submarketSlug,
-    "east"
-  );
-  assert.equal(
-    (drops[0] as Extract<OperatorChange, { type: "submarket_dropped" }>).submarketSlug,
-    "south"
-  );
+  const adds = changes
+    .filter((c) => c.type === "submarket_added")
+    .map((c) => (c as Extract<OperatorChange, { type: "submarket_added" }>).submarketSlug);
+  const drops = changes
+    .filter((c) => c.type === "submarket_dropped")
+    .map((c) => (c as Extract<OperatorChange, { type: "submarket_dropped" }>).submarketSlug);
+  assert.deepEqual(adds.sort(), ["east", "up", "west"]);
+  assert.deepEqual(drops, ["south"]);
+});
+
+test("a net contraction of 2+ also reports", () => {
+  const prior = makeSnapshot({ topSubmarkets: ["a", "b", "c", "d"] });
+  const current = makeSnapshot({ topSubmarkets: ["a", "b"] });
+  const drops = diffSnapshots(prior, current).filter((c) => c.type === "submarket_dropped");
+  assert.equal(drops.length, 2);
+});
+
+test("submarket threshold matches the documented net-count constant", () => {
+  assert.equal(SUBMARKET_NET_THRESHOLD, 2);
+  const prior = makeSnapshot({ topSubmarkets: ["a"] });
+  // Exactly at the threshold fires; one below does not.
+  const at = makeSnapshot({ topSubmarkets: ["a", "b", "c"] });
+  const below = makeSnapshot({ topSubmarkets: ["a", "b"] });
+  assert.ok(diffSnapshots(prior, at).some((c) => c.type === "submarket_added"));
+  assert.deepEqual(diffSnapshots(prior, below), []);
 });
 
 // ── Concession ─────────────────────────────────────────────────────────
