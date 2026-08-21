@@ -97,3 +97,16 @@ test("manual refresh is preview-gated and token-authenticated", () => {
   assert.match(runner, /MAXIMUM_SOURCE_AGE_MS/);
   assert.match(runner, /MINIMUM_PRIOR_COVERAGE/);
 });
+
+test("an authenticated preview administrator can capture daily supply without a token", () => {
+  const readiness = readFileSync("src/app/market-iq/internal/readiness/page.tsx", "utf8");
+  const route = readFileSync("src/app/api/market-iq/source/dwellsy/refresh/route.ts", "utf8");
+  assert.match(readiness, /action="\/api\/market-iq\/source\/dwellsy\/refresh"/);
+  assert.match(readiness, /Capture today&apos;s listing supply/);
+  assert.match(readiness, /marketIqListingSupplySnapshot\.findFirst/);
+  assert.match(route, /await auth\(\)/);
+  assert.match(route, /isAdminUser\(userId\)/);
+  assert.match(route, /marketIqReportSourceRefreshEnabled\(process\.env\)/);
+  assert.match(route, /adminAuthorized \? userId! : "import-token"/);
+  assert.match(route, /readiness\?supply=stored/);
+});
