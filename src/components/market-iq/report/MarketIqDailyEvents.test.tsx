@@ -34,11 +34,11 @@ describe("MarketIqDailyEvents", () => {
     expect(screen.getByRole("region", { name: "Concessions" })).not.toBeNull();
     expect(screen.getByRole("region", { name: "Observed 24-hour flow" })).not.toBeNull();
     expect(screen.getByText("11")).not.toBeNull();
-    expect(screen.getByText("9")).not.toBeNull();
     expect(screen.getByText("7")).not.toBeNull();
     expect(screen.getByText("3")).not.toBeNull();
-    expect(screen.getByText(/Standing active inventory and active-listing rent summaries remain withheld/)).not.toBeNull();
-    expect(screen.getAllByText(/Leased or withdrawn, undetermined/)).toHaveLength(2);
+    expect(screen.queryByText("9")).toBeNull();
+    expect(screen.getByText(/Off-market totals, standing active inventory, and active-listing rent summaries remain withheld/)).not.toBeNull();
+    expect(screen.getByText(/Leased or withdrawn, undetermined/)).not.toBeNull();
     expect(screen.getByText("New 1-bedroom apartment in Cleveland at $1,250")).not.toBeNull();
     expect(screen.getByText(/changed from \$1,800 to \$1,700 asking rent/)).not.toBeNull();
     expect(screen.getByText(/went off market after 19 days listed/)).not.toBeNull();
