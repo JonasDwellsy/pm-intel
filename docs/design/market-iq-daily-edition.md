@@ -158,16 +158,29 @@ standing inventory count is published in box scores:
    analytics MCP could not confirm the exact figure because it lacks a null
    filter operator.)
 
-2. **The source split.** The product reads `dwellsy_prod` (1,758 active); the
-   analytics MCP reads 1,340. Both reconcile internally, but the two Dwellsy
-   surfaces disagree by ~31%. Whichever number the product publishes should be
-   the one Dwellsy treats as canonical, so the daily edition does not contradict
-   another Dwellsy surface a customer might also query.
+2. **The source split, level and freshness.** The product reads `dwellsy_prod`
+   (1,758 active); the analytics MCP reads 1,340 — a ~31% level gap. On top of
+   that, the MCP store lags `dwellsy_prod` by ~4 days (latest Cleveland record
+   2026-08-17 when checked on 08-21), so it cannot corroborate live daily counts
+   at all. Dwellsy should decide which surface is canonical so the daily edition
+   does not contradict another Dwellsy surface a customer might query.
 
-Neither gate blocks the flow-driven sections (New to market, Rent changes, Off
-the market, the aging watch), which publish directly observed events. They gate
-only the standing box-score inventory count. The honest interim remains: publish
-flow, hold the standing count until both gates clear.
+3. **`deactivation_time` semantics (PR #364 finding).** The off-market flow
+   count is windowed on `deactivation_time`, the same field behind gate 1. Its
+   first live sample was 196 in 24 hours, ~4x the 90-day daily average of ~47,
+   consistent with batch-stamped deactivations rather than 196 listings leaving
+   in one day. Until Nikolay confirms `deactivation_time` reflects the actual
+   moment a listing left the market (not a batch job), the off-market count
+   carries the same reliability risk as the withheld standing count.
+
+**Which sections are safe now.** New to market, Rent changes, and Concessions
+are anchored to reliable timestamps (`listing_create_time` and the price
+change-log) and publish now. The aging watch is calendar-derived from
+`listing_create_time` and also publishes. **Off market is not in that safe set:**
+it shares the `deactivation_time` gate above and should be held, or published
+only with the "pending source reconciliation" caveat applied directly to it,
+until gate 3 clears. The standing inventory count stays withheld until gates 1
+and 2 clear.
 
 ---
 
