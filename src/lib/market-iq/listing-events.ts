@@ -28,6 +28,7 @@ export type MarketIqMarketActivity = {
   newListings24h: number;
   sourceUpdates24h: number;
   confirmedPriceChanges24h: number;
+  advertisedConcessions24h: number;
   delistings24h: number;
   agingThresholds24h: number;
   eventsTruncated?: boolean;

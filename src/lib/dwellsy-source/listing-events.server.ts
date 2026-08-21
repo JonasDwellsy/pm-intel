@@ -39,6 +39,7 @@ type CountRow = {
   new_listings_24h: string | number;
   source_updates_24h: string | number;
   confirmed_price_changes_24h: string | number;
+  advertised_concessions_24h: string | number;
   delistings_24h: string | number;
   aging_thresholds_24h: string | number;
   as_of: Date | string;
@@ -305,6 +306,26 @@ const COUNTS_SQL = `
       AND amount_log.created_at >= NOW() - INTERVAL '24 hours'
       AND prior.listing_amount IS DISTINCT FROM amount_log.listing_amount
   ),
+  concession_counts AS (
+    SELECT COUNT(*) AS advertised_concessions_24h,
+           MAX(listing.listing_create_time) AS as_of
+    FROM dwellsy_prod.active_listing_table listing
+    JOIN dwellsy_prod.property_listing_table canonical ON canonical.id = listing.listing_id
+    WHERE listing.msa_code = $1::bigint
+      AND listing.active_listing_status = 'active'
+      AND listing.record_status = 'active'
+      AND listing.property_category IN ('Apartment', 'House')
+      AND COALESCE(listing.room_for_rent_flag, false) = false
+      AND listing.listing_amount > 0
+      AND listing.bedrooms IS NOT NULL
+      AND listing.property_id IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_1), '') IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_city), '') IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
+      AND listing.listing_create_time >= NOW() - INTERVAL '24 hours'
+      AND CONCAT_WS(' ', canonical.listing_title, canonical.listing_short_text, canonical.listing_long_text) ~* $concession$${CONCESSION_SQL_PATTERN}$concession$
+      AND NOT CONCAT_WS(' ', canonical.listing_title, canonical.listing_short_text, canonical.listing_long_text) ~* $negated$${CONCESSION_SQL_NEGATED_PATTERN}$negated$
+  ),
   aging_counts AS (
     SELECT COUNT(*) AS aging_thresholds_24h
     FROM dwellsy_prod.active_listing_table listing
@@ -350,10 +371,11 @@ const COUNTS_SQL = `
   SELECT source_counts.new_listings_24h,
          source_counts.source_updates_24h,
          confirmed_changes.confirmed_price_changes_24h,
+         concession_counts.advertised_concessions_24h,
          delisting_counts.delistings_24h,
          aging_counts.aging_thresholds_24h,
-         GREATEST(source_counts.as_of, confirmed_changes.as_of, delisting_counts.as_of) AS as_of
-  FROM source_counts CROSS JOIN confirmed_changes CROSS JOIN delisting_counts CROSS JOIN aging_counts
+         GREATEST(source_counts.as_of, confirmed_changes.as_of, concession_counts.as_of, delisting_counts.as_of) AS as_of
+  FROM source_counts CROSS JOIN confirmed_changes CROSS JOIN concession_counts CROSS JOIN delisting_counts CROSS JOIN aging_counts
 `;
 
 function primaryImageUrl(value: unknown): string | null {
@@ -436,6 +458,7 @@ export async function loadMarketListingActivity(msaCode: string): Promise<Market
       newListings24h: Number(counts.new_listings_24h),
       sourceUpdates24h: Number(counts.source_updates_24h),
       confirmedPriceChanges24h: Number(counts.confirmed_price_changes_24h),
+      advertisedConcessions24h: Number(counts.advertised_concessions_24h),
       delistings24h: Number(counts.delistings_24h),
       agingThresholds24h: Number(counts.aging_thresholds_24h),
       eventsTruncated: reportableEvents.length > MAX_SAVED_ACTIVITY_EVENTS,

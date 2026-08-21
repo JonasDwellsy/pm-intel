@@ -7,10 +7,11 @@ const available: MarketIqMarketActivityAvailability = {
   state: "available",
   activity: {
     asOf: "2026-08-21T15:00:00.000Z",
-    newListings24h: 1,
+    newListings24h: 11,
     sourceUpdates24h: 2,
-    confirmedPriceChanges24h: 1,
-    delistings24h: 1,
+    confirmedPriceChanges24h: 7,
+    advertisedConcessions24h: 3,
+    delistings24h: 9,
     agingThresholds24h: 1,
     events: [
       { id: "new:1", eventType: "new_listing", city: "Cleveland", zip: "44113", propertyType: "apartment", bedrooms: 1, askingRent: 1_250, previousRent: null, observedAt: "2026-08-21T14:30:00.000Z" },
@@ -31,7 +32,13 @@ describe("MarketIqDailyEvents", () => {
     expect(screen.getByRole("region", { name: "Off the market" })).not.toBeNull();
     expect(screen.getByRole("region", { name: "The aging watch" })).not.toBeNull();
     expect(screen.getByRole("region", { name: "Concessions" })).not.toBeNull();
-    expect(screen.getByText(/Leased or withdrawn, undetermined/)).not.toBeNull();
+    expect(screen.getByRole("region", { name: "Observed 24-hour flow" })).not.toBeNull();
+    expect(screen.getByText("11")).not.toBeNull();
+    expect(screen.getByText("9")).not.toBeNull();
+    expect(screen.getByText("7")).not.toBeNull();
+    expect(screen.getByText("3")).not.toBeNull();
+    expect(screen.getByText(/Standing active inventory and active-listing rent summaries remain withheld/)).not.toBeNull();
+    expect(screen.getAllByText(/Leased or withdrawn, undetermined/)).toHaveLength(2);
     expect(screen.getByText("New 1-bedroom apartment in Cleveland at $1,250")).not.toBeNull();
     expect(screen.getByText(/changed from \$1,800 to \$1,700 asking rent/)).not.toBeNull();
     expect(screen.getByText(/went off market after 19 days listed/)).not.toBeNull();
@@ -40,7 +47,7 @@ describe("MarketIqDailyEvents", () => {
     expect(screen.getByText(/Live age, not days on market/)).not.toBeNull();
     expect(screen.getByText(/Free-rent offer advertised/)).not.toBeNull();
     expect(screen.getByText(/advertised, not verified/)).not.toBeNull();
-    expect(screen.getAllByText(/^Observed /)).toHaveLength(4);
+    expect(screen.getAllByText(/^Observed Aug/)).toHaveLength(4);
     expect(screen.getByText(/^Crossed /)).not.toBeNull();
     expect(screen.getByText(/^Source current through /)).not.toBeNull();
   });
@@ -52,6 +59,7 @@ describe("MarketIqDailyEvents", () => {
     expect(screen.getByText(/Read attempted /)).not.toBeNull();
     expect(screen.queryByText(/^Source current through /)).toBeNull();
     expect(screen.queryByRole("region", { name: "New to market" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Observed 24-hour flow" })).toBeNull();
     expect(screen.getByText(/No monthly trend, seeded example, or other substitute/)).not.toBeNull();
   });
 
