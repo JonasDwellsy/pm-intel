@@ -1,3 +1,5 @@
+import type { MarketIqAdvertisedConcession } from "@/lib/market-iq/concessions";
+
 type MarketIqListingEventBase = {
   id: string;
   address?: string | null;
@@ -16,6 +18,7 @@ export type MarketIqAgingThresholdDays = 30 | 60 | 90;
 
 export type MarketIqListingEvent = MarketIqListingEventBase & (
   | { eventType: "new_listing" | "price_change"; listingAgeDays?: never }
+  | { eventType: "concession"; concession: MarketIqAdvertisedConcession; listingAgeDays?: never }
   | { eventType: "delisting"; listingAgeDays: number }
   | { eventType: "aging_threshold"; listingAgeDays: MarketIqAgingThresholdDays }
 );

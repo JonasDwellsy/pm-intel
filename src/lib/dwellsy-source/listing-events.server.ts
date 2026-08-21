@@ -14,10 +14,11 @@ import type {
   MarketIqMarketActivityAvailability,
 } from "@/lib/market-iq/listing-events";
 import { readMarketIqActivityAvailability } from "@/lib/market-iq/listing-events";
+import { parseAdvertisedConcession } from "@/lib/market-iq/concessions";
 
 type EventRow = {
   event_id: string;
-  event_type: "new_listing" | "price_change" | "delisting" | "aging_threshold";
+  event_type: "new_listing" | "price_change" | "delisting" | "aging_threshold" | "concession";
   property_id: string | number;
   address_1: string | null;
   address_2: string | null;
@@ -31,6 +32,7 @@ type EventRow = {
   listing_age_days: string | number | null;
   observed_at: Date | string;
   media: unknown;
+  concession_text: string | null;
 };
 
 type CountRow = {
@@ -44,6 +46,19 @@ type CountRow = {
 
 const MAX_SAVED_ACTIVITY_EVENTS = 200;
 const MIN_SAVED_EVENTS_PER_TYPE = 6;
+
+const CONCESSION_SQL_PATTERN = [
+  String.raw`\m([0-9]+|one|two|three)[ -]?(month|week)s?\M.{0,24}\m(free|credit)\M`,
+  String.raw`\mfree\M.{0,16}\m(month|week|rent)\M`,
+  String.raw`\$[[:space:]]?[0-9][0-9,]*(\.[0-9]{2})?.{0,12}\m(off|credit)\M`,
+  String.raw`\m(rent|lease)\M.{0,20}\mcredit\M`,
+  String.raw`\m(waive|waived|waiving|free)\M.{0,16}\m(application|admin|fee)\M`,
+  String.raw`\m(application|admin|fee)\M.{0,16}\m(waived|free)\M`,
+  String.raw`\mdeposit[- ]free\M`,
+  String.raw`\m(waive|waived|waiving)\M.{0,16}\mdeposit\M`,
+  String.raw`\mdeposit\M.{0,20}\mspecial\M`,
+  String.raw`\m(move[ -]?in|leasing|lease|rent)\M.{0,24}\m(special|discount)\M`,
+].join("|");
 
 const ACTIVITY_SQL = `
   WITH recent_price_logs AS (
@@ -79,7 +94,8 @@ const ACTIVITY_SQL = `
            NULL::numeric AS previous_rent,
            NULL::integer AS listing_age_days,
            listing.listing_create_time AS observed_at,
-           listing.media
+           listing.media,
+           NULL::text AS concession_text
     FROM dwellsy_prod.active_listing_table listing
     WHERE listing.msa_code = $1::bigint
       AND listing.active_listing_status = 'active'
@@ -93,6 +109,39 @@ const ACTIVITY_SQL = `
       AND NULLIF(BTRIM(listing.address_city), '') IS NOT NULL
       AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
       AND listing.listing_create_time >= NOW() - INTERVAL '24 hours'
+  ),
+  concession_events AS (
+    SELECT CONCAT('concession:', listing.listing_id::text) AS event_id,
+           'concession'::text AS event_type,
+           listing.property_id,
+           listing.address_1,
+           listing.address_2,
+           listing.address_3,
+           listing.address_city AS city,
+           listing.address_zip AS postal_code,
+           listing.property_category AS property_type,
+           listing.bedrooms,
+           listing.listing_amount AS asking_rent,
+           NULL::numeric AS previous_rent,
+           NULL::integer AS listing_age_days,
+           listing.listing_create_time AS observed_at,
+           listing.media,
+           CONCAT_WS(' ', canonical.listing_title, canonical.listing_short_text, canonical.listing_long_text) AS concession_text
+    FROM dwellsy_prod.active_listing_table listing
+    JOIN dwellsy_prod.property_listing_table canonical ON canonical.id = listing.listing_id
+    WHERE listing.msa_code = $1::bigint
+      AND listing.active_listing_status = 'active'
+      AND listing.record_status = 'active'
+      AND listing.property_category IN ('Apartment', 'House')
+      AND COALESCE(listing.room_for_rent_flag, false) = false
+      AND listing.listing_amount > 0
+      AND listing.bedrooms IS NOT NULL
+      AND listing.property_id IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_1), '') IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_city), '') IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
+      AND listing.listing_create_time >= NOW() - INTERVAL '24 hours'
+      AND CONCAT_WS(' ', canonical.listing_title, canonical.listing_short_text, canonical.listing_long_text) ~* $concession$${CONCESSION_SQL_PATTERN}$concession$
   ),
   price_events AS (
     SELECT CONCAT('price:', price.id::text) AS event_id,
@@ -109,7 +158,8 @@ const ACTIVITY_SQL = `
            price.previous_amount AS previous_rent,
            NULL::integer AS listing_age_days,
            price.created_at AS observed_at,
-           listing.media
+           listing.media,
+           NULL::text AS concession_text
     FROM recent_price_logs price
     JOIN dwellsy_prod.active_listing_table listing ON listing.listing_id = price.listing_id
     WHERE listing.msa_code = $1::bigint
@@ -139,7 +189,8 @@ const ACTIVITY_SQL = `
            NULL::numeric AS previous_rent,
            threshold.days::integer AS listing_age_days,
            listing.listing_create_time + make_interval(days => threshold.days) AS observed_at,
-           listing.media
+           listing.media,
+           NULL::text AS concession_text
     FROM dwellsy_prod.active_listing_table listing
     CROSS JOIN (VALUES (30), (60), (90)) threshold(days)
     WHERE listing.msa_code = $1::bigint
@@ -171,7 +222,8 @@ const ACTIVITY_SQL = `
            NULL::numeric AS previous_rent,
            FLOOR(EXTRACT(EPOCH FROM (listing.deactivation_time - listing.creation_time)) / 86400)::integer AS listing_age_days,
            listing.deactivation_time AS observed_at,
-           NULL::json AS media
+           NULL::json AS media,
+           NULL::text AS concession_text
     FROM dwellsy_prod.property_listing_table listing
     JOIN dwellsy_prod.property_table property ON property.id = listing.property_id
     WHERE property.msa_code = $1::bigint
@@ -195,12 +247,14 @@ const ACTIVITY_SQL = `
   )
   SELECT event_id, event_type, property_id, address_1, address_2, address_3,
          city, postal_code, property_type, bedrooms, asking_rent, previous_rent,
-         listing_age_days, observed_at, media
+         listing_age_days, observed_at, media, concession_text
   FROM (
     SELECT activity.*,
            ROW_NUMBER() OVER (PARTITION BY event_type ORDER BY observed_at DESC) AS event_rank
     FROM (
       SELECT * FROM new_events
+      UNION ALL
+      SELECT * FROM concession_events
       UNION ALL
       SELECT * FROM price_events
       UNION ALL
@@ -339,6 +393,11 @@ function event(row: EventRow): MarketIqListingEvent | null {
   if (row.event_type === "price_change") {
     if (previousRent === null || !Number.isFinite(previousRent)) return null;
     return { ...common, eventType: row.event_type, previousRent };
+  }
+  if (row.event_type === "concession") {
+    const concession = parseAdvertisedConcession(row.concession_text);
+    if (!concession) return null;
+    return { ...common, eventType: row.event_type, previousRent: null, concession };
   }
   if (row.event_type === "delisting") {
     if (listingAgeDays === null || !Number.isFinite(listingAgeDays) || listingAgeDays < 0) return null;
