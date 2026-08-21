@@ -70,25 +70,32 @@ All figures below were measured directly against the live Dwellsy dataset on
 21 August 2026 for the Cleveland–Elyria–Mentor, OH MSA. They are the basis for
 every cadence decision in this document.
 
-| Signal                            | Value             | Basis                    |
-| --------------------------------- | ----------------- | ------------------------ |
-| Active listings                   | 1,340             | Standing inventory       |
-| New listings                      | ~11 / day         | 77 over 7 days           |
-| Delistings                        | ~12 / day         | 81 over 7 days           |
-| Median time to resolution         | 21 days           | 53,660 closed listings   |
-| Median asking rent, active        | $1,245            | All bedroom counts       |
+> **Flow figures corrected 21 Aug (step-3 diagnostic).** The original 11–12
+> events/day baseline came from a single 7-day window through the analytics MCP
+> and was a significant undercount. Two independent lenses over a 90-day window
+> both show materially higher, balanced flow — see the corrected table.
 
-Inflow and outflow are close to balanced at roughly 11 in and 12 out per day.
-That yields about 23 flow events daily, before price changes, which could not be
-measured through the analytics interface because they live in the `dwellsy_prod`
-table the application reads directly. A reasonable working estimate is **25 to 35
-events per day.**
+| Signal                            | Value                          | Basis                                   |
+| --------------------------------- | ------------------------------ | --------------------------------------- |
+| Active listings                   | 1,758 (prod) / 1,340 (MCP)     | Product reads prod; see source split    |
+| New listings                      | ~47.8 / day (prod), 29.4 (MCP) | 90-day average, both lenses             |
+| Delistings                        | ~47.3 / day (prod)             | 90-day average                          |
+| Median time to resolution         | 21 days                        | 53,660 closed listings                  |
+| Median asking rent, active        | $1,245                         | All bedroom counts                      |
 
-**Verdict: daily is viable, but not on flow alone.** A daily edition built only
-from new listings would look thin on a slow Tuesday. The resolution is that
-newspapers do not fill themselves from new events; they fill themselves from
-standing sections. The most dependable of those is the calendar (see The Aging
-Watch, below).
+Inflow and outflow are close to balanced (~47.8 in, ~47.3 out per day in
+production). That is roughly 95 flow events daily before price changes, well
+above the earlier estimate. **Daily is comfortably viable on flow.** The
+calendar-driven aging watch remains valuable for quiet days, but flow alone now
+clears the bar.
+
+**Source split to understand before publishing counts.** The product reads
+`dwellsy_prod` (1,758 active); the analytics MCP lens reads 1,340. Both reconcile
+flow against stock — implied tenure of 28 to 37 days matches the observed active
+count under each lens, so there is no broad stale-inventory problem — but the two
+Dwellsy surfaces disagree on the absolute count by about 31%. For a product whose
+entire value is credibility, that gap must be understood before a standing
+inventory number is published (see the reframed blocker below).
 
 ---
 
@@ -113,7 +120,7 @@ out by market, bedroom count and rent band, and trended over time.
 
 Two engineering consequences follow:
 
-1. Any live listing-age display must compute age from `creation_time`, because
+1. Any live listing-age display must compute age from `listing_create_time` (the canonical field; plain `creation_time` is imprecise), because
    the DOM column will be null for every active row.
 2. The time-to-resolution feature needs its own query path, since existing
    readers filter to active listings and would return an empty set.
@@ -127,34 +134,40 @@ and presented as observed.
 
 ---
 
-## Blocker: inventory does not reconcile
+## Reframed blocker: inventory reconciles; two narrower gates remain
 
-Observed active inventory runs four to six times higher than flow and tenure
-predict.
+> **Corrected 21 Aug after the step-3 diagnostic.** The original blocker claimed
+> a 4-to-6× stale-inventory discrepancy. That claim was an artifact of an
+> undercounted 7-day flow denominator (~11/day). Under a corrected 90-day window,
+> flow and stock reconcile and **the broad discrepancy does not exist.**
 
-| Input                             | Value        | Source                    |
-| --------------------------------- | ------------ | ------------------------- |
-| Daily inflow                      | ~11 / day    | Measured, 7-day window    |
-| Median time to resolution         | 21 days      | Measured, 53,660 records  |
-| Implied steady-state inventory    | 230 to 330   | Derived                   |
-| Observed active inventory         | **1,340**    | Measured                  |
+| Input                             | Value           | Source                        |
+| --------------------------------- | --------------- | ----------------------------- |
+| Daily inflow (production)         | ~47.8 / day     | 90-day average, `dwellsy_prod`|
+| Daily outflow (production)        | ~47.3 / day     | 90-day average, `dwellsy_prod`|
+| Implied steady-state inventory    | ~1,340 to 1,770 | Derived (tenure 28–37 days)   |
+| Observed active inventory         | 1,758 (prod)    | Measured, both lenses agree it reconciles |
 
-Two explanations fit. Either the active pool carries stale listings that leased
-or were withdrawn without receiving a deactivation event, or current inflow is
-seasonally depressed against a normally sized standing pool. Which one is true
-cannot be determined from outside the pipeline.
+Broad stale inventory is not supported. Two narrower gates remain before a
+standing inventory count is published in box scores:
 
-A monthly product survives a soft inventory count because no reader checks it
-against their own leasing board. A daily product does not. The first Cleveland
-property manager who reads *1,340 active listings* while knowing the real figure
-is nearer 400 will stop trusting every other number on the page, and that trust
-does not come back.
+1. **133 contradictory rows.** ~133 active records carry a deactivation
+   timestamp, a lifecycle-semantic contradiction (active yet marked deactivated).
+   These need targeted QA before the active count is published, because they may
+   inflate or misstate the count. (Measured by Codex against production; the
+   analytics MCP could not confirm the exact figure because it lacks a null
+   filter operator.)
 
-This is a prerequisite to daily publication rather than an improvement to it. If
-it cannot be settled before launch, the honest interim is to publish flow counts,
-which are directly observed, and withhold the standing inventory count until it
-reconciles. Investigation is scoped as a read-only diagnostic item in the build
-sequence below.
+2. **The source split.** The product reads `dwellsy_prod` (1,758 active); the
+   analytics MCP reads 1,340. Both reconcile internally, but the two Dwellsy
+   surfaces disagree by ~31%. Whichever number the product publishes should be
+   the one Dwellsy treats as canonical, so the daily edition does not contradict
+   another Dwellsy surface a customer might also query.
+
+Neither gate blocks the flow-driven sections (New to market, Rent changes, Off
+the market, the aging watch), which publish directly observed events. They gate
+only the standing box-score inventory count. The honest interim remains: publish
+flow, hold the standing count until both gates clear.
 
 ---
 
@@ -191,7 +204,7 @@ into three honest categories:
 | New to market    | Listings first observed since the last edition, rent + beds     | `listing-events.server.ts`          | Daily           | Observation date, not listing date      |
 | Rent changes     | Confirmed price changes, previous and current asking rent       | `confirmed_price_changes_24h`       | Daily           | Asking rent, not achieved rent          |
 | Off the market   | Listings that disappeared, with the age they reached            | `deactivation_time` (reader must be extended) | Daily | Leased or withdrawn, undetermined       |
-| The aging watch  | Listings crossing 30, 60 and 90 days still live                 | computed from `creation_time`       | Daily           | Live age; DOM column null while active  |
+| The aging watch  | Listings crossing 30, 60 and 90 days still live                 | computed from `listing_create_time` | Daily           | Live age; DOM column null while active  |
 | Time to fill     | Median + distribution of time to resolution, by beds/rent band  | `days_on_market` on inactive rows   | Weekly refresh  | Time to resolution, not time to lease   |
 | Concessions      | Free-month and incentive language in new listing text           | `description`, existing parsing      | Daily           | Advertised, not verified                |
 | Box scores       | Active inventory, live median asking rent, inflow/outflow       | `active-listings.server.ts`         | Daily           | Held back until inventory reconciles    |
@@ -258,7 +271,7 @@ Section copy should describe movement and let the reader supply causation.
    render the section. Split out of step 1 because it is a source-layer change,
    not wiring. One PR, depends on step 1.
 
-2. **Add the aging watch.** Compute live listing age from `creation_time` and
+2. **Add the aging watch (DONE — PR #361).** Compute live listing age from `listing_create_time` and
    emit crossings at 30, 60 and 90 days. Depends on step 1 for the headline
    mechanism and guarantees daily content volume on low-flow days. One PR.
 
