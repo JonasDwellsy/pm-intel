@@ -150,7 +150,7 @@ export async function buildLiveMarketIqReportSnapshot(input: {
         name: "Total IQ listing activity feed",
         availableThrough: marketActivity.asOf.slice(0, 10),
         observationCount: marketActivity.events.length,
-        note: "Used for observed daily new-listing, asking-rent-change, and delisting activity only.",
+        note: "Used for observed daily new-listing, asking-rent-change, delisting, and live-age threshold activity only.",
       }] : []),
       {
         name: "U.S. Census Bureau ZCTAs",

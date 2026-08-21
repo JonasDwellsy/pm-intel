@@ -11,10 +11,12 @@ const available: MarketIqMarketActivityAvailability = {
     sourceUpdates24h: 2,
     confirmedPriceChanges24h: 1,
     delistings24h: 1,
+    agingThresholds24h: 1,
     events: [
       { id: "new:1", eventType: "new_listing", city: "Cleveland", zip: "44113", propertyType: "apartment", bedrooms: 1, askingRent: 1_250, previousRent: null, observedAt: "2026-08-21T14:30:00.000Z" },
       { id: "price:2", eventType: "price_change", city: "Lakewood", zip: "44107", propertyType: "house", bedrooms: 3, askingRent: 1_700, previousRent: 1_800, observedAt: "2026-08-21T13:15:00.000Z" },
       { id: "delisting:3", eventType: "delisting", city: "Cleveland Heights", zip: "44118", propertyType: "apartment", bedrooms: 2, askingRent: 1_425, previousRent: null, listingAgeDays: 19, observedAt: "2026-08-21T12:45:00.000Z" },
+      { id: "aging:4:30", eventType: "aging_threshold", city: "Shaker Heights", zip: "44120", propertyType: "house", bedrooms: 3, askingRent: 1_850, previousRent: null, listingAgeDays: 30, observedAt: "2026-08-21T11:15:00.000Z" },
     ],
   },
 };
@@ -26,12 +28,16 @@ describe("MarketIqDailyEvents", () => {
     expect(screen.getByRole("region", { name: "New to market" })).not.toBeNull();
     expect(screen.getByRole("region", { name: "Rent changes" })).not.toBeNull();
     expect(screen.getByRole("region", { name: "Off the market" })).not.toBeNull();
+    expect(screen.getByRole("region", { name: "The aging watch" })).not.toBeNull();
     expect(screen.getByText(/Leased or withdrawn, undetermined/)).not.toBeNull();
     expect(screen.getByText("New 1-bedroom apartment in Cleveland at $1,250")).not.toBeNull();
     expect(screen.getByText(/changed from \$1,800 to \$1,700 asking rent/)).not.toBeNull();
     expect(screen.getByText(/went off market after 19 days listed/)).not.toBeNull();
     expect(screen.getByText(/may have leased or been withdrawn; the outcome is undetermined/)).not.toBeNull();
+    expect(screen.getByText(/reached 30 days live/)).not.toBeNull();
+    expect(screen.getByText(/Live age, not days on market/)).not.toBeNull();
     expect(screen.getAllByText(/^Observed /)).toHaveLength(3);
+    expect(screen.getByText(/^Crossed /)).not.toBeNull();
     expect(screen.getByText(/^Source current through /)).not.toBeNull();
   });
 
@@ -51,6 +57,7 @@ describe("MarketIqDailyEvents", () => {
     expect(screen.getByText("No new listings were observed for the period.")).not.toBeNull();
     expect(screen.getByText("No confirmed asking-rent changes were observed for the period.")).not.toBeNull();
     expect(screen.getByText("No listings were observed leaving the market for the period.")).not.toBeNull();
+    expect(screen.getByText("No active listings crossed an aging threshold for the period.")).not.toBeNull();
     expect(screen.queryByText("The listing-event source read was unavailable.")).toBeNull();
   });
 });

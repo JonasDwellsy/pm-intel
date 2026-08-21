@@ -8,6 +8,7 @@ import {
   type MarketIqPropertyType,
 } from "@/lib/market-iq/report/report";
 import type {
+  MarketIqAgingThresholdDays,
   MarketIqListingEvent,
   MarketIqMarketActivity,
   MarketIqMarketActivityAvailability,
@@ -16,7 +17,7 @@ import { readMarketIqActivityAvailability } from "@/lib/market-iq/listing-events
 
 type EventRow = {
   event_id: string;
-  event_type: "new_listing" | "price_change" | "delisting";
+  event_type: "new_listing" | "price_change" | "delisting" | "aging_threshold";
   property_id: string | number;
   address_1: string | null;
   address_2: string | null;
@@ -37,10 +38,12 @@ type CountRow = {
   source_updates_24h: string | number;
   confirmed_price_changes_24h: string | number;
   delistings_24h: string | number;
+  aging_thresholds_24h: string | number;
   as_of: Date | string;
 };
 
 const MAX_SAVED_ACTIVITY_EVENTS = 200;
+const MIN_SAVED_EVENTS_PER_TYPE = 6;
 
 const ACTIVITY_SQL = `
   WITH recent_price_logs AS (
@@ -121,6 +124,38 @@ const ACTIVITY_SQL = `
       AND NULLIF(BTRIM(listing.address_city), '') IS NOT NULL
       AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
   ),
+  aging_events AS (
+    SELECT CONCAT('aging:', listing.listing_id::text, ':', threshold.days::text) AS event_id,
+           'aging_threshold'::text AS event_type,
+           listing.property_id,
+           listing.address_1,
+           listing.address_2,
+           listing.address_3,
+           listing.address_city AS city,
+           listing.address_zip AS postal_code,
+           listing.property_category AS property_type,
+           listing.bedrooms,
+           listing.listing_amount AS asking_rent,
+           NULL::numeric AS previous_rent,
+           threshold.days::integer AS listing_age_days,
+           listing.listing_create_time + make_interval(days => threshold.days) AS observed_at,
+           listing.media
+    FROM dwellsy_prod.active_listing_table listing
+    CROSS JOIN (VALUES (30), (60), (90)) threshold(days)
+    WHERE listing.msa_code = $1::bigint
+      AND listing.active_listing_status = 'active'
+      AND listing.record_status = 'active'
+      AND listing.property_category IN ('Apartment', 'House')
+      AND COALESCE(listing.room_for_rent_flag, false) = false
+      AND listing.listing_amount > 0
+      AND listing.bedrooms IS NOT NULL
+      AND listing.property_id IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_1), '') IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_city), '') IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
+      AND listing.listing_create_time + make_interval(days => threshold.days) >= NOW() - INTERVAL '24 hours'
+      AND listing.listing_create_time + make_interval(days => threshold.days) <= NOW()
+  ),
   delisting_events AS (
     SELECT CONCAT('delisting:', listing.id::text) AS event_id,
            'delisting'::text AS event_type,
@@ -158,15 +193,24 @@ const ACTIVITY_SQL = `
       AND NULLIF(BTRIM(property.address_city), '') IS NOT NULL
       AND NULLIF(BTRIM(property.address_zip), '') IS NOT NULL
   )
-  SELECT *
+  SELECT event_id, event_type, property_id, address_1, address_2, address_3,
+         city, postal_code, property_type, bedrooms, asking_rent, previous_rent,
+         listing_age_days, observed_at, media
   FROM (
-    SELECT * FROM new_events
-    UNION ALL
-    SELECT * FROM price_events
-    UNION ALL
-    SELECT * FROM delisting_events
-  ) activity
-  ORDER BY observed_at DESC
+    SELECT activity.*,
+           ROW_NUMBER() OVER (PARTITION BY event_type ORDER BY observed_at DESC) AS event_rank
+    FROM (
+      SELECT * FROM new_events
+      UNION ALL
+      SELECT * FROM price_events
+      UNION ALL
+      SELECT * FROM aging_events
+      UNION ALL
+      SELECT * FROM delisting_events
+    ) activity
+  ) ranked_activity
+  ORDER BY CASE WHEN event_rank <= ${MIN_SAVED_EVENTS_PER_TYPE} THEN 0 ELSE 1 END,
+           observed_at DESC
   LIMIT ${MAX_SAVED_ACTIVITY_EVENTS + 1}
 `;
 
@@ -202,6 +246,24 @@ const COUNTS_SQL = `
       AND amount_log.created_at >= NOW() - INTERVAL '24 hours'
       AND prior.listing_amount IS DISTINCT FROM amount_log.listing_amount
   ),
+  aging_counts AS (
+    SELECT COUNT(*) AS aging_thresholds_24h
+    FROM dwellsy_prod.active_listing_table listing
+    CROSS JOIN (VALUES (30), (60), (90)) threshold(days)
+    WHERE listing.msa_code = $1::bigint
+      AND listing.active_listing_status = 'active'
+      AND listing.record_status = 'active'
+      AND listing.property_category IN ('Apartment', 'House')
+      AND COALESCE(listing.room_for_rent_flag, false) = false
+      AND listing.listing_amount > 0
+      AND listing.bedrooms IS NOT NULL
+      AND listing.property_id IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_1), '') IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_city), '') IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
+      AND listing.listing_create_time + make_interval(days => threshold.days) >= NOW() - INTERVAL '24 hours'
+      AND listing.listing_create_time + make_interval(days => threshold.days) <= NOW()
+  ),
   delisting_counts AS (
     SELECT COUNT(*) AS delistings_24h,
            MAX(listing.deactivation_time) AS as_of
@@ -230,8 +292,9 @@ const COUNTS_SQL = `
          source_counts.source_updates_24h,
          confirmed_changes.confirmed_price_changes_24h,
          delisting_counts.delistings_24h,
+         aging_counts.aging_thresholds_24h,
          GREATEST(source_counts.as_of, confirmed_changes.as_of, delisting_counts.as_of) AS as_of
-  FROM source_counts CROSS JOIN confirmed_changes CROSS JOIN delisting_counts
+  FROM source_counts CROSS JOIN confirmed_changes CROSS JOIN delisting_counts CROSS JOIN aging_counts
 `;
 
 function primaryImageUrl(value: unknown): string | null {
@@ -281,6 +344,15 @@ function event(row: EventRow): MarketIqListingEvent | null {
     if (listingAgeDays === null || !Number.isFinite(listingAgeDays) || listingAgeDays < 0) return null;
     return { ...common, eventType: row.event_type, previousRent: null, listingAgeDays };
   }
+  if (row.event_type === "aging_threshold") {
+    if (listingAgeDays !== 30 && listingAgeDays !== 60 && listingAgeDays !== 90) return null;
+    return {
+      ...common,
+      eventType: row.event_type,
+      previousRent: null,
+      listingAgeDays: listingAgeDays as MarketIqAgingThresholdDays,
+    };
+  }
   return { ...common, eventType: row.event_type, previousRent: null };
 }
 
@@ -301,6 +373,7 @@ export async function loadMarketListingActivity(msaCode: string): Promise<Market
       sourceUpdates24h: Number(counts.source_updates_24h),
       confirmedPriceChanges24h: Number(counts.confirmed_price_changes_24h),
       delistings24h: Number(counts.delistings_24h),
+      agingThresholds24h: Number(counts.aging_thresholds_24h),
       eventsTruncated: reportableEvents.length > MAX_SAVED_ACTIVITY_EVENTS,
       events: reportableEvents.slice(0, MAX_SAVED_ACTIVITY_EVENTS),
     };

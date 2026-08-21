@@ -188,6 +188,7 @@ function eventLabel(event: MarketIqListingEvent) {
   const segment = `${event.bedrooms === 0 ? "Studio" : `${event.bedrooms}-bed`} ${event.propertyType}`;
   if (event.eventType === "price_change" && event.previousRent) return `${segment} changed from ${money(event.previousRent)} to ${money(event.askingRent)}`;
   if (event.eventType === "delisting") return `${segment} went off market at a last asking rent of ${money(event.askingRent)}`;
+  if (event.eventType === "aging_threshold") return `${segment} reached ${event.listingAgeDays} days live at ${money(event.askingRent)} asking rent`;
   return `New ${segment} listed at ${money(event.askingRent)}`;
 }
 
