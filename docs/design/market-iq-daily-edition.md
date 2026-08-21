@@ -165,35 +165,39 @@ standing inventory count is published in box scores:
    at all. Dwellsy should decide which surface is canonical so the daily edition
    does not contradict another Dwellsy surface a customer might query.
 
-3. **`deactivation_time` semantics — RESOLVED, off-market held indefinitely.**
-   Investigation (Codex production read, confirmed by CEO) found no reliable field
-   anywhere in `dwellsy_prod` — no reason/mechanism column, no `listing_json`
-   provenance key, no lifecycle audit relation — that distinguishes a communicated
-   removal from Dwellsy's automatic deactivation. `listing_status_info` records a
-   terminal label but not provenance. The 196/24h spike was almost entirely "Not
-   on Feed" (194), and 2,789 of 3,658 90-day "Not on Feed" records have
-   `deactivation_time` aligned with `last_query_time` in batch-identical stamps.
-   That proves "Not on Feed" marks when Dwellsy's crawler stopped seeing the
-   listing, not when it left the market. There is no honest basis for a filter, so
-   off-market is **held indefinitely** — both the #364 box score (already removed)
-   and the merged #362 daily section (removal pending).
+3. **`deactivation_time` semantics — RESOLVED, off-market publishes.** An earlier
+   revision of this doc held off-market on the theory that `deactivation_time` was
+   an unreliable, laggy artifact. The CEO corrected that: Dwellsy checks each
+   listing hundreds of times a day (4-6 in the worst case), so detection lag
+   between a listing actually ending and Dwellsy recording it is minutes to hours
+   — near-real-time. The `deactivation_time == last_query_time` alignment is not
+   an artifact; it is what correct real-time detection looks like (the crawler
+   stamps the deactivation at the moment it confirms the listing is gone), and
+   batch-identical stamps are just crawl-cadence grouping of real departures. The
+   196/24h "spike" was 194 "Not on Feed" (genuine feed departures) and 1 "Stale
+   listing" — a real chunk of real departures, not a fake surge.
 
-**The arrival/departure asymmetry (durable design principle).** Dwellsy observes
-listings *appearing* reliably — a new listing has a real `listing_create_time`.
-It cannot reliably observe listings *leaving*, because `deactivation_time`
-conflates real removal with the crawler losing sight of a listing, and the two
-are indistinguishable. The daily edition is therefore built on the arrival side
-and the still-live side; departure is structurally unreliable and off-market is
-not a publishable event. This also bears on the withheld standing inventory count:
-if departures lag reality, the active count drifts, which may partly explain the
-1,758-vs-1,340 split.
+   The only residual is the CEO-confirmed auto-threshold mechanism: Dwellsy
+   sometimes deactivates a listing on age rather than departure. In the data that
+   is the small "Stale listing" bucket (~3.7/day) against ~40/day "Not on Feed."
+   So off-market **publishes** as near-real-time observed departures, keeping the
+   "leased or withdrawn, undetermined" label. If `listing_status_info` can flag
+   "Stale listing," exclude those ~4/day; if it cannot be relied on, publish the
+   full count with a one-line note that a small share are age-based deactivations
+   rather than confirmed departures. Both the #364 box score and the merged #362
+   section stay.
 
-**Which sections are safe now.** New to market, Rent changes, and Concessions are
-anchored to reliable timestamps (`listing_create_time` and the price change-log)
-and publish now. The aging watch is calendar-derived from `listing_create_time`
-and also publishes — it is the honest version of the "getting stale" story that
-off-market tried to tell. Off market is held (see gate 3). The standing inventory
-count stays withheld until gates 1 and 2 clear.
+**Chunkiness is acceptable.** Because crawls are batched, daily off-market counts
+are lumpy (196 one day, ~47 average). That lumpiness reflects real departures
+detected within a real 24-hour window, not manufactured movement, so it is
+honest to publish. The section framing should not over-read a high day as a
+demand or inventory signal.
+
+**Which sections are safe now.** New to market, Rent changes, Concessions, the
+aging watch, and Off the market all publish. Off the market is near-real-time
+observed departures (see gate 3), labeled "leased or withdrawn, undetermined,"
+optionally excluding the small age-based "Stale listing" component. The standing
+inventory count stays withheld until gates 1 and 2 clear.
 
 ---
 
