@@ -237,6 +237,7 @@ const ACTIVITY_SQL = `
       AND property.bedrooms IS NOT NULL
       AND property.record_status = 'active'
       AND listing.property_listing_status = 'inactive'
+      AND listing.listing_status_info IS DISTINCT FROM 'Stale listing'
       AND listing.record_status = 'active'
       AND listing.listing_type::text = 'Housing'
       AND listing.listing_category::text = 'For Rent'
@@ -354,6 +355,7 @@ const COUNTS_SQL = `
       AND property.bedrooms IS NOT NULL
       AND property.record_status = 'active'
       AND listing.property_listing_status = 'inactive'
+      AND listing.listing_status_info IS DISTINCT FROM 'Stale listing'
       AND listing.record_status = 'active'
       AND listing.listing_type::text = 'Housing'
       AND listing.listing_category::text = 'For Rent'

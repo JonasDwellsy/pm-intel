@@ -15,6 +15,7 @@ describe("daily delisting source boundary", () => {
     assert.match(source, /listing\.deactivation_time - listing\.creation_time/);
     assert.match(source, /listing\.deactivation_time >= NOW\(\) - INTERVAL '24 hours'/);
     assert.match(source, /'delisting'::text AS event_type/);
+    assert.equal(source.match(/listing\.listing_status_info IS DISTINCT FROM 'Stale listing'/g)?.length, 2);
   });
 
   it("does not substitute active-listing timestamps for delisting observations", () => {
