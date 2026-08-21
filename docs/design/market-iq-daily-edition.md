@@ -29,6 +29,41 @@ a small piece of work with a large product consequence.
 
 ---
 
+## Implementation notes (revised 21 Aug, after Codex review)
+
+Four corrections to the naive framing above, all confirmed against the code on
+the integration branch:
+
+1. **Base branch.** All Market IQ code (`alerts.ts`, `listing-events.server.ts`)
+   lives on `codex/market-iq-integration`, which is 259 commits ahead of `main`
+   on a divergent history and has not landed on `main` yet. Implementation PRs
+   target `codex/market-iq-integration`. This spec doc lives on the planning
+   branch (`claude/market-iq-product-build-lrjo69`) as a reference only;
+   co-location with the code is not required.
+
+2. **The reader emits only two event types.** `listing-events.server.ts`
+   produces `event_type: "new_listing" | "price_change"` and nothing else; there
+   is no `deactivation_time` query and `MarketIqListingEvent` has no delisting
+   variant. "Off the market" is therefore a source-layer change (SQL, row type,
+   event union, mapper), not wiring, and is pulled out of the first PR into its
+   own step.
+
+3. **Daily generation is a new module, not an extension of `alerts.ts`.**
+   `alerts.ts` imports `MarketIqTrendPoint`, so extending it in place would make
+   the "no daily module imports monthly trend types" guard toothless or failing.
+   Daily event-headline generation goes in a separate module that imports only
+   the event contract, which is what makes the guard structural rather than
+   conventional. Monthly generation stays isolated in `alerts.ts`.
+
+4. **The honest failure state needs contract + presentation work.** Today an
+   activity-read failure becomes `undefined` and the UI silently omits the
+   section, which does not satisfy the acceptance criteria. The first PR adds an
+   explicit availability result carrying `attemptedAt` but no data-freshness
+   timestamp, and renders "no events were observed for the period." That report-
+   contract and presentation work is in scope for the first PR.
+
+---
+
 ## Measured: what the reference market produces in a day
 
 All figures below were measured directly against the live Dwellsy dataset on
@@ -155,7 +190,7 @@ into three honest categories:
 | ---------------- | --------------------------------------------------------------- | ----------------------------------- | --------------- | --------------------------------------- |
 | New to market    | Listings first observed since the last edition, rent + beds     | `listing-events.server.ts`          | Daily           | Observation date, not listing date      |
 | Rent changes     | Confirmed price changes, previous and current asking rent       | `confirmed_price_changes_24h`       | Daily           | Asking rent, not achieved rent          |
-| Off the market   | Listings that disappeared, with the age they reached            | `deactivation_time`                 | Daily           | Leased or withdrawn, undetermined       |
+| Off the market   | Listings that disappeared, with the age they reached            | `deactivation_time` (reader must be extended) | Daily | Leased or withdrawn, undetermined       |
 | The aging watch  | Listings crossing 30, 60 and 90 days still live                 | computed from `creation_time`       | Daily           | Live age; DOM column null while active  |
 | Time to fill     | Median + distribution of time to resolution, by beds/rent band  | `days_on_market` on inactive rows   | Weekly refresh  | Time to resolution, not time to lease   |
 | Concessions      | Free-month and incentive language in new listing text           | `description`, existing parsing      | Daily           | Advertised, not verified                |
@@ -211,11 +246,17 @@ Section copy should describe movement and let the reader supply causation.
 > the preview environment to verify any of this work; rely on unit tests and the
 > guard tests specified in Acceptance Criteria.
 
-1. **Wire daily events into the alert layer.** Extend `alerts.ts` to accept
-   listing events from `listing-events.server.ts` alongside monthly trend points,
-   and generate event-derived headlines from observed events only. Ships the
-   first three sections (New to market, Rent changes, Off the market). One PR, no
-   schema change. **Start now.**
+1. **Wire daily events into a new daily-alert module.** Add a daily
+   event-headline module (separate from `alerts.ts`) that consumes existing
+   listing events (`new_listing`, `price_change`) from `listing-events.server.ts`
+   and generates headlines from observed events only. Ships two sections (New to
+   market, Rent changes) plus the honest availability/failure state. No schema
+   change. **Start now.**
+
+1b. **Extend the reader for delistings, then ship "Off the market."** Add the
+   `deactivation_time` query, extend the row type, event union, and mapper, then
+   render the section. Split out of step 1 because it is a source-layer change,
+   not wiring. One PR, depends on step 1.
 
 2. **Add the aging watch.** Compute live listing age from `creation_time` and
    emit crossings at 30, 60 and 90 days. Depends on step 1 for the headline
@@ -248,6 +289,14 @@ Section copy should describe movement and let the reader supply causation.
 
 ## Acceptance criteria (event-wiring PR, step 1)
 
+Scope: New to market and Rent changes sections (existing event types) plus the
+honest availability/failure state. Delistings are step 1b.
+
+- The daily event-headline generation lives in its own module that imports only
+  the event contract, never `MarketIqTrendPoint` or any monthly trend type.
+- The failure state is an explicit availability result carrying `attemptedAt`
+  and no data-freshness timestamp; the UI renders "no events were observed for
+  the period" rather than silently omitting the section.
 - Every daily headline carries the `observed_at` value of a real underlying
   event. No headline may present a synthesized or generation-time timestamp as an
   observation time.
