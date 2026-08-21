@@ -8,6 +8,7 @@ import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.serv
 import { loadMarketIqMarketData } from "@/lib/market-iq/data/service.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { resolveActiveMarketIqMarket } from "@/lib/market-iq/markets/selection";
+import { loadListingSupplyHistory } from "@/lib/market-iq/listing-supply-history.server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -54,7 +55,10 @@ export default async function MarketIqPage({
     );
   }
 
-  const { report, listingPulse: liveListingPulse } = await loadMarketIqMarketData(activeMarket.id);
+  const [{ report, listingPulse: liveListingPulse }, listingSupplyHistory] = await Promise.all([
+    loadMarketIqMarketData(activeMarket.id),
+    loadListingSupplyHistory(activeMarket.id),
+  ]);
 
   if (!report) {
     return (
@@ -91,6 +95,7 @@ export default async function MarketIqPage({
           priceChangeEvents: liveListingPulse.priceChangeEvents,
           message: liveListingPulse.message,
         }}
+        listingSupplyHistory={listingSupplyHistory}
         clientAdvisoryEnabled={access.capabilities.publishClientReports}
       />
     </>
