@@ -122,24 +122,10 @@ from `scripts/data-pipeline/`.
     a market brief's "since last period" block and the national brief show real
     month-over-month movement, and the digests have deltas to send.
 
-## Digest crons are PAUSED
+## Digest cadence and the snapshot-diff window
 
-`vercel.json` ships an empty `crons` array. Both digest jobs — the watch-list
-change digest (was 13:00 UTC daily) and the market-brief digest (14:00 UTC) —
-are currently disabled.
-
-Why: on 2026-08-20 a production seed created snapshot `2026-08-20`. Diffing it
-against the previous snapshot (`2026-08-07`) surfaces 35 operators with changed
-`topMSAs` and nothing else — real cross-market footprint additions that
-accumulated in the committed seed but were never snapshotted, because
-deployments stopped seeding on 2026-08-19 and no manual seed had run since.
-Left enabled, the digest would have reported those as "Entered a new market"
-for the current period, which misdates changes that happened earlier.
-
-The digest keys its bookkeeping on `snapshotDate` (`WatchListDigestRun` has one
-row per snapshot), so the pause only defers; it does not lose the run.
-
-TO RE-ENABLE, restore the two entries in `vercel.json`:
+Both digest crons are ENABLED: the watch-list change digest at 13:00 UTC daily
+and the market-brief digest at 14:00 UTC.
 
 ```json
 {
@@ -150,11 +136,27 @@ TO RE-ENABLE, restore the two entries in `vercel.json`:
 }
 ```
 
-Before re-enabling, decide what should happen to the `2026-08-20` snapshot.
-Either accept that its `topMSAs` deltas will be reported once, or let the next
-monthly refresh land first so the diff is taken against a snapshot the digest
-has already accounted for. Dry-run either way — `?dryRun=1` composes and counts
-without sending.
+They were paused on 2026-08-20 and re-enabled the same day. The reason is worth
+keeping, because it will recur on any seed that lands well after the previous
+one: the diff a digest reports is against the LAST SNAPSHOT, not against what
+changed this month. Snapshot `2026-08-20` was the first since `2026-08-07`, and
+deployments stopped seeding on 2026-08-19, so it absorbed every seed change
+made in between — 35 operators with changed `topMSAs` (real cross-market
+footprint additions) and nothing else. Those reported as "Entered a new market"
+for the current period even though they accrued earlier. That was accepted
+deliberately rather than suppressed.
+
+**Two controls worth knowing before a data release:**
+
+- `WatchListDigestRun` holds one row per `snapshotDate`, so a firing is
+  deferred by pausing, never lost. Re-enabling picks the snapshot back up.
+- Recipients are gated by `DigestPreference.cadence` (monthly = a 28-day floor
+  from `lastDigestAt`), so a run can legitimately report
+  `recipientCount: 0` — that is the cadence working, not a failure. Check
+  `lastDigestAt` per subscriber before assuming the send path is broken.
+
+To preview without sending, hit either route with `?dryRun=1` (composes and
+counts, records nothing).
 
 ## Production release boundary
 
