@@ -102,6 +102,18 @@ describe("Market IQ local market read assembly", () => {
     expect(source).toContain("What the latest source month did not publish");
   });
 
+  it("distinguishes blended market trajectories from bedroom-specific series", () => {
+    const source = readFileSync("src/components/market-iq/MarketIqIntelligenceWorkspace.tsx", "utf8");
+    expect(source).toContain("cell.bedrooms === 999");
+    expect(source).toContain("Blended market mix");
+    expect(source).toContain("Bedroom-specific series");
+    expect(source).toContain("All bedroom counts and price tiers");
+    expect(source).toContain("One bedroom-count segment");
+    expect(source).toContain("Market-level asking rents can move");
+    expect(source).toContain("does not translate directly into rent movement for a comparable home");
+    expect(source).not.toContain("Each chart uses up to 36 monthly Trends observations");
+  });
+
   it("derives edition geography from the selected market instead of Cleveland constants", () => {
     const report = buildMarketIqReportSnapshot({
       ...baseInput,
