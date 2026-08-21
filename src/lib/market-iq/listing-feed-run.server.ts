@@ -6,6 +6,7 @@ import {
   listingEventFingerprint,
   listingFeedEventCounts,
 } from "@/lib/market-iq/listing-feed";
+import { summarizeDailyActiveListingSupply } from "@/lib/market-iq/listing-supply";
 import { marketIqPrisma } from "@/lib/market-iq/prisma";
 
 const HEALTHY_BASELINE_MINIMUM = 250;
@@ -72,8 +73,29 @@ export async function runClevelandListingFeed(input: {
     });
     const eventCounts = listingFeedEventCounts(events);
     const completedAt = new Date();
-    const apartmentCount = source.listings.filter((listing) => listing.propertyType === "apartment").length;
-    const houseCount = source.listings.length - apartmentCount;
+    const supply = summarizeDailyActiveListingSupply(source.listings, completedAt);
+    const bucketCounts = Object.fromEntries(
+      supply.listingAgeBuckets.map((bucket) => [bucket.key, bucket.count]),
+    );
+    const supplySnapshot = {
+      feedRunId: run.id,
+      sourceAvailableThrough: source.sourceAvailableThrough,
+      activeListings: supply.activeListings,
+      apartmentListings: supply.apartmentListings,
+      houseListings: supply.houseListings,
+      ageObservedListings: supply.ageObservedListings,
+      medianActiveAgeDays: supply.medianActiveAgeDays,
+      activeOver30Days: supply.activeOver30Days,
+      activeOver30SharePct: supply.activeOver30SharePct,
+      activatedLast7Days: supply.activatedLast7Days,
+      activatedLast30Days: supply.activatedLast30Days,
+      age0To7Days: bucketCounts["0_7"] ?? 0,
+      age8To14Days: bucketCounts["8_14"] ?? 0,
+      age15To30Days: bucketCounts["15_30"] ?? 0,
+      age31To60Days: bucketCounts["31_60"] ?? 0,
+      age61PlusDays: bucketCounts["61_plus"] ?? 0,
+      capturedAt: completedAt,
+    };
 
     await marketIqPrisma.$transaction([
       marketIqPrisma.marketIqLiveListingSnapshot.createMany({
@@ -93,14 +115,28 @@ export async function runClevelandListingFeed(input: {
         })),
         skipDuplicates: true,
       }),
+      marketIqPrisma.marketIqListingSupplySnapshot.upsert({
+        where: {
+          marketId_snapshotDate: {
+            marketId: CLEVELAND_MARKET_ID,
+            snapshotDate: supply.snapshotDate,
+          },
+        },
+        create: {
+          marketId: CLEVELAND_MARKET_ID,
+          snapshotDate: supply.snapshotDate,
+          ...supplySnapshot,
+        },
+        update: supplySnapshot,
+      }),
       marketIqPrisma.marketIqListingFeedRun.update({
         where: { id: run.id },
         data: {
           status: previousRun ? "complete" : "baseline_complete",
           sourceAvailableThrough: source.sourceAvailableThrough,
-          recordCount: source.listings.length,
-          apartmentCount,
-          houseCount,
+          recordCount: supply.activeListings,
+          apartmentCount: supply.apartmentListings,
+          houseCount: supply.houseListings,
           ...eventCounts,
           completedAt,
         },
@@ -111,9 +147,9 @@ export async function runClevelandListingFeed(input: {
       runId: run.id,
       status: previousRun ? "complete" : "baseline_complete",
       sourceAvailableThrough: source.sourceAvailableThrough,
-      recordCount: source.listings.length,
-      apartmentCount,
-      houseCount,
+      recordCount: supply.activeListings,
+      apartmentCount: supply.apartmentListings,
+      houseCount: supply.houseListings,
       ...eventCounts,
     };
   } catch (error) {

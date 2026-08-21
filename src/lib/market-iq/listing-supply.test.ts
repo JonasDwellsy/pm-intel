@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { summarizeActiveListingSupply } from "./listing-supply";
+import { summarizeActiveListingSupply, summarizeDailyActiveListingSupply } from "./listing-supply";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 const asOf = new Date("2026-08-19T12:00:00.000Z");
@@ -40,4 +40,21 @@ test("returns an explicit empty summary when no listing age can be observed", ()
   assert.equal(result.medianActiveAgeDays, null);
   assert.equal(result.activeOver30SharePct, null);
   assert.deepEqual(result.listingAgeBuckets.map(({ count }) => count), [0, 0, 0, 0, 0]);
+});
+
+test("builds one UTC-dated inventory and age observation from a captured active set", () => {
+  const capturedAt = new Date("2026-08-21T23:45:00.000Z");
+  const result = summarizeDailyActiveListingSupply([
+    { listingCreatedAt: new Date("2026-08-20T23:45:00.000Z"), propertyType: "apartment" },
+    { listingCreatedAt: new Date("2026-07-01T23:45:00.000Z"), propertyType: "apartment" },
+    { listingCreatedAt: new Date("2026-08-11T23:45:00.000Z"), propertyType: "house" },
+  ], capturedAt);
+
+  assert.equal(result.snapshotDate.toISOString(), "2026-08-21T00:00:00.000Z");
+  assert.equal(result.activeListings, 3);
+  assert.equal(result.apartmentListings, 2);
+  assert.equal(result.houseListings, 1);
+  assert.equal(result.medianActiveAgeDays, 10);
+  assert.equal(result.activeOver30Days, 1);
+  assert.equal(result.activeOver30SharePct, 33.3);
 });

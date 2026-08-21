@@ -212,11 +212,45 @@ model MarketIqListingFeedRun {
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 
-  snapshots MarketIqLiveListingSnapshot[]
-  events    MarketIqListingEvent[]
+  snapshots      MarketIqLiveListingSnapshot[]
+  events         MarketIqListingEvent[]
+  supplySnapshot MarketIqListingSupplySnapshot?
 
   @@index([marketId, completedAt(sort: Desc)])
   @@index([status, startedAt(sort: Desc)])
+}
+
+// One compact observation per market and UTC day. These rows make supply and
+// active-listing-age history readable without querying Dwellsy during page
+// render or repeatedly scanning the full listing snapshots.
+model MarketIqListingSupplySnapshot {
+  id                     String   @id @default(cuid())
+  marketId               String
+  snapshotDate           DateTime @db.Date
+  feedRunId              String   @unique
+  sourceAvailableThrough DateTime
+  activeListings         Int
+  apartmentListings      Int
+  houseListings          Int
+  ageObservedListings    Int
+  medianActiveAgeDays    Int?
+  activeOver30Days       Int
+  activeOver30SharePct   Float?
+  activatedLast7Days     Int
+  activatedLast30Days    Int
+  age0To7Days            Int
+  age8To14Days           Int
+  age15To30Days          Int
+  age31To60Days          Int
+  age61PlusDays          Int
+  capturedAt             DateTime
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  feedRun MarketIqListingFeedRun @relation(fields: [feedRunId], references: [id], onDelete: Cascade)
+
+  @@unique([marketId, snapshotDate])
+  @@index([marketId, snapshotDate(sort: Desc)])
 }
 
 model MarketIqLiveListingSnapshot {
