@@ -153,7 +153,7 @@ export async function buildLiveMarketIqReportSnapshot(input: {
         name: "Total IQ listing activity feed",
         availableThrough: marketActivity.asOf.slice(0, 10),
         observationCount: marketActivity.events.length,
-        note: "Used for observed daily new-listing, advertised-concession, asking-rent-change, delisting, and live-age threshold activity only. Concessions are advertised, not verified.",
+        note: "Used for exact 24-hour flow counts and observed daily new-listing, advertised-concession, asking-rent-change, delisting, and live-age threshold activity only. Age-based stale deactivations are excluded from delistings. Concessions are advertised, not verified. Standing inventory remains withheld.",
       }] : []),
       ...(timeToResolutionAvailability.state === "available" ? [{
         name: "Total IQ inactive listings",

@@ -63,6 +63,32 @@ function DailySection({
   </section>;
 }
 
+function ObservedFlow({ activity }: { activity: Extract<MarketIqMarketActivityAvailability, { state: "available" }>["activity"] }) {
+  const metrics = [
+    { label: "New listings", value: activity.newListings24h, detail: "First observed in the source window" },
+    { label: "Off market", value: activity.delistings24h, detail: "Leased or withdrawn, undetermined" },
+    { label: "Rent changes", value: activity.confirmedPriceChanges24h, detail: "Confirmed asking-rent changes" },
+    { label: "Concessions", value: activity.advertisedConcessions24h, detail: "Listings advertising an incentive" },
+  ];
+
+  if (metrics.some((metric) => !Number.isFinite(metric.value))) return null;
+
+  return <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.04)]" aria-label="Observed 24-hour flow">
+    <div className="border-b border-slate-100 bg-slate-50 px-5 py-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Observed in the past 24 hours</p>
+      <h3 className="mt-1 text-lg font-semibold text-[var(--report-primary)]">Daily market flow</h3>
+    </div>
+    <dl className="grid sm:grid-cols-2 xl:grid-cols-4">
+      {metrics.map((metric) => <div key={metric.label} className="border-b border-slate-100 px-5 py-5 last:border-0 sm:border-r sm:[&:nth-child(2)]:border-r-0 xl:border-b-0 xl:[&:nth-child(2)]:border-r xl:last:border-r-0">
+        <dt className="text-xs font-semibold text-slate-500">{metric.label}</dt>
+        <dd className="mt-1 text-3xl font-semibold tracking-tight text-[var(--report-primary)]">{metric.value.toLocaleString("en-US")}</dd>
+        <p className="mt-1 text-[11px] leading-4 text-slate-400">{metric.detail}</p>
+      </div>)}
+    </dl>
+    <p className="border-t border-slate-100 px-5 py-3 text-xs leading-5 text-slate-500">Direct event counts only. Age-based stale deactivations are excluded from off-market totals. Standing active inventory and active-listing rent summaries remain withheld pending source reconciliation.</p>
+  </section>;
+}
+
 export function MarketIqDailyEvents({
   availability,
   marketName = "the market",
@@ -93,6 +119,7 @@ export function MarketIqDailyEvents({
       <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--report-accent)]">Daily edition</p><h2 className="mt-1 text-2xl font-semibold text-[var(--report-primary)]">What changed in {marketName}</h2></div>
       <p className="text-xs text-slate-500">Source current through {dateTime(availability.activity.asOf, timeZone)}</p>
     </div>
+    <ObservedFlow activity={availability.activity} />
     <div className="grid gap-4 lg:grid-cols-2">
       <DailySection title="New to market" description="Listings first observed in the current source window." emptyMessage="No new listings were observed for the period." headlines={newListings} timeZone={timeZone} />
       <DailySection title="Rent changes" description="Confirmed changes in advertised asking rent." emptyMessage="No confirmed asking-rent changes were observed for the period." headlines={rentChanges} timeZone={timeZone} />
