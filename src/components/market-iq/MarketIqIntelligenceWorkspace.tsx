@@ -107,9 +107,15 @@ function TrendLine({ points }: { points: MarketIqTrendPoint[] }) {
 }
 
 function BenchmarkCard({ cell, marketName }: { cell: MarketIqMarketCell; marketName: string }) {
-  return <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  const isBlendedMarketMix = cell.bedrooms === 999;
+  return <article className={`rounded-2xl border p-5 shadow-sm ${isBlendedMarketMix ? "border-amber-200 bg-amber-50/60" : "border-slate-200 bg-white"}`}>
     <div className="flex items-start justify-between gap-4">
-      <div><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{cell.label}</p><p className="mt-2 text-3xl font-semibold tracking-tight text-navy">{money(cell.rent)}</p></div>
+      <div>
+        <p className={`inline-flex rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] ${isBlendedMarketMix ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-500"}`}>{isBlendedMarketMix ? "Blended market mix" : "Bedroom-specific series"}</p>
+        <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">{cell.label}</p>
+        <p className="mt-1 text-xs text-slate-500">{isBlendedMarketMix ? "All bedroom counts and price tiers" : "One bedroom-count segment"}</p>
+        <p className="mt-2 text-3xl font-semibold tracking-tight text-navy">{money(cell.rent)}</p>
+      </div>
       <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${directionClass(cell.yearOverYearPct)}`}>{percentage(cell.yearOverYearPct)}</span>
     </div>
     <div className="mt-4"><TrendLine points={cell.series} /></div>
@@ -157,7 +163,14 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
 
     {report.marketActivity && report.marketActivity.events.length > 0 && <section className="mt-8"><MarketIqActivityTicker activity={report.marketActivity} marketName={market.shortLabel} /></section>}
 
-    <section id="trajectories" className="mt-12 scroll-mt-28"><div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end"><div><p className="dq-eyebrow">MSA trajectories</p><h2 className="dq-h2">Apartments and houses can tell different stories</h2></div><p className="max-w-2xl text-sm leading-6 text-slate-500">Each chart uses up to 36 monthly Trends observations for one consistent product definition. The visible scale shows whether the path reflects a narrow band or a material shift.</p></div><div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{benchmarkCells.map((cell) => <BenchmarkCard key={cell.key} cell={cell} marketName={market.fullName} />)}</div></section>
+    <section id="trajectories" className="mt-12 scroll-mt-28">
+      <div><p className="dq-eyebrow">MSA trajectories</p><h2 className="dq-h2">Apartments and houses can tell different stories</h2></div>
+      <aside className="mt-6 rounded-2xl border border-teal-200 bg-teal-50 px-5 py-5 sm:px-6" aria-label="How to read the trajectory charts">
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-teal-800">How to read these charts</p>
+        <p className="mt-2 max-w-5xl text-base leading-7 text-slate-700">Market-level asking rents can move because rents for comparable apartments or houses change, because the mix of observed rentals shifts between workforce and premium homes, or both. The <span className="font-semibold text-navy">All apartments</span> and <span className="font-semibold text-navy">All houses</span> charts blend bedroom counts and price tiers, so movement in those charts does not translate directly into rent movement for a comparable home.</p>
+      </aside>
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{benchmarkCells.map((cell) => <BenchmarkCard key={cell.key} cell={cell} marketName={market.fullName} />)}</div>
+    </section>
 
     <section className="mt-6 grid gap-4 md:grid-cols-3"><article className="rounded-2xl border border-sky-200 bg-sky-50 p-5"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-sky-800">Understanding the data</p><h3 className="mt-2 font-semibold text-navy">Final asking rents are the market benchmark</h3><p className="mt-2 text-sm leading-6 text-slate-600">These figures reflect final advertised asking rents, the closest legally available view of competitive market rents. Dwellsy does not show competitively sensitive signed lease prices, and these figures are not effective rents or the rent for a single unit.</p></article><article className="rounded-2xl border border-amber-200 bg-amber-50 p-5"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-800">Why market reads jump</p><h3 className="mt-2 font-semibold text-navy">The mix can change quickly</h3><p className="mt-2 text-sm leading-6 text-slate-600">A new lease-up or a shift in the homes available can move a ZIP, city, or MSA market read sharply, even when individual units have not repriced by the same amount.</p></article><article className="rounded-2xl border border-teal-200 bg-teal-50 p-5"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-teal-800">How to use it</p><h3 className="mt-2 font-semibold text-navy">Start broad, then go local</h3><p className="mt-2 text-sm leading-6 text-slate-600">Use the MSA path to understand direction, then use cities and ZIPs to see where the local pattern agrees or diverges.</p></article></section>
 
