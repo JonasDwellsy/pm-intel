@@ -16,7 +16,7 @@ function event(overrides: Partial<MarketIqListingEvent> = {}): MarketIqListingEv
     previousRent: null,
     observedAt: "2026-08-21T14:30:00.000Z",
     ...overrides,
-  };
+  } as MarketIqListingEvent;
 }
 
 describe("buildDailyEventHeadlines", () => {
@@ -46,6 +46,22 @@ describe("buildDailyEventHeadlines", () => {
     assert.equal(headline.section, "rent_changes");
     assert.equal(headline.observedAt, "2026-08-21T14:30:00.000Z");
     assert.match(headline.detail, /from \$1,250 to \$1,175 asking rent/);
+  });
+
+  it("uses the deactivation event timestamp and observed listing age for an off-market headline", () => {
+    const observedAt = "2026-08-21T12:45:00.000Z";
+    const [headline] = buildDailyEventHeadlines([event({
+      id: "delisting:789",
+      eventType: "delisting",
+      listingAgeDays: 27,
+      observedAt,
+    })]);
+
+    assert.equal(headline.section, "off_market");
+    assert.equal(headline.observedAt, observedAt);
+    assert.equal(headline.headline, "1-bedroom apartment in Cleveland went off market after 27 days listed");
+    assert.match(headline.detail, /last advertised at \$1,250 asking rent/);
+    assert.match(headline.detail, /may have leased or been withdrawn; the outcome is undetermined/);
   });
 
   it("does not invent an observation time or an unconfirmed prior rent", () => {

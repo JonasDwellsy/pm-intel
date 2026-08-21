@@ -1,6 +1,5 @@
-export type MarketIqListingEvent = {
+type MarketIqListingEventBase = {
   id: string;
-  eventType: "new_listing" | "price_change";
   address?: string | null;
   city: string;
   zip: string;
@@ -13,11 +12,17 @@ export type MarketIqListingEvent = {
   listingUrl?: string | null;
 };
 
+export type MarketIqListingEvent = MarketIqListingEventBase & (
+  | { eventType: "new_listing" | "price_change"; listingAgeDays?: never }
+  | { eventType: "delisting"; listingAgeDays: number }
+);
+
 export type MarketIqMarketActivity = {
   asOf: string;
   newListings24h: number;
   sourceUpdates24h: number;
   confirmedPriceChanges24h: number;
+  delistings24h: number;
   eventsTruncated?: boolean;
   events: MarketIqListingEvent[];
 };
