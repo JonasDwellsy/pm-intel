@@ -26,6 +26,6 @@ export function buildSanJoseMarketIqReportSnapshot(input?: {
 
 export const loadCachedSanJoseMarketIqReportSnapshot = unstable_cache(
   () => buildSanJoseMarketIqReportSnapshot(),
-  ["market-iq-san-jose-live-snapshot-v4"],
+  ["market-iq-san-jose-live-snapshot-v5"],
   { revalidate: 900 },
 );

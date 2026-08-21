@@ -64,6 +64,22 @@ describe("buildDailyEventHeadlines", () => {
     assert.match(headline.detail, /may have leased or been withdrawn; the outcome is undetermined/);
   });
 
+  it("uses the threshold crossing time and labels live age separately from days on market", () => {
+    const observedAt = "2026-08-21T11:15:00.000Z";
+    const [headline] = buildDailyEventHeadlines([event({
+      id: "aging:321:60",
+      eventType: "aging_threshold",
+      listingAgeDays: 60,
+      observedAt,
+    })]);
+
+    assert.equal(headline.section, "aging_watch");
+    assert.equal(headline.observedAt, observedAt);
+    assert.equal(headline.headline, "1-bedroom apartment in Cleveland reached 60 days live");
+    assert.match(headline.detail, /still active at the source read/);
+    assert.match(headline.detail, /live age, not days on market/);
+  });
+
   it("does not invent an observation time or an unconfirmed prior rent", () => {
     assert.deepEqual(buildDailyEventHeadlines([
       event({ observedAt: "" }),

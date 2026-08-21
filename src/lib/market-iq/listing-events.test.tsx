@@ -9,6 +9,7 @@ const activity: MarketIqMarketActivity = {
   sourceUpdates24h: 0,
   confirmedPriceChanges24h: 0,
   delistings24h: 0,
+  agingThresholds24h: 0,
   events: [],
 };
 

@@ -12,9 +12,12 @@ type MarketIqListingEventBase = {
   listingUrl?: string | null;
 };
 
+export type MarketIqAgingThresholdDays = 30 | 60 | 90;
+
 export type MarketIqListingEvent = MarketIqListingEventBase & (
   | { eventType: "new_listing" | "price_change"; listingAgeDays?: never }
   | { eventType: "delisting"; listingAgeDays: number }
+  | { eventType: "aging_threshold"; listingAgeDays: MarketIqAgingThresholdDays }
 );
 
 export type MarketIqMarketActivity = {
@@ -23,6 +26,7 @@ export type MarketIqMarketActivity = {
   sourceUpdates24h: number;
   confirmedPriceChanges24h: number;
   delistings24h: number;
+  agingThresholds24h: number;
   eventsTruncated?: boolean;
   events: MarketIqListingEvent[];
 };

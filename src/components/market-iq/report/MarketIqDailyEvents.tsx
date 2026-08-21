@@ -15,11 +15,12 @@ function dateTime(value: string, timeZone: string) {
 }
 
 function Headline({ headline, timeZone }: { headline: MarketIqDailyEventHeadline; timeZone: string }) {
+  const timeLabel = headline.event.eventType === "aging_threshold" ? "Crossed" : "Observed";
   const content = <>
     <div className="flex flex-wrap items-start justify-between gap-2">
       <h3 className="max-w-xl text-sm font-semibold leading-5 text-[var(--report-primary)]">{headline.headline}</h3>
       <time dateTime={headline.observedAt} className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-        Observed {dateTime(headline.observedAt, timeZone)}
+        {timeLabel} {dateTime(headline.observedAt, timeZone)}
       </time>
     </div>
     <p className="mt-1.5 text-xs leading-5 text-slate-500">{headline.detail}</p>
@@ -84,16 +85,18 @@ export function MarketIqDailyEvents({
   const newListings = headlines.filter((headline) => headline.section === "new_to_market");
   const rentChanges = headlines.filter((headline) => headline.section === "rent_changes");
   const delistings = headlines.filter((headline) => headline.section === "off_market");
+  const agingWatch = headlines.filter((headline) => headline.section === "aging_watch");
 
   return <section aria-label={`Daily ${marketName} listing events`}>
     <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
       <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--report-accent)]">Daily edition</p><h2 className="mt-1 text-2xl font-semibold text-[var(--report-primary)]">What changed in {marketName}</h2></div>
       <p className="text-xs text-slate-500">Source current through {dateTime(availability.activity.asOf, timeZone)}</p>
     </div>
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-4 lg:grid-cols-2">
       <DailySection title="New to market" description="Listings first observed in the current source window." emptyMessage="No new listings were observed for the period." headlines={newListings} timeZone={timeZone} />
       <DailySection title="Rent changes" description="Confirmed changes in advertised asking rent." emptyMessage="No confirmed asking-rent changes were observed for the period." headlines={rentChanges} timeZone={timeZone} />
       <DailySection title="Off the market" description="Leased or withdrawn, undetermined. These listings were observed leaving the market." emptyMessage="No listings were observed leaving the market for the period." headlines={delistings} timeZone={timeZone} />
+      <DailySection title="The aging watch" description="Listings crossing 30, 60, or 90 days while still active. Live age, not days on market." emptyMessage="No active listings crossed an aging threshold for the period." headlines={agingWatch} timeZone={timeZone} />
     </div>
   </section>;
 }
