@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { MarketIqDailyEvents } from "@/components/market-iq/report/MarketIqDailyEvents";
+import { MarketIqTimeToResolution } from "@/components/market-iq/report/MarketIqTimeToResolution";
 import { MarketIqDecisionBrief } from "@/components/market-iq/MarketIqDecisionBrief";
 import { MarketIqRentMap, type MarketIqMapSegment } from "@/components/market-iq/report/MarketIqRentMap";
 import type { MarketIqGeographyType, MarketIqMarketCell, MarketIqReportSnapshot, MarketIqTrendPoint } from "@/lib/market-iq/report/report";
@@ -245,6 +246,7 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, lis
     <MarketIqDecisionBrief report={report} marketName={market.shortLabel} />
 
     {report.marketActivity && <div className="mt-8"><MarketIqDailyEvents availability={report.marketActivity} marketName={market.shortLabel} timeZone={market.timeZone} /></div>}
+    {report.timeToResolution && <div className="mt-8"><MarketIqTimeToResolution availability={report.timeToResolution} marketName={market.shortLabel} timeZone={market.timeZone} /></div>}
 
     <section id="trajectories" className="mt-12 scroll-mt-28">
       <div><p className="dq-eyebrow">MSA trajectories</p><h2 className="dq-h2">Apartments and houses can tell different stories</h2></div>

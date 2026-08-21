@@ -3,6 +3,7 @@ import "server-only";
 import type { MarketIqMarketDefinition } from "@/data/market-iq/markets";
 import { loadMarketActiveListings } from "@/lib/dwellsy-source/active-listings.server";
 import { loadMarketListingActivityAvailability } from "@/lib/dwellsy-source/listing-events.server";
+import { loadMarketTimeToResolutionAvailability } from "@/lib/dwellsy-source/time-to-resolution.server";
 import { loadDwellsyProductRollupSeries, loadDwellsyTrendSeries } from "@/lib/dwellsy-source/trends.server";
 import { availableMarketIqActivity } from "@/lib/market-iq/listing-events";
 import {
@@ -73,7 +74,7 @@ export async function buildLiveMarketIqReportSnapshot(input: {
   const activeZips = activeSource.listings.map((listing) => listing.postalCode).filter((zip): zip is string => Boolean(zip));
   const cities = [...new Set([...(input.cities ?? []), ...activeCities])].sort();
   const zips = [...new Set([...input.zips, ...activeZips])].sort();
-  const [detail, rollups, marketActivityAvailability] = await Promise.all([
+  const [detail, rollups, marketActivityAvailability, timeToResolutionAvailability] = await Promise.all([
     loadDwellsyTrendSeries({
       cities,
       zipCodes: zips,
@@ -90,6 +91,7 @@ export async function buildLiveMarketIqReportSnapshot(input: {
       msaLabel: market.fullName,
     }),
     loadMarketListingActivityAvailability(market.cbsaCode),
+    loadMarketTimeToResolutionAvailability(market.cbsaCode),
   ]);
   const trendSeries = completeTrendSeries([...rollups.series, ...detail.series], cities, zips, stateCode);
   const latestTrendMonth = trendSeries.flatMap((series) => series.points).map((point) => point.month).sort().at(-1);
@@ -133,6 +135,7 @@ export async function buildLiveMarketIqReportSnapshot(input: {
       historical: null,
     },
     marketActivity: marketActivityAvailability,
+    timeToResolution: timeToResolutionAvailability,
     sources: [
       {
         name: "Dwellsy IQ Trends",
@@ -151,6 +154,12 @@ export async function buildLiveMarketIqReportSnapshot(input: {
         availableThrough: marketActivity.asOf.slice(0, 10),
         observationCount: marketActivity.events.length,
         note: "Used for observed daily new-listing, asking-rent-change, delisting, and live-age threshold activity only.",
+      }] : []),
+      ...(timeToResolutionAvailability.state === "available" ? [{
+        name: "Total IQ inactive listings",
+        availableThrough: timeToResolutionAvailability.resolution.asOf.slice(0, 10),
+        observationCount: timeToResolutionAvailability.resolution.sampleSize,
+        note: "Used to calculate the trailing 90-day time-to-resolution distribution from recorded creation and deactivation timestamps. Inactive listings may have leased or been withdrawn.",
       }] : []),
       {
         name: "U.S. Census Bureau ZCTAs",
