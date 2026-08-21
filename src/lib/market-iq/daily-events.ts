@@ -2,7 +2,7 @@ import type { MarketIqListingEvent } from "@/lib/market-iq/listing-events";
 
 export type MarketIqDailyEventHeadline = {
   id: string;
-  section: "new_to_market" | "rent_changes" | "off_market" | "aging_watch";
+  section: "new_to_market" | "rent_changes" | "off_market" | "aging_watch" | "concessions";
   headline: string;
   detail: string;
   observedAt: string;
@@ -40,6 +40,18 @@ export function buildDailyEventHeadlines(
         section: "new_to_market",
         headline: `New ${propertyLabel(event)} in ${event.city} at ${money(event.askingRent)}`,
         detail: `${event.address ?? location} was observed with an asking rent of ${money(event.askingRent)}.`,
+        observedAt: event.observedAt,
+        event,
+      });
+      continue;
+    }
+
+    if (event.eventType === "concession") {
+      headlines.push({
+        id: event.id,
+        section: "concessions",
+        headline: `${event.concession.label} advertised for a ${propertyLabel(event)} in ${event.city}`,
+        detail: `${event.address ?? location} advertised “${event.concession.evidence}” Terms may apply; advertised, not verified.`,
         observedAt: event.observedAt,
         event,
       });

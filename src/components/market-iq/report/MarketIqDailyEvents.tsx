@@ -86,6 +86,7 @@ export function MarketIqDailyEvents({
   const rentChanges = headlines.filter((headline) => headline.section === "rent_changes");
   const delistings = headlines.filter((headline) => headline.section === "off_market");
   const agingWatch = headlines.filter((headline) => headline.section === "aging_watch");
+  const concessions = headlines.filter((headline) => headline.section === "concessions");
 
   return <section aria-label={`Daily ${marketName} listing events`}>
     <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -97,6 +98,7 @@ export function MarketIqDailyEvents({
       <DailySection title="Rent changes" description="Confirmed changes in advertised asking rent." emptyMessage="No confirmed asking-rent changes were observed for the period." headlines={rentChanges} timeZone={timeZone} />
       <DailySection title="Off the market" description="Leased or withdrawn, undetermined. These listings were observed leaving the market." emptyMessage="No listings were observed leaving the market for the period." headlines={delistings} timeZone={timeZone} />
       <DailySection title="The aging watch" description="Listings crossing 30, 60, or 90 days while still active. Live age, not days on market." emptyMessage="No active listings crossed an aging threshold for the period." headlines={agingWatch} timeZone={timeZone} />
+      <DailySection title="Concessions" description="Incentive language observed in new-listing text. Advertised, not verified." emptyMessage="No concession language was observed in new-listing text for the period." headlines={concessions} timeZone={timeZone} />
     </div>
   </section>;
 }

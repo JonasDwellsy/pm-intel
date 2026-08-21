@@ -24,6 +24,6 @@ export function buildColumbusMarketIqReportSnapshot(input?: {
 
 export const loadCachedColumbusMarketIqReportSnapshot = unstable_cache(
   () => buildColumbusMarketIqReportSnapshot(),
-  ["market-iq-columbus-live-snapshot-v7"],
+  ["market-iq-columbus-live-snapshot-v8"],
   { revalidate: 900 },
 );
