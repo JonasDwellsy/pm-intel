@@ -169,6 +169,7 @@ describe("Market IQ local market read assembly", () => {
       newListings24h: 1,
       sourceUpdates24h: 2,
       confirmedPriceChanges24h: 0,
+      delistings24h: 0,
       events: [],
     };
     const parsed = parseMarketIqReportSnapshot(JSON.stringify({

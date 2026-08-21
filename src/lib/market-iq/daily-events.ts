@@ -2,7 +2,7 @@ import type { MarketIqListingEvent } from "@/lib/market-iq/listing-events";
 
 export type MarketIqDailyEventHeadline = {
   id: string;
-  section: "new_to_market" | "rent_changes";
+  section: "new_to_market" | "rent_changes" | "off_market";
   headline: string;
   detail: string;
   observedAt: string;
@@ -40,6 +40,19 @@ export function buildDailyEventHeadlines(
         section: "new_to_market",
         headline: `New ${propertyLabel(event)} in ${event.city} at ${money(event.askingRent)}`,
         detail: `${event.address ?? location} was observed with an asking rent of ${money(event.askingRent)}.`,
+        observedAt: event.observedAt,
+        event,
+      });
+      continue;
+    }
+
+    if (event.eventType === "delisting") {
+      const age = event.listingAgeDays;
+      headlines.push({
+        id: event.id,
+        section: "off_market",
+        headline: `${propertyLabel(event)} in ${event.city} went off market after ${age.toLocaleString("en-US")} ${age === 1 ? "day" : "days"} listed`,
+        detail: `${event.address ?? location} was last advertised at ${money(event.askingRent)} asking rent. It may have leased or been withdrawn; the outcome is undetermined.`,
         observedAt: event.observedAt,
         event,
       });

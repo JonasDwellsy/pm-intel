@@ -83,15 +83,17 @@ export function MarketIqDailyEvents({
   const headlines = buildDailyEventHeadlines(availability.activity.events);
   const newListings = headlines.filter((headline) => headline.section === "new_to_market");
   const rentChanges = headlines.filter((headline) => headline.section === "rent_changes");
+  const delistings = headlines.filter((headline) => headline.section === "off_market");
 
   return <section aria-label={`Daily ${marketName} listing events`}>
     <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
       <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--report-accent)]">Daily edition</p><h2 className="mt-1 text-2xl font-semibold text-[var(--report-primary)]">What changed in {marketName}</h2></div>
       <p className="text-xs text-slate-500">Source current through {dateTime(availability.activity.asOf, timeZone)}</p>
     </div>
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-3">
       <DailySection title="New to market" description="Listings first observed in the current source window." emptyMessage="No new listings were observed for the period." headlines={newListings} timeZone={timeZone} />
       <DailySection title="Rent changes" description="Confirmed changes in advertised asking rent." emptyMessage="No confirmed asking-rent changes were observed for the period." headlines={rentChanges} timeZone={timeZone} />
+      <DailySection title="Off the market" description="Leased or withdrawn, undetermined. These listings were observed leaving the market." emptyMessage="No listings were observed leaving the market for the period." headlines={delistings} timeZone={timeZone} />
     </div>
   </section>;
 }
