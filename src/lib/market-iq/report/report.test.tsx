@@ -27,6 +27,10 @@ describe("Market IQ local market read assembly", () => {
     expect(adapter).toContain("listing.property_id");
     expect(adapter).toContain("buildDwellsyPropertyUrl(row.property_id)");
     expect(adapter).not.toContain("details/${listingId}");
+    expect(adapter).toContain("const MAX_SAVED_ACTIVITY_EVENTS = 200");
+    expect(adapter).toContain("NOW() - INTERVAL '24 hours'");
+    expect(adapter).not.toContain("NOW() - INTERVAL '7 days'");
+    expect(adapter).toContain("eventsTruncated: reportableEvents.length > MAX_SAVED_ACTIVITY_EVENTS");
   });
 
   it("requests enough history and publishes an exact trailing 36-month window", () => {
