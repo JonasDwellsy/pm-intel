@@ -1,0 +1,69 @@
+name: Market IQ stable preview identity
+
+on:
+  push:
+    branches: [codex/market-iq-integration]
+  workflow_dispatch:
+
+concurrency:
+  group: market-iq-stable-preview
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Stable preview serves integration HEAD
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      EXPECTED_BRANCH: codex/market-iq-integration
+      EXPECTED_SHA: ${{ github.sha }}
+      IDENTITY_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq-deployment-identity
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.MARKET_IQ_VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - name: Require the preview automation credential
+        run: |
+          if [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+            echo "MARKET_IQ_VERCEL_AUTOMATION_BYPASS_SECRET is not configured."
+            exit 1
+          fi
+
+      - name: Wait for the stable preview to serve integration HEAD
+        shell: bash
+        run: |
+          set -uo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+
+          for attempt in $(seq 1 30); do
+            status="$(curl --silent --show-error --location \
+              --connect-timeout 10 --max-time 20 \
+              --output "$response_file" --write-out '%{http_code}' \
+              --header "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+              "$IDENTITY_URL" || true)"
+
+            observed="$(node -e '
+              const fs = require("node:fs");
+              try {
+                const value = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+                process.stdout.write([value.product ?? "", value.branch ?? "", value.commit ?? ""].join("\t"));
+              } catch {
+                process.stdout.write("\t\t");
+              }
+            ' "$response_file")"
+            IFS=$'\t' read -r product branch commit <<< "$observed"
+
+            if [ "$status" = "200" ] \
+              && [ "$product" = "market-iq" ] \
+              && [ "$branch" = "$EXPECTED_BRANCH" ] \
+              && [ "$commit" = "$EXPECTED_SHA" ]; then
+              echo "Stable Market IQ preview is serving $EXPECTED_BRANCH at $EXPECTED_SHA."
+              exit 0
+            fi
+
+            echo "Attempt $attempt/30: HTTP ${status:-unreachable}; branch ${branch:-unavailable}; commit ${commit:-unavailable}."
+            sleep 20
+          done
+
+          echo "Stable Market IQ preview did not converge to $EXPECTED_BRANCH at $EXPECTED_SHA within 10 minutes."
+          exit 1
