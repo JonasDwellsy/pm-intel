@@ -71,6 +71,21 @@ test("live-feed migration is additive and isolated from Operator IQ", () => {
   assert.doesNotMatch(migration, /DROP TABLE|DROP COLUMN|ALTER TABLE "PM"|ALTER TABLE "PortfolioIq"/);
 });
 
+test("daily supply history is additive, isolated, and written with a successful feed run", () => {
+  const migration = readFileSync(
+    "prisma/market-iq/migrations/20260821000000_market_iq_listing_supply_snapshots/migration.sql",
+    "utf8"
+  );
+  assert.match(migration, /CREATE TABLE "MarketIqListingSupplySnapshot"/);
+  assert.match(migration, /UNIQUE INDEX "MarketIqListingSupplySnapshot_marketId_snapshotDate_key"/);
+  assert.doesNotMatch(migration, /DROP TABLE|DROP COLUMN|ALTER TABLE "PM"|ALTER TABLE "PortfolioIq"/);
+
+  const runner = readFileSync("src/lib/market-iq/listing-feed-run.server.ts", "utf8");
+  assert.match(runner, /marketIqListingSupplySnapshot\.upsert/);
+  assert.match(runner, /marketId_snapshotDate/);
+  assert.match(runner, /summarizeDailyActiveListingSupply/);
+});
+
 test("manual refresh is preview-gated and token-authenticated", () => {
   const route = readFileSync("src/app/api/market-iq/source/dwellsy/refresh/route.ts", "utf8");
   assert.match(route, /marketIqPreviewEnabled/);

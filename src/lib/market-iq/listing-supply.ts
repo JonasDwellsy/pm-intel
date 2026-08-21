@@ -15,6 +15,13 @@ export type ListingSupplySummary = {
   listingAgeBuckets: ListingAgeBucket[];
 };
 
+export type DailyListingSupplySummary = ListingSupplySummary & {
+  snapshotDate: Date;
+  activeListings: number;
+  apartmentListings: number;
+  houseListings: number;
+};
+
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
 const BUCKETS: Array<{
@@ -76,5 +83,25 @@ export function summarizeActiveListingSupply(
       const count = ages.filter(includes).length;
       return { key, label, count, sharePct: roundOne((count / ages.length) * 100) };
     }),
+  };
+}
+
+export function summarizeDailyActiveListingSupply(
+  listings: Array<{ listingCreatedAt: Date; propertyType: string }>,
+  capturedAt: Date,
+): DailyListingSupplySummary {
+  const snapshotDate = new Date(Date.UTC(
+    capturedAt.getUTCFullYear(),
+    capturedAt.getUTCMonth(),
+    capturedAt.getUTCDate(),
+  ));
+  const apartmentListings = listings.filter((listing) => listing.propertyType === "apartment").length;
+
+  return {
+    ...summarizeActiveListingSupply(listings, capturedAt),
+    snapshotDate,
+    activeListings: listings.length,
+    apartmentListings,
+    houseListings: listings.length - apartmentListings,
   };
 }
