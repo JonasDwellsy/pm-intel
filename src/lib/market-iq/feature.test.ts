@@ -124,6 +124,7 @@ test("Market IQ owns a standalone application shell", () => {
   assert.match(layout, /<MarketIqAppFooter \/>/);
   assert.match(header, />Market IQ</);
   assert.match(footer, /marketIqSignInPath\(\)/);
+  assert.doesNotMatch(footer, /redirect_url=\/market-iq/);
   assert.doesNotMatch(header, /Dwellsy IQ Online|Operator IQ/);
   assert.doesNotMatch(footer, /Dwellsy IQ Online|Operator IQ/);
 });
