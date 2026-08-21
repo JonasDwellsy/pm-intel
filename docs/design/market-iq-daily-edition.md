@@ -165,22 +165,35 @@ standing inventory count is published in box scores:
    at all. Dwellsy should decide which surface is canonical so the daily edition
    does not contradict another Dwellsy surface a customer might query.
 
-3. **`deactivation_time` semantics (PR #364 finding).** The off-market flow
-   count is windowed on `deactivation_time`, the same field behind gate 1. Its
-   first live sample was 196 in 24 hours, ~4x the 90-day daily average of ~47,
-   consistent with batch-stamped deactivations rather than 196 listings leaving
-   in one day. Until Nikolay confirms `deactivation_time` reflects the actual
-   moment a listing left the market (not a batch job), the off-market count
-   carries the same reliability risk as the withheld standing count.
+3. **`deactivation_time` semantics — RESOLVED, off-market held indefinitely.**
+   Investigation (Codex production read, confirmed by CEO) found no reliable field
+   anywhere in `dwellsy_prod` — no reason/mechanism column, no `listing_json`
+   provenance key, no lifecycle audit relation — that distinguishes a communicated
+   removal from Dwellsy's automatic deactivation. `listing_status_info` records a
+   terminal label but not provenance. The 196/24h spike was almost entirely "Not
+   on Feed" (194), and 2,789 of 3,658 90-day "Not on Feed" records have
+   `deactivation_time` aligned with `last_query_time` in batch-identical stamps.
+   That proves "Not on Feed" marks when Dwellsy's crawler stopped seeing the
+   listing, not when it left the market. There is no honest basis for a filter, so
+   off-market is **held indefinitely** — both the #364 box score (already removed)
+   and the merged #362 daily section (removal pending).
 
-**Which sections are safe now.** New to market, Rent changes, and Concessions
-are anchored to reliable timestamps (`listing_create_time` and the price
-change-log) and publish now. The aging watch is calendar-derived from
-`listing_create_time` and also publishes. **Off market is not in that safe set:**
-it shares the `deactivation_time` gate above and should be held, or published
-only with the "pending source reconciliation" caveat applied directly to it,
-until gate 3 clears. The standing inventory count stays withheld until gates 1
-and 2 clear.
+**The arrival/departure asymmetry (durable design principle).** Dwellsy observes
+listings *appearing* reliably — a new listing has a real `listing_create_time`.
+It cannot reliably observe listings *leaving*, because `deactivation_time`
+conflates real removal with the crawler losing sight of a listing, and the two
+are indistinguishable. The daily edition is therefore built on the arrival side
+and the still-live side; departure is structurally unreliable and off-market is
+not a publishable event. This also bears on the withheld standing inventory count:
+if departures lag reality, the active count drifts, which may partly explain the
+1,758-vs-1,340 split.
+
+**Which sections are safe now.** New to market, Rent changes, and Concessions are
+anchored to reliable timestamps (`listing_create_time` and the price change-log)
+and publish now. The aging watch is calendar-derived from `listing_create_time`
+and also publishes — it is the honest version of the "getting stale" story that
+off-market tried to tell. Off market is held (see gate 3). The standing inventory
+count stays withheld until gates 1 and 2 clear.
 
 ---
 
