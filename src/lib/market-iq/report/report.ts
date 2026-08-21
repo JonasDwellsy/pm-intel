@@ -100,6 +100,7 @@ export type MarketIqMarketActivity = {
   newListings24h: number;
   sourceUpdates24h: number;
   confirmedPriceChanges24h: number;
+  eventsTruncated?: boolean;
   events: MarketIqListingEvent[];
 };
 

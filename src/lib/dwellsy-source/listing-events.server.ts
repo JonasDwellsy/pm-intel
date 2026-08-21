@@ -34,6 +34,8 @@ type CountRow = {
   as_of: Date | string;
 };
 
+const MAX_SAVED_ACTIVITY_EVENTS = 200;
+
 const ACTIVITY_SQL = `
   WITH recent_price_logs AS (
     SELECT amount_log.id,
@@ -50,7 +52,7 @@ const ACTIVITY_SQL = `
       ORDER BY earlier.created_at DESC
       LIMIT 1
     ) prior ON true
-    WHERE amount_log.created_at >= NOW() - INTERVAL '7 days'
+    WHERE amount_log.created_at >= NOW() - INTERVAL '24 hours'
       AND prior.listing_amount IS DISTINCT FROM amount_log.listing_amount
   ),
   new_events AS (
@@ -76,9 +78,11 @@ const ACTIVITY_SQL = `
       AND COALESCE(listing.room_for_rent_flag, false) = false
       AND listing.listing_amount > 0
       AND listing.bedrooms IS NOT NULL
-      AND listing.listing_create_time >= NOW() - INTERVAL '7 days'
-    ORDER BY listing.listing_create_time DESC
-    LIMIT 12
+      AND listing.property_id IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_1), '') IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_city), '') IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
+      AND listing.listing_create_time >= NOW() - INTERVAL '24 hours'
   ),
   price_events AS (
     SELECT CONCAT('price:', price.id::text) AS event_id,
@@ -102,8 +106,12 @@ const ACTIVITY_SQL = `
       AND listing.record_status = 'active'
       AND listing.property_category IN ('Apartment', 'House')
       AND COALESCE(listing.room_for_rent_flag, false) = false
-    ORDER BY price.created_at DESC
-    LIMIT 12
+      AND listing.listing_amount > 0
+      AND listing.bedrooms IS NOT NULL
+      AND listing.property_id IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_1), '') IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_city), '') IS NOT NULL
+      AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
   )
   SELECT *
   FROM (
@@ -112,7 +120,7 @@ const ACTIVITY_SQL = `
     SELECT * FROM price_events
   ) activity
   ORDER BY observed_at DESC
-  LIMIT 14
+  LIMIT ${MAX_SAVED_ACTIVITY_EVENTS + 1}
 `;
 
 const COUNTS_SQL = `
@@ -203,12 +211,16 @@ export async function loadMarketListingActivity(msaCode: string): Promise<Market
     ]);
     const counts = countsResult.rows[0];
     if (!counts?.as_of) throw new Error("Dwellsy listing activity did not include a usable source timestamp.");
+    const reportableEvents = eventsResult.rows
+      .map(event)
+      .filter((value): value is MarketIqListingEvent => value !== null);
     return {
       asOf: new Date(counts.as_of).toISOString(),
       newListings24h: Number(counts.new_listings_24h),
       sourceUpdates24h: Number(counts.source_updates_24h),
       confirmedPriceChanges24h: Number(counts.confirmed_price_changes_24h),
-      events: eventsResult.rows.map(event).filter((value): value is MarketIqListingEvent => value !== null),
+      eventsTruncated: reportableEvents.length > MAX_SAVED_ACTIVITY_EVENTS,
+      events: reportableEvents.slice(0, MAX_SAVED_ACTIVITY_EVENTS),
     };
   });
 }
