@@ -206,7 +206,7 @@ into three honest categories:
 | Off the market   | Listings that disappeared, with the age they reached            | `deactivation_time` (reader must be extended) | Daily | Leased or withdrawn, undetermined       |
 | The aging watch  | Listings crossing 30, 60 and 90 days still live                 | computed from `listing_create_time` | Daily           | Live age; DOM column null while active  |
 | Time to fill     | Median + distribution of time to resolution, by beds/rent band  | `days_on_market` on inactive rows   | Weekly refresh  | Time to resolution, not time to lease   |
-| Concessions      | Free-month and incentive language in new listing text           | `description`, existing parsing      | Daily           | Advertised, not verified                |
+| Concessions      | Free-month and incentive language in new listing text           | `description`; new parser (PR #363) | Daily           | Advertised, not verified                |
 | Box scores       | Active inventory, live median asking rent, inflow/outflow       | `active-listings.server.ts`         | Daily           | Held back until inventory reconciles    |
 | Rent trend       | Gaussian YoY and MoM trend                                      | `MarketIqTrendPoint[]`              | Monthly         | Labeled as the monthly analysis         |
 
@@ -214,8 +214,22 @@ into three honest categories:
 PM discounts with a free month before cutting the headline rent, so softening
 appears in listing text weeks before it appears in the monthly trend. That means
 the daily edition can legitimately break news ahead of the monthly report, which
-is the cleanest available answer to why anyone would open this daily. Concession
-references already exist in `report/email.ts` and `report.ts`.
+is the cleanest available answer to why anyone would open this daily.
+
+> **Spec correction (21 Aug, PR #363).** An earlier draft claimed concession
+> parsing groundwork already existed in `report/email.ts` and `report.ts`. That
+> was wrong: those files contained only *disclaimer* text (the report says it
+> does not measure concessions). No parser existed. PR #363 builds one from
+> scratch.
+>
+> **Required acceptance criterion, not yet met:** the classifier must handle
+> negation. As shipped it is pure keyword regex with no negation guard, so
+> "no free month," "no move-in special," "application fee is not waived," and
+> "no credit" all classify as concessions (verified by adversarial test). For a
+> credibility product this is the primary failure mode and must be fixed before
+> the section is customer-visible: reject a match when a negator ("no", "not",
+> "n't", "without") precedes the matched span, and add negation cases to the
+> test suite.
 
 ---
 
