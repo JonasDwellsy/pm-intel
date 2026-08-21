@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MARKET_IQ_CANONICAL_ROUTES, marketIqProductArea } from "@/lib/market-iq/navigation";
+import { marketIqSignInPath } from "@/lib/market-iq/entry";
 
 const INTELLIGENCE_ITEMS = [
   { href: MARKET_IQ_CANONICAL_ROUTES.home, label: "Home", area: "home" },
@@ -72,7 +73,7 @@ export function MarketIqAppNavigation({ signedIn, hasProduct, clientAdvisoryEnab
               </Link>
             );
           })}
-          {signedIn ? <><div className="my-2 border-t border-grid" />{hasProduct && <Link href="/market-iq/get-started" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Workspace setup</Link>}{hasProduct ? <Link href="/market-iq/account" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Account and billing</Link> : <Link href="/market-iq/subscribe" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Plans</Link>}</> : <><div className="my-2 border-t border-grid" /><Link href="/sign-in?redirect_url=/market-iq/subscribe" className="block rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white">Sign in</Link></>}
+          {signedIn ? <><div className="my-2 border-t border-grid" />{hasProduct && <Link href="/market-iq/get-started" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Workspace setup</Link>}{hasProduct ? <Link href="/market-iq/account" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Account and billing</Link> : <Link href="/market-iq/subscribe" className="block rounded-md px-4 py-3 text-sm font-medium text-navy hover:bg-surface-soft">Plans</Link>}</> : <><div className="my-2 border-t border-grid" /><Link href={marketIqSignInPath()} className="block rounded-md bg-navy px-4 py-3 text-sm font-semibold text-white">Customer sign in</Link></>}
         </nav>
       </details>
     </>

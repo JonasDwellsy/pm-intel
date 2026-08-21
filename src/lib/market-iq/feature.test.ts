@@ -14,18 +14,20 @@ test("Market IQ requires the explicit preview value", () => {
   assert.equal(marketIqPreviewEnabled("1"), true);
 });
 
-test("the Market IQ route checks the disabled-by-default flag before auth or database access", () => {
+test("the Market Intelligence route checks the flag, workspace, then product access", () => {
   const source = readFileSync(
-    join(process.cwd(), "src/app/market-iq/page.tsx"),
+    join(process.cwd(), "src/app/market-iq/market/page.tsx"),
     "utf8"
   );
   const flagCheck = source.indexOf("if (!marketIqPreviewEnabled()) notFound()");
+  const workspaceCheck = source.indexOf("if (!organizationId)");
   const accessCheck = source.indexOf("await resolveViewerMarketIqAccess");
-  const marketCheck = source.indexOf("isMarketEntitled(access.entitlement");
+  const productCheck = source.indexOf("if (!access.hasProduct)");
 
   assert.ok(flagCheck >= 0);
-  assert.ok(accessCheck > flagCheck);
-  assert.ok(marketCheck > accessCheck);
+  assert.ok(workspaceCheck > flagCheck);
+  assert.ok(accessCheck > workspaceCheck);
+  assert.ok(productCheck > accessCheck);
 });
 
 test("the integration preview root opens the public Market IQ front door before Operator IQ reads", () => {
@@ -47,7 +49,55 @@ test("the standalone sign-in returns to Market IQ on the same origin", () => {
 
   assert.match(source, /marketIqPreviewEnabled\(\)/);
   assert.match(source, /forceRedirectUrl: marketIqRedirectUrl/);
-  assert.match(source, /redirectUrl\?\.startsWith\("\/market-iq"\)/);
+  assert.match(source, /safeMarketIqReturnTo/);
+  assert.match(source, /MARKET_IQ_APPLICATION_PATH/);
+  assert.match(source, /marketIqPreview \? "Market IQ" : "Operator IQ"/);
+});
+
+test("the public front door separates customer sign-in from plan selection", () => {
+  const welcome = readFileSync(
+    join(process.cwd(), "src/app/market-iq/welcome/page.tsx"),
+    "utf8"
+  );
+  const header = readFileSync(
+    join(process.cwd(), "src/components/market-iq/MarketIqAppHeader.tsx"),
+    "utf8"
+  );
+
+  assert.match(welcome, /CUSTOMER_SIGN_IN = marketIqSignInPath\(\)/);
+  assert.match(welcome, />Customer sign in</);
+  assert.match(welcome, /href="#plans"/);
+  assert.match(header, /href=\{marketIqSignInPath\(\)\}/);
+});
+
+test("workspace activation preserves the Market Intelligence destination", () => {
+  const setupPage = readFileSync(
+    join(process.cwd(), "src/app/setup-workspace/page.tsx"),
+    "utf8"
+  );
+  const setupAction = readFileSync(
+    join(process.cwd(), "src/app/setup-workspace/actions.ts"),
+    "utf8"
+  );
+  const activation = readFileSync(
+    join(process.cwd(), "src/app/market-iq/get-started/actions.ts"),
+    "utf8"
+  );
+
+  assert.match(setupPage, /MARKET_IQ_APPLICATION_PATH/);
+  assert.match(setupAction, /safeMarketIqReturnTo/);
+  assert.match(activation, /marketIqReturnToForMarket/);
+  assert.match(activation, /returnTo\?\.startsWith\("\/market-iq\/market"\)/);
+});
+
+test("the invitation-only page keeps Market IQ users inside Market IQ", () => {
+  const source = readFileSync(
+    join(process.cwd(), "src/app/sign-up/[[...sign-up]]/page.tsx"),
+    "utf8"
+  );
+
+  assert.match(source, /marketIqPreviewEnabled\(\)/);
+  assert.match(source, /marketIqSignInPath\(\)/);
   assert.match(source, /marketIqPreview \? "Market IQ" : "Operator IQ"/);
 });
 
@@ -73,6 +123,7 @@ test("Market IQ owns a standalone application shell", () => {
   assert.match(layout, /<MarketIqAppHeader \/>/);
   assert.match(layout, /<MarketIqAppFooter \/>/);
   assert.match(header, />Market IQ</);
+  assert.match(footer, /marketIqSignInPath\(\)/);
   assert.doesNotMatch(header, /Dwellsy IQ Online|Operator IQ/);
   assert.doesNotMatch(footer, /Dwellsy IQ Online|Operator IQ/);
 });

@@ -56,7 +56,7 @@ function OpenMarketButton({ disabled, sourceUnavailable, clientAdvisoryEnabled }
   return <button type="submit" disabled={disabled || pending} className="rounded-md bg-navy px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{pending ? "Opening edition…" : label}</button>;
 }
 
-export function MarketIqActivationFlow({ marketId, snapshot, initialBrand, initialEditorialDefaults, initialSelection, initialStep, source, clientAdvisoryEnabled, logoStorageEnabled }: { marketId: string; marketLabel: string; snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialEditorialDefaults: MarketIqEditorialDefaults; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "scope_catalog" | "unavailable"; completed: boolean; clientAdvisoryEnabled: boolean; logoStorageEnabled: boolean }) {
+export function MarketIqActivationFlow({ marketId, snapshot, initialBrand, initialEditorialDefaults, initialSelection, initialStep, source, clientAdvisoryEnabled, logoStorageEnabled, returnTo }: { marketId: string; marketLabel: string; snapshot: MarketIqReportSnapshot; initialBrand: Brand; initialEditorialDefaults: MarketIqEditorialDefaults; initialSelection: MarketIqReportScopeSelection; initialStep: number; source: "dwellsy_trends" | "scope_catalog" | "unavailable"; completed: boolean; clientAdvisoryEnabled: boolean; logoStorageEnabled: boolean; returnTo: string | null }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const websiteInputRef = useRef<HTMLInputElement>(null);
@@ -124,6 +124,7 @@ export function MarketIqActivationFlow({ marketId, snapshot, initialBrand, initi
 
   return <form ref={formRef} action={completeMarketIqActivation} className="mt-8">
     <input type="hidden" name="marketId" value={marketId} />
+    <input type="hidden" name="returnTo" value={returnTo ?? ""} />
     <input type="hidden" name="nextStep" value="2" />
     <input type="hidden" name="sourceAvailable" value={source === "unavailable" ? "0" : "1"} />
     <input type="hidden" name="displayName" value={brand.displayName} />

@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { MarketIqAppNavigation } from "@/components/market-iq/MarketIqAppNavigation";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
+import { marketIqSignInPath } from "@/lib/market-iq/entry";
 
 async function signedIn() {
   try {
@@ -51,7 +52,7 @@ export async function MarketIqAppHeader() {
               </div>
             </>
           ) : (
-            <Link href="/sign-in?redirect_url=/market-iq" className="hidden rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white sm:inline-flex">Sign in</Link>
+            <Link href={marketIqSignInPath()} className="hidden rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white sm:inline-flex">Customer sign in</Link>
           )}
         </div>
       </div>

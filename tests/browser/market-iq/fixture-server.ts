@@ -52,7 +52,8 @@ const html = String.raw`<!doctype html>
       configurations: {},
       recipients: [],
       preparedDeliveries: [],
-      emailSendCount: 0
+      emailSendCount: 0,
+      accessState: "ready"
     };
 
     function state() {
@@ -78,19 +79,46 @@ const html = String.raw`<!doctype html>
     }
 
     function requireSignIn() {
-      if (!state().signedIn && location.pathname !== "/sign-in") {
-        navigate("/sign-in");
+      if (!state().signedIn && !["/sign-in", "/market-iq/welcome"].includes(location.pathname)) {
+        navigate("/sign-in?redirect_url=" + encodeURIComponent(location.pathname + location.search));
         return false;
       }
       return true;
     }
 
+    function renderWelcome() {
+      shell('<section><p>Rental-market intelligence for property managers</p><h1>See where local rents are moving, then explain why it matters.</h1><p class="muted">Understand the local asking market before the next pricing or owner conversation.</p><a data-nav href="/sign-in?redirect_url=%2Fmarket-iq%2Fmarket">Customer sign in</a> <a data-nav href="/market-iq/subscribe?billing=month">View plans</a></section>');
+    }
+
     function renderSignIn() {
       shell('<section><h1>Sign in to Market IQ</h1><p class="muted">Deterministic development authentication.</p><button data-testid="sign-in">Sign in</button></section>');
       document.querySelector('[data-testid="sign-in"]').onclick = () => {
-        save({ ...state(), signedIn: true });
-        navigate("/market-iq");
+        const next = { ...state(), signedIn: true };
+        save(next);
+        const returnTo = new URL(location.href).searchParams.get("redirect_url") || "/market-iq/market";
+        if (next.accessState === "setup") {
+          navigate("/setup-workspace?from=" + encodeURIComponent(returnTo));
+          return;
+        }
+        if (next.accessState === "none") {
+          navigate("/market-iq/subscribe");
+          return;
+        }
+        navigate(returnTo);
       };
+    }
+
+    function renderWorkspaceSetup() {
+      const returnTo = new URL(location.href).searchParams.get("from") || "/market-iq/market";
+      shell('<section><h1>Activate your Market IQ workspace</h1><p class="muted">Complete the workspace connection before entering Market Intelligence.</p><button data-testid="complete-setup">Complete setup</button></section>');
+      document.querySelector('[data-testid="complete-setup"]').onclick = () => {
+        save({ ...state(), accessState: "ready" });
+        navigate(returnTo);
+      };
+    }
+
+    function renderNoAccess() {
+      shell('<section><h1>Market IQ access</h1><p>Your account is signed in, but Market IQ is not included for this workspace.</p><a data-nav href="/market-iq/welcome#plans">View Market IQ plans</a></section>');
     }
 
     function renderHome() {
@@ -179,7 +207,10 @@ const html = String.raw`<!doctype html>
 
     function render() {
       if (!requireSignIn()) return;
+      if (location.pathname === "/market-iq/welcome") return renderWelcome();
       if (location.pathname === "/sign-in") return renderSignIn();
+      if (location.pathname === "/setup-workspace") return renderWorkspaceSetup();
+      if (location.pathname === "/market-iq/subscribe") return renderNoAccess();
       if (location.pathname === "/market-iq") return renderHome();
       if (location.pathname === "/market-iq/market") return renderMarket();
       if (location.pathname === "/market-iq/get-started") return renderSetup();

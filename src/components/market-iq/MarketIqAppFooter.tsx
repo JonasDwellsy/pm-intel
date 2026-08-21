@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
+import { marketIqSignInPath } from "@/lib/market-iq/entry";
 
 async function signedIn() {
   try {
@@ -22,7 +23,7 @@ export async function MarketIqAppFooter() {
           <span className="hidden text-xs text-muted-2 sm:inline">A Dwellsy IQ product</span>
         </Link>
         <nav className="flex flex-wrap gap-5 text-xs text-muted-foreground">
-          {isSignedIn ? <><Link href="/market-iq/get-started" className="hover:text-navy">Workspace setup</Link><Link href="/market-iq/account" className="hover:text-navy">Account and billing</Link></> : <><Link href="/market-iq/welcome#product" className="hover:text-navy">Product</Link><Link href="/market-iq/welcome#plans" className="hover:text-navy">Plans</Link><Link href="/sign-in?redirect_url=/market-iq" className="hover:text-navy">Sign in</Link></>}
+          {isSignedIn ? <><Link href="/market-iq/get-started" className="hover:text-navy">Workspace setup</Link><Link href="/market-iq/account" className="hover:text-navy">Account and billing</Link></> : <><Link href="/market-iq/welcome#product" className="hover:text-navy">Product</Link><Link href="/market-iq/welcome#plans" className="hover:text-navy">Plans</Link><Link href={marketIqSignInPath()} className="hover:text-navy">Sign in</Link></>}
           <span>© {new Date().getFullYear()} Dwellsy, Inc.</span>
         </nav>
       </div>
