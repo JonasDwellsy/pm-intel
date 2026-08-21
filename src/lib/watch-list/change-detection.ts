@@ -31,6 +31,7 @@ import type {
   SnapshotRow,
   StarsPerMetric,
 } from "./snapshot";
+import { sizeBandLabel } from "@/lib/operator-size-bands";
 
 /** All change types the diff can produce. */
 export type ChangeType =
@@ -163,17 +164,40 @@ export function diffSnapshots(
   }
 
   // Size band — the operator crossed a scale threshold ("400–800" →
-  // "800–1,600"), OR transitioned in/out of 'estimated' mode. This used to
-  // diff the raw low–high turnover range, which moved a few units every
-  // refresh and made the alert pure noise.
+  // "800–1,600"), OR transitioned in/out of 'estimated' mode.
+  //
+  // Compare the DISPLAYED band, derived from the point estimate, not the
+  // stored `estimatedPortfolioBand` string. That field holds the raw low–high
+  // turnover range ("77–128"), which drifts a few units on every refresh as
+  // the T12 window slides — so diffing it fired for essentially every watched
+  // operator, every month. Measured on the Jul-17 → Aug-20 pair: 7,202 band
+  // "changes" out of 16,830 total, with transitions like 77–128 → 72–120 and
+  // 60–100 → 63–104. None of them mean anything to a reader.
+  //
+  // The band is what the product actually shows (scorecards, market rows,
+  // watch lists, CSV), so a band crossing is the change a client can see and
+  // act on. The comment above this block previously described exactly this
+  // fix; the code never implemented it.
+  //
+  // Material size moves that do NOT cross a band edge are still reported —
+  // portfolio_size covers those, thresholded at 20%.
+  const priorBand = sizeBandLabel(prior.estimatedPortfolioPoint);
+  const currentBand = sizeBandLabel(current.estimatedPortfolioPoint);
+  // A null band means "no point estimate" — i.e. not in estimated mode. Track
+  // that separately so an operator entering or leaving estimation still
+  // surfaces rather than silently reading as "no change".
+  const priorEstimated = typeof prior.estimatedPortfolioPoint === "number";
+  const currentEstimated = typeof current.estimatedPortfolioPoint === "number";
   if (
     !methodologyChanged &&
-    prior.estimatedPortfolioBand !== current.estimatedPortfolioBand
+    (priorBand !== currentBand || priorEstimated !== currentEstimated)
   ) {
     changes.push({
       type: "portfolio_band",
-      before: prior.estimatedPortfolioBand,
-      after: current.estimatedPortfolioBand,
+      // Fall back to the stored string when there is no band to name, so the
+      // estimated↔not transition still renders something meaningful.
+      before: priorBand ?? prior.estimatedPortfolioBand,
+      after: currentBand ?? current.estimatedPortfolioBand,
     });
   }
 

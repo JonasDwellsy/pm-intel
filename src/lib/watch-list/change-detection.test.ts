@@ -116,22 +116,36 @@ test("losing a star (gold → null) surfaces as a star change with after=null", 
 
 // ── Portfolio band + size ─────────────────────────────────────────────
 
-test("portfolio band change (Low → Medium) surfaces as a band change", () => {
-  const prior = makeSnapshot({
-    estimatedPortfolioPoint: 200,
-    estimatedPortfolioBand: "Low",
-  });
-  const current = makeSnapshot({
-    estimatedPortfolioPoint: 210,
-    estimatedPortfolioBand: "Medium",
-  });
+test("crossing a size-band edge surfaces as a band change", () => {
+  // 380 → 420 crosses 200–400 into 400–800. This is the move a reader can
+  // see on the scorecard, so it is the move worth alerting on.
+  const prior = makeSnapshot({ estimatedPortfolioPoint: 380, estimatedPortfolioBand: "300–500" });
+  const current = makeSnapshot({ estimatedPortfolioPoint: 420, estimatedPortfolioBand: "340–560" });
   const changes = diffSnapshots(prior, current);
-  assert.equal(changes.length, 1);
-  assert.deepEqual(changes[0], {
-    type: "portfolio_band",
-    before: "Low",
-    after: "Medium",
-  });
+  const band = changes.filter((c) => c.type === "portfolio_band");
+  assert.equal(band.length, 1);
+  assert.deepEqual(band[0], { type: "portfolio_band", before: "200–400", after: "400–800" });
+});
+
+test("drift WITHIN a band surfaces nothing, even though the stored range moved", () => {
+  // The regression this guards. `estimatedPortfolioBand` holds the raw low–high
+  // turnover range, which shifts a few units every refresh as the T12 window
+  // slides. Diffing that string fired 7,202 times on the Jul-17 → Aug-20 pair
+  // — roughly once per watched operator — with transitions like 77–128 → 72–120
+  // that mean nothing to a reader. Both points below sit in 50–100.
+  const prior = makeSnapshot({ estimatedPortfolioPoint: 77, estimatedPortfolioBand: "77–128" });
+  const current = makeSnapshot({ estimatedPortfolioPoint: 72, estimatedPortfolioBand: "72–120" });
+  assert.deepEqual(diffSnapshots(prior, current), []);
+});
+
+test("a sub-band move big enough to matter still reports, as portfolio_size", () => {
+  // Nothing is lost by banding the alert: a ≥20% move that stays inside one
+  // band is still reported, just as the thresholded size change.
+  const prior = makeSnapshot({ estimatedPortfolioPoint: 1000, estimatedPortfolioBand: "1,000–1,600" });
+  const current = makeSnapshot({ estimatedPortfolioPoint: 1400, estimatedPortfolioBand: "1,400–2,240" });
+  const changes = diffSnapshots(prior, current);
+  assert.equal(changes.filter((c) => c.type === "portfolio_band").length, 0, "same band (800–1,600)");
+  assert.equal(changes.filter((c) => c.type === "portfolio_size").length, 1);
 });
 
 test("portfolio size +25% with same band surfaces as size change", () => {
