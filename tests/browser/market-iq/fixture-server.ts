@@ -168,6 +168,7 @@ const html = String.raw`<!doctype html>
         : '<section data-testid="edition-comparison"><h2>Observed flow, side by side</h2><p>Aug 20, 10:00 PM EDT → Aug 21, 10:00 PM EDT</p><dl><dt>New listings</dt><dd>46 <span>+6</span></dd><dt>Rent moves</dt><dd>14 <span>No change</span></dd></dl><p>They describe event counts only and are not a rent trend or an inference about market direction.</p></section>';
       const explorer = '<section data-testid="event-explorer" aria-label="Daily event explorer"><h2>Explore this edition</h2><p>Search and filter the individual records retained with this Daily Edition.</p>' +
         '<div class="event-controls"><label>Address search<input data-testid="event-search" type="search" placeholder="Address, city, or ZIP"></label><label>Event<select data-testid="event-type"><option value="all">All events</option><option value="new">New to market</option><option value="rent">Rent changes</option><option value="off">Off market</option></select></label><button data-testid="event-reset">Reset filters</button></div>' +
+        '<button data-testid="event-export">Export 3 matching records CSV</button>' +
         '<p data-testid="event-count">Showing 3 of 3 matching retained records.</p><p class="muted">The source observed 46 reportable events. This saved edition retains 3 individual records.</p>' +
         '<div data-testid="event-record" class="event-record" data-event="new" data-search="100 main st cleveland 44113"><strong>New studio apartment in Cleveland at $1,100</strong><p>100 Main St · Observed Aug 21, 10:00 PM EDT</p><a href="https://dwellsy.com/property/new">Open source listing</a></div>' +
         '<div data-testid="event-record" class="event-record" data-event="rent" data-search="200 lake ave lakewood 44107"><strong>Asking rent changed for a 3-bedroom house in Lakewood</strong><p>200 Lake Ave · Observed Aug 21, 9:00 PM EDT</p></div>' +
@@ -192,6 +193,8 @@ const html = String.raw`<!doctype html>
           if (!record.hidden) visible += 1;
         });
         document.querySelector('[data-testid="event-count"]').textContent = 'Showing ' + visible + ' of ' + visible + ' matching retained records.';
+        document.querySelector('[data-testid="event-export"]').textContent = 'Export ' + visible + ' matching ' + (visible === 1 ? 'record' : 'records') + ' CSV';
+        document.querySelector('[data-testid="event-export"]').disabled = visible === 0;
       }
       eventSearch.oninput = filterEvents;
       eventType.onchange = filterEvents;
@@ -199,6 +202,17 @@ const html = String.raw`<!doctype html>
         eventSearch.value = "";
         eventType.value = "all";
         filterEvents();
+      };
+      document.querySelector('[data-testid="event-export"]').onclick = () => {
+        const matching = eventRecords.filter((record) => !record.hidden);
+        const header = 'edition_source_as_of,observed_event_total,retained_record_total,exported_matching_record_total,event_type,record_evidence';
+        const rows = matching.map((record) => '2026-08-22T02:00:00.000Z,46,3,' + matching.length + ',' + record.dataset.event + ',"' + record.innerText.replaceAll('"', '""').replaceAll('\n', ' ') + '"');
+        const url = URL.createObjectURL(new Blob(['\uFEFF' + header + '\r\n' + rows.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'market-iq-' + (id === 'cleveland-oh' ? 'cleveland' : 'columbus') + '-2026-08-21-filtered-retained-events.csv';
+        link.click();
+        URL.revokeObjectURL(url);
       };
     }
 

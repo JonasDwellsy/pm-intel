@@ -29,6 +29,7 @@ describe("daily event module boundary", () => {
   it("keeps the saved-record explorer free of live source and database access", () => {
     const files = [
       "src/lib/market-iq/daily-event-explorer.ts",
+      "src/lib/market-iq/daily-event-export.ts",
       "src/components/market-iq/report/MarketIqDailyEventExplorer.tsx",
     ];
     for (const file of files) {
