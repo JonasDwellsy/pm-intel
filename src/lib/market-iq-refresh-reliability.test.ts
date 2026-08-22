@@ -145,9 +145,27 @@ test("the refresh lease, atomic commit, and read-only source boundaries remain e
   assert.match(server, /marketIqPrisma\.\$transaction/);
   assert.match(server, /storeMarketIqReportSourceSnapshot\(input\.snapshot, transaction\)/);
   assert.match(server, /status: "complete"/);
+  assert.match(server, /triggerKind: input\.triggerKind \?\? "manual"/);
   assert.match(route, /status: 409/);
   assert.match(route, /Retry-After/);
   assert.doesNotMatch(route, /error\.message/);
   assert.match(source, /BEGIN READ ONLY/);
   assert.match(source, /default_transaction_read_only=on/);
+});
+
+test("the authenticated source refresh supports every configured live market", () => {
+  const route = readFileSync("src/app/api/market-iq/source/trends/refresh/route.ts", "utf8");
+  const builders = readFileSync("src/lib/market-iq/report/market-source-builders.server.ts", "utf8");
+  assert.match(route, /MARKET_IQ_SOURCE_REFRESH_TOKEN/);
+  assert.match(route, /timingSafeEqual/);
+  assert.match(route, /getMarketIqMarket\(requestedMarketId\)/);
+  assert.match(route, /market\.status !== "live"/);
+  assert.match(route, /triggerKind: tokenAuthorized \? "scheduled" : "manual"/);
+  assert.match(route, /buildMarketIqReportSourceSnapshot\(market\.id\)/);
+  assert.match(route, /marketId: stored\.marketId/);
+  assert.match(builders, /CLEVELAND_MARKET_ID/);
+  assert.match(builders, /COLUMBUS_MARKET_ID/);
+  assert.match(builders, /SAN_FRANCISCO_MARKET_ID/);
+  assert.match(builders, /SAN_JOSE_MARKET_ID/);
+  assert.doesNotMatch(builders, /seeded/i);
 });

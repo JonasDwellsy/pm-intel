@@ -12,6 +12,7 @@ import {
 export async function beginMarketIqReportSourceRefresh(input: {
   marketId: string;
   startedBy: string;
+  triggerKind?: "manual" | "scheduled";
   now?: Date;
 }): Promise<{ state: "acquired"; refreshId: string } | { state: "already_running" }> {
   const now = input.now ?? new Date();
@@ -37,7 +38,7 @@ export async function beginMarketIqReportSourceRefresh(input: {
     data: {
       marketId: input.marketId,
       sourceKind: "trends",
-      triggerKind: "manual",
+      triggerKind: input.triggerKind ?? "manual",
       status: "running",
       requiredManifest: JSON.stringify([{ marketId: input.marketId }]),
       requiredGeographies: 1,
