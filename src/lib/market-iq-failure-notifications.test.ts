@@ -19,6 +19,13 @@ test("Market IQ incident monitoring watches every operational safety net", () =>
   assert.match(workflow, /\/market-iq\/daily\?market=cleveland-oh/);
 });
 
+test("the direct preview check runs as an explicit ES module", () => {
+  assert.match(workflow, /node --input-type=module <<'NODE'/);
+  assert.match(workflow, /import assert from "node:assert\/strict"/);
+  assert.match(workflow, /import fs from "node:fs"/);
+  assert.doesNotMatch(workflow, /const assert = require\(/);
+});
+
 test("Market IQ incident monitoring has narrow write authority", () => {
   assert.match(workflow, /permissions:\n\s+actions: read\n\s+contents: read\n\s+issues: write/);
   assert.doesNotMatch(workflow, /deployments: write/);
