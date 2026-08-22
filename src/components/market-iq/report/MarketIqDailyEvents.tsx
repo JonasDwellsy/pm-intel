@@ -295,20 +295,25 @@ export function MarketIqDailyEvents({
   marketName = "the market",
   timeZone = "America/New_York",
   headingLevel = "h2",
+  comparison,
 }: {
   availability: MarketIqMarketActivityAvailability;
   marketName?: string;
   timeZone?: string;
   headingLevel?: "h1" | "h2";
+  comparison?: ReactNode;
 }) {
   const Heading = headingLevel;
   if (availability.state === "unavailable") {
-    return <section className="rounded-2xl border border-amber-200 bg-amber-50 px-6 py-7" aria-label={`Daily ${marketName} listing events unavailable`}>
-      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-800">Daily listing events</p>
-      <Heading className="mt-2 text-xl font-semibold text-[var(--report-primary)]">No events were observed for the period.</Heading>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">The listing-event source read was unavailable. No monthly trend, seeded example, or other substitute has been placed in these daily sections.</p>
-      <p className="mt-3 text-xs text-slate-500">Read attempted {fullDateTime(availability.attemptedAt, timeZone)}.</p>
-    </section>;
+    return <>
+      <section className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-7" aria-label={`Daily ${marketName} listing events unavailable`}>
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-800">Daily listing events</p>
+        <Heading className="mt-2 text-xl font-semibold text-[var(--report-primary)]">No events were observed for the period.</Heading>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">The listing-event source read was unavailable. No monthly trend, seeded example, or other substitute has been placed in these daily sections.</p>
+        <p className="mt-3 text-xs text-slate-500">Read attempted {fullDateTime(availability.attemptedAt, timeZone)}.</p>
+      </section>
+      {comparison}
+    </>;
   }
 
   const headlines = buildDailyEventHeadlines(availability.activity.events);
@@ -324,6 +329,7 @@ export function MarketIqDailyEvents({
       <p className="text-xs text-slate-500">Source current through {fullDateTime(availability.activity.asOf, timeZone)}</p>
     </header>
     <ObservedFlow activity={availability.activity} />
+    {comparison}
     <div className="grid gap-5 lg:grid-cols-[1.08fr_0.92fr] lg:items-start">
       <EventSection title="Notable rent moves" kicker="Asking-rent changes" description="Largest confirmed dollar movements, with the most recent event breaking ties." emptyMessage="No confirmed asking-rent changes were observed for the period." groups={rentChangeGroups(rentChanges)} observedTotal={availability.activity.confirmedPriceChanges24h} timeZone={timeZone} primary limit={PRIMARY_EVENT_LIMIT} />
       <EventSection title="New to market" kicker="Latest arrivals" description="Fresh listings presented as property facts rather than repeated headlines." emptyMessage="No new listings were observed for the period." groups={singleEventGroups(newListings)} observedTotal={availability.activity.newListings24h} timeZone={timeZone} primary limit={PRIMARY_EVENT_LIMIT} />

@@ -158,9 +158,13 @@ const html = String.raw`<!doctype html>
       const archive = edition === "prior"
         ? '<section data-testid="edition-archive"><p data-testid="edition-state">Archived edition · Aug 20</p><nav class="archive" aria-label="Daily edition archive"><a data-nav href="/market-iq/daily?market=' + id + '">Latest</a><a data-nav href="/market-iq/daily?market=' + id + '">Next day →</a></nav></section>'
         : '<section data-testid="edition-archive"><p data-testid="edition-state">Latest saved edition</p><nav class="archive" aria-label="Daily edition archive"><a data-nav href="/market-iq/daily?market=' + id + '&edition=prior">← Previous day</a></nav></section>';
+      const comparison = edition === "prior"
+        ? '<section data-testid="edition-comparison"><h2>No preceding saved edition yet</h2><p>Nothing has been reconstructed to fill the gap.</p></section>'
+        : '<section data-testid="edition-comparison"><h2>Observed flow, side by side</h2><p>Aug 20, 10:00 PM EDT → Aug 21, 10:00 PM EDT</p><dl><dt>New listings</dt><dd>46 <span>+6</span></dd><dt>Rent moves</dt><dd>14 <span>No change</span></dd></dl><p>They describe event counts only and are not a rent trend or an inference about market direction.</p></section>';
       shell('<h1>What changed in ' + (id === "cleveland-oh" ? "Cleveland" : "Columbus") + '</h1>' +
         '<div class="market-picker"><button data-market="cleveland-oh" aria-current="' + (id === "cleveland-oh") + '">Cleveland</button><button data-market="columbus-oh" aria-current="' + (id === "columbus-oh") + '">Columbus</button></div>' +
         archive +
+        comparison +
         '<section data-testid="market-panel"><h2>' + current.name + '</h2><p data-testid="market-brand">' + current.brand + '</p><strong data-testid="market-rent">' + current.rent + '</strong><p>' + current.signal + '</p></section>');
       document.querySelectorAll("[data-market]").forEach((button) => {
         button.onclick = () => navigate("/market-iq/daily?market=" + button.dataset.market);
