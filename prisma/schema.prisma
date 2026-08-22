@@ -518,6 +518,7 @@ model Organization {
   marketIqBriefingSnapshots        MarketIqBriefingSnapshot[]
   marketIqBriefingEmailPreferences MarketIqBriefingEmailPreference[]
   marketIqDailyViewPreferences     MarketIqDailyViewPreference[]
+  marketIqDailyWatchlists          MarketIqDailyWatchlist[]
   marketIqBriefingEmailDeliveries  MarketIqBriefingEmailDelivery[]
   marketIqBriefingEmailRunItems    MarketIqBriefingEmailRunItem[]
   marketIqJourneyEvents            MarketIqJourneyEvent[]
@@ -899,6 +900,26 @@ model MarketIqDailyViewPreference {
 
   @@unique([organizationId, userId, marketId])
   @@index([organizationId, marketId])
+}
+
+// A signed-in viewer's named Daily Edition scopes. Daily watchlists are
+// deliberately separate from the legacy monthly MarketIqWatchlist contract so
+// observed event matching can never inherit monthly trend semantics.
+model MarketIqDailyWatchlist {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  marketId       String
+  name           String
+  version        Int      @default(1)
+  filters        String   @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, marketId, name])
+  @@index([organizationId, userId, marketId, updatedAt(sort: Desc)])
 }
 
 // Idempotent internal delivery record. This is deliberately separate from
