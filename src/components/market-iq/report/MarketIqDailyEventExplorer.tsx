@@ -91,6 +91,7 @@ function EventRecord({ headline, timeZone }: { headline: MarketIqDailyEventHeadl
       <div className="min-w-0">
         <h3 className="text-sm font-semibold leading-6 text-navy">{headline.headline}</h3>
         <p className="mt-1 text-xs leading-5 text-slate-500">{headline.detail}</p>
+        {(event.propertyName || event.propertyManagerName) && <p className="mt-1 text-[11px] font-semibold text-slate-400">{event.propertyName}{event.propertyName && event.propertyManagerName ? " · " : ""}{event.propertyManagerName ? `Managed by ${event.propertyManagerName}` : ""}</p>}
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] font-semibold text-slate-400">
           <span>{propertyFacts(event)}</span>
           {!move && <span>{money(event.askingRent)} asking</span>}

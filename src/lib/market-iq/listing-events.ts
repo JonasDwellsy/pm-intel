@@ -12,6 +12,27 @@ type MarketIqListingEventBase = {
   observedAt: string;
   imageUrl?: string | null;
   listingUrl?: string | null;
+  propertyName?: string | null;
+  propertyManagerName?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+export type MarketIqLeaseUpAlert = {
+  id: string;
+  propertyId: string;
+  propertyName: string;
+  propertyManagerName: string | null;
+  address: string | null;
+  city: string;
+  zip: string;
+  newListingCount: number;
+  totalUnits: number | null;
+  observedAt: string;
+  imageUrl: string | null;
+  listingUrl: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type MarketIqAgingThresholdDays = 30 | 60 | 90;
@@ -31,6 +52,7 @@ export type MarketIqMarketActivity = {
   advertisedConcessions24h: number;
   delistings24h: number;
   agingThresholds24h: number;
+  leaseUpAlerts?: MarketIqLeaseUpAlert[];
   eventsTruncated?: boolean;
   events: MarketIqListingEvent[];
 };

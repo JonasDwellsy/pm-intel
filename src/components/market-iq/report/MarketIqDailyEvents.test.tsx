@@ -14,7 +14,7 @@ const available: MarketIqMarketActivityAvailability = {
     delistings24h: 9,
     agingThresholds24h: 1,
     events: [
-      { id: "new:1", eventType: "new_listing", address: "100 Main St", city: "Cleveland", zip: "44113", propertyType: "apartment", bedrooms: 1, askingRent: 1_250, previousRent: null, observedAt: "2026-08-21T14:30:00.000Z" },
+      { id: "new:1", eventType: "new_listing", address: "100 Main St", city: "Cleveland", zip: "44113", propertyType: "apartment", bedrooms: 1, askingRent: 1_250, previousRent: null, observedAt: "2026-08-21T14:30:00.000Z", imageUrl: "https://images.example.com/100-main.jpg", propertyName: "The Main", propertyManagerName: "North Coast Residential", latitude: 41.5, longitude: -81.69 },
       { id: "price:2", eventType: "price_change", address: "200 Detroit Ave", city: "Lakewood", zip: "44107", propertyType: "house", bedrooms: 3, askingRent: 1_700, previousRent: 1_800, observedAt: "2026-08-21T13:15:00.000Z" },
       { id: "delisting:3", eventType: "delisting", address: "300 Lee Rd", city: "Cleveland Heights", zip: "44118", propertyType: "apartment", bedrooms: 2, askingRent: 1_425, previousRent: null, listingAgeDays: 19, observedAt: "2026-08-21T12:45:00.000Z" },
       { id: "aging:4:30", eventType: "aging_threshold", address: "400 Van Aken Blvd", city: "Shaker Heights", zip: "44120", propertyType: "house", bedrooms: 3, askingRent: 1_850, previousRent: null, listingAgeDays: 30, observedAt: "2026-08-21T11:15:00.000Z" },
@@ -51,6 +51,10 @@ describe("MarketIqDailyEvents", () => {
     expect(screen.getByText(/Leased or withdrawn, undetermined/)).not.toBeNull();
     expect(within(screen.getByRole("region", { name: "New to market" })).getByText("Cleveland · 100 Main St")).not.toBeNull();
     expect(within(screen.getByRole("region", { name: "New to market" })).getByText("1 BR · Apartment")).not.toBeNull();
+    expect(within(screen.getByRole("region", { name: "New to market" })).getByRole("img", { name: "Listing at 100 Main St" })).not.toBeNull();
+    expect(within(screen.getByRole("region", { name: "New to market" })).getByText(/Managed by North Coast Residential/)).not.toBeNull();
+    expect(screen.getByRole("region", { name: "Daily activity map" })).not.toBeNull();
+    expect(screen.queryByText("Activity map unavailable") ?? screen.queryByRole("img", { name: "Interactive map of observed Cleveland daily listing activity" })).not.toBeNull();
     expect(within(screen.getByRole("region", { name: "Notable rent moves" })).getByText("−$100 · −5.6%")).not.toBeNull();
     expect(within(screen.getByRole("region", { name: "Off the market" })).getByText("19 days listed")).not.toBeNull();
     expect(screen.getByText("30")).not.toBeNull();
@@ -60,6 +64,31 @@ describe("MarketIqDailyEvents", () => {
     expect(screen.getAllByLabelText(/^Observed Aug/)).toHaveLength(4);
     expect(screen.getByLabelText(/^Crossed Aug/)).not.toBeNull();
     expect(screen.getByText(/^Source current through /)).not.toBeNull();
+  });
+
+  it("surfaces an observed 25-plus property cohort as a lease-up alert", () => {
+    render(<MarketIqDailyEvents availability={{ ...available, activity: { ...available.activity, leaseUpAlerts: [{
+      id: "lease-up:10:1",
+      propertyId: "10",
+      propertyName: "Innovation Square",
+      propertyManagerName: "Mccormack Baron Management",
+      address: "8111 Quincy Ave",
+      city: "Cleveland",
+      zip: "44104",
+      newListingCount: 82,
+      totalUnits: 82,
+      observedAt: "2026-08-21T14:31:00.000Z",
+      imageUrl: "https://images.example.com/innovation-square.jpg",
+      listingUrl: "https://dwellsy.com/details/10",
+      latitude: 41.493,
+      longitude: -81.63,
+    }] } }} marketName="Cleveland" />);
+
+    const alert = screen.getByRole("region", { name: "Lease-up alerts" });
+    expect(within(alert).getByText("Innovation Square")).not.toBeNull();
+    expect(within(alert).getByText("82 new listings")).not.toBeNull();
+    expect(within(alert).getByText(/Managed by Mccormack Baron Management/)).not.toBeNull();
+    expect(within(alert).getByText(/not independent verification of construction status or occupancy/)).not.toBeNull();
   });
 
   it("features the largest confirmed rent movements before more recent smaller moves", () => {
