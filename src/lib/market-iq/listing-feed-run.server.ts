@@ -8,23 +8,130 @@ import {
   MARKET_IQ_LISTING_FEED_MAX_SOURCE_AGE_MS,
   MARKET_IQ_LISTING_FEED_MINIMUM_RECORDS,
 } from "@/lib/market-iq/listing-feed";
+import {
+  marketIqListingFeedStaleBefore,
+  MarketIqListingFeedAlreadyRunningError,
+  MarketIqListingFeedOperationFailedError,
+} from "@/lib/market-iq/listing-feed-reliability";
 import { summarizeDailyActiveListingSupply } from "@/lib/market-iq/listing-supply";
 import { marketIqPrisma } from "@/lib/market-iq/prisma";
 
 const MINIMUM_PRIOR_COVERAGE = 0.7;
 const COMPLETE_STATUSES = ["complete", "baseline_complete"];
 
+type ListingFeedRunResult = {
+  runId: string;
+  status: string;
+  sourceAvailableThrough: Date;
+  recordCount: number;
+  apartmentCount: number;
+  houseCount: number;
+  newCount: number;
+  relistedCount: number;
+  reactivatedCount: number;
+  priceChangeCount: number;
+  deactivatedCount: number;
+  reused?: boolean;
+};
+
+type ListingFeedRunRecord = Omit<ListingFeedRunResult, "runId" | "reused" | "sourceAvailableThrough"> & {
+  id: string;
+  sourceAvailableThrough: Date | null;
+};
+
+function completedRunResult(run: ListingFeedRunRecord): ListingFeedRunResult | null {
+  if (!COMPLETE_STATUSES.includes(run.status) || !run.sourceAvailableThrough) return null;
+  return {
+    runId: run.id,
+    status: run.status,
+    sourceAvailableThrough: run.sourceAvailableThrough,
+    recordCount: run.recordCount,
+    apartmentCount: run.apartmentCount,
+    houseCount: run.houseCount,
+    newCount: run.newCount,
+    relistedCount: run.relistedCount,
+    reactivatedCount: run.reactivatedCount,
+    priceChangeCount: run.priceChangeCount,
+    deactivatedCount: run.deactivatedCount,
+    reused: true,
+  };
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2002");
+}
+
+async function existingRunOutcome(operationKey?: string): Promise<ListingFeedRunResult | null> {
+  const existing = operationKey
+    ? await marketIqPrisma.marketIqListingFeedRun.findUnique({ where: { operationKey } })
+    : null;
+  const completed = existing ? completedRunResult(existing) : null;
+  if (completed) return completed;
+  if (existing?.status === "loading") throw new MarketIqListingFeedAlreadyRunningError();
+  if (existing) throw new MarketIqListingFeedOperationFailedError();
+
+  const active = await marketIqPrisma.marketIqListingFeedRun.findFirst({
+    where: { marketId: CLEVELAND_MARKET_ID, status: "loading" },
+    select: { id: true },
+  });
+  if (active) throw new MarketIqListingFeedAlreadyRunningError();
+  return null;
+}
+
+async function beginClevelandListingFeedRun(input: {
+  triggerKind: "manual" | "scheduled";
+  startedBy?: string;
+  operationKey?: string;
+  now: Date;
+}) {
+  const staleBefore = marketIqListingFeedStaleBefore(input.now);
+  await marketIqPrisma.marketIqListingFeedRun.updateMany({
+    where: {
+      marketId: CLEVELAND_MARKET_ID,
+      status: "loading",
+      startedAt: { lt: staleBefore },
+    },
+    data: {
+      status: "failed",
+      error: "The listing refresh exceeded its ten-minute lease and was closed before a later run started.",
+      completedAt: input.now,
+    },
+  });
+
+  const replay = await existingRunOutcome(input.operationKey);
+  if (replay) return { state: "reused" as const, result: replay };
+
+  try {
+    const run = await marketIqPrisma.marketIqListingFeedRun.create({
+      data: {
+        marketId: CLEVELAND_MARKET_ID,
+        operationKey: input.operationKey,
+        triggerKind: input.triggerKind,
+        startedBy: input.startedBy,
+        startedAt: input.now,
+      },
+    });
+    return { state: "acquired" as const, run };
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error;
+    const concurrentReplay = await existingRunOutcome(input.operationKey);
+    if (concurrentReplay) return { state: "reused" as const, result: concurrentReplay };
+    throw new MarketIqListingFeedAlreadyRunningError();
+  }
+}
+
 export async function runClevelandListingFeed(input: {
   triggerKind: "manual" | "scheduled";
   startedBy?: string;
+  operationKey?: string;
+  now?: Date;
 }) {
-  const run = await marketIqPrisma.marketIqListingFeedRun.create({
-    data: {
-      marketId: CLEVELAND_MARKET_ID,
-      triggerKind: input.triggerKind,
-      startedBy: input.startedBy,
-    },
+  const lease = await beginClevelandListingFeedRun({
+    ...input,
+    now: input.now ?? new Date(),
   });
+  if (lease.state === "reused") return lease.result;
+  const run = lease.run;
 
   try {
     const previousRun = await marketIqPrisma.marketIqListingFeedRun.findFirst({
@@ -97,15 +204,31 @@ export async function runClevelandListingFeed(input: {
       capturedAt: completedAt,
     };
 
-    await marketIqPrisma.$transaction([
-      marketIqPrisma.marketIqLiveListingSnapshot.createMany({
+    await marketIqPrisma.$transaction(async (transaction) => {
+      const completed = await transaction.marketIqListingFeedRun.updateMany({
+        where: { id: run.id, status: "loading" },
+        data: {
+          status: previousRun ? "complete" : "baseline_complete",
+          sourceAvailableThrough: source.sourceAvailableThrough,
+          recordCount: supply.activeListings,
+          apartmentCount: supply.apartmentListings,
+          houseCount: supply.houseListings,
+          ...eventCounts,
+          completedAt,
+        },
+      });
+      if (completed.count !== 1) {
+        throw new Error("The active Market IQ listing-feed lease was lost before persistence.");
+      }
+
+      await transaction.marketIqLiveListingSnapshot.createMany({
         data: source.listings.map((listing) => ({
           runId: run.id,
           marketId: CLEVELAND_MARKET_ID,
           ...listing,
         })),
-      }),
-      marketIqPrisma.marketIqListingEvent.createMany({
+      });
+      await transaction.marketIqListingEvent.createMany({
         data: events.map((event) => ({
           fingerprint: listingEventFingerprint({ marketId: CLEVELAND_MARKET_ID, runId: run.id, event }),
           runId: run.id,
@@ -114,8 +237,8 @@ export async function runClevelandListingFeed(input: {
           metadata: JSON.stringify({ source: "dwellsy_prod.active_listing_table" }),
         })),
         skipDuplicates: true,
-      }),
-      marketIqPrisma.marketIqListingSupplySnapshot.upsert({
+      });
+      await transaction.marketIqListingSupplySnapshot.upsert({
         where: {
           marketId_snapshotDate: {
             marketId: CLEVELAND_MARKET_ID,
@@ -128,20 +251,8 @@ export async function runClevelandListingFeed(input: {
           ...supplySnapshot,
         },
         update: supplySnapshot,
-      }),
-      marketIqPrisma.marketIqListingFeedRun.update({
-        where: { id: run.id },
-        data: {
-          status: previousRun ? "complete" : "baseline_complete",
-          sourceAvailableThrough: source.sourceAvailableThrough,
-          recordCount: supply.activeListings,
-          apartmentCount: supply.apartmentListings,
-          houseCount: supply.houseListings,
-          ...eventCounts,
-          completedAt,
-        },
-      }),
-    ]);
+      });
+    }, { maxWait: 5_000, timeout: 30_000 });
 
     return {
       runId: run.id,
@@ -153,8 +264,8 @@ export async function runClevelandListingFeed(input: {
       ...eventCounts,
     };
   } catch (error) {
-    await marketIqPrisma.marketIqListingFeedRun.update({
-      where: { id: run.id },
+    await marketIqPrisma.marketIqListingFeedRun.updateMany({
+      where: { id: run.id, status: "loading" },
       data: {
         status: "failed",
         error: (error instanceof Error ? error.message : String(error)).slice(0, 4_000),
