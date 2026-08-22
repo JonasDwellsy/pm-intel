@@ -9,6 +9,7 @@ import { resolveMarketIqStablePreviewHealth } from "@/lib/market-iq/stable-previ
 export async function loadMarketIqStablePreviewHealth(now = new Date()) {
   const databaseConfigured = marketIqDatabaseConfigured();
   const sourceConfigured = dwellsySourceConfigured();
+  const reportRefreshManifest = JSON.stringify([{ marketId: CLEVELAND_MARKET_ID }]);
   if (!databaseConfigured) {
     return resolveMarketIqStablePreviewHealth({
       marketId: CLEVELAND_MARKET_ID,
@@ -17,12 +18,12 @@ export async function loadMarketIqStablePreviewHealth(now = new Date()) {
       databaseReachable: false,
       sourceConfigured,
       snapshot: null,
-      latestRefreshStatus: null,
+      latestRefresh: null,
     });
   }
 
   try {
-    const [snapshotRow, latestRefresh] = await Promise.all([
+    const [snapshotRow, activeRefresh, latestTerminalRefresh] = await Promise.all([
       marketIqPrisma.marketIqReportSourceSnapshot.findFirst({
         where: { marketId: CLEVELAND_MARKET_ID, sourceKind: "dwellsy_trends" },
         orderBy: [{ sourceAvailableThrough: "desc" }, { generatedAt: "desc" }],
@@ -33,9 +34,24 @@ export async function loadMarketIqStablePreviewHealth(now = new Date()) {
         },
       }),
       marketIqPrisma.marketIqSourceRefresh.findFirst({
-        where: { marketId: CLEVELAND_MARKET_ID, sourceKind: "trends" },
-        orderBy: { startedAt: "desc" },
-        select: { status: true },
+        where: {
+          marketId: CLEVELAND_MARKET_ID,
+          sourceKind: "trends",
+          requiredManifest: reportRefreshManifest,
+          completedAt: null,
+        },
+        orderBy: { startedAt: "asc" },
+        select: { status: true, startedAt: true, completedAt: true },
+      }),
+      marketIqPrisma.marketIqSourceRefresh.findFirst({
+        where: {
+          marketId: CLEVELAND_MARKET_ID,
+          sourceKind: "trends",
+          requiredManifest: reportRefreshManifest,
+          completedAt: { not: null },
+        },
+        orderBy: [{ completedAt: "desc" }, { startedAt: "desc" }],
+        select: { status: true, startedAt: true, completedAt: true },
       }),
     ]);
     const parsedSnapshot = snapshotRow
@@ -55,7 +71,7 @@ export async function loadMarketIqStablePreviewHealth(now = new Date()) {
           valid: Boolean(parsedSnapshot),
         }
         : null,
-      latestRefreshStatus: latestRefresh?.status ?? null,
+      latestRefresh: activeRefresh ?? latestTerminalRefresh,
     });
   } catch (error) {
     console.error("[Market IQ] Stable preview health unavailable", {
@@ -68,7 +84,7 @@ export async function loadMarketIqStablePreviewHealth(now = new Date()) {
       databaseReachable: false,
       sourceConfigured,
       snapshot: null,
-      latestRefreshStatus: null,
+      latestRefresh: null,
     });
   }
 }

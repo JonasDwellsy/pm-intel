@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { MARKET_IQ_REFRESH_STALE_AFTER_MS } from "@/lib/market-iq/report-refresh-reliability";
 import {
   MARKET_IQ_STABLE_PREVIEW_MAX_SNAPSHOT_AGE_DAYS,
   resolveMarketIqStablePreviewHealth,
@@ -22,7 +23,11 @@ function resolve(overrides: Partial<Parameters<typeof resolveMarketIqStablePrevi
     databaseReachable: true,
     sourceConfigured: true,
     snapshot: CURRENT_SNAPSHOT,
-    latestRefreshStatus: "complete",
+    latestRefresh: {
+      status: "complete",
+      startedAt: new Date("2026-08-22T02:46:00.000Z"),
+      completedAt: new Date("2026-08-22T02:47:00.000Z"),
+    },
     ...overrides,
   });
 }
@@ -30,9 +35,75 @@ function resolve(overrides: Partial<Parameters<typeof resolveMarketIqStablePrevi
 test("stable preview health is ready only when the evidence path is usable", () => {
   const health = resolve();
   assert.equal(health.status, "ready");
-  assert.deepEqual(health.checks.map((check) => check.status), ["ready", "ready", "ready"]);
+  assert.deepEqual(health.checks.map((check) => check.status), ["ready", "ready", "ready", "ready"]);
   assert.equal(health.sourceAvailableThrough, "2026-07-31T00:00:00.000Z");
   assert.equal(health.latestRefreshStatus, "complete");
+});
+
+test("stable preview health blocks a failed authoritative refresh", () => {
+  const health = resolve({
+    latestRefresh: {
+      status: "blocked",
+      startedAt: new Date("2026-08-22T11:55:00.000Z"),
+      completedAt: new Date("2026-08-22T11:56:00.000Z"),
+    },
+  });
+
+  assert.equal(health.status, "blocked");
+  assert.equal(health.latestRefreshStatus, "blocked");
+  assert.equal(health.checks.find((check) => check.id === "refresh_attempt")?.status, "blocked");
+});
+
+test("stable preview health allows only the bounded running window", () => {
+  const withinWindow = resolve({
+    latestRefresh: {
+      status: "running",
+      startedAt: new Date(NOW.getTime() - MARKET_IQ_REFRESH_STALE_AFTER_MS),
+      completedAt: null,
+    },
+  });
+  assert.equal(withinWindow.status, "ready");
+
+  const outsideWindow = resolve({
+    latestRefresh: {
+      status: "running",
+      startedAt: new Date(NOW.getTime() - MARKET_IQ_REFRESH_STALE_AFTER_MS - 1),
+      completedAt: null,
+    },
+  });
+  assert.equal(outsideWindow.status, "blocked");
+  assert.match(
+    outsideWindow.checks.find((check) => check.id === "refresh_attempt")?.detail ?? "",
+    /exceeded/,
+  );
+});
+
+test("stable preview health supports imported snapshots without a refresh record and rejects unknown states", () => {
+  assert.equal(resolve({ latestRefresh: null }).status, "ready");
+  assert.equal(resolve({
+    latestRefresh: {
+      status: "unexpected",
+      startedAt: new Date("2026-08-22T11:55:00.000Z"),
+      completedAt: null,
+    },
+  }).status, "blocked");
+});
+
+test("stable preview health fails closed when refresh status and completion disagree", () => {
+  assert.equal(resolve({
+    latestRefresh: {
+      status: "complete",
+      startedAt: new Date("2026-08-22T11:55:00.000Z"),
+      completedAt: null,
+    },
+  }).status, "blocked");
+  assert.equal(resolve({
+    latestRefresh: {
+      status: "running",
+      startedAt: new Date("2026-08-22T11:55:00.000Z"),
+      completedAt: new Date("2026-08-22T11:56:00.000Z"),
+    },
+  }).status, "blocked");
 });
 
 test("stable preview health fails closed for database, source, snapshot, and freshness defects", () => {
@@ -59,6 +130,9 @@ test("the preview health route and workflow stay isolated, sanitized, and side-e
 
   assert.match(loader, /marketIqReportSourceSnapshot\.findFirst/);
   assert.match(loader, /marketIqSourceRefresh\.findFirst/);
+  assert.equal(loader.match(/requiredManifest: reportRefreshManifest/g)?.length, 2);
+  assert.match(loader, /completedAt: null/);
+  assert.match(loader, /completedAt: \{ not: null \}/);
   assert.doesNotMatch(loader, /create\(|update\(|upsert\(|delete\(/);
 
   assert.match(workflow, /market-iq-stable-preview-health/);
