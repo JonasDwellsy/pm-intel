@@ -5,6 +5,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import type { FeatureCollection, Point } from "geojson";
 import type { Map as MapboxMap } from "mapbox-gl";
 import type { MarketIqLeaseUpAlert, MarketIqListingEvent } from "@/lib/market-iq/listing-events";
+import { marketIqPropertyActivityPath } from "@/lib/market-iq/property-activity";
 
 type ActivityCategory = "new_listing" | "price_change" | "delisting" | "concession" | "aging_threshold" | "lease_up";
 type ActivityFeatureProperties = {
@@ -15,6 +16,7 @@ type ActivityFeatureProperties = {
   manager: string;
   observedAt: string;
   listingUrl: string;
+  propertyUrl: string;
 };
 type ActivityPoint = {
   id: string;
@@ -26,6 +28,7 @@ type ActivityPoint = {
   manager: string;
   observedAt: string;
   listingUrl: string;
+  propertyUrl: string;
 };
 type MapBounds = [[number, number], [number, number]];
 
@@ -43,7 +46,7 @@ function validCoordinates(latitude: number | null | undefined, longitude: number
     && typeof longitude === "number" && Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
 }
 
-function eventPoint(event: MarketIqListingEvent): ActivityPoint | null {
+function eventPoint(event: MarketIqListingEvent, marketId?: string): ActivityPoint | null {
   if (!validCoordinates(event.latitude, event.longitude)) return null;
   const category = event.eventType;
   const address = event.address?.trim() || `ZIP ${event.zip}`;
@@ -66,10 +69,11 @@ function eventPoint(event: MarketIqListingEvent): ActivityPoint | null {
     manager: event.propertyManagerName || "",
     observedAt: event.observedAt,
     listingUrl: event.listingUrl || "",
+    propertyUrl: marketId && event.propertyId ? marketIqPropertyActivityPath(marketId, event.propertyId) : "",
   };
 }
 
-function leaseUpPoint(alert: MarketIqLeaseUpAlert): ActivityPoint | null {
+function leaseUpPoint(alert: MarketIqLeaseUpAlert, marketId?: string): ActivityPoint | null {
   if (!validCoordinates(alert.latitude, alert.longitude)) return null;
   return {
     id: alert.id,
@@ -81,6 +85,7 @@ function leaseUpPoint(alert: MarketIqLeaseUpAlert): ActivityPoint | null {
     manager: alert.propertyManagerName || "",
     observedAt: alert.observedAt,
     listingUrl: alert.listingUrl || "",
+    propertyUrl: marketId ? marketIqPropertyActivityPath(marketId, alert.propertyId) : "",
   };
 }
 
@@ -106,6 +111,7 @@ function featureCollection(points: ActivityPoint[]): FeatureCollection<Point, Ac
         manager: point.manager,
         observedAt: point.observedAt,
         listingUrl: point.listingUrl,
+        propertyUrl: point.propertyUrl,
       },
     })),
   };
@@ -120,16 +126,18 @@ function MapUnavailable({ tokenMissing, pointCount }: { tokenMissing: boolean; p
 export function MarketIqDailyActivityMap({
   events,
   leaseUpAlerts = [],
+  marketId,
   marketName,
 }: {
   events: MarketIqListingEvent[];
   leaseUpAlerts?: MarketIqLeaseUpAlert[];
+  marketId?: string;
   marketName: string;
 }) {
   const points = useMemo(() => [
-    ...events.map(eventPoint).filter((point): point is ActivityPoint => point !== null),
-    ...leaseUpAlerts.map(leaseUpPoint).filter((point): point is ActivityPoint => point !== null),
-  ], [events, leaseUpAlerts]);
+    ...events.map((event) => eventPoint(event, marketId)).filter((point): point is ActivityPoint => point !== null),
+    ...leaseUpAlerts.map((alert) => leaseUpPoint(alert, marketId)).filter((point): point is ActivityPoint => point !== null),
+  ], [events, leaseUpAlerts, marketId]);
   const presentCategories = useMemo(() => new Set(points.map((point) => point.category)), [points]);
   const [activeCategories, setActiveCategories] = useState<Set<ActivityCategory>>(() => new Set(CATEGORIES.map((category) => category.value)));
   const [mapFailed, setMapFailed] = useState(false);
@@ -203,6 +211,13 @@ export function MarketIqDailyActivityMap({
               manager.className = "mt-1 text-xs font-semibold text-slate-500";
               manager.textContent = `Managed by ${properties.manager}`;
               content.append(manager);
+            }
+            if (properties.propertyUrl) {
+              const propertyLink = document.createElement("a");
+              propertyLink.href = properties.propertyUrl;
+              propertyLink.className = "mt-2 mr-3 inline-block text-xs font-semibold text-teal-700";
+              propertyLink.textContent = "View property";
+              content.append(propertyLink);
             }
             if (properties.listingUrl) {
               const link = document.createElement("a");

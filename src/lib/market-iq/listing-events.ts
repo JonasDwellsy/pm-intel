@@ -2,6 +2,7 @@ import type { MarketIqAdvertisedConcession } from "@/lib/market-iq/concessions";
 
 type MarketIqListingEventBase = {
   id: string;
+  propertyId?: string | null;
   address?: string | null;
   city: string;
   zip: string;
@@ -16,6 +17,29 @@ type MarketIqListingEventBase = {
   propertyManagerName?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+};
+
+export type MarketIqPropertyBedroomCount = {
+  bedrooms: number;
+  activeListings: number;
+};
+
+export type MarketIqPropertyActivitySummary = {
+  propertyId: string;
+  propertyName: string | null;
+  propertyManagerName: string | null;
+  address: string | null;
+  city: string;
+  zip: string;
+  propertyType: "apartment" | "house";
+  activeListingCount: number;
+  askingRentMin: number;
+  askingRentMax: number;
+  bedroomCounts: MarketIqPropertyBedroomCount[];
+  imageUrl: string | null;
+  listingUrl: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type MarketIqLeaseUpAlert = {
@@ -53,6 +77,7 @@ export type MarketIqMarketActivity = {
   delistings24h: number;
   agingThresholds24h: number;
   leaseUpAlerts?: MarketIqLeaseUpAlert[];
+  propertySummaries?: MarketIqPropertyActivitySummary[];
   eventsTruncated?: boolean;
   events: MarketIqListingEvent[];
 };

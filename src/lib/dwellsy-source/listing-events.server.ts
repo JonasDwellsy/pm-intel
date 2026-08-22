@@ -13,6 +13,7 @@ import type {
   MarketIqListingEvent,
   MarketIqMarketActivity,
   MarketIqMarketActivityAvailability,
+  MarketIqPropertyActivitySummary,
 } from "@/lib/market-iq/listing-events";
 import { readMarketIqActivityAvailability } from "@/lib/market-iq/listing-events";
 import { parseAdvertisedConcession } from "@/lib/market-iq/concessions";
@@ -69,6 +70,25 @@ type CountRow = {
   as_of: Date | string;
 };
 
+type PropertySummaryRow = {
+  property_id: string | number;
+  property_name: string | null;
+  property_manager_name: string | null;
+  address_1: string | null;
+  address_2: string | null;
+  address_3: string | null;
+  city: string | null;
+  postal_code: string | null;
+  property_type: "Apartment" | "House";
+  bedrooms: string | number;
+  active_listing_count: string | number;
+  asking_rent_min: string | number;
+  asking_rent_max: string | number;
+  latitude: string | number | null;
+  longitude: string | number | null;
+  media: unknown;
+};
+
 const MAX_SAVED_ACTIVITY_EVENTS = 200;
 const MIN_SAVED_EVENTS_PER_TYPE = 6;
 
@@ -111,7 +131,7 @@ const ACTIVITY_SQL = `
   new_events AS (
     SELECT CONCAT('new:', listing.listing_id::text) AS event_id,
            'new_listing'::text AS event_type,
-           listing.property_id,
+           listing.parent_property_id AS property_id,
            COALESCE(NULLIF(BTRIM(parent.property_name), ''), NULLIF(BTRIM(parent.address_1), '')) AS property_name,
            NULLIF(BTRIM(company.company_name_displayed), '') AS property_manager_name,
            listing.latitude,
@@ -140,7 +160,7 @@ const ACTIVITY_SQL = `
       AND COALESCE(listing.room_for_rent_flag, false) = false
       AND listing.listing_amount > 0
       AND listing.bedrooms IS NOT NULL
-      AND listing.property_id IS NOT NULL
+      AND listing.parent_property_id IS NOT NULL
       AND NULLIF(BTRIM(listing.address_1), '') IS NOT NULL
       AND NULLIF(BTRIM(listing.address_city), '') IS NOT NULL
       AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
@@ -149,7 +169,7 @@ const ACTIVITY_SQL = `
   concession_events AS (
     SELECT CONCAT('concession:', listing.listing_id::text) AS event_id,
            'concession'::text AS event_type,
-           listing.property_id,
+           listing.parent_property_id AS property_id,
            COALESCE(NULLIF(BTRIM(parent.property_name), ''), NULLIF(BTRIM(parent.address_1), '')) AS property_name,
            NULLIF(BTRIM(company.company_name_displayed), '') AS property_manager_name,
            listing.latitude,
@@ -179,7 +199,7 @@ const ACTIVITY_SQL = `
       AND COALESCE(listing.room_for_rent_flag, false) = false
       AND listing.listing_amount > 0
       AND listing.bedrooms IS NOT NULL
-      AND listing.property_id IS NOT NULL
+      AND listing.parent_property_id IS NOT NULL
       AND NULLIF(BTRIM(listing.address_1), '') IS NOT NULL
       AND NULLIF(BTRIM(listing.address_city), '') IS NOT NULL
       AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
@@ -190,7 +210,7 @@ const ACTIVITY_SQL = `
   price_events AS (
     SELECT CONCAT('price:', price.id::text) AS event_id,
            'price_change'::text AS event_type,
-           listing.property_id,
+           listing.parent_property_id AS property_id,
            COALESCE(NULLIF(BTRIM(parent.property_name), ''), NULLIF(BTRIM(parent.address_1), '')) AS property_name,
            NULLIF(BTRIM(company.company_name_displayed), '') AS property_manager_name,
            listing.latitude,
@@ -220,7 +240,7 @@ const ACTIVITY_SQL = `
       AND COALESCE(listing.room_for_rent_flag, false) = false
       AND listing.listing_amount > 0
       AND listing.bedrooms IS NOT NULL
-      AND listing.property_id IS NOT NULL
+      AND listing.parent_property_id IS NOT NULL
       AND NULLIF(BTRIM(listing.address_1), '') IS NOT NULL
       AND NULLIF(BTRIM(listing.address_city), '') IS NOT NULL
       AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
@@ -228,7 +248,7 @@ const ACTIVITY_SQL = `
   aging_events AS (
     SELECT CONCAT('aging:', listing.listing_id::text, ':', threshold.days::text) AS event_id,
            'aging_threshold'::text AS event_type,
-           listing.property_id,
+           listing.parent_property_id AS property_id,
            COALESCE(NULLIF(BTRIM(parent.property_name), ''), NULLIF(BTRIM(parent.address_1), '')) AS property_name,
            NULLIF(BTRIM(company.company_name_displayed), '') AS property_manager_name,
            listing.latitude,
@@ -258,7 +278,7 @@ const ACTIVITY_SQL = `
       AND COALESCE(listing.room_for_rent_flag, false) = false
       AND listing.listing_amount > 0
       AND listing.bedrooms IS NOT NULL
-      AND listing.property_id IS NOT NULL
+      AND listing.parent_property_id IS NOT NULL
       AND NULLIF(BTRIM(listing.address_1), '') IS NOT NULL
       AND NULLIF(BTRIM(listing.address_city), '') IS NOT NULL
       AND NULLIF(BTRIM(listing.address_zip), '') IS NOT NULL
@@ -268,7 +288,7 @@ const ACTIVITY_SQL = `
   delisting_events AS (
     SELECT CONCAT('delisting:', listing.id::text) AS event_id,
            'delisting'::text AS event_type,
-           listing.property_id,
+           COALESCE(property.parent_property_id, property.id) AS property_id,
            COALESCE(NULLIF(BTRIM(parent.property_name), ''), NULLIF(BTRIM(parent.address_1), '')) AS property_name,
            NULLIF(BTRIM(company.company_name_displayed), '') AS property_manager_name,
            property.latitude,
@@ -397,6 +417,57 @@ const LEASE_UP_SQL = `
     AND NULLIF(BTRIM(parent.address_zip), '') IS NOT NULL
   ORDER BY cohort.new_listing_count DESC, cohort.observed_at DESC
   LIMIT 20
+`;
+
+const PROPERTY_SUMMARIES_SQL = `
+  WITH listing_rollup AS (
+    SELECT listing.parent_property_id,
+           MIN(listing.property_category::text) AS property_type,
+           listing.bedrooms,
+           COUNT(DISTINCT listing.listing_id)::integer AS active_listing_count,
+           MIN(listing.listing_amount) AS asking_rent_min,
+           MAX(listing.listing_amount) AS asking_rent_max
+    FROM dwellsy_prod.active_listing_table listing
+    WHERE listing.parent_property_id = ANY($1::bigint[])
+      AND listing.active_listing_status = 'active'
+      AND listing.record_status = 'active'
+      AND listing.property_category IN ('Apartment', 'House')
+      AND COALESCE(listing.room_for_rent_flag, false) = false
+      AND listing.listing_amount > 0
+      AND listing.bedrooms IS NOT NULL
+    GROUP BY listing.parent_property_id, listing.bedrooms
+  )
+  SELECT rollup.parent_property_id AS property_id,
+         COALESCE(NULLIF(BTRIM(parent.property_name), ''), NULLIF(BTRIM(parent.address_1), '')) AS property_name,
+         NULLIF(BTRIM(company.company_name_displayed), '') AS property_manager_name,
+         parent.address_1,
+         parent.address_2,
+         parent.address_3,
+         parent.address_city AS city,
+         parent.address_zip AS postal_code,
+         rollup.property_type,
+         rollup.bedrooms,
+         rollup.active_listing_count,
+         rollup.asking_rent_min,
+         rollup.asking_rent_max,
+         representative.latitude,
+         representative.longitude,
+         representative.media
+  FROM listing_rollup rollup
+  JOIN dwellsy_prod.property_table parent ON parent.id = rollup.parent_property_id
+  LEFT JOIN dwellsy_prod.company_table company ON company.id = parent.company_id
+  JOIN LATERAL (
+    SELECT listing.latitude, listing.longitude, listing.media
+    FROM dwellsy_prod.active_listing_table listing
+    WHERE listing.parent_property_id = rollup.parent_property_id
+      AND listing.active_listing_status = 'active'
+      AND listing.record_status = 'active'
+    ORDER BY listing.last_update_time DESC NULLS LAST, listing.listing_id DESC
+    LIMIT 1
+  ) representative ON true
+  WHERE NULLIF(BTRIM(parent.address_city), '') IS NOT NULL
+    AND NULLIF(BTRIM(parent.address_zip), '') IS NOT NULL
+  ORDER BY rollup.parent_property_id, rollup.bedrooms
 `;
 
 const COUNTS_SQL = `
@@ -553,6 +624,7 @@ function event(row: EventRow): MarketIqListingEvent | null {
   if (!address || !listingUrl) return null;
   const common = {
     id: row.event_id,
+    propertyId: String(row.property_id),
     address,
     city: row.city,
     zip: row.postal_code,
@@ -592,6 +664,49 @@ function event(row: EventRow): MarketIqListingEvent | null {
   return { ...common, eventType: row.event_type, previousRent: null };
 }
 
+function propertySummaries(rows: PropertySummaryRow[]): MarketIqPropertyActivitySummary[] {
+  const grouped = new Map<string, MarketIqPropertyActivitySummary>();
+  for (const row of rows) {
+    if (!row.city || !row.postal_code) continue;
+    const bedrooms = Number(row.bedrooms);
+    const activeListingCount = Number(row.active_listing_count);
+    const askingRentMin = Number(row.asking_rent_min);
+    const askingRentMax = Number(row.asking_rent_max);
+    if (!Number.isInteger(bedrooms) || !Number.isInteger(activeListingCount) || activeListingCount < 1
+      || !Number.isFinite(askingRentMin) || !Number.isFinite(askingRentMax)) continue;
+    const propertyId = String(row.property_id);
+    const current = grouped.get(propertyId);
+    if (current) {
+      current.activeListingCount += activeListingCount;
+      current.askingRentMin = Math.min(current.askingRentMin, askingRentMin);
+      current.askingRentMax = Math.max(current.askingRentMax, askingRentMax);
+      current.bedroomCounts.push({ bedrooms, activeListings: activeListingCount });
+      continue;
+    }
+    grouped.set(propertyId, {
+      propertyId,
+      propertyName: optionalText(row.property_name),
+      propertyManagerName: optionalText(row.property_manager_name),
+      address: formatMarketIqListingAddress([row.address_1, row.address_2, row.address_3]),
+      city: row.city,
+      zip: row.postal_code,
+      propertyType: row.property_type.toLowerCase() as MarketIqPropertyType,
+      activeListingCount,
+      askingRentMin,
+      askingRentMax,
+      bedroomCounts: [{ bedrooms, activeListings: activeListingCount }],
+      imageUrl: primaryImageUrl(row.media),
+      listingUrl: buildDwellsyPropertyUrl(row.property_id),
+      latitude: coordinate(row.latitude, -90, 90),
+      longitude: coordinate(row.longitude, -180, 180),
+    });
+  }
+  return [...grouped.values()].map((summary) => ({
+    ...summary,
+    bedroomCounts: summary.bedroomCounts.sort((left, right) => left.bedrooms - right.bedrooms),
+  }));
+}
+
 function leaseUpAlert(row: LeaseUpRow): MarketIqLeaseUpAlert | null {
   if (!row.city || !row.postal_code) return null;
   const newListingCount = Number(row.new_listing_count);
@@ -628,6 +743,16 @@ export async function loadMarketListingActivity(msaCode: string): Promise<Market
     const reportableEvents = eventsResult.rows
       .map(event)
       .filter((value): value is MarketIqListingEvent => value !== null);
+    const leaseUpAlerts = leaseUpResult.rows
+      .map(leaseUpAlert)
+      .filter((value): value is MarketIqLeaseUpAlert => value !== null);
+    const propertyIds = [...new Set([
+      ...reportableEvents.flatMap((item) => item.propertyId ? [item.propertyId] : []),
+      ...leaseUpAlerts.map((item) => item.propertyId),
+    ])];
+    const propertySummaryResult = propertyIds.length
+      ? await client.query<PropertySummaryRow>(PROPERTY_SUMMARIES_SQL, [propertyIds])
+      : { rows: [] as PropertySummaryRow[] };
     return {
       asOf: new Date(counts.as_of).toISOString(),
       newListings24h: Number(counts.new_listings_24h),
@@ -636,9 +761,8 @@ export async function loadMarketListingActivity(msaCode: string): Promise<Market
       advertisedConcessions24h: Number(counts.advertised_concessions_24h),
       delistings24h: Number(counts.delistings_24h),
       agingThresholds24h: Number(counts.aging_thresholds_24h),
-      leaseUpAlerts: leaseUpResult.rows
-        .map(leaseUpAlert)
-        .filter((value): value is MarketIqLeaseUpAlert => value !== null),
+      leaseUpAlerts,
+      propertySummaries: propertySummaries(propertySummaryResult.rows),
       eventsTruncated: reportableEvents.length > MAX_SAVED_ACTIVITY_EVENTS,
       events: reportableEvents.slice(0, MAX_SAVED_ACTIVITY_EVENTS),
     };

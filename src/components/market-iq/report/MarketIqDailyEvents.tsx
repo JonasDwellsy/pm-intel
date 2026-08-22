@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { MarketIqDailyActivityMap } from "@/components/market-iq/report/MarketIqDailyActivityMap";
 import { MarketIqDailyEventExplorer } from "@/components/market-iq/report/MarketIqDailyEventExplorer";
 import { MarketIqDailyWatchlists } from "@/components/market-iq/report/MarketIqDailyWatchlists";
@@ -6,6 +7,7 @@ import type { MarketIqDailySavedViewFilters } from "@/lib/market-iq/daily-event-
 import { buildDailyEventHeadlines, type MarketIqDailyEventHeadline } from "@/lib/market-iq/daily-events";
 import type { MarketIqDailyWatchlistActionResult, MarketIqDailyWatchlistInput, MarketIqDailyWatchlistView } from "@/lib/market-iq/daily-watchlists";
 import type { MarketIqLeaseUpAlert, MarketIqListingEvent, MarketIqMarketActivityAvailability } from "@/lib/market-iq/listing-events";
+import { marketIqPropertyActivityPath } from "@/lib/market-iq/property-activity";
 
 const PRIMARY_EVENT_LIMIT = 4;
 const SECONDARY_EVENT_LIMIT = 3;
@@ -81,8 +83,10 @@ function EventTime({ headline, timeZone }: { headline: MarketIqDailyEventHeadlin
   </time>;
 }
 
-function EventLink({ event, children }: { event: MarketIqListingEvent; children: ReactNode }) {
-  return event.listingUrl
+function EventLink({ event, marketId, children }: { event: MarketIqListingEvent; marketId?: string; children: ReactNode }) {
+  return marketId && event.propertyId
+    ? <Link href={marketIqPropertyActivityPath(marketId, event.propertyId)} className="block rounded-lg outline-none transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-teal-600">{children}</Link>
+    : event.listingUrl
     ? <a href={event.listingUrl} target="_blank" rel="noreferrer" className="block rounded-lg outline-none transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-teal-600">{children}</a>
     : <div>{children}</div>;
 }
@@ -106,10 +110,10 @@ function PropertyContext({ event }: { event: MarketIqListingEvent }) {
   </p>;
 }
 
-function NewListingRow({ headline, timeZone }: { headline: MarketIqDailyEventHeadline; timeZone: string }) {
+function NewListingRow({ headline, timeZone, marketId }: { headline: MarketIqDailyEventHeadline; timeZone: string; marketId?: string }) {
   const event = headline.event;
   return <article className="border-b border-slate-100 py-4 first:pt-0 last:border-0 last:pb-0">
-    <EventLink event={event}>
+    <EventLink event={event} marketId={marketId}>
       <div className="group grid gap-3 px-1 sm:grid-cols-[80px_112px_1fr_auto] sm:items-center">
         <ListingPhoto event={event} />
         <p className="text-2xl font-semibold tracking-tight text-[var(--report-primary)]">{money(event.askingRent)}</p>
@@ -124,7 +128,7 @@ function NewListingRow({ headline, timeZone }: { headline: MarketIqDailyEventHea
   </article>;
 }
 
-function RentChangeRow({ headlines, timeZone }: { headlines: EventGroup; timeZone: string }) {
+function RentChangeRow({ headlines, timeZone, marketId }: { headlines: EventGroup; timeZone: string; marketId?: string }) {
   const headline = headlines[0];
   if (!headline) return null;
   const event = headline.event;
@@ -156,6 +160,7 @@ function RentChangeRow({ headlines, timeZone }: { headlines: EventGroup; timeZon
         <PropertyContext event={event} />
         {headlines.length > 1 && <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
           <span className="text-[11px] font-semibold text-slate-500">{headlines.length} listing records at this address</span>
+          {marketId && event.propertyId && <Link href={marketIqPropertyActivityPath(marketId, event.propertyId)} className="rounded-full bg-teal-50 px-2.5 py-1 text-[10px] font-bold text-teal-700 outline-none hover:bg-teal-100 focus-visible:ring-2 focus-visible:ring-teal-600">View property</Link>}
           {headlines.flatMap((item, index) => item.event.listingUrl ? [<a key={item.id} href={item.event.listingUrl} target="_blank" rel="noreferrer" className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-teal-700 outline-none hover:bg-teal-50 focus-visible:ring-2 focus-visible:ring-teal-600">Open record {index + 1}</a>] : [])}
         </div>}
         </div>
@@ -163,15 +168,15 @@ function RentChangeRow({ headlines, timeZone }: { headlines: EventGroup; timeZon
   </>;
 
   return <article className="border-b border-slate-100 py-4 first:pt-0 last:border-0 last:pb-0">
-    {headlines.length === 1 ? <EventLink event={event}>{content}</EventLink> : content}
+    {headlines.length === 1 ? <EventLink event={event} marketId={marketId}>{content}</EventLink> : content}
   </article>;
 }
 
-function OffMarketRow({ headline, timeZone }: { headline: MarketIqDailyEventHeadline; timeZone: string }) {
+function OffMarketRow({ headline, timeZone, marketId }: { headline: MarketIqDailyEventHeadline; timeZone: string; marketId?: string }) {
   const event = headline.event;
   if (event.eventType !== "delisting") return null;
   return <article className="border-b border-slate-100 py-4 first:pt-0 last:border-0 last:pb-0">
-    <EventLink event={event}>
+    <EventLink event={event} marketId={marketId}>
       <div className="group grid gap-4 px-1 sm:grid-cols-[80px_1fr]">
         <ListingPhoto event={event} />
         <div>
@@ -187,11 +192,11 @@ function OffMarketRow({ headline, timeZone }: { headline: MarketIqDailyEventHead
   </article>;
 }
 
-function AgingRow({ headline, timeZone }: { headline: MarketIqDailyEventHeadline; timeZone: string }) {
+function AgingRow({ headline, timeZone, marketId }: { headline: MarketIqDailyEventHeadline; timeZone: string; marketId?: string }) {
   const event = headline.event;
   if (event.eventType !== "aging_threshold") return null;
   return <article className="border-b border-slate-100 py-4 first:pt-0 last:border-0 last:pb-0">
-    <EventLink event={event}>
+    <EventLink event={event} marketId={marketId}>
       <div className="group grid grid-cols-[64px_52px_1fr_auto] items-center gap-3 px-1">
         <ListingPhoto event={event} compact />
         <div className="rounded-xl bg-slate-900 px-2 py-2 text-center text-white"><strong className="block text-lg leading-none">{event.listingAgeDays}</strong><span className="text-[9px] font-bold uppercase tracking-wider text-slate-300">days</span></div>
@@ -202,11 +207,11 @@ function AgingRow({ headline, timeZone }: { headline: MarketIqDailyEventHeadline
   </article>;
 }
 
-function ConcessionRow({ headline, timeZone }: { headline: MarketIqDailyEventHeadline; timeZone: string }) {
+function ConcessionRow({ headline, timeZone, marketId }: { headline: MarketIqDailyEventHeadline; timeZone: string; marketId?: string }) {
   const event = headline.event;
   if (event.eventType !== "concession") return null;
   return <article className="border-b border-slate-100 py-4 first:pt-0 last:border-0 last:pb-0">
-    <EventLink event={event}>
+    <EventLink event={event} marketId={marketId}>
       <div className="group grid gap-4 px-1 sm:grid-cols-[80px_1fr]">
         <ListingPhoto event={event} />
         <div><div className="flex items-start justify-between gap-3"><p className="text-sm font-semibold text-[var(--report-primary)]">{event.concession.label} · {event.city}</p><EventTime headline={headline} timeZone={timeZone} /></div>
@@ -218,14 +223,14 @@ function ConcessionRow({ headline, timeZone }: { headline: MarketIqDailyEventHea
   </article>;
 }
 
-function EventRow({ group, timeZone }: { group: EventGroup; timeZone: string }) {
+function EventRow({ group, timeZone, marketId }: { group: EventGroup; timeZone: string; marketId?: string }) {
   const headline = group[0];
   if (!headline) return null;
-  if (headline.section === "new_to_market") return <NewListingRow headline={headline} timeZone={timeZone} />;
-  if (headline.section === "rent_changes") return <RentChangeRow headlines={group} timeZone={timeZone} />;
-  if (headline.section === "off_market") return <OffMarketRow headline={headline} timeZone={timeZone} />;
-  if (headline.section === "aging_watch") return <AgingRow headline={headline} timeZone={timeZone} />;
-  return <ConcessionRow headline={headline} timeZone={timeZone} />;
+  if (headline.section === "new_to_market") return <NewListingRow headline={headline} timeZone={timeZone} marketId={marketId} />;
+  if (headline.section === "rent_changes") return <RentChangeRow headlines={group} timeZone={timeZone} marketId={marketId} />;
+  if (headline.section === "off_market") return <OffMarketRow headline={headline} timeZone={timeZone} marketId={marketId} />;
+  if (headline.section === "aging_watch") return <AgingRow headline={headline} timeZone={timeZone} marketId={marketId} />;
+  return <ConcessionRow headline={headline} timeZone={timeZone} marketId={marketId} />;
 }
 
 function EventSection({
@@ -237,6 +242,7 @@ function EventSection({
   groups,
   observedTotal,
   timeZone,
+  marketId,
   primary = false,
   limit = SECONDARY_EVENT_LIMIT,
 }: {
@@ -248,6 +254,7 @@ function EventSection({
   groups: EventGroup[];
   observedTotal: number;
   timeZone: string;
+  marketId?: string;
   primary?: boolean;
   limit?: number;
 }) {
@@ -263,7 +270,7 @@ function EventSection({
     {recordsArePartial && <p className="border-b border-slate-100 bg-slate-50 px-2 py-2.5 text-[11px] leading-5 text-slate-500">Individual records are available for {availableRecords.toLocaleString("en-US")} of {observedTotal.toLocaleString("en-US")} observed events in this saved edition.</p>}
     <div className="pt-4">
       {visible.length
-        ? visible.map((group) => <EventRow key={group.map((headline) => headline.id).join(":")} group={group} timeZone={timeZone} />)
+        ? visible.map((group) => <EventRow key={group.map((headline) => headline.id).join(":")} group={group} timeZone={timeZone} marketId={marketId} />)
         : <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm leading-6 text-slate-500">{observedTotal > 0 ? `${observedTotal.toLocaleString("en-US")} events were observed, but their individual records are not available in this saved edition.` : emptyMessage}</p>}
     </div>
     {remaining.length > 0 && <div className="mt-4 border-t border-slate-100 pt-4">
@@ -301,7 +308,7 @@ function ObservedFlow({ activity }: { activity: Extract<MarketIqMarketActivityAv
   </section>;
 }
 
-function LeaseUpAlerts({ alerts, timeZone }: { alerts: MarketIqLeaseUpAlert[]; timeZone: string }) {
+function LeaseUpAlerts({ alerts, timeZone, marketId }: { alerts: MarketIqLeaseUpAlert[]; timeZone: string; marketId?: string }) {
   if (!alerts.length) return null;
   return <section id="daily-lease-ups" className="mb-6 scroll-mt-20 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 shadow-[0_12px_35px_rgba(120,53,15,0.08)]" aria-label="Lease-up alerts">
     <header className="flex flex-wrap items-end justify-between gap-3 border-b border-amber-200 px-6 py-5">
@@ -317,11 +324,9 @@ function LeaseUpAlerts({ alerts, timeZone }: { alerts: MarketIqLeaseUpAlert[]; t
             : <div className="grid h-full place-items-center text-2xl text-amber-300" aria-hidden="true">⌂</div>}
         </div>
         <div><div className="flex flex-wrap items-center gap-2"><h4 className="font-semibold text-[var(--report-primary)]">{alert.propertyName}</h4><span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-900 ring-1 ring-inset ring-amber-200">{alert.newListingCount} new listings</span></div><p className="mt-1 text-sm text-slate-600">{alert.address ? `${alert.address} · ` : ""}{alert.city}, {alert.zip}</p>{alert.propertyManagerName && <p className="mt-1 text-xs font-semibold text-slate-500">Managed by {alert.propertyManagerName}</p>}<p className="mt-2 text-xs leading-5 text-slate-500">At least 25 newly observed apartment listings appeared under one property within seven days. This is a lease-up signal from advertised inventory, not independent verification of construction status or occupancy.</p></div>
-        <time dateTime={alert.observedAt} className="text-[11px] font-semibold tabular-nums text-slate-500">Observed {fullDateTime(alert.observedAt, timeZone)}</time>
+        <div className="flex flex-col items-start gap-2 sm:items-end"><time dateTime={alert.observedAt} className="text-[11px] font-semibold tabular-nums text-slate-500">Observed {fullDateTime(alert.observedAt, timeZone)}</time><div className="flex flex-wrap gap-3">{marketId && <Link href={marketIqPropertyActivityPath(marketId, alert.propertyId)} className="text-xs font-semibold text-teal-800 hover:text-teal-950">View property</Link>}{alert.listingUrl && <a href={alert.listingUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold text-slate-500 hover:text-slate-800">Source listing ↗</a>}</div></div>
       </div>;
-      return alert.listingUrl
-        ? <a key={alert.id} href={alert.listingUrl} target="_blank" rel="noreferrer" className="block outline-none transition-colors hover:bg-amber-100/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-700">{content}</a>
-        : <article key={alert.id}>{content}</article>;
+      return <article key={alert.id}>{content}</article>;
     })}</div>
   </section>;
 }
@@ -413,17 +418,17 @@ export function MarketIqDailyEvents({
     </header>
     <ObservedFlow activity={availability.activity} />
     {marketId && saveWatchlist && deleteWatchlist && <MarketIqDailyWatchlists activity={availability.activity} marketId={marketId} timeZone={timeZone} initialWatchlists={initialWatchlists} saveWatchlist={saveWatchlist} deleteWatchlist={deleteWatchlist} />}
-    <LeaseUpAlerts alerts={availability.activity.leaseUpAlerts ?? []} timeZone={timeZone} />
+    <LeaseUpAlerts alerts={availability.activity.leaseUpAlerts ?? []} timeZone={timeZone} marketId={marketId} />
     {comparison}
-    <MarketIqDailyActivityMap events={availability.activity.events} leaseUpAlerts={availability.activity.leaseUpAlerts} marketName={marketName} />
+    <MarketIqDailyActivityMap events={availability.activity.events} leaseUpAlerts={availability.activity.leaseUpAlerts} marketId={marketId} marketName={marketName} />
     <div className="grid gap-5 lg:grid-cols-[1.08fr_0.92fr] lg:items-start">
-      <EventSection id={DAILY_EVENT_SECTION_IDS.rentMoves} title="Notable rent moves" kicker="Asking-rent changes" description="Largest confirmed dollar movements, with the most recent event breaking ties." emptyMessage="No confirmed asking-rent changes were observed for the period." groups={rentChangeGroups(rentChanges)} observedTotal={availability.activity.confirmedPriceChanges24h} timeZone={timeZone} primary limit={PRIMARY_EVENT_LIMIT} />
-      <EventSection id={DAILY_EVENT_SECTION_IDS.newListings} title="New to market" kicker="Latest arrivals" description="Fresh listings presented as property facts rather than repeated headlines." emptyMessage="No new listings were observed for the period." groups={singleEventGroups(newListings)} observedTotal={availability.activity.newListings24h} timeZone={timeZone} primary limit={PRIMARY_EVENT_LIMIT} />
+      <EventSection id={DAILY_EVENT_SECTION_IDS.rentMoves} title="Notable rent moves" kicker="Asking-rent changes" description="Largest confirmed dollar movements, with the most recent event breaking ties." emptyMessage="No confirmed asking-rent changes were observed for the period." groups={rentChangeGroups(rentChanges)} observedTotal={availability.activity.confirmedPriceChanges24h} timeZone={timeZone} marketId={marketId} primary limit={PRIMARY_EVENT_LIMIT} />
+      <EventSection id={DAILY_EVENT_SECTION_IDS.newListings} title="New to market" kicker="Latest arrivals" description="Fresh listings presented as property facts rather than repeated headlines." emptyMessage="No new listings were observed for the period." groups={singleEventGroups(newListings)} observedTotal={availability.activity.newListings24h} timeZone={timeZone} marketId={marketId} primary limit={PRIMARY_EVENT_LIMIT} />
     </div>
     <div className="mt-5 grid gap-5 lg:grid-cols-3 lg:items-start">
-      <EventSection id={DAILY_EVENT_SECTION_IDS.offMarket} title="Off the market" kicker="Observed departures" description="Leased or withdrawn, undetermined." emptyMessage="No listings were observed leaving the market for the period." groups={singleEventGroups(delistings)} observedTotal={availability.activity.delistings24h} timeZone={timeZone} />
-      <EventSection id="daily-aging-watch" title="The aging watch" kicker="Calendar crossings" description="Live age thresholds, not days on market." emptyMessage="No active listings crossed an aging threshold for the period." groups={singleEventGroups(agingWatch)} observedTotal={availability.activity.agingThresholds24h} timeZone={timeZone} />
-      <EventSection id={DAILY_EVENT_SECTION_IDS.concessions} title="Concessions" kicker="Advertised incentives" description="Listing language, advertised and not verified." emptyMessage="No concession language was observed in new-listing text for the period." groups={singleEventGroups(concessions)} observedTotal={availability.activity.advertisedConcessions24h} timeZone={timeZone} />
+      <EventSection id={DAILY_EVENT_SECTION_IDS.offMarket} title="Off the market" kicker="Observed departures" description="Leased or withdrawn, undetermined." emptyMessage="No listings were observed leaving the market for the period." groups={singleEventGroups(delistings)} observedTotal={availability.activity.delistings24h} timeZone={timeZone} marketId={marketId} />
+      <EventSection id="daily-aging-watch" title="The aging watch" kicker="Calendar crossings" description="Live age thresholds, not days on market." emptyMessage="No active listings crossed an aging threshold for the period." groups={singleEventGroups(agingWatch)} observedTotal={availability.activity.agingThresholds24h} timeZone={timeZone} marketId={marketId} />
+      <EventSection id={DAILY_EVENT_SECTION_IDS.concessions} title="Concessions" kicker="Advertised incentives" description="Listing language, advertised and not verified." emptyMessage="No concession language was observed in new-listing text for the period." groups={singleEventGroups(concessions)} observedTotal={availability.activity.advertisedConcessions24h} timeZone={timeZone} marketId={marketId} />
     </div>
     <MarketIqDailyEventExplorer activity={availability.activity} marketId={marketId} marketName={marketName} timeZone={timeZone} initialSavedFilters={initialExplorerFilters} savePreference={saveExplorerPreference} clearPreference={clearExplorerPreference} />
   </section>;

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 
 import {
@@ -21,6 +22,7 @@ import {
 import { buildMarketIqDailyEventCsv } from "@/lib/market-iq/daily-event-export";
 import { buildDailyEventHeadlines, type MarketIqDailyEventHeadline } from "@/lib/market-iq/daily-events";
 import type { MarketIqListingEvent, MarketIqMarketActivity } from "@/lib/market-iq/listing-events";
+import { marketIqPropertyActivityPath } from "@/lib/market-iq/property-activity";
 
 type PreferenceAction = (marketId: string, filters: MarketIqDailySavedViewFilters) => Promise<{ ok: boolean; message?: string }>;
 type ClearPreferenceAction = (marketId: string) => Promise<{ ok: boolean; message?: string }>;
@@ -77,7 +79,7 @@ function rentMove(event: MarketIqListingEvent) {
   };
 }
 
-function EventRecord({ headline, timeZone }: { headline: MarketIqDailyEventHeadline; timeZone: string }) {
+function EventRecord({ headline, timeZone, marketId }: { headline: MarketIqDailyEventHeadline; timeZone: string; marketId?: string }) {
   const event = headline.event;
   const move = rentMove(event);
   return (
@@ -103,7 +105,7 @@ function EventRecord({ headline, timeZone }: { headline: MarketIqDailyEventHeadl
       </div>
       <div className="flex items-center justify-between gap-4 lg:block lg:text-right">
         <time dateTime={headline.observedAt} className="block text-[11px] font-semibold tabular-nums text-slate-400">{fullDateTime(headline.observedAt, timeZone)}</time>
-        {event.listingUrl && <a href={event.listingUrl} target="_blank" rel="noreferrer" className="mt-0 inline-flex text-xs font-semibold text-teal-700 hover:text-teal-900 lg:mt-3">Open source listing ↗</a>}
+        <div className="mt-0 flex flex-wrap gap-3 lg:mt-3 lg:justify-end">{marketId && event.propertyId && <Link href={marketIqPropertyActivityPath(marketId, event.propertyId)} className="text-xs font-semibold text-teal-700 hover:text-teal-900">View property</Link>}{event.listingUrl && <a href={event.listingUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold text-slate-500 hover:text-navy">Open source listing ↗</a>}</div>
       </div>
     </article>
   );
@@ -306,7 +308,7 @@ export function MarketIqDailyEventExplorer({
       </div>
 
       <div className="divide-y divide-slate-100">
-        {visible.map((headline) => <EventRecord key={headline.id} headline={headline} timeZone={timeZone} />)}
+        {visible.map((headline) => <EventRecord key={headline.id} headline={headline} timeZone={timeZone} marketId={marketId} />)}
         {filtered.length === 0 && <div className="px-6 py-12 text-center"><h3 className="text-base font-semibold text-navy">No retained records match these filters.</h3><p className="mt-2 text-sm text-slate-500">Reset the filters to return to the full saved ledger.</p></div>}
       </div>
 
