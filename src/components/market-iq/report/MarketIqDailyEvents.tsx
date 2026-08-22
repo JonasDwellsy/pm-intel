@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { MarketIqDailyActivityMap } from "@/components/market-iq/report/MarketIqDailyActivityMap";
 import { MarketIqDailyEventExplorer } from "@/components/market-iq/report/MarketIqDailyEventExplorer";
+import { MarketIqDailyWatchlists } from "@/components/market-iq/report/MarketIqDailyWatchlists";
 import type { MarketIqDailySavedViewFilters } from "@/lib/market-iq/daily-event-explorer";
 import { buildDailyEventHeadlines, type MarketIqDailyEventHeadline } from "@/lib/market-iq/daily-events";
+import type { MarketIqDailyWatchlistActionResult, MarketIqDailyWatchlistInput, MarketIqDailyWatchlistView } from "@/lib/market-iq/daily-watchlists";
 import type { MarketIqLeaseUpAlert, MarketIqListingEvent, MarketIqMarketActivityAvailability } from "@/lib/market-iq/listing-events";
 
 const PRIMARY_EVENT_LIMIT = 4;
@@ -301,7 +303,7 @@ function ObservedFlow({ activity }: { activity: Extract<MarketIqMarketActivityAv
 
 function LeaseUpAlerts({ alerts, timeZone }: { alerts: MarketIqLeaseUpAlert[]; timeZone: string }) {
   if (!alerts.length) return null;
-  return <section className="mb-6 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 shadow-[0_12px_35px_rgba(120,53,15,0.08)]" aria-label="Lease-up alerts">
+  return <section id="daily-lease-ups" className="mb-6 scroll-mt-20 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 shadow-[0_12px_35px_rgba(120,53,15,0.08)]" aria-label="Lease-up alerts">
     <header className="flex flex-wrap items-end justify-between gap-3 border-b border-amber-200 px-6 py-5">
       <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-800">Lease-up alert</p><h3 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">A large property-level arrival was observed</h3></div>
       <span className="rounded-full bg-amber-200/70 px-3 py-1 text-xs font-bold text-amber-950">{alerts.length} {alerts.length === 1 ? "property" : "properties"}</span>
@@ -367,6 +369,9 @@ export function MarketIqDailyEvents({
   initialExplorerFilters = null,
   saveExplorerPreference,
   clearExplorerPreference,
+  initialWatchlists = [],
+  saveWatchlist,
+  deleteWatchlist,
 }: {
   availability: MarketIqMarketActivityAvailability;
   marketId?: string;
@@ -377,6 +382,9 @@ export function MarketIqDailyEvents({
   initialExplorerFilters?: MarketIqDailySavedViewFilters | null;
   saveExplorerPreference?: (marketId: string, filters: MarketIqDailySavedViewFilters) => Promise<{ ok: boolean; message?: string }>;
   clearExplorerPreference?: (marketId: string) => Promise<{ ok: boolean; message?: string }>;
+  initialWatchlists?: MarketIqDailyWatchlistView[];
+  saveWatchlist?: (marketId: string, input: MarketIqDailyWatchlistInput) => Promise<MarketIqDailyWatchlistActionResult>;
+  deleteWatchlist?: (marketId: string, watchlistId: string) => Promise<MarketIqDailyWatchlistActionResult>;
 }) {
   const Heading = headingLevel;
   if (availability.state === "unavailable") {
@@ -404,6 +412,7 @@ export function MarketIqDailyEvents({
       <p className="text-xs text-slate-500">Source current through {fullDateTime(availability.activity.asOf, timeZone)}</p>
     </header>
     <ObservedFlow activity={availability.activity} />
+    {marketId && saveWatchlist && deleteWatchlist && <MarketIqDailyWatchlists activity={availability.activity} marketId={marketId} timeZone={timeZone} initialWatchlists={initialWatchlists} saveWatchlist={saveWatchlist} deleteWatchlist={deleteWatchlist} />}
     <LeaseUpAlerts alerts={availability.activity.leaseUpAlerts ?? []} timeZone={timeZone} />
     {comparison}
     <MarketIqDailyActivityMap events={availability.activity.events} leaseUpAlerts={availability.activity.leaseUpAlerts} marketName={marketName} />
