@@ -1,6 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const savePreference = vi.fn();
+const clearPreference = vi.fn();
 
 import { MarketIqDailyEventExplorer } from "@/components/market-iq/report/MarketIqDailyEventExplorer";
 import type { MarketIqListingEvent, MarketIqMarketActivity } from "@/lib/market-iq/listing-events";
@@ -28,6 +31,10 @@ function activity(overrides: Partial<MarketIqMarketActivity> = {}): MarketIqMark
 }
 
 describe("MarketIqDailyEventExplorer", () => {
+  beforeEach(() => {
+    savePreference.mockReset().mockResolvedValue({ ok: true });
+    clearPreference.mockReset().mockResolvedValue({ ok: true });
+  });
   it("keeps retained-record and exact observed totals distinct", () => {
     render(<MarketIqDailyEventExplorer activity={activity()} timeZone="America/New_York" />);
 
@@ -78,5 +85,41 @@ describe("MarketIqDailyEventExplorer", () => {
     expect(screen.getByText("Showing 25 of 30 matching retained records.")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Show 5 more records" }));
     expect(screen.getByText("Showing 30 of 30 matching retained records.")).toBeTruthy();
+  });
+
+  it("hydrates, saves, restores, and clears a personal market view without saving search text", async () => {
+    const user = userEvent.setup();
+    render(<MarketIqDailyEventExplorer
+      activity={activity()}
+      marketId="cleveland-elyria-mentor-oh"
+      timeZone="America/New_York"
+      initialSavedFilters={{ section: "rent_changes", geography: "all", bedrooms: "all", propertyType: "all", rentDirection: "decrease", minimumRentMagnitude: 200 }}
+      savePreference={savePreference}
+      clearPreference={clearPreference}
+    />);
+
+    expect(screen.getByText("Showing 1 of 1 matching retained records.")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Default saved" }) as HTMLButtonElement).disabled).toBe(true);
+    await user.type(screen.getByLabelText("Address search"), "Euclid");
+    await user.selectOptions(screen.getByLabelText("Beds"), "2");
+    await user.click(screen.getByRole("button", { name: "Save as my default" }));
+    expect(savePreference).toHaveBeenCalledWith("cleveland-elyria-mentor-oh", {
+      section: "rent_changes",
+      geography: "all",
+      bedrooms: "2",
+      propertyType: "all",
+      rentDirection: "decrease",
+      minimumRentMagnitude: 200,
+    });
+    expect(screen.getByRole("status").textContent).toContain("Saved as your default");
+
+    await user.click(screen.getByRole("button", { name: /Reset filters/ }));
+    expect(screen.getByRole("button", { name: "Restore saved view" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Restore saved view" }));
+    expect((screen.getByLabelText("Address search") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("Beds") as HTMLSelectElement).value).toBe("2");
+
+    await user.click(screen.getByRole("button", { name: "Clear saved default" }));
+    expect(clearPreference).toHaveBeenCalledWith("cleveland-elyria-mentor-oh");
   });
 });

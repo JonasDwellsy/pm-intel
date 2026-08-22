@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { MarketIqDailyEventExplorer } from "@/components/market-iq/report/MarketIqDailyEventExplorer";
+import type { MarketIqDailySavedViewFilters } from "@/lib/market-iq/daily-event-explorer";
 import { buildDailyEventHeadlines, type MarketIqDailyEventHeadline } from "@/lib/market-iq/daily-events";
 import type { MarketIqListingEvent, MarketIqMarketActivityAvailability } from "@/lib/market-iq/listing-events";
 
@@ -292,16 +293,24 @@ function rentChangeGroups(headlines: MarketIqDailyEventHeadline[]): EventGroup[]
 
 export function MarketIqDailyEvents({
   availability,
+  marketId,
   marketName = "the market",
   timeZone = "America/New_York",
   headingLevel = "h2",
   comparison,
+  initialExplorerFilters = null,
+  saveExplorerPreference,
+  clearExplorerPreference,
 }: {
   availability: MarketIqMarketActivityAvailability;
+  marketId?: string;
   marketName?: string;
   timeZone?: string;
   headingLevel?: "h1" | "h2";
   comparison?: ReactNode;
+  initialExplorerFilters?: MarketIqDailySavedViewFilters | null;
+  saveExplorerPreference?: (marketId: string, filters: MarketIqDailySavedViewFilters) => Promise<{ ok: boolean; message?: string }>;
+  clearExplorerPreference?: (marketId: string) => Promise<{ ok: boolean; message?: string }>;
 }) {
   const Heading = headingLevel;
   if (availability.state === "unavailable") {
@@ -339,6 +348,6 @@ export function MarketIqDailyEvents({
       <EventSection title="The aging watch" kicker="Calendar crossings" description="Live age thresholds, not days on market." emptyMessage="No active listings crossed an aging threshold for the period." groups={singleEventGroups(agingWatch)} observedTotal={availability.activity.agingThresholds24h} timeZone={timeZone} />
       <EventSection title="Concessions" kicker="Advertised incentives" description="Listing language, advertised and not verified." emptyMessage="No concession language was observed in new-listing text for the period." groups={singleEventGroups(concessions)} observedTotal={availability.activity.advertisedConcessions24h} timeZone={timeZone} />
     </div>
-    <MarketIqDailyEventExplorer activity={availability.activity} timeZone={timeZone} />
+    <MarketIqDailyEventExplorer activity={availability.activity} marketId={marketId} timeZone={timeZone} initialSavedFilters={initialExplorerFilters} savePreference={saveExplorerPreference} clearPreference={clearExplorerPreference} />
   </section>;
 }

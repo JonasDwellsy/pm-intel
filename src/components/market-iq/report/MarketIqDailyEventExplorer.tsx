@@ -1,21 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 import {
   EMPTY_MARKET_IQ_DAILY_EVENT_FILTERS,
   filterMarketIqDailyEventHeadlines,
+  marketIqDailyExplorerFilters,
   marketIqDailyEventExplorerOptions,
   marketIqDailyObservedEventTotal,
+  sameMarketIqDailySavedView,
+  savedMarketIqDailyView,
   type MarketIqDailyEventBedrooms,
   type MarketIqDailyEventExplorerFilters,
   type MarketIqDailyEventPropertyType,
   type MarketIqDailyEventRentDirection,
   type MarketIqDailyEventRentMagnitude,
   type MarketIqDailyEventSection,
+  type MarketIqDailySavedViewFilters,
 } from "@/lib/market-iq/daily-event-explorer";
 import { buildDailyEventHeadlines, type MarketIqDailyEventHeadline } from "@/lib/market-iq/daily-events";
 import type { MarketIqListingEvent, MarketIqMarketActivity } from "@/lib/market-iq/listing-events";
+
+type PreferenceAction = (marketId: string, filters: MarketIqDailySavedViewFilters) => Promise<{ ok: boolean; message?: string }>;
+type ClearPreferenceAction = (marketId: string) => Promise<{ ok: boolean; message?: string }>;
 
 const PAGE_SIZE = 25;
 
@@ -121,14 +128,25 @@ function SelectField({
 
 export function MarketIqDailyEventExplorer({
   activity,
+  marketId,
   timeZone,
+  initialSavedFilters = null,
+  savePreference,
+  clearPreference,
 }: {
   activity: MarketIqMarketActivity;
+  marketId?: string;
   timeZone: string;
+  initialSavedFilters?: MarketIqDailySavedViewFilters | null;
+  savePreference?: PreferenceAction;
+  clearPreference?: ClearPreferenceAction;
 }) {
   const headlines = useMemo(() => buildDailyEventHeadlines(activity.events), [activity.events]);
   const options = useMemo(() => marketIqDailyEventExplorerOptions(headlines), [headlines]);
-  const [filters, setFilters] = useState<MarketIqDailyEventExplorerFilters>(EMPTY_MARKET_IQ_DAILY_EVENT_FILTERS);
+  const [filters, setFilters] = useState<MarketIqDailyEventExplorerFilters>(() => marketIqDailyExplorerFilters(initialSavedFilters));
+  const [savedFilters, setSavedFilters] = useState<MarketIqDailySavedViewFilters | null>(initialSavedFilters);
+  const [preferenceMessage, setPreferenceMessage] = useState<string | null>(null);
+  const [isSaving, startSaving] = useTransition();
   const [visibleLimit, setVisibleLimit] = useState(PAGE_SIZE);
   const filtered = useMemo(() => filterMarketIqDailyEventHeadlines(headlines, filters), [filters, headlines]);
   const visible = filtered.slice(0, visibleLimit);
@@ -144,6 +162,8 @@ export function MarketIqDailyEventExplorer({
     filters.rentDirection !== "all",
     filters.minimumRentMagnitude > 0,
   ].filter(Boolean).length;
+  const currentSavedView = savedMarketIqDailyView(filters);
+  const savedViewIsCurrent = savedFilters ? sameMarketIqDailySavedView(currentSavedView, savedFilters) : false;
 
   function updateFilters(patch: Partial<MarketIqDailyEventExplorerFilters>) {
     setFilters((current) => ({ ...current, ...patch }));
@@ -153,6 +173,45 @@ export function MarketIqDailyEventExplorer({
   function resetFilters() {
     setFilters(EMPTY_MARKET_IQ_DAILY_EVENT_FILTERS);
     setVisibleLimit(PAGE_SIZE);
+  }
+
+  function saveView() {
+    if (!marketId || !savePreference) return;
+    startSaving(async () => {
+      setPreferenceMessage(null);
+      try {
+        const result = await savePreference(marketId, currentSavedView);
+        if (result.ok) {
+          setSavedFilters(currentSavedView);
+          setPreferenceMessage("Saved as your default for this market.");
+        } else setPreferenceMessage(result.message ?? "This market view could not be saved.");
+      } catch {
+        setPreferenceMessage("This market view could not be saved.");
+      }
+    });
+  }
+
+  function restoreView() {
+    if (!savedFilters) return;
+    setFilters(marketIqDailyExplorerFilters(savedFilters));
+    setVisibleLimit(PAGE_SIZE);
+    setPreferenceMessage("Your saved market view has been restored.");
+  }
+
+  function clearSavedView() {
+    if (!marketId || !clearPreference) return;
+    startSaving(async () => {
+      setPreferenceMessage(null);
+      try {
+        const result = await clearPreference(marketId);
+        if (result.ok) {
+          setSavedFilters(null);
+          setPreferenceMessage("Your saved default for this market has been cleared.");
+        } else setPreferenceMessage(result.message ?? "This saved view could not be cleared.");
+      } catch {
+        setPreferenceMessage("This saved view could not be cleared.");
+      }
+    });
   }
 
   return (
@@ -207,9 +266,14 @@ export function MarketIqDailyEventExplorer({
             <option value="0">Any amount</option><option value="50">$50+</option><option value="100">$100+</option><option value="200">$200+</option>
           </SelectField>
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <div><p aria-live="polite" className="text-xs text-slate-500">Showing {visible.length.toLocaleString("en-US")} of {filtered.length.toLocaleString("en-US")} matching retained records.</p><p className="mt-1 text-[10px] text-slate-400">Rent direction and change-size filters apply only to confirmed rent-change records.</p></div>
-          <button type="button" onClick={resetFilters} disabled={activeFilterCount === 0} className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-navy disabled:cursor-not-allowed disabled:opacity-40">Reset filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</button>
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+          <div><p aria-live="polite" className="text-xs text-slate-500">Showing {visible.length.toLocaleString("en-US")} of {filtered.length.toLocaleString("en-US")} matching retained records.</p><p className="mt-1 text-[10px] text-slate-400">Rent direction and change-size filters apply only to confirmed rent-change records. Address search is session-only and is never saved.</p>{preferenceMessage && <p role="status" className="mt-2 text-xs font-semibold text-teal-700">{preferenceMessage}</p>}</div>
+          <div className="flex flex-wrap gap-2">
+            {marketId && savePreference && savedFilters && !savedViewIsCurrent && <button type="button" onClick={restoreView} disabled={isSaving} className="rounded-md border border-teal-700 px-3 py-2 text-xs font-semibold text-teal-800 disabled:opacity-40">Restore saved view</button>}
+            {marketId && savePreference && <button type="button" onClick={saveView} disabled={isSaving || savedViewIsCurrent} className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{isSaving ? "Saving…" : savedViewIsCurrent ? "Default saved" : "Save as my default"}</button>}
+            {marketId && clearPreference && savedFilters && <button type="button" onClick={clearSavedView} disabled={isSaving} className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-navy disabled:opacity-40">Clear saved default</button>}
+            <button type="button" onClick={resetFilters} disabled={activeFilterCount === 0} className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-navy disabled:cursor-not-allowed disabled:opacity-40">Reset filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</button>
+          </div>
         </div>
       </div>
 

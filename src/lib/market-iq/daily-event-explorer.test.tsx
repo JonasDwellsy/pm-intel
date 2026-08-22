@@ -4,7 +4,10 @@ import {
   EMPTY_MARKET_IQ_DAILY_EVENT_FILTERS,
   filterMarketIqDailyEventHeadlines,
   marketIqDailyEventExplorerOptions,
+  marketIqDailyExplorerFilters,
   marketIqDailyObservedEventTotal,
+  parseMarketIqDailySavedView,
+  savedMarketIqDailyView,
 } from "@/lib/market-iq/daily-event-explorer";
 import { buildDailyEventHeadlines } from "@/lib/market-iq/daily-events";
 import type { MarketIqListingEvent, MarketIqMarketActivity } from "@/lib/market-iq/listing-events";
@@ -67,5 +70,35 @@ describe("Daily Event Explorer filtering", () => {
       events: [],
     } satisfies MarketIqMarketActivity;
     expect(marketIqDailyObservedEventTotal(activity)).toBe(140);
+  });
+
+  it("round-trips saved structured filters without retaining address search", () => {
+    const saved = savedMarketIqDailyView({
+      ...EMPTY_MARKET_IQ_DAILY_EVENT_FILTERS,
+      query: "100 Main St",
+      section: "rent_changes",
+      geography: "city:Cleveland",
+      bedrooms: "2",
+      rentDirection: "decrease",
+      minimumRentMagnitude: 100,
+    });
+    expect(saved).not.toHaveProperty("query");
+    expect(marketIqDailyExplorerFilters(parseMarketIqDailySavedView(JSON.stringify(saved)))).toEqual({
+      ...saved,
+      query: "",
+    });
+    expect(parseMarketIqDailySavedView(JSON.stringify({ ...saved, query: "100 Main St" }))).not.toHaveProperty("query");
+  });
+
+  it("rejects malformed or unsupported saved-filter payloads", () => {
+    expect(parseMarketIqDailySavedView("not-json")).toBeNull();
+    expect(parseMarketIqDailySavedView(JSON.stringify({
+      section: "monthly_trend",
+      geography: "all",
+      bedrooms: "all",
+      propertyType: "all",
+      rentDirection: "all",
+      minimumRentMagnitude: 0,
+    }))).toBeNull();
   });
 });

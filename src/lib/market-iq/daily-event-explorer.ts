@@ -17,6 +17,8 @@ export type MarketIqDailyEventExplorerFilters = {
   minimumRentMagnitude: MarketIqDailyEventRentMagnitude;
 };
 
+export type MarketIqDailySavedViewFilters = Omit<MarketIqDailyEventExplorerFilters, "query">;
+
 export const EMPTY_MARKET_IQ_DAILY_EVENT_FILTERS: MarketIqDailyEventExplorerFilters = {
   query: "",
   section: "all",
@@ -26,6 +28,64 @@ export const EMPTY_MARKET_IQ_DAILY_EVENT_FILTERS: MarketIqDailyEventExplorerFilt
   rentDirection: "all",
   minimumRentMagnitude: 0,
 };
+
+export const EMPTY_MARKET_IQ_DAILY_SAVED_VIEW_FILTERS: MarketIqDailySavedViewFilters = {
+  section: "all",
+  geography: "all",
+  bedrooms: "all",
+  propertyType: "all",
+  rentDirection: "all",
+  minimumRentMagnitude: 0,
+};
+
+const SECTIONS = new Set(["all", "new_to_market", "rent_changes", "off_market", "aging_watch", "concessions"]);
+const BEDROOMS = new Set(["all", "studio", "1", "2", "3", "4_plus"]);
+const PROPERTY_TYPES = new Set(["all", "apartment", "house"]);
+const RENT_DIRECTIONS = new Set(["all", "increase", "decrease"]);
+const RENT_MAGNITUDES = new Set([0, 50, 100, 200]);
+
+export function savedMarketIqDailyView(filters: MarketIqDailyEventExplorerFilters): MarketIqDailySavedViewFilters {
+  return {
+    section: filters.section,
+    geography: filters.geography,
+    bedrooms: filters.bedrooms,
+    propertyType: filters.propertyType,
+    rentDirection: filters.rentDirection,
+    minimumRentMagnitude: filters.minimumRentMagnitude,
+  };
+}
+
+export function marketIqDailyExplorerFilters(saved: MarketIqDailySavedViewFilters | null): MarketIqDailyEventExplorerFilters {
+  return { ...EMPTY_MARKET_IQ_DAILY_EVENT_FILTERS, ...(saved ?? {}) };
+}
+
+export function parseMarketIqDailySavedView(value: string | null | undefined): MarketIqDailySavedViewFilters | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    if (!SECTIONS.has(parsed.section as string)
+      || typeof parsed.geography !== "string"
+      || !(parsed.geography === "all" || parsed.geography.startsWith("city:") || parsed.geography.startsWith("zip:"))
+      || !BEDROOMS.has(parsed.bedrooms as string)
+      || !PROPERTY_TYPES.has(parsed.propertyType as string)
+      || !RENT_DIRECTIONS.has(parsed.rentDirection as string)
+      || !RENT_MAGNITUDES.has(parsed.minimumRentMagnitude as number)) return null;
+    return {
+      section: parsed.section as MarketIqDailyEventSection,
+      geography: parsed.geography,
+      bedrooms: parsed.bedrooms as MarketIqDailyEventBedrooms,
+      propertyType: parsed.propertyType as MarketIqDailyEventPropertyType,
+      rentDirection: parsed.rentDirection as MarketIqDailyEventRentDirection,
+      minimumRentMagnitude: parsed.minimumRentMagnitude as MarketIqDailyEventRentMagnitude,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function sameMarketIqDailySavedView(left: MarketIqDailySavedViewFilters, right: MarketIqDailySavedViewFilters) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
 
 function normalized(value: string | null | undefined) {
   return value?.trim().toLocaleLowerCase("en-US") ?? "";
