@@ -1,7 +1,9 @@
+import { MARKET_IQ_REFRESH_STALE_AFTER_MS } from "@/lib/market-iq/report-refresh-reliability";
+
 export const MARKET_IQ_STABLE_PREVIEW_MAX_SNAPSHOT_AGE_DAYS = 62;
 
 export type MarketIqStablePreviewCheck = {
-  id: "market_iq_database" | "source_configuration" | "verified_snapshot";
+  id: "market_iq_database" | "source_configuration" | "verified_snapshot" | "refresh_attempt";
   status: "ready" | "blocked";
   detail: string;
 };
@@ -23,6 +25,24 @@ function snapshotAgeDays(sourceAvailableThrough: Date, now: Date) {
   return Math.max(0, (now.getTime() - sourceAvailableThrough.getTime()) / DAY_MILLISECONDS);
 }
 
+function refreshAttemptDetail(
+  refresh: { status: string; startedAt: Date; completedAt: Date | null } | null,
+  ready: boolean,
+) {
+  if (!refresh) return "No authoritative Trends refresh failure is recorded.";
+  if (refresh.status === "running") {
+    if (refresh.completedAt) {
+      return "The latest authoritative Trends refresh has an inconsistent recorded state.";
+    }
+    return ready
+      ? "The authoritative Trends refresh is still within its expected running window."
+      : "The authoritative Trends refresh has exceeded its expected running window.";
+  }
+  return ready
+    ? "The latest recorded authoritative Trends refresh completed successfully."
+    : "The latest recorded authoritative Trends refresh did not complete successfully.";
+}
+
 export function resolveMarketIqStablePreviewHealth(input: {
   marketId: string;
   now: Date;
@@ -34,13 +54,32 @@ export function resolveMarketIqStablePreviewHealth(input: {
     generatedAt: Date;
     valid: boolean;
   } | null;
-  latestRefreshStatus: string | null;
+  latestRefresh: {
+    status: string;
+    startedAt: Date;
+    completedAt: Date | null;
+  } | null;
 }): MarketIqStablePreviewHealth {
   const snapshotCurrent = Boolean(
     input.snapshot?.valid
       && snapshotAgeDays(input.snapshot.sourceAvailableThrough, input.now)
         <= MARKET_IQ_STABLE_PREVIEW_MAX_SNAPSHOT_AGE_DAYS,
   );
+  const refreshAgeMilliseconds = input.latestRefresh
+    ? input.now.getTime() - input.latestRefresh.startedAt.getTime()
+    : null;
+  const refreshAttemptReady = input.latestRefresh === null
+    || (
+      input.latestRefresh.status === "complete"
+      && input.latestRefresh.completedAt !== null
+    )
+    || (
+      input.latestRefresh.status === "running"
+      && input.latestRefresh.completedAt === null
+      && refreshAgeMilliseconds !== null
+      && refreshAgeMilliseconds >= 0
+      && refreshAgeMilliseconds <= MARKET_IQ_REFRESH_STALE_AFTER_MS
+    );
   const checks: MarketIqStablePreviewCheck[] = [
     {
       id: "market_iq_database",
@@ -63,6 +102,11 @@ export function resolveMarketIqStablePreviewHealth(input: {
         ? "A current, structurally valid Trends snapshot is available."
         : "A current, structurally valid Trends snapshot is not available.",
     },
+    {
+      id: "refresh_attempt",
+      status: refreshAttemptReady ? "ready" : "blocked",
+      detail: refreshAttemptDetail(input.latestRefresh, refreshAttemptReady),
+    },
   ];
 
   return {
@@ -72,7 +116,7 @@ export function resolveMarketIqStablePreviewHealth(input: {
     marketId: input.marketId,
     sourceAvailableThrough: input.snapshot?.sourceAvailableThrough.toISOString() ?? null,
     snapshotGeneratedAt: input.snapshot?.generatedAt.toISOString() ?? null,
-    latestRefreshStatus: input.latestRefreshStatus,
+    latestRefreshStatus: input.latestRefresh?.status ?? null,
     checks,
   };
 }
