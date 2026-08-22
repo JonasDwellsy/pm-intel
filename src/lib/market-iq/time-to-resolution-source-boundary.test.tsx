@@ -19,8 +19,8 @@ const reportContract = readFileSync(
   resolve(process.cwd(), "src/lib/market-iq/report/report.ts"),
   "utf8",
 );
-const workspace = readFileSync(
-  resolve(process.cwd(), "src/components/market-iq/MarketIqIntelligenceWorkspace.tsx"),
+const dailyEdition = readFileSync(
+  resolve(process.cwd(), "src/app/market-iq/daily/page.tsx"),
   "utf8",
 );
 const publicReport = readFileSync(
@@ -54,7 +54,7 @@ describe("time-to-resolution source boundary", () => {
   it("carries explicit availability through both interactive report surfaces", () => {
     assert.match(reportContract, /timeToResolution\?: MarketIqTimeToResolutionAvailability/);
     assert.match(reportContract, /timeToResolution: input\.timeToResolution/);
-    assert.match(workspace, /<MarketIqTimeToResolution availability=\{report\.timeToResolution\}/);
+    assert.match(dailyEdition, /<MarketIqTimeToResolution availability=\{report\.timeToResolution\}/);
     assert.match(publicReport, /<MarketIqTimeToResolution availability=\{report\.timeToResolution\}/);
   });
 });

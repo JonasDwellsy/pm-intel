@@ -100,6 +100,16 @@ test("the shared Market Intelligence route uses the market data service boundary
   }
 });
 
+test("the Daily Edition is a dedicated persisted-evidence route rather than part of Market Overview", () => {
+  const dailyRoute = readFileSync("src/app/market-iq/daily/page.tsx", "utf8");
+  const overview = readFileSync("src/components/market-iq/MarketIqIntelligenceWorkspace.tsx", "utf8");
+
+  assert.match(dailyRoute, /loadMarketIqMarketData/);
+  assert.match(dailyRoute, /MarketIqDailyEvents/);
+  assert.match(dailyRoute, /basePath=\{MARKET_IQ_MARKET_INTELLIGENCE_ROUTES\.daily\}/);
+  assert.doesNotMatch(overview, /MarketIqDailyEvents|MarketIqTimeToResolution/);
+});
+
 test("interactive Market IQ reads persisted evidence and Cleveland source builds fail closed", () => {
   const service = readFileSync("src/lib/market-iq/data/service.server.ts", "utf8");
   const clevelandBuild = readFileSync("src/lib/market-iq/report/build.server.ts", "utf8");

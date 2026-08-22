@@ -3,6 +3,7 @@ import { marketIqClientReportingTab, marketIqProductArea } from "@/lib/market-iq
 
 describe("Market IQ navigation", () => {
   it("groups the internal briefing under Market intelligence", () => {
+    expect(marketIqProductArea("/market-iq/daily")).toBe("market-intelligence");
     expect(marketIqProductArea("/market-iq/market")).toBe("market-intelligence");
     expect(marketIqProductArea("/market-iq/briefing")).toBe("market-intelligence");
   });
