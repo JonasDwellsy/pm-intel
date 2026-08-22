@@ -10,7 +10,7 @@ const attempt = {
   completedAt: new Date("2026-08-19T20:00:30.000Z"),
 };
 
-test("recorded readiness distinguishes all four source states without a live source call", () => {
+test("recorded readiness distinguishes all five source states without a live source call", () => {
   assert.deepEqual(resolveMarketIqRecordedSourceReadiness({
     sourceConfigured: false,
     evidenceStoreReachable: true,
@@ -32,29 +32,62 @@ test("recorded readiness distinguishes all four source states without a live sou
   const savedSnapshot = {
     sourceAvailableThrough: new Date("2026-07-31T00:00:00.000Z"),
     generatedAt: new Date("2026-08-19T21:00:00.000Z"),
+    contractCompatible: true,
   };
   assert.deepEqual(resolveMarketIqRecordedSourceReadiness({
     sourceConfigured: true,
     evidenceStoreReachable: true,
     savedSnapshot,
     lastAttempt: attempt,
-  }), { state: "saved_report_available", ...savedSnapshot, lastAttempt: attempt });
+  }), {
+    state: "saved_report_available",
+    sourceAvailableThrough: savedSnapshot.sourceAvailableThrough,
+    generatedAt: savedSnapshot.generatedAt,
+    lastAttempt: attempt,
+  });
+
+  assert.deepEqual(resolveMarketIqRecordedSourceReadiness({
+    sourceConfigured: true,
+    evidenceStoreReachable: true,
+    savedSnapshot: { ...savedSnapshot, contractCompatible: false },
+    lastAttempt: attempt,
+  }), {
+    state: "saved_report_incompatible",
+    sourceAvailableThrough: savedSnapshot.sourceAvailableThrough,
+    generatedAt: savedSnapshot.generatedAt,
+    lastAttempt: attempt,
+  });
 });
 
 test("internal readiness reads recorded evidence and never opens the Dwellsy source", async () => {
-  const [page, loader] = await Promise.all([
+  const [page, loader, snapshotLoader] = await Promise.all([
     readFile("src/app/market-iq/internal/readiness/page.tsx", "utf8"),
     readFile("src/lib/market-iq/source-readiness.server.ts", "utf8"),
+    readFile("src/lib/market-iq/report/source-snapshot.server.ts", "utf8"),
   ]);
   assert.match(page, /loadMarketIqRecordedSourceReadiness/);
   assert.doesNotMatch(page, /build\.server|dwellsy-source|loadCachedClevelandMarketIqReportSnapshot/);
-  assert.match(loader, /marketIqReportSourceSnapshot\.findFirst/);
+  assert.match(loader, /marketIqReportSourceSnapshot\.findMany/);
+  assert.match(loader, /parseCurrentMarketIqReportSourceSnapshot/);
+  assert.match(loader, /compatibleSnapshot/);
   assert.match(loader, /marketIqSourceRefresh\.findFirst/);
   assert.match(page, /latest refresh did not complete/);
   assert.match(page, /Failure stage/);
   assert.match(page, /category/);
   assert.doesNotMatch(loader, /dwellsy-source|loadDwellsy|DWELLSY_DATABASE_URL[^?]*\)/);
   assert.doesNotMatch(`${page}\n${loader}`, /process\.env\[[^\]]+\][^\n]*(detail|return)|password|connection string/i);
+  assert.match(page, /older analytical contract/);
+  assert.match(page, /Refresh Cleveland from Trends/);
+  assert.match(snapshotLoader, /findMany/);
+  assert.match(snapshotLoader, /parseCurrentMarketIqReportSourceSnapshot/);
+  assert.match(snapshotLoader, /if \(snapshot\) return snapshot/);
+  assert.doesNotMatch(snapshotLoader, /parseMarketIqReportSnapshot/);
+  assert.match(snapshotLoader, /if \(!parseCurrentMarketIqReportSourceSnapshot\(serialized\)\)/);
+  assert.ok(
+    snapshotLoader.indexOf("if (!parseCurrentMarketIqReportSourceSnapshot(serialized))")
+      < snapshotLoader.indexOf('createHash("sha256")'),
+    "Source snapshot writes must validate the current contract before persistence.",
+  );
 });
 
 test("public reports distinguish unknown tokens from known unavailable evidence", async () => {

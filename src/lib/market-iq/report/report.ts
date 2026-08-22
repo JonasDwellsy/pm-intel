@@ -16,6 +16,11 @@ export type {
 } from "@/lib/market-iq/time-to-resolution";
 
 export const MARKET_IQ_REPORT_VERSION = 3 as const;
+// Bump this whenever analytical query scope, methodology, or required evidence
+// changes. Stored source snapshots from an older contract must be refreshed.
+export const MARKET_IQ_SNAPSHOT_CONTRACT_VERSION = 2 as const;
+export const MARKET_IQ_TRENDS_HISTORY_MONTHS = 36 as const;
+export const MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION = 1 as const;
 
 export type MarketIqPropertyType = "apartment" | "house";
 export type MarketIqGeographyType = "msa" | "city" | "zip";
@@ -125,6 +130,11 @@ export type MarketIqEditionComparison = {
 
 export interface MarketIqReportSnapshot {
   version: typeof MARKET_IQ_REPORT_VERSION;
+  dataContract?: {
+    version: typeof MARKET_IQ_SNAPSHOT_CONTRACT_VERSION;
+    trendsHistoryMonths: typeof MARKET_IQ_TRENDS_HISTORY_MONTHS;
+    dailyActivityVersion: typeof MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION;
+  };
   generatedAt: string;
   brand: {
     displayName: string;
@@ -284,7 +294,7 @@ function buildCell(series: MarketIqTrendSeries): MarketIqMarketCell {
     observations: latest?.observations ?? 0,
     month: latest?.month ?? null,
     valueBasis: latest?.valueBasis,
-    series: reportable ? points.slice(-36) : [],
+    series: reportable ? points.slice(-MARKET_IQ_TRENDS_HISTORY_MONTHS) : [],
     status: reportable ? "reportable" : "suppressed",
     suppressionReason: reportable
       ? null
@@ -323,6 +333,18 @@ export function parseMarketIqReportSnapshot(value: string): MarketIqReportSnapsh
   } catch {
     return null;
   }
+}
+
+export function parseCurrentMarketIqReportSourceSnapshot(
+  value: string,
+): MarketIqReportSnapshot | null {
+  const parsed = parseMarketIqReportSnapshot(value);
+  if (
+    parsed?.dataContract?.version !== MARKET_IQ_SNAPSHOT_CONTRACT_VERSION ||
+    parsed.dataContract.trendsHistoryMonths !== MARKET_IQ_TRENDS_HISTORY_MONTHS ||
+    parsed.dataContract.dailyActivityVersion !== MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION
+  ) return null;
+  return parsed;
 }
 
 export function isPublicMarketIqReportStatus(status: string) {
@@ -369,6 +391,11 @@ export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): Ma
 
   return {
     version: MARKET_IQ_REPORT_VERSION,
+    dataContract: {
+      version: MARKET_IQ_SNAPSHOT_CONTRACT_VERSION,
+      trendsHistoryMonths: MARKET_IQ_TRENDS_HISTORY_MONTHS,
+      dailyActivityVersion: MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION,
+    },
     generatedAt: input.generatedAt.toISOString(),
     brand: input.brand,
     scope: input.scope,

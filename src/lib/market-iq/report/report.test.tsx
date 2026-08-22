@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { buildCurrentMonthUnavailableCuts, buildDwellsyPropertyUrl, buildMarketIqReportSnapshot, formatMarketIqListingAddress, isPublicMarketIqReportStatus, parseMarketIqReportSnapshot, trendHistoryQueryStart, trendHistoryWindowStart } from "./report";
+import { buildCurrentMonthUnavailableCuts, buildDwellsyPropertyUrl, buildMarketIqReportSnapshot, formatMarketIqListingAddress, isPublicMarketIqReportStatus, MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION, MARKET_IQ_SNAPSHOT_CONTRACT_VERSION, MARKET_IQ_TRENDS_HISTORY_MONTHS, parseCurrentMarketIqReportSourceSnapshot, parseMarketIqReportSnapshot, trendHistoryQueryStart, trendHistoryWindowStart } from "./report";
 import { canAccessMarketIqReportComposer } from "./access";
 import { buildMarketIqReportEmail } from "./email";
 import { parseMarketIqEditorialDefaultsForm } from "./form-values";
@@ -45,6 +45,11 @@ describe("Market IQ local market read assembly", () => {
     const report = buildMarketIqReportSnapshot({
       ...baseInput,
       trendSeries: [{ geographyType: "msa", geographyValue: "17460", geographyLabel: "Cleveland-Elyria, OH", propertyType: "apartment", bedrooms: 1, points }],
+    });
+    expect(report.dataContract).toEqual({
+      version: MARKET_IQ_SNAPSHOT_CONTRACT_VERSION,
+      trendsHistoryMonths: MARKET_IQ_TRENDS_HISTORY_MONTHS,
+      dailyActivityVersion: MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION,
     });
     expect(report.marketRead.cells[0]?.series).toHaveLength(36);
     expect(report.marketRead.cells[0]?.series[0]?.month).toBe("2023-08-01");
@@ -152,12 +157,34 @@ describe("Market IQ local market read assembly", () => {
     expect(report.marketMap.points[0]).toMatchObject({ zip: "44114", status: "reportable", rent: 1_025 });
   });
 
-  it("parses only Revision 4 market-read snapshots", () => {
+  it("parses only snapshots produced under the current analytical contract", () => {
     const authoritative = {
       ...seededClevelandMarketReport,
       scope: { ...seededClevelandMarketReport.scope, seededExample: false },
     };
     expect(parseMarketIqReportSnapshot(JSON.stringify(authoritative))).toEqual(authoritative);
+    expect(parseCurrentMarketIqReportSourceSnapshot(JSON.stringify(authoritative))).toEqual(authoritative);
+    expect(parseCurrentMarketIqReportSourceSnapshot(JSON.stringify({
+      ...authoritative,
+      dataContract: { ...authoritative.dataContract, trendsHistoryMonths: 14 },
+    }))).toBeNull();
+    expect(parseCurrentMarketIqReportSourceSnapshot(JSON.stringify({
+      ...authoritative,
+      dataContract: { ...authoritative.dataContract, dailyActivityVersion: 0 },
+    }))).toBeNull();
+    const priorContract = {
+      ...authoritative,
+      dataContract: {
+        version: 1,
+        trendsHistoryMonths: MARKET_IQ_TRENDS_HISTORY_MONTHS,
+      },
+    };
+    expect(parseMarketIqReportSnapshot(JSON.stringify(priorContract))).toEqual(priorContract);
+    expect(parseCurrentMarketIqReportSourceSnapshot(JSON.stringify(priorContract))).toBeNull();
+    const legacySnapshot: Record<string, unknown> = { ...authoritative };
+    delete legacySnapshot.dataContract;
+    expect(parseMarketIqReportSnapshot(JSON.stringify(legacySnapshot))).toEqual(legacySnapshot);
+    expect(parseCurrentMarketIqReportSourceSnapshot(JSON.stringify(legacySnapshot))).toBeNull();
     expect(parseMarketIqReportSnapshot(JSON.stringify(seededClevelandMarketReport))).toBeNull();
     expect(parseMarketIqReportSnapshot('{"version":1}')).toBeNull();
     expect(parseMarketIqReportSnapshot("not json")).toBeNull();

@@ -12,6 +12,12 @@ export type MarketIqRecordedSourceReadiness =
   | { state: "source_unreachable"; lastAttempt: MarketIqRecordedSourceAttempt | null }
   | { state: "no_saved_report"; lastAttempt: MarketIqRecordedSourceAttempt | null }
   | {
+      state: "saved_report_incompatible";
+      sourceAvailableThrough: Date;
+      generatedAt: Date;
+      lastAttempt: MarketIqRecordedSourceAttempt | null;
+    }
+  | {
       state: "saved_report_available";
       sourceAvailableThrough: Date;
       generatedAt: Date;
@@ -21,13 +27,28 @@ export type MarketIqRecordedSourceReadiness =
 export function resolveMarketIqRecordedSourceReadiness(input: {
   sourceConfigured: boolean;
   evidenceStoreReachable: boolean;
-  savedSnapshot: { sourceAvailableThrough: Date; generatedAt: Date } | null;
+  savedSnapshot: {
+    sourceAvailableThrough: Date;
+    generatedAt: Date;
+    contractCompatible: boolean;
+  } | null;
   lastAttempt: MarketIqRecordedSourceAttempt | null;
 }): MarketIqRecordedSourceReadiness {
   if (input.savedSnapshot) {
+    if (!input.savedSnapshot.contractCompatible) {
+      const { sourceAvailableThrough, generatedAt } = input.savedSnapshot;
+      return {
+        state: "saved_report_incompatible",
+        sourceAvailableThrough,
+        generatedAt,
+        lastAttempt: input.lastAttempt,
+      };
+    }
+    const { sourceAvailableThrough, generatedAt } = input.savedSnapshot;
     return {
       state: "saved_report_available",
-      ...input.savedSnapshot,
+      sourceAvailableThrough,
+      generatedAt,
       lastAttempt: input.lastAttempt,
     };
   }
