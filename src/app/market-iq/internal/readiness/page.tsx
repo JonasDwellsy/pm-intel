@@ -42,12 +42,21 @@ function deploymentIdentity() {
   };
 }
 
+function recordedFailureDetail(source: MarketIqRecordedSourceReadiness) {
+  const failure = source.state === "source_not_configured" ? null : source.lastAttempt?.failure;
+  if (!failure) return "";
+  const stage = failure.stage.replaceAll("_", " ");
+  const category = failure.category.replaceAll("_", " ");
+  return ` Failure stage ${stage}; category ${category}; ${failure.attempts} ${failure.attempts === 1 ? "attempt" : "attempts"}.`;
+}
+
 function sourceReadinessCheck(source: MarketIqRecordedSourceReadiness): Check {
   if (source.state === "saved_report_available") {
+    const latestFailed = source.lastAttempt?.status === "blocked";
     return {
       label: "Authoritative Trends",
-      status: "ready",
-      detail: `Verified saved evidence through ${dateTime(source.sourceAvailableThrough)}; recorded ${dateTime(source.generatedAt)}.`,
+      status: latestFailed ? "attention" : "ready",
+      detail: `Verified saved evidence through ${dateTime(source.sourceAvailableThrough)}; recorded ${dateTime(source.generatedAt)}.${latestFailed ? ` The latest refresh did not complete at ${dateTime(source.lastAttempt?.completedAt ?? source.lastAttempt?.startedAt)}.${recordedFailureDetail(source)}` : ""}`,
     };
   }
   if (source.state === "source_not_configured") {
@@ -58,7 +67,7 @@ function sourceReadinessCheck(source: MarketIqRecordedSourceReadiness): Check {
       label: "Authoritative Trends",
       status: "blocked",
       detail: source.lastAttempt
-        ? `The latest recorded source attempt did not complete. Status ${source.lastAttempt.status}; attempted ${dateTime(source.lastAttempt.completedAt ?? source.lastAttempt.startedAt)}.`
+        ? `The latest recorded source attempt did not complete. Status ${source.lastAttempt.status}; attempted ${dateTime(source.lastAttempt.completedAt ?? source.lastAttempt.startedAt)}.${recordedFailureDetail(source)}`
         : "Recorded Market IQ source evidence is unreachable. No live source connection was attempted by this page.",
     };
   }
@@ -66,7 +75,7 @@ function sourceReadinessCheck(source: MarketIqRecordedSourceReadiness): Check {
     label: "Authoritative Trends",
     status: "blocked",
     detail: source.lastAttempt
-      ? `No verified saved report is available. Latest recorded source status ${source.lastAttempt.status} at ${dateTime(source.lastAttempt.completedAt ?? source.lastAttempt.startedAt)}.`
+      ? `No verified saved report is available. Latest recorded source status ${source.lastAttempt.status} at ${dateTime(source.lastAttempt.completedAt ?? source.lastAttempt.startedAt)}.${recordedFailureDetail(source)}`
       : "No verified saved report or source attempt is recorded.",
   };
 }
