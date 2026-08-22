@@ -1,0 +1,89 @@
+name: Market IQ source staleness
+
+on:
+  schedule:
+    - cron: "17 16 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: market-iq-source-staleness
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verified Market IQ snapshot is current
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      HEALTH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq-stable-preview-health
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.MARKET_IQ_VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - name: Require the preview automation credential
+        shell: bash
+        run: |
+          if [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+            echo "MARKET_IQ_VERCEL_AUTOMATION_BYPASS_SECRET is not configured."
+            exit 1
+          fi
+
+      - name: Check the verified source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+
+          status="$(curl --silent --show-error \
+            --retry 2 --retry-all-errors --retry-delay 5 \
+            --connect-timeout 10 --max-time 30 \
+            --output "$response_file" --write-out '%{http_code}' \
+            --header "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+            "$HEALTH_URL")"
+
+          HEALTH_STATUS="$status" HEALTH_RESPONSE_FILE="$response_file" node <<'NODE'
+          const fs = require("node:fs");
+
+          let response;
+          try {
+            response = JSON.parse(fs.readFileSync(process.env.HEALTH_RESPONSE_FILE, "utf8"));
+          } catch {
+            console.error("Market IQ source health did not return valid JSON.");
+            process.exit(1);
+          }
+
+          const checks = Array.isArray(response.checks) ? response.checks : [];
+          const failedChecks = checks.filter((check) => check.status !== "ready");
+          const healthy = process.env.HEALTH_STATUS === "200"
+            && response.product === "market-iq"
+            && response.status === "ready"
+            && checks.length > 0
+            && failedChecks.length === 0;
+
+          const summary = [
+            "## Market IQ source staleness",
+            "",
+            `- HTTP status: ${process.env.HEALTH_STATUS}`,
+            `- Overall status: ${response.status ?? "unavailable"}`,
+            `- Market: ${response.marketId ?? "unavailable"}`,
+            `- Source available through: ${response.sourceAvailableThrough ?? "unavailable"}`,
+            `- Snapshot generated at: ${response.snapshotGeneratedAt ?? "unavailable"}`,
+            `- Latest refresh status: ${response.latestRefreshStatus ?? "unavailable"}`,
+            `- Failed checks: ${failedChecks.map((check) => check.id).join(", ") || "none"}`,
+          ].join("\n");
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`);
+
+          if (!healthy) {
+            console.error("Market IQ does not have a current verified source snapshot.", {
+              httpStatus: process.env.HEALTH_STATUS,
+              product: response.product,
+              status: response.status,
+              sourceAvailableThrough: response.sourceAvailableThrough,
+              failedChecks: failedChecks.map((check) => check.id),
+            });
+            process.exit(1);
+          }
+
+          console.log("Market IQ has a current verified source snapshot.");
+          NODE
