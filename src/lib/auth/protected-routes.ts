@@ -112,6 +112,7 @@ export const PUBLIC_BUYBOX_PATTERNS = [
   // the trends route also permits the existing signed-in admin allowlist.
   "/api/market-iq/import/history",
   "/api/market-iq/import/trends",
+  "/api/market-iq/source/trends/refresh",
   "/api/market-iq/source/dwellsy/refresh",
   "/api/market-iq/source-snapshots",
   // Stripe signs this request independently. The route verifies the raw-body

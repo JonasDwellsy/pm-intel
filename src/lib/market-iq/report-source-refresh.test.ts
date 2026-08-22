@@ -34,14 +34,19 @@ test("the report source refresh is enabled only for the isolated Market IQ previ
   );
 });
 
-test("the runtime route requires an admin and forces the live authoritative source", () => {
+test("the runtime route requires an admin or refresh token and forces the live authoritative source", () => {
   const route = readFileSync(
     "src/app/api/market-iq/source/trends/refresh/route.ts",
     "utf8",
   );
+  const builders = readFileSync(
+    "src/lib/market-iq/report/market-source-builders.server.ts",
+    "utf8",
+  );
   assert.match(route, /await auth\(\)/);
   assert.match(route, /isAdminUser\(userId\)/);
-  assert.match(route, /sourceMode: "live_only"/);
+  assert.match(route, /MARKET_IQ_SOURCE_REFRESH_TOKEN/);
+  assert.match(builders, /sourceMode: "live_only"/);
   assert.match(route, /beginMarketIqReportSourceRefresh/);
   assert.match(route, /runMarketIqSourceWithRetry/);
   assert.match(route, /validateMarketIqLiveReportSnapshot/);
