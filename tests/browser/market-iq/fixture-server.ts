@@ -20,6 +20,8 @@ const html = String.raw`<!doctype html>
     .market-picker button[aria-current="true"] { background: #102044; color: white; }
     .muted { color: #60708d; }
     .success { color: #08775d; font-weight: 700; }
+    .archive { display: flex; gap: 10px; overflow-x: auto; }
+    .archive a { white-space: nowrap; }
     @media (max-width: 600px) {
       header { flex-wrap: wrap; gap: 12px 18px; padding: 14px 16px; }
       main { margin: 24px auto; padding: 0 16px; }
@@ -147,9 +149,18 @@ const html = String.raw`<!doctype html>
     function renderDaily() {
       const id = queryMarket();
       const current = markets[id];
+      const edition = new URL(location.href).searchParams.get("edition");
       save({ ...state(), market: id });
+      if (edition && edition !== "prior") {
+        shell('<section><h1>That saved edition is not available.</h1><p>No historical edition has been reconstructed or substituted.</p><a data-nav href="/market-iq/daily?market=' + id + '">Open latest edition</a></section>');
+        return;
+      }
+      const archive = edition === "prior"
+        ? '<section data-testid="edition-archive"><p data-testid="edition-state">Archived edition · Aug 20</p><nav class="archive" aria-label="Daily edition archive"><a data-nav href="/market-iq/daily?market=' + id + '">Latest</a><a data-nav href="/market-iq/daily?market=' + id + '">Next day →</a></nav></section>'
+        : '<section data-testid="edition-archive"><p data-testid="edition-state">Latest saved edition</p><nav class="archive" aria-label="Daily edition archive"><a data-nav href="/market-iq/daily?market=' + id + '&edition=prior">← Previous day</a></nav></section>';
       shell('<h1>What changed in ' + (id === "cleveland-oh" ? "Cleveland" : "Columbus") + '</h1>' +
         '<div class="market-picker"><button data-market="cleveland-oh" aria-current="' + (id === "cleveland-oh") + '">Cleveland</button><button data-market="columbus-oh" aria-current="' + (id === "columbus-oh") + '">Columbus</button></div>' +
+        archive +
         '<section data-testid="market-panel"><h2>' + current.name + '</h2><p data-testid="market-brand">' + current.brand + '</p><strong data-testid="market-rent">' + current.rent + '</strong><p>' + current.signal + '</p></section>');
       document.querySelectorAll("[data-market]").forEach((button) => {
         button.onclick = () => navigate("/market-iq/daily?market=" + button.dataset.market);
