@@ -47,6 +47,7 @@ describe("MarketIqDailyEvents", () => {
     expect(screen.getByText("30")).not.toBeNull();
     expect(screen.getByText(/Apply today and receive one month free/)).not.toBeNull();
     expect(screen.getByText(/Advertised, not verified/)).not.toBeNull();
+    expect(screen.getByLabelText("1 record available for 11 observed events")).not.toBeNull();
     expect(screen.getAllByLabelText(/^Observed Aug/)).toHaveLength(4);
     expect(screen.getByLabelText(/^Crossed Aug/)).not.toBeNull();
     expect(screen.getByText(/^Source current through /)).not.toBeNull();
@@ -76,11 +77,63 @@ describe("MarketIqDailyEvents", () => {
       previousRent: null,
       observedAt: `2026-08-21T${String(10 + index).padStart(2, "0")}:00:00.000Z`,
     }));
-    render(<MarketIqDailyEvents availability={{ ...available, activity: { ...available.activity, events } }} marketName="Cleveland" />);
+    render(<MarketIqDailyEvents availability={{ ...available, activity: { ...available.activity, newListings24h: events.length, events } }} marketName="Cleveland" />);
 
     const section = screen.getByRole("region", { name: "New to market" });
     expect(within(section).getByText("View all 6")).not.toBeNull();
     expect(section.querySelector("details")).not.toBeNull();
+  });
+
+  it("states when the saved edition retains fewer records than the exact observed total", () => {
+    const events = Array.from({ length: 6 }, (_, index) => ({
+      id: `new:${index}`,
+      eventType: "new_listing" as const,
+      address: `${index + 1} Market St`,
+      city: "Cleveland",
+      zip: "44113",
+      propertyType: "apartment" as const,
+      bedrooms: 1,
+      askingRent: 1_000,
+      previousRent: null,
+      observedAt: `2026-08-21T${String(10 + index).padStart(2, "0")}:00:00.000Z`,
+    }));
+    render(<MarketIqDailyEvents availability={{ ...available, activity: { ...available.activity, newListings24h: 11, events } }} marketName="Cleveland" />);
+
+    const section = screen.getByRole("region", { name: "New to market" });
+    expect(within(section).getByLabelText("6 records available for 11 observed events")).not.toBeNull();
+    expect(within(section).getByText("Individual records are available for 6 of 11 observed events in this saved edition.")).not.toBeNull();
+    expect(within(section).getByText("View 6 available records")).not.toBeNull();
+    expect(within(section).queryByText("View all 6")).toBeNull();
+  });
+
+  it("groups indistinguishable rent changes while preserving links to both source records", () => {
+    const duplicateMoves = ["record-a", "record-b"].map((id, index) => ({
+      id,
+      eventType: "price_change" as const,
+      address: "395 E 149th St",
+      city: "Cleveland",
+      zip: "44110",
+      propertyType: "house" as const,
+      bedrooms: 3,
+      askingRent: 1_000,
+      previousRent: 1_300,
+      observedAt: "2026-08-21T20:19:00.000Z",
+      listingUrl: `https://dwellsy.com/details/${index + 1}`,
+    }));
+    render(<MarketIqDailyEvents availability={{ ...available, activity: { ...available.activity, confirmedPriceChanges24h: 2, events: duplicateMoves } }} marketName="Cleveland" />);
+
+    const section = screen.getByRole("region", { name: "Notable rent moves" });
+    expect(section.querySelectorAll("article")).toHaveLength(1);
+    expect(within(section).getByText("2 listing records at this address")).not.toBeNull();
+    expect(within(section).getAllByRole("link", { name: /^Open record/ })).toHaveLength(2);
+  });
+
+  it("labels a same-day departure as less than one day", () => {
+    const event = { id: "delisting:new", eventType: "delisting" as const, address: "1 Short St", city: "Cleveland", zip: "44113", propertyType: "apartment" as const, bedrooms: 1, askingRent: 1_000, previousRent: null, listingAgeDays: 0, observedAt: "2026-08-21T12:45:00.000Z" };
+    render(<MarketIqDailyEvents availability={{ ...available, activity: { ...available.activity, delistings24h: 1, events: [event] } }} marketName="Cleveland" />);
+
+    expect(screen.getByText("Less than 1 day")).not.toBeNull();
+    expect(screen.queryByText("0 days listed")).toBeNull();
   });
 
   it("renders an honest unavailable state with attempt time and no freshness claim", () => {
@@ -95,7 +148,7 @@ describe("MarketIqDailyEvents", () => {
   });
 
   it("distinguishes an available zero-event read from a failed read", () => {
-    render(<MarketIqDailyEvents availability={{ ...available, activity: { ...available.activity, events: [] } }} marketName="Cleveland" />);
+    render(<MarketIqDailyEvents availability={{ ...available, activity: { ...available.activity, newListings24h: 0, confirmedPriceChanges24h: 0, advertisedConcessions24h: 0, delistings24h: 0, agingThresholds24h: 0, events: [] } }} marketName="Cleveland" />);
 
     expect(screen.getByText("No new listings were observed for the period.")).not.toBeNull();
     expect(screen.getByText("No confirmed asking-rent changes were observed for the period.")).not.toBeNull();
