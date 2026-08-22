@@ -1,32 +1,100 @@
-name: Market IQ source staleness
+name: Market IQ nightly source snapshots
 
 on:
   schedule:
-    - cron: "17 16 * * *"
+    # 09:00 UTC is 2:00 a.m. PDT and 1:00 a.m. PST.
+    - cron: "0 9 * * *"
   workflow_dispatch:
 
 concurrency:
-  group: market-iq-source-staleness
+  group: market-iq-nightly-source-snapshots
   cancel-in-progress: false
 
 jobs:
   verify:
-    name: Verified Market IQ snapshot is current
+    name: Publish and verify every Market IQ snapshot
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 30
     permissions:
       contents: read
     env:
       HEALTH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq-stable-preview-health
+      REFRESH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/source/trends/refresh
+      MARKET_IQ_SOURCE_REFRESH_TOKEN: ${{ secrets.MARKET_IQ_SOURCE_REFRESH_TOKEN }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.MARKET_IQ_VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
-      - name: Require the preview automation credential
+      - name: Require the preview automation credentials
         shell: bash
         run: |
-          if [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
-            echo "MARKET_IQ_VERCEL_AUTOMATION_BYPASS_SECRET is not configured."
+          if [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ] || [ -z "$MARKET_IQ_SOURCE_REFRESH_TOKEN" ]; then
+            echo "The Market IQ snapshot automation credentials are not configured."
             exit 1
           fi
+
+      - name: Publish every configured market snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          markets=(
+            "cleveland-elyria-mentor-oh"
+            "columbus-oh"
+            "san-francisco-oakland-berkeley-ca"
+            "san-jose-sunnyvale-santa-clara-ca"
+          )
+
+          for market_id in "${markets[@]}"; do
+            response_file="$(mktemp)"
+            status="$(curl --silent --show-error \
+              --connect-timeout 10 --max-time 360 \
+              --output "$response_file" --write-out '%{http_code}' \
+              --request POST \
+              --header "Authorization: Bearer $MARKET_IQ_SOURCE_REFRESH_TOKEN" \
+              --header "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+              "$REFRESH_URL?market=$market_id")"
+
+            MARKET_ID="$market_id" HTTP_STATUS="$status" RESPONSE_FILE="$response_file" node <<'NODE'
+          const fs = require("node:fs");
+          const marketId = process.env.MARKET_ID;
+          const httpStatus = process.env.HTTP_STATUS;
+          let response;
+          try {
+            response = JSON.parse(fs.readFileSync(process.env.RESPONSE_FILE, "utf8"));
+          } catch {
+            console.error(`Snapshot refresh for ${marketId} did not return valid JSON.`);
+            process.exit(1);
+          }
+
+          const generatedAt = new Date(response.generatedAt);
+          const ageMilliseconds = Date.now() - generatedAt.getTime();
+          const stored = httpStatus === "200"
+            && response.status === "stored"
+            && response.marketId === marketId
+            && Number.isFinite(generatedAt.getTime())
+            && ageMilliseconds >= 0
+            && ageMilliseconds <= 20 * 60 * 1000;
+
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+            `### ${marketId}`,
+            "",
+            `- HTTP status: ${httpStatus}`,
+            `- Result: ${response.status ?? "unavailable"}`,
+            `- Source available through: ${response.sourceAvailableThrough ?? "unavailable"}`,
+            `- Snapshot generated at: ${response.generatedAt ?? "unavailable"}`,
+            "",
+          ].join("\n"));
+
+          if (!stored) {
+            console.error(`Snapshot refresh for ${marketId} failed its stored-snapshot contract.`, {
+              httpStatus,
+              status: response.status,
+              responseMarketId: response.marketId,
+            });
+            process.exit(1);
+          }
+          console.log(`Stored a current source snapshot for ${marketId}.`);
+          NODE
+            rm -f "$response_file"
+          done
 
       - name: Check the verified source snapshot
         shell: bash
@@ -62,7 +130,7 @@ jobs:
             && failedChecks.length === 0;
 
           const summary = [
-            "## Market IQ source staleness",
+            "## Market IQ post-publication health",
             "",
             `- HTTP status: ${process.env.HEALTH_STATUS}`,
             `- Overall status: ${response.status ?? "unavailable"}`,
