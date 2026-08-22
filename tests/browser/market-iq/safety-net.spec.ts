@@ -83,11 +83,31 @@ test("keeps the canonical Daily Edition usable at a mobile viewport", async ({ p
   );
   await expect(page.getByRole("heading", { name: "What changed in Cleveland" })).toBeVisible();
   await expect(page.getByRole("link", { name: "← Previous day" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Daily event explorer" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.getByRole("button", { name: "Columbus" }).click();
   await expect(page).toHaveURL(/\/market-iq\/daily\?market=columbus-oh/);
   await expect(page.getByRole("heading", { name: "What changed in Columbus" })).toBeVisible();
+});
+
+test("searches and filters only the records retained with the saved Daily Edition", async ({ page }) => {
+  await signIn(page);
+
+  const explorer = page.getByRole("region", { name: "Daily event explorer" });
+  await expect(explorer).toContainText("The source observed 46 reportable events");
+  await expect(page.getByTestId("event-count")).toHaveText("Showing 3 of 3 matching retained records.");
+
+  await page.getByTestId("event-search").fill("Lakewood");
+  await expect(page.getByTestId("event-count")).toHaveText("Showing 1 of 1 matching retained records.");
+  await expect(explorer.getByText(/3-bedroom house in Lakewood/)).toBeVisible();
+  await expect(explorer.getByText(/studio apartment in Cleveland/)).toBeHidden();
+
+  await page.getByTestId("event-reset").click();
+  await page.getByTestId("event-type").selectOption("off");
+  await expect(page.getByTestId("event-count")).toHaveText("Showing 1 of 1 matching retained records.");
+  await expect(explorer.getByText(/went off market/)).toBeVisible();
+  await expect(explorer.getByText(/3-bedroom house in Lakewood/)).toBeHidden();
 });
 
 test("moves through persisted daily editions without reconstructing a missing edition", async ({ page }) => {
