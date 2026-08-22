@@ -117,6 +117,15 @@ test("Vercel runs Market IQ migrations only for the isolated preview project", (
     }),
     false,
   );
+
+  const runner = readFileSync("scripts/run-market-iq-preview-migrations.ts", "utf8");
+  assert.match(runner, /\["db:migrate:control", "market-iq:migrate"\]/);
+  assert.match(runner, /for \(const migrationScript of migrationScripts\)/);
+  assert.ok(
+    runner.indexOf("shouldRunMarketIqPreviewMigrations(environment)") <
+      runner.indexOf("migrationScripts"),
+    "The isolated-preview guard must execute before either migration set.",
+  );
 });
 
 test("customer watchlists remain organization-scoped in the primary database", () => {
