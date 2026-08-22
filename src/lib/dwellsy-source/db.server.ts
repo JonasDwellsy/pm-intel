@@ -1,5 +1,9 @@
 import "server-only";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import {
+  connectionStringWithoutTlsOverrides,
+  verifiedAwsRdsTls,
+} from "@/lib/dwellsy-source/tls";
 
 const globalForDwellsySource = globalThis as unknown as {
   dwellsySourcePool: Pool | undefined;
@@ -16,7 +20,11 @@ function connectionString() {
 function sourcePool() {
   if (!globalForDwellsySource.dwellsySourcePool) {
     globalForDwellsySource.dwellsySourcePool = new Pool({
-      connectionString: connectionString(),
+      // pg derives TLS settings from the connection string after merging the
+      // explicit Pool configuration. Remove those query parameters so a
+      // stored URL cannot replace the verified AWS trust configuration below.
+      connectionString: connectionStringWithoutTlsOverrides(connectionString()),
+      ssl: verifiedAwsRdsTls(),
       application_name: "market-iq-dwellsy-readonly",
       max: 2,
       // The production Trends database may need to resume a cold compute before
