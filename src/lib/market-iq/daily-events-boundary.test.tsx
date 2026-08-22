@@ -25,4 +25,17 @@ describe("daily event module boundary", () => {
       assert.doesNotMatch(source, /MarketIqTrend(?:Point|Series)?/, file);
     }
   });
+
+  it("keeps the saved-record explorer free of live source and database access", () => {
+    const files = [
+      "src/lib/market-iq/daily-event-explorer.ts",
+      "src/lib/market-iq/daily-event-export.ts",
+      "src/components/market-iq/report/MarketIqDailyEventExplorer.tsx",
+    ];
+    for (const file of files) {
+      const source = readFileSync(resolve(process.cwd(), file), "utf8");
+      assert.doesNotMatch(source, /from\s+["'][^"']*\.server["']/, file);
+      assert.doesNotMatch(source, /dwellsy-source|\bprisma\b|\bfetch\s*\(/, file);
+    }
+  });
 });
