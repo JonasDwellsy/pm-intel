@@ -18,6 +18,7 @@ import {
   type MarketIqDailyEventSection,
   type MarketIqDailySavedViewFilters,
 } from "@/lib/market-iq/daily-event-explorer";
+import { buildMarketIqDailyEventCsv } from "@/lib/market-iq/daily-event-export";
 import { buildDailyEventHeadlines, type MarketIqDailyEventHeadline } from "@/lib/market-iq/daily-events";
 import type { MarketIqListingEvent, MarketIqMarketActivity } from "@/lib/market-iq/listing-events";
 
@@ -129,6 +130,7 @@ function SelectField({
 export function MarketIqDailyEventExplorer({
   activity,
   marketId,
+  marketName = "market",
   timeZone,
   initialSavedFilters = null,
   savePreference,
@@ -136,6 +138,7 @@ export function MarketIqDailyEventExplorer({
 }: {
   activity: MarketIqMarketActivity;
   marketId?: string;
+  marketName?: string;
   timeZone: string;
   initialSavedFilters?: MarketIqDailySavedViewFilters | null;
   savePreference?: PreferenceAction;
@@ -146,6 +149,7 @@ export function MarketIqDailyEventExplorer({
   const [filters, setFilters] = useState<MarketIqDailyEventExplorerFilters>(() => marketIqDailyExplorerFilters(initialSavedFilters));
   const [savedFilters, setSavedFilters] = useState<MarketIqDailySavedViewFilters | null>(initialSavedFilters);
   const [preferenceMessage, setPreferenceMessage] = useState<string | null>(null);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
   const [visibleLimit, setVisibleLimit] = useState(PAGE_SIZE);
   const filtered = useMemo(() => filterMarketIqDailyEventHeadlines(headlines, filters), [filters, headlines]);
@@ -214,6 +218,28 @@ export function MarketIqDailyEventExplorer({
     });
   }
 
+  function exportCsv() {
+    const exported = buildMarketIqDailyEventCsv({
+      headlines: filtered,
+      marketName,
+      timeZone,
+      editionAsOf: activity.asOf,
+      observedEventTotal: observedTotal,
+      retainedRecordTotal: retainedTotal,
+      retainedRecordsPartial: recordsArePartial,
+    });
+    const url = URL.createObjectURL(new Blob([exported.content], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = exported.filename;
+    link.hidden = true;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setExportMessage(`Downloaded ${exported.rowCount.toLocaleString("en-US")} matching retained ${exported.rowCount === 1 ? "record" : "records"}.`);
+  }
+
   return (
     <section id="daily-event-explorer" aria-label="Daily event explorer" className="mt-7 scroll-mt-28 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_45px_rgba(15,23,42,0.06)]">
       <header className="grid gap-5 border-b border-slate-200 bg-slate-50 px-5 py-6 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-end">
@@ -267,8 +293,9 @@ export function MarketIqDailyEventExplorer({
           </SelectField>
         </div>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
-          <div><p aria-live="polite" className="text-xs text-slate-500">Showing {visible.length.toLocaleString("en-US")} of {filtered.length.toLocaleString("en-US")} matching retained records.</p><p className="mt-1 text-[10px] text-slate-400">Rent direction and change-size filters apply only to confirmed rent-change records. Address search is session-only and is never saved.</p>{preferenceMessage && <p role="status" className="mt-2 text-xs font-semibold text-teal-700">{preferenceMessage}</p>}</div>
+          <div><p aria-live="polite" className="text-xs text-slate-500">Showing {visible.length.toLocaleString("en-US")} of {filtered.length.toLocaleString("en-US")} matching retained records.</p><p className="mt-1 text-[10px] text-slate-400">Rent direction and change-size filters apply only to confirmed rent-change records. Address search is session-only and is never saved.</p>{preferenceMessage && <p role="status" className="mt-2 text-xs font-semibold text-teal-700">{preferenceMessage}</p>}{exportMessage && <p role="status" className="mt-2 text-xs font-semibold text-teal-700">{exportMessage}</p>}</div>
           <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={exportCsv} disabled={filtered.length === 0} className="rounded-md border border-teal-700 bg-white px-3 py-2 text-xs font-semibold text-teal-800 disabled:cursor-not-allowed disabled:opacity-40">Export {filtered.length.toLocaleString("en-US")} matching {filtered.length === 1 ? "record" : "records"} CSV</button>
             {marketId && savePreference && savedFilters && !savedViewIsCurrent && <button type="button" onClick={restoreView} disabled={isSaving} className="rounded-md border border-teal-700 px-3 py-2 text-xs font-semibold text-teal-800 disabled:opacity-40">Restore saved view</button>}
             {marketId && savePreference && <button type="button" onClick={saveView} disabled={isSaving || savedViewIsCurrent} className="rounded-md bg-navy px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{isSaving ? "Saving…" : savedViewIsCurrent ? "Default saved" : "Save as my default"}</button>}
             {marketId && clearPreference && savedFilters && <button type="button" onClick={clearSavedView} disabled={isSaving} className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-navy disabled:opacity-40">Clear saved default</button>}
@@ -288,6 +315,7 @@ export function MarketIqDailyEventExplorer({
         {recordsArePartial
           ? <>The source observed <strong className="text-slate-700">{observedTotal.toLocaleString("en-US")}</strong> reportable events in this edition’s 24-hour window. This saved edition retains <strong className="text-slate-700">{retainedTotal.toLocaleString("en-US")}</strong> individual records, and filters apply only to those retained records.</>
           : <>The source observed {observedTotal.toLocaleString("en-US")} reportable events in this edition’s 24-hour window, and {retainedTotal.toLocaleString("en-US")} individual records are available to filter.</>}
+        <span className="mt-1 block">CSV exports include every matching retained record, including records not yet displayed on this page. They never retrieve additional source records.</span>
       </footer>
     </section>
   );

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 test.beforeEach(async ({ context, page }) => {
   await context.route("**/*", async (route) => {
@@ -108,6 +109,17 @@ test("searches and filters only the records retained with the saved Daily Editio
   await expect(page.getByTestId("event-count")).toHaveText("Showing 1 of 1 matching retained records.");
   await expect(explorer.getByText(/went off market/)).toBeVisible();
   await expect(explorer.getByText(/3-bedroom house in Lakewood/)).toBeHidden();
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByTestId("event-export").click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("market-iq-cleveland-2026-08-21-filtered-retained-events.csv");
+  const downloadedPath = await download.path();
+  expect(downloadedPath).not.toBeNull();
+  const csv = await readFile(downloadedPath!, "utf8");
+  expect(csv).toContain("observed_event_total,retained_record_total,exported_matching_record_total");
+  expect(csv).toContain("2026-08-22T02:00:00.000Z,46,3,1,off");
+  expect(csv).toContain("400 Lee Rd");
 });
 
 test("moves through persisted daily editions without reconstructing a missing edition", async ({ page }) => {

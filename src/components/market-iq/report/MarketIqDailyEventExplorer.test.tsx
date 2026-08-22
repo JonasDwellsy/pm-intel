@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const savePreference = vi.fn();
 const clearPreference = vi.fn();
+const createObjectUrl = vi.fn<(blob: Blob) => string>().mockReturnValue("blob:daily-event-export");
+const revokeObjectUrl = vi.fn();
 
 import { MarketIqDailyEventExplorer } from "@/components/market-iq/report/MarketIqDailyEventExplorer";
 import type { MarketIqListingEvent, MarketIqMarketActivity } from "@/lib/market-iq/listing-events";
@@ -34,6 +36,10 @@ describe("MarketIqDailyEventExplorer", () => {
   beforeEach(() => {
     savePreference.mockReset().mockResolvedValue({ ok: true });
     clearPreference.mockReset().mockResolvedValue({ ok: true });
+    createObjectUrl.mockClear();
+    revokeObjectUrl.mockClear();
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectUrl });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectUrl });
   });
   it("keeps retained-record and exact observed totals distinct", () => {
     render(<MarketIqDailyEventExplorer activity={activity()} timeZone="America/New_York" />);
@@ -121,5 +127,25 @@ describe("MarketIqDailyEventExplorer", () => {
 
     await user.click(screen.getByRole("button", { name: "Clear saved default" }));
     expect(clearPreference).toHaveBeenCalledWith("cleveland-elyria-mentor-oh");
+  });
+
+  it("downloads every matching retained record as a local CSV", async () => {
+    const user = userEvent.setup();
+    let download = "";
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function captureDownload(this: HTMLAnchorElement) {
+      download = this.download;
+    });
+    render(<MarketIqDailyEventExplorer activity={activity()} marketName="Cleveland–Elyria" timeZone="America/New_York" />);
+
+    await user.selectOptions(screen.getByLabelText("Event"), "rent_changes");
+    await user.click(screen.getByRole("button", { name: "Export 2 matching records CSV" }));
+
+    expect(createObjectUrl).toHaveBeenCalledOnce();
+    expect(createObjectUrl.mock.calls[0]?.[0]).toBeInstanceOf(Blob);
+    expect((createObjectUrl.mock.calls[0]?.[0] as Blob).type).toBe("text/csv;charset=utf-8");
+    expect(download).toBe("market-iq-cleveland-elyria-2026-08-22-filtered-retained-events.csv");
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:daily-event-export");
+    expect(screen.getByRole("status").textContent).toContain("Downloaded 2 matching retained records");
+    click.mockRestore();
   });
 });

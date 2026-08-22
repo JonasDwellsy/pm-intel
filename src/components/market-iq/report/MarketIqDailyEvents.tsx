@@ -348,6 +348,6 @@ export function MarketIqDailyEvents({
       <EventSection title="The aging watch" kicker="Calendar crossings" description="Live age thresholds, not days on market." emptyMessage="No active listings crossed an aging threshold for the period." groups={singleEventGroups(agingWatch)} observedTotal={availability.activity.agingThresholds24h} timeZone={timeZone} />
       <EventSection title="Concessions" kicker="Advertised incentives" description="Listing language, advertised and not verified." emptyMessage="No concession language was observed in new-listing text for the period." groups={singleEventGroups(concessions)} observedTotal={availability.activity.advertisedConcessions24h} timeZone={timeZone} />
     </div>
-    <MarketIqDailyEventExplorer activity={availability.activity} marketId={marketId} timeZone={timeZone} initialSavedFilters={initialExplorerFilters} savePreference={saveExplorerPreference} clearPreference={clearExplorerPreference} />
+    <MarketIqDailyEventExplorer activity={availability.activity} marketId={marketId} marketName={marketName} timeZone={timeZone} initialSavedFilters={initialExplorerFilters} savePreference={saveExplorerPreference} clearPreference={clearExplorerPreference} />
   </section>;
 }
