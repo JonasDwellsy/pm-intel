@@ -7,10 +7,10 @@ import {
 } from "@/lib/market-iq/navigation";
 
 describe("Market IQ navigation", () => {
-  it("groups the internal briefing under Market intelligence", () => {
+  it("groups the current intelligence surfaces under Market intelligence", () => {
     expect(marketIqProductArea("/market-iq/daily")).toBe("market-intelligence");
     expect(marketIqProductArea("/market-iq/market")).toBe("market-intelligence");
-    expect(marketIqProductArea("/market-iq/briefing")).toBe("market-intelligence");
+    expect(marketIqProductArea("/market-iq/briefing")).toBeNull();
   });
 
   it("makes Daily Edition canonical without erasing the monthly overview route", () => {
