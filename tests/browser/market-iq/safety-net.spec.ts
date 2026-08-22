@@ -82,11 +82,27 @@ test("keeps the canonical Daily Edition usable at a mobile viewport", async ({ p
     "/market-iq/daily?market=cleveland-oh"
   );
   await expect(page.getByRole("heading", { name: "What changed in Cleveland" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "← Previous day" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.getByRole("button", { name: "Columbus" }).click();
   await expect(page).toHaveURL(/\/market-iq\/daily\?market=columbus-oh/);
   await expect(page.getByRole("heading", { name: "What changed in Columbus" })).toBeVisible();
+});
+
+test("moves through persisted daily editions without reconstructing a missing edition", async ({ page }) => {
+  await signIn(page);
+
+  await page.getByRole("link", { name: "← Previous day" }).click();
+  await expect(page).toHaveURL(/edition=prior/);
+  await expect(page.getByTestId("edition-state")).toHaveText("Archived edition · Aug 20");
+  await page.getByRole("link", { name: "Next day →" }).click();
+  await expect(page).toHaveURL(/\/market-iq\/daily\?market=cleveland-oh$/);
+  await expect(page.getByTestId("edition-state")).toHaveText("Latest saved edition");
+
+  await page.goto("/market-iq/daily?market=cleveland-oh&edition=missing");
+  await expect(page.getByRole("heading", { name: "That saved edition is not available." })).toBeVisible();
+  await expect(page.locator("body")).toContainText("No historical edition has been reconstructed or substituted.");
 });
 
 test("configures and saves a market, then opens edition review", async ({ page }) => {
