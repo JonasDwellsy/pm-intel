@@ -24,10 +24,6 @@ test("setup returns to the selected Market Intelligence market", () => {
     marketIqReturnToForMarket("/market-iq/market", "cleveland-elyria-mentor-oh"),
     "/market-iq/market"
   );
-  assert.equal(
-    marketIqReturnToForMarket("/market-iq/briefing", "cleveland-elyria-mentor-oh"),
-    "/market-iq/briefing"
-  );
 });
 
 test("Market IQ return destinations preserve safe local routes", () => {

@@ -32,11 +32,10 @@ test("all Portfolio IQ cron routes authenticate before checking the scheduler ga
   }
 });
 
-test("Operator IQ and Market IQ schedules and Market IQ route gates remain unchanged", async () => {
-  const [vercelSource, editionRoute, briefingRoute] = await Promise.all([
+test("Operator IQ and the remaining Market IQ schedule and route gate remain unchanged", async () => {
+  const [vercelSource, editionRoute] = await Promise.all([
     readFile("vercel.json", "utf8"),
     readFile("src/app/api/cron/market-iq-editions/route.ts", "utf8"),
-    readFile("src/app/api/cron/market-iq-internal-briefing/route.ts", "utf8"),
   ]);
   const config = JSON.parse(vercelSource) as {
     crons: Array<{ path: string; schedule: string }>;
@@ -46,9 +45,7 @@ test("Operator IQ and Market IQ schedules and Market IQ route gates remain uncha
   assert.equal(schedules.get("/api/cron/watch-list-digest"), "0 13 * * *");
   assert.equal(schedules.get("/api/cron/brief-digest"), "0 14 * * *");
   assert.equal(schedules.get("/api/cron/market-iq-editions"), "30 12 * * *");
-  assert.equal(schedules.get("/api/cron/market-iq-internal-briefing"), "0 16 * * 1");
+  assert.equal(schedules.has("/api/cron/market-iq-internal-briefing"), false);
   assert.match(editionRoute, /if \(!marketIqPreviewEnabled\(\)\)/);
-  assert.match(briefingRoute, /if \(!marketIqPreviewEnabled\(\)\)/);
   assert.doesNotMatch(editionRoute, /portfolioIqSchedulerEnabled/);
-  assert.doesNotMatch(briefingRoute, /portfolioIqSchedulerEnabled/);
 });

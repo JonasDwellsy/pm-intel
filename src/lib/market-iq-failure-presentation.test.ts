@@ -126,7 +126,6 @@ test("authenticated Market IQ routes fail closed without fabricated values", asy
 
 test("failure presentation does not claim the outage is temporary", async () => {
   const files = await Promise.all([
-    "src/app/market-iq/briefing/page.tsx",
     "src/app/market-iq/editions/page.tsx",
     "src/app/market-iq/report/page.tsx",
     "src/app/reports/market/[publicToken]/page.tsx",

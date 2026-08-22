@@ -10,7 +10,6 @@ export const MARKET_IQ_CANONICAL_ROUTES = {
 export const MARKET_IQ_MARKET_INTELLIGENCE_ROUTES = {
   daily: MARKET_IQ_CANONICAL_ROUTES.marketIntelligence,
   overview: "/market-iq/market",
-  briefing: "/market-iq/briefing",
 } as const;
 
 export const MARKET_IQ_CLIENT_REPORTING_ROUTES = {
@@ -37,8 +36,7 @@ export function marketIqProductArea(pathname: string): MarketIqProductArea {
   if (pathname === MARKET_IQ_CANONICAL_ROUTES.home) return "home";
   if (
     pathname.startsWith("/market-iq/daily") ||
-    pathname.startsWith("/market-iq/market") ||
-    pathname.startsWith("/market-iq/briefing")
+    pathname.startsWith("/market-iq/market")
   ) {
     return "market-intelligence";
   }

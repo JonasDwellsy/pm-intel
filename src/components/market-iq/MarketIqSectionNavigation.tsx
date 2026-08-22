@@ -12,7 +12,6 @@ import {
 const MARKET_INTELLIGENCE_ITEMS = [
   { id: "daily", href: MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.daily, label: "Daily edition" },
   { id: "overview", href: MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.overview, label: "Market overview" },
-  { id: "briefing", href: MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.briefing, label: "Weekly briefing" },
 ] as const;
 
 const CLIENT_REPORTING_ITEMS = [
@@ -30,7 +29,7 @@ export function MarketIqSectionNavigation() {
 
   const items = area === "market-intelligence" ? MARKET_INTELLIGENCE_ITEMS : CLIENT_REPORTING_ITEMS;
   const activeId = area === "market-intelligence"
-    ? pathname.startsWith("/market-iq/daily") ? "daily" : pathname.startsWith("/market-iq/briefing") ? "briefing" : "overview"
+    ? pathname.startsWith("/market-iq/daily") ? "daily" : "overview"
     : marketIqClientReportingTab(pathname);
 
   return (
