@@ -23,14 +23,19 @@ export function runMarketIqPreviewMigrations(
   }
 
   const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
-  const result = spawnSync(npmCommand, ["run", "market-iq:migrate"], {
-    stdio: "inherit",
-    env: environment,
-  });
+  const migrationScripts = ["db:migrate:control", "market-iq:migrate"] as const;
+  for (const migrationScript of migrationScripts) {
+    const result = spawnSync(npmCommand, ["run", migrationScript], {
+      stdio: "inherit",
+      env: environment,
+    });
 
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(`Market IQ preview migration failed with exit code ${result.status}.`);
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+      throw new Error(
+        `Market IQ preview ${migrationScript} failed with exit code ${result.status}.`,
+      );
+    }
   }
 }
 
