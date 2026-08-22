@@ -1,9 +1,11 @@
+import { MARKET_IQ_CANONICAL_ROUTES } from "@/lib/market-iq/navigation";
+
 export const MARKET_IQ_MARKETING_PATH = "/market-iq/welcome";
-export const MARKET_IQ_APPLICATION_PATH = "/market-iq/market";
+export const MARKET_IQ_APPLICATION_PATH = MARKET_IQ_CANONICAL_ROUTES.marketIntelligence;
 export const MARKET_IQ_SUBSCRIBE_PATH = "/market-iq/subscribe?billing=month";
 
 export function marketIqSignInPath(
-  returnTo = MARKET_IQ_APPLICATION_PATH
+  returnTo: string = MARKET_IQ_APPLICATION_PATH
 ): string {
   return `/sign-in?redirect_url=${encodeURIComponent(returnTo)}`;
 }

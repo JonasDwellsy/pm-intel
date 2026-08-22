@@ -1,11 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { marketIqClientReportingTab, marketIqProductArea } from "@/lib/market-iq/navigation";
+import {
+  MARKET_IQ_CANONICAL_ROUTES,
+  MARKET_IQ_MARKET_INTELLIGENCE_ROUTES,
+  marketIqClientReportingTab,
+  marketIqProductArea,
+} from "@/lib/market-iq/navigation";
 
 describe("Market IQ navigation", () => {
   it("groups the internal briefing under Market intelligence", () => {
     expect(marketIqProductArea("/market-iq/daily")).toBe("market-intelligence");
     expect(marketIqProductArea("/market-iq/market")).toBe("market-intelligence");
     expect(marketIqProductArea("/market-iq/briefing")).toBe("market-intelligence");
+  });
+
+  it("makes Daily Edition canonical without erasing the monthly overview route", () => {
+    expect(MARKET_IQ_CANONICAL_ROUTES.marketIntelligence).toBe("/market-iq/daily");
+    expect(MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.daily).toBe("/market-iq/daily");
+    expect(MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.overview).toBe("/market-iq/market");
   });
 
   it("groups the reporting workflow under Client reporting", () => {

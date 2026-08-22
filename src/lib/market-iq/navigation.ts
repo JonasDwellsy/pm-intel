@@ -2,14 +2,14 @@ export type MarketIqProductArea = "home" | "market-intelligence" | "client-repor
 
 export const MARKET_IQ_CANONICAL_ROUTES = {
   home: "/market-iq",
-  marketIntelligence: "/market-iq/market",
+  marketIntelligence: "/market-iq/daily",
   clientReporting: "/market-iq/client-reporting",
   account: "/market-iq/account",
 } as const;
 
 export const MARKET_IQ_MARKET_INTELLIGENCE_ROUTES = {
-  daily: "/market-iq/daily",
-  overview: MARKET_IQ_CANONICAL_ROUTES.marketIntelligence,
+  daily: MARKET_IQ_CANONICAL_ROUTES.marketIntelligence,
+  overview: "/market-iq/market",
   briefing: "/market-iq/briefing",
 } as const;
 

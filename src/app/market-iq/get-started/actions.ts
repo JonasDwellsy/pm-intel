@@ -7,7 +7,7 @@ import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { marketIqReturnToForMarket } from "@/lib/market-iq/entry";
+import { MARKET_IQ_APPLICATION_PATH, marketIqReturnToForMarket } from "@/lib/market-iq/entry";
 import { marketIqJourneyEventData, marketIqMilestoneDedupeKey } from "@/lib/market-iq/journey-telemetry.server";
 import { parseMarketIqBrandForm, parseMarketIqEditorialDefaultsForm } from "@/lib/market-iq/report/form-values";
 import { parseMarketIqSetupScopeFormData } from "@/lib/market-iq/report/scope";
@@ -111,7 +111,7 @@ export async function saveMarketIqActivationProgress(formData: FormData): Promis
 
 export async function completeMarketIqActivation(formData: FormData): Promise<void> {
   const { capabilities, marketId, returnTo } = await persistActivation(formData, true);
-  if (returnTo?.startsWith("/market-iq/market")) {
+  if (returnTo?.startsWith("/market-iq/daily") || returnTo?.startsWith("/market-iq/market")) {
     const separator = returnTo.includes("?") ? "&" : "?";
     redirect(
       `${returnTo}${separator}activated=1${String(formData.get("sourceAvailable") ?? "1") === "1" ? "" : "&source=unavailable"}`
@@ -122,5 +122,5 @@ export async function completeMarketIqActivation(formData: FormData): Promise<vo
   }
   redirect(capabilities.publishClientReports
     ? `/market-iq/report?market=${encodeURIComponent(marketId)}&from=setup&activated=1`
-    : `/market-iq/market?market=${encodeURIComponent(marketId)}&activated=1`);
+    : `${marketIqReturnToForMarket(MARKET_IQ_APPLICATION_PATH, marketId)}&activated=1`);
 }

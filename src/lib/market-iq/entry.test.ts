@@ -8,17 +8,21 @@ import {
 } from "./entry";
 
 test("Market IQ customer sign-in has one canonical application destination", () => {
-  assert.equal(MARKET_IQ_APPLICATION_PATH, "/market-iq/market");
+  assert.equal(MARKET_IQ_APPLICATION_PATH, "/market-iq/daily");
   assert.equal(
     marketIqSignInPath(),
-    "/sign-in?redirect_url=%2Fmarket-iq%2Fmarket"
+    "/sign-in?redirect_url=%2Fmarket-iq%2Fdaily"
   );
 });
 
 test("setup returns to the selected Market Intelligence market", () => {
   assert.equal(
+    marketIqReturnToForMarket("/market-iq/daily", "cleveland-elyria-mentor-oh"),
+    "/market-iq/daily?market=cleveland-elyria-mentor-oh"
+  );
+  assert.equal(
     marketIqReturnToForMarket("/market-iq/market", "cleveland-elyria-mentor-oh"),
-    "/market-iq/market?market=cleveland-elyria-mentor-oh"
+    "/market-iq/market"
   );
   assert.equal(
     marketIqReturnToForMarket("/market-iq/briefing", "cleveland-elyria-mentor-oh"),
@@ -27,6 +31,10 @@ test("setup returns to the selected Market Intelligence market", () => {
 });
 
 test("Market IQ return destinations preserve safe local routes", () => {
+  assert.equal(
+    safeMarketIqReturnTo("/market-iq/daily?market=cleveland-elyria-mentor-oh"),
+    "/market-iq/daily?market=cleveland-elyria-mentor-oh"
+  );
   assert.equal(
     safeMarketIqReturnTo("/market-iq/market?market=cleveland-elyria-mentor-oh"),
     "/market-iq/market?market=cleveland-elyria-mentor-oh"
@@ -38,8 +46,8 @@ test("Market IQ return destinations reject external and lookalike paths", () => 
   for (const value of [
     undefined,
     null,
-    "https://example.com/market-iq/market",
-    "//example.com/market-iq/market",
+    "https://example.com/market-iq/daily",
+    "//example.com/market-iq/daily",
     "/market-iq-operator",
     "/watch-lists",
   ]) {

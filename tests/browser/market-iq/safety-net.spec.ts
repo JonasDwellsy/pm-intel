@@ -16,18 +16,18 @@ test.beforeEach(async ({ context, page }) => {
 
 async function signIn(page: Page) {
   await page.getByTestId("sign-in").click();
-  await expect(page).toHaveURL(/\/market-iq\/market$/);
+  await expect(page).toHaveURL(/\/market-iq\/daily$/);
 }
 
 test("moves from the public marketing page through sign-in to Market Intelligence", async ({ page }) => {
   await page.goto("/market-iq/welcome");
   await expect(page.getByRole("heading", { name: "See where local rents are moving, then explain why it matters." })).toBeVisible();
   await page.getByRole("link", { name: "Customer sign in" }).click();
-  await expect(page).toHaveURL(/\/sign-in\?redirect_url=%2Fmarket-iq%2Fmarket/);
+  await expect(page).toHaveURL(/\/sign-in\?redirect_url=%2Fmarket-iq%2Fdaily/);
   await page.getByTestId("sign-in").click();
 
-  await expect(page).toHaveURL(/\/market-iq\/market$/);
-  await expect(page.getByRole("heading", { name: "Market Intelligence" })).toBeVisible();
+  await expect(page).toHaveURL(/\/market-iq\/daily$/);
+  await expect(page.getByRole("heading", { name: "What changed in Cleveland" })).toBeVisible();
   await expect(page.getByTestId("market-panel")).toContainText("Cleveland-Elyria, OH MSA");
 });
 
@@ -37,11 +37,11 @@ test("returns a customer to Market Intelligence after required workspace setup",
   await page.getByRole("link", { name: "Customer sign in" }).click();
   await page.getByTestId("sign-in").click();
 
-  await expect(page).toHaveURL(/\/setup-workspace\?from=%2Fmarket-iq%2Fmarket/);
+  await expect(page).toHaveURL(/\/setup-workspace\?from=%2Fmarket-iq%2Fdaily/);
   await expect(page.getByRole("heading", { name: "Activate your Market IQ workspace" })).toBeVisible();
   await page.getByTestId("complete-setup").click();
-  await expect(page).toHaveURL(/\/market-iq\/market$/);
-  await expect(page.getByRole("heading", { name: "Market Intelligence" })).toBeVisible();
+  await expect(page).toHaveURL(/\/market-iq\/daily$/);
+  await expect(page.getByRole("heading", { name: "What changed in Cleveland" })).toBeVisible();
 });
 
 test("shows a Market IQ access page when the signed-in workspace has no product access", async ({ page }) => {
@@ -71,6 +71,22 @@ test("switches Cleveland and Columbus without leaking market data or branding", 
   await expect(page.getByTestId("market-rent")).toHaveText("$1,610");
   await expect(page.getByTestId("market-panel")).not.toContainText("Lakefront Property Management");
   await expect(page.getByTestId("market-panel")).not.toContainText("$1,240");
+});
+
+test("keeps the canonical Daily Edition usable at a mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+
+  await expect(page.getByRole("link", { name: "Market Intelligence" })).toHaveAttribute(
+    "href",
+    "/market-iq/daily?market=cleveland-oh"
+  );
+  await expect(page.getByRole("heading", { name: "What changed in Cleveland" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.getByRole("button", { name: "Columbus" }).click();
+  await expect(page).toHaveURL(/\/market-iq\/daily\?market=columbus-oh/);
+  await expect(page.getByRole("heading", { name: "What changed in Columbus" })).toBeVisible();
 });
 
 test("configures and saves a market, then opens edition review", async ({ page }) => {
