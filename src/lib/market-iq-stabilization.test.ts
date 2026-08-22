@@ -110,6 +110,16 @@ test("the Daily Edition is a dedicated persisted-evidence route rather than part
   assert.doesNotMatch(overview, /MarketIqDailyEvents|MarketIqTimeToResolution/);
 });
 
+test("Daily Edition is the canonical entry while Market Overview remains a distinct monthly route", () => {
+  const navigation = readFileSync("src/components/market-iq/MarketIqAppNavigation.tsx", "utf8");
+  const entry = readFileSync("src/lib/market-iq/entry.ts", "utf8");
+
+  assert.equal(MARKET_IQ_CANONICAL_ROUTES.marketIntelligence, MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.daily);
+  assert.equal(MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.overview, "/market-iq/market");
+  assert.match(navigation, /href: MARKET_IQ_CANONICAL_ROUTES\.marketIntelligence, label: "Market intelligence"/);
+  assert.match(entry, /MARKET_IQ_APPLICATION_PATH = MARKET_IQ_CANONICAL_ROUTES\.marketIntelligence/);
+});
+
 test("interactive Market IQ reads persisted evidence and Cleveland source builds fail closed", () => {
   const service = readFileSync("src/lib/market-iq/data/service.server.ts", "utf8");
   const clevelandBuild = readFileSync("src/lib/market-iq/report/build.server.ts", "utf8");

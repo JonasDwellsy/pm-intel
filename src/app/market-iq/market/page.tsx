@@ -7,7 +7,7 @@ import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { loadMarketIqMarketData } from "@/lib/market-iq/data/service.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { MARKET_IQ_APPLICATION_PATH } from "@/lib/market-iq/entry";
+import { MARKET_IQ_MARKET_INTELLIGENCE_ROUTES } from "@/lib/market-iq/navigation";
 import { resolveActiveMarketIqMarket } from "@/lib/market-iq/markets/selection";
 import { loadListingSupplyHistory } from "@/lib/market-iq/listing-supply-history.server";
 import { prisma } from "@/lib/prisma";
@@ -30,8 +30,11 @@ export default async function MarketIqPage({
     searchParams,
   ]);
   if (!organizationId) {
+    const returnTo = query.market
+      ? `${MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.overview}?market=${encodeURIComponent(query.market)}`
+      : MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.overview;
     redirect(
-      `/setup-workspace?from=${encodeURIComponent(MARKET_IQ_APPLICATION_PATH)}`
+      `/setup-workspace?from=${encodeURIComponent(returnTo)}`
     );
   }
 
@@ -53,8 +56,9 @@ export default async function MarketIqPage({
 
   if (access.source === "subscription") {
     if (!preference?.onboardingCompletedAt) {
+      const returnTo = `${MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.overview}?market=${encodeURIComponent(activeMarket.id)}`;
       redirect(
-        `/market-iq/get-started?market=${encodeURIComponent(activeMarket.id)}&returnTo=${encodeURIComponent(MARKET_IQ_APPLICATION_PATH)}`
+        `/market-iq/get-started?market=${encodeURIComponent(activeMarket.id)}&returnTo=${encodeURIComponent(returnTo)}`
       );
     }
   }

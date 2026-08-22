@@ -20,13 +20,18 @@ const html = String.raw`<!doctype html>
     .market-picker button[aria-current="true"] { background: #102044; color: white; }
     .muted { color: #60708d; }
     .success { color: #08775d; font-weight: 700; }
+    @media (max-width: 600px) {
+      header { flex-wrap: wrap; gap: 12px 18px; padding: 14px 16px; }
+      main { margin: 24px auto; padding: 0 16px; }
+      section { padding: 18px; }
+    }
   </style>
 </head>
 <body>
   <header>
     <strong>Market IQ</strong>
     <a href="/market-iq" data-nav>Home</a>
-    <a href="/market-iq/market?market=cleveland-oh" data-nav>Market Intelligence</a>
+    <a href="/market-iq/daily?market=cleveland-oh" data-nav>Market Intelligence</a>
     <a href="/market-iq/distribution" data-nav>Recipients</a>
   </header>
   <main id="app"></main>
@@ -87,7 +92,7 @@ const html = String.raw`<!doctype html>
     }
 
     function renderWelcome() {
-      shell('<section><p>Rental-market intelligence for property managers</p><h1>See where local rents are moving, then explain why it matters.</h1><p class="muted">Understand the local asking market before the next pricing or owner conversation.</p><a data-nav href="/sign-in?redirect_url=%2Fmarket-iq%2Fmarket">Customer sign in</a> <a data-nav href="/market-iq/subscribe?billing=month">View plans</a></section>');
+      shell('<section><p>Rental-market intelligence for property managers</p><h1>See where local rents are moving, then explain why it matters.</h1><p class="muted">Understand the local asking market before the next pricing or owner conversation.</p><a data-nav href="/sign-in?redirect_url=%2Fmarket-iq%2Fdaily">Customer sign in</a> <a data-nav href="/market-iq/subscribe?billing=month">View plans</a></section>');
     }
 
     function renderSignIn() {
@@ -95,7 +100,7 @@ const html = String.raw`<!doctype html>
       document.querySelector('[data-testid="sign-in"]').onclick = () => {
         const next = { ...state(), signedIn: true };
         save(next);
-        const returnTo = new URL(location.href).searchParams.get("redirect_url") || "/market-iq/market";
+        const returnTo = new URL(location.href).searchParams.get("redirect_url") || "/market-iq/daily";
         if (next.accessState === "setup") {
           navigate("/setup-workspace?from=" + encodeURIComponent(returnTo));
           return;
@@ -109,7 +114,7 @@ const html = String.raw`<!doctype html>
     }
 
     function renderWorkspaceSetup() {
-      const returnTo = new URL(location.href).searchParams.get("from") || "/market-iq/market";
+      const returnTo = new URL(location.href).searchParams.get("from") || "/market-iq/daily";
       shell('<section><h1>Activate your Market IQ workspace</h1><p class="muted">Complete the workspace connection before entering Market Intelligence.</p><button data-testid="complete-setup">Complete setup</button></section>');
       document.querySelector('[data-testid="complete-setup"]').onclick = () => {
         save({ ...state(), accessState: "ready" });
@@ -137,6 +142,18 @@ const html = String.raw`<!doctype html>
         button.onclick = () => navigate("/market-iq/market?market=" + button.dataset.market);
       });
       document.querySelector('[data-testid="configure-market"]').onclick = () => navigate("/market-iq/get-started?market=" + id);
+    }
+
+    function renderDaily() {
+      const id = queryMarket();
+      const current = markets[id];
+      save({ ...state(), market: id });
+      shell('<h1>What changed in ' + (id === "cleveland-oh" ? "Cleveland" : "Columbus") + '</h1>' +
+        '<div class="market-picker"><button data-market="cleveland-oh" aria-current="' + (id === "cleveland-oh") + '">Cleveland</button><button data-market="columbus-oh" aria-current="' + (id === "columbus-oh") + '">Columbus</button></div>' +
+        '<section data-testid="market-panel"><h2>' + current.name + '</h2><p data-testid="market-brand">' + current.brand + '</p><strong data-testid="market-rent">' + current.rent + '</strong><p>' + current.signal + '</p></section>');
+      document.querySelectorAll("[data-market]").forEach((button) => {
+        button.onclick = () => navigate("/market-iq/daily?market=" + button.dataset.market);
+      });
     }
 
     function renderSetup() {
@@ -212,6 +229,7 @@ const html = String.raw`<!doctype html>
       if (location.pathname === "/setup-workspace") return renderWorkspaceSetup();
       if (location.pathname === "/market-iq/subscribe") return renderNoAccess();
       if (location.pathname === "/market-iq") return renderHome();
+      if (location.pathname === "/market-iq/daily") return renderDaily();
       if (location.pathname === "/market-iq/market") return renderMarket();
       if (location.pathname === "/market-iq/get-started") return renderSetup();
       if (location.pathname === "/market-iq/review") return renderReview();
