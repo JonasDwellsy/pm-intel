@@ -4,12 +4,17 @@ import type { CSSProperties } from "react";
 import { useState } from "react";
 import Link from "next/link";
 
-import { MarketIqActivityTicker } from "@/components/market-iq/report/MarketIqActivityTicker";
 import { MarketIqDecisionBrief } from "@/components/market-iq/MarketIqDecisionBrief";
 import { MarketIqRentMap, type MarketIqMapSegment } from "@/components/market-iq/report/MarketIqRentMap";
 import type { MarketIqGeographyType, MarketIqMarketCell, MarketIqReportSnapshot, MarketIqTrendPoint } from "@/lib/market-iq/report/report";
+import { availableMarketIqActivity } from "@/lib/market-iq/listing-events";
 import type { MarketIqMarketDefinition } from "@/data/market-iq/markets";
-import type { ListingAgeBucket } from "@/lib/market-iq/listing-supply";
+import {
+  compareListingSupplyHistory,
+  interpretListingSupplyCondition,
+  type ListingAgeBucket,
+  type ListingSupplyHistoryPoint,
+} from "@/lib/market-iq/listing-supply";
 
 type ListingSync = {
   status: "healthy" | "unavailable";
@@ -66,6 +71,16 @@ function snapshotDate(value: string | null) {
   });
 }
 
+function historyDate(value: string | null) {
+  if (!value) return "Date unavailable";
+  return new Date(`${value.slice(0, 10)}T00:00:00.000Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function directionClass(value: number | null) {
   if (value === null || Math.abs(value) < 1) return "bg-amber-50 text-amber-900";
   return value > 0 ? "bg-teal-50 text-teal-800" : "bg-orange-50 text-orange-800";
@@ -106,6 +121,66 @@ function TrendLine({ points }: { points: MarketIqTrendPoint[] }) {
   </div>;
 }
 
+function SupplyTrendLine({
+  points,
+  metric,
+  label,
+}: {
+  points: ListingSupplyHistoryPoint[];
+  metric: "inventory" | "age";
+  label: string;
+}) {
+  const series = points.flatMap((point) => {
+    const value = metric === "inventory" ? point.activeListings : point.medianActiveAgeDays;
+    return value === null ? [] : [{ date: point.snapshotDate, value }];
+  });
+  if (series.length < 2) {
+    return <div className="grid h-36 place-items-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center text-sm leading-6 text-slate-500">
+      {series.length === 1 ? "One daily observation is stored. The trend line will form as additional days are captured." : "No daily observations are stored yet."}
+    </div>;
+  }
+
+  const values = series.map((point) => point.value);
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  const range = Math.max(1, high - low);
+  const width = 520;
+  const height = 144;
+  const coordinates = series.map((point, index) => ({
+    x: 18 + (index * (width - 36)) / Math.max(1, series.length - 1),
+    y: 16 + ((high - point.value) / range) * (height - 46),
+    point,
+  }));
+
+  return <div>
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-36 w-full" role="img" aria-label={label}>
+      {[high, low + range / 2, low].map((value, index) => {
+        const y = 16 + index * ((height - 46) / 2);
+        return <g key={`${value}:${index}`}><line x1="18" y1={y} x2={width - 18} y2={y} stroke="#e2e8f0" strokeWidth="1" /><text x={width - 18} y={y - 5} textAnchor="end" fontSize="10" fill="#94a3b8">{metric === "inventory" ? Math.round(value).toLocaleString() : `${Math.round(value)} days`}</text></g>;
+      })}
+      <path d={smoothPath(coordinates)} fill="none" stroke="#1b6e8c" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+      {coordinates.map(({ x, y, point }, index) => index === 0 || index === coordinates.length - 1
+        ? <circle key={point.date} cx={x} cy={y} r={index === coordinates.length - 1 ? 5 : 3.5} fill="#0f1f3f" stroke="#fff" strokeWidth="2" />
+        : null)}
+    </svg>
+    <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400"><span>{historyDate(series[0]?.date ?? null)}</span><span>{historyDate(series.at(-1)?.date ?? null)}</span></div>
+  </div>;
+}
+
+function inventoryComparisonLabel(comparison: ReturnType<typeof compareListingSupplyHistory>) {
+  if (!comparison) return null;
+  const count = `${comparison.inventoryChange > 0 ? "+" : ""}${comparison.inventoryChange.toLocaleString()}`;
+  const pct = comparison.inventoryChangePct === null
+    ? ""
+    : ` (${comparison.inventoryChangePct > 0 ? "+" : ""}${comparison.inventoryChangePct.toFixed(1)}%)`;
+  return `${count}${pct} over ${comparison.elapsedDays} days`;
+}
+
+function ageComparisonLabel(comparison: ReturnType<typeof compareListingSupplyHistory>) {
+  if (!comparison || comparison.medianAgeChangeDays === null) return null;
+  return `${comparison.medianAgeChangeDays > 0 ? "+" : ""}${comparison.medianAgeChangeDays} days over ${comparison.elapsedDays} days`;
+}
+
 function BenchmarkCard({ cell, marketName }: { cell: MarketIqMarketCell; marketName: string }) {
   const isBlendedMarketMix = cell.bedrooms === 999;
   return <article className={`rounded-2xl border p-5 shadow-sm ${isBlendedMarketMix ? "border-amber-200 bg-amber-50/60" : "border-slate-200 bg-white"}`}>
@@ -123,7 +198,8 @@ function BenchmarkCard({ cell, marketName }: { cell: MarketIqMarketCell; marketN
   </article>;
 }
 
-export function MarketIqIntelligenceWorkspace({ report, market, listingSync, clientAdvisoryEnabled }: { report: MarketIqReportSnapshot; market: MarketIqMarketDefinition; listingSync: ListingSync; clientAdvisoryEnabled: boolean }) {
+export function MarketIqIntelligenceWorkspace({ report, market, listingSync, listingSupplyHistory, clientAdvisoryEnabled }: { report: MarketIqReportSnapshot; market: MarketIqMarketDefinition; listingSync: ListingSync; listingSupplyHistory: ListingSupplyHistoryPoint[]; clientAdvisoryEnabled: boolean }) {
+  const marketActivity = availableMarketIqActivity(report.marketActivity);
   const reportable = report.marketRead.cells.filter((cell) => cell.status === "reportable" && cell.rent !== null);
   const msaCells = reportable.filter((cell) => cell.geographyType === "msa");
   const cityCells = reportable.filter((cell) => cell.geographyType === "city");
@@ -149,6 +225,12 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
   const inventoryTotal = listingSync.apartmentListings + listingSync.houseListings;
   const apartmentShare = inventoryTotal > 0 ? (listingSync.apartmentListings / inventoryTotal) * 100 : 0;
   const maxAgeBucket = Math.max(1, ...listingSync.listingAgeBuckets.map((bucket) => bucket.count));
+  const sevenDaySupplyComparison = compareListingSupplyHistory(listingSupplyHistory, 7);
+  const thirtyDaySupplyComparison = compareListingSupplyHistory(listingSupplyHistory, 30);
+  const conditionComparison = thirtyDaySupplyComparison ?? sevenDaySupplyComparison;
+  const supplyCondition = interpretListingSupplyCondition(conditionComparison);
+  const firstSupplyObservation = listingSupplyHistory[0]?.snapshotDate ?? null;
+  const latestSupplyObservation = listingSupplyHistory.at(-1)?.snapshotDate ?? null;
   return <main style={{ "--report-primary": "#17324a", "--report-accent": "#c16f36" } as CSSProperties} className="mx-auto w-full max-w-[1500px] px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
     <header className="overflow-hidden rounded-3xl bg-navy text-white shadow-[0_24px_70px_rgba(15,31,63,0.18)]">
       <div className="grid gap-8 px-6 py-8 sm:px-9 sm:py-10 lg:grid-cols-[1fr_340px] lg:items-end lg:px-12">
@@ -161,8 +243,6 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
 
     <MarketIqDecisionBrief report={report} marketName={market.shortLabel} />
 
-    {report.marketActivity && report.marketActivity.events.length > 0 && <section className="mt-8"><MarketIqActivityTicker activity={report.marketActivity} marketName={market.shortLabel} /></section>}
-
     <section id="trajectories" className="mt-12 scroll-mt-28">
       <div><p className="dq-eyebrow">MSA trajectories</p><h2 className="dq-h2">Apartments and houses can tell different stories</h2></div>
       <aside className="mt-6 rounded-2xl border border-teal-200 bg-teal-50 px-5 py-5 sm:px-6" aria-label="How to read the trajectory charts">
@@ -174,7 +254,7 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
 
     <section className="mt-6 grid gap-4 md:grid-cols-3"><article className="rounded-2xl border border-sky-200 bg-sky-50 p-5"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-sky-800">Understanding the data</p><h3 className="mt-2 font-semibold text-navy">Final asking rents are the market benchmark</h3><p className="mt-2 text-sm leading-6 text-slate-600">These figures reflect final advertised asking rents, the closest legally available view of competitive market rents. Dwellsy does not show competitively sensitive signed lease prices, and these figures are not effective rents or the rent for a single unit.</p></article><article className="rounded-2xl border border-amber-200 bg-amber-50 p-5"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-800">Why market reads jump</p><h3 className="mt-2 font-semibold text-navy">The mix can change quickly</h3><p className="mt-2 text-sm leading-6 text-slate-600">A new lease-up or a shift in the homes available can move a ZIP, city, or MSA market read sharply, even when individual units have not repriced by the same amount.</p></article><article className="rounded-2xl border border-teal-200 bg-teal-50 p-5"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-teal-800">How to use it</p><h3 className="mt-2 font-semibold text-navy">Start broad, then go local</h3><p className="mt-2 text-sm leading-6 text-slate-600">Use the MSA path to understand direction, then use cities and ZIPs to see where the local pattern agrees or diverges.</p></article></section>
 
-    <section id="local-map" className="mt-14 scroll-mt-28"><div className="grid gap-4 lg:grid-cols-[0.75fr_1.25fr] lg:items-end"><div><p className="dq-eyebrow">Geographic intelligence</p><h2 className="dq-h2">See how asking rents vary across the market</h2></div><p className="max-w-2xl text-sm leading-6 text-slate-500 lg:justify-self-end">Start with published asking rents, then switch to annual direction to see where the local pattern is rising, holding, or softening. Select a ZIP for its trajectory, municipality comparison, MSA benchmark, nearby markets, and recent listing activity.</p></div><div className="mt-6 rounded-3xl border border-slate-200 bg-[#f7f8f6] p-4 shadow-sm sm:p-6"><MarketIqRentMap points={report.marketMap.points} benchmarks={msaCells} cityCells={cityCells} activity={report.marketActivity} segments={BENCHMARK_SEGMENTS} marketName={market.fullName} timeZone={market.timeZone} boundaryUrl={`/data/${market.slug}-zcta.geojson`} /></div></section>
+    <section id="local-map" className="mt-14 scroll-mt-28"><div className="grid gap-4 lg:grid-cols-[0.75fr_1.25fr] lg:items-end"><div><p className="dq-eyebrow">Geographic intelligence</p><h2 className="dq-h2">See how asking rents vary across the market</h2></div><p className="max-w-2xl text-sm leading-6 text-slate-500 lg:justify-self-end">Start with published asking rents, then switch to annual direction to see where the local pattern is rising, holding, or softening. Select a ZIP for its trajectory, municipality comparison, MSA benchmark, nearby markets, and recent listing activity.</p></div><div className="mt-6 rounded-3xl border border-slate-200 bg-[#f7f8f6] p-4 shadow-sm sm:p-6"><MarketIqRentMap points={report.marketMap.points} benchmarks={msaCells} cityCells={cityCells} activity={marketActivity} segments={BENCHMARK_SEGMENTS} marketName={market.fullName} timeZone={market.timeZone} boundaryUrl={`/data/${market.slug}-zcta.geojson`} /></div></section>
 
     <section id="local-ranking" className="mt-14 scroll-mt-28"><div className="grid gap-6 lg:grid-cols-[0.72fr_1.28fr]"><div><p className="dq-eyebrow">Local comparison</p><h2 className="dq-h2">Compare local rent patterns</h2><p className="mt-4 text-sm leading-6 text-slate-500">Choose one product and compare it consistently across municipalities or ZIPs. Local values are presented for context, without treating the largest percentage swing as the most important result.</p>
       <div className="mt-6 grid gap-4 rounded-2xl border border-slate-200 bg-white p-5"><label className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Geography<select value={geographyType} onChange={(event) => { setGeographyType(event.target.value as "city" | "zip"); setShowAll(false); }} className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-navy"><option value="city">Municipalities</option><option value="zip">ZIP codes</option></select></label><label className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Product<select value={segmentKey} onChange={(event) => { setSegmentKey(event.target.value); setShowAll(false); }} className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-navy">{BENCHMARK_SEGMENTS.map((segment) => <option key={`${segment.propertyType}:${segment.bedrooms}`} value={`${segment.propertyType}:${segment.bedrooms}`}>{segment.label}</option>)}</select></label><div><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Sort by</p><div className="mt-2 flex rounded-lg bg-slate-100 p-1"><button type="button" onClick={() => setSortMode("name")} className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold ${sortMode === "name" ? "bg-white text-navy shadow-sm" : "text-slate-500"}`}>Area name</button><button type="button" onClick={() => setSortMode("rent")} className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold ${sortMode === "rent" ? "bg-white text-navy shadow-sm" : "text-slate-500"}`}>Asking rent</button></div></div></div>
@@ -183,11 +263,24 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
     </div></section>
 
     <section id="inventory" className="mt-14 scroll-mt-28">
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end"><div><p className="dq-eyebrow">Inventory and active listing age</p><h2 className="dq-h2">How much product is available, and how long it has been active</h2></div><p className="max-w-2xl text-sm leading-6 text-slate-500">A point-in-time view of observed active listings. These measures describe supply and marketing duration. They are not used to calculate aggregated rent.</p></div>
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end"><div><p className="dq-eyebrow">Inventory and active listing age</p><h2 className="dq-h2">See whether supply is building, tightening, or taking longer to move</h2></div><p className="max-w-2xl text-sm leading-6 text-slate-500">Daily observations show how active inventory and median observed listing age change together. They describe asking-market supply and marketing duration, not occupancy, lease-up time, or time to a signed lease.</p></div>
       {listingSync.status === "healthy" ? <>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Active inventory</p><p className="mt-3 text-3xl font-semibold text-navy">{listingSync.activeListings.toLocaleString()}</p><p className="mt-2 text-sm text-slate-500">Observed apartments and houses</p></article>
-        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Median observed listing age</p><p className="mt-3 text-3xl font-semibold text-navy">{listingSync.medianActiveAgeDays === null ? "Not available" : `${listingSync.medianActiveAgeDays} days`}</p><p className="mt-2 text-sm text-slate-500">Across {listingSync.ageObservedListings.toLocaleString()} listings with an activation date</p></article>
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Active inventory history</p><p className="mt-3 text-4xl font-semibold tracking-tight text-navy">{listingSync.activeListings.toLocaleString()}</p><p className="mt-2 text-sm text-slate-500">Observed apartments and houses now active</p></div><div className="space-y-2 text-right text-xs font-semibold"><p className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-600">7 days: {inventoryComparisonLabel(sevenDaySupplyComparison) ?? "History accumulating"}</p><p className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-600">30 days: {inventoryComparisonLabel(thirtyDaySupplyComparison) ?? "History accumulating"}</p></div></div>
+          <div className="mt-5"><SupplyTrendLine points={listingSupplyHistory} metric="inventory" label="Daily active inventory history" /></div>
+        </article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Median observed listing-age history</p><p className="mt-3 text-4xl font-semibold tracking-tight text-navy">{listingSync.medianActiveAgeDays === null ? "Not available" : `${listingSync.medianActiveAgeDays} days`}</p><p className="mt-2 text-sm text-slate-500">Across {listingSync.ageObservedListings.toLocaleString()} listings with an activation date</p></div><div className="space-y-2 text-right text-xs font-semibold"><p className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-600">7 days: {ageComparisonLabel(sevenDaySupplyComparison) ?? "History accumulating"}</p><p className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-600">30 days: {ageComparisonLabel(thirtyDaySupplyComparison) ?? "History accumulating"}</p></div></div>
+          <div className="mt-5"><SupplyTrendLine points={listingSupplyHistory} metric="age" label="Daily median observed listing-age history" /></div>
+        </article>
+      </div>
+      {supplyCondition && conditionComparison ? <aside className="mt-4 rounded-2xl border border-teal-200 bg-teal-50 p-5 sm:p-6" aria-label="Observed supply condition">
+        <div className="grid gap-4 lg:grid-cols-[0.32fr_0.68fr] lg:items-start"><div><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-teal-800">Observed supply condition</p><h3 className="mt-2 text-xl font-semibold text-navy">{supplyCondition.title}</h3></div><div><p className="text-sm leading-6 text-slate-700">{supplyCondition.detail}</p><p className="mt-2 text-xs leading-5 text-slate-500">Based on the latest observation compared with {conditionComparison.elapsedDays} days earlier. This is a directional asking-market read, not a measure of occupancy or leasing performance.</p></div></div>
+      </aside> : <aside className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:p-6" aria-label="Listing supply history status">
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">History is accumulating</p><h3 className="mt-2 text-xl font-semibold text-navy">A directional market read will appear after enough daily history exists</h3><p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">{listingSupplyHistory.length > 0 ? `${listingSupplyHistory.length} daily ${listingSupplyHistory.length === 1 ? "observation has" : "observations have"} been stored since ${historyDate(firstSupplyObservation)}. The first 7-day comparison requires an observation near a full week earlier; the 30-day comparison follows after a month.` : "The daily snapshot store has not captured its first observation. Current point-in-time supply remains visible without an invented comparison."}</p>
+      </aside>}
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Active 31+ days</p><p className="mt-3 text-3xl font-semibold text-navy">{listingSync.activeOver30SharePct === null ? "Not available" : `${listingSync.activeOver30SharePct.toFixed(1)}%`}</p><p className="mt-2 text-sm text-slate-500">{listingSync.activeOver30Days.toLocaleString()} observed active listings</p></article>
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Activated in 30 days</p><p className="mt-3 text-3xl font-semibold text-navy">{listingSync.activatedLast30Days.toLocaleString()}</p><p className="mt-2 text-sm text-slate-500">{listingSync.activatedLast7Days.toLocaleString()} activated in the last 7 days</p></article>
       </div>
@@ -195,7 +288,7 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Inventory mix</p><h3 className="mt-2 text-xl font-semibold text-navy">Apartments and houses</h3></div><p className="text-xs font-semibold text-slate-400">{inventoryTotal.toLocaleString()} classified listings</p></div><div className="mt-7 flex h-4 overflow-hidden rounded-full bg-slate-100"><div className="bg-[#1b6e8c]" style={{ width: `${apartmentShare}%` }} /><div className="bg-[#c16f36]" style={{ width: `${inventoryTotal > 0 ? 100 - apartmentShare : 0}%` }} /></div><div className="mt-5 grid grid-cols-2 gap-4"><div><p className="text-2xl font-semibold text-navy">{listingSync.apartmentListings.toLocaleString()}</p><p className="mt-1 text-sm text-slate-500">Apartments</p></div><div><p className="text-2xl font-semibold text-navy">{listingSync.houseListings.toLocaleString()}</p><p className="mt-1 text-sm text-slate-500">Houses</p></div></div></article>
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">Active listing age</p><h3 className="mt-2 text-xl font-semibold text-navy">Where current inventory sits</h3></div><p className="text-xs font-semibold text-slate-400">{listingSync.ageObservedListings.toLocaleString()} observed</p></div>{listingSync.ageObservedListings > 0 ? <div className="mt-6 space-y-3">{listingSync.listingAgeBuckets.map((bucket) => <div key={bucket.key} className="grid grid-cols-[54px_minmax(0,1fr)_48px] items-center gap-3"><p className="text-xs font-semibold text-slate-500">{bucket.label}</p><div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-teal" style={{ width: `${(bucket.count / maxAgeBucket) * 100}%` }} /></div><p className="text-right text-xs font-semibold tabular-nums text-navy">{bucket.count.toLocaleString()}</p></div>)}</div> : <p className="mt-8 rounded-xl bg-slate-50 px-4 py-6 text-sm leading-6 text-slate-500">Listing lifecycle timestamps are not available in the current snapshot, so active listing age cannot be calculated.</p>}</article>
       </div>
-      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5"><div className="flex flex-wrap gap-x-8 gap-y-3 text-sm"><p><span className="font-semibold text-navy">{(listingSync.newEvents + listingSync.relistedEvents).toLocaleString()}</span> <span className="text-slate-500">new or relisted events</span></p><p><span className="font-semibold text-navy">{listingSync.priceChangeEvents.toLocaleString()}</span> <span className="text-slate-500">confirmed price changes</span></p></div><p className="mt-4 text-xs leading-5 text-slate-500">Observed active listing age is measured from listing activation among listings still active. It is not vacancy duration, lease-up time, or time to a signed lease. Point-in-time source through {snapshotDate(listingSync.availableThrough)}.</p></div>
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5"><div className="flex flex-wrap gap-x-8 gap-y-3 text-sm"><p><span className="font-semibold text-navy">{(listingSync.newEvents + listingSync.relistedEvents).toLocaleString()}</span> <span className="text-slate-500">new or relisted events</span></p><p><span className="font-semibold text-navy">{listingSync.priceChangeEvents.toLocaleString()}</span> <span className="text-slate-500">confirmed price changes</span></p></div><p className="mt-4 text-xs leading-5 text-slate-500">Observed active listing age is measured from listing activation among listings still active. It is not vacancy duration, lease-up time, or time to a signed lease. Point-in-time source through {snapshotDate(listingSync.availableThrough)}.{latestSupplyObservation ? ` Daily history through ${historyDate(latestSupplyObservation)}.` : ""}</p></div>
       </> : <article className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
         <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-800">Listing snapshot unavailable</p>
         <h3 className="mt-2 text-xl font-semibold text-navy">Inventory and listing-age measures are waiting for a current snapshot</h3>
@@ -204,6 +297,6 @@ export function MarketIqIntelligenceWorkspace({ report, market, listingSync, cli
       </article>}
     </section>
 
-    <section id="sources" className="mt-14 scroll-mt-28 border-t border-slate-200 pt-8"><div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end"><div><p className="dq-eyebrow">Sources and limits</p><h2 className="dq-h2">Know what each number represents</h2></div><p className="max-w-2xl text-sm leading-6 text-slate-500">This is asking-market intelligence. It does not represent occupancy, signed leases, concessions, effective rent, or property financial performance.</p></div><div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{report.sources.map((source) => <article key={`${source.name}:${source.availableThrough}`} className="rounded-xl border border-slate-200 bg-white p-5"><p className="font-semibold text-navy">{source.name}</p><p className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Available through {source.availableThrough}</p><p className="mt-3 text-sm leading-6 text-slate-600">{source.note}</p></article>)}</div>{report.marketRead.unavailableCuts.length > 0 && <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-800">Unavailable source cuts</p><h3 className="mt-2 text-lg font-semibold text-navy">What the latest source month did not publish</h3><div className="mt-4 grid gap-3 md:grid-cols-2">{report.marketRead.unavailableCuts.map((cut) => <article key={`${cut.label}:${cut.reason}`} className="rounded-xl border border-amber-200/80 bg-white/70 p-4"><p className="text-sm font-semibold text-navy">{cut.label}</p><p className="mt-2 text-sm leading-6 text-slate-600">{cut.reason}</p></article>)}</div></div>}</section>
+    <section id="sources" className="mt-14 scroll-mt-28 border-t border-slate-200 pt-8"><div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end"><div><p className="dq-eyebrow">Sources and limits</p><h2 className="dq-h2">Know what each number represents</h2></div><p className="max-w-2xl text-sm leading-6 text-slate-500">This is asking-market intelligence. Concession language is advertised, not verified. The report does not represent occupancy, signed leases, achieved or effective rent, or property financial performance.</p></div><div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{report.sources.map((source) => <article key={`${source.name}:${source.availableThrough}`} className="rounded-xl border border-slate-200 bg-white p-5"><p className="font-semibold text-navy">{source.name}</p><p className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Available through {source.availableThrough}</p><p className="mt-3 text-sm leading-6 text-slate-600">{source.note}</p></article>)}</div>{report.marketRead.unavailableCuts.length > 0 && <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-800">Unavailable source cuts</p><h3 className="mt-2 text-lg font-semibold text-navy">What the latest source month did not publish</h3><div className="mt-4 grid gap-3 md:grid-cols-2">{report.marketRead.unavailableCuts.map((cut) => <article key={`${cut.label}:${cut.reason}`} className="rounded-xl border border-amber-200/80 bg-white/70 p-4"><p className="text-sm font-semibold text-navy">{cut.label}</p><p className="mt-2 text-sm leading-6 text-slate-600">{cut.reason}</p></article>)}</div></div>}</section>
   </main>;
 }

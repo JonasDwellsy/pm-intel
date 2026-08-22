@@ -7,7 +7,9 @@ import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { loadMarketIqMarketData } from "@/lib/market-iq/data/service.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
+import { MARKET_IQ_MARKET_INTELLIGENCE_ROUTES } from "@/lib/market-iq/navigation";
 import { resolveActiveMarketIqMarket } from "@/lib/market-iq/markets/selection";
+import { loadListingSupplyHistory } from "@/lib/market-iq/listing-supply-history.server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -23,10 +25,22 @@ export default async function MarketIqPage({
   // and cannot add database load to the existing Operator IQ application.
   if (!marketIqPreviewEnabled()) notFound();
 
+  const [{ organizationId }, query] = await Promise.all([
+    getActiveOrgContext(),
+    searchParams,
+  ]);
+  if (!organizationId) {
+    const returnTo = query.market
+      ? `${MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.overview}?market=${encodeURIComponent(query.market)}`
+      : MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.overview;
+    redirect(
+      `/setup-workspace?from=${encodeURIComponent(returnTo)}`
+    );
+  }
+
   const access = await resolveViewerMarketIqAccess();
   if (!access.hasProduct) redirect("/market-iq/subscribe");
 
-  const [{ organizationId }, query] = await Promise.all([getActiveOrgContext(), searchParams]);
   const preference = organizationId
     ? await prisma.marketIqWorkspacePreference.findUnique({
       where: { organizationId },
@@ -41,7 +55,12 @@ export default async function MarketIqPage({
   if (!activeMarket) redirect("/market-iq/subscribe");
 
   if (access.source === "subscription") {
-    if (organizationId && !preference?.onboardingCompletedAt) redirect("/market-iq/get-started");
+    if (!preference?.onboardingCompletedAt) {
+      const returnTo = `${MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.overview}?market=${encodeURIComponent(activeMarket.id)}`;
+      redirect(
+        `/market-iq/get-started?market=${encodeURIComponent(activeMarket.id)}&returnTo=${encodeURIComponent(returnTo)}`
+      );
+    }
   }
 
   const entitledMarkets = listEntitledMarketIqMarkets(access.entitlement);
@@ -54,7 +73,10 @@ export default async function MarketIqPage({
     );
   }
 
-  const { report, listingPulse: liveListingPulse } = await loadMarketIqMarketData(activeMarket.id);
+  const [{ report, listingPulse: liveListingPulse }, listingSupplyHistory] = await Promise.all([
+    loadMarketIqMarketData(activeMarket.id),
+    loadListingSupplyHistory(activeMarket.id),
+  ]);
 
   if (!report) {
     return (
@@ -91,6 +113,7 @@ export default async function MarketIqPage({
           priceChangeEvents: liveListingPulse.priceChangeEvents,
           message: liveListingPulse.message,
         }}
+        listingSupplyHistory={listingSupplyHistory}
         clientAdvisoryEnabled={access.capabilities.publishClientReports}
       />
     </>

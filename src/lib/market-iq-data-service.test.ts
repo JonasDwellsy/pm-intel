@@ -5,6 +5,7 @@ import type { MarketIqMarketDefinition } from "@/data/market-iq/markets";
 import { emptyListingSupplySummary } from "@/lib/market-iq/listing-supply";
 import {
   MARKET_IQ_REPORT_VERSION,
+  MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION,
   MARKET_IQ_SNAPSHOT_CONTRACT_VERSION,
   MARKET_IQ_TRENDS_HISTORY_MONTHS,
   type MarketIqReportSnapshot,
@@ -78,6 +79,7 @@ function reportFixture(input: { availableThrough: string; historyMonths: number 
     dataContract: {
       version: MARKET_IQ_SNAPSHOT_CONTRACT_VERSION,
       trendsHistoryMonths: MARKET_IQ_TRENDS_HISTORY_MONTHS,
+      dailyActivityVersion: MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION,
     },
     generatedAt: `${input.availableThrough}T12:00:00.000Z`,
     brand: {

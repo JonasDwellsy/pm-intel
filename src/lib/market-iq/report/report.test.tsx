@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { buildCurrentMonthUnavailableCuts, buildDwellsyPropertyUrl, buildMarketIqReportSnapshot, formatMarketIqListingAddress, isPublicMarketIqReportStatus, MARKET_IQ_SNAPSHOT_CONTRACT_VERSION, MARKET_IQ_TRENDS_HISTORY_MONTHS, parseCurrentMarketIqReportSourceSnapshot, parseMarketIqReportSnapshot, trendHistoryQueryStart, trendHistoryWindowStart } from "./report";
+import { buildCurrentMonthUnavailableCuts, buildDwellsyPropertyUrl, buildMarketIqReportSnapshot, formatMarketIqListingAddress, isPublicMarketIqReportStatus, MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION, MARKET_IQ_SNAPSHOT_CONTRACT_VERSION, MARKET_IQ_TRENDS_HISTORY_MONTHS, parseCurrentMarketIqReportSourceSnapshot, parseMarketIqReportSnapshot, trendHistoryQueryStart, trendHistoryWindowStart } from "./report";
 import { canAccessMarketIqReportComposer } from "./access";
 import { buildMarketIqReportEmail } from "./email";
 import { parseMarketIqEditorialDefaultsForm } from "./form-values";
@@ -49,6 +49,7 @@ describe("Market IQ local market read assembly", () => {
     expect(report.dataContract).toEqual({
       version: MARKET_IQ_SNAPSHOT_CONTRACT_VERSION,
       trendsHistoryMonths: MARKET_IQ_TRENDS_HISTORY_MONTHS,
+      dailyActivityVersion: MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION,
     });
     expect(report.marketRead.cells[0]?.series).toHaveLength(36);
     expect(report.marketRead.cells[0]?.series[0]?.month).toBe("2023-08-01");
@@ -165,8 +166,21 @@ describe("Market IQ local market read assembly", () => {
     expect(parseCurrentMarketIqReportSourceSnapshot(JSON.stringify(authoritative))).toEqual(authoritative);
     expect(parseCurrentMarketIqReportSourceSnapshot(JSON.stringify({
       ...authoritative,
-      dataContract: { version: MARKET_IQ_SNAPSHOT_CONTRACT_VERSION, trendsHistoryMonths: 14 },
+      dataContract: { ...authoritative.dataContract, trendsHistoryMonths: 14 },
     }))).toBeNull();
+    expect(parseCurrentMarketIqReportSourceSnapshot(JSON.stringify({
+      ...authoritative,
+      dataContract: { ...authoritative.dataContract, dailyActivityVersion: 0 },
+    }))).toBeNull();
+    const priorContract = {
+      ...authoritative,
+      dataContract: {
+        version: 1,
+        trendsHistoryMonths: MARKET_IQ_TRENDS_HISTORY_MONTHS,
+      },
+    };
+    expect(parseMarketIqReportSnapshot(JSON.stringify(priorContract))).toEqual(priorContract);
+    expect(parseCurrentMarketIqReportSourceSnapshot(JSON.stringify(priorContract))).toBeNull();
     const legacySnapshot: Record<string, unknown> = { ...authoritative };
     delete legacySnapshot.dataContract;
     expect(parseMarketIqReportSnapshot(JSON.stringify(legacySnapshot))).toEqual(legacySnapshot);
@@ -174,6 +188,26 @@ describe("Market IQ local market read assembly", () => {
     expect(parseMarketIqReportSnapshot(JSON.stringify(seededClevelandMarketReport))).toBeNull();
     expect(parseMarketIqReportSnapshot('{"version":1}')).toBeNull();
     expect(parseMarketIqReportSnapshot("not json")).toBeNull();
+  });
+
+  it("normalizes source-dated activity from older saved snapshots into the availability contract", () => {
+    const legacyActivity = {
+      asOf: "2026-08-14T23:00:00.000Z",
+      newListings24h: 1,
+      sourceUpdates24h: 2,
+      confirmedPriceChanges24h: 0,
+      advertisedConcessions24h: 0,
+      delistings24h: 0,
+      agingThresholds24h: 0,
+      events: [],
+    };
+    const parsed = parseMarketIqReportSnapshot(JSON.stringify({
+      ...seededClevelandMarketReport,
+      scope: { ...seededClevelandMarketReport.scope, seededExample: false },
+      marketActivity: legacyActivity,
+    }));
+
+    expect(parsed?.marketActivity).toEqual({ state: "available", activity: legacyActivity });
   });
 
   it("ships source-dated ZIP Trends cells in the Cleveland preview snapshot", () => {
@@ -229,10 +263,9 @@ describe("Market IQ local market read assembly", () => {
     expect(cells.every((cell) => cell.valueBasis === "trends_value")).toBe(true);
   });
 
-  it("ships a source-dated market activity tape without exposing addresses", () => {
-    expect(seededClevelandMarketReport.marketActivity).toMatchObject({ newListings24h: 45, sourceUpdates24h: 396 });
-    expect(seededClevelandMarketReport.marketActivity?.events.length).toBeGreaterThan(4);
-    expect(JSON.stringify(seededClevelandMarketReport.marketActivity)).not.toMatch(/address|listingId|propertyId/i);
+  it("does not supply seeded listing events to daily sections", () => {
+    expect(seededClevelandMarketReport.marketActivity).toBeUndefined();
+    expect(JSON.stringify(seededClevelandMarketReport)).not.toMatch(/seed:new|seed:price/);
   });
 
   it("includes current MSA bedroom benchmarks with published Trends trajectories", () => {

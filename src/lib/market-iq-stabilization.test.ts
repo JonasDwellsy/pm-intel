@@ -100,6 +100,32 @@ test("the shared Market Intelligence route uses the market data service boundary
   }
 });
 
+test("the Daily Edition is a dedicated persisted-evidence route rather than part of Market Overview", () => {
+  const dailyRoute = readFileSync("src/app/market-iq/daily/page.tsx", "utf8");
+  const archiveReader = readFileSync("src/lib/market-iq/daily-editions.server.ts", "utf8");
+  const snapshotRepository = readFileSync("src/lib/market-iq/report/source-snapshot.server.ts", "utf8");
+  const overview = readFileSync("src/components/market-iq/MarketIqIntelligenceWorkspace.tsx", "utf8");
+
+  assert.match(dailyRoute, /loadMarketIqDailyEditionArchive/);
+  assert.match(dailyRoute, /MarketIqDailyEvents/);
+  assert.match(dailyRoute, /MarketIqDailyEditionArchive/);
+  assert.match(dailyRoute, /basePath=\{MARKET_IQ_MARKET_INTELLIGENCE_ROUTES\.daily\}/);
+  assert.doesNotMatch(dailyRoute, /loadMarketIqMarketData|loadReport|storeReport/);
+  assert.match(archiveReader, /loadMarketIqReportSourceSnapshotCandidates/);
+  assert.match(snapshotRepository, /marketIqReportSourceSnapshot\.findMany/);
+  assert.doesNotMatch(overview, /MarketIqDailyEvents|MarketIqTimeToResolution/);
+});
+
+test("Daily Edition is the canonical entry while Market Overview remains a distinct monthly route", () => {
+  const navigation = readFileSync("src/components/market-iq/MarketIqAppNavigation.tsx", "utf8");
+  const entry = readFileSync("src/lib/market-iq/entry.ts", "utf8");
+
+  assert.equal(MARKET_IQ_CANONICAL_ROUTES.marketIntelligence, MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.daily);
+  assert.equal(MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.overview, "/market-iq/market");
+  assert.match(navigation, /href: MARKET_IQ_CANONICAL_ROUTES\.marketIntelligence, label: "Market intelligence"/);
+  assert.match(entry, /MARKET_IQ_APPLICATION_PATH = MARKET_IQ_CANONICAL_ROUTES\.marketIntelligence/);
+});
+
 test("interactive Market IQ reads persisted evidence and Cleveland source builds fail closed", () => {
   const service = readFileSync("src/lib/market-iq/data/service.server.ts", "utf8");
   const clevelandBuild = readFileSync("src/lib/market-iq/report/build.server.ts", "utf8");

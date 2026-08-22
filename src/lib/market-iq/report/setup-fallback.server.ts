@@ -60,10 +60,11 @@ export function buildMarketIqSetupFallbackSnapshot(
       points: [],
     })),
   );
-  const today = new Date().toISOString().slice(0, 10);
+  const generatedAt = new Date();
+  const today = generatedAt.toISOString().slice(0, 10);
 
   return buildMarketIqReportSnapshot({
-    generatedAt: new Date(),
+    generatedAt,
     brand,
     scope: {
       marketId: market.id,

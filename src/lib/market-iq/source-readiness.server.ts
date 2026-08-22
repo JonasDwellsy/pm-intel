@@ -1,6 +1,7 @@
 import "server-only";
 
 import { marketIqDatabaseConfigured, marketIqPrisma } from "@/lib/market-iq/prisma";
+import { parseRecordedMarketIqRefreshFailure } from "@/lib/market-iq/report-refresh-reliability";
 import {
   resolveMarketIqRecordedSourceReadiness,
   type MarketIqRecordedSourceReadiness,
@@ -31,7 +32,7 @@ export async function loadMarketIqRecordedSourceReadiness(
       marketIqPrisma.marketIqSourceRefresh.findFirst({
         where: { marketId, sourceKind: "trends" },
         orderBy: { startedAt: "desc" },
-        select: { status: true, startedAt: true, completedAt: true },
+        select: { status: true, startedAt: true, completedAt: true, error: true },
       }),
     ]);
     const compatibleSnapshot = savedSnapshots.find(
@@ -46,7 +47,12 @@ export async function loadMarketIqRecordedSourceReadiness(
         generatedAt: savedSnapshot.generatedAt,
         contractCompatible: Boolean(compatibleSnapshot),
       } : null,
-      lastAttempt,
+      lastAttempt: lastAttempt ? {
+        status: lastAttempt.status,
+        startedAt: lastAttempt.startedAt,
+        completedAt: lastAttempt.completedAt,
+        failure: parseRecordedMarketIqRefreshFailure(lastAttempt.error) ?? undefined,
+      } : null,
     });
   } catch (error) {
     console.error("[Market IQ] Recorded source readiness unavailable", {

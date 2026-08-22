@@ -6,6 +6,10 @@ import {
   MARKET_IQ_INTELLIGENCE_PLAN,
   marketIqPlanPriceLabel,
 } from "@/lib/market-iq/billing/plans";
+import {
+  MARKET_IQ_SUBSCRIBE_PATH,
+  marketIqSignInPath,
+} from "@/lib/market-iq/entry";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 
 export const metadata: Metadata = {
@@ -14,7 +18,8 @@ export const metadata: Metadata = {
     "Understand local rent direction, explain what changed, and share a property-manager-branded market read with clients and prospects.",
 };
 
-const SIGN_IN_TO_PLANS = "/sign-in?redirect_url=%2Fmarket-iq%2Fsubscribe%3Fbilling%3Dmonth";
+const CUSTOMER_SIGN_IN = marketIqSignInPath();
+const SIGN_IN_TO_PLANS = marketIqSignInPath(MARKET_IQ_SUBSCRIBE_PATH);
 const SAMPLE_REPORT = "/reports/market/preview-cleveland-market-read";
 
 const WORKFLOW = [
@@ -72,7 +77,8 @@ export default function MarketIqWelcomePage() {
             <h1 className="mt-5 max-w-3xl text-5xl font-bold leading-[1.02] tracking-[-0.045em] text-navy sm:text-6xl">See where local rents are moving, then explain why it matters.</h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">Market IQ tracks changes across the local asking market. Client Advisory lets property managers add their own commentary and share a firm-branded report with owners and prospects.</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href={SIGN_IN_TO_PLANS} className="rounded-md bg-navy px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-navy/90">Sign in and choose a plan</Link>
+              <Link href={CUSTOMER_SIGN_IN} className="rounded-md bg-navy px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-navy/90">Customer sign in</Link>
+              <Link href="#plans" className="rounded-md border border-navy bg-white px-6 py-3.5 text-sm font-semibold text-navy transition hover:bg-slate-50">View plans</Link>
               <Link href={SAMPLE_REPORT} className="rounded-md border border-navy bg-white px-6 py-3.5 text-sm font-semibold text-navy transition hover:bg-slate-50">View a Cleveland example</Link>
             </div>
             <p className="mt-5 text-xs leading-5 text-slate-500">Founding plans start at $49 per month for one market. Every client edition requires PM review before delivery.</p>
@@ -140,7 +146,7 @@ export default function MarketIqWelcomePage() {
       </section>
 
       <section className="bg-navy text-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-7 px-5 py-14 sm:px-7 lg:flex-row lg:items-center lg:justify-between lg:px-10 lg:py-16"><div><p className="text-[10px] font-bold uppercase tracking-[0.17em] text-teal-200">Market IQ by Dwellsy IQ</p><h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight">Make local market intelligence part of how clients experience your firm.</h2></div><div className="flex shrink-0 flex-wrap gap-3"><Link href={SIGN_IN_TO_PLANS} className="rounded-md bg-white px-6 py-3.5 text-sm font-semibold text-navy">Sign in to get started</Link><Link href={SAMPLE_REPORT} className="rounded-md border border-white/25 px-6 py-3.5 text-sm font-semibold text-white">View the example</Link></div></div>
+        <div className="mx-auto flex max-w-7xl flex-col gap-7 px-5 py-14 sm:px-7 lg:flex-row lg:items-center lg:justify-between lg:px-10 lg:py-16"><div><p className="text-[10px] font-bold uppercase tracking-[0.17em] text-teal-200">Market IQ by Dwellsy IQ</p><h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight">Make local market intelligence part of how clients experience your firm.</h2></div><div className="flex shrink-0 flex-wrap gap-3"><Link href={CUSTOMER_SIGN_IN} className="rounded-md bg-white px-6 py-3.5 text-sm font-semibold text-navy">Customer sign in</Link><Link href="#plans" className="rounded-md border border-white/25 px-6 py-3.5 text-sm font-semibold text-white">View plans</Link><Link href={SAMPLE_REPORT} className="rounded-md border border-white/25 px-6 py-3.5 text-sm font-semibold text-white">View the example</Link></div></div>
       </section>
     </main>
   );

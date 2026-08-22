@@ -23,6 +23,8 @@
 # misc
 .DS_Store
 *.pem
+# Public AWS RDS roots used to verify the read-only Market IQ source.
+!src/lib/dwellsy-source/certs/aws-rds-global-bundle.pem
 
 # debug
 npm-debug.log*

@@ -189,25 +189,9 @@ export const seededClevelandMarketReport = buildMarketIqReportSnapshot({
     narrative: "Total IQ observed more new apartment and house listings than in the prior 30-day period. That listing-activity evidence is presented separately from Trends IQ rent statistics and is not used to calculate a rent level or change.",
     historical: { activeAtCutoff: 1211, newListings30d: 983, newListingsChange: 7.7, medianDom: 30 },
   },
-  marketActivity: {
-    asOf: "2026-08-15T00:07:12.000Z",
-    newListings24h: 45,
-    sourceUpdates24h: 396,
-    confirmedPriceChanges24h: 0,
-    events: [
-      { id: "seed:new:44113", eventType: "new_listing", city: "Cleveland", zip: "44113", propertyType: "apartment", bedrooms: 1, askingRent: 1199, previousRent: null, observedAt: "2026-08-14T23:02:54.000Z" },
-      { id: "seed:new:44128", eventType: "new_listing", city: "Cleveland", zip: "44128", propertyType: "house", bedrooms: 4, askingRent: 1750, previousRent: null, observedAt: "2026-08-14T22:42:00.000Z" },
-      { id: "seed:new:44108", eventType: "new_listing", city: "Cleveland", zip: "44108", propertyType: "house", bedrooms: 3, askingRent: 1300, previousRent: null, observedAt: "2026-08-14T22:18:00.000Z" },
-      { id: "seed:new:44052", eventType: "new_listing", city: "Lorain", zip: "44052", propertyType: "apartment", bedrooms: 1, askingRent: 799, previousRent: null, observedAt: "2026-08-14T21:44:00.000Z" },
-      { id: "seed:new:44106", eventType: "new_listing", city: "Cleveland Heights", zip: "44106", propertyType: "apartment", bedrooms: 3, askingRent: 2000, previousRent: null, observedAt: "2026-08-14T21:03:00.000Z" },
-      { id: "seed:new:44120", eventType: "new_listing", city: "Cleveland", zip: "44120", propertyType: "apartment", bedrooms: 3, askingRent: 1475, previousRent: null, observedAt: "2026-08-14T20:51:00.000Z" },
-      { id: "seed:new:44130", eventType: "new_listing", city: "Cleveland", zip: "44130", propertyType: "house", bedrooms: 2, askingRent: 1900, previousRent: null, observedAt: "2026-08-14T20:29:00.000Z" },
-    ],
-  },
   sources: [
     { name: "Dwellsy IQ Trends", availableThrough: "2026-07-31", observationCount: null, note: "The exclusive source for every published aggregated rent level and rent change. Overall product summaries use the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Every available Trends IQ value is reportable." },
     { name: "Total IQ observed listings", availableThrough: "2026-07-31", observationCount: 54_544, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." },
-    { name: "Total IQ listing activity feed", availableThrough: "2026-08-14", observationCount: 7, note: "Used only for the recent-listing ticker and source activity counts. It is not used to calculate aggregated prices." },
     { name: "U.S. Census Bureau ZCTAs", availableThrough: "2020-01-01", observationCount: 101, note: "Provides 101 shaded ZIP Code Tabulation Area boundaries for the 102 active postal ZIPs in the Dwellsy Cleveland-Elyria MSA definition. Postal ZIP 44061 has no Census ZCTA polygon." },
   ],
 });

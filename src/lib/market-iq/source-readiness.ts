@@ -1,7 +1,10 @@
+import type { MarketIqRecordedRefreshFailure } from "@/lib/market-iq/report-refresh-reliability";
+
 export type MarketIqRecordedSourceAttempt = {
   status: string;
   startedAt: Date;
   completedAt: Date | null;
+  failure?: MarketIqRecordedRefreshFailure;
 };
 
 export type MarketIqRecordedSourceReadiness =

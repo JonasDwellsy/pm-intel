@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 
+import type { Prisma } from "@/generated/market-iq";
 import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import {
   parseCurrentMarketIqReportSourceSnapshot,
@@ -33,13 +34,40 @@ export async function loadLatestMarketIqReportSourceSnapshot(
   return null;
 }
 
-export async function storeMarketIqReportSourceSnapshot(snapshot: MarketIqReportSnapshot) {
+export async function loadMarketIqReportSourceSnapshotCandidates(
+  marketId: string,
+  take = 120,
+) {
+  const stored = await marketIqPrisma.marketIqReportSourceSnapshot.findMany({
+    where: { marketId, sourceKind: "dwellsy_trends" },
+    orderBy: { generatedAt: "desc" },
+    take,
+    select: { id: true, generatedAt: true, snapshot: true },
+  });
+
+  return stored.flatMap((row) => {
+    const report = parseCurrentMarketIqReportSourceSnapshot(row.snapshot);
+    return report
+      ? [{ id: row.id, generatedAt: row.generatedAt.toISOString(), report }]
+      : [];
+  });
+}
+
+type MarketIqSnapshotPersistenceClient = Pick<
+  Prisma.TransactionClient,
+  "marketIqMarketSummary" | "marketIqReportSourceSnapshot"
+>;
+
+export async function storeMarketIqReportSourceSnapshot(
+  snapshot: MarketIqReportSnapshot,
+  client: MarketIqSnapshotPersistenceClient = marketIqPrisma,
+) {
   const serialized = JSON.stringify(snapshot);
   if (!parseCurrentMarketIqReportSourceSnapshot(serialized)) {
     throw new Error("The Market IQ source snapshot does not satisfy the current analytical contract.");
   }
   const checksum = createHash("sha256").update(serialized).digest("hex");
-  const stored = await marketIqPrisma.marketIqReportSourceSnapshot.upsert({
+  const stored = await client.marketIqReportSourceSnapshot.upsert({
     where: { marketId_checksum: { marketId: snapshot.scope.marketId, checksum } },
     create: {
       marketId: snapshot.scope.marketId,
@@ -58,6 +86,6 @@ export async function storeMarketIqReportSourceSnapshot(snapshot: MarketIqReport
       checksum: true,
     },
   });
-  await storeMarketIqMarketSummary(snapshot);
+  await storeMarketIqMarketSummary(snapshot, client);
   return stored;
 }

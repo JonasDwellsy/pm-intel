@@ -27,7 +27,7 @@ function reportDate(value: string) { return new Date(value).toLocaleDateString("
 function Card({ cell, primary, accent }: { cell: MarketIqMarketCell; primary: string; accent: string }) {
   return <View style={styles.card} wrap={false}><Text style={[styles.overline, { color: colors.muted }]}>{cell.geographyLabel}</Text><Text style={[{ fontSize: 8, fontWeight: 700, marginTop: 4 }, { color: primary }]}>{cell.label}</Text><Text style={[styles.cardValue, { color: primary }]}>{money(cell.rent)}</Text><Text style={[styles.cardTrend, { color: cell.yearOverYearPct === null ? colors.muted : accent }]}>{trend(cell)}</Text><Text style={styles.cardMeta}>Asking-rent data | {cell.month ?? "No month"}</Text></View>;
 }
-function publicSourceName(name: string) { return /trend/i.test(name) ? "Asking-rent trends" : /total|listing/i.test(name) ? "Listing observations" : "Market observations"; }
+function publicSourceName(name: string) { return /inactive listings/i.test(name) ? "Time-to-resolution observations" : /trend/i.test(name) ? "Asking-rent trends" : /total|listing/i.test(name) ? "Listing observations" : "Market observations"; }
 function publicSourceNote(note: string) { return note.replaceAll("Dwellsy IQ Trends", "the asking-rent series").replaceAll("Trends IQ", "the asking-rent series").replaceAll("Total IQ", "listing observations"); }
 function Footer({ brand, pageNumber }: { brand: string; pageNumber: number }) { return <><Text style={styles.footerLeft} fixed>Prepared by {brand}</Text><Text style={styles.footerRight} fixed>Market data by Dwellsy IQ  |  {pageNumber} of 2</Text></>; }
 

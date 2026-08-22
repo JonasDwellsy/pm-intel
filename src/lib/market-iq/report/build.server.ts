@@ -7,7 +7,9 @@ import { loadClevelandHistoricalPulse } from "@/lib/market-iq/historical.server"
 import { loadDwellsyProductRollupSeries, loadDwellsyTrendSeries } from "@/lib/dwellsy-source/trends.server";
 import { mapDwellsyTrendRows } from "@/lib/dwellsy-source/trends";
 import { dwellsySourceConfigured } from "@/lib/dwellsy-source/db.server";
-import { loadClevelandListingActivity } from "@/lib/dwellsy-source/listing-events.server";
+import { loadClevelandListingActivityAvailability } from "@/lib/dwellsy-source/listing-events.server";
+import { loadClevelandTimeToResolutionAvailability } from "@/lib/dwellsy-source/time-to-resolution.server";
+import { availableMarketIqActivity } from "@/lib/market-iq/listing-events";
 import { marketIqDatabaseConfigured, marketIqPrisma } from "@/lib/market-iq/prisma";
 import {
   buildCurrentMonthUnavailableCuts,
@@ -215,7 +217,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
         // Total IQ context instead of failing the public report.
         .catch(() => null)
     : Promise.resolve(null);
-  const [trendSource, context, marketActivity] = await Promise.all([
+  const [trendSource, context, marketActivityAvailability, timeToResolutionAvailability] = await Promise.all([
     (input?.sourceMode === "live_only"
       ? Promise.resolve(null)
       : loadImportedTrendSource().catch(() => null)).then((imported) => {
@@ -230,8 +232,11 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
     }),
     analyticalContext,
     liveDwellsyRuntimeEnabled
-      ? loadClevelandListingActivity().catch(() => undefined)
-      : Promise.resolve(undefined),
+      ? loadClevelandListingActivityAvailability()
+      : Promise.resolve({ state: "unavailable" as const, attemptedAt: new Date().toISOString() }),
+    liveDwellsyRuntimeEnabled
+      ? loadClevelandTimeToResolutionAvailability()
+      : Promise.resolve({ state: "unavailable" as const, attemptedAt: new Date().toISOString() }),
   ]);
   const trendSeries = completeTrendSeries(trendSource.result.series);
   const reportCities = [...new Set(trendSeries
@@ -243,6 +248,7 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
   const trendAvailableThrough = monthEnd(latestTrendMonth);
   const trendWindowStart = trendHistoryWindowStart(latestTrendMonth);
   const historicalPulse = context?.historicalPulse;
+  const marketActivity = availableMarketIqActivity(marketActivityAvailability);
   const activityAvailableThrough = marketActivity?.asOf.slice(0, 10);
 
   return buildMarketIqReportSnapshot({
@@ -293,11 +299,13 @@ export async function buildClevelandMarketIqReportSnapshot(input?: {
       narrative: "No historical listing measure is substituted. Trends IQ remains the exclusive source for every published rent level and rent change.",
       historical: null,
     },
-    marketActivity,
+    marketActivity: marketActivityAvailability,
+    timeToResolution: timeToResolutionAvailability,
     sources: [
       { name: "Dwellsy IQ Trends", availableThrough: trendAvailableThrough, observationCount: null, note: "The exclusive source for every published aggregated rent level and rent change. Overall product summaries use the stored median and an exact prior-year comparison from Trends IQ all-bedroom rows. Every available Trends IQ value is reportable." },
       ...(historicalPulse ? [{ name: "Total IQ observed listings", availableThrough: historicalPulse.historicalSource.availableThrough, observationCount: historicalPulse.historicalSource.recordCount, note: "Used only for listing volume, velocity, days on market, and geographic coverage. It is not used to calculate aggregated prices." }] : []),
-      ...(activityAvailableThrough ? [{ name: "Total IQ listing activity feed", availableThrough: activityAvailableThrough, observationCount: marketActivity?.events.length ?? null, note: "Used only for the recent-listing ticker and source activity counts. It is not used to calculate aggregated prices." }] : []),
+      ...(activityAvailableThrough ? [{ name: "Total IQ listing activity feed", availableThrough: activityAvailableThrough, observationCount: marketActivity?.events.length ?? null, note: "Used only for exact 24-hour flow counts and observed daily listing activity, including new listings, advertised concession language, asking-rent changes, delistings, and live-age threshold crossings. Age-based stale deactivations are excluded from delistings. Concessions are advertised, not verified. Standing inventory remains withheld, and listing activity is not used to calculate aggregated prices." }] : []),
+      ...(timeToResolutionAvailability.state === "available" ? [{ name: "Total IQ inactive listings", availableThrough: timeToResolutionAvailability.resolution.asOf.slice(0, 10), observationCount: timeToResolutionAvailability.resolution.sampleSize, note: "Used to calculate the trailing 90-day time-to-resolution distribution from recorded creation and deactivation timestamps. Inactive listings may have leased or been withdrawn. It is not used to calculate rent trends." }] : []),
       { name: "U.S. Census Bureau ZCTAs", availableThrough: "2020-01-01", observationCount: REPORT_ZIPS.length - 1, note: "Provides 101 shaded ZIP Code Tabulation Area boundaries for the 102 active postal ZIPs in the Dwellsy Cleveland-Elyria MSA definition. Postal ZIP 44061 has no Census ZCTA polygon." },
     ],
   });
@@ -308,7 +316,7 @@ export const loadCachedClevelandMarketIqReportSnapshot = unstable_cache(
   // Bump this key whenever the source adapter or reportability rules change.
   // The callback itself is intentionally small, so relying on its function
   // string would otherwise preserve an obsolete cross-deployment snapshot.
-  ["market-iq-cleveland-live-snapshot-v11"],
+  ["market-iq-cleveland-live-snapshot-v18"],
   { revalidate: 900 },
 );
 

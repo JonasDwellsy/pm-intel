@@ -7,6 +7,7 @@ import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
+import { MARKET_IQ_APPLICATION_PATH, marketIqReturnToForMarket } from "@/lib/market-iq/entry";
 import { marketIqJourneyEventData, marketIqMilestoneDedupeKey } from "@/lib/market-iq/journey-telemetry.server";
 import { parseMarketIqBrandForm, parseMarketIqEditorialDefaultsForm } from "@/lib/market-iq/report/form-values";
 import { parseMarketIqSetupScopeFormData } from "@/lib/market-iq/report/scope";
@@ -25,6 +26,10 @@ async function persistActivation(formData: FormData, complete: boolean) {
   const requestedMarketId = String(formData.get("marketId") ?? "").trim();
   const marketId = requestedMarketId ? getMarketIqMarket(requestedMarketId)?.id : CLEVELAND_MARKET_ID;
   if (!marketId) throw new Error("The selected Market IQ market is unavailable.");
+  const requestedReturnTo = String(formData.get("returnTo") ?? "");
+  const returnTo = requestedReturnTo
+    ? marketIqReturnToForMarket(requestedReturnTo, marketId)
+    : null;
   const { organizationId, userId, capabilities } = await activationContext(marketId);
   const brand = parseMarketIqBrandForm(formData);
   const editorialDefaults = parseMarketIqEditorialDefaultsForm(formData);
@@ -94,7 +99,7 @@ async function persistActivation(formData: FormData, complete: boolean) {
   revalidatePath("/market-iq/get-started");
   revalidatePath(`/market-iq/report?market=${encodeURIComponent(marketId)}`);
   revalidatePath(`/market-iq/market?market=${encodeURIComponent(marketId)}`);
-  return { capabilities, marketId };
+  return { capabilities, marketId, returnTo };
 }
 
 export async function saveMarketIqActivationProgress(formData: FormData): Promise<{ nextStep: number }> {
@@ -105,11 +110,17 @@ export async function saveMarketIqActivationProgress(formData: FormData): Promis
 }
 
 export async function completeMarketIqActivation(formData: FormData): Promise<void> {
-  const { capabilities, marketId } = await persistActivation(formData, true);
+  const { capabilities, marketId, returnTo } = await persistActivation(formData, true);
+  if (returnTo?.startsWith("/market-iq/daily") || returnTo?.startsWith("/market-iq/market")) {
+    const separator = returnTo.includes("?") ? "&" : "?";
+    redirect(
+      `${returnTo}${separator}activated=1${String(formData.get("sourceAvailable") ?? "1") === "1" ? "" : "&source=unavailable"}`
+    );
+  }
   if (String(formData.get("sourceAvailable") ?? "1") !== "1") {
     redirect(`/market-iq?activated=1&source=unavailable&market=${encodeURIComponent(marketId)}`);
   }
   redirect(capabilities.publishClientReports
     ? `/market-iq/report?market=${encodeURIComponent(marketId)}&from=setup&activated=1`
-    : `/market-iq/market?market=${encodeURIComponent(marketId)}&activated=1`);
+    : `${marketIqReturnToForMarket(MARKET_IQ_APPLICATION_PATH, marketId)}&activated=1`);
 }

@@ -1,8 +1,26 @@
+import type {
+  MarketIqMarketActivity,
+  MarketIqMarketActivityAvailability,
+} from "@/lib/market-iq/listing-events";
+import type { MarketIqTimeToResolutionAvailability } from "@/lib/market-iq/time-to-resolution";
+
+export type {
+  MarketIqListingEvent,
+  MarketIqMarketActivity,
+  MarketIqMarketActivityAvailability,
+} from "@/lib/market-iq/listing-events";
+export type {
+  MarketIqResolutionSegment,
+  MarketIqTimeToResolution,
+  MarketIqTimeToResolutionAvailability,
+} from "@/lib/market-iq/time-to-resolution";
+
 export const MARKET_IQ_REPORT_VERSION = 3 as const;
 // Bump this whenever analytical query scope, methodology, or required evidence
 // changes. Stored source snapshots from an older contract must be refreshed.
-export const MARKET_IQ_SNAPSHOT_CONTRACT_VERSION = 1 as const;
+export const MARKET_IQ_SNAPSHOT_CONTRACT_VERSION = 2 as const;
 export const MARKET_IQ_TRENDS_HISTORY_MONTHS = 36 as const;
+export const MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION = 1 as const;
 
 export type MarketIqPropertyType = "apartment" | "house";
 export type MarketIqGeographyType = "msa" | "city" | "zip";
@@ -59,21 +77,6 @@ export type MarketIqMapPoint = {
   series: MarketIqTrendPoint[];
 };
 
-export type MarketIqListingEvent = {
-  id: string;
-  eventType: "new_listing" | "price_change";
-  address?: string | null;
-  city: string;
-  zip: string;
-  propertyType: MarketIqPropertyType;
-  bedrooms: number;
-  askingRent: number;
-  previousRent: number | null;
-  observedAt: string;
-  imageUrl?: string | null;
-  listingUrl?: string | null;
-};
-
 export function buildDwellsyPropertyUrl(propertyId: string | number) {
   const value = String(propertyId);
   return /^\d+$/.test(value) ? `https://dwellsy.com/details/${value}` : null;
@@ -98,15 +101,6 @@ export function trendHistoryQueryStart(referenceDate: Date) {
 export function trendHistoryWindowStart(latestMonth: string) {
   return offsetMonth(new Date(`${latestMonth.slice(0, 7)}-01T00:00:00Z`), -35);
 }
-
-export type MarketIqMarketActivity = {
-  asOf: string;
-  newListings24h: number;
-  sourceUpdates24h: number;
-  confirmedPriceChanges24h: number;
-  eventsTruncated?: boolean;
-  events: MarketIqListingEvent[];
-};
 
 export type MarketIqEditionFinding = {
   id: string;
@@ -139,6 +133,7 @@ export interface MarketIqReportSnapshot {
   dataContract?: {
     version: typeof MARKET_IQ_SNAPSHOT_CONTRACT_VERSION;
     trendsHistoryMonths: typeof MARKET_IQ_TRENDS_HISTORY_MONTHS;
+    dailyActivityVersion: typeof MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION;
   };
   generatedAt: string;
   brand: {
@@ -182,7 +177,8 @@ export interface MarketIqReportSnapshot {
       medianDom: number;
     } | null;
   };
-  marketActivity?: MarketIqMarketActivity;
+  marketActivity?: MarketIqMarketActivityAvailability;
+  timeToResolution?: MarketIqTimeToResolutionAvailability;
   editionComparison?: MarketIqEditionComparison;
   editorial?: {
     audienceKind?: "client" | "prospect";
@@ -211,7 +207,8 @@ export type MarketIqReportBuildInput = {
   trendSeries: MarketIqTrendSeries[];
   mapCenters?: Record<string, { latitude: number; longitude: number; primaryCity?: string | null }>;
   marketConditions: MarketIqReportSnapshot["marketConditions"];
-  marketActivity?: MarketIqMarketActivity;
+  marketActivity?: MarketIqMarketActivityAvailability;
+  timeToResolution?: MarketIqTimeToResolutionAvailability;
   sources: MarketIqReportSnapshot["sources"];
   unavailableCuts?: MarketIqReportSnapshot["marketRead"]["unavailableCuts"];
 };
@@ -316,7 +313,23 @@ export function parseMarketIqReportSnapshot(value: string): MarketIqReportSnapsh
       !Array.isArray(parsed.marketRead?.cells) ||
       !Array.isArray(parsed.sources)
     ) return null;
-    return parsed as MarketIqReportSnapshot;
+    const snapshot = parsed as MarketIqReportSnapshot;
+    const legacyActivity = parsed.marketActivity as unknown;
+    if (
+      legacyActivity &&
+      typeof legacyActivity === "object" &&
+      !("state" in legacyActivity) &&
+      "asOf" in legacyActivity &&
+      "events" in legacyActivity &&
+      typeof legacyActivity.asOf === "string" &&
+      Array.isArray(legacyActivity.events)
+    ) {
+      snapshot.marketActivity = {
+        state: "available",
+        activity: legacyActivity as MarketIqMarketActivity,
+      };
+    }
+    return snapshot;
   } catch {
     return null;
   }
@@ -328,7 +341,8 @@ export function parseCurrentMarketIqReportSourceSnapshot(
   const parsed = parseMarketIqReportSnapshot(value);
   if (
     parsed?.dataContract?.version !== MARKET_IQ_SNAPSHOT_CONTRACT_VERSION ||
-    parsed.dataContract.trendsHistoryMonths !== MARKET_IQ_TRENDS_HISTORY_MONTHS
+    parsed.dataContract.trendsHistoryMonths !== MARKET_IQ_TRENDS_HISTORY_MONTHS ||
+    parsed.dataContract.dailyActivityVersion !== MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION
   ) return null;
   return parsed;
 }
@@ -380,6 +394,7 @@ export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): Ma
     dataContract: {
       version: MARKET_IQ_SNAPSHOT_CONTRACT_VERSION,
       trendsHistoryMonths: MARKET_IQ_TRENDS_HISTORY_MONTHS,
+      dailyActivityVersion: MARKET_IQ_DAILY_ACTIVITY_CONTRACT_VERSION,
     },
     generatedAt: input.generatedAt.toISOString(),
     brand: input.brand,
@@ -397,8 +412,9 @@ export function buildMarketIqReportSnapshot(input: MarketIqReportBuildInput): Ma
     },
     marketConditions: input.marketConditions,
     marketActivity: input.marketActivity,
+    timeToResolution: input.timeToResolution,
     sources: input.sources,
-    methodNote: "Every published rent input comes from Trends IQ. Overall apartment and house summaries use the median stored on the Trends IQ all-bedroom rows, with year-over-year change calculated from the matching prior-year median in that same Trends series. A published Trends IQ value is treated as reportable because Dwellsy's underlying methodology has already established confidence in that result. Unit counts are retained as source metadata but are not used as an additional publication threshold. Total IQ supports listing volume, velocity, days on market, and recent listing activity only. Census ZCTAs provide ZIP-area geometry.",
-    disclosure: "This report measures advertised asking-market activity. It does not measure occupancy, signed leases, concessions, effective rent, or property-level financial performance.",
+    methodNote: "Every published rent input comes from Trends IQ. Overall apartment and house summaries use the median stored on the Trends IQ all-bedroom rows, with year-over-year change calculated from the matching prior-year median in that same Trends series. A published Trends IQ value is treated as reportable because Dwellsy's underlying methodology has already established confidence in that result. Unit counts are retained as source metadata but are not used as an additional publication threshold. Total IQ supports listing volume, live listing age, time-to-resolution distributions, and recent listing activity only. Census ZCTAs provide ZIP-area geometry.",
+    disclosure: "This report measures advertised asking-market activity and may identify concession language in listing text. Concessions are advertised, not verified. The report does not measure occupancy, signed leases, achieved or effective rent, or property-level financial performance.",
   };
 }

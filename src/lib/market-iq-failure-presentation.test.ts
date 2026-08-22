@@ -71,6 +71,9 @@ test("internal readiness reads recorded evidence and never opens the Dwellsy sou
   assert.match(loader, /parseCurrentMarketIqReportSourceSnapshot/);
   assert.match(loader, /compatibleSnapshot/);
   assert.match(loader, /marketIqSourceRefresh\.findFirst/);
+  assert.match(page, /latest refresh did not complete/);
+  assert.match(page, /Failure stage/);
+  assert.match(page, /category/);
   assert.doesNotMatch(loader, /dwellsy-source|loadDwellsy|DWELLSY_DATABASE_URL[^?]*\)/);
   assert.doesNotMatch(`${page}\n${loader}`, /process\.env\[[^\]]+\][^\n]*(detail|return)|password|connection string/i);
   assert.match(page, /older analytical contract/);
@@ -78,6 +81,13 @@ test("internal readiness reads recorded evidence and never opens the Dwellsy sou
   assert.match(snapshotLoader, /findMany/);
   assert.match(snapshotLoader, /parseCurrentMarketIqReportSourceSnapshot/);
   assert.match(snapshotLoader, /if \(snapshot\) return snapshot/);
+  assert.doesNotMatch(snapshotLoader, /parseMarketIqReportSnapshot/);
+  assert.match(snapshotLoader, /if \(!parseCurrentMarketIqReportSourceSnapshot\(serialized\)\)/);
+  assert.ok(
+    snapshotLoader.indexOf("if (!parseCurrentMarketIqReportSourceSnapshot(serialized))")
+      < snapshotLoader.indexOf('createHash("sha256")'),
+    "Source snapshot writes must validate the current contract before persistence.",
+  );
 });
 
 test("public reports distinguish unknown tokens from known unavailable evidence", async () => {

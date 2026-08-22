@@ -517,6 +517,7 @@ model Organization {
   marketIqMarketPreferences        MarketIqMarketPreference[]
   marketIqBriefingSnapshots        MarketIqBriefingSnapshot[]
   marketIqBriefingEmailPreferences MarketIqBriefingEmailPreference[]
+  marketIqDailyViewPreferences     MarketIqDailyViewPreference[]
   marketIqBriefingEmailDeliveries  MarketIqBriefingEmailDelivery[]
   marketIqBriefingEmailRunItems    MarketIqBriefingEmailRunItem[]
   marketIqJourneyEvents            MarketIqJourneyEvent[]
@@ -880,6 +881,24 @@ model MarketIqBriefingEmailPreference {
 
   @@unique([organizationId, userId])
   @@index([organizationId, enabled])
+}
+
+// A viewer's personal Daily Edition explorer defaults. These rows are scoped
+// to one user and market, and do not affect organization report configuration.
+model MarketIqDailyViewPreference {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  marketId       String
+  version        Int      @default(1)
+  filters        String   @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, marketId])
+  @@index([organizationId, marketId])
 }
 
 // Idempotent internal delivery record. This is deliberately separate from

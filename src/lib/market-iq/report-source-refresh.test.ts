@@ -42,9 +42,11 @@ test("the runtime route requires an admin and forces the live authoritative sour
   assert.match(route, /await auth\(\)/);
   assert.match(route, /isAdminUser\(userId\)/);
   assert.match(route, /sourceMode: "live_only"/);
-  assert.match(route, /snapshot\.scope\.seededExample/);
-  assert.match(route, /storeMarketIqReportSourceSnapshot\(snapshot\)/);
-  assert.match(route, /status: "blocked"/);
+  assert.match(route, /beginMarketIqReportSourceRefresh/);
+  assert.match(route, /runMarketIqSourceWithRetry/);
+  assert.match(route, /validateMarketIqLiveReportSnapshot/);
+  assert.match(route, /completeMarketIqReportSourceRefresh/);
+  assert.match(route, /blockMarketIqReportSourceRefresh/);
   assert.match(route, /readiness\?refresh=stored/);
   assert.match(route, /303/);
   assert.doesNotMatch(route, /error\.message/);

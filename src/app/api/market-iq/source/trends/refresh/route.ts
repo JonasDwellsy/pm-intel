@@ -3,20 +3,23 @@ import { auth } from "@clerk/nextjs/server";
 import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { dwellsySourceConfigured } from "@/lib/dwellsy-source/db.server";
-import { marketIqDatabaseConfigured, marketIqPrisma } from "@/lib/market-iq/prisma";
+import { marketIqDatabaseConfigured } from "@/lib/market-iq/prisma";
 import { marketIqReportSourceRefreshEnabled } from "@/lib/market-iq/report-source-refresh";
+import {
+  blockMarketIqReportSourceRefresh,
+  beginMarketIqReportSourceRefresh,
+  completeMarketIqReportSourceRefresh,
+} from "@/lib/market-iq/report-refresh-reliability.server";
+import {
+  recordedMarketIqRefreshFailure,
+  runMarketIqSourceWithRetry,
+  validateMarketIqLiveReportSnapshot,
+  type MarketIqRefreshFailureStage,
+} from "@/lib/market-iq/report-refresh-reliability";
 import { buildClevelandMarketIqReportSnapshot } from "@/lib/market-iq/report/build.server";
-import { storeMarketIqReportSourceSnapshot } from "@/lib/market-iq/report/source-snapshot.server";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
-
-function observationCount(snapshot: Awaited<ReturnType<typeof buildClevelandMarketIqReportSnapshot>>) {
-  return snapshot.marketRead.cells.reduce(
-    (total, cell) => total + cell.series.length,
-    0,
-  );
-}
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -28,36 +31,31 @@ export async function POST(request: Request) {
   }
 
   let refreshId: string | null = null;
+  let failureStage: MarketIqRefreshFailureStage = "coordination";
   try {
-    const refresh = await marketIqPrisma.marketIqSourceRefresh.create({
-      data: {
-        marketId: CLEVELAND_MARKET_ID,
-        sourceKind: "trends",
-        triggerKind: "manual",
-        status: "running",
-        requiredManifest: JSON.stringify([{ marketId: CLEVELAND_MARKET_ID }]),
-        requiredGeographies: 1,
-        startedBy: userId,
-      },
-      select: { id: true },
+    const lease = await beginMarketIqReportSourceRefresh({
+      marketId: CLEVELAND_MARKET_ID,
+      startedBy: userId,
     });
-    refreshId = refresh.id;
-
-    const snapshot = await buildClevelandMarketIqReportSnapshot({ sourceMode: "live_only" });
-    if (snapshot.scope.seededExample) {
-      throw new Error("A seeded report cannot be stored as source evidence.");
+    if (lease.state === "already_running") {
+      return Response.json(
+        { error: "A Market IQ source refresh is already running." },
+        { status: 409, headers: { "Retry-After": "30" } },
+      );
     }
-    const stored = await storeMarketIqReportSourceSnapshot(snapshot);
-    const records = observationCount(snapshot);
-    await marketIqPrisma.marketIqSourceRefresh.update({
-      where: { id: refresh.id },
-      data: {
-        status: "complete",
-        sourceAvailableThrough: stored.sourceAvailableThrough,
-        receivedGeographies: 1,
-        recordCount: records,
-        completedAt: new Date(),
-      },
+    refreshId = lease.refreshId;
+
+    failureStage = "source";
+    const { value: snapshot } = await runMarketIqSourceWithRetry(() =>
+      buildClevelandMarketIqReportSnapshot({ sourceMode: "live_only" })
+    );
+    failureStage = "validation";
+    const validation = validateMarketIqLiveReportSnapshot(snapshot);
+    failureStage = "persistence";
+    await completeMarketIqReportSourceRefresh({
+      refreshId,
+      snapshot,
+      observationCount: validation.observationCount,
     });
     return Response.redirect(
       new URL("/market-iq/internal/readiness?refresh=stored", request.url),
@@ -65,21 +63,17 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     if (refreshId) {
-      await marketIqPrisma.marketIqSourceRefresh.update({
-        where: { id: refreshId },
-        data: {
-          status: "blocked",
-          error: JSON.stringify({
-            name: error instanceof Error ? error.name : "UnknownError",
-            message: "Authoritative Trends refresh failed.",
-          }),
-          completedAt: new Date(),
-        },
+      await blockMarketIqReportSourceRefresh({
+        refreshId,
+        stage: failureStage,
+        error,
       }).catch(() => undefined);
     }
-    console.error("[Market IQ] Authoritative Trends refresh failed", {
-      name: error instanceof Error ? error.name : "UnknownError",
-    });
-    return Response.json({ error: "The authoritative Trends source could not be refreshed." }, { status: 502 });
+    const safeFailure = recordedMarketIqRefreshFailure({ stage: failureStage, error });
+    console.error("[Market IQ] Authoritative Trends refresh failed", safeFailure);
+    return Response.json(
+      { error: "The authoritative Trends source could not be refreshed." },
+      { status: failureStage === "source" || failureStage === "validation" ? 502 : 503 },
+    );
   }
 }
