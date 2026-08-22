@@ -4,11 +4,13 @@ import { notFound, redirect } from "next/navigation";
 import { MarketIqMarketPreparing } from "@/components/market-iq/MarketIqMarketPreparing";
 import { MarketIqMarketSelector } from "@/components/market-iq/MarketIqMarketSelector";
 import { MarketIqDailyEditionArchive, MarketIqDailyEditionMissing } from "@/components/market-iq/report/MarketIqDailyEditionArchive";
+import { MarketIqDailyEditionComparisonPanel } from "@/components/market-iq/report/MarketIqDailyEditionComparison";
 import { MarketIqDailyEvents } from "@/components/market-iq/report/MarketIqDailyEvents";
 import { MarketIqTimeToResolution } from "@/components/market-iq/report/MarketIqTimeToResolution";
 import { listEntitledMarketIqMarkets } from "@/data/market-iq/markets";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
+import { compareMarketIqDailyEditions } from "@/lib/market-iq/daily-edition-comparison";
 import { loadMarketIqDailyEditionArchive } from "@/lib/market-iq/daily-editions.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { MARKET_IQ_MARKET_INTELLIGENCE_ROUTES } from "@/lib/market-iq/navigation";
@@ -99,6 +101,12 @@ export default async function MarketIqDailyPage({
   }
 
   const report = archive.current.value;
+  const comparison = compareMarketIqDailyEditions({
+    current: report.marketActivity,
+    previous: archive.previous
+      ? { availability: archive.previous.value.marketActivity }
+      : null,
+  });
 
   return (
     <main style={{ "--report-primary": "#17324a", "--report-accent": "#c16f36" } as CSSProperties} className="mx-auto w-full max-w-[1500px] px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
@@ -114,12 +122,21 @@ export default async function MarketIqDailyPage({
       />
       <div className="mt-7">
         {report.marketActivity
-          ? <MarketIqDailyEvents availability={report.marketActivity} marketName={activeMarket.shortLabel} timeZone={activeMarket.timeZone} headingLevel="h1" />
-          : <section className="rounded-2xl border border-amber-200 bg-amber-50 px-6 py-7" aria-label={`Daily ${activeMarket.shortLabel} listing events unavailable`}>
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-800">Daily listing events</p>
-            <h1 className="mt-2 text-2xl font-semibold text-[var(--report-primary)]">No events were observed for the period.</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">This saved market read does not contain a listing-event availability record. No monthly trend, seeded example, freshness time, or other substitute is shown.</p>
-          </section>}
+          ? <MarketIqDailyEvents
+            availability={report.marketActivity}
+            marketName={activeMarket.shortLabel}
+            timeZone={activeMarket.timeZone}
+            headingLevel="h1"
+            comparison={<MarketIqDailyEditionComparisonPanel comparison={comparison} timeZone={activeMarket.timeZone} />}
+          />
+          : <>
+            <section className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-7" aria-label={`Daily ${activeMarket.shortLabel} listing events unavailable`}>
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-800">Daily listing events</p>
+              <h1 className="mt-2 text-2xl font-semibold text-[var(--report-primary)]">No events were observed for the period.</h1>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">This saved market read does not contain a listing-event availability record. No monthly trend, seeded example, freshness time, or other substitute is shown.</p>
+            </section>
+            <MarketIqDailyEditionComparisonPanel comparison={comparison} timeZone={activeMarket.timeZone} />
+          </>}
       </div>
       {report.timeToResolution && <div className="mt-8"><MarketIqTimeToResolution availability={report.timeToResolution} marketName={activeMarket.shortLabel} timeZone={activeMarket.timeZone} /></div>}
     </main>

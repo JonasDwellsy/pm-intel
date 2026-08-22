@@ -93,9 +93,15 @@ test("keeps the canonical Daily Edition usable at a mobile viewport", async ({ p
 test("moves through persisted daily editions without reconstructing a missing edition", async ({ page }) => {
   await signIn(page);
 
+  await expect(page.getByTestId("edition-comparison")).toContainText("Observed flow, side by side");
+  await expect(page.getByTestId("edition-comparison")).toContainText("New listings46 +6");
+  await expect(page.getByTestId("edition-comparison")).toContainText("not a rent trend or an inference about market direction");
+
   await page.getByRole("link", { name: "← Previous day" }).click();
   await expect(page).toHaveURL(/edition=prior/);
   await expect(page.getByTestId("edition-state")).toHaveText("Archived edition · Aug 20");
+  await expect(page.getByTestId("edition-comparison")).toContainText("No preceding saved edition yet");
+  await expect(page.getByTestId("edition-comparison")).toContainText("Nothing has been reconstructed to fill the gap");
   await page.getByRole("link", { name: "Next day →" }).click();
   await expect(page).toHaveURL(/\/market-iq\/daily\?market=cleveland-oh$/);
   await expect(page.getByTestId("edition-state")).toHaveText("Latest saved edition");
