@@ -6,6 +6,12 @@ import type { MarketIqListingEvent, MarketIqMarketActivityAvailability } from "@
 
 const PRIMARY_EVENT_LIMIT = 4;
 const SECONDARY_EVENT_LIMIT = 3;
+const DAILY_EVENT_SECTION_IDS = {
+  newListings: "daily-new-listings",
+  offMarket: "daily-off-market",
+  rentMoves: "daily-rent-moves",
+  concessions: "daily-concessions",
+} as const;
 
 type EventGroup = MarketIqDailyEventHeadline[];
 
@@ -188,6 +194,7 @@ function EventRow({ group, timeZone }: { group: EventGroup; timeZone: string }) 
 }
 
 function EventSection({
+  id,
   title,
   kicker,
   description,
@@ -198,6 +205,7 @@ function EventSection({
   primary = false,
   limit = SECONDARY_EVENT_LIMIT,
 }: {
+  id: string;
   title: string;
   kicker: string;
   description: string;
@@ -212,7 +220,7 @@ function EventSection({
   const visible = groups.slice(0, limit);
   const remaining = groups.slice(limit);
   const recordsArePartial = availableRecords < observedTotal;
-  return <section className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.04)] ${primary ? "p-6 sm:p-7" : "p-5"}`} aria-label={title}>
+  return <section id={id} tabIndex={-1} className={`scroll-mt-20 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.04)] outline-none focus-visible:ring-2 focus-visible:ring-teal-600 ${primary ? "p-6 sm:p-7" : "p-5"}`} aria-label={title}>
     <header className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
       <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--report-accent)]">{kicker}</p><h3 className={`${primary ? "mt-1 text-2xl" : "mt-1 text-xl"} font-semibold tracking-tight text-[var(--report-primary)]`}>{title}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{description}</p></div>
       <span aria-label={recordsArePartial ? `${availableRecords} ${availableRecords === 1 ? "record" : "records"} available for ${observedTotal} observed events` : `${observedTotal} observed events`} className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold tabular-nums text-slate-600">{recordsArePartial ? `${availableRecords} of ${observedTotal}` : observedTotal}</span>
@@ -233,10 +241,10 @@ function EventSection({
 
 function ObservedFlow({ activity }: { activity: Extract<MarketIqMarketActivityAvailability, { state: "available" }>["activity"] }) {
   const metrics = [
-    { label: "New listings", value: activity.newListings24h, detail: "Entered the market", accent: "bg-teal-400" },
-    { label: "Off market", value: activity.delistings24h, detail: "Leased or withdrawn", accent: "bg-orange-400" },
-    { label: "Rent moves", value: activity.confirmedPriceChanges24h, detail: "Confirmed changes", accent: "bg-sky-400" },
-    { label: "Concessions", value: activity.advertisedConcessions24h, detail: "Advertised incentives", accent: "bg-amber-300" },
+    { label: "New listings", value: activity.newListings24h, detail: "Entered the market", accent: "bg-teal-400", href: `#${DAILY_EVENT_SECTION_IDS.newListings}` },
+    { label: "Off market", value: activity.delistings24h, detail: "Leased or withdrawn", accent: "bg-orange-400", href: `#${DAILY_EVENT_SECTION_IDS.offMarket}` },
+    { label: "Rent moves", value: activity.confirmedPriceChanges24h, detail: "Confirmed changes", accent: "bg-sky-400", href: `#${DAILY_EVENT_SECTION_IDS.rentMoves}` },
+    { label: "Concessions", value: activity.advertisedConcessions24h, detail: "Advertised incentives", accent: "bg-amber-300", href: `#${DAILY_EVENT_SECTION_IDS.concessions}` },
   ];
 
   if (metrics.some((metric) => !Number.isFinite(metric.value))) return null;
@@ -246,14 +254,14 @@ function ObservedFlow({ activity }: { activity: Extract<MarketIqMarketActivityAv
       <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/50">24-hour market tape</p><h3 className="mt-1 text-xl font-semibold">Today at a glance</h3></div>
       <p className="text-xs text-white/55">Observed events, not estimates</p>
     </div>
-    <dl className="grid sm:grid-cols-2 xl:grid-cols-4">
-      {metrics.map((metric) => <div key={metric.label} className="relative border-b border-white/10 px-6 py-6 sm:border-r sm:[&:nth-child(2)]:border-r-0 xl:border-b-0 xl:[&:nth-child(2)]:border-r xl:last:border-r-0">
+    <nav aria-label="Market tape sections" className="grid sm:grid-cols-2 xl:grid-cols-4">
+      {metrics.map((metric) => <a key={metric.label} href={metric.href} aria-label={`View ${metric.label} section: ${metric.value.toLocaleString("en-US")} observed`} className="group relative border-b border-white/10 px-6 py-6 outline-none transition-colors hover:bg-white/[0.06] focus-visible:bg-white/[0.08] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 sm:border-r sm:[&:nth-child(2)]:border-r-0 xl:border-b-0 xl:[&:nth-child(2)]:border-r xl:last:border-r-0">
         <span aria-hidden="true" className={`absolute left-6 top-0 h-1 w-10 rounded-full ${metric.accent}`} />
-        <dt className="text-xs font-semibold text-white/65">{metric.label}</dt>
-        <dd className="mt-1 text-4xl font-semibold tracking-tight tabular-nums">{metric.value.toLocaleString("en-US")}</dd>
-        <p className="mt-1 text-[11px] text-white/45">{metric.detail}</p>
-      </div>)}
-    </dl>
+        <span className="flex items-center justify-between gap-3"><span className="text-xs font-semibold text-white/65 group-hover:text-white/80">{metric.label}</span><span aria-hidden="true" className="text-[10px] font-bold uppercase tracking-wider text-white/35 transition-colors group-hover:text-white/70">View ↓</span></span>
+        <strong className="mt-1 block text-4xl font-semibold tracking-tight tabular-nums">{metric.value.toLocaleString("en-US")}</strong>
+        <span className="mt-1 block text-[11px] text-white/45 group-hover:text-white/60">{metric.detail}</span>
+      </a>)}
+    </nav>
     <p className="border-t border-white/10 px-6 py-3 text-[11px] leading-5 text-white/45">Age-based stale deactivations are excluded from off-market totals. Standing active inventory and active-listing rent summaries remain withheld pending source reconciliation.</p>
   </section>;
 }
@@ -340,13 +348,13 @@ export function MarketIqDailyEvents({
     <ObservedFlow activity={availability.activity} />
     {comparison}
     <div className="grid gap-5 lg:grid-cols-[1.08fr_0.92fr] lg:items-start">
-      <EventSection title="Notable rent moves" kicker="Asking-rent changes" description="Largest confirmed dollar movements, with the most recent event breaking ties." emptyMessage="No confirmed asking-rent changes were observed for the period." groups={rentChangeGroups(rentChanges)} observedTotal={availability.activity.confirmedPriceChanges24h} timeZone={timeZone} primary limit={PRIMARY_EVENT_LIMIT} />
-      <EventSection title="New to market" kicker="Latest arrivals" description="Fresh listings presented as property facts rather than repeated headlines." emptyMessage="No new listings were observed for the period." groups={singleEventGroups(newListings)} observedTotal={availability.activity.newListings24h} timeZone={timeZone} primary limit={PRIMARY_EVENT_LIMIT} />
+      <EventSection id={DAILY_EVENT_SECTION_IDS.rentMoves} title="Notable rent moves" kicker="Asking-rent changes" description="Largest confirmed dollar movements, with the most recent event breaking ties." emptyMessage="No confirmed asking-rent changes were observed for the period." groups={rentChangeGroups(rentChanges)} observedTotal={availability.activity.confirmedPriceChanges24h} timeZone={timeZone} primary limit={PRIMARY_EVENT_LIMIT} />
+      <EventSection id={DAILY_EVENT_SECTION_IDS.newListings} title="New to market" kicker="Latest arrivals" description="Fresh listings presented as property facts rather than repeated headlines." emptyMessage="No new listings were observed for the period." groups={singleEventGroups(newListings)} observedTotal={availability.activity.newListings24h} timeZone={timeZone} primary limit={PRIMARY_EVENT_LIMIT} />
     </div>
     <div className="mt-5 grid gap-5 lg:grid-cols-3 lg:items-start">
-      <EventSection title="Off the market" kicker="Observed departures" description="Leased or withdrawn, undetermined." emptyMessage="No listings were observed leaving the market for the period." groups={singleEventGroups(delistings)} observedTotal={availability.activity.delistings24h} timeZone={timeZone} />
-      <EventSection title="The aging watch" kicker="Calendar crossings" description="Live age thresholds, not days on market." emptyMessage="No active listings crossed an aging threshold for the period." groups={singleEventGroups(agingWatch)} observedTotal={availability.activity.agingThresholds24h} timeZone={timeZone} />
-      <EventSection title="Concessions" kicker="Advertised incentives" description="Listing language, advertised and not verified." emptyMessage="No concession language was observed in new-listing text for the period." groups={singleEventGroups(concessions)} observedTotal={availability.activity.advertisedConcessions24h} timeZone={timeZone} />
+      <EventSection id={DAILY_EVENT_SECTION_IDS.offMarket} title="Off the market" kicker="Observed departures" description="Leased or withdrawn, undetermined." emptyMessage="No listings were observed leaving the market for the period." groups={singleEventGroups(delistings)} observedTotal={availability.activity.delistings24h} timeZone={timeZone} />
+      <EventSection id="daily-aging-watch" title="The aging watch" kicker="Calendar crossings" description="Live age thresholds, not days on market." emptyMessage="No active listings crossed an aging threshold for the period." groups={singleEventGroups(agingWatch)} observedTotal={availability.activity.agingThresholds24h} timeZone={timeZone} />
+      <EventSection id={DAILY_EVENT_SECTION_IDS.concessions} title="Concessions" kicker="Advertised incentives" description="Listing language, advertised and not verified." emptyMessage="No concession language was observed in new-listing text for the period." groups={singleEventGroups(concessions)} observedTotal={availability.activity.advertisedConcessions24h} timeZone={timeZone} />
     </div>
     <MarketIqDailyEventExplorer activity={availability.activity} marketId={marketId} marketName={marketName} timeZone={timeZone} initialSavedFilters={initialExplorerFilters} savePreference={saveExplorerPreference} clearPreference={clearExplorerPreference} />
   </section>;

@@ -33,6 +33,15 @@ describe("MarketIqDailyEvents", () => {
     expect(screen.getByRole("region", { name: "The aging watch" })).not.toBeNull();
     expect(screen.getByRole("region", { name: "Concessions" })).not.toBeNull();
     expect(screen.getByRole("region", { name: "Observed 24-hour flow" })).not.toBeNull();
+    const tapeLinks = within(screen.getByRole("navigation", { name: "Market tape sections" }));
+    expect(tapeLinks.getByRole("link", { name: /View New listings section/ }).getAttribute("href")).toBe("#daily-new-listings");
+    expect(tapeLinks.getByRole("link", { name: /View Off market section/ }).getAttribute("href")).toBe("#daily-off-market");
+    expect(tapeLinks.getByRole("link", { name: /View Rent moves section/ }).getAttribute("href")).toBe("#daily-rent-moves");
+    expect(tapeLinks.getByRole("link", { name: /View Concessions section/ }).getAttribute("href")).toBe("#daily-concessions");
+    expect(screen.getByRole("region", { name: "New to market" }).id).toBe("daily-new-listings");
+    expect(screen.getByRole("region", { name: "Off the market" }).id).toBe("daily-off-market");
+    expect(screen.getByRole("region", { name: "Notable rent moves" }).id).toBe("daily-rent-moves");
+    expect(screen.getByRole("region", { name: "Concessions" }).id).toBe("daily-concessions");
     expect(screen.getByText("11")).not.toBeNull();
     expect(screen.getByText("9")).not.toBeNull();
     expect(screen.getByText("7")).not.toBeNull();
