@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { MarketIqDailyEventExplorer } from "@/components/market-iq/report/MarketIqDailyEventExplorer";
 import { buildDailyEventHeadlines, type MarketIqDailyEventHeadline } from "@/lib/market-iq/daily-events";
 import type { MarketIqListingEvent, MarketIqMarketActivityAvailability } from "@/lib/market-iq/listing-events";
 
@@ -221,12 +222,11 @@ function EventSection({
         ? visible.map((group) => <EventRow key={group.map((headline) => headline.id).join(":")} group={group} timeZone={timeZone} />)
         : <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm leading-6 text-slate-500">{observedTotal > 0 ? `${observedTotal.toLocaleString("en-US")} events were observed, but their individual records are not available in this saved edition.` : emptyMessage}</p>}
     </div>
-    {remaining.length > 0 && <details className="group mt-4 border-t border-slate-100 pt-4">
-      <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg px-2 py-2 text-sm font-semibold text-teal-700 outline-none transition-colors hover:bg-teal-50 focus-visible:ring-2 focus-visible:ring-teal-600">
-        <span>{recordsArePartial ? `View ${availableRecords} available records` : `View all ${availableRecords}`}</span><span aria-hidden="true" className="text-base transition-transform group-open:rotate-180">↓</span>
-      </summary>
-      <div className="mt-3 border-t border-slate-100 pt-4">{remaining.map((group) => <EventRow key={group.map((headline) => headline.id).join(":")} group={group} timeZone={timeZone} />)}</div>
-    </details>}
+    {remaining.length > 0 && <div className="mt-4 border-t border-slate-100 pt-4">
+      <a href="#daily-event-explorer" className="flex items-center justify-between rounded-lg px-2 py-2 text-sm font-semibold text-teal-700 outline-none transition-colors hover:bg-teal-50 focus-visible:ring-2 focus-visible:ring-teal-600">
+        <span>Explore {availableRecords.toLocaleString("en-US")} available records</span><span aria-hidden="true" className="text-base">↓</span>
+      </a>
+    </div>}
   </section>;
 }
 
@@ -339,5 +339,6 @@ export function MarketIqDailyEvents({
       <EventSection title="The aging watch" kicker="Calendar crossings" description="Live age thresholds, not days on market." emptyMessage="No active listings crossed an aging threshold for the period." groups={singleEventGroups(agingWatch)} observedTotal={availability.activity.agingThresholds24h} timeZone={timeZone} />
       <EventSection title="Concessions" kicker="Advertised incentives" description="Listing language, advertised and not verified." emptyMessage="No concession language was observed in new-listing text for the period." groups={singleEventGroups(concessions)} observedTotal={availability.activity.advertisedConcessions24h} timeZone={timeZone} />
     </div>
+    <MarketIqDailyEventExplorer activity={availability.activity} timeZone={timeZone} />
   </section>;
 }

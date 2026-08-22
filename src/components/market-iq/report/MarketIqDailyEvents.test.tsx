@@ -40,13 +40,13 @@ describe("MarketIqDailyEvents", () => {
     expect(screen.getByText(/Age-based stale deactivations are excluded from off-market totals/)).not.toBeNull();
     expect(screen.getByText(/Standing active inventory and active-listing rent summaries remain withheld/)).not.toBeNull();
     expect(screen.getByText(/Leased or withdrawn, undetermined/)).not.toBeNull();
-    expect(screen.getByText("Cleveland · 100 Main St")).not.toBeNull();
-    expect(screen.getByText("1 BR · Apartment")).not.toBeNull();
-    expect(screen.getByText("−$100 · −5.6%")).not.toBeNull();
-    expect(screen.getByText("19 days listed")).not.toBeNull();
+    expect(within(screen.getByRole("region", { name: "New to market" })).getByText("Cleveland · 100 Main St")).not.toBeNull();
+    expect(within(screen.getByRole("region", { name: "New to market" })).getByText("1 BR · Apartment")).not.toBeNull();
+    expect(within(screen.getByRole("region", { name: "Notable rent moves" })).getByText("−$100 · −5.6%")).not.toBeNull();
+    expect(within(screen.getByRole("region", { name: "Off the market" })).getByText("19 days listed")).not.toBeNull();
     expect(screen.getByText("30")).not.toBeNull();
-    expect(screen.getByText(/Apply today and receive one month free/)).not.toBeNull();
-    expect(screen.getByText(/Advertised, not verified/)).not.toBeNull();
+    expect(within(screen.getByRole("region", { name: "Concessions" })).getByText(/Apply today and receive one month free/)).not.toBeNull();
+    expect(within(screen.getByRole("region", { name: "Concessions" })).getByText(/Advertised, not verified/)).not.toBeNull();
     expect(screen.getByLabelText("1 record available for 11 observed events")).not.toBeNull();
     expect(screen.getAllByLabelText(/^Observed Aug/)).toHaveLength(4);
     expect(screen.getByLabelText(/^Crossed Aug/)).not.toBeNull();
@@ -64,7 +64,7 @@ describe("MarketIqDailyEvents", () => {
     expect(rows[1]?.textContent).toContain("−$25");
   });
 
-  it("offers a native view-all disclosure when a section exceeds its editorial limit", () => {
+  it("points longer editorial sections to the unified event explorer", () => {
     const events = Array.from({ length: 6 }, (_, index) => ({
       id: `new:${index}`,
       eventType: "new_listing" as const,
@@ -80,8 +80,9 @@ describe("MarketIqDailyEvents", () => {
     render(<MarketIqDailyEvents availability={{ ...available, activity: { ...available.activity, newListings24h: events.length, events } }} marketName="Cleveland" />);
 
     const section = screen.getByRole("region", { name: "New to market" });
-    expect(within(section).getByText("View all 6")).not.toBeNull();
-    expect(section.querySelector("details")).not.toBeNull();
+    const link = within(section).getByRole("link", { name: /Explore 6 available records/ });
+    expect(link.getAttribute("href")).toBe("#daily-event-explorer");
+    expect(section.querySelector("details")).toBeNull();
   });
 
   it("states when the saved edition retains fewer records than the exact observed total", () => {
@@ -102,8 +103,7 @@ describe("MarketIqDailyEvents", () => {
     const section = screen.getByRole("region", { name: "New to market" });
     expect(within(section).getByLabelText("6 records available for 11 observed events")).not.toBeNull();
     expect(within(section).getByText("Individual records are available for 6 of 11 observed events in this saved edition.")).not.toBeNull();
-    expect(within(section).getByText("View 6 available records")).not.toBeNull();
-    expect(within(section).queryByText("View all 6")).toBeNull();
+    expect(within(section).getByRole("link", { name: /Explore 6 available records/ })).not.toBeNull();
   });
 
   it("groups indistinguishable rent changes while preserving links to both source records", () => {
