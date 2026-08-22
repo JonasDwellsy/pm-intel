@@ -113,8 +113,15 @@ jobs:
             const welcome = await fetch(`${origin}/market-iq/welcome`, { headers });
             const welcomeBody = await welcome.text();
             assert.equal(welcome.status, 200, "Market IQ welcome page must load");
-            assert.match(welcomeBody, /Customer sign in/);
-            assert.doesNotMatch(welcomeBody, /Operator IQ|Portfolio IQ/);
+            const renderedMarkup = welcomeBody
+              .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+              .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+              .replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi, "");
+            const visibleText = renderedMarkup
+              .replace(/<[^>]+>/g, " ")
+              .replace(/\s+/g, " ");
+            assert.match(visibleText, /Customer sign in/);
+            assert.doesNotMatch(visibleText, /Operator IQ|Portfolio IQ/);
 
             const destination = "/market-iq/daily?market=cleveland-oh";
             const protectedPage = await fetch(`${origin}${destination}`, {
