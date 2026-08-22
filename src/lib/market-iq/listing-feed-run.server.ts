@@ -5,13 +5,13 @@ import {
   classifyListingFeedChanges,
   listingEventFingerprint,
   listingFeedEventCounts,
+  MARKET_IQ_LISTING_FEED_MAX_SOURCE_AGE_MS,
+  MARKET_IQ_LISTING_FEED_MINIMUM_RECORDS,
 } from "@/lib/market-iq/listing-feed";
 import { summarizeDailyActiveListingSupply } from "@/lib/market-iq/listing-supply";
 import { marketIqPrisma } from "@/lib/market-iq/prisma";
 
-const HEALTHY_BASELINE_MINIMUM = 250;
 const MINIMUM_PRIOR_COVERAGE = 0.7;
-const MAXIMUM_SOURCE_AGE_MS = 48 * 60 * 60 * 1_000;
 const COMPLETE_STATUSES = ["complete", "baseline_complete"];
 
 export async function runClevelandListingFeed(input: {
@@ -33,7 +33,7 @@ export async function runClevelandListingFeed(input: {
       include: { snapshots: true },
     });
     const source = await loadClevelandActiveListings();
-    if (Date.now() - source.sourceAvailableThrough.getTime() > MAXIMUM_SOURCE_AGE_MS) {
+    if (Date.now() - source.sourceAvailableThrough.getTime() > MARKET_IQ_LISTING_FEED_MAX_SOURCE_AGE_MS) {
       throw new Error("The Dwellsy active-listing snapshot is more than 48 hours old; synchronization stopped.");
     }
     const uniqueListingIds = new Set(source.listings.map((listing) => listing.sourceListingId));
@@ -41,8 +41,8 @@ export async function runClevelandListingFeed(input: {
       throw new Error("Dwellsy returned duplicate active listing IDs; snapshot rejected.");
     }
     const requiredCount = previousRun
-      ? Math.max(HEALTHY_BASELINE_MINIMUM, Math.floor(previousRun.recordCount * MINIMUM_PRIOR_COVERAGE))
-      : HEALTHY_BASELINE_MINIMUM;
+      ? Math.max(MARKET_IQ_LISTING_FEED_MINIMUM_RECORDS, Math.floor(previousRun.recordCount * MINIMUM_PRIOR_COVERAGE))
+      : MARKET_IQ_LISTING_FEED_MINIMUM_RECORDS;
     if (source.listings.length < requiredCount) {
       throw new Error(
         `Dwellsy returned ${source.listings.length} listings; at least ${requiredCount} are required before deactivation events can be trusted.`

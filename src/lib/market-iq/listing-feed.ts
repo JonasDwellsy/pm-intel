@@ -8,6 +8,9 @@ export type ListingFeedRecord = {
   sourceUpdatedAt: Date | null;
 };
 
+export const MARKET_IQ_LISTING_FEED_MINIMUM_RECORDS = 250;
+export const MARKET_IQ_LISTING_FEED_MAX_SOURCE_AGE_MS = 48 * 60 * 60 * 1_000;
+
 export type ListingFeedEventType =
   | "new"
   | "relisted"
