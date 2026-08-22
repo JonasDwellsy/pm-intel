@@ -1,9 +1,15 @@
 import { timingSafeEqual } from "node:crypto";
 import { auth } from "@clerk/nextjs/server";
+import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { dwellsySourceConfigured } from "@/lib/dwellsy-source/db.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { runClevelandListingFeed } from "@/lib/market-iq/listing-feed-run.server";
+import {
+  MarketIqListingFeedAlreadyRunningError,
+  MarketIqListingFeedOperationFailedError,
+  scheduledMarketIqListingFeedOperationKey,
+} from "@/lib/market-iq/listing-feed-reliability";
 import { marketIqDatabaseConfigured } from "@/lib/market-iq/prisma";
 import { marketIqReportSourceRefreshEnabled } from "@/lib/market-iq/report-source-refresh";
 
@@ -38,15 +44,34 @@ export async function POST(request: Request) {
     return Response.json({ error: "The Market IQ listing feed is not fully configured." }, { status: 503 });
   }
   try {
+    const triggerKind = tokenAuthorized && !adminAuthorized ? "scheduled" : "manual";
     const result = await runClevelandListingFeed({
-      triggerKind: "manual",
-      startedBy: adminAuthorized ? userId! : "import-token",
+      triggerKind,
+      startedBy: adminAuthorized ? userId! : "listing-feed-automation",
+      operationKey: triggerKind === "scheduled"
+        ? scheduledMarketIqListingFeedOperationKey({ marketId: CLEVELAND_MARKET_ID, now: new Date() })
+        : undefined,
     });
     if (adminAuthorized && browserForm) {
       return Response.redirect(new URL("/market-iq/internal/readiness?supply=stored", request.url), 303);
     }
     return Response.json(result);
   } catch (error) {
+    if (error instanceof MarketIqListingFeedAlreadyRunningError) {
+      if (adminAuthorized && browserForm) {
+        return Response.redirect(new URL("/market-iq/internal/readiness?supply=running", request.url), 303);
+      }
+      return Response.json(
+        { error: error.message, status: "already_running" },
+        { status: 409, headers: { "Retry-After": "30" } },
+      );
+    }
+    if (error instanceof MarketIqListingFeedOperationFailedError) {
+      return Response.json(
+        { error: error.message, status: "failed" },
+        { status: 409 },
+      );
+    }
     console.error("[market-iq/source/dwellsy/refresh] failed", error);
     if (adminAuthorized && browserForm) {
       return Response.redirect(new URL("/market-iq/internal/readiness?supply=blocked", request.url), 303);

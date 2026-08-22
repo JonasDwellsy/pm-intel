@@ -193,6 +193,7 @@ model MarketIqListing {
 model MarketIqListingFeedRun {
   id                     String    @id @default(cuid())
   marketId               String
+  operationKey           String?   @unique
   sourceKind             String    @default("dwellsy_production")
   triggerKind            String    @default("manual")
   status                 String    @default("loading")
