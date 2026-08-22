@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
+import type { Prisma } from "@/generated/market-iq";
 import { marketIqPrisma } from "@/lib/market-iq/prisma";
 import { parseMarketIqReportSnapshot, type MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
 
@@ -56,11 +57,16 @@ export function summarizeMarketIqSnapshot(snapshot: MarketIqReportSnapshot): Mar
   };
 }
 
-export async function storeMarketIqMarketSummary(snapshot: MarketIqReportSnapshot) {
+type MarketIqSummaryPersistenceClient = Pick<Prisma.TransactionClient, "marketIqMarketSummary">;
+
+export async function storeMarketIqMarketSummary(
+  snapshot: MarketIqReportSnapshot,
+  client: MarketIqSummaryPersistenceClient = marketIqPrisma,
+) {
   const summary = summarizeMarketIqSnapshot(snapshot);
   const serialized = JSON.stringify(summary);
   const checksum = createHash("sha256").update(serialized).digest("hex");
-  return marketIqPrisma.marketIqMarketSummary.upsert({
+  return client.marketIqMarketSummary.upsert({
     where: { marketId: summary.marketId },
     create: {
       marketId: summary.marketId,

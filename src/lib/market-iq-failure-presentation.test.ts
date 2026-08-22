@@ -50,6 +50,9 @@ test("internal readiness reads recorded evidence and never opens the Dwellsy sou
   assert.doesNotMatch(page, /build\.server|dwellsy-source|loadCachedClevelandMarketIqReportSnapshot/);
   assert.match(loader, /marketIqReportSourceSnapshot\.findFirst/);
   assert.match(loader, /marketIqSourceRefresh\.findFirst/);
+  assert.match(page, /latest refresh did not complete/);
+  assert.match(page, /Failure stage/);
+  assert.match(page, /category/);
   assert.doesNotMatch(loader, /dwellsy-source|loadDwellsy|DWELLSY_DATABASE_URL[^?]*\)/);
   assert.doesNotMatch(`${page}\n${loader}`, /process\.env\[[^\]]+\][^\n]*(detail|return)|password|connection string/i);
 });
