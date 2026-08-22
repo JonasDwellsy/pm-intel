@@ -9,6 +9,7 @@ import {
 } from "@/lib/market-iq/report/report";
 import type {
   MarketIqAgingThresholdDays,
+  MarketIqLeaseUpAlert,
   MarketIqListingEvent,
   MarketIqMarketActivity,
   MarketIqMarketActivityAvailability,
@@ -20,6 +21,11 @@ type EventRow = {
   event_id: string;
   event_type: "new_listing" | "price_change" | "delisting" | "aging_threshold" | "concession";
   property_id: string | number;
+  property_name: string | null;
+  property_manager_name: string | null;
+  latitude: string | number | null;
+  longitude: string | number | null;
+  image_url: string | null;
   address_1: string | null;
   address_2: string | null;
   address_3: string | null;
@@ -33,6 +39,24 @@ type EventRow = {
   observed_at: Date | string;
   media: unknown;
   concession_text: string | null;
+};
+
+type LeaseUpRow = {
+  event_id: string;
+  property_id: string | number;
+  property_name: string | null;
+  property_manager_name: string | null;
+  address_1: string | null;
+  address_2: string | null;
+  address_3: string | null;
+  city: string | null;
+  postal_code: string | null;
+  new_listing_count: string | number;
+  total_units: string | number | null;
+  observed_at: Date | string;
+  latitude: string | number | null;
+  longitude: string | number | null;
+  media: unknown;
 };
 
 type CountRow = {
@@ -88,6 +112,11 @@ const ACTIVITY_SQL = `
     SELECT CONCAT('new:', listing.listing_id::text) AS event_id,
            'new_listing'::text AS event_type,
            listing.property_id,
+           COALESCE(NULLIF(BTRIM(parent.property_name), ''), NULLIF(BTRIM(parent.address_1), '')) AS property_name,
+           NULLIF(BTRIM(company.company_name_displayed), '') AS property_manager_name,
+           listing.latitude,
+           listing.longitude,
+           NULL::text AS image_url,
            listing.address_1,
            listing.address_2,
            listing.address_3,
@@ -102,6 +131,8 @@ const ACTIVITY_SQL = `
            listing.media,
            NULL::text AS concession_text
     FROM dwellsy_prod.active_listing_table listing
+    LEFT JOIN dwellsy_prod.property_table parent ON parent.id = listing.parent_property_id
+    LEFT JOIN dwellsy_prod.company_table company ON company.id = COALESCE(listing.company_id, parent.company_id)
     WHERE listing.msa_code = $1::bigint
       AND listing.active_listing_status = 'active'
       AND listing.record_status = 'active'
@@ -119,6 +150,11 @@ const ACTIVITY_SQL = `
     SELECT CONCAT('concession:', listing.listing_id::text) AS event_id,
            'concession'::text AS event_type,
            listing.property_id,
+           COALESCE(NULLIF(BTRIM(parent.property_name), ''), NULLIF(BTRIM(parent.address_1), '')) AS property_name,
+           NULLIF(BTRIM(company.company_name_displayed), '') AS property_manager_name,
+           listing.latitude,
+           listing.longitude,
+           NULL::text AS image_url,
            listing.address_1,
            listing.address_2,
            listing.address_3,
@@ -134,6 +170,8 @@ const ACTIVITY_SQL = `
            CONCAT_WS(' ', canonical.listing_title, canonical.listing_short_text, canonical.listing_long_text) AS concession_text
     FROM dwellsy_prod.active_listing_table listing
     JOIN dwellsy_prod.property_listing_table canonical ON canonical.id = listing.listing_id
+    LEFT JOIN dwellsy_prod.property_table parent ON parent.id = listing.parent_property_id
+    LEFT JOIN dwellsy_prod.company_table company ON company.id = COALESCE(listing.company_id, parent.company_id)
     WHERE listing.msa_code = $1::bigint
       AND listing.active_listing_status = 'active'
       AND listing.record_status = 'active'
@@ -153,6 +191,11 @@ const ACTIVITY_SQL = `
     SELECT CONCAT('price:', price.id::text) AS event_id,
            'price_change'::text AS event_type,
            listing.property_id,
+           COALESCE(NULLIF(BTRIM(parent.property_name), ''), NULLIF(BTRIM(parent.address_1), '')) AS property_name,
+           NULLIF(BTRIM(company.company_name_displayed), '') AS property_manager_name,
+           listing.latitude,
+           listing.longitude,
+           NULL::text AS image_url,
            listing.address_1,
            listing.address_2,
            listing.address_3,
@@ -168,6 +211,8 @@ const ACTIVITY_SQL = `
            NULL::text AS concession_text
     FROM recent_price_logs price
     JOIN dwellsy_prod.active_listing_table listing ON listing.listing_id = price.listing_id
+    LEFT JOIN dwellsy_prod.property_table parent ON parent.id = listing.parent_property_id
+    LEFT JOIN dwellsy_prod.company_table company ON company.id = COALESCE(listing.company_id, parent.company_id)
     WHERE listing.msa_code = $1::bigint
       AND listing.active_listing_status = 'active'
       AND listing.record_status = 'active'
@@ -184,6 +229,11 @@ const ACTIVITY_SQL = `
     SELECT CONCAT('aging:', listing.listing_id::text, ':', threshold.days::text) AS event_id,
            'aging_threshold'::text AS event_type,
            listing.property_id,
+           COALESCE(NULLIF(BTRIM(parent.property_name), ''), NULLIF(BTRIM(parent.address_1), '')) AS property_name,
+           NULLIF(BTRIM(company.company_name_displayed), '') AS property_manager_name,
+           listing.latitude,
+           listing.longitude,
+           NULL::text AS image_url,
            listing.address_1,
            listing.address_2,
            listing.address_3,
@@ -199,6 +249,8 @@ const ACTIVITY_SQL = `
            NULL::text AS concession_text
     FROM dwellsy_prod.active_listing_table listing
     CROSS JOIN (VALUES (30), (60), (90)) threshold(days)
+    LEFT JOIN dwellsy_prod.property_table parent ON parent.id = listing.parent_property_id
+    LEFT JOIN dwellsy_prod.company_table company ON company.id = COALESCE(listing.company_id, parent.company_id)
     WHERE listing.msa_code = $1::bigint
       AND listing.active_listing_status = 'active'
       AND listing.record_status = 'active'
@@ -217,6 +269,11 @@ const ACTIVITY_SQL = `
     SELECT CONCAT('delisting:', listing.id::text) AS event_id,
            'delisting'::text AS event_type,
            listing.property_id,
+           COALESCE(NULLIF(BTRIM(parent.property_name), ''), NULLIF(BTRIM(parent.address_1), '')) AS property_name,
+           NULLIF(BTRIM(company.company_name_displayed), '') AS property_manager_name,
+           property.latitude,
+           property.longitude,
+           image.media_url AS image_url,
            property.address_1,
            property.address_2,
            property.address_3,
@@ -232,6 +289,19 @@ const ACTIVITY_SQL = `
            NULL::text AS concession_text
     FROM dwellsy_prod.property_listing_table listing
     JOIN dwellsy_prod.property_table property ON property.id = listing.property_id
+    LEFT JOIN dwellsy_prod.property_table parent ON parent.id = COALESCE(property.parent_property_id, property.id)
+    LEFT JOIN dwellsy_prod.company_table company ON company.id = COALESCE(property.company_id, parent.company_id)
+    LEFT JOIN LATERAL (
+      SELECT media.media_url
+      FROM dwellsy_prod.property_media_table media
+      WHERE media.property_id IN (property.id, parent.id)
+        AND media.property_media_status::text = 'active'
+        AND media.record_status::text = 'active'
+        AND media.media_type::text = 'image'
+        AND NULLIF(BTRIM(media.media_url), '') IS NOT NULL
+      ORDER BY CASE WHEN media.property_id = property.id THEN 0 ELSE 1 END, media.id
+      LIMIT 1
+    ) image ON true
     WHERE property.msa_code = $1::bigint
       AND property.property_category IN ('Apartment', 'House')
       AND property.bedrooms IS NOT NULL
@@ -252,7 +322,8 @@ const ACTIVITY_SQL = `
       AND NULLIF(BTRIM(property.address_city), '') IS NOT NULL
       AND NULLIF(BTRIM(property.address_zip), '') IS NOT NULL
   )
-  SELECT event_id, event_type, property_id, address_1, address_2, address_3,
+  SELECT event_id, event_type, property_id, property_name, property_manager_name,
+         latitude, longitude, image_url, address_1, address_2, address_3,
          city, postal_code, property_type, bedrooms, asking_rent, previous_rent,
          listing_age_days, observed_at, media, concession_text
   FROM (
@@ -273,6 +344,59 @@ const ACTIVITY_SQL = `
   ORDER BY CASE WHEN event_rank <= ${MIN_SAVED_EVENTS_PER_TYPE} THEN 0 ELSE 1 END,
            observed_at DESC
   LIMIT ${MAX_SAVED_ACTIVITY_EVENTS + 1}
+`;
+
+const LEASE_UP_SQL = `
+  WITH recent_property_cohorts AS (
+    SELECT listing.parent_property_id,
+           COUNT(DISTINCT listing.listing_id)::integer AS new_listing_count,
+           MIN(listing.listing_create_time) AS first_observed_at,
+           MAX(listing.listing_create_time) AS observed_at
+    FROM dwellsy_prod.active_listing_table listing
+    WHERE listing.msa_code = $1::bigint
+      AND listing.active_listing_status = 'active'
+      AND listing.record_status = 'active'
+      AND listing.property_category = 'Apartment'
+      AND COALESCE(listing.room_for_rent_flag, false) = false
+      AND listing.listing_amount > 0
+      AND listing.parent_property_id IS NOT NULL
+      AND listing.listing_create_time >= NOW() - INTERVAL '7 days'
+    GROUP BY listing.parent_property_id
+    HAVING COUNT(DISTINCT listing.listing_id) >= 25
+       AND MAX(listing.listing_create_time) >= NOW() - INTERVAL '24 hours'
+       AND MAX(listing.listing_create_time) - MIN(listing.listing_create_time) <= INTERVAL '7 days'
+  )
+  SELECT CONCAT('lease-up:', cohort.parent_property_id::text, ':', EXTRACT(EPOCH FROM cohort.observed_at)::bigint::text) AS event_id,
+         cohort.parent_property_id AS property_id,
+         COALESCE(NULLIF(BTRIM(parent.property_name), ''), NULLIF(BTRIM(parent.address_1), ''), 'Unnamed property') AS property_name,
+         NULLIF(BTRIM(company.company_name_displayed), '') AS property_manager_name,
+         parent.address_1,
+         parent.address_2,
+         parent.address_3,
+         parent.address_city AS city,
+         parent.address_zip AS postal_code,
+         cohort.new_listing_count,
+         NULLIF(parent.number_units, 0) AS total_units,
+         cohort.observed_at,
+         representative.latitude,
+         representative.longitude,
+         representative.media
+  FROM recent_property_cohorts cohort
+  JOIN dwellsy_prod.property_table parent ON parent.id = cohort.parent_property_id
+  LEFT JOIN dwellsy_prod.company_table company ON company.id = parent.company_id
+  JOIN LATERAL (
+    SELECT listing.latitude, listing.longitude, listing.media
+    FROM dwellsy_prod.active_listing_table listing
+    WHERE listing.parent_property_id = cohort.parent_property_id
+      AND listing.active_listing_status = 'active'
+      AND listing.record_status = 'active'
+    ORDER BY listing.listing_create_time DESC, listing.listing_id DESC
+    LIMIT 1
+  ) representative ON true
+  WHERE NULLIF(BTRIM(parent.address_city), '') IS NOT NULL
+    AND NULLIF(BTRIM(parent.address_zip), '') IS NOT NULL
+  ORDER BY cohort.new_listing_count DESC, cohort.observed_at DESC
+  LIMIT 20
 `;
 
 const COUNTS_SQL = `
@@ -380,6 +504,16 @@ const COUNTS_SQL = `
   FROM source_counts CROSS JOIN confirmed_changes CROSS JOIN concession_counts CROSS JOIN delisting_counts CROSS JOIN aging_counts
 `;
 
+function safeHttpsUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function primaryImageUrl(value: unknown): string | null {
   try {
     const media = typeof value === "string" ? JSON.parse(value) : value;
@@ -387,14 +521,24 @@ function primaryImageUrl(value: unknown): string | null {
     const images = media.filter((item): item is Record<string, unknown> =>
       Boolean(item) && typeof item === "object" && item.media_type === "image",
     );
-    const preferred = images.find((item) => item.status === "active" && typeof item.media_url === "string")
+    const preferred = images.find((item) => (item.property_media_status === "active" || item.status === "active") && typeof item.media_url === "string")
       ?? images.find((item) => typeof item.media_url === "string");
     if (!preferred || typeof preferred.media_url !== "string") return null;
-    const url = new URL(preferred.media_url);
-    return url.protocol === "https:" ? url.toString() : null;
+    return safeHttpsUrl(preferred.media_url);
   } catch {
     return null;
   }
+}
+
+function coordinate(value: string | number | null, minimum: number, maximum: number) {
+  if (value === null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= minimum && parsed <= maximum ? parsed : null;
+}
+
+function optionalText(value: string | null) {
+  const text = value?.trim();
+  return text || null;
 }
 
 function event(row: EventRow): MarketIqListingEvent | null {
@@ -416,8 +560,12 @@ function event(row: EventRow): MarketIqListingEvent | null {
     bedrooms,
     askingRent,
     observedAt: new Date(row.observed_at).toISOString(),
-    imageUrl: primaryImageUrl(row.media),
+    imageUrl: safeHttpsUrl(row.image_url) ?? primaryImageUrl(row.media),
     listingUrl,
+    propertyName: optionalText(row.property_name),
+    propertyManagerName: optionalText(row.property_manager_name),
+    latitude: coordinate(row.latitude, -90, 90),
+    longitude: coordinate(row.longitude, -180, 180),
   };
   if (row.event_type === "price_change") {
     if (previousRent === null || !Number.isFinite(previousRent)) return null;
@@ -444,12 +592,37 @@ function event(row: EventRow): MarketIqListingEvent | null {
   return { ...common, eventType: row.event_type, previousRent: null };
 }
 
+function leaseUpAlert(row: LeaseUpRow): MarketIqLeaseUpAlert | null {
+  if (!row.city || !row.postal_code) return null;
+  const newListingCount = Number(row.new_listing_count);
+  const totalUnits = row.total_units === null ? null : Number(row.total_units);
+  const propertyName = optionalText(row.property_name);
+  const address = formatMarketIqListingAddress([row.address_1, row.address_2, row.address_3]);
+  const listingUrl = buildDwellsyPropertyUrl(row.property_id);
+  if (!propertyName || !Number.isInteger(newListingCount) || newListingCount < 25) return null;
+  return {
+    id: row.event_id,
+    propertyId: String(row.property_id),
+    propertyName,
+    propertyManagerName: optionalText(row.property_manager_name),
+    address,
+    city: row.city,
+    zip: row.postal_code,
+    newListingCount,
+    totalUnits: totalUnits !== null && Number.isInteger(totalUnits) && totalUnits > 0 ? totalUnits : null,
+    observedAt: new Date(row.observed_at).toISOString(),
+    imageUrl: primaryImageUrl(row.media),
+    listingUrl,
+    latitude: coordinate(row.latitude, -90, 90),
+    longitude: coordinate(row.longitude, -180, 180),
+  };
+}
+
 export async function loadMarketListingActivity(msaCode: string): Promise<MarketIqMarketActivity> {
   return withDwellsyReadOnly(async (client) => {
-    const [eventsResult, countsResult] = await Promise.all([
-      client.query<EventRow>(ACTIVITY_SQL, [msaCode]),
-      client.query<CountRow>(COUNTS_SQL, [msaCode]),
-    ]);
+    const eventsResult = await client.query<EventRow>(ACTIVITY_SQL, [msaCode]);
+    const countsResult = await client.query<CountRow>(COUNTS_SQL, [msaCode]);
+    const leaseUpResult = await client.query<LeaseUpRow>(LEASE_UP_SQL, [msaCode]);
     const counts = countsResult.rows[0];
     if (!counts?.as_of) throw new Error("Dwellsy listing activity did not include a usable source timestamp.");
     const reportableEvents = eventsResult.rows
@@ -463,6 +636,9 @@ export async function loadMarketListingActivity(msaCode: string): Promise<Market
       advertisedConcessions24h: Number(counts.advertised_concessions_24h),
       delistings24h: Number(counts.delistings_24h),
       agingThresholds24h: Number(counts.aging_thresholds_24h),
+      leaseUpAlerts: leaseUpResult.rows
+        .map(leaseUpAlert)
+        .filter((value): value is MarketIqLeaseUpAlert => value !== null),
       eventsTruncated: reportableEvents.length > MAX_SAVED_ACTIVITY_EVENTS,
       events: reportableEvents.slice(0, MAX_SAVED_ACTIVITY_EVENTS),
     };

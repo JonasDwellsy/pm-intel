@@ -126,7 +126,7 @@ export function filterMarketIqDailyEventHeadlines(
   return headlines
     .filter((headline) => {
       const event = headline.event;
-      const searchable = [event.address, event.city, event.zip].map(normalized).join(" ");
+      const searchable = [event.address, event.city, event.zip, event.propertyName, event.propertyManagerName].map(normalized).join(" ");
       return (!query || searchable.includes(query))
         && (filters.section === "all" || headline.section === filters.section)
         && geographyMatches(headline, filters.geography)

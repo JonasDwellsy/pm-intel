@@ -29,7 +29,7 @@ describe("Market IQ local market read assembly", () => {
     expect(adapter).not.toContain("details/${listingId}");
     expect(adapter).toContain("const MAX_SAVED_ACTIVITY_EVENTS = 200");
     expect(adapter).toContain("NOW() - INTERVAL '24 hours'");
-    expect(adapter).not.toContain("NOW() - INTERVAL '7 days'");
+    expect(adapter).toContain("COUNT(DISTINCT listing.listing_id) >= 25");
     expect(adapter).toContain("eventsTruncated: reportableEvents.length > MAX_SAVED_ACTIVITY_EVENTS");
   });
 

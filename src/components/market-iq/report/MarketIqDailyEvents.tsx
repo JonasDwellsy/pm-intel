@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
+import { MarketIqDailyActivityMap } from "@/components/market-iq/report/MarketIqDailyActivityMap";
 import { MarketIqDailyEventExplorer } from "@/components/market-iq/report/MarketIqDailyEventExplorer";
 import type { MarketIqDailySavedViewFilters } from "@/lib/market-iq/daily-event-explorer";
 import { buildDailyEventHeadlines, type MarketIqDailyEventHeadline } from "@/lib/market-iq/daily-events";
-import type { MarketIqListingEvent, MarketIqMarketActivityAvailability } from "@/lib/market-iq/listing-events";
+import type { MarketIqLeaseUpAlert, MarketIqListingEvent, MarketIqMarketActivityAvailability } from "@/lib/market-iq/listing-events";
 
 const PRIMARY_EVENT_LIMIT = 4;
 const SECONDARY_EVENT_LIMIT = 3;
@@ -84,15 +85,36 @@ function EventLink({ event, children }: { event: MarketIqListingEvent; children:
     : <div>{children}</div>;
 }
 
+function ListingPhoto({ event, compact = false }: { event: MarketIqListingEvent; compact?: boolean }) {
+  const size = compact ? "h-14 w-16" : "h-16 w-20";
+  return <div className={`${size} shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-inset ring-slate-200`}>
+    {event.imageUrl
+      // eslint-disable-next-line @next/next/no-img-element -- source listing hosts vary and URLs are validated as HTTPS by the read-only adapter.
+      ? <img src={event.imageUrl} alt={`Listing at ${eventAddress(event)}`} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+      : <div className="grid h-full place-items-center text-xl text-slate-300" aria-hidden="true">⌂</div>}
+  </div>;
+}
+
+function PropertyContext({ event }: { event: MarketIqListingEvent }) {
+  if (!event.propertyName && !event.propertyManagerName) return null;
+  return <p className="mt-1 truncate text-[11px] text-slate-400">
+    {event.propertyName && <span>{event.propertyName}</span>}
+    {event.propertyName && event.propertyManagerName && <span aria-hidden="true"> · </span>}
+    {event.propertyManagerName && <span>Managed by {event.propertyManagerName}</span>}
+  </p>;
+}
+
 function NewListingRow({ headline, timeZone }: { headline: MarketIqDailyEventHeadline; timeZone: string }) {
   const event = headline.event;
   return <article className="border-b border-slate-100 py-4 first:pt-0 last:border-0 last:pb-0">
     <EventLink event={event}>
-      <div className="grid gap-3 px-1 sm:grid-cols-[112px_1fr_auto] sm:items-center">
+      <div className="group grid gap-3 px-1 sm:grid-cols-[80px_112px_1fr_auto] sm:items-center">
+        <ListingPhoto event={event} />
         <p className="text-2xl font-semibold tracking-tight text-[var(--report-primary)]">{money(event.askingRent)}</p>
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-[0.08em] text-teal-700">{propertyFacts(event)}</p>
           <p className="mt-1 truncate text-sm font-semibold text-slate-700">{event.city} · {eventAddress(event)}</p>
+          <PropertyContext event={event} />
         </div>
         <EventTime headline={headline} timeZone={timeZone} />
       </div>
@@ -111,7 +133,9 @@ function RentChangeRow({ headlines, timeZone }: { headlines: EventGroup; timeZon
   const badgeStyle = delta > 0 ? "bg-amber-50 text-amber-800 ring-amber-200" : delta < 0 ? "bg-sky-50 text-sky-800 ring-sky-200" : "bg-slate-50 text-slate-600 ring-slate-200";
 
   const content = <>
-      <div className="px-1">
+      <div className="group grid gap-4 px-1 sm:grid-cols-[80px_1fr]">
+        <ListingPhoto event={event} />
+        <div>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">{propertyFacts(event)} · {event.city}</p>
@@ -127,10 +151,12 @@ function RentChangeRow({ headlines, timeZone }: { headlines: EventGroup; timeZon
           <EventTime headline={headline} timeZone={timeZone} />
         </div>
         <p className="mt-2 text-xs text-slate-500">{eventAddress(event)} · Asking rent</p>
+        <PropertyContext event={event} />
         {headlines.length > 1 && <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
           <span className="text-[11px] font-semibold text-slate-500">{headlines.length} listing records at this address</span>
           {headlines.flatMap((item, index) => item.event.listingUrl ? [<a key={item.id} href={item.event.listingUrl} target="_blank" rel="noreferrer" className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-teal-700 outline-none hover:bg-teal-50 focus-visible:ring-2 focus-visible:ring-teal-600">Open record {index + 1}</a>] : [])}
         </div>}
+        </div>
       </div>
   </>;
 
@@ -144,12 +170,16 @@ function OffMarketRow({ headline, timeZone }: { headline: MarketIqDailyEventHead
   if (event.eventType !== "delisting") return null;
   return <article className="border-b border-slate-100 py-4 first:pt-0 last:border-0 last:pb-0">
     <EventLink event={event}>
-      <div className="px-1">
+      <div className="group grid gap-4 px-1 sm:grid-cols-[80px_1fr]">
+        <ListingPhoto event={event} />
+        <div>
         <div className="flex items-start justify-between gap-3">
           <div><p className="text-sm font-semibold text-[var(--report-primary)]">{event.city} · {propertyFacts(event)}</p><p className="mt-1 text-xs text-slate-500">{eventAddress(event)} · Last asking {money(event.askingRent)}</p></div>
           <EventTime headline={headline} timeZone={timeZone} />
         </div>
+        <PropertyContext event={event} />
         <span className="mt-2 inline-flex rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-orange-800 ring-1 ring-inset ring-orange-200">{event.listingAgeDays === 0 ? "Less than 1 day" : `${event.listingAgeDays.toLocaleString("en-US")} days listed`}</span>
+        </div>
       </div>
     </EventLink>
   </article>;
@@ -160,9 +190,10 @@ function AgingRow({ headline, timeZone }: { headline: MarketIqDailyEventHeadline
   if (event.eventType !== "aging_threshold") return null;
   return <article className="border-b border-slate-100 py-4 first:pt-0 last:border-0 last:pb-0">
     <EventLink event={event}>
-      <div className="grid grid-cols-[52px_1fr_auto] items-center gap-3 px-1">
+      <div className="group grid grid-cols-[64px_52px_1fr_auto] items-center gap-3 px-1">
+        <ListingPhoto event={event} compact />
         <div className="rounded-xl bg-slate-900 px-2 py-2 text-center text-white"><strong className="block text-lg leading-none">{event.listingAgeDays}</strong><span className="text-[9px] font-bold uppercase tracking-wider text-slate-300">days</span></div>
-        <div className="min-w-0"><p className="truncate text-sm font-semibold text-[var(--report-primary)]">{event.city} · {propertyFacts(event)}</p><p className="mt-1 truncate text-xs text-slate-500">{eventAddress(event)} · {money(event.askingRent)} asking</p></div>
+        <div className="min-w-0"><p className="truncate text-sm font-semibold text-[var(--report-primary)]">{event.city} · {propertyFacts(event)}</p><p className="mt-1 truncate text-xs text-slate-500">{eventAddress(event)} · {money(event.askingRent)} asking</p><PropertyContext event={event} /></div>
         <EventTime headline={headline} timeZone={timeZone} />
       </div>
     </EventLink>
@@ -174,10 +205,12 @@ function ConcessionRow({ headline, timeZone }: { headline: MarketIqDailyEventHea
   if (event.eventType !== "concession") return null;
   return <article className="border-b border-slate-100 py-4 first:pt-0 last:border-0 last:pb-0">
     <EventLink event={event}>
-      <div className="px-1">
-        <div className="flex items-start justify-between gap-3"><p className="text-sm font-semibold text-[var(--report-primary)]">{event.concession.label} · {event.city}</p><EventTime headline={headline} timeZone={timeZone} /></div>
+      <div className="group grid gap-4 px-1 sm:grid-cols-[80px_1fr]">
+        <ListingPhoto event={event} />
+        <div><div className="flex items-start justify-between gap-3"><p className="text-sm font-semibold text-[var(--report-primary)]">{event.concession.label} · {event.city}</p><EventTime headline={headline} timeZone={timeZone} /></div>
         <blockquote className="mt-2 border-l-2 border-amber-400 pl-3 text-xs italic leading-5 text-slate-600">“{event.concession.evidence}”</blockquote>
         <p className="mt-2 text-[11px] font-semibold text-slate-400">{propertyFacts(event)} · {money(event.askingRent)} asking · Advertised, not verified</p>
+        <PropertyContext event={event} /></div>
       </div>
     </EventLink>
   </article>;
@@ -266,6 +299,31 @@ function ObservedFlow({ activity }: { activity: Extract<MarketIqMarketActivityAv
   </section>;
 }
 
+function LeaseUpAlerts({ alerts, timeZone }: { alerts: MarketIqLeaseUpAlert[]; timeZone: string }) {
+  if (!alerts.length) return null;
+  return <section className="mb-6 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 shadow-[0_12px_35px_rgba(120,53,15,0.08)]" aria-label="Lease-up alerts">
+    <header className="flex flex-wrap items-end justify-between gap-3 border-b border-amber-200 px-6 py-5">
+      <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-800">Lease-up alert</p><h3 className="mt-1 text-xl font-semibold text-[var(--report-primary)]">A large property-level arrival was observed</h3></div>
+      <span className="rounded-full bg-amber-200/70 px-3 py-1 text-xs font-bold text-amber-950">{alerts.length} {alerts.length === 1 ? "property" : "properties"}</span>
+    </header>
+    <div className="divide-y divide-amber-200">{alerts.map((alert) => {
+      const content = <div className="grid gap-4 px-6 py-5 sm:grid-cols-[112px_1fr_auto] sm:items-center">
+        <div className="h-20 w-28 overflow-hidden rounded-xl bg-white ring-1 ring-inset ring-amber-200">
+          {alert.imageUrl
+            // eslint-disable-next-line @next/next/no-img-element -- source listing hosts vary and URLs are validated as HTTPS by the read-only adapter.
+            ? <img src={alert.imageUrl} alt={`Property at ${alert.address ?? `${alert.city}, ${alert.zip}`}`} loading="lazy" className="h-full w-full object-cover" />
+            : <div className="grid h-full place-items-center text-2xl text-amber-300" aria-hidden="true">⌂</div>}
+        </div>
+        <div><div className="flex flex-wrap items-center gap-2"><h4 className="font-semibold text-[var(--report-primary)]">{alert.propertyName}</h4><span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-900 ring-1 ring-inset ring-amber-200">{alert.newListingCount} new listings</span></div><p className="mt-1 text-sm text-slate-600">{alert.address ? `${alert.address} · ` : ""}{alert.city}, {alert.zip}</p>{alert.propertyManagerName && <p className="mt-1 text-xs font-semibold text-slate-500">Managed by {alert.propertyManagerName}</p>}<p className="mt-2 text-xs leading-5 text-slate-500">At least 25 newly observed apartment listings appeared under one property within seven days. This is a lease-up signal from advertised inventory, not independent verification of construction status or occupancy.</p></div>
+        <time dateTime={alert.observedAt} className="text-[11px] font-semibold tabular-nums text-slate-500">Observed {fullDateTime(alert.observedAt, timeZone)}</time>
+      </div>;
+      return alert.listingUrl
+        ? <a key={alert.id} href={alert.listingUrl} target="_blank" rel="noreferrer" className="block outline-none transition-colors hover:bg-amber-100/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-700">{content}</a>
+        : <article key={alert.id}>{content}</article>;
+    })}</div>
+  </section>;
+}
+
 function rentMovePriority(headline: MarketIqDailyEventHeadline) {
   const previousRent = headline.event.previousRent;
   return previousRent === null ? 0 : Math.abs(headline.event.askingRent - previousRent);
@@ -346,7 +404,9 @@ export function MarketIqDailyEvents({
       <p className="text-xs text-slate-500">Source current through {fullDateTime(availability.activity.asOf, timeZone)}</p>
     </header>
     <ObservedFlow activity={availability.activity} />
+    <LeaseUpAlerts alerts={availability.activity.leaseUpAlerts ?? []} timeZone={timeZone} />
     {comparison}
+    <MarketIqDailyActivityMap events={availability.activity.events} leaseUpAlerts={availability.activity.leaseUpAlerts} marketName={marketName} />
     <div className="grid gap-5 lg:grid-cols-[1.08fr_0.92fr] lg:items-start">
       <EventSection id={DAILY_EVENT_SECTION_IDS.rentMoves} title="Notable rent moves" kicker="Asking-rent changes" description="Largest confirmed dollar movements, with the most recent event breaking ties." emptyMessage="No confirmed asking-rent changes were observed for the period." groups={rentChangeGroups(rentChanges)} observedTotal={availability.activity.confirmedPriceChanges24h} timeZone={timeZone} primary limit={PRIMARY_EVENT_LIMIT} />
       <EventSection id={DAILY_EVENT_SECTION_IDS.newListings} title="New to market" kicker="Latest arrivals" description="Fresh listings presented as property facts rather than repeated headlines." emptyMessage="No new listings were observed for the period." groups={singleEventGroups(newListings)} observedTotal={availability.activity.newListings24h} timeZone={timeZone} primary limit={PRIMARY_EVENT_LIMIT} />
