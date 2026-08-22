@@ -19,11 +19,20 @@ export async function loadMarketIqStablePreviewHealth(now = new Date()) {
       sourceConfigured,
       snapshot: null,
       latestRefresh: null,
+      listingSnapshot: null,
+      latestListingRefresh: null,
     });
   }
 
   try {
-    const [snapshotRow, activeRefresh, latestTerminalRefresh] = await Promise.all([
+    const [
+      snapshotRow,
+      activeRefresh,
+      latestTerminalRefresh,
+      listingSnapshot,
+      activeListingRefresh,
+      latestTerminalListingRefresh,
+    ] = await Promise.all([
       marketIqPrisma.marketIqReportSourceSnapshot.findFirst({
         where: { marketId: CLEVELAND_MARKET_ID, sourceKind: "dwellsy_trends" },
         orderBy: [{ sourceAvailableThrough: "desc" }, { generatedAt: "desc" }],
@@ -53,6 +62,36 @@ export async function loadMarketIqStablePreviewHealth(now = new Date()) {
         orderBy: [{ completedAt: "desc" }, { startedAt: "desc" }],
         select: { status: true, startedAt: true, completedAt: true },
       }),
+      marketIqPrisma.marketIqListingSupplySnapshot.findFirst({
+        where: { marketId: CLEVELAND_MARKET_ID },
+        orderBy: [{ snapshotDate: "desc" }, { capturedAt: "desc" }],
+        select: {
+          sourceAvailableThrough: true,
+          capturedAt: true,
+          activeListings: true,
+          apartmentListings: true,
+          houseListings: true,
+          ageObservedListings: true,
+        },
+      }),
+      marketIqPrisma.marketIqListingFeedRun.findFirst({
+        where: {
+          marketId: CLEVELAND_MARKET_ID,
+          sourceKind: "dwellsy_production",
+          completedAt: null,
+        },
+        orderBy: { startedAt: "asc" },
+        select: { status: true, startedAt: true, completedAt: true },
+      }),
+      marketIqPrisma.marketIqListingFeedRun.findFirst({
+        where: {
+          marketId: CLEVELAND_MARKET_ID,
+          sourceKind: "dwellsy_production",
+          completedAt: { not: null },
+        },
+        orderBy: [{ completedAt: "desc" }, { startedAt: "desc" }],
+        select: { status: true, startedAt: true, completedAt: true },
+      }),
     ]);
     const parsedSnapshot = snapshotRow
       ? parseMarketIqReportSnapshot(snapshotRow.snapshot)
@@ -72,6 +111,8 @@ export async function loadMarketIqStablePreviewHealth(now = new Date()) {
         }
         : null,
       latestRefresh: activeRefresh ?? latestTerminalRefresh,
+      listingSnapshot,
+      latestListingRefresh: activeListingRefresh ?? latestTerminalListingRefresh,
     });
   } catch (error) {
     console.error("[Market IQ] Stable preview health unavailable", {
@@ -85,6 +126,8 @@ export async function loadMarketIqStablePreviewHealth(now = new Date()) {
       sourceConfigured,
       snapshot: null,
       latestRefresh: null,
+      listingSnapshot: null,
+      latestListingRefresh: null,
     });
   }
 }
