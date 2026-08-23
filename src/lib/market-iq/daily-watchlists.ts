@@ -58,6 +58,7 @@ export type MarketIqDailyWatchlistMatch = {
   city: string;
   zip: string;
   propertyManagerName: string | null;
+  propertyId: string | null;
   listingUrl: string | null;
   sectionHref: string;
 };
@@ -154,6 +155,7 @@ function eventMatch(headline: MarketIqDailyEventHeadline): MarketIqDailyWatchlis
     city: headline.event.city,
     zip: headline.event.zip,
     propertyManagerName: headline.event.propertyManagerName ?? null,
+    propertyId: headline.event.propertyId ?? null,
     listingUrl: headline.event.listingUrl ?? null,
     sectionHref: SECTION_HREFS[headline.section],
   };
@@ -186,6 +188,7 @@ function leaseUpMatch(alert: MarketIqLeaseUpAlert): MarketIqDailyWatchlistMatch 
     city: alert.city,
     zip: alert.zip,
     propertyManagerName: alert.propertyManagerName,
+    propertyId: alert.propertyId,
     listingUrl: alert.listingUrl,
     sectionHref: SECTION_HREFS.lease_up,
   };
