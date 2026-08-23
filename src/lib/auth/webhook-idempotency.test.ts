@@ -77,11 +77,51 @@ test("the Clerk webhook makes first-party signup and login rows replay-safe", ()
   assert.match(analyticsSource, /uuid: args\.eventId/);
 });
 
-test("this phase deliberately leaves webhook retry responses unchanged", () => {
-  const source = readFileSync(
+test("handler failures retry without coupling identity sync to analytics", () => {
+  const routeSource = readFileSync(
     new URL("../../app/api/clerk/webhook/route.ts", import.meta.url),
     "utf8"
   );
+  const analyticsSource = readFileSync(
+    new URL("../analytics-server.ts", import.meta.url),
+    "utf8"
+  );
 
-  assert.match(source, /catch \(err\) \{[\s\S]*return Response\.json\(\{ received: true \}\);/);
+  assert.match(routeSource, /let handlerError: unknown = null/);
+  assert.match(routeSource, /handlerError = err/);
+  assert.match(
+    routeSource,
+    /if \(handlerError\) \{[\s\S]*?status: 500[\s\S]*?\}/
+  );
+  assert.match(
+    routeSource,
+    /analyticsServerConfigured\(\) && !analyticsFlushed/
+  );
+  assert.doesNotMatch(routeSource, /status: 503/);
+  assert.match(
+    routeSource,
+    /if \(handlerError\)[\s\S]*?status: 500[\s\S]*?return Response\.json\(\{ received: true \}\)/
+  );
+  assert.match(
+    analyticsSource,
+    /setTimeout\(\(\) => resolve\(false\), timeoutMs\)/
+  );
+});
+
+test("required webhook database writes propagate failures", () => {
+  const routeSource = readFileSync(
+    new URL("../../app/api/clerk/webhook/route.ts", import.meta.url),
+    "utf8"
+  );
+  const usageSource = readFileSync(
+    new URL("../usage/record.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(usageSource, /if \(required\) throw err/);
+  assert.match(usageSource, /return insert\(args, true\)/);
+  assert.match(
+    routeSource,
+    /PendingWelcome upsert failed[\s\S]*?throw err;/
+  );
 });

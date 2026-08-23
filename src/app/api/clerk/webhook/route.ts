@@ -40,14 +40,18 @@
 // Sentry instrumentation: every dispatched handler is wrapped in
 // try/catch. Failures fire Sentry.captureException with the event
 // id and userId tag so we can correlate webhook drops to user
-// reports. Webhook still returns 200 on handler failures in this phase.
-// A follow-up can safely enable Clerk retries once every handler's
-// failure semantics have been reviewed end to end.
+// reports. Handler failures return a non-success response so Clerk can
+// safely retry the same delivery. Analytics remains best-effort and cannot
+// block identity synchronization.
 
 import { Webhook } from "svix";
 import { clerkClient } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
-import { captureServerEvent, flushAnalyticsServer } from "@/lib/analytics-server";
+import {
+  analyticsServerConfigured,
+  captureServerEvent,
+  flushAnalyticsServer,
+} from "@/lib/analytics-server";
 import { prisma } from "@/lib/prisma";
 import { extractEmailDomain } from "@/lib/auth/email-domain";
 import { clerkWebhookEventId } from "@/lib/auth/webhook-idempotency";
@@ -131,12 +135,14 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  // Dispatch wrapped in a Sentry boundary. Per-handler errors get
-  // captured + re-swallowed; we always return 200 so Clerk doesn't
-  // retry partial-success events.
+  // Dispatch inside a Sentry boundary, but retain the failure until after
+  // the analytics flush. Replay-safe side effects let Clerk retry without
+  // duplicating a partial success from the first attempt.
+  let handlerError: unknown = null;
   try {
     await dispatch(event, svixId);
   } catch (err) {
+    handlerError = err;
     Sentry.captureException(err, {
       tags: {
         webhook: "clerk",
@@ -155,7 +161,29 @@ export async function POST(req: Request) {
   // lambda is frozen. Symptom: low-traffic single-event webhooks
   // like organizationMembership.deleted silently dropped their
   // events. See PR #73 postmortem for the full diagnosis.
-  await flushAnalyticsServer();
+  const analyticsFlushed = await flushAnalyticsServer();
+  const analyticsFlushFailed =
+    analyticsServerConfigured() && !analyticsFlushed;
+  if (analyticsFlushFailed) {
+    Sentry.captureMessage("Clerk webhook analytics flush failed", {
+      level: "error",
+      tags: {
+        webhook: "clerk",
+        event_type: event.type,
+        svix_id: svixId,
+      },
+    });
+    console.error(
+      `[clerk/webhook] analytics flush for ${event.type} did not complete`
+    );
+  }
+
+  if (handlerError) {
+    return Response.json(
+      { error: "Webhook processing failed" },
+      { status: 500 }
+    );
+  }
 
   return Response.json({ received: true });
 }
@@ -831,8 +859,8 @@ async function handleInvitationAccepted(
       update: {}, // no-op — keep the original createdAt
     });
   } catch (err) {
-    // Welcome is a nice-to-have; don't fail the whole handler if
-    // the upsert errors. Sentry captures the failure for diagnosis.
+    // The write is replay-safe. Surface the failure after recording
+    // context so Clerk can retry instead of silently losing the toast.
     Sentry.captureException(err, {
       tags: {
         webhook: "clerk",
@@ -845,6 +873,7 @@ async function handleInvitationAccepted(
       `[clerk/webhook] PendingWelcome upsert failed for ${userId}/${orgRow.id}; welcome toast will not fire`,
       err
     );
+    throw err;
   }
 }
 
