@@ -64,3 +64,23 @@ test("email links to persisted evidence and preserves disclosure language", () =
   assert.match(email.text, /off-market means leased or withdrawn, undetermined/);
   assert.deepEqual(email.eventKeys, ["price_change:event-1"]);
 });
+
+test("grouped competitive signals link to their brief and disclose supporting evidence", () => {
+  const email = buildMarketIqDailyWatchlistEmail({
+    recipientName: "Jonas",
+    cadence: "daily",
+    matches: [match({
+      eventKey: "competitive_signal:rule-1:digest",
+      matchKind: "competitive_signal",
+      evidenceCount: 4,
+      destinationHref: "/market-iq/competitive-sets/watch-1",
+      propertyId: null,
+    })],
+    appOrigin: "https://example.test",
+  });
+  assert.ok(email);
+  assert.match(email.html, /market-iq\/competitive-sets\/watch-1/);
+  assert.match(email.html, /Grouped signal · 4 supporting events/);
+  assert.match(email.text, /Grouped evidence: 4 supporting events/);
+  assert.match(email.html, /Open competitive brief/);
+});

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useMemo, useState } from "react";
 
 import { MarketIqDailyActivityMap } from "@/components/market-iq/report/MarketIqDailyActivityMap";
@@ -49,10 +49,11 @@ function rentMove(event: AvailableBrief["largestRentMoves"][number]) {
   return `${difference > 0 ? "+" : "−"}$${Math.abs(difference).toLocaleString("en-US")} · ${percentage > 0 ? "+" : ""}${percentage.toFixed(1)}%`;
 }
 
-export function MarketIqCompetitiveSetBrief({ brief, marketName, timeZone }: {
+export function MarketIqCompetitiveSetBrief({ brief, marketName, timeZone, signalRules }: {
   brief: AvailableBrief;
   marketName: string;
   timeZone: string;
+  signalRules?: ReactNode;
 }) {
   const scope = brief.watchlist.filters.competitiveSet!;
   const defaultSelected = brief.current7d.events.slice(0, 5).map((event) => event.key);
@@ -83,6 +84,8 @@ export function MarketIqCompetitiveSetBrief({ brief, marketName, timeZone }: {
     </header>
 
     {(!brief.current7d.complete || !brief.comparison.available) && <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-5"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-800">Evidence coverage</p><p className="mt-2 text-sm leading-6 text-amber-950">The rolling window contains {brief.current7d.coverageDays} of 7 persisted daily editions{brief.current7d.eventsTruncated ? " and at least one edition retained a truncated event set" : ""}. Seven-day activity is shown as retained evidence, but a prior-period comparison is withheld until both seven-day windows are complete and untruncated.</p></section>}
+
+    {signalRules}
 
     <section className="mt-7" aria-labelledby="competitive-set-24h"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-teal-700">Latest observed window</p><h2 id="competitive-set-24h" className="mt-1 text-3xl font-semibold tracking-tight text-navy">What moved in 24 hours</h2></div><p className="text-xs font-semibold text-slate-500">{brief.current24h.events.length} retained matches</p></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{MARKET_IQ_COMPETITIVE_SET_BRIEF_EVENT_TYPES.map((eventType) => <article key={eventType} className={`rounded-2xl border-l-4 p-5 ${EVENT_COLORS[eventType]}`}><p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{EVENT_LABELS[eventType]}</p><p className="mt-3 text-4xl font-semibold">{brief.current24h.counts[eventType]}</p></article>)}</div></section>
 

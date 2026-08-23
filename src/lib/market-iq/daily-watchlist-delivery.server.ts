@@ -14,6 +14,11 @@ import {
 } from "@/lib/market-iq/daily-watchlist-delivery";
 import { parseMarketIqDailyTriageStatus } from "@/lib/market-iq/daily-watchlist-triage";
 import { loadMarketIqDailyEditionArchive } from "@/lib/market-iq/daily-editions.server";
+import { buildMarketIqCompetitiveSetBrief } from "@/lib/market-iq/competitive-set-brief";
+import {
+  evaluateMarketIqCompetitiveSetSignalRule,
+  parseMarketIqCompetitiveSetSignalRuleInput,
+} from "@/lib/market-iq/competitive-set-signal-rules";
 import {
   marketIqDailyWatchlistRecipientIds,
   matchMarketIqDailyWatchlist,
@@ -71,7 +76,90 @@ export async function materializeMarketIqDailyWatchlistMatches() {
       created += result.count;
     }
   }
-  return { watchlistsEvaluated: watchlists.length, matchesCreated: created };
+  const signalRules = await prisma.marketIqCompetitiveSetSignalRule.findMany({
+    where: { enabled: true },
+    include: {
+      watchlist: { include: { subscriptions: { select: { userId: true } } } },
+    },
+    orderBy: [{ watchlistId: "asc" }, { id: "asc" }],
+  });
+  const archiveByMarket = new Map<string, Awaited<ReturnType<typeof loadMarketIqDailyEditionArchive>>>();
+  let signalsCreated = 0;
+  for (const storedRule of signalRules) {
+    const watchlist = storedRule.watchlist;
+    const market = getMarketIqMarket(watchlist.marketId);
+    const filters = watchlist.version === 1 ? parseMarketIqDailyWatchlistFilters(watchlist.filters) : null;
+    const rule = parseMarketIqCompetitiveSetSignalRuleInput(storedRule);
+    const canReceive = watchlist.userId === storedRule.userId
+      || (watchlist.visibility === "organization"
+        && watchlist.subscriptions.some((subscription) => subscription.userId === storedRule.userId));
+    if (!market || market.status !== "live" || !filters?.competitiveSet || !rule.ok || !canReceive) continue;
+    if (!archiveByMarket.has(market.id)) {
+      archiveByMarket.set(market.id, await loadMarketIqDailyEditionArchive({
+        marketId: market.id,
+        timeZone: market.timeZone,
+        recentLimit: 16,
+      }));
+    }
+    const archive = archiveByMarket.get(market.id)!;
+    const edition = archive.latest;
+    if (!edition) continue;
+    const brief = buildMarketIqCompetitiveSetBrief({
+      watchlist: {
+        id: watchlist.id,
+        name: watchlist.name,
+        marketId: watchlist.marketId,
+        filters,
+        visibility: watchlist.visibility === "organization" ? "organization" : "private",
+        isOwner: watchlist.userId === storedRule.userId,
+        isFollowing: true,
+        createdAt: watchlist.createdAt.toISOString(),
+        updatedAt: watchlist.updatedAt.toISOString(),
+      },
+      editions: archive.recent,
+    });
+    const evaluation = evaluateMarketIqCompetitiveSetSignalRule({ rule: rule.value, brief });
+    if (evaluation.state !== "triggered") continue;
+    const evidenceKeys = evaluation.evidence.map((event) => event.key).sort();
+    const evidenceDigest = createHash("sha256").update(evidenceKeys.join("|")).digest("hex").slice(0, 24);
+    const latestEvidence = evaluation.evidence.find((event) => event.observedAt === evaluation.observedAt)
+      ?? evaluation.evidence[0];
+    const result = await prisma.marketIqDailyWatchlistMatch.createMany({
+      data: [{
+        organizationId: storedRule.organizationId,
+        userId: storedRule.userId,
+        watchlistId: watchlist.id,
+        marketId: watchlist.marketId,
+        editionId: edition.id,
+        eventKey: `competitive_signal:${storedRule.id}:${evidenceDigest}`,
+        eventType: storedRule.eventType,
+        headline: evaluation.headline,
+        detail: evaluation.detail,
+        observedAt: new Date(evaluation.observedAt),
+        city: latestEvidence?.city ?? market.name,
+        zip: latestEvidence?.zip ?? "",
+        propertyManagerName: null,
+        propertyId: null,
+        listingUrl: null,
+        sectionHref: "#competitive-set-timeline",
+        destinationHref: `/market-iq/competitive-sets/${encodeURIComponent(watchlist.id)}`,
+        matchKind: "competitive_signal",
+        evidenceEventKeys: JSON.stringify(evidenceKeys),
+        evidenceCount: evidenceKeys.length,
+        windowStartAt: new Date(evaluation.windowStartAt),
+        windowEndAt: new Date(evaluation.windowEndAt),
+        signalRuleId: storedRule.id,
+      }],
+      skipDuplicates: true,
+    });
+    signalsCreated += result.count;
+  }
+  return {
+    watchlistsEvaluated: watchlists.length,
+    signalRulesEvaluated: signalRules.length,
+    matchesCreated: created + signalsCreated,
+    signalsCreated,
+  };
 }
 
 async function userIdentities(userIds: string[]) {
@@ -118,7 +206,12 @@ export async function runMarketIqDailyWatchlistDelivery(input: { now?: Date; app
             { visibility: "organization", subscriptions: { some: { userId: preference.userId } } },
           ],
         },
-        ...(preference.lastDeliveredAt ? { observedAt: { gt: preference.lastDeliveredAt } } : {}),
+        ...(preference.lastDeliveredAt ? {
+          OR: [
+            { matchKind: "competitive_signal", createdAt: { gt: preference.lastDeliveredAt } },
+            { matchKind: "event", observedAt: { gt: preference.lastDeliveredAt } },
+          ],
+        } : {}),
       },
       include: { watchlist: { select: { name: true } } },
       orderBy: { observedAt: "desc" },
@@ -136,6 +229,11 @@ export async function runMarketIqDailyWatchlistDelivery(input: { now?: Date; app
       observedAt: row.observedAt,
       propertyId: row.propertyId,
       sectionHref: row.sectionHref,
+      destinationHref: row.destinationHref,
+      matchKind: row.matchKind === "competitive_signal" ? "competitive_signal" : "event",
+      evidenceCount: row.evidenceCount,
+      windowStartAt: row.windowStartAt,
+      windowEndAt: row.windowEndAt,
     }));
     const email = buildMarketIqDailyWatchlistEmail({ recipientName: identity.firstName, cadence, matches, appOrigin: origin });
     if (!email) { counts.empty += 1; continue; }
@@ -214,6 +312,11 @@ export async function loadMarketIqDailyDeliveryState(input: { organizationId: st
       observedAt: match.observedAt.toISOString(),
       propertyId: match.propertyId,
       sectionHref: match.sectionHref,
+      destinationHref: match.destinationHref,
+      matchKind: match.matchKind === "competitive_signal" ? "competitive_signal" as const : "event" as const,
+      evidenceCount: match.evidenceCount,
+      windowStartAt: match.windowStartAt?.toISOString() ?? null,
+      windowEndAt: match.windowEndAt?.toISOString() ?? null,
       readAt: match.readAt?.toISOString() ?? null,
       emailedAt: match.emailedAt?.toISOString() ?? null,
       watchlistVisibility: match.watchlist.visibility === "organization" ? "organization" as const : "private" as const,

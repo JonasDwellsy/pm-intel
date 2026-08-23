@@ -525,6 +525,7 @@ model Organization {
   marketIqDailyWatchlistTriages    MarketIqDailyWatchlistTriage[]
   marketIqDailyWatchlistNotes      MarketIqDailyWatchlistNote[]
   marketIqDailyWatchlistDeliveries MarketIqDailyWatchlistDelivery[]
+  marketIqCompetitiveSetSignalRules MarketIqCompetitiveSetSignalRule[]
   marketIqBriefingEmailDeliveries  MarketIqBriefingEmailDelivery[]
   marketIqBriefingEmailRunItems    MarketIqBriefingEmailRunItem[]
   marketIqJourneyEvents            MarketIqJourneyEvent[]
@@ -927,6 +928,7 @@ model MarketIqDailyWatchlist {
   matches       MarketIqDailyWatchlistMatch[]
   subscriptions MarketIqDailyWatchlistSubscription[]
   triages       MarketIqDailyWatchlistTriage[]
+  signalRules   MarketIqCompetitiveSetSignalRule[]
 
   @@unique([organizationId, userId, marketId, name])
   @@index([organizationId, userId, marketId, updatedAt(sort: Desc)])
@@ -979,16 +981,51 @@ model MarketIqDailyWatchlistMatch {
   propertyId          String?
   listingUrl          String?
   sectionHref         String
+  destinationHref     String?
+  matchKind           String    @default("event") // event | competitive_signal
+  evidenceEventKeys   String    @default("[]")
+  evidenceCount       Int       @default(1)
+  windowStartAt       DateTime?
+  windowEndAt         DateTime?
+  signalRuleId        String?
   readAt              DateTime?
   emailedAt           DateTime?
   createdAt           DateTime  @default(now())
 
   organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   watchlist    MarketIqDailyWatchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  signalRule   MarketIqCompetitiveSetSignalRule? @relation(fields: [signalRuleId], references: [id], onDelete: SetNull)
 
   @@unique([watchlistId, userId, eventKey])
   @@index([organizationId, userId, createdAt(sort: Desc)])
   @@index([organizationId, userId, emailedAt, createdAt])
+  @@index([signalRuleId, createdAt(sort: Desc)])
+}
+
+// Personal thresholds attached to an accessible map-radius watchlist. Rules
+// group retained Daily Edition evidence into one workflow alert and never read
+// the live listing source during interactive use.
+model MarketIqCompetitiveSetSignalRule {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  watchlistId    String
+  eventType      String
+  propertyScope  String   @default("peers") // peers | subject | all
+  windowDays     Int      @default(1) // 1 | 7
+  condition      String   @default("count_at_least") // count_at_least | increase_at_least
+  threshold      Int
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  watchlist    MarketIqDailyWatchlist        @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  matches      MarketIqDailyWatchlistMatch[]
+
+  @@unique([watchlistId, userId, eventType, propertyScope, windowDays, condition])
+  @@index([organizationId, userId, enabled, updatedAt(sort: Desc)])
+  @@index([watchlistId, enabled])
 }
 
 model MarketIqDailyWatchlistTriage {
