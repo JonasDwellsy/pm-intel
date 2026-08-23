@@ -101,21 +101,40 @@ jobs:
           response_file="$(mktemp)"
           trap 'rm -f "$response_file"' EXIT
 
-          status="$(curl --silent --show-error \
+          metadata="$(curl --silent --show-error \
             --connect-timeout 10 --max-time 360 \
-            --output "$response_file" --write-out '%{http_code}' \
+            --output "$response_file" --write-out $'%{http_code}\t%{content_type}' \
             --request POST \
             --header "Authorization: Bearer $MARKET_IQ_SOURCE_REFRESH_TOKEN" \
             --header "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
             "$NATIONAL_SUPPLY_REFRESH_URL")"
+          IFS=$'\t' read -r status content_type <<< "$metadata"
 
-          HTTP_STATUS="$status" RESPONSE_FILE="$response_file" node <<'NODE'
+          HTTP_STATUS="$status" CONTENT_TYPE="$content_type" RESPONSE_FILE="$response_file" node <<'NODE'
           const fs = require("node:fs");
+          const responseText = fs.readFileSync(process.env.RESPONSE_FILE, "utf8");
+          const bodyBytes = Buffer.byteLength(responseText);
+          const contentType = (process.env.CONTENT_TYPE || "unavailable")
+            .replace(/[^\x20-\x7e]/g, "?")
+            .slice(0, 160);
           let response;
           try {
-            response = JSON.parse(fs.readFileSync(process.env.RESPONSE_FILE, "utf8"));
+            response = JSON.parse(responseText);
           } catch {
-            console.error("National listing-supply capture did not return valid JSON.");
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+              "## National listing supply",
+              "",
+              `- HTTP status: ${process.env.HTTP_STATUS}`,
+              `- Content type: ${contentType}`,
+              `- Response bytes: ${bodyBytes}`,
+              "- Result: invalid JSON response; body withheld",
+              "",
+            ].join("\n"));
+            console.error(
+              `National listing-supply capture returned invalid JSON `
+              + `(HTTP ${process.env.HTTP_STATUS}, content-type ${contentType}, ${bodyBytes} bytes). `
+              + "The response body was withheld.",
+            );
             process.exit(1);
           }
           const capturedAt = new Date(response.capturedAt);
@@ -133,6 +152,8 @@ jobs:
             "## National listing supply",
             "",
             `- HTTP status: ${process.env.HTTP_STATUS}`,
+            `- Content type: ${contentType}`,
+            `- Response bytes: ${bodyBytes}`,
             `- Result: ${response.status ?? "unavailable"}`,
             `- Markets observed: ${response.totalMarkets ?? "unavailable"}`,
             `- Markets eligible to publish: ${response.eligibleMarkets ?? "unavailable"}`,
