@@ -83,6 +83,7 @@ test("Market IQ ingestion bypasses Clerk only for bearer-token auth routes", () 
   assert.equal(isGated("/api/market-iq/source/dwellsy/refresh"), false);
   assert.equal(isGated("/api/market-iq/source/trends/refresh"), false);
   assert.equal(isGated("/api/market-iq/source-snapshots"), false);
+  assert.equal(isGated("/api/market-iq/daily-watchlist-delivery"), false);
   assert.equal(isGated("/api/market-iq/watchlists"), true);
 });
 

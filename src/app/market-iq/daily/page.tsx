@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { notFound, redirect } from "next/navigation";
-import { clearMarketIqDailyViewPreference, deleteMarketIqDailyWatchlist, saveMarketIqDailyViewPreference, saveMarketIqDailyWatchlist } from "@/app/market-iq/daily/actions";
+import { clearMarketIqDailyViewPreference, deleteMarketIqDailyWatchlist, markMarketIqDailyMatchesRead, saveMarketIqDailyDeliveryPreference, saveMarketIqDailyViewPreference, saveMarketIqDailyWatchlist } from "@/app/market-iq/daily/actions";
 import { MarketIqMarketPreparing } from "@/components/market-iq/MarketIqMarketPreparing";
 import { MarketIqMarketSelector } from "@/components/market-iq/MarketIqMarketSelector";
 import { MarketIqDailyEditionArchive, MarketIqDailyEditionMissing } from "@/components/market-iq/report/MarketIqDailyEditionArchive";
@@ -15,6 +15,7 @@ import { compareMarketIqDailyEditions } from "@/lib/market-iq/daily-edition-comp
 import { loadMarketIqDailyEditionArchive } from "@/lib/market-iq/daily-editions.server";
 import { loadMarketIqDailyViewPreference } from "@/lib/market-iq/daily-view-preference.server";
 import { loadMarketIqDailyWatchlists } from "@/lib/market-iq/daily-watchlists.server";
+import { loadMarketIqDailyDeliveryState } from "@/lib/market-iq/daily-watchlist-delivery.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { MARKET_IQ_MARKET_INTELLIGENCE_ROUTES } from "@/lib/market-iq/navigation";
 import { resolveActiveMarketIqMarket } from "@/lib/market-iq/markets/selection";
@@ -80,7 +81,7 @@ export default async function MarketIqDailyPage({
     );
   }
 
-  const [archive, initialExplorerFilters, initialWatchlists] = await Promise.all([
+  const [archive, initialExplorerFilters, initialWatchlists, initialDeliveryState] = await Promise.all([
     loadMarketIqDailyEditionArchive({
       marketId: activeMarket.id,
       requestedEditionId: query.edition,
@@ -88,6 +89,7 @@ export default async function MarketIqDailyPage({
     }),
     userId ? loadMarketIqDailyViewPreference({ organizationId, userId, marketId: activeMarket.id }) : null,
     userId ? loadMarketIqDailyWatchlists({ organizationId, userId, marketId: activeMarket.id }) : [],
+    userId ? loadMarketIqDailyDeliveryState({ organizationId, userId }) : null,
   ]);
   if (!archive.latest) {
     return (
@@ -141,6 +143,9 @@ export default async function MarketIqDailyPage({
             initialWatchlists={initialWatchlists}
             saveWatchlist={saveMarketIqDailyWatchlist}
             deleteWatchlist={deleteMarketIqDailyWatchlist}
+            deliveryState={initialDeliveryState}
+            saveDeliveryPreference={saveMarketIqDailyDeliveryPreference}
+            markMatchesRead={markMarketIqDailyMatchesRead}
             comparison={<MarketIqDailyEditionComparisonPanel comparison={comparison} timeZone={activeMarket.timeZone} />}
           />
           : <>

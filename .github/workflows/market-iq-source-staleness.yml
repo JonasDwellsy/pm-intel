@@ -1,0 +1,179 @@
+name: Market IQ nightly source snapshots and delivery
+
+on:
+  schedule:
+    # 09:00 UTC is 2:00 a.m. PDT and 1:00 a.m. PST.
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: market-iq-nightly-source-snapshots
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Publish, verify, and deliver every Market IQ snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      HEALTH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq-stable-preview-health
+      REFRESH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/source/trends/refresh
+      DELIVERY_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/daily-watchlist-delivery
+      MARKET_IQ_SOURCE_REFRESH_TOKEN: ${{ secrets.MARKET_IQ_SOURCE_REFRESH_TOKEN }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.MARKET_IQ_VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - name: Require the preview automation credentials
+        shell: bash
+        run: |
+          if [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ] || [ -z "$MARKET_IQ_SOURCE_REFRESH_TOKEN" ]; then
+            echo "The Market IQ snapshot automation credentials are not configured."
+            exit 1
+          fi
+
+      - name: Publish every configured market snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          markets=(
+            "cleveland-elyria-mentor-oh"
+            "columbus-oh"
+            "san-francisco-oakland-berkeley-ca"
+            "san-jose-sunnyvale-santa-clara-ca"
+          )
+
+          for market_id in "${markets[@]}"; do
+            response_file="$(mktemp)"
+            status="$(curl --silent --show-error \
+              --connect-timeout 10 --max-time 360 \
+              --output "$response_file" --write-out '%{http_code}' \
+              --request POST \
+              --header "Authorization: Bearer $MARKET_IQ_SOURCE_REFRESH_TOKEN" \
+              --header "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+              "$REFRESH_URL?market=$market_id")"
+
+            MARKET_ID="$market_id" HTTP_STATUS="$status" RESPONSE_FILE="$response_file" node <<'NODE'
+          const fs = require("node:fs");
+          const marketId = process.env.MARKET_ID;
+          const httpStatus = process.env.HTTP_STATUS;
+          let response;
+          try {
+            response = JSON.parse(fs.readFileSync(process.env.RESPONSE_FILE, "utf8"));
+          } catch {
+            console.error(`Snapshot refresh for ${marketId} did not return valid JSON.`);
+            process.exit(1);
+          }
+
+          const generatedAt = new Date(response.generatedAt);
+          const ageMilliseconds = Date.now() - generatedAt.getTime();
+          const stored = httpStatus === "200"
+            && response.status === "stored"
+            && response.marketId === marketId
+            && Number.isFinite(generatedAt.getTime())
+            && ageMilliseconds >= 0
+            && ageMilliseconds <= 20 * 60 * 1000;
+
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+            `### ${marketId}`,
+            "",
+            `- HTTP status: ${httpStatus}`,
+            `- Result: ${response.status ?? "unavailable"}`,
+            `- Source available through: ${response.sourceAvailableThrough ?? "unavailable"}`,
+            `- Snapshot generated at: ${response.generatedAt ?? "unavailable"}`,
+            "",
+          ].join("\n"));
+
+          if (!stored) {
+            console.error(`Snapshot refresh for ${marketId} failed its stored-snapshot contract.`);
+            process.exit(1);
+          }
+          NODE
+            rm -f "$response_file"
+          done
+
+      - name: Check the verified source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+
+          status="$(curl --silent --show-error \
+            --retry 2 --retry-all-errors --retry-delay 5 \
+            --connect-timeout 10 --max-time 30 \
+            --output "$response_file" --write-out '%{http_code}' \
+            --header "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+            "$HEALTH_URL")"
+
+          HEALTH_STATUS="$status" HEALTH_RESPONSE_FILE="$response_file" node <<'NODE'
+          const fs = require("node:fs");
+          let response;
+          try {
+            response = JSON.parse(fs.readFileSync(process.env.HEALTH_RESPONSE_FILE, "utf8"));
+          } catch {
+            console.error("Market IQ source health did not return valid JSON.");
+            process.exit(1);
+          }
+          const checks = Array.isArray(response.checks) ? response.checks : [];
+          const failedChecks = checks.filter((check) => check.status !== "ready");
+          const healthy = process.env.HEALTH_STATUS === "200"
+            && response.product === "market-iq"
+            && response.status === "ready"
+            && checks.length > 0
+            && failedChecks.length === 0;
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+            "## Market IQ post-publication health",
+            "",
+            `- HTTP status: ${process.env.HEALTH_STATUS}`,
+            `- Overall status: ${response.status ?? "unavailable"}`,
+            `- Failed checks: ${failedChecks.map((check) => check.id).join(", ") || "none"}`,
+            "",
+          ].join("\n"));
+          if (!healthy) {
+            console.error("Market IQ does not have a current verified source snapshot.");
+            process.exit(1);
+          }
+          NODE
+
+      - name: Materialize and deliver personal watchlist matches
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+
+          status="$(curl --silent --show-error \
+            --connect-timeout 10 --max-time 360 \
+            --output "$response_file" --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $MARKET_IQ_SOURCE_REFRESH_TOKEN" \
+            --header "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+            "$DELIVERY_URL")"
+
+          DELIVERY_STATUS="$status" DELIVERY_RESPONSE_FILE="$response_file" node <<'NODE'
+          const fs = require("node:fs");
+          let response;
+          try {
+            response = JSON.parse(fs.readFileSync(process.env.DELIVERY_RESPONSE_FILE, "utf8"));
+          } catch {
+            console.error("Market IQ watchlist delivery did not return valid JSON.");
+            process.exit(1);
+          }
+          const complete = process.env.DELIVERY_STATUS === "200" && response.status === "complete";
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+            "## Personal watchlist delivery",
+            "",
+            `- HTTP status: ${process.env.DELIVERY_STATUS}`,
+            `- Result: ${response.status ?? "unavailable"}`,
+            `- Watchlists evaluated: ${response.watchlistsEvaluated ?? "unavailable"}`,
+            `- New matches: ${response.matchesCreated ?? "unavailable"}`,
+            `- Emails sent: ${response.sent ?? "unavailable"}`,
+            `- Failed emails: ${response.failed ?? "unavailable"}`,
+            "",
+          ].join("\n"));
+          if (!complete) {
+            console.error("Market IQ watchlist delivery did not complete.");
+            process.exit(1);
+          }
+          NODE
