@@ -19,6 +19,8 @@ export const MARKET_IQ_DAILY_WATCHLIST_EVENT_TYPES = [
 ] as const;
 
 export type MarketIqDailyWatchlistEventType = typeof MARKET_IQ_DAILY_WATCHLIST_EVENT_TYPES[number];
+export const MARKET_IQ_DAILY_WATCHLIST_VISIBILITIES = ["private", "organization"] as const;
+export type MarketIqDailyWatchlistVisibility = typeof MARKET_IQ_DAILY_WATCHLIST_VISIBILITIES[number];
 
 export const MARKET_IQ_COMPETITIVE_SET_RADII_MILES = [1, 3, 5] as const;
 export type MarketIqCompetitiveSetRadiusMiles = typeof MARKET_IQ_COMPETITIVE_SET_RADII_MILES[number];
@@ -46,6 +48,9 @@ export type MarketIqDailyWatchlistView = {
   name: string;
   marketId: string;
   filters: MarketIqDailyWatchlistFilters;
+  visibility: MarketIqDailyWatchlistVisibility;
+  isOwner: boolean;
+  isFollowing: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -54,11 +59,26 @@ export type MarketIqDailyWatchlistInput = {
   id?: string;
   name: string;
   filters: MarketIqDailyWatchlistFilters;
+  visibility?: MarketIqDailyWatchlistVisibility;
 };
 
 export type MarketIqDailyWatchlistActionResult =
   | { ok: true; watchlist?: MarketIqDailyWatchlistView }
   | { ok: false; message: string };
+
+export type MarketIqDailyWatchlistFollowResult =
+  | { ok: true; isFollowing: boolean }
+  | { ok: false; message: string };
+
+export function marketIqDailyWatchlistRecipientIds(input: {
+  ownerUserId: string;
+  visibility: MarketIqDailyWatchlistVisibility;
+  subscriberUserIds: string[];
+}) {
+  return input.visibility === "organization"
+    ? [...new Set([input.ownerUserId, ...input.subscriberUserIds])]
+    : [input.ownerUserId];
+}
 
 export type MarketIqDailyWatchlistMatch = {
   id: string;
@@ -86,6 +106,7 @@ export const EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS: MarketIqDailyWatchlistFilt
 };
 
 const EVENT_TYPES = new Set<string>(MARKET_IQ_DAILY_WATCHLIST_EVENT_TYPES);
+const VISIBILITIES = new Set<string>(MARKET_IQ_DAILY_WATCHLIST_VISIBILITIES);
 const BEDROOMS = new Set(["all", "studio", "1", "2", "3", "4_plus"]);
 const PROPERTY_TYPES = new Set(["all", "apartment", "house"]);
 const RENT_DIRECTIONS = new Set(["all", "increase", "decrease"]);
@@ -168,7 +189,9 @@ export function parseMarketIqDailyWatchlistInput(value: unknown):
   if (!filters) return { ok: false, error: "Choose valid Daily Edition filters." };
   const id = typeof candidate.id === "string" && candidate.id.trim() ? candidate.id.trim() : undefined;
   if (id && id.length > 100) return { ok: false, error: "This watchlist could not be updated." };
-  return { ok: true, value: { id, name, filters } };
+  const visibility = candidate.visibility === undefined ? "private" : candidate.visibility;
+  if (typeof visibility !== "string" || !VISIBILITIES.has(visibility)) return { ok: false, error: "Choose a valid watchlist visibility." };
+  return { ok: true, value: { id, name, filters, visibility: visibility as MarketIqDailyWatchlistVisibility } };
 }
 
 export function parseMarketIqDailyWatchlistFilters(value: string): MarketIqDailyWatchlistFilters | null {

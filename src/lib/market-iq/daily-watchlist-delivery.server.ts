@@ -9,14 +9,23 @@ import {
   buildMarketIqDailyWatchlistEmail,
   marketIqDailyDeliveryIsDue,
   parseMarketIqDailyDeliveryCadence,
+  type MarketIqDailyDeliveryState,
   type MarketIqPersistedDailyMatch,
 } from "@/lib/market-iq/daily-watchlist-delivery";
+import { parseMarketIqDailyTriageStatus } from "@/lib/market-iq/daily-watchlist-triage";
 import { loadMarketIqDailyEditionArchive } from "@/lib/market-iq/daily-editions.server";
-import { matchMarketIqDailyWatchlist, parseMarketIqDailyWatchlistFilters } from "@/lib/market-iq/daily-watchlists";
+import {
+  marketIqDailyWatchlistRecipientIds,
+  matchMarketIqDailyWatchlist,
+  parseMarketIqDailyWatchlistFilters,
+} from "@/lib/market-iq/daily-watchlists";
 import { prisma } from "@/lib/prisma";
 
 export async function materializeMarketIqDailyWatchlistMatches() {
-  const watchlists = await prisma.marketIqDailyWatchlist.findMany({ orderBy: [{ marketId: "asc" }, { id: "asc" }] });
+  const watchlists = await prisma.marketIqDailyWatchlist.findMany({
+    include: { subscriptions: { select: { userId: true } } },
+    orderBy: [{ marketId: "asc" }, { id: "asc" }],
+  });
   const latestByMarket = new Map<string, Awaited<ReturnType<typeof loadMarketIqDailyEditionArchive>>["latest"]>();
   let created = 0;
   for (const watchlist of watchlists) {
@@ -31,12 +40,17 @@ export async function materializeMarketIqDailyWatchlistMatches() {
     const availability = edition?.value.marketActivity;
     if (!edition || availability?.state !== "available") continue;
     const matches = matchMarketIqDailyWatchlist({ filters }, availability.activity);
+    const recipientUserIds = marketIqDailyWatchlistRecipientIds({
+      ownerUserId: watchlist.userId,
+      visibility: watchlist.visibility === "organization" ? "organization" : "private",
+      subscriberUserIds: watchlist.subscriptions.map((subscription) => subscription.userId),
+    });
     for (const match of matches) {
       const eventKey = `${match.eventType}:${match.id}`;
       const result = await prisma.marketIqDailyWatchlistMatch.createMany({
-        data: [{
+        data: recipientUserIds.map((recipientUserId) => ({
           organizationId: watchlist.organizationId,
-          userId: watchlist.userId,
+          userId: recipientUserId,
           watchlistId: watchlist.id,
           marketId: watchlist.marketId,
           editionId: edition.id,
@@ -51,7 +65,7 @@ export async function materializeMarketIqDailyWatchlistMatches() {
           propertyId: match.propertyId,
           listingUrl: match.listingUrl,
           sectionHref: match.sectionHref,
-        }],
+        })),
         skipDuplicates: true,
       });
       created += result.count;
@@ -61,13 +75,14 @@ export async function materializeMarketIqDailyWatchlistMatches() {
 }
 
 async function userIdentities(userIds: string[]) {
-  const identities = new Map<string, { name: string | null; email: string }>();
+  const identities = new Map<string, { firstName: string | null; name: string; email: string }>();
   if (!userIds.length) return identities;
   const client = await clerkClient();
   const { data } = await client.users.getUserList({ userId: userIds, limit: Math.min(userIds.length, 500) });
   for (const user of data) {
     const email = user.emailAddresses.find((address) => address.id === user.primaryEmailAddressId)?.emailAddress ?? user.emailAddresses[0]?.emailAddress;
-    if (email) identities.set(user.id, { name: user.firstName ?? null, email });
+    const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || email || "Team member";
+    if (email) identities.set(user.id, { firstName: user.firstName ?? null, name, email });
   }
   return identities;
 }
@@ -97,6 +112,12 @@ export async function runMarketIqDailyWatchlistDelivery(input: { now?: Date; app
         organizationId: preference.organizationId,
         userId: preference.userId,
         emailedAt: null,
+        watchlist: {
+          OR: [
+            { userId: preference.userId },
+            { visibility: "organization", subscriptions: { some: { userId: preference.userId } } },
+          ],
+        },
         ...(preference.lastDeliveredAt ? { observedAt: { gt: preference.lastDeliveredAt } } : {}),
       },
       include: { watchlist: { select: { name: true } } },
@@ -116,7 +137,7 @@ export async function runMarketIqDailyWatchlistDelivery(input: { now?: Date; app
       propertyId: row.propertyId,
       sectionHref: row.sectionHref,
     }));
-    const email = buildMarketIqDailyWatchlistEmail({ recipientName: identity.name, cadence, matches, appOrigin: origin });
+    const email = buildMarketIqDailyWatchlistEmail({ recipientName: identity.firstName, cadence, matches, appOrigin: origin });
     if (!email) { counts.empty += 1; continue; }
     const deliveryKey = createHash("sha256").update(`${preference.organizationId}:${preference.userId}:${email.eventKeys.sort().join("|")}`).digest("hex");
     const prior = await prisma.marketIqDailyWatchlistDelivery.findUnique({ where: { deliveryKey } });
@@ -141,20 +162,47 @@ export async function runMarketIqDailyWatchlistDelivery(input: { now?: Date; app
   return { ...materialized, ...counts };
 }
 
-export async function loadMarketIqDailyDeliveryState(input: { organizationId: string; userId: string }) {
-  const [preference, matches] = await Promise.all([
+export async function loadMarketIqDailyDeliveryState(input: { organizationId: string; userId: string }): Promise<MarketIqDailyDeliveryState> {
+  const [preference, matches, memberships] = await Promise.all([
     prisma.marketIqDailyDeliveryPreference.findUnique({ where: { organizationId_userId: input } }),
     prisma.marketIqDailyWatchlistMatch.findMany({
-      where: input,
-      include: { watchlist: { select: { name: true } } },
+      where: {
+        ...input,
+        watchlist: { OR: [{ userId: input.userId }, { visibility: "organization" }] },
+      },
+      include: { watchlist: { select: { name: true, visibility: true, userId: true } } },
       orderBy: { observedAt: "desc" },
       take: 30,
     }),
+    prisma.organizationMembership.findMany({
+      where: { organizationId: input.organizationId },
+      select: { userId: true },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
+  const triages = matches.length ? await prisma.marketIqDailyWatchlistTriage.findMany({
+    where: {
+      organizationId: input.organizationId,
+      OR: matches.map((match) => ({ watchlistId: match.watchlistId, eventKey: match.eventKey })),
+    },
+    include: { notes: { orderBy: { createdAt: "desc" }, take: 20 } },
+  }) : [];
+  const userIds = [...new Set([
+    input.userId,
+    ...memberships.map((membership) => membership.userId),
+    ...matches.map((match) => match.watchlist.userId),
+    ...triages.flatMap((triage) => [triage.assignedToUserId, triage.updatedByUserId, ...triage.notes.map((note) => note.authorUserId)]).filter((userId): userId is string => Boolean(userId)),
+  ])];
+  const identities = await userIdentities(userIds);
+  const triageByMatch = new Map(triages.map((triage) => [`${triage.watchlistId}:${triage.eventKey}`, triage]));
   return {
     cadence: parseMarketIqDailyDeliveryCadence(preference?.cadence) ?? "in_app_only",
     lastDeliveredAt: preference?.lastDeliveredAt?.toISOString() ?? null,
-    matches: matches.map((match) => ({
+    viewerUserId: input.userId,
+    teamMembers: userIds.map((userId) => ({ userId, name: identities.get(userId)?.name ?? (userId === input.userId ? "You" : "Team member") })),
+    matches: matches.map((match) => {
+      const triage = triageByMatch.get(`${match.watchlistId}:${match.eventKey}`);
+      return {
       id: match.id,
       watchlistName: match.watchlist.name,
       marketId: match.marketId,
@@ -168,6 +216,18 @@ export async function loadMarketIqDailyDeliveryState(input: { organizationId: st
       sectionHref: match.sectionHref,
       readAt: match.readAt?.toISOString() ?? null,
       emailedAt: match.emailedAt?.toISOString() ?? null,
-    })),
+      watchlistVisibility: match.watchlist.visibility === "organization" ? "organization" as const : "private" as const,
+      triage: {
+        status: parseMarketIqDailyTriageStatus(triage?.status) ?? "new",
+        assignedToUserId: triage?.assignedToUserId ?? null,
+        notes: triage?.notes.map((note) => ({
+          id: note.id,
+          authorUserId: note.authorUserId,
+          authorName: identities.get(note.authorUserId)?.name ?? (note.authorUserId === input.userId ? "You" : "Team member"),
+          body: note.body,
+          createdAt: note.createdAt.toISOString(),
+        })) ?? [],
+      },
+    }; }),
   };
 }

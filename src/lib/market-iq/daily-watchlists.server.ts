@@ -13,9 +13,24 @@ export async function loadMarketIqDailyWatchlists(input: {
   marketId: string;
 }): Promise<MarketIqDailyWatchlistView[]> {
   const rows = await prisma.marketIqDailyWatchlist.findMany({
-    where: input,
+    where: {
+      organizationId: input.organizationId,
+      marketId: input.marketId,
+      OR: [{ userId: input.userId }, { visibility: "organization" }],
+    },
     orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
-    select: { id: true, name: true, marketId: true, version: true, filters: true, createdAt: true, updatedAt: true },
+    select: {
+      id: true,
+      userId: true,
+      name: true,
+      marketId: true,
+      version: true,
+      filters: true,
+      visibility: true,
+      createdAt: true,
+      updatedAt: true,
+      subscriptions: { where: { userId: input.userId }, select: { id: true }, take: 1 },
+    },
   }).catch((error: unknown) => {
     if (isMissingDailyWatchlistTableError(error)) return [];
     throw error;
@@ -27,8 +42,11 @@ export async function loadMarketIqDailyWatchlists(input: {
       name: row.name,
       marketId: row.marketId,
       filters,
+      visibility: row.visibility === "organization" ? "organization" as const : "private" as const,
+      isOwner: row.userId === input.userId,
+      isFollowing: row.userId === input.userId || row.subscriptions.length > 0,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }] : [];
-  });
+  }).sort((left, right) => Number(right.isOwner) - Number(left.isOwner) || Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
 }
