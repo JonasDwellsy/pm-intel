@@ -17,6 +17,8 @@ export type MarketIqDataIssue = {
 
 export type MarketIqListingPulse = ListingSupplySummary & {
   status: "healthy" | "unavailable";
+  unavailableReason: "missing" | "stale" | "invalid" | "read_failed" | null;
+  attemptedAt: Date | null;
   sourceName: string;
   sourceAvailableThrough: Date | null;
   activeListings: number;

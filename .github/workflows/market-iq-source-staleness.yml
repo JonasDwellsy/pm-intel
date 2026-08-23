@@ -20,6 +20,7 @@ jobs:
     env:
       HEALTH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq-stable-preview-health
       REFRESH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/source/trends/refresh
+      SUPPLY_REFRESH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/source/dwellsy/refresh
       DELIVERY_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/daily-watchlist-delivery
       MARKET_IQ_SOURCE_REFRESH_TOKEN: ${{ secrets.MARKET_IQ_SOURCE_REFRESH_TOKEN }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.MARKET_IQ_VERCEL_AUTOMATION_BYPASS_SECRET }}
@@ -86,6 +87,59 @@ jobs:
 
           if (!stored) {
             console.error(`Snapshot refresh for ${marketId} failed its stored-snapshot contract.`);
+            process.exit(1);
+          }
+          NODE
+            rm -f "$response_file"
+          done
+
+      - name: Capture verified listing supply for every market
+        shell: bash
+        run: |
+          set -euo pipefail
+          markets=(
+            "cleveland-elyria-mentor-oh"
+            "columbus-oh"
+            "san-francisco-oakland-berkeley-ca"
+            "san-jose-sunnyvale-santa-clara-ca"
+          )
+
+          for market_id in "${markets[@]}"; do
+            response_file="$(mktemp)"
+            status="$(curl --silent --show-error \
+              --connect-timeout 10 --max-time 360 \
+              --output "$response_file" --write-out '%{http_code}' \
+              --request POST \
+              --header "Authorization: Bearer $MARKET_IQ_SOURCE_REFRESH_TOKEN" \
+              --header "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+              "$SUPPLY_REFRESH_URL?market=$market_id")"
+
+            MARKET_ID="$market_id" HTTP_STATUS="$status" RESPONSE_FILE="$response_file" node <<'NODE'
+          const fs = require("node:fs");
+          const marketId = process.env.MARKET_ID;
+          let response;
+          try {
+            response = JSON.parse(fs.readFileSync(process.env.RESPONSE_FILE, "utf8"));
+          } catch {
+            console.error(`Listing supply capture for ${marketId} did not return valid JSON.`);
+            process.exit(1);
+          }
+          const captured = process.env.HTTP_STATUS === "200"
+            && response.marketId === marketId
+            && ["complete", "baseline_complete"].includes(response.status)
+            && Number.isInteger(response.recordCount)
+            && response.recordCount > 0;
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+            `### ${marketId} listing supply`,
+            "",
+            `- HTTP status: ${process.env.HTTP_STATUS}`,
+            `- Result: ${response.status ?? "unavailable"}`,
+            `- Active listings: ${response.recordCount ?? "unavailable"}`,
+            `- Source available through: ${response.sourceAvailableThrough ?? "unavailable"}`,
+            "",
+          ].join("\n"));
+          if (!captured) {
+            console.error(`Listing supply capture for ${marketId} failed its persisted-evidence contract.`);
             process.exit(1);
           }
           NODE

@@ -73,7 +73,7 @@ export default async function MarketIqPage({
     );
   }
 
-  const [{ report, listingPulse: liveListingPulse }, listingSupplyHistory] = await Promise.all([
+  const [{ report, listingPulse }, listingSupplyHistory] = await Promise.all([
     loadMarketIqMarketData(activeMarket.id),
     loadListingSupplyHistory(activeMarket.id),
   ]);
@@ -96,22 +96,24 @@ export default async function MarketIqPage({
         report={report}
         market={activeMarket}
         listingSync={{
-          status: liveListingPulse.status,
-          availableThrough: liveListingPulse.sourceAvailableThrough?.toISOString() ?? null,
-          activeListings: liveListingPulse.activeListings,
-          apartmentListings: liveListingPulse.apartmentListings,
-          houseListings: liveListingPulse.houseListings,
-          ageObservedListings: liveListingPulse.ageObservedListings,
-          medianActiveAgeDays: liveListingPulse.medianActiveAgeDays,
-          activeOver30Days: liveListingPulse.activeOver30Days,
-          activeOver30SharePct: liveListingPulse.activeOver30SharePct,
-          activatedLast7Days: liveListingPulse.activatedLast7Days,
-          activatedLast30Days: liveListingPulse.activatedLast30Days,
-          listingAgeBuckets: liveListingPulse.listingAgeBuckets,
-          newEvents: liveListingPulse.newEvents,
-          relistedEvents: liveListingPulse.relistedEvents,
-          priceChangeEvents: liveListingPulse.priceChangeEvents,
-          message: liveListingPulse.message,
+          status: listingPulse.status,
+          unavailableReason: listingPulse.unavailableReason,
+          attemptedAt: listingPulse.attemptedAt?.toISOString() ?? null,
+          availableThrough: listingPulse.sourceAvailableThrough?.toISOString() ?? null,
+          activeListings: listingPulse.activeListings,
+          apartmentListings: listingPulse.apartmentListings,
+          houseListings: listingPulse.houseListings,
+          ageObservedListings: listingPulse.ageObservedListings,
+          medianActiveAgeDays: listingPulse.medianActiveAgeDays,
+          activeOver30Days: listingPulse.activeOver30Days,
+          activeOver30SharePct: listingPulse.activeOver30SharePct,
+          activatedLast7Days: listingPulse.activatedLast7Days,
+          activatedLast30Days: listingPulse.activatedLast30Days,
+          listingAgeBuckets: listingPulse.listingAgeBuckets,
+          newEvents: listingPulse.newEvents,
+          relistedEvents: listingPulse.relistedEvents,
+          priceChangeEvents: listingPulse.priceChangeEvents,
+          message: listingPulse.message,
         }}
         listingSupplyHistory={listingSupplyHistory}
         clientAdvisoryEnabled={access.capabilities.publishClientReports}

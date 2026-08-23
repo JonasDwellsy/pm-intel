@@ -23,7 +23,6 @@ const CLEVELAND_COUPLING_BASELINE = [
   "src/app/market-iq/published/[campaignId]/page.tsx",
   "src/lib/market-iq/alert-history.server.ts",
   "src/lib/market-iq/historical.server.ts",
-  "src/lib/market-iq/listing-feed-run.server.ts",
   "src/lib/market-iq/live-listings.server.ts",
   "src/lib/market-iq/report/build.server.ts",
   "src/lib/market-iq/trends.server.ts",

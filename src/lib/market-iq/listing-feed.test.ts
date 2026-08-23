@@ -97,7 +97,8 @@ test("manual refresh is preview-gated and token-authenticated", () => {
   assert.match(route, /MARKET_IQ_SOURCE_REFRESH_TOKEN/);
   assert.match(route, /MARKET_IQ_IMPORT_TOKEN/);
   assert.match(route, /timingSafeEqual/);
-  assert.match(route, /runClevelandListingFeed/);
+  assert.match(route, /runMarketIqListingFeed/);
+  assert.match(route, /getMarketIqMarket/);
   const runner = readFileSync("src/lib/market-iq/listing-feed-run.server.ts", "utf8");
   assert.match(runner, /MARKET_IQ_LISTING_FEED_MAX_SOURCE_AGE_MS/);
   assert.match(runner, /MINIMUM_PRIOR_COVERAGE/);
@@ -144,6 +145,7 @@ test("token automation is scheduled while browser-admin refreshes remain manual"
   const route = readFileSync("src/app/api/market-iq/source/dwellsy/refresh/route.ts", "utf8");
   assert.match(route, /tokenAuthorized && !adminAuthorized \? "scheduled" : "manual"/);
   assert.match(route, /scheduledMarketIqListingFeedOperationKey/);
+  assert.match(route, /marketId: market\.id/);
   assert.match(route, /startedBy: adminAuthorized \? userId! : "listing-feed-automation"/);
   assert.match(route, /status: "already_running"/);
   assert.match(route, /"Retry-After": "30"/);

@@ -120,6 +120,8 @@ function listingPulseFixture(): MarketIqListingPulse {
   return {
     ...emptyListingSupplySummary(),
     status: "healthy",
+    unavailableReason: null,
+    attemptedAt: null,
     sourceName: "Fixture listing source",
     sourceAvailableThrough: new Date("2026-07-31T00:00:00.000Z"),
     activeListings: 1,
