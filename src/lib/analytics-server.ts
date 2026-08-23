@@ -125,6 +125,8 @@ interface CaptureArgs {
   anonymousId?: string | null;
   event: ServerEventName;
   properties?: Record<string, unknown>;
+  /** Stable event UUID for replay-safe external deliveries such as webhooks. */
+  eventId?: string;
 }
 
 /** Fire-and-forget PostHog capture from a server route. Returns
@@ -142,6 +144,7 @@ export function captureServerEvent(args: CaptureArgs): void {
   ph.capture({
     distinctId,
     event: args.event,
+    uuid: args.eventId,
     properties: {
       ...(args.properties ?? {}),
       // Match the client-side enrich() shape so dashboards can union
