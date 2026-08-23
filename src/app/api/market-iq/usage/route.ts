@@ -5,6 +5,7 @@ import { recordUsageEventAwait } from "@/lib/usage/record";
 const ROUTES: Array<[RegExp, string]> = [
   [/^\/market-iq$/, "home"],
   [/^\/market-iq\/market(?:\/|$)/, "market_intelligence"],
+  [/^\/market-iq\/(?:daily|alerts)(?:\/|$)/, "market_intelligence"],
   [/^\/market-iq\/editions(?:\/|$)/, "client_reports"],
   [/^\/market-iq\/(?:distribution|published|delivery)(?:\/|$)/, "sharing"],
   [/^\/market-iq\/(?:get-started|launch)(?:\/|$)/, "setup"],

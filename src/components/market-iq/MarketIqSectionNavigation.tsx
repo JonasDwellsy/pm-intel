@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   MARKET_IQ_CLIENT_REPORTING_ROUTES,
   MARKET_IQ_MARKET_INTELLIGENCE_ROUTES,
@@ -11,6 +12,7 @@ import {
 
 const MARKET_INTELLIGENCE_ITEMS = [
   { id: "daily", href: MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.daily, label: "Daily edition" },
+  { id: "alerts", href: MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.alerts, label: "Alerts" },
   { id: "overview", href: MARKET_IQ_MARKET_INTELLIGENCE_ROUTES.overview, label: "Market overview" },
 ] as const;
 
@@ -25,11 +27,23 @@ const CLIENT_REPORTING_ITEMS = [
 export function MarketIqSectionNavigation() {
   const pathname = usePathname() ?? "";
   const area = marketIqProductArea(pathname);
+  const [openAlertCount, setOpenAlertCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (area !== "market-intelligence" || typeof fetch !== "function") return;
+    const controller = new AbortController();
+    void fetch("/api/market-iq/alerts/count", { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((value: { count?: unknown } | null) => {
+        if (typeof value?.count === "number") setOpenAlertCount(value.count);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [area]);
   if (area !== "market-intelligence" && area !== "client-reporting") return null;
 
   const items = area === "market-intelligence" ? MARKET_INTELLIGENCE_ITEMS : CLIENT_REPORTING_ITEMS;
   const activeId = area === "market-intelligence"
-    ? pathname.startsWith("/market-iq/daily") ? "daily" : "overview"
+    ? pathname.startsWith("/market-iq/daily") ? "daily" : pathname.startsWith("/market-iq/alerts") ? "alerts" : "overview"
     : marketIqClientReportingTab(pathname);
 
   return (
@@ -46,7 +60,7 @@ export function MarketIqSectionNavigation() {
                 ? "whitespace-nowrap border-b-2 border-navy px-3 py-3 text-sm font-semibold text-navy"
                 : "whitespace-nowrap border-b-2 border-transparent px-3 py-3 text-sm font-medium text-slate-500 hover:text-navy"}
             >
-              {item.label}
+              {item.label}{item.id === "alerts" && openAlertCount !== null && <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${active ? "bg-white/20 text-white" : "bg-violet-100 text-violet-800"}`}>{openAlertCount > 999 ? "999+" : openAlertCount}</span>}
             </Link>
           );
         })}
