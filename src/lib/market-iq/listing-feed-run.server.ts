@@ -1,6 +1,6 @@
 import "server-only";
-import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
-import { loadClevelandActiveListings } from "@/lib/dwellsy-source/active-listings.server";
+import type { MarketIqMarketDefinition } from "@/data/market-iq/markets";
+import { loadMarketActiveListings } from "@/lib/dwellsy-source/active-listings.server";
 import {
   classifyListingFeedChanges,
   listingEventFingerprint,
@@ -21,6 +21,7 @@ const COMPLETE_STATUSES = ["complete", "baseline_complete"];
 
 type ListingFeedRunResult = {
   runId: string;
+  marketId: string;
   status: string;
   sourceAvailableThrough: Date;
   recordCount: number;
@@ -43,6 +44,7 @@ function completedRunResult(run: ListingFeedRunRecord): ListingFeedRunResult | n
   if (!COMPLETE_STATUSES.includes(run.status) || !run.sourceAvailableThrough) return null;
   return {
     runId: run.id,
+    marketId: run.marketId,
     status: run.status,
     sourceAvailableThrough: run.sourceAvailableThrough,
     recordCount: run.recordCount,
@@ -61,24 +63,26 @@ function isUniqueConstraintError(error: unknown): boolean {
   return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2002");
 }
 
-async function existingRunOutcome(operationKey?: string): Promise<ListingFeedRunResult | null> {
+async function existingRunOutcome(marketId: string, operationKey?: string): Promise<ListingFeedRunResult | null> {
   const existing = operationKey
     ? await marketIqPrisma.marketIqListingFeedRun.findUnique({ where: { operationKey } })
     : null;
+  if (existing && existing.marketId !== marketId) throw new MarketIqListingFeedOperationFailedError();
   const completed = existing ? completedRunResult(existing) : null;
   if (completed) return completed;
   if (existing?.status === "loading") throw new MarketIqListingFeedAlreadyRunningError();
   if (existing) throw new MarketIqListingFeedOperationFailedError();
 
   const active = await marketIqPrisma.marketIqListingFeedRun.findFirst({
-    where: { marketId: CLEVELAND_MARKET_ID, status: "loading" },
+    where: { marketId, status: "loading" },
     select: { id: true },
   });
   if (active) throw new MarketIqListingFeedAlreadyRunningError();
   return null;
 }
 
-async function beginClevelandListingFeedRun(input: {
+async function beginMarketIqListingFeedRun(input: {
+  marketId: string;
   triggerKind: "manual" | "scheduled";
   startedBy?: string;
   operationKey?: string;
@@ -87,7 +91,7 @@ async function beginClevelandListingFeedRun(input: {
   const staleBefore = marketIqListingFeedStaleBefore(input.now);
   await marketIqPrisma.marketIqListingFeedRun.updateMany({
     where: {
-      marketId: CLEVELAND_MARKET_ID,
+      marketId: input.marketId,
       status: "loading",
       startedAt: { lt: staleBefore },
     },
@@ -98,13 +102,13 @@ async function beginClevelandListingFeedRun(input: {
     },
   });
 
-  const replay = await existingRunOutcome(input.operationKey);
+  const replay = await existingRunOutcome(input.marketId, input.operationKey);
   if (replay) return { state: "reused" as const, result: replay };
 
   try {
     const run = await marketIqPrisma.marketIqListingFeedRun.create({
       data: {
-        marketId: CLEVELAND_MARKET_ID,
+        marketId: input.marketId,
         operationKey: input.operationKey,
         triggerKind: input.triggerKind,
         startedBy: input.startedBy,
@@ -114,20 +118,24 @@ async function beginClevelandListingFeedRun(input: {
     return { state: "acquired" as const, run };
   } catch (error) {
     if (!isUniqueConstraintError(error)) throw error;
-    const concurrentReplay = await existingRunOutcome(input.operationKey);
+    const concurrentReplay = await existingRunOutcome(input.marketId, input.operationKey);
     if (concurrentReplay) return { state: "reused" as const, result: concurrentReplay };
     throw new MarketIqListingFeedAlreadyRunningError();
   }
 }
 
-export async function runClevelandListingFeed(input: {
+export async function runMarketIqListingFeed(input: {
+  market: MarketIqMarketDefinition;
   triggerKind: "manual" | "scheduled";
   startedBy?: string;
   operationKey?: string;
   now?: Date;
 }) {
-  const lease = await beginClevelandListingFeedRun({
-    ...input,
+  const lease = await beginMarketIqListingFeedRun({
+    marketId: input.market.id,
+    triggerKind: input.triggerKind,
+    startedBy: input.startedBy,
+    operationKey: input.operationKey,
     now: input.now ?? new Date(),
   });
   if (lease.state === "reused") return lease.result;
@@ -135,11 +143,11 @@ export async function runClevelandListingFeed(input: {
 
   try {
     const previousRun = await marketIqPrisma.marketIqListingFeedRun.findFirst({
-      where: { marketId: CLEVELAND_MARKET_ID, status: { in: COMPLETE_STATUSES } },
+      where: { marketId: input.market.id, status: { in: COMPLETE_STATUSES } },
       orderBy: { completedAt: "desc" },
       include: { snapshots: true },
     });
-    const source = await loadClevelandActiveListings();
+    const source = await loadMarketActiveListings(input.market.cbsaCode);
     if (Date.now() - source.sourceAvailableThrough.getTime() > MARKET_IQ_LISTING_FEED_MAX_SOURCE_AGE_MS) {
       throw new Error("The Dwellsy active-listing snapshot is more than 48 hours old; synchronization stopped.");
     }
@@ -162,7 +170,7 @@ export async function runClevelandListingFeed(input: {
     const history = previousRun && currentOnly.length
       ? await marketIqPrisma.marketIqLiveListingSnapshot.findMany({
           where: {
-            marketId: CLEVELAND_MARKET_ID,
+            marketId: input.market.id,
             OR: [
               { sourceListingId: { in: currentOnly.map((listing) => listing.sourceListingId) } },
               { sourcePropertyId: { in: currentOnly.map((listing) => listing.sourcePropertyId) } },
@@ -224,15 +232,15 @@ export async function runClevelandListingFeed(input: {
       await transaction.marketIqLiveListingSnapshot.createMany({
         data: source.listings.map((listing) => ({
           runId: run.id,
-          marketId: CLEVELAND_MARKET_ID,
+          marketId: input.market.id,
           ...listing,
         })),
       });
       await transaction.marketIqListingEvent.createMany({
         data: events.map((event) => ({
-          fingerprint: listingEventFingerprint({ marketId: CLEVELAND_MARKET_ID, runId: run.id, event }),
+          fingerprint: listingEventFingerprint({ marketId: input.market.id, runId: run.id, event }),
           runId: run.id,
-          marketId: CLEVELAND_MARKET_ID,
+          marketId: input.market.id,
           ...event,
           metadata: JSON.stringify({ source: "dwellsy_prod.active_listing_table" }),
         })),
@@ -241,12 +249,12 @@ export async function runClevelandListingFeed(input: {
       await transaction.marketIqListingSupplySnapshot.upsert({
         where: {
           marketId_snapshotDate: {
-            marketId: CLEVELAND_MARKET_ID,
+            marketId: input.market.id,
             snapshotDate: supply.snapshotDate,
           },
         },
         create: {
-          marketId: CLEVELAND_MARKET_ID,
+          marketId: input.market.id,
           snapshotDate: supply.snapshotDate,
           ...supplySnapshot,
         },
@@ -256,6 +264,7 @@ export async function runClevelandListingFeed(input: {
 
     return {
       runId: run.id,
+      marketId: input.market.id,
       status: previousRun ? "complete" : "baseline_complete",
       sourceAvailableThrough: source.sourceAvailableThrough,
       recordCount: supply.activeListings,

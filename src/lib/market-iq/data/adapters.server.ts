@@ -7,7 +7,7 @@ import {
   SAN_JOSE_MARKET_ID,
   type MarketIqMarketDefinition,
 } from "@/data/market-iq/markets";
-import { loadClevelandLiveListingPulse, loadDirectMarketListingPulse } from "@/lib/market-iq/live-listings.server";
+import { loadPersistedMarketListingPulse } from "@/lib/market-iq/persisted-listing-supply.server";
 import { loadCachedClevelandMarketIqReportSnapshot } from "@/lib/market-iq/report/build.server";
 import { loadCachedColumbusMarketIqReportSnapshot } from "@/lib/market-iq/report/columbus-build.server";
 import { loadCachedSanFranciscoMarketIqReportSnapshot } from "@/lib/market-iq/report/san-francisco-build.server";
@@ -28,8 +28,9 @@ export function getMarketIqMarketDataAdapter(market: MarketIqMarketDefinition): 
   return {
     marketId: market.id,
     loadReport,
-    loadListingPulse: market.id === CLEVELAND_MARKET_ID
-      ? loadClevelandLiveListingPulse
-      : () => loadDirectMarketListingPulse({ marketName: market.shortLabel, msaCode: market.cbsaCode }),
+    loadListingPulse: () => loadPersistedMarketListingPulse({
+      marketId: market.id,
+      marketName: market.shortLabel,
+    }),
   };
 }

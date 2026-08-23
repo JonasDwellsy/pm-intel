@@ -103,7 +103,8 @@ describe("Market IQ local market read assembly", () => {
 
   it("renders unavailable source cuts in the internal market workspace", () => {
     const source = readFileSync("src/components/market-iq/MarketIqIntelligenceWorkspace.tsx", "utf8");
-    expect(source).toContain("report.marketRead.unavailableCuts.map");
+    expect(source).toContain("report.marketRead.unavailableCuts ?? []");
+    expect(source).toContain("unavailableCuts.map");
     expect(source).toContain("What the latest source month did not publish");
   });
 

@@ -12,24 +12,32 @@ export async function loadListingSupplyHistory(
   const windowStart = new Date(asOf);
   windowStart.setUTCDate(windowStart.getUTCDate() - HISTORY_WINDOW_DAYS);
 
-  const snapshots = await marketIqPrisma.marketIqListingSupplySnapshot.findMany({
-    where: {
+  try {
+    const snapshots = await marketIqPrisma.marketIqListingSupplySnapshot.findMany({
+      where: {
+        marketId,
+        snapshotDate: { gte: windowStart },
+      },
+      orderBy: { snapshotDate: "asc" },
+      select: {
+        snapshotDate: true,
+        sourceAvailableThrough: true,
+        activeListings: true,
+        medianActiveAgeDays: true,
+      },
+    });
+    return snapshots.map((snapshot) => ({
+      snapshotDate: snapshot.snapshotDate.toISOString().slice(0, 10),
+      sourceAvailableThrough: snapshot.sourceAvailableThrough.toISOString(),
+      activeListings: snapshot.activeListings,
+      medianActiveAgeDays: snapshot.medianActiveAgeDays,
+    }));
+  } catch (error) {
+    console.warn("[Market IQ] Listing supply history unavailable", {
       marketId,
-      snapshotDate: { gte: windowStart },
-    },
-    orderBy: { snapshotDate: "asc" },
-    select: {
-      snapshotDate: true,
-      sourceAvailableThrough: true,
-      activeListings: true,
-      medianActiveAgeDays: true,
-    },
-  });
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return [];
+  }
 
-  return snapshots.map((snapshot) => ({
-    snapshotDate: snapshot.snapshotDate.toISOString().slice(0, 10),
-    sourceAvailableThrough: snapshot.sourceAvailableThrough.toISOString(),
-    activeListings: snapshot.activeListings,
-    medianActiveAgeDays: snapshot.medianActiveAgeDays,
-  }));
 }

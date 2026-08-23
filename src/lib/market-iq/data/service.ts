@@ -24,11 +24,13 @@ function timeoutAfter<T>(promise: Promise<T>, milliseconds: number): Promise<T> 
   });
 }
 
-export function unavailableMarketIqListingPulse(marketName: string): MarketIqListingPulse {
+export function unavailableMarketIqListingPulse(marketName: string, attemptedAt = new Date()): MarketIqListingPulse {
   return {
     ...emptyListingSupplySummary(),
     status: "unavailable",
-    sourceName: "Dwellsy production listing database",
+    unavailableReason: "read_failed",
+    attemptedAt,
+    sourceName: "Persisted Dwellsy listing supply snapshot",
     sourceAvailableThrough: null,
     activeListings: 0,
     apartmentListings: 0,
@@ -38,7 +40,7 @@ export function unavailableMarketIqListingPulse(marketName: string): MarketIqLis
     reactivatedEvents: 0,
     priceChangeEvents: 0,
     deactivatedEvents: 0,
-    message: `Current ${marketName} listing activity is refreshing. The saved rent analysis remains available.`,
+    message: `The persisted ${marketName} listing-supply snapshot could not be read. No substitute records are shown.`,
   };
 }
 
@@ -74,7 +76,7 @@ export async function loadMarketIqMarketDataWithDependencies(input: {
   try {
     listingPulse = await timeoutAfter(input.adapter.loadListingPulse(), input.listingTimeoutMs ?? 3_000);
   } catch {
-    listingPulse = unavailableMarketIqListingPulse(input.market.shortLabel);
+    listingPulse = unavailableMarketIqListingPulse(input.market.shortLabel, input.now ?? new Date());
   }
 
   const quality = assessMarketIqReportQuality({ report, now: input.now });

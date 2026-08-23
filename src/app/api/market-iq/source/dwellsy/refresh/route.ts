@@ -1,10 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
 import { auth } from "@clerk/nextjs/server";
-import { CLEVELAND_MARKET_ID } from "@/data/market-iq/cleveland-pilot";
+import { CLEVELAND_MARKET_ID, getMarketIqMarket } from "@/data/market-iq/markets";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { dwellsySourceConfigured } from "@/lib/dwellsy-source/db.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
-import { runClevelandListingFeed } from "@/lib/market-iq/listing-feed-run.server";
+import { runMarketIqListingFeed } from "@/lib/market-iq/listing-feed-run.server";
 import {
   MarketIqListingFeedAlreadyRunningError,
   MarketIqListingFeedOperationFailedError,
@@ -43,13 +43,19 @@ export async function POST(request: Request) {
     }
     return Response.json({ error: "The Market IQ listing feed is not fully configured." }, { status: 503 });
   }
+  const requestedMarketId = new URL(request.url).searchParams.get("market") ?? CLEVELAND_MARKET_ID;
+  const market = getMarketIqMarket(requestedMarketId);
+  if (!market || market.status !== "live") {
+    return Response.json({ error: "Unknown Market IQ market." }, { status: 404 });
+  }
   try {
     const triggerKind = tokenAuthorized && !adminAuthorized ? "scheduled" : "manual";
-    const result = await runClevelandListingFeed({
+    const result = await runMarketIqListingFeed({
+      market,
       triggerKind,
       startedBy: adminAuthorized ? userId! : "listing-feed-automation",
       operationKey: triggerKind === "scheduled"
-        ? scheduledMarketIqListingFeedOperationKey({ marketId: CLEVELAND_MARKET_ID, now: new Date() })
+        ? scheduledMarketIqListingFeedOperationKey({ marketId: market.id, now: new Date() })
         : undefined,
     });
     if (adminAuthorized && browserForm) {
