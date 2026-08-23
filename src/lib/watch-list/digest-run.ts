@@ -278,6 +278,7 @@ export async function runDigest(opts: {
   });
 
   let sent = 0, failed = 0, recipients = 0, orgErrors = 0, skippedClaims = 0;
+  const claimedDeliveryIds: string[] = [];
 
   try {
   for (const { organizationId } of orgRows) {
@@ -353,8 +354,6 @@ export async function runDigest(opts: {
       if (!deliveryRun) continue;
       const claim = await claimDigestDelivery({
         runId: deliveryRun.id,
-        digestKind: DIGEST_KIND.watchList,
-        snapshotDate: latest,
         userId: m.userId,
         email: m.email,
       });
@@ -362,13 +361,14 @@ export async function runDigest(opts: {
         skippedClaims++;
         continue;
       }
+      claimedDeliveryIds.push(claim.id);
       const result = await sendEmail({ to: m.email, subject: digest.subject, html: digest.html, text: digest.text });
       if (result.ok) sent++; else failed++;
       await completeDigestDelivery(
         claim.id,
         result.ok
-          ? { status: "sent", providerMessageId: result.id }
-          : { status: "failed", error: result.error },
+          ? { status: "sent" }
+          : { status: "failed" },
       );
       if (result.ok) {
         await prisma.digestPreference.upsert({
@@ -392,7 +392,12 @@ export async function runDigest(opts: {
   }
   } finally {
     if (deliveryRun) {
-      await finalizeDigestRun(deliveryRun.id, skippedClaims, orgErrors > 0);
+      await finalizeDigestRun({
+        runId: deliveryRun.id,
+        claimedDeliveryIds,
+        skipped: skippedClaims,
+        forcedError: orgErrors > 0,
+      });
     }
   }
   return { snapshotDate: latest.toISOString(), skipped: "", recipients, sent, failed, dryRun, orgErrors };

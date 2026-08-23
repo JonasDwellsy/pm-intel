@@ -220,6 +220,7 @@ export async function runBriefDigest(opts: {
   let sent = 0, failed = 0, recipients = 0, skippedClaims = 0;
   let runErrored = false;
   const emailedThisRun = new Set<string>();
+  const claimedDeliveryIds: string[] = [];
 
   try {
   for (const org of orgs) {
@@ -265,8 +266,6 @@ export async function runBriefDigest(opts: {
       if (!deliveryRun) continue;
       const claim = await claimDigestDelivery({
         runId: deliveryRun.id,
-        digestKind: DIGEST_KIND.marketBrief,
-        snapshotDate: latest,
         userId: m.userId,
         email: m.email,
       });
@@ -274,13 +273,14 @@ export async function runBriefDigest(opts: {
         skippedClaims++;
         continue;
       }
+      claimedDeliveryIds.push(claim.id);
 
       const r = await sendEmail({ to: m.email, subject: email.subject, html: email.html, text: email.text });
       await completeDigestDelivery(
         claim.id,
         r.ok
-          ? { status: "sent", providerMessageId: r.id }
-          : { status: "failed", error: r.error },
+          ? { status: "sent" }
+          : { status: "failed" },
       );
       if (r.ok) {
         sent++;
@@ -299,7 +299,12 @@ export async function runBriefDigest(opts: {
     throw error;
   } finally {
     if (deliveryRun) {
-      await finalizeDigestRun(deliveryRun.id, skippedClaims, runErrored);
+      await finalizeDigestRun({
+        runId: deliveryRun.id,
+        claimedDeliveryIds,
+        skipped: skippedClaims,
+        forcedError: runErrored,
+      });
     }
   }
 

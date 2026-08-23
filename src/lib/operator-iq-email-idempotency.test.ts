@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { summarizeDigestRun } from "@/lib/email/digest-delivery-ledger";
+import {
+  DIGEST_KIND,
+  digestKindFromRunId,
+  digestRunId,
+  summarizeDigestRun,
+} from "@/lib/email/digest-delivery-ledger";
 
 test("digest run totals reconcile every attempted terminal outcome", () => {
   assert.deepEqual(summarizeDigestRun(["sent", "sent", "failed", "uncertain"], 3), {
@@ -9,6 +14,7 @@ test("digest run totals reconcile every attempted terminal outcome", () => {
     sent: 2,
     failed: 1,
     uncertain: 1,
+    claimed: 0,
     skipped: 3,
     status: "completed_with_errors",
   });
@@ -20,6 +26,7 @@ test("a clean digest run reaches a completed final state", () => {
     sent: 2,
     failed: 0,
     uncertain: 0,
+    claimed: 0,
     skipped: 1,
     status: "completed",
   });
@@ -29,14 +36,18 @@ test("an orchestration error records a final error state even before a send", ()
   assert.equal(summarizeDigestRun([], 0, true).status, "completed_with_errors");
 });
 
-test("the migration enforces one delivery per digest, snapshot, and user", async () => {
-  const migration = await readFile(
-    "prisma/migrations/20260823030000_operator_digest_delivery_idempotency/migration.sql",
-    "utf8",
-  );
+test("existing tables provide a deterministic cross-run delivery boundary", async () => {
+  const schema = await readFile("prisma/schema.prisma", "utf8");
+  const snapshot = new Date("2026-08-01T00:00:00.000Z");
+  const watchRun = digestRunId(DIGEST_KIND.watchList, snapshot);
+  const briefRun = digestRunId(DIGEST_KIND.marketBrief, snapshot);
+
+  assert.notEqual(watchRun, briefRun);
+  assert.equal(digestKindFromRunId(watchRun), DIGEST_KIND.watchList);
+  assert.equal(digestKindFromRunId(briefRun), DIGEST_KIND.marketBrief);
   assert.match(
-    migration,
-    /CREATE UNIQUE INDEX "OperatorDigestDelivery_digestKind_snapshotDate_userId_key" ON "OperatorDigestDelivery"\("digestKind", "snapshotDate", "userId"\)/,
+    schema,
+    /model WatchListDigestSend[\s\S]*@@unique\(\[runId, userId\]\)/,
   );
 });
 
@@ -56,10 +67,15 @@ test("both scheduled digest paths claim before sending and always finalize", asy
 
 test("admin reporting exposes reconciled attempts and every terminal outcome", async () => {
   const source = await readFile("src/app/admin/digests/page.tsx", "utf8");
-  assert.match(source, /attemptedCount/);
-  assert.match(source, /sentCount/);
-  assert.match(source, /failedCount/);
-  assert.match(source, /uncertainCount/);
-  assert.match(source, /skippedCount/);
-  assert.doesNotMatch(source, /_count:\s*{\s*select:\s*{\s*sends:/);
+  assert.match(source, /r\.sends\.length/);
+  for (const status of ["sent", "failed", "uncertain", "claimed"]) {
+    assert.match(source, new RegExp(`send\\.status === "${status}"`));
+  }
+});
+
+test("the idempotency revision requires no schema or migration change", async () => {
+  const helper = await readFile("src/lib/email/digest-delivery-ledger.ts", "utf8");
+  assert.match(helper, /prisma\.watchListDigestRun\.upsert/);
+  assert.match(helper, /prisma\.watchListDigestSend\.create/);
+  assert.doesNotMatch(helper, /operatorDigestRun|operatorDigestDelivery/);
 });

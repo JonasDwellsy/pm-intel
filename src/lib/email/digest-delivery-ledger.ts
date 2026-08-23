@@ -2,22 +2,32 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const DIGEST_KIND = {
-  watchList: "watch_list",
-  marketBrief: "market_brief",
+  watchList: "watch-list",
+  marketBrief: "market-brief",
 } as const;
 
 export type DigestKind = (typeof DIGEST_KIND)[keyof typeof DIGEST_KIND];
-export type DeliveryOutcome =
-  | { status: "sent"; providerMessageId: string }
-  | { status: "failed"; error: string };
+export type DeliveryOutcome = { status: "sent" } | { status: "failed" };
 
 export interface DigestRunTotals {
   attempted: number;
   sent: number;
   failed: number;
   uncertain: number;
+  claimed: number;
   skipped: number;
   status: "completed" | "completed_with_errors";
+}
+
+export function digestRunId(kind: DigestKind, snapshotDate: Date): string {
+  return `operator-digest:${kind}:${snapshotDate.toISOString()}`;
+}
+
+export function digestKindFromRunId(runId: string): DigestKind {
+  if (runId.startsWith(`operator-digest:${DIGEST_KIND.marketBrief}:`)) {
+    return DIGEST_KIND.marketBrief;
+  }
+  return DIGEST_KIND.watchList;
 }
 
 export function summarizeDigestRun(
@@ -28,39 +38,50 @@ export function summarizeDigestRun(
   const sent = statuses.filter((status) => status === "sent").length;
   const failed = statuses.filter((status) => status === "failed").length;
   const uncertain = statuses.filter((status) => status === "uncertain").length;
+  const claimed = statuses.filter((status) => status === "claimed").length;
   return {
     attempted: statuses.length,
     sent,
     failed,
     uncertain,
+    claimed,
     skipped,
     status:
-      forcedError || failed > 0 || uncertain > 0
+      forcedError || failed > 0 || uncertain > 0 || claimed > 0
         ? "completed_with_errors"
         : "completed",
   };
 }
 
+/**
+ * Both digest types share the existing watch-list run table. The deterministic
+ * primary key makes concurrent upserts converge on one run without a schema
+ * change, while the kind prefix keeps the two schedules independent.
+ */
 export async function startDigestRun(kind: DigestKind, snapshotDate: Date) {
-  return prisma.operatorDigestRun.create({
-    data: { digestKind: kind, snapshotDate },
+  const id = digestRunId(kind, snapshotDate);
+  return prisma.watchListDigestRun.upsert({
+    where: { id },
+    update: {},
+    create: { id, snapshotDate, status: "running" },
   });
 }
 
 /**
- * Atomically claims a recipient before the provider call. The database unique
- * key spans all runs, so an overlap or later retry receives `null` and must not
- * send. P2002 is the expected duplicate-claim result; other errors propagate.
+ * Atomically claims a recipient before the provider call. The existing unique
+ * key on runId/userId spans overlapping and later invocations because every
+ * invocation for this digest snapshot uses the same deterministic run ID.
  */
 export async function claimDigestDelivery(input: {
   runId: string;
-  digestKind: DigestKind;
-  snapshotDate: Date;
   userId: string;
   email: string;
 }): Promise<{ id: string } | null> {
   try {
-    return await prisma.operatorDigestDelivery.create({ data: input });
+    return await prisma.watchListDigestSend.create({
+      data: { ...input, status: "claimed" },
+      select: { id: true },
+    });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return null;
@@ -73,58 +94,47 @@ export async function completeDigestDelivery(
   id: string,
   outcome: DeliveryOutcome,
 ): Promise<void> {
-  await prisma.operatorDigestDelivery.update({
+  await prisma.watchListDigestSend.update({
     where: { id },
-    data: outcome.status === "sent"
-      ? {
-          status: "sent",
-          providerMessageId: outcome.providerMessageId || null,
-          completedAt: new Date(),
-        }
-      : {
-          status: "failed",
-          error: outcome.error.slice(0, 2000),
-          completedAt: new Date(),
-        },
+    data: { status: outcome.status },
   });
 }
 
 /**
- * Converts any claim left unfinished by this invocation into `uncertain`.
- * Automatic retries remain blocked because an external provider may have
- * accepted the message before the process lost its response.
+ * Claims owned by this invocation that never reached a provider outcome become
+ * uncertain. Their unique rows remain in place, so no later cron can risk an
+ * ambiguous duplicate. The run summary is rebuilt from the delivery rows,
+ * keeping the existing admin history reconciled without new database tables.
  */
-export async function finalizeDigestRun(
-  runId: string,
-  skipped: number,
-  forcedError = false,
-): Promise<DigestRunTotals> {
-  await prisma.operatorDigestDelivery.updateMany({
-    where: { runId, status: "claimed" },
-    data: {
-      status: "uncertain",
-      error: "The delivery did not reach a recorded provider outcome; automatic retry is blocked.",
-      completedAt: new Date(),
-    },
-  });
-  const deliveries = await prisma.operatorDigestDelivery.findMany({
-    where: { runId },
+export async function finalizeDigestRun(input: {
+  runId: string;
+  claimedDeliveryIds: string[];
+  skipped: number;
+  forcedError?: boolean;
+}): Promise<DigestRunTotals> {
+  if (input.claimedDeliveryIds.length > 0) {
+    await prisma.watchListDigestSend.updateMany({
+      where: {
+        id: { in: input.claimedDeliveryIds },
+        status: "claimed",
+      },
+      data: { status: "uncertain" },
+    });
+  }
+  const deliveries = await prisma.watchListDigestSend.findMany({
+    where: { runId: input.runId },
     select: { status: true },
   });
   const totals = summarizeDigestRun(
     deliveries.map((delivery) => delivery.status),
-    skipped,
-    forcedError,
+    input.skipped,
+    input.forcedError,
   );
-  await prisma.operatorDigestRun.update({
-    where: { id: runId },
+  await prisma.watchListDigestRun.update({
+    where: { id: input.runId },
     data: {
       status: totals.status,
-      attemptedCount: totals.attempted,
-      sentCount: totals.sent,
-      failedCount: totals.failed,
-      uncertainCount: totals.uncertain,
-      skippedCount: totals.skipped,
+      recipientCount: totals.attempted,
       completedAt: new Date(),
     },
   });

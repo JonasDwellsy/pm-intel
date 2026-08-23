@@ -449,46 +449,6 @@ model WatchListDigestSend {
   @@unique([runId, userId])
 }
 
-// Durable, cross-invocation delivery ledger for Operator IQ scheduled email.
-// A unique digestKind/snapshotDate/userId claim is created before SendGrid is
-// called, preventing overlapping cron invocations from sending the same digest
-// twice. Legacy WatchListDigestRun/Send rows remain available as history.
-model OperatorDigestRun {
-  id             String                   @id @default(cuid())
-  digestKind     String
-  snapshotDate   DateTime
-  status         String                   @default("running")
-  attemptedCount Int                      @default(0)
-  sentCount      Int                      @default(0)
-  failedCount    Int                      @default(0)
-  uncertainCount Int                      @default(0)
-  skippedCount   Int                      @default(0)
-  startedAt      DateTime                 @default(now())
-  completedAt    DateTime?
-  deliveries     OperatorDigestDelivery[]
-
-  @@index([digestKind, snapshotDate])
-  @@index([startedAt])
-}
-
-model OperatorDigestDelivery {
-  id                String            @id @default(cuid())
-  runId             String
-  digestKind        String
-  snapshotDate      DateTime
-  userId            String
-  email             String
-  status            String            @default("claimed")
-  providerMessageId String?
-  error             String?
-  claimedAt         DateTime           @default(now())
-  completedAt       DateTime?
-  run               OperatorDigestRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-
-  @@unique([digestKind, snapshotDate, userId])
-  @@index([runId, status])
-}
-
 // v0.18 (PR #65) — Multi-tenancy Phase 1: Clerk Organizations.
 //
 // Mirror table for Clerk's Organization resource. We don't store
