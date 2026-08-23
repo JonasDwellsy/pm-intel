@@ -78,14 +78,23 @@ export async function flushAnalyticsServer(timeoutMs = 2000): Promise<boolean> {
     // internally awaits in-flight requests. Wrap in a race to cap
     // the wait time so a flaky PostHog endpoint can't hang the
     // lambda's response.
-    await Promise.race([
-      ph.flush(),
-      new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+    return await Promise.race([
+      (async () => {
+        await ph.flush();
+        return true;
+      })(),
+      new Promise<boolean>((resolve) =>
+        setTimeout(() => resolve(false), timeoutMs)
+      ),
     ]);
-    return true;
   } catch {
     return false;
   }
+}
+
+/** Whether the server analytics transport is expected to accept events. */
+export function analyticsServerConfigured(): boolean {
+  return Boolean(KEY);
 }
 
 /** Union of every server-emitted event name. Subset of EventName in

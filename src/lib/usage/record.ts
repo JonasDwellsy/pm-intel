@@ -8,11 +8,9 @@
 // pages, whose render keeps the lambda alive long enough for the write
 // to land.
 //
-// recordUsageEventAwait is the AWAITABLE variant (never rejects) for
-// callers that may be torn down immediately after responding — notably
-// the Clerk webhook lambda, which returns 200 and can freeze before a
-// floating write completes. Login/signup are the headline "who logged in
-// when" signal, so the webhook awaits these to guarantee they persist.
+// recordUsageEventAwait is the REQUIRED variant for replay-safe webhook
+// deliveries. It rejects when persistence fails so the webhook can return
+// a retryable response instead of silently dropping the event.
 //
 // This is an ADDITIVE parallel sink alongside PostHog's captureServerEvent
 // (see src/lib/analytics-server.ts) — call sites keep their existing
@@ -43,9 +41,12 @@ export interface RecordUsageEventArgs {
   eventId?: string;
 }
 
-/** Shared insert. Never rejects — telemetry is best-effort, so a failed
- *  write is logged and swallowed, never surfaced to the caller. */
-async function insert(args: RecordUsageEventArgs): Promise<void> {
+/** Shared insert. Page instrumentation stays best-effort, while required
+ *  webhook writes surface failures to the delivery handler. */
+async function insert(
+  args: RecordUsageEventArgs,
+  required: boolean
+): Promise<void> {
   try {
     const data = {
       userId: args.userId,
@@ -64,9 +65,8 @@ async function insert(args: RecordUsageEventArgs): Promise<void> {
       await prisma.usageEvent.create({ data });
     }
   } catch (err) {
-    // Telemetry is best-effort — log and move on. Never surface to the
-    // caller.
     console.error("[usage] recordUsageEvent failed", err);
+    if (required) throw err;
   }
 }
 
@@ -74,12 +74,11 @@ async function insert(args: RecordUsageEventArgs): Promise<void> {
  *  floating promise the caller does NOT await, so it never blocks or
  *  throws into the response path. Use from server-rendered pages. */
 export function recordUsageEvent(args: RecordUsageEventArgs): void {
-  void insert(args);
+  void insert(args, false);
 }
 
-/** Awaitable insert (never rejects). Use when the caller may be torn
- *  down right after responding — e.g. the Clerk webhook — so awaiting
- *  guarantees the row persists before the response resolves. */
+/** Required insert. Rejects on failure so replay-capable callers can return
+ *  a non-success response and let the delivery retry safely. */
 export function recordUsageEventAwait(args: RecordUsageEventArgs): Promise<void> {
-  return insert(args);
+  return insert(args, true);
 }
