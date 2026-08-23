@@ -92,6 +92,7 @@ export function LeadForm({ markets }: { markets: MarketOption[] }) {
       ownerEmail: "",
       ownerPhone: "",
       notes: "",
+      companyWebsite: "",
     },
   });
 
@@ -160,6 +161,20 @@ export function LeadForm({ markets }: { markets: MarketOption[] }) {
         className="rounded-lg border border-grid bg-white p-8 sm:p-12 sm:px-14"
         noValidate
       >
+        <div
+          aria-hidden="true"
+          className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden"
+        >
+          <label htmlFor="companyWebsite">Company website</label>
+          <input
+            id="companyWebsite"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            {...form.register("companyWebsite")}
+          />
+        </div>
+
         {/* === PROPERTY === */}
         <section>
           <GroupEyebrow>Property</GroupEyebrow>

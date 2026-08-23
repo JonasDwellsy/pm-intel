@@ -1,16 +1,28 @@
+import * as Sentry from "@sentry/nextjs";
+
 import { prisma } from "@/lib/prisma";
 import { leadApiSchema } from "@/lib/lead-schema";
+import { isLeadBotTrapFilled, readLeadJsonBody } from "@/lib/lead-intake";
 import { matchPms } from "@/lib/lead-matching";
 
+function reportLeadFailure(operation: "matching" | "persistence", err: unknown) {
+  Sentry.captureMessage("Lead intake failed", {
+    level: "error",
+    tags: {
+      route: "api/leads",
+      operation,
+      error_name: err instanceof Error ? err.name : "unknown",
+    },
+  });
+}
+
 export async function POST(req: Request) {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  const body = await readLeadJsonBody(req);
+  if (!body.ok) {
+    return Response.json({ error: body.error }, { status: body.status });
   }
 
-  const parsed = leadApiSchema.safeParse(body);
+  const parsed = leadApiSchema.safeParse(body.value);
   if (!parsed.success) {
     return Response.json(
       { error: "Invalid input", issues: parsed.error.issues },
@@ -19,45 +31,46 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data;
-  const matches = await matchPms(data);
+  if (isLeadBotTrapFilled(data.companyWebsite)) {
+    return Response.json(
+      { leadId: "received", matches: [] },
+      { status: 201 }
+    );
+  }
 
-  const lead = await prisma.lead.create({
-    data: {
-      marketId: data.marketId ?? null,
-      propertyType: data.propertyType,
-      unitCount: data.unitCount ?? null,
-      preferredQuadrant: data.preferredQuadrant ?? null,
-      ownerName: data.ownerName,
-      ownerEmail: data.ownerEmail,
-      ownerPhone: data.ownerPhone ?? null,
-      notes: data.notes ?? null,
-      matchedPms: JSON.stringify(matches.map((m) => m.slug)),
-      source: data.source ?? null,
-    },
-  });
+  let matches: Awaited<ReturnType<typeof matchPms>>;
+  try {
+    matches = await matchPms(data);
+  } catch (err) {
+    reportLeadFailure("matching", err);
+    return Response.json(
+      { error: "Submission could not be completed" },
+      { status: 500 }
+    );
+  }
 
-  // Mock email payloads. Real delivery wires in at deploy time.
-  console.log("[EMAIL → owner]", {
-    to: lead.ownerEmail,
-    subject: "Your Operator IQ property manager matches",
-    body: `Hi ${lead.ownerName}, we found ${matches.length} operator${
-      matches.length === 1 ? "" : "s"
-    } that fit your search:\n${matches
-      .map((m, i) => `  ${i + 1}. ${m.name} (${m.quadrant})`)
-      .join("\n")}\nView your matches: /watch-lists/new?leadId=${lead.id}`,
-  });
-
-  for (const pm of matches) {
-    console.log("[EMAIL → PM]", {
-      pm: pm.slug,
-      to: `${pm.slug}@example.invalid`, // contact email lands in Journey 3 (claim flow)
-      subject: "New lead from Operator IQ",
-      body: `${lead.ownerName} (${lead.ownerEmail}) is exploring ${
-        lead.propertyType
-      }${lead.unitCount ? ` · ${lead.unitCount} units` : ""}${
-        lead.notes ? `\nNotes: ${lead.notes}` : ""
-      }`,
+  let lead: { id: string };
+  try {
+    lead = await prisma.lead.create({
+      data: {
+        marketId: data.marketId ?? null,
+        propertyType: data.propertyType,
+        unitCount: data.unitCount ?? null,
+        preferredQuadrant: data.preferredQuadrant ?? null,
+        ownerName: data.ownerName,
+        ownerEmail: data.ownerEmail,
+        ownerPhone: data.ownerPhone ?? null,
+        notes: data.notes ?? null,
+        matchedPms: JSON.stringify(matches.map((m) => m.slug)),
+        source: data.source ?? null,
+      },
     });
+  } catch (err) {
+    reportLeadFailure("persistence", err);
+    return Response.json(
+      { error: "Submission could not be completed" },
+      { status: 500 }
+    );
   }
 
   return Response.json(

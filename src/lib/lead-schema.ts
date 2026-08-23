@@ -26,7 +26,7 @@ export const QUADRANTS = [
 // --- Form schema: what the LeadForm holds. Optional fields are plain strings
 // (allowed to be "") so RHF's input type stays simple and zodResolver is happy.
 export const leadFormSchema = z.object({
-  marketId: z.string(),
+  marketId: z.string().max(100),
   propertyType: z.enum(PROPERTY_TYPES, {
     message: "Please pick a property type",
   }),
@@ -36,24 +36,26 @@ export const leadFormSchema = z.object({
       message: "Enter a positive whole number",
     }),
   preferredQuadrant: z.string(),
-  ownerName: z.string().min(2, "Please enter your name"),
-  ownerEmail: z.string().email("Please enter a valid email"),
-  ownerPhone: z.string(),
+  ownerName: z.string().min(2, "Please enter your name").max(120),
+  ownerEmail: z.string().email("Please enter a valid email").max(320),
+  ownerPhone: z.string().max(50),
   notes: z.string().max(2000, "Keep it under 2000 characters"),
+  companyWebsite: z.string().max(200),
 });
 export type LeadFormValues = z.infer<typeof leadFormSchema>;
 
 // --- API schema: cleaned + typed shape that POST /api/leads accepts.
 export const leadApiSchema = z.object({
-  marketId: z.string().min(1).optional(),
+  marketId: z.string().min(1).max(100).optional(),
   propertyType: z.enum(PROPERTY_TYPES),
   unitCount: z.number().int().positive().max(100000).optional(),
   preferredQuadrant: z.enum(QUADRANTS).optional(),
-  ownerName: z.string().min(2),
-  ownerEmail: z.string().email(),
-  ownerPhone: z.string().min(1).optional(),
+  ownerName: z.string().min(2).max(120),
+  ownerEmail: z.string().email().max(320),
+  ownerPhone: z.string().min(1).max(50).optional(),
   notes: z.string().max(2000).optional(),
-  source: z.string().optional(),
+  source: z.string().max(2048).optional(),
+  companyWebsite: z.string().max(200).optional(),
 });
 export type LeadApiInput = z.infer<typeof leadApiSchema>;
 
@@ -71,6 +73,7 @@ export function leadFormToApiPayload(form: LeadFormValues): LeadApiInput {
     ownerEmail: form.ownerEmail.trim(),
     ownerPhone: form.ownerPhone || undefined,
     notes: form.notes || undefined,
+    companyWebsite: form.companyWebsite,
   };
 }
 
