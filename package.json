@@ -21,6 +21,7 @@
     "market-iq:generate": "prisma generate --schema prisma/market-iq/schema.prisma",
     "market-iq:migrate": "tsx scripts/deploy-market-iq-migrations.ts",
     "market-iq:audit-zips": "node --import tsx scripts/audit-market-iq-zips.ts",
+    "market-iq:verify-recovery": "node --import tsx scripts/verify-market-iq-recovery.ts",
     "db:migrate:control": "prisma migrate deploy",
     "db:migrate": "npm run db:migrate:control && npm run market-iq:migrate",
     "db:seed:local": "prisma db seed",
