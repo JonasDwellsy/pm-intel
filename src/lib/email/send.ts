@@ -14,8 +14,18 @@ export interface EmailMessage {
   subject: string;
   html: string;
   text: string;
+  /** Signed HTTPS endpoint that accepts RFC 8058 one-click POST requests. */
+  unsubscribeUrl?: string;
 }
 export type SendResult = { ok: true; id: string } | { ok: false; error: string };
+
+export function oneClickUnsubscribeHeaders(unsubscribeUrl?: string) {
+  if (!unsubscribeUrl) return undefined;
+  return {
+    "List-Unsubscribe": `<${unsubscribeUrl}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+}
 
 export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
   const apiKey = process.env.SENDGRID_API_KEY;
@@ -30,6 +40,7 @@ export async function sendEmail(msg: EmailMessage): Promise<SendResult> {
       subject: msg.subject,
       html: msg.html,
       text: msg.text,
+      headers: oneClickUnsubscribeHeaders(msg.unsubscribeUrl),
     });
     // SendGrid returns 202 Accepted with the message id in the
     // x-message-id response header on success.
