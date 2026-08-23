@@ -7,6 +7,7 @@ export async function loadMarketIqDailyEditionArchive(input: {
   marketId: string;
   requestedEditionId?: string;
   timeZone: string;
+  recentLimit?: number;
 }) {
   const candidates = await loadMarketIqReportSourceSnapshotCandidates(input.marketId);
   return selectMarketIqDailyEditionArchive({
@@ -18,5 +19,6 @@ export async function loadMarketIqDailyEditionArchive(input: {
     })),
     requestedEditionId: input.requestedEditionId,
     timeZone: input.timeZone,
+    recentLimit: input.recentLimit,
   });
 }

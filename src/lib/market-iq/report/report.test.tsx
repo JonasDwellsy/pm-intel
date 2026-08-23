@@ -210,6 +210,35 @@ describe("Market IQ local market read assembly", () => {
     expect(parsed?.marketActivity).toEqual({ state: "available", activity: legacyActivity });
   });
 
+  it("validates and renders selected competitive-set evidence with its observed timestamp", () => {
+    const competitiveSetBrief = {
+      watchlistId: "watch-1",
+      watchlistName: "Atlas competitors",
+      marketId: "cleveland-elyria-mentor-oh",
+      centerLabel: "The Atlas",
+      radiusMiles: 3 as const,
+      sourceAsOf: "2026-08-23T09:00:00.000Z",
+      windowStartAt: "2026-08-16T09:00:00.000Z",
+      windowEndAt: "2026-08-23T09:00:00.000Z",
+      coverageDays: 7,
+      expectedDays: 7,
+      eventsTruncated: false,
+      findings: [{ key: "rent_changes:event-1", eventType: "rent_changes" as const, headline: "Asking rent changed at The Atlas", detail: "Asking rent changed from $1,750 to $1,600.", observedAt: "2026-08-23T08:00:00.000Z", propertyId: "subject-1", isSubject: true }],
+      disclosure: "Observed listing activity only.",
+    };
+    const report = {
+      ...seededClevelandMarketReport,
+      scope: { ...seededClevelandMarketReport.scope, seededExample: false },
+      competitiveSetBrief,
+    };
+    expect(parseMarketIqReportSnapshot(JSON.stringify(report))?.competitiveSetBrief).toEqual(competitiveSetBrief);
+    expect(parseMarketIqReportSnapshot(JSON.stringify({ ...report, competitiveSetBrief: { ...competitiveSetBrief, findings: [{ ...competitiveSetBrief.findings[0], observedAt: "not-a-date" }] } }))).toBeNull();
+    const html = renderToStaticMarkup(<MarketIqPublicReport report={report} preview />);
+    expect(html).toContain("Competitive set evidence");
+    expect(html).toContain("Asking rent changed at The Atlas");
+    expect(html).toContain("Subject");
+  });
+
   it("ships source-dated ZIP Trends cells in the Cleveland preview snapshot", () => {
     expect(seededClevelandMarketReport.marketRead.cells.find((cell) => cell.key === "44113:apartment:1")).toMatchObject({
       status: "reportable",

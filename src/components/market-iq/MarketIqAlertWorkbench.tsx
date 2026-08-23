@@ -97,6 +97,7 @@ function AlertItem({ item, state, selected, pending, onSelect, onUpdate, updateT
         <p className="mt-2 text-xs text-slate-400">Observed {new Date(item.observedAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}{item.city ? ` · ${item.city}` : ""}{item.propertyManagerName ? ` · ${item.propertyManagerName}` : ""}</p>
         <div className="mt-4 flex flex-wrap gap-4 text-sm font-semibold">
           {item.propertyId && <Link href={marketIqPropertyActivityPath(item.marketId, item.propertyId)} className="text-teal-800 hover:underline">View property</Link>}
+          {item.competitiveSetHref && <Link href={item.competitiveSetHref} className="text-teal-800 hover:underline">Open competitive brief</Link>}
           <Link href={editionUrl} className="text-violet-800 hover:underline">Open evidence</Link>
         </div>
       </div>

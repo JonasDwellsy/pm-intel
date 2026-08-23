@@ -26,7 +26,7 @@ describe("MarketIqCompetitiveSetMapPicker", () => {
     const onChange = vi.fn();
     render(<MarketIqCompetitiveSetMapPicker events={events} leaseUpAlerts={[]} value={null} onChange={onChange} />);
     fireEvent.change(screen.getByLabelText("Competitive-set center"), { target: { value: "property-1" } });
-    expect(onChange).toHaveBeenCalledWith({ latitude: 39.961, longitude: -83.002, radiusMiles: 3, label: "The Atlas" });
+    expect(onChange).toHaveBeenCalledWith({ latitude: 39.961, longitude: -83.002, radiusMiles: 3, label: "The Atlas", propertyId: "property-1" });
     expect(screen.getByText("1 source-located properties")).not.toBeNull();
   });
 
