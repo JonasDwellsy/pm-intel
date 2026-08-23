@@ -81,12 +81,14 @@ function AlertItem({ item, state, selected, pending, onSelect, onUpdate, updateT
   }
 
   const editionUrl = `/market-iq/daily?market=${encodeURIComponent(item.marketId)}&edition=${encodeURIComponent(item.editionId)}${item.sectionHref}`;
+  const evidenceUrl = item.destinationHref ?? editionUrl;
   return <article className={`rounded-2xl border bg-white p-5 shadow-sm transition-colors ${selected ? "border-violet-400 ring-2 ring-violet-100" : "border-slate-200"}`}>
     <div className="grid gap-5 lg:grid-cols-[auto_minmax(0,1fr)_16rem]">
       <label className="pt-1"><span className="sr-only">Select {item.headline}</span><input type="checkbox" checked={selected} disabled={disabled} onChange={(event) => onSelect(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-violet-700" /></label>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-wider">
           <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">{item.eventType.replaceAll("_", " ")}</span>
+          {item.matchKind === "competitive_signal" && <span className="rounded-full bg-teal-100 px-2 py-1 text-teal-800">Grouped signal · {item.evidenceCount} events</span>}
           <span className="text-teal-700">{item.marketName}</span>
           <span className="text-violet-700">{item.watchlistName}</span>
           {item.watchlistVisibility === "organization" && <span className="rounded-full bg-violet-100 px-2 py-1 text-violet-800">Team</span>}
@@ -97,8 +99,8 @@ function AlertItem({ item, state, selected, pending, onSelect, onUpdate, updateT
         <p className="mt-2 text-xs text-slate-400">Observed {new Date(item.observedAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}{item.city ? ` · ${item.city}` : ""}{item.propertyManagerName ? ` · ${item.propertyManagerName}` : ""}</p>
         <div className="mt-4 flex flex-wrap gap-4 text-sm font-semibold">
           {item.propertyId && <Link href={marketIqPropertyActivityPath(item.marketId, item.propertyId)} className="text-teal-800 hover:underline">View property</Link>}
-          {item.competitiveSetHref && <Link href={item.competitiveSetHref} className="text-teal-800 hover:underline">Open competitive brief</Link>}
-          <Link href={editionUrl} className="text-violet-800 hover:underline">Open evidence</Link>
+          {item.competitiveSetHref && item.matchKind !== "competitive_signal" && <Link href={item.competitiveSetHref} className="text-teal-800 hover:underline">Open competitive brief</Link>}
+          <Link href={evidenceUrl} className="text-violet-800 hover:underline">{item.matchKind === "competitive_signal" ? "Open grouped evidence" : "Open evidence"}</Link>
         </div>
       </div>
       <div className="rounded-xl bg-slate-50 p-4">

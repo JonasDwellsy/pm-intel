@@ -105,6 +105,11 @@ export async function loadMarketIqAlertWorkbench(input: {
         propertyId: match.propertyId,
         competitiveSetHref: watchlistFilters?.competitiveSet ? `/market-iq/competitive-sets/${encodeURIComponent(match.watchlistId)}` : null,
         sectionHref: match.sectionHref,
+        destinationHref: match.destinationHref,
+        matchKind: match.matchKind === "competitive_signal" ? "competitive_signal" as const : "event" as const,
+        evidenceCount: match.evidenceCount,
+        windowStartAt: match.windowStartAt?.toISOString() ?? null,
+        windowEndAt: match.windowEndAt?.toISOString() ?? null,
         readAt: match.readAt?.toISOString() ?? null,
         emailedAt: match.emailedAt?.toISOString() ?? null,
         triage: {

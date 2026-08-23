@@ -17,6 +17,11 @@ export type MarketIqPersistedDailyMatch = {
   observedAt: Date;
   propertyId: string | null;
   sectionHref: string;
+  destinationHref?: string | null;
+  matchKind?: "event" | "competitive_signal";
+  evidenceCount?: number;
+  windowStartAt?: Date | null;
+  windowEndAt?: Date | null;
 };
 
 export type MarketIqDailyInboxMatch = {
@@ -31,6 +36,11 @@ export type MarketIqDailyInboxMatch = {
   observedAt: string;
   propertyId: string | null;
   sectionHref: string;
+  destinationHref?: string | null;
+  matchKind?: "event" | "competitive_signal";
+  evidenceCount?: number;
+  windowStartAt?: string | null;
+  windowEndAt?: string | null;
   readAt: string | null;
   emailedAt: string | null;
   watchlistVisibility: MarketIqDailyWatchlistVisibility;
@@ -92,15 +102,22 @@ export function buildMarketIqDailyWatchlistEmail(input: {
   const inboxUrl = `${input.appOrigin}/market-iq/daily#daily-watchlist-inbox`;
   const textItems = unique.map((match) => {
     const editionUrl = `${input.appOrigin}/market-iq/daily?market=${encodeURIComponent(match.marketId)}&edition=${encodeURIComponent(match.editionId)}${match.sectionHref}`;
-    const propertyUrl = match.propertyId ? `${input.appOrigin}${marketIqPropertyActivityPath(match.marketId, match.propertyId)}` : editionUrl;
-    return `• ${match.headline}\n  ${match.detail}\n  ${propertyUrl}\n  Matched: ${match.watchlistNames.join(", ")}`;
+    const destinationUrl = match.destinationHref ? `${input.appOrigin}${match.destinationHref}` : editionUrl;
+    const propertyUrl = match.propertyId ? `${input.appOrigin}${marketIqPropertyActivityPath(match.marketId, match.propertyId)}` : destinationUrl;
+    const evidence = match.matchKind === "competitive_signal" ? `\n  Grouped evidence: ${match.evidenceCount ?? 0} supporting events` : "";
+    return `• ${match.headline}\n  ${match.detail}${evidence}\n  ${propertyUrl}\n  Matched: ${match.watchlistNames.join(", ")}`;
   }).join("\n\n");
-  const text = `${greeting}\n\n${count} newly observed event${count === 1 ? "" : "s"} matched Market IQ watchlists you follow in this ${period} update.\n\n${textItems}\n\nOpen your match inbox: ${inboxUrl}\n\nObserved listing activity only. Asking rents are advertised, concessions are not verified, and off-market means leased or withdrawn, undetermined.`;
+  const text = `${greeting}\n\n${count} new watchlist update${count === 1 ? "" : "s"} matched Market IQ watchlists you follow in this ${period} update.\n\n${textItems}\n\nOpen your match inbox: ${inboxUrl}\n\nObserved listing activity only. Asking rents are advertised, concessions are not verified, and off-market means leased or withdrawn, undetermined.`;
   const cards = unique.map((match) => {
     const editionUrl = `${input.appOrigin}/market-iq/daily?market=${encodeURIComponent(match.marketId)}&edition=${encodeURIComponent(match.editionId)}${match.sectionHref}`;
-    const primaryUrl = match.propertyId ? `${input.appOrigin}${marketIqPropertyActivityPath(match.marketId, match.propertyId)}` : editionUrl;
-    return `<div style="border:1px solid #d7dee8;border-radius:12px;padding:18px;margin:0 0 12px;background:#fff"><div style="font-size:11px;font-weight:700;color:#0f766e;text-transform:uppercase;letter-spacing:.08em">${escapeHtml(match.eventType.replaceAll("_", " "))}</div><h2 style="font-size:18px;line-height:1.4;color:#17324a;margin:7px 0">${escapeHtml(match.headline)}</h2><p style="font-size:14px;line-height:1.6;color:#596579;margin:0 0 12px">${escapeHtml(match.detail)}</p><p style="font-size:11px;color:#7b8798;margin:0 0 12px">Matched: ${escapeHtml(match.watchlistNames.join(", "))}</p><a href="${escapeHtml(primaryUrl)}" style="font-size:13px;font-weight:700;color:#0f766e;text-decoration:none">${match.propertyId ? "View property" : "Open Daily Edition"}</a></div>`;
+    const destinationUrl = match.destinationHref ? `${input.appOrigin}${match.destinationHref}` : editionUrl;
+    const primaryUrl = match.propertyId ? `${input.appOrigin}${marketIqPropertyActivityPath(match.marketId, match.propertyId)}` : destinationUrl;
+    const signalEvidence = match.matchKind === "competitive_signal"
+      ? `<p style="font-size:11px;color:#0f766e;margin:0 0 12px">Grouped signal · ${match.evidenceCount ?? 0} supporting events</p>`
+      : "";
+    const linkLabel = match.propertyId ? "View property" : match.matchKind === "competitive_signal" ? "Open competitive brief" : "Open Daily Edition";
+    return `<div style="border:1px solid #d7dee8;border-radius:12px;padding:18px;margin:0 0 12px;background:#fff"><div style="font-size:11px;font-weight:700;color:#0f766e;text-transform:uppercase;letter-spacing:.08em">${escapeHtml(match.eventType.replaceAll("_", " "))}</div><h2 style="font-size:18px;line-height:1.4;color:#17324a;margin:7px 0">${escapeHtml(match.headline)}</h2><p style="font-size:14px;line-height:1.6;color:#596579;margin:0 0 12px">${escapeHtml(match.detail)}</p>${signalEvidence}<p style="font-size:11px;color:#7b8798;margin:0 0 12px">Matched: ${escapeHtml(match.watchlistNames.join(", "))}</p><a href="${escapeHtml(primaryUrl)}" style="font-size:13px;font-weight:700;color:#0f766e;text-decoration:none">${linkLabel}</a></div>`;
   }).join("");
-  const html = `<!doctype html><html><body style="margin:0;background:#f4f6f8;font-family:Arial,sans-serif"><div style="max-width:680px;margin:0 auto;padding:28px 18px"><div style="background:#17324a;color:#fff;border-radius:14px 14px 0 0;padding:24px 28px"><div style="font-size:11px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:.12em">Market IQ ${period} watch</div><div style="font-size:26px;font-weight:700;margin-top:7px">What matched your watchlists</div></div><div style="background:#fff;border:1px solid #d7dee8;border-top:0;border-radius:0 0 14px 14px;padding:28px"><p style="font-size:15px;color:#334155;line-height:1.6;margin-top:0">${escapeHtml(greeting)}</p><p style="font-size:15px;color:#334155;line-height:1.6">${count} newly observed event${count === 1 ? "" : "s"} matched watchlists you follow.</p>${cards}<a href="${escapeHtml(inboxUrl)}" style="display:inline-block;margin-top:10px;background:#17324a;color:#fff;text-decoration:none;font-weight:700;border-radius:8px;padding:12px 18px">Open match inbox</a><p style="font-size:11px;line-height:1.6;color:#7b8798;border-top:1px solid #e5e7eb;margin:24px 0 0;padding-top:18px">Observed listing activity only. Asking rents are advertised, concessions are not verified, and off-market means leased or withdrawn, undetermined.</p></div></div></body></html>`;
+  const html = `<!doctype html><html><body style="margin:0;background:#f4f6f8;font-family:Arial,sans-serif"><div style="max-width:680px;margin:0 auto;padding:28px 18px"><div style="background:#17324a;color:#fff;border-radius:14px 14px 0 0;padding:24px 28px"><div style="font-size:11px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:.12em">Market IQ ${period} watch</div><div style="font-size:26px;font-weight:700;margin-top:7px">What matched your watchlists</div></div><div style="background:#fff;border:1px solid #d7dee8;border-top:0;border-radius:0 0 14px 14px;padding:28px"><p style="font-size:15px;color:#334155;line-height:1.6;margin-top:0">${escapeHtml(greeting)}</p><p style="font-size:15px;color:#334155;line-height:1.6">${count} new watchlist update${count === 1 ? "" : "s"} matched watchlists you follow.</p>${cards}<a href="${escapeHtml(inboxUrl)}" style="display:inline-block;margin-top:10px;background:#17324a;color:#fff;text-decoration:none;font-weight:700;border-radius:8px;padding:12px 18px">Open match inbox</a><p style="font-size:11px;line-height:1.6;color:#7b8798;border-top:1px solid #e5e7eb;margin:24px 0 0;padding-top:18px">Observed listing activity only. Asking rents are advertised, concessions are not verified, and off-market means leased or withdrawn, undetermined.</p></div></div></body></html>`;
   return { subject, text, html, eventCount: count, eventKeys: unique.map((match) => match.eventKey) };
 }
