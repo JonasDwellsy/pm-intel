@@ -3,6 +3,7 @@ import type {
   MarketIqMarketActivityAvailability,
 } from "@/lib/market-iq/listing-events";
 import type { MarketIqTimeToResolutionAvailability } from "@/lib/market-iq/time-to-resolution";
+import { isMarketIqCompetitiveSetReportSection, type MarketIqCompetitiveSetReportSection } from "@/lib/market-iq/competitive-set-report";
 
 export type {
   MarketIqListingEvent,
@@ -180,6 +181,7 @@ export interface MarketIqReportSnapshot {
   marketActivity?: MarketIqMarketActivityAvailability;
   timeToResolution?: MarketIqTimeToResolutionAvailability;
   editionComparison?: MarketIqEditionComparison;
+  competitiveSetBrief?: MarketIqCompetitiveSetReportSection;
   editorial?: {
     audienceKind?: "client" | "prospect";
     headline: string | null;
@@ -313,6 +315,7 @@ export function parseMarketIqReportSnapshot(value: string): MarketIqReportSnapsh
       !Array.isArray(parsed.marketRead?.cells) ||
       !Array.isArray(parsed.sources)
     ) return null;
+    if (parsed.competitiveSetBrief !== undefined && !isMarketIqCompetitiveSetReportSection(parsed.competitiveSetBrief)) return null;
     const snapshot = parsed as MarketIqReportSnapshot;
     const legacyActivity = parsed.marketActivity as unknown;
     if (

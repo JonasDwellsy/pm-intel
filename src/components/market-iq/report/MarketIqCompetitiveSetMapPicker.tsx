@@ -8,7 +8,7 @@ import type { Map as MapboxMap } from "mapbox-gl";
 import type { MarketIqDailyCompetitiveSet } from "@/lib/market-iq/daily-watchlists";
 import type { MarketIqLeaseUpAlert, MarketIqListingEvent } from "@/lib/market-iq/listing-events";
 
-type Candidate = { id: string; label: string; latitude: number; longitude: number };
+type Candidate = { id: string; propertyId: string | null; label: string; latitude: number; longitude: number };
 type Bounds = [[number, number], [number, number]];
 
 function validCoordinates(latitude: number | null | undefined, longitude: number | null | undefined) {
@@ -23,7 +23,7 @@ function candidates(events: MarketIqListingEvent[], leaseUps: MarketIqLeaseUpAle
     const key = item.propertyId ?? `${item.latitude!.toFixed(5)}:${item.longitude!.toFixed(5)}`;
     const address = item.address?.trim();
     const label = item.propertyName?.trim() || (address ? `${address}, ${item.city}` : `${item.city} · ZIP ${item.zip}`);
-    if (!unique.has(key)) unique.set(key, { id: key, label, latitude: item.latitude!, longitude: item.longitude! });
+    if (!unique.has(key)) unique.set(key, { id: key, propertyId: item.propertyId ?? null, label, latitude: item.latitude!, longitude: item.longitude! });
   }
   return [...unique.values()].sort((left, right) => left.label.localeCompare(right.label, "en-US"));
 }
@@ -126,11 +126,11 @@ export function MarketIqCompetitiveSetMapPicker({ events, leaseUpAlerts, value, 
           map.on("click", "competitive-candidates", (event) => {
             const properties = event.features?.[0]?.properties as { id?: string } | undefined;
             const candidate = options.find((option) => option.id === properties?.id);
-            if (candidate) onChangeRef.current({ latitude: candidate.latitude, longitude: candidate.longitude, radiusMiles: value?.radiusMiles ?? 3, label: candidate.label });
+            if (candidate) onChangeRef.current({ latitude: candidate.latitude, longitude: candidate.longitude, radiusMiles: value?.radiusMiles ?? 3, label: candidate.label, propertyId: candidate.propertyId });
           });
           map.on("click", (event) => {
             if (map.queryRenderedFeatures(event.point, { layers: ["competitive-candidates"] }).length) return;
-            onChangeRef.current({ latitude: event.lngLat.lat, longitude: event.lngLat.lng, radiusMiles: value?.radiusMiles ?? 3, label: `Pinned map point ${event.lngLat.lat.toFixed(4)}, ${event.lngLat.lng.toFixed(4)}` });
+            onChangeRef.current({ latitude: event.lngLat.lat, longitude: event.lngLat.lng, radiusMiles: value?.radiusMiles ?? 3, label: `Pinned map point ${event.lngLat.lat.toFixed(4)}, ${event.lngLat.lng.toFixed(4)}`, propertyId: null });
           });
           map.on("mouseenter", "competitive-candidates", () => { map.getCanvas().style.cursor = "pointer"; });
           map.on("mouseleave", "competitive-candidates", () => { map.getCanvas().style.cursor = ""; });
@@ -145,7 +145,7 @@ export function MarketIqCompetitiveSetMapPicker({ events, leaseUpAlerts, value, 
 
   function choose(candidateId: string) {
     const candidate = options.find((option) => option.id === candidateId);
-    if (candidate) onChange({ latitude: candidate.latitude, longitude: candidate.longitude, radiusMiles: value?.radiusMiles ?? 3, label: candidate.label });
+    if (candidate) onChange({ latitude: candidate.latitude, longitude: candidate.longitude, radiusMiles: value?.radiusMiles ?? 3, label: candidate.label, propertyId: candidate.propertyId });
   }
 
   return <div className="overflow-hidden rounded-xl border border-teal-200 bg-white">

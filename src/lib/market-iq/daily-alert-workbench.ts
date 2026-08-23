@@ -9,6 +9,7 @@ export type MarketIqAlertWorkbenchItem = MarketIqDailyInboxMatch & {
   marketName: string;
   city: string;
   propertyManagerName: string | null;
+  competitiveSetHref?: string | null;
 };
 
 export type MarketIqAlertWorkbenchState = {

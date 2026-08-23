@@ -7,6 +7,10 @@ import { MarketIqLaunchJourney } from "@/components/market-iq/launch/MarketIqLau
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
+import { buildMarketIqCompetitiveSetBrief } from "@/lib/market-iq/competitive-set-brief";
+import { buildMarketIqCompetitiveSetReportSection } from "@/lib/market-iq/competitive-set-report";
+import { loadMarketIqDailyEditionArchive } from "@/lib/market-iq/daily-editions.server";
+import { loadMarketIqCompetitiveSetWatchlist } from "@/lib/market-iq/daily-watchlists.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { canAccessMarketIqReportComposer } from "@/lib/market-iq/report/access";
 import { loadMarketIqReportComposer } from "@/lib/market-iq/report/composer.server";
@@ -16,7 +20,7 @@ import { resolveActiveMarketIqMarket } from "@/lib/market-iq/markets/selection";
 
 export const dynamic = "force-dynamic";
 
-export default async function MarketIqReportComposerPage({ searchParams }: { searchParams: Promise<{ published?: string; delivery?: string; activated?: string; draftId?: string; edition?: string; flow?: string; from?: string; market?: string }> }) {
+export default async function MarketIqReportComposerPage({ searchParams }: { searchParams: Promise<{ published?: string; delivery?: string; activated?: string; draftId?: string; edition?: string; flow?: string; from?: string; market?: string; competitiveSetId?: string; event?: string | string[] }> }) {
   const previewEnabled = marketIqPreviewEnabled();
   if (!previewEnabled) notFound();
   const [{ userId, organizationId }, query] = await Promise.all([getActiveOrgContext(), searchParams]);
@@ -64,6 +68,21 @@ export default async function MarketIqReportComposerPage({ searchParams }: { sea
     where: { organizationId_marketId: { organizationId, marketId: activeMarket.id } },
     select: { deliveryMode: true },
   });
+  const competitiveWatchlist = query.competitiveSetId ? await loadMarketIqCompetitiveSetWatchlist({
+    organizationId,
+    userId,
+    watchlistId: query.competitiveSetId,
+  }) : null;
+  const competitiveSetBrief = competitiveWatchlist?.marketId === activeMarket.id
+    ? buildMarketIqCompetitiveSetBrief({
+      watchlist: competitiveWatchlist,
+      editions: (await loadMarketIqDailyEditionArchive({ marketId: activeMarket.id, timeZone: activeMarket.timeZone, recentLimit: 16 })).recent,
+    })
+    : null;
+  const selectedCompetitiveEvents = Array.isArray(query.event) ? query.event : query.event ? [query.event] : [];
+  const competitiveSetReportSection = competitiveSetBrief?.state === "available"
+    ? buildMarketIqCompetitiveSetReportSection(competitiveSetBrief, selectedCompetitiveEvents)
+    : null;
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-6 lg:px-10 lg:py-10">
     {query.flow === "launch" && <MarketIqLaunchJourney current="edition" />}
@@ -74,7 +93,8 @@ export default async function MarketIqReportComposerPage({ searchParams }: { sea
       <p className="dq-eyebrow">Client advisory</p><h1 className="dq-h1">Prepare a {activeMarket.shortLabel} local market read</h1><p className="mt-3 max-w-3xl text-[15px] leading-6 text-muted-foreground">Review the client report beside your controls, add an optional note from your firm, and choose whether future monthly editions run automatically or wait for your approval.</p>
     </header>
 
-    <MarketIqReportComposerClient snapshot={workingSnapshot} initialBrand={workingBrand} initialEditorialDefaults={composer.editorialDefaults} initialSelection={composer.initialSelection} source={draft ? "dwellsy_trends" : composer.preview.source} priorEdition={composer.priorEdition} initialDeliveryMode={marketPreference?.deliveryMode === "autopilot" ? "autopilot" : "review"} draftId={draft?.id ?? null} launchFlow={query.flow === "launch"} />
+    {query.from === "competitive-set" && <p className={`mb-6 rounded-xl border px-5 py-3 text-sm font-semibold ${competitiveSetReportSection ? "border-violet-200 bg-violet-50 text-violet-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{competitiveSetReportSection ? `${competitiveSetReportSection.findings.length} observed competitive-set findings are included in this draft.` : "The selected competitive-set evidence is unavailable or no findings were selected. Nothing was substituted."}</p>}
+    <MarketIqReportComposerClient snapshot={workingSnapshot} initialBrand={workingBrand} initialEditorialDefaults={composer.editorialDefaults} initialSelection={composer.initialSelection} source={draft ? "dwellsy_trends" : composer.preview.source} priorEdition={composer.priorEdition} initialDeliveryMode={marketPreference?.deliveryMode === "autopilot" ? "autopilot" : "review"} draftId={draft?.id ?? null} launchFlow={query.flow === "launch"} initialCompetitiveSetBrief={competitiveSetReportSection} />
     <section className="mt-8 max-w-xl"><MarketIqReportHistory reports={composer.organization.marketIqReports} highlightedId={query.published} delivery={query.delivery} /></section>
   </main>;
 }

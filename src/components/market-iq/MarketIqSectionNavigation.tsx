@@ -43,7 +43,7 @@ export function MarketIqSectionNavigation() {
 
   const items = area === "market-intelligence" ? MARKET_INTELLIGENCE_ITEMS : CLIENT_REPORTING_ITEMS;
   const activeId = area === "market-intelligence"
-    ? pathname.startsWith("/market-iq/daily") ? "daily" : pathname.startsWith("/market-iq/alerts") ? "alerts" : "overview"
+    ? pathname.startsWith("/market-iq/daily") || pathname.startsWith("/market-iq/competitive-sets") ? "daily" : pathname.startsWith("/market-iq/alerts") ? "alerts" : "overview"
     : marketIqClientReportingTab(pathname);
 
   return (

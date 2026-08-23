@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { getMarketIqMarket } from "@/data/market-iq/markets";
 import type { MarketIqAlertWorkbenchState } from "@/lib/market-iq/daily-alert-workbench";
 import { parseMarketIqDailyTriageStatus } from "@/lib/market-iq/daily-watchlist-triage";
+import { parseMarketIqDailyWatchlistFilters } from "@/lib/market-iq/daily-watchlists";
 import { prisma } from "@/lib/prisma";
 
 const WORKBENCH_LIMIT = 500;
@@ -45,7 +46,7 @@ export async function loadMarketIqAlertWorkbench(input: {
   const [matches, memberships] = await Promise.all([
     prisma.marketIqDailyWatchlistMatch.findMany({
       where: visibleMatchWhere(input),
-      include: { watchlist: { select: { id: true, name: true, visibility: true, userId: true } } },
+      include: { watchlist: { select: { id: true, name: true, visibility: true, userId: true, version: true, filters: true } } },
       orderBy: { observedAt: "desc" },
       take: WORKBENCH_LIMIT + 1,
     }),
@@ -85,6 +86,7 @@ export async function loadMarketIqAlertWorkbench(input: {
     truncated: matches.length > WORKBENCH_LIMIT,
     items: visibleMatches.map((match) => {
       const triage = triageByMatch.get(triageKey(match));
+      const watchlistFilters = match.watchlist.version === 1 ? parseMarketIqDailyWatchlistFilters(match.watchlist.filters) : null;
       return {
         id: match.id,
         watchlistId: match.watchlistId,
@@ -101,6 +103,7 @@ export async function loadMarketIqAlertWorkbench(input: {
         city: match.city,
         propertyManagerName: match.propertyManagerName,
         propertyId: match.propertyId,
+        competitiveSetHref: watchlistFilters?.competitiveSet ? `/market-iq/competitive-sets/${encodeURIComponent(match.watchlistId)}` : null,
         sectionHref: match.sectionHref,
         readAt: match.readAt?.toISOString() ?? null,
         emailedAt: match.emailedAt?.toISOString() ?? null,

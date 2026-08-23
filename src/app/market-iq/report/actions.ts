@@ -7,6 +7,10 @@ import { getMarketIqMarket } from "@/data/market-iq/markets";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { resolveViewerMarketIqAccess } from "@/lib/market-iq/billing/access.server";
+import { buildMarketIqCompetitiveSetBrief } from "@/lib/market-iq/competitive-set-brief";
+import { buildMarketIqCompetitiveSetReportSection } from "@/lib/market-iq/competitive-set-report";
+import { loadMarketIqDailyEditionArchive } from "@/lib/market-iq/daily-editions.server";
+import { loadMarketIqCompetitiveSetWatchlist } from "@/lib/market-iq/daily-watchlists.server";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { marketIqJourneyEventData, marketIqMilestoneDedupeKey } from "@/lib/market-iq/journey-telemetry.server";
 import { buildMarketIqComposerPreview, type MarketIqReportBrandInput } from "@/lib/market-iq/report/composer.server";
@@ -61,7 +65,8 @@ async function authorizedMarketIqContext(marketId: string) {
 
 export async function publishMarketIqReport(formData: FormData): Promise<void> {
   const marketId = clipped(formData.get("marketId"), 80);
-  if (!getMarketIqMarket(marketId)) throw new Error("The selected market is not available.");
+  const market = getMarketIqMarket(marketId);
+  if (!market) throw new Error("The selected market is not available.");
   const context = await authorizedMarketIqContext(marketId);
   if (!context) throw new Error("Market IQ report access is unavailable.");
   const draftId = clipped(formData.get("draftId"), 80) || null;
@@ -104,6 +109,22 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
   const sourceSnapshot = editionDraft ? parseMarketIqReportSnapshot(editionDraft.snapshot) : preview?.snapshot;
   if (!sourceSnapshot) throw new Error("The reviewed report evidence is unavailable.");
   if (sourceSnapshot.scope.marketId !== marketId) throw new Error("The reviewed evidence belongs to a different market.");
+  const competitiveSetWatchlistId = clipped(formData.get("competitiveSetWatchlistId"), 100);
+  const competitiveSetEventKeys = formData.getAll("competitiveSetEventKeys").map((value) => clipped(value, 240)).filter(Boolean).slice(0, 10);
+  let competitiveSetBrief = sourceSnapshot.competitiveSetBrief;
+  if (competitiveSetWatchlistId) {
+    const watchlist = await loadMarketIqCompetitiveSetWatchlist({
+      organizationId: context.organizationId,
+      userId: context.userId,
+      watchlistId: competitiveSetWatchlistId,
+    });
+    if (!watchlist || watchlist.marketId !== marketId) throw new Error("The selected competitive set is unavailable.");
+    const archive = await loadMarketIqDailyEditionArchive({ marketId, timeZone: market.timeZone, recentLimit: 16 });
+    const brief = buildMarketIqCompetitiveSetBrief({ watchlist, editions: archive.recent });
+    if (brief.state !== "available") throw new Error("The selected competitive-set evidence is unavailable.");
+    competitiveSetBrief = buildMarketIqCompetitiveSetReportSection(brief, competitiveSetEventKeys) ?? undefined;
+    if (!competitiveSetBrief) throw new Error("Select at least one available competitive-set finding.");
+  }
   const selection = parseMarketIqScopeFormData(formData, sourceSnapshot);
   if (!selection.cities.length && !selection.zipCodes.length) throw new Error("Select at least one city or ZIP code.");
   if (!selection.segments.length) throw new Error("Select at least one product segment.");
@@ -130,6 +151,7 @@ export async function publishMarketIqReport(formData: FormData): Promise<void> {
     : comparison;
   const frozenSnapshot = {
     ...snapshot,
+    competitiveSetBrief,
     generatedAt: now.toISOString(),
     brand,
     editionComparison: frozenComparison,

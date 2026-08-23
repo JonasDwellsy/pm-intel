@@ -119,7 +119,7 @@ function featureCollection(points: ActivityPoint[]): FeatureCollection<Point, Ac
 
 function MapUnavailable({ tokenMissing, pointCount }: { tokenMissing: boolean; pointCount: number }) {
   return <div className="grid h-[500px] place-items-center rounded-2xl bg-slate-100 p-8 text-center">
-    <div className="max-w-md"><p className="font-semibold text-navy">{tokenMissing ? "Activity map unavailable" : "No mappable events in this edition"}</p><p className="mt-2 text-sm leading-6 text-slate-500">{tokenMissing ? "The event sections remain available. The interactive map will appear after the public Mapbox token is configured." : `${pointCount} event records were retained, but none carried usable source coordinates.`}</p></div>
+    <div className="max-w-md"><p className="font-semibold text-navy">{tokenMissing ? "Activity map unavailable" : "No mappable events in this evidence window"}</p><p className="mt-2 text-sm leading-6 text-slate-500">{tokenMissing ? "The event sections remain available. The interactive map will appear after the public Mapbox token is configured." : `${pointCount} event records were retained, but none carried usable source coordinates.`}</p></div>
   </div>;
 }
 
@@ -128,11 +128,19 @@ export function MarketIqDailyActivityMap({
   leaseUpAlerts = [],
   marketId,
   marketName,
+  sectionId = "daily-activity-map",
+  eyebrow = "Observed locations",
+  heading = "Where activity happened",
+  description,
 }: {
   events: MarketIqListingEvent[];
   leaseUpAlerts?: MarketIqLeaseUpAlert[];
   marketId?: string;
   marketName: string;
+  sectionId?: string;
+  eyebrow?: string;
+  heading?: string;
+  description?: string;
 }) {
   const points = useMemo(() => [
     ...events.map((event) => eventPoint(event, marketId)).filter((point): point is ActivityPoint => point !== null),
@@ -248,15 +256,15 @@ export function MarketIqDailyActivityMap({
     });
   }
 
-  return <section id="daily-activity-map" className="mb-6 scroll-mt-20 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.04)] sm:p-6" aria-label="Daily activity map">
-    <header className="flex flex-col gap-4 border-b border-slate-100 pb-5 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--report-accent)]">Observed locations</p><h3 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--report-primary)]">Where activity happened</h3><p className="mt-1 text-xs leading-5 text-slate-500">Interactive source coordinates for retained {marketName} listing events. Select a marker for property and manager context.</p></div><p className="text-xs font-semibold text-slate-500">{points.length.toLocaleString("en-US")} mapped{unmappedCount > 0 ? ` · ${unmappedCount.toLocaleString("en-US")} without coordinates` : ""}</p></header>
+  return <section id={sectionId} className="mb-6 scroll-mt-20 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.04)] sm:p-6" aria-label={sectionId === "daily-activity-map" ? "Daily activity map" : "Observed activity map"}>
+    <header className="flex flex-col gap-4 border-b border-slate-100 pb-5 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--report-accent)]">{eyebrow}</p><h3 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--report-primary)]">{heading}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{description ?? `Interactive source coordinates for retained ${marketName} listing events. Select a marker for property and manager context.`}</p></div><p className="text-xs font-semibold text-slate-500">{points.length.toLocaleString("en-US")} mapped{unmappedCount > 0 ? ` · ${unmappedCount.toLocaleString("en-US")} without coordinates` : ""}</p></header>
     <div className="my-4 flex flex-wrap gap-2" role="group" aria-label="Map activity filters">{CATEGORIES.filter((category) => presentCategories.has(category.value)).map((category) => {
       const active = activeCategories.has(category.value);
       return <button key={category.value} type="button" aria-pressed={active} onClick={() => toggleCategory(category.value)} className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition ${active ? "border-slate-300 bg-white text-navy shadow-sm" : "border-slate-200 bg-slate-50 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: active ? category.color : "#cbd5e1" }} />{category.label}</button>;
     })}</div>
     {tokenMissing || mapFailed || !points.length
       ? <MapUnavailable tokenMissing={tokenMissing || mapFailed} pointCount={events.length + leaseUpAlerts.length} />
-      : <div ref={containerRef} className="h-[500px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100" role="img" aria-label={`Interactive map of observed ${marketName} daily listing activity`} />}
+      : <div ref={containerRef} className="h-[500px] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100" role="img" aria-label={`Interactive map of observed ${marketName} listing activity`} />}
     <p className="mt-3 text-[11px] leading-5 text-slate-500">Markers show where source listing events were observed. Overlapping records may share one location. A lease-up marker reflects a 25-plus listing arrival at one property, not independently verified construction or occupancy.</p>
   </section>;
 }

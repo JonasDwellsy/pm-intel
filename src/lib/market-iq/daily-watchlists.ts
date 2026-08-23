@@ -30,6 +30,7 @@ export type MarketIqDailyCompetitiveSet = {
   longitude: number;
   radiusMiles: MarketIqCompetitiveSetRadiusMiles;
   label: string;
+  propertyId?: string | null;
 };
 
 export type MarketIqDailyWatchlistFilters = {
@@ -142,11 +143,18 @@ function parseCompetitiveSet(value: unknown): MarketIqDailyCompetitiveSet | null
     || candidate.longitude < -180 || candidate.longitude > 180
     || !COMPETITIVE_SET_RADII.has(candidate.radiusMiles as number)
     || typeof candidate.label !== "string" || !candidate.label.trim() || candidate.label.trim().length > 120) return undefined;
+  const propertyId = candidate.propertyId === undefined || candidate.propertyId === null
+    ? null
+    : typeof candidate.propertyId === "string" && candidate.propertyId.trim() && candidate.propertyId.trim().length <= 100
+      ? candidate.propertyId.trim()
+      : undefined;
+  if (propertyId === undefined) return undefined;
   return {
     latitude: candidate.latitude,
     longitude: candidate.longitude,
     radiusMiles: candidate.radiusMiles as MarketIqCompetitiveSetRadiusMiles,
     label: candidate.label.trim(),
+    propertyId,
   };
 }
 

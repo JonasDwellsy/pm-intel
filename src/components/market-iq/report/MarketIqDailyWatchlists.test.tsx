@@ -61,6 +61,7 @@ describe("MarketIqDailyWatchlists", () => {
       longitude: -83.002,
       radiusMiles: 5,
       label: "The Atlas",
+      propertyId: "property-1",
     });
   });
 

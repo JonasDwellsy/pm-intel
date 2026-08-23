@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { publishMarketIqReport } from "@/app/market-iq/report/actions";
 import { MarketIqPublicReport } from "@/components/market-iq/report/MarketIqPublicReport";
 import type { MarketIqReportSnapshot } from "@/lib/market-iq/report/report";
+import type { MarketIqCompetitiveSetReportSection } from "@/lib/market-iq/competitive-set-report";
 import type { MarketIqEditorialDefaults } from "@/lib/market-iq/report/composer.server";
 import { compareMarketIqEditions, type PriorMarketIqEdition } from "@/lib/market-iq/report/edition-comparison";
 import {
@@ -28,7 +29,7 @@ function ChoiceCard({ active, title, description, badge, onClick }: {
   </button>;
 }
 
-export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEditorialDefaults, initialSelection, source, priorEdition, initialDeliveryMode = "review", draftId = null, launchFlow = false }: {
+export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEditorialDefaults, initialSelection, source, priorEdition, initialDeliveryMode = "review", draftId = null, launchFlow = false, initialCompetitiveSetBrief = null }: {
   snapshot: MarketIqReportSnapshot;
   initialBrand: Brand;
   initialEditorialDefaults: MarketIqEditorialDefaults;
@@ -38,6 +39,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEd
   initialDeliveryMode?: DeliveryMode;
   draftId?: string | null;
   launchFlow?: boolean;
+  initialCompetitiveSetBrief?: MarketIqCompetitiveSetReportSection | null;
 }) {
   const [activeStep, setActiveStep] = useState<1 | 2>(1);
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>(initialDeliveryMode);
@@ -69,6 +71,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEd
   );
   const reviewedSnapshot = useMemo(() => ({
     ...scopedSnapshot,
+    competitiveSetBrief: initialCompetitiveSetBrief ?? scopedSnapshot.competitiveSetBrief,
     editionComparison: { ...editionComparison, findings: selectedFindings },
     editorial: {
       audienceKind,
@@ -80,7 +83,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEd
       reviewedAt: snapshot.generatedAt,
       reviewedBy: "PM reviewer",
     },
-  }), [scopedSnapshot, editionComparison, selectedFindings, audienceKind, editorialHeadline, editorialIntroduction, companyProfile, companyCtaLabel, companyCtaUrl, snapshot.generatedAt]);
+  }), [scopedSnapshot, initialCompetitiveSetBrief, editionComparison, selectedFindings, audienceKind, editorialHeadline, editorialIntroduction, companyProfile, companyCtaLabel, companyCtaUrl, snapshot.generatedAt]);
   const coverage = useMemo(() => buildMarketIqCoveragePreflight(reviewedSnapshot), [reviewedSnapshot]);
   const exceptionCoverage = coverage.cells.filter((cell) => cell.status !== "reportable");
   const hasGeography = selection.cities.length + selection.zipCodes.length > 0;
@@ -118,6 +121,10 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEd
         <input type="hidden" name="companyCtaUrl" value={companyCtaUrl} />
         <input type="hidden" name="findingSelectionApplied" value="1" />
         {selectedFindings.map((finding) => <input key={finding.id} type="hidden" name="findingIds" value={finding.id} />)}
+        {reviewedSnapshot.competitiveSetBrief && <>
+          <input type="hidden" name="competitiveSetWatchlistId" value={reviewedSnapshot.competitiveSetBrief.watchlistId} />
+          {reviewedSnapshot.competitiveSetBrief.findings.map((finding) => <input key={finding.key} type="hidden" name="competitiveSetEventKeys" value={finding.key} />)}
+        </>}
 
         <div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1.5">
           <button type="button" onClick={() => setActiveStep(1)} className={`rounded-lg px-3 py-2.5 text-xs font-semibold ${activeStep === 1 ? "bg-white text-navy shadow-sm" : "text-slate-500"}`}>1. Delivery and message</button>
@@ -140,6 +147,7 @@ export function MarketIqReportComposerClient({ snapshot, initialBrand, initialEd
           </div>
           <div className="mt-5 grid gap-5">
             <div className="rounded-xl border border-grid bg-surface-soft p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Report scope</p><p className="mt-2 text-sm font-semibold text-navy">{selection.cities.length} cities, {selection.zipCodes.length} ZIPs, {selection.segments.length} segments</p></div><a href={`/market-iq/get-started?market=${encodeURIComponent(snapshot.scope.marketId)}&step=2`} className="shrink-0 text-xs font-semibold text-teal-700">Change</a></div></div>
+            {reviewedSnapshot.competitiveSetBrief && <div className="rounded-xl border border-violet-200 bg-violet-50 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-violet-700">Competitive set evidence</p><p className="mt-2 text-sm font-semibold text-navy">{reviewedSnapshot.competitiveSetBrief.watchlistName}</p><p className="mt-1 text-xs leading-5 text-slate-600">{reviewedSnapshot.competitiveSetBrief.findings.length} selected observed {reviewedSnapshot.competitiveSetBrief.findings.length === 1 ? "finding" : "findings"} within {reviewedSnapshot.competitiveSetBrief.radiusMiles} {reviewedSnapshot.competitiveSetBrief.radiusMiles === 1 ? "mile" : "miles"}. The evidence will be rebuilt from the saved Daily Edition archive when you publish.</p><a href={`/market-iq/competitive-sets/${encodeURIComponent(reviewedSnapshot.competitiveSetBrief.watchlistId)}`} className="mt-3 inline-flex text-xs font-semibold text-violet-800">Review brief</a></div>}
             <label className="text-sm font-semibold text-navy">Audience<select name="audienceKind" value={audienceKind} onChange={(event) => selectAudience(event.target.value as "client" | "prospect")} className="mt-2 w-full rounded-md border border-grid bg-white px-3 py-2.5 text-sm font-normal"><option value="client">Current clients</option><option value="prospect">Prospective clients</option></select></label>
             <label className="text-sm font-semibold text-navy">Headline, optional<input name="editorialHeadline" maxLength={120} value={editorialHeadline} onChange={(event) => setEditorialHeadline(event.target.value)} placeholder="A local read on this month's rental market" className="mt-2 w-full rounded-md border border-grid px-3 py-2.5 text-sm font-normal" /></label>
             <label className="text-sm font-semibold text-navy">Message from your firm, optional<textarea name="editorialIntroduction" maxLength={700} rows={6} value={editorialIntroduction} onChange={(event) => setEditorialIntroduction(event.target.value)} placeholder="Add the context you want clients to hear from you." className="mt-2 w-full resize-y rounded-md border border-grid px-3 py-2.5 text-sm font-normal leading-6" /></label>

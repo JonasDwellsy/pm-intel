@@ -37,6 +37,7 @@ export function marketIqProductArea(pathname: string): MarketIqProductArea {
   if (pathname === MARKET_IQ_CANONICAL_ROUTES.home) return "home";
   if (
     pathname.startsWith("/market-iq/daily") ||
+    pathname.startsWith("/market-iq/competitive-sets") ||
     pathname.startsWith("/market-iq/alerts") ||
     pathname.startsWith("/market-iq/market")
   ) {
