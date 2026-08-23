@@ -30,6 +30,7 @@ export function getMarketIqMarketDataAdapter(market: MarketIqMarketDefinition): 
     loadReport,
     loadListingPulse: () => loadPersistedMarketListingPulse({
       marketId: market.id,
+      cbsaCode: market.cbsaCode,
       marketName: market.shortLabel,
     }),
   };

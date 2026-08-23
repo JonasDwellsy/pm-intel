@@ -17,7 +17,7 @@ test("interactive market overview reads persisted supply and cannot import the l
   assert.doesNotMatch(overview, /dwellsy-source|live-listings/);
 });
 
-test("nightly automation captures supply for every configured market before delivery", async () => {
+test("nightly automation captures national supply and detailed launched-market events before delivery", async () => {
   const workflow = await source(".github/workflows/market-iq-source-staleness.yml");
   for (const marketId of [
     "cleveland-elyria-mentor-oh",
@@ -26,7 +26,8 @@ test("nightly automation captures supply for every configured market before deli
     "san-jose-sunnyvale-santa-clara-ca",
   ]) assert.match(workflow, new RegExp(marketId));
   assert.match(workflow, /SUPPLY_REFRESH_URL.*source\/dwellsy\/refresh/);
-  assert.ok(workflow.indexOf("Capture verified listing supply for every market") < workflow.indexOf("Materialize and deliver personal watchlist matches"));
+  assert.ok(workflow.indexOf("Capture national supply history before markets launch") < workflow.indexOf("Capture detailed listing events for launched markets"));
+  assert.ok(workflow.indexOf("Capture detailed listing events for launched markets") < workflow.indexOf("Materialize and deliver personal watchlist matches"));
 });
 
 test("the source capture route and runner resolve market identity instead of assuming Cleveland", async () => {

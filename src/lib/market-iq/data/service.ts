@@ -35,6 +35,7 @@ export function unavailableMarketIqListingPulse(marketName: string, attemptedAt 
     activeListings: 0,
     apartmentListings: 0,
     houseListings: 0,
+    eventCountsAvailable: false,
     newEvents: 0,
     relistedEvents: 0,
     reactivatedEvents: 0,
