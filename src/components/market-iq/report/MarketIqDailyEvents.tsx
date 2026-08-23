@@ -3,10 +3,12 @@ import Link from "next/link";
 import { MarketIqDailyActivityMap } from "@/components/market-iq/report/MarketIqDailyActivityMap";
 import { MarketIqDailyEventExplorer } from "@/components/market-iq/report/MarketIqDailyEventExplorer";
 import { MarketIqDailyWatchlists } from "@/components/market-iq/report/MarketIqDailyWatchlists";
+import { MarketIqDailyWatchlistInbox } from "@/components/market-iq/report/MarketIqDailyWatchlistInbox";
 import type { MarketIqDailySavedViewFilters } from "@/lib/market-iq/daily-event-explorer";
 import { buildDailyEventHeadlines, type MarketIqDailyEventHeadline } from "@/lib/market-iq/daily-events";
 import type { MarketIqDailyWatchlistActionResult, MarketIqDailyWatchlistInput, MarketIqDailyWatchlistView } from "@/lib/market-iq/daily-watchlists";
 import type { MarketIqLeaseUpAlert, MarketIqListingEvent, MarketIqMarketActivityAvailability } from "@/lib/market-iq/listing-events";
+import type { MarketIqDailyDeliveryCadence, MarketIqDailyDeliveryState } from "@/lib/market-iq/daily-watchlist-delivery";
 import { marketIqPropertyActivityPath } from "@/lib/market-iq/property-activity";
 
 const PRIMARY_EVENT_LIMIT = 4;
@@ -377,6 +379,9 @@ export function MarketIqDailyEvents({
   initialWatchlists = [],
   saveWatchlist,
   deleteWatchlist,
+  deliveryState,
+  saveDeliveryPreference,
+  markMatchesRead,
 }: {
   availability: MarketIqMarketActivityAvailability;
   marketId?: string;
@@ -390,6 +395,9 @@ export function MarketIqDailyEvents({
   initialWatchlists?: MarketIqDailyWatchlistView[];
   saveWatchlist?: (marketId: string, input: MarketIqDailyWatchlistInput) => Promise<MarketIqDailyWatchlistActionResult>;
   deleteWatchlist?: (marketId: string, watchlistId: string) => Promise<MarketIqDailyWatchlistActionResult>;
+  deliveryState?: MarketIqDailyDeliveryState | null;
+  saveDeliveryPreference?: (cadence: MarketIqDailyDeliveryCadence) => Promise<{ ok: true } | { ok: false; message: string }>;
+  markMatchesRead?: (ids: string[]) => Promise<{ ok: true } | { ok: false; message: string }>;
 }) {
   const Heading = headingLevel;
   if (availability.state === "unavailable") {
@@ -417,6 +425,7 @@ export function MarketIqDailyEvents({
       <p className="text-xs text-slate-500">Source current through {fullDateTime(availability.activity.asOf, timeZone)}</p>
     </header>
     <ObservedFlow activity={availability.activity} />
+    {deliveryState && saveDeliveryPreference && markMatchesRead && <MarketIqDailyWatchlistInbox state={deliveryState} savePreference={saveDeliveryPreference} markRead={markMatchesRead} />}
     {marketId && saveWatchlist && deleteWatchlist && <MarketIqDailyWatchlists activity={availability.activity} marketId={marketId} timeZone={timeZone} initialWatchlists={initialWatchlists} saveWatchlist={saveWatchlist} deleteWatchlist={deleteWatchlist} />}
     <LeaseUpAlerts alerts={availability.activity.leaseUpAlerts ?? []} timeZone={timeZone} marketId={marketId} />
     {comparison}

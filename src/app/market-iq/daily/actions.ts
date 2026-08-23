@@ -16,6 +16,7 @@ import {
 import { isMissingDailyWatchlistTableError } from "@/lib/market-iq/daily-watchlists-persistence";
 import { marketIqPreviewEnabled } from "@/lib/market-iq/feature";
 import { prisma } from "@/lib/prisma";
+import { parseMarketIqDailyDeliveryCadence, type MarketIqDailyDeliveryCadence } from "@/lib/market-iq/daily-watchlist-delivery";
 
 export type MarketIqDailyViewActionResult = { ok: true } | { ok: false; message: string };
 
@@ -121,4 +122,34 @@ export async function deleteMarketIqDailyWatchlist(
     }
     throw error;
   }
+}
+
+export async function saveMarketIqDailyDeliveryPreference(
+  cadence: MarketIqDailyDeliveryCadence,
+): Promise<MarketIqDailyViewActionResult> {
+  const parsed = parseMarketIqDailyDeliveryCadence(cadence);
+  if (!parsed || !marketIqPreviewEnabled()) return { ok: false, message: "This delivery preference could not be saved." };
+  const [{ userId, organizationId }, access] = await Promise.all([getActiveOrgContext(), resolveViewerMarketIqAccess()]);
+  if (!userId || !organizationId || !access.hasProduct) return { ok: false, message: "This delivery preference could not be saved." };
+  const current = await prisma.marketIqDailyDeliveryPreference.findUnique({
+    where: { organizationId_userId: { organizationId, userId } },
+    select: { cadence: true },
+  });
+  const beginsEmailDelivery = parsed !== "in_app_only" && (!current || current.cadence === "in_app_only");
+  await prisma.marketIqDailyDeliveryPreference.upsert({
+    where: { organizationId_userId: { organizationId, userId } },
+    create: { organizationId, userId, cadence: parsed, lastDeliveredAt: beginsEmailDelivery ? new Date() : null },
+    update: { cadence: parsed, ...(beginsEmailDelivery ? { lastDeliveredAt: new Date() } : {}) },
+  });
+  revalidatePath("/market-iq/daily");
+  return { ok: true };
+}
+
+export async function markMarketIqDailyMatchesRead(matchIds: string[]): Promise<MarketIqDailyViewActionResult> {
+  if (!marketIqPreviewEnabled() || !Array.isArray(matchIds) || matchIds.length > 100 || matchIds.some((id) => typeof id !== "string" || !id)) return { ok: false, message: "These matches could not be updated." };
+  const [{ userId, organizationId }, access] = await Promise.all([getActiveOrgContext(), resolveViewerMarketIqAccess()]);
+  if (!userId || !organizationId || !access.hasProduct) return { ok: false, message: "These matches could not be updated." };
+  await prisma.marketIqDailyWatchlistMatch.updateMany({ where: { id: { in: matchIds }, organizationId, userId }, data: { readAt: new Date() } });
+  revalidatePath("/market-iq/daily");
+  return { ok: true };
 }

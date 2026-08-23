@@ -519,6 +519,9 @@ model Organization {
   marketIqBriefingEmailPreferences MarketIqBriefingEmailPreference[]
   marketIqDailyViewPreferences     MarketIqDailyViewPreference[]
   marketIqDailyWatchlists          MarketIqDailyWatchlist[]
+  marketIqDailyDeliveryPreferences MarketIqDailyDeliveryPreference[]
+  marketIqDailyWatchlistMatches    MarketIqDailyWatchlistMatch[]
+  marketIqDailyWatchlistDeliveries MarketIqDailyWatchlistDelivery[]
   marketIqBriefingEmailDeliveries  MarketIqBriefingEmailDelivery[]
   marketIqBriefingEmailRunItems    MarketIqBriefingEmailRunItem[]
   marketIqJourneyEvents            MarketIqJourneyEvent[]
@@ -917,9 +920,77 @@ model MarketIqDailyWatchlist {
   updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  matches      MarketIqDailyWatchlistMatch[]
 
   @@unique([organizationId, userId, marketId, name])
   @@index([organizationId, userId, marketId, updatedAt(sort: Desc)])
+}
+
+model MarketIqDailyDeliveryPreference {
+  id              String    @id @default(cuid())
+  organizationId  String
+  userId          String
+  cadence         String    @default("in_app_only") // daily | weekly | in_app_only
+  lastDeliveredAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([cadence, lastDeliveredAt])
+}
+
+model MarketIqDailyWatchlistMatch {
+  id                  String    @id @default(cuid())
+  organizationId      String
+  userId              String
+  watchlistId         String
+  marketId            String
+  editionId           String
+  eventKey            String
+  eventType           String
+  headline            String
+  detail              String
+  observedAt          DateTime
+  city                String
+  zip                 String
+  propertyManagerName String?
+  propertyId          String?
+  listingUrl          String?
+  sectionHref         String
+  readAt              DateTime?
+  emailedAt           DateTime?
+  createdAt           DateTime  @default(now())
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  watchlist    MarketIqDailyWatchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+
+  @@unique([watchlistId, eventKey])
+  @@index([organizationId, userId, createdAt(sort: Desc)])
+  @@index([organizationId, userId, emailedAt, createdAt])
+}
+
+model MarketIqDailyWatchlistDelivery {
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  deliveryKey    String    @unique
+  cadence        String
+  recipientEmail String
+  status         String    @default("sending") // sending | sent | failed
+  matchCount     Int
+  eventKeys      String    @default("[]")
+  providerId     String?
+  error          String?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
 }
 
 // Idempotent internal delivery record. This is deliberately separate from
