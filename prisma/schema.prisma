@@ -519,8 +519,11 @@ model Organization {
   marketIqBriefingEmailPreferences MarketIqBriefingEmailPreference[]
   marketIqDailyViewPreferences     MarketIqDailyViewPreference[]
   marketIqDailyWatchlists          MarketIqDailyWatchlist[]
+  marketIqDailyWatchlistSubscriptions MarketIqDailyWatchlistSubscription[]
   marketIqDailyDeliveryPreferences MarketIqDailyDeliveryPreference[]
   marketIqDailyWatchlistMatches    MarketIqDailyWatchlistMatch[]
+  marketIqDailyWatchlistTriages    MarketIqDailyWatchlistTriage[]
+  marketIqDailyWatchlistNotes      MarketIqDailyWatchlistNote[]
   marketIqDailyWatchlistDeliveries MarketIqDailyWatchlistDelivery[]
   marketIqBriefingEmailDeliveries  MarketIqBriefingEmailDelivery[]
   marketIqBriefingEmailRunItems    MarketIqBriefingEmailRunItem[]
@@ -916,14 +919,31 @@ model MarketIqDailyWatchlist {
   name           String
   version        Int      @default(1)
   filters        String   @default("{}")
+  visibility     String   @default("private") // private | organization
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  matches      MarketIqDailyWatchlistMatch[]
+  matches       MarketIqDailyWatchlistMatch[]
+  subscriptions MarketIqDailyWatchlistSubscription[]
+  triages       MarketIqDailyWatchlistTriage[]
 
   @@unique([organizationId, userId, marketId, name])
   @@index([organizationId, userId, marketId, updatedAt(sort: Desc)])
+}
+
+model MarketIqDailyWatchlistSubscription {
+  id             String   @id @default(cuid())
+  organizationId String
+  watchlistId    String
+  userId         String
+  createdAt      DateTime @default(now())
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  watchlist    MarketIqDailyWatchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+
+  @@unique([watchlistId, userId])
+  @@index([organizationId, userId, createdAt(sort: Desc)])
 }
 
 model MarketIqDailyDeliveryPreference {
@@ -966,9 +986,44 @@ model MarketIqDailyWatchlistMatch {
   organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   watchlist    MarketIqDailyWatchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
 
-  @@unique([watchlistId, eventKey])
+  @@unique([watchlistId, userId, eventKey])
   @@index([organizationId, userId, createdAt(sort: Desc)])
   @@index([organizationId, userId, emailedAt, createdAt])
+}
+
+model MarketIqDailyWatchlistTriage {
+  id               String   @id @default(cuid())
+  organizationId   String
+  watchlistId      String
+  eventKey         String
+  status           String   @default("new") // new | reviewing | dismissed | resolved
+  assignedToUserId String?
+  updatedByUserId  String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  watchlist    MarketIqDailyWatchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  notes        MarketIqDailyWatchlistNote[]
+
+  @@unique([watchlistId, eventKey])
+  @@index([organizationId, status, updatedAt(sort: Desc)])
+  @@index([organizationId, assignedToUserId, updatedAt(sort: Desc)])
+}
+
+model MarketIqDailyWatchlistNote {
+  id             String   @id @default(cuid())
+  organizationId String
+  triageId       String
+  authorUserId   String
+  body           String
+  createdAt      DateTime @default(now())
+
+  organization Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  triage       MarketIqDailyWatchlistTriage @relation(fields: [triageId], references: [id], onDelete: Cascade)
+
+  @@index([triageId, createdAt(sort: Desc)])
+  @@index([organizationId, authorUserId, createdAt(sort: Desc)])
 }
 
 model MarketIqDailyWatchlistDelivery {

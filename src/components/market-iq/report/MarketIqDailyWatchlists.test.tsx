@@ -36,9 +36,18 @@ describe("MarketIqDailyWatchlists", () => {
     const user = userEvent.setup();
     const saveWatchlist = vi.fn().mockImplementation(async (_marketId, input) => ({
       ok: true,
-      watchlist: { id: "watch-1", marketId: "columbus-oh", ...input, createdAt: "2026-08-22T20:00:00.000Z", updatedAt: "2026-08-22T20:00:00.000Z" },
+      watchlist: {
+        id: "watch-1",
+        marketId: "columbus-oh",
+        ...input,
+        visibility: input.visibility ?? "private",
+        isOwner: true,
+        isFollowing: true,
+        createdAt: "2026-08-22T20:00:00.000Z",
+        updatedAt: "2026-08-22T20:00:00.000Z",
+      },
     }));
-    render(<MarketIqDailyWatchlists activity={activity} marketId="columbus-oh" timeZone="America/New_York" initialWatchlists={[]} saveWatchlist={saveWatchlist} deleteWatchlist={vi.fn()} />);
+    render(<MarketIqDailyWatchlists activity={activity} marketId="columbus-oh" timeZone="America/New_York" initialWatchlists={[]} saveWatchlist={saveWatchlist} deleteWatchlist={vi.fn()} followWatchlist={vi.fn()} />);
 
     await user.type(screen.getByLabelText("Watchlist name"), "Atlas competitors");
     await user.click(screen.getByRole("button", { name: "Add map radius" }));
@@ -53,5 +62,25 @@ describe("MarketIqDailyWatchlists", () => {
       radiusMiles: 5,
       label: "The Atlas",
     });
+  });
+
+  it("lets a teammate follow an organization watchlist without granting edit controls", async () => {
+    const user = userEvent.setup();
+    const followWatchlist = vi.fn().mockResolvedValue({ ok: true, isFollowing: true });
+    render(<MarketIqDailyWatchlists activity={activity} marketId="columbus-oh" timeZone="America/New_York" initialWatchlists={[{
+      id: "watch-team",
+      name: "Team competitors",
+      marketId: "columbus-oh",
+      filters: { query: "", eventTypes: [], geography: "all", bedrooms: "all", propertyType: "all", rentDirection: "all", minimumRentMagnitude: 0, competitiveSet: null },
+      visibility: "organization",
+      isOwner: false,
+      isFollowing: false,
+      createdAt: "2026-08-22T20:00:00.000Z",
+      updatedAt: "2026-08-22T20:00:00.000Z",
+    }]} saveWatchlist={vi.fn()} deleteWatchlist={vi.fn()} followWatchlist={followWatchlist} />);
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Follow" }));
+    expect(followWatchlist).toHaveBeenCalledWith("columbus-oh", "watch-team", true);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Unfollow" })).not.toBeNull());
   });
 });

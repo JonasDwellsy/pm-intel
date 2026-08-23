@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS,
+  marketIqDailyWatchlistRecipientIds,
   matchMarketIqDailyWatchlist,
   parseMarketIqDailyWatchlistFilters,
   parseMarketIqDailyWatchlistInput,
@@ -75,6 +76,9 @@ function watchlist(filters: Partial<MarketIqDailyWatchlistView["filters"]>): Mar
     name: "Personal scope",
     marketId: "columbus-oh",
     filters: { ...EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS, ...filters },
+    visibility: "private",
+    isOwner: true,
+    isFollowing: true,
     createdAt: "2026-08-22T17:00:00.000Z",
     updatedAt: "2026-08-22T17:00:00.000Z",
   };
@@ -152,5 +156,26 @@ describe("personal Daily Watchlists", () => {
     const legacy = { ...EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS } as Record<string, unknown>;
     delete legacy.competitiveSet;
     expect(parseMarketIqDailyWatchlistFilters(JSON.stringify(legacy))?.competitiveSet).toBeNull();
+  });
+
+  it("defaults legacy watchlist inputs to private and validates team visibility", () => {
+    const legacy = parseMarketIqDailyWatchlistInput({ name: "Legacy private", filters: EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS });
+    expect(legacy.ok && legacy.value.visibility).toBe("private");
+    const shared = parseMarketIqDailyWatchlistInput({ name: "Team watch", visibility: "organization", filters: EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS });
+    expect(shared.ok && shared.value.visibility).toBe("organization");
+    expect(parseMarketIqDailyWatchlistInput({ name: "Public leak", visibility: "public", filters: EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS }).ok).toBe(false);
+  });
+
+  it("materializes private matches only for the owner and shared matches for distinct followers", () => {
+    expect(marketIqDailyWatchlistRecipientIds({
+      ownerUserId: "owner",
+      visibility: "private",
+      subscriberUserIds: ["teammate"],
+    })).toEqual(["owner"]);
+    expect(marketIqDailyWatchlistRecipientIds({
+      ownerUserId: "owner",
+      visibility: "organization",
+      subscriberUserIds: ["teammate", "owner", "teammate"],
+    })).toEqual(["owner", "teammate"]);
   });
 });

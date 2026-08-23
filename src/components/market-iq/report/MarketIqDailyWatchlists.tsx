@@ -15,8 +15,10 @@ import {
   type MarketIqDailyWatchlistActionResult,
   type MarketIqDailyWatchlistEventType,
   type MarketIqDailyWatchlistFilters,
+  type MarketIqDailyWatchlistFollowResult,
   type MarketIqDailyWatchlistInput,
   type MarketIqDailyWatchlistView,
+  type MarketIqDailyWatchlistVisibility,
   type MarketIqCompetitiveSetRadiusMiles,
 } from "@/lib/market-iq/daily-watchlists";
 import type { MarketIqMarketActivity } from "@/lib/market-iq/listing-events";
@@ -24,6 +26,7 @@ import { marketIqPropertyActivityPath } from "@/lib/market-iq/property-activity"
 
 type SaveAction = (marketId: string, input: MarketIqDailyWatchlistInput) => Promise<MarketIqDailyWatchlistActionResult>;
 type DeleteAction = (marketId: string, watchlistId: string) => Promise<MarketIqDailyWatchlistActionResult>;
+type FollowAction = (marketId: string, watchlistId: string, follow: boolean) => Promise<MarketIqDailyWatchlistFollowResult>;
 
 const EVENT_LABELS: Record<MarketIqDailyWatchlistEventType, string> = {
   new_to_market: "New listings",
@@ -70,6 +73,7 @@ export function MarketIqDailyWatchlists({
   initialWatchlists,
   saveWatchlist,
   deleteWatchlist,
+  followWatchlist,
 }: {
   activity: MarketIqMarketActivity;
   marketId: string;
@@ -77,12 +81,14 @@ export function MarketIqDailyWatchlists({
   initialWatchlists: MarketIqDailyWatchlistView[];
   saveWatchlist: SaveAction;
   deleteWatchlist: DeleteAction;
+  followWatchlist: FollowAction;
 }) {
   const options = useMemo(() => marketIqDailyEventExplorerOptions(buildDailyEventHeadlines(activity.events)), [activity.events]);
   const [watchlists, setWatchlists] = useState(initialWatchlists);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [filters, setFilters] = useState<MarketIqDailyWatchlistFilters>(EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS);
+  const [visibility, setVisibility] = useState<MarketIqDailyWatchlistVisibility>("private");
   const [mapScopeOpen, setMapScopeOpen] = useState(false);
   const [builderOpen, setBuilderOpen] = useState(initialWatchlists.length === 0);
   const [message, setMessage] = useState<string | null>(null);
@@ -93,6 +99,7 @@ export function MarketIqDailyWatchlists({
     setEditingId(null);
     setName("");
     setFilters(EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS);
+    setVisibility("private");
     setMapScopeOpen(false);
     setMessage(null);
   }
@@ -101,6 +108,7 @@ export function MarketIqDailyWatchlists({
     setEditingId(watchlist.id);
     setName(watchlist.name);
     setFilters(watchlist.filters);
+    setVisibility(watchlist.visibility);
     setMapScopeOpen(Boolean(watchlist.filters.competitiveSet));
     setBuilderOpen(true);
     setMessage(null);
@@ -118,7 +126,7 @@ export function MarketIqDailyWatchlists({
   function submit() {
     startTransition(async () => {
       setMessage(null);
-      const result = await saveWatchlist(marketId, { id: editingId ?? undefined, name, filters });
+      const result = await saveWatchlist(marketId, { id: editingId ?? undefined, name, filters, visibility });
       if (!result.ok || !result.watchlist) {
         setMessage(result.ok ? "This watchlist could not be saved." : result.message);
         return;
@@ -129,6 +137,16 @@ export function MarketIqDailyWatchlists({
       resetBuilder();
       setBuilderOpen(false);
       setMessage("Your personal watchlist was saved.");
+    });
+  }
+
+  function follow(watchlistId: string, shouldFollow: boolean) {
+    startTransition(async () => {
+      setMessage(null);
+      const result = await followWatchlist(marketId, watchlistId, shouldFollow);
+      if (!result.ok) { setMessage(result.message); return; }
+      setWatchlists((current) => current.map((watchlist) => watchlist.id === watchlistId ? { ...watchlist, isFollowing: result.isFollowing } : watchlist));
+      setMessage(result.isFollowing ? "Team watchlist followed. Its new matches will use your delivery preference." : "Team watchlist unfollowed. Existing inbox history remains available.");
     });
   }
 
@@ -149,19 +167,20 @@ export function MarketIqDailyWatchlists({
 
   return <section id="daily-watchlists" className="mb-6 overflow-hidden rounded-2xl border border-teal-200 bg-white shadow-[0_14px_40px_rgba(15,118,110,0.08)]" aria-labelledby="daily-watchlists-heading">
     <header className="flex flex-col gap-4 border-b border-teal-100 bg-gradient-to-r from-teal-50 to-white px-5 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-      <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-teal-800">Personal intelligence</p><h2 id="daily-watchlists-heading" className="mt-1 text-2xl font-semibold tracking-tight text-navy">Your watchlists</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Follow the places, properties, managers, and event types that matter to you. These watchlists are visible only to your signed-in account.</p></div>
+      <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-teal-800">Personal and team intelligence</p><h2 id="daily-watchlists-heading" className="mt-1 text-2xl font-semibold tracking-tight text-navy">Your watchlists</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Follow the places, properties, managers, and event types that matter. Keep a watchlist private or share it with your workspace so teammates can follow it using their own delivery preference.</p></div>
       <button type="button" onClick={() => { setBuilderOpen((current) => !current); if (builderOpen) resetBuilder(); }} className="rounded-md bg-navy px-4 py-2.5 text-sm font-semibold text-white">{builderOpen ? "Close builder" : "New watchlist"}</button>
     </header>
 
     {builderOpen && <div className="border-b border-slate-200 bg-slate-50 px-5 py-6 sm:px-6">
       <div className="grid gap-4 lg:grid-cols-4">
         <label className="block lg:col-span-2"><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Watchlist name</span><input value={name} maxLength={60} onChange={(event) => setName(event.target.value)} placeholder="West side rent cuts" className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-navy outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+        <WatchlistSelect label="Visibility" value={visibility} onChange={(value) => setVisibility(value as MarketIqDailyWatchlistVisibility)}><option value="private">Private to me</option><option value="organization">Shared with team</option></WatchlistSelect>
         <WatchlistSelect label="Area" value={filters.geography} onChange={(geography) => setFilters((current) => ({ ...current, geography }))}>
           <option value="all">All areas</option>
           {options.cities.length > 0 && <optgroup label="Cities">{options.cities.map((city) => <option key={city} value={`city:${city}`}>{city}</option>)}</optgroup>}
           {options.zipCodes.length > 0 && <optgroup label="ZIP codes">{options.zipCodes.map((zip) => <option key={zip} value={`zip:${zip}`}>{zip}</option>)}</optgroup>}
         </WatchlistSelect>
-        <label className="block"><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Property, address, or manager</span><input value={filters.query} maxLength={120} onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))} placeholder="Optional name or address" className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-navy outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
+        <label className="block lg:col-span-2"><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Property, address, or manager</span><input value={filters.query} maxLength={120} onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))} placeholder="Optional name or address" className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-navy outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100" /></label>
         <WatchlistSelect label="Beds" value={filters.bedrooms} onChange={(bedrooms) => setFilters((current) => ({ ...current, bedrooms: bedrooms as MarketIqDailyWatchlistFilters["bedrooms"] }))}><option value="all">All beds</option><option value="studio">Studio</option><option value="1">1 bed</option><option value="2">2 beds</option><option value="3">3 beds</option><option value="4_plus">4+ beds</option></WatchlistSelect>
         <WatchlistSelect label="Property" value={filters.propertyType} onChange={(propertyType) => setFilters((current) => ({ ...current, propertyType: propertyType as MarketIqDailyWatchlistFilters["propertyType"] }))}><option value="all">All types</option><option value="apartment">Apartments</option><option value="house">Houses</option></WatchlistSelect>
         <WatchlistSelect label="Rent move" value={filters.rentDirection} onChange={(rentDirection) => setFilters((current) => ({ ...current, rentDirection: rentDirection as MarketIqDailyWatchlistFilters["rentDirection"] }))}><option value="all">Any direction</option><option value="increase">Increases</option><option value="decrease">Decreases</option></WatchlistSelect>
@@ -181,7 +200,7 @@ export function MarketIqDailyWatchlists({
     {watchlists.length ? <div className="divide-y divide-slate-100">{watchlists.map((watchlist) => {
       const matches = matchMarketIqDailyWatchlist(watchlist, activity);
       return <article key={watchlist.id} className="px-5 py-6 sm:px-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold text-navy">{watchlist.name}</h3><span className="rounded-full bg-teal-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-teal-800">{matches.length} {matches.length === 1 ? "match" : "matches"}</span></div><p className="mt-1 text-xs text-slate-500">{marketIqDailyWatchlistScopeLabel(watchlist.filters)}</p></div><div className="flex gap-3 text-xs font-semibold"> <button type="button" onClick={() => edit(watchlist)} className="text-teal-800">Edit</button>{pendingDeleteId === watchlist.id ? <><button type="button" disabled={isPending} onClick={() => remove(watchlist.id)} className="text-red-700">Confirm remove</button><button type="button" onClick={() => setPendingDeleteId(null)} className="text-slate-500">Cancel</button></> : <button type="button" onClick={() => setPendingDeleteId(watchlist.id)} className="text-red-700">Remove</button>}</div></div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold text-navy">{watchlist.name}</h3><span className="rounded-full bg-teal-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-teal-800">{matches.length} {matches.length === 1 ? "match" : "matches"}</span><span className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${watchlist.visibility === "organization" ? "bg-violet-50 text-violet-800" : "bg-slate-100 text-slate-600"}`}>{watchlist.visibility === "organization" ? "Team" : "Private"}</span></div><p className="mt-1 text-xs text-slate-500">{marketIqDailyWatchlistScopeLabel(watchlist.filters)}</p></div><div className="flex gap-3 text-xs font-semibold">{watchlist.isOwner ? <><button type="button" onClick={() => edit(watchlist)} className="text-teal-800">Edit</button>{pendingDeleteId === watchlist.id ? <><button type="button" disabled={isPending} onClick={() => remove(watchlist.id)} className="text-red-700">Confirm remove</button><button type="button" onClick={() => setPendingDeleteId(null)} className="text-slate-500">Cancel</button></> : <button type="button" onClick={() => setPendingDeleteId(watchlist.id)} className="text-red-700">Remove</button>}</> : <button type="button" disabled={isPending} onClick={() => follow(watchlist.id, !watchlist.isFollowing)} className={watchlist.isFollowing ? "text-slate-500" : "text-violet-800"}>{watchlist.isFollowing ? "Unfollow" : "Follow"}</button>}</div></div>
         {matches.length ? <div className="mt-4 grid gap-3 lg:grid-cols-3">{matches.slice(0, 3).map((match) => <div key={`${match.eventType}:${match.id}`} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-center justify-between gap-2"><span className={`rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-wider ring-1 ring-inset ${EVENT_STYLES[match.eventType]}`}>{EVENT_LABELS[match.eventType]}</span><time dateTime={match.observedAt} className="text-[10px] font-semibold text-slate-400">{observedTime(match.observedAt, timeZone)}</time></div><h4 className="mt-3 text-sm font-semibold leading-5 text-navy">{match.headline}</h4><p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{match.detail}</p>{match.propertyManagerName && <p className="mt-2 text-[10px] font-semibold text-slate-400">Managed by {match.propertyManagerName}</p>}<div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold">{match.propertyId && <Link href={marketIqPropertyActivityPath(marketId, match.propertyId)} className="text-teal-800">View property</Link>}<a href={match.sectionHref} className="text-teal-800">View section ↓</a>{match.listingUrl && <a href={match.listingUrl} target="_blank" rel="noreferrer" className="text-teal-800">Source ↗</a>}</div></div>)}</div> : <p className="mt-4 rounded-xl bg-slate-50 px-4 py-5 text-sm text-slate-500">No retained events matched this watchlist in the current edition.</p>}
         {matches.length > 3 && <a href="#daily-event-explorer" className="mt-4 inline-flex text-xs font-semibold text-teal-800">Explore all {matches.length} matches ↓</a>}
       </article>;

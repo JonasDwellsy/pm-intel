@@ -39,14 +39,18 @@ describe("Daily Watchlist presentation", () => {
         name: "Downtown arrivals",
         marketId: "columbus-oh",
         filters: { ...EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS, query: "Northstar" },
+        visibility: "private",
+        isOwner: true,
+        isFollowing: true,
         createdAt: "2026-08-22T18:00:00.000Z",
         updatedAt: "2026-08-22T18:00:00.000Z",
       }]}
       saveWatchlist={async () => ({ ok: false, message: "not called" })}
       deleteWatchlist={async () => ({ ok: false, message: "not called" })}
+      followWatchlist={async () => ({ ok: false, message: "not called" })}
     />);
     expect(html).toContain("Your watchlists");
-    expect(html).toContain("visible only to your signed-in account");
+    expect(html).toContain("Keep a watchlist private or share it with your workspace");
     expect(html).toContain("Downtown arrivals");
     expect(html).toContain("1 match");
     expect(html).toContain("Aug 22, 3:00 PM EDT");

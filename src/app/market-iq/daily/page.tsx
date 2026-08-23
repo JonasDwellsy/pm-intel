@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { notFound, redirect } from "next/navigation";
-import { clearMarketIqDailyViewPreference, deleteMarketIqDailyWatchlist, markMarketIqDailyMatchesRead, saveMarketIqDailyDeliveryPreference, saveMarketIqDailyViewPreference, saveMarketIqDailyWatchlist } from "@/app/market-iq/daily/actions";
+import { addMarketIqDailyMatchNote, clearMarketIqDailyViewPreference, deleteMarketIqDailyWatchlist, followMarketIqDailyWatchlist, markMarketIqDailyMatchesRead, saveMarketIqDailyDeliveryPreference, saveMarketIqDailyViewPreference, saveMarketIqDailyWatchlist, updateMarketIqDailyMatchTriage } from "@/app/market-iq/daily/actions";
 import { MarketIqMarketPreparing } from "@/components/market-iq/MarketIqMarketPreparing";
 import { MarketIqMarketSelector } from "@/components/market-iq/MarketIqMarketSelector";
 import { MarketIqDailyEditionArchive, MarketIqDailyEditionMissing } from "@/components/market-iq/report/MarketIqDailyEditionArchive";
@@ -143,9 +143,12 @@ export default async function MarketIqDailyPage({
             initialWatchlists={initialWatchlists}
             saveWatchlist={saveMarketIqDailyWatchlist}
             deleteWatchlist={deleteMarketIqDailyWatchlist}
+            followWatchlist={followMarketIqDailyWatchlist}
             deliveryState={initialDeliveryState}
             saveDeliveryPreference={saveMarketIqDailyDeliveryPreference}
             markMatchesRead={markMarketIqDailyMatchesRead}
+            updateMatchTriage={updateMarketIqDailyMatchTriage}
+            addMatchNote={addMarketIqDailyMatchNote}
             comparison={<MarketIqDailyEditionComparisonPanel comparison={comparison} timeZone={activeMarket.timeZone} />}
           />
           : <>
