@@ -39,21 +39,30 @@ export interface RecordUsageEventArgs {
   targetKind?: string | null;
   /** e.g. a pm slug or market id. */
   targetSlug?: string | null;
+  /** Stable primary key for replay-safe external deliveries such as webhooks. */
+  eventId?: string;
 }
 
 /** Shared insert. Never rejects — telemetry is best-effort, so a failed
  *  write is logged and swallowed, never surfaced to the caller. */
 async function insert(args: RecordUsageEventArgs): Promise<void> {
   try {
-    await prisma.usageEvent.create({
-      data: {
-        userId: args.userId,
-        orgId: args.orgId ?? null,
-        eventName: args.eventName,
-        targetKind: args.targetKind ?? null,
-        targetSlug: args.targetSlug ?? null,
-      },
-    });
+    const data = {
+      userId: args.userId,
+      orgId: args.orgId ?? null,
+      eventName: args.eventName,
+      targetKind: args.targetKind ?? null,
+      targetSlug: args.targetSlug ?? null,
+    };
+    if (args.eventId) {
+      await prisma.usageEvent.upsert({
+        where: { id: args.eventId },
+        create: { id: args.eventId, ...data },
+        update: {},
+      });
+    } else {
+      await prisma.usageEvent.create({ data });
+    }
   } catch (err) {
     // Telemetry is best-effort — log and move on. Never surface to the
     // caller.

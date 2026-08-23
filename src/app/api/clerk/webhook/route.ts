@@ -32,19 +32,17 @@
 //   3. (Same signing secret as before — already in
 //      CLERK_WEBHOOK_SECRET env var)
 //
-// Idempotency: every DB write uses Prisma `upsert` keyed on Clerk's
-// unique sync id (clerkOrgId / clerkMembershipId). Re-delivery of the
-// same Clerk event is a no-op. The signup-time personal-org
-// provisioning checks the user's existing memberships before
-// creating to make THAT path idempotent too.
+// Replay safety: mirror-table writes use Clerk identifiers, PostHog
+// captures use a deterministic UUID, and first-party signup/login rows
+// use a deterministic primary key. All side-effect identities derive
+// from Clerk's verified svix-id, so a re-delivery remains a no-op.
 //
 // Sentry instrumentation: every dispatched handler is wrapped in
 // try/catch. Failures fire Sentry.captureException with the event
 // id and userId tag so we can correlate webhook drops to user
-// reports. Webhook returns 200 even on handler failures (Clerk
-// would otherwise retry; for partial successes — e.g.,
-// signup_completed fired but personal org creation 500'd — retry
-// would double-fire PostHog events).
+// reports. Webhook still returns 200 on handler failures in this phase.
+// A follow-up can safely enable Clerk retries once every handler's
+// failure semantics have been reviewed end to end.
 
 import { Webhook } from "svix";
 import { clerkClient } from "@clerk/nextjs/server";
@@ -52,6 +50,7 @@ import * as Sentry from "@sentry/nextjs";
 import { captureServerEvent, flushAnalyticsServer } from "@/lib/analytics-server";
 import { prisma } from "@/lib/prisma";
 import { extractEmailDomain } from "@/lib/auth/email-domain";
+import { clerkWebhookEventId } from "@/lib/auth/webhook-idempotency";
 import { recordUsageEventAwait } from "@/lib/usage/record";
 
 export const runtime = "nodejs";
@@ -169,12 +168,12 @@ async function dispatch(event: ClerkWebhookEvent, svixId: string): Promise<void>
   switch (event.type) {
     case "user.created":
       await withSentryBoundary("user.created", event, svixId, () =>
-        handleUserCreated(event)
+        handleUserCreated(event, svixId)
       );
       return;
     case "session.created":
       await withSentryBoundary("session.created", event, svixId, () =>
-        handleSessionCreated(event)
+        handleSessionCreated(event, svixId)
       );
       return;
     case "organization.created":
@@ -197,7 +196,7 @@ async function dispatch(event: ClerkWebhookEvent, svixId: string): Promise<void>
         "organizationMembership.created",
         event,
         svixId,
-        () => handleMembershipCreated(event)
+        () => handleMembershipCreated(event, svixId)
       );
       return;
     case "organizationMembership.updated":
@@ -205,7 +204,7 @@ async function dispatch(event: ClerkWebhookEvent, svixId: string): Promise<void>
         "organizationMembership.updated",
         event,
         svixId,
-        () => handleMembershipUpdated(event)
+        () => handleMembershipUpdated(event, svixId)
       );
       return;
     case "organizationMembership.deleted":
@@ -213,7 +212,7 @@ async function dispatch(event: ClerkWebhookEvent, svixId: string): Promise<void>
         "organizationMembership.deleted",
         event,
         svixId,
-        () => handleMembershipDeleted(event)
+        () => handleMembershipDeleted(event, svixId)
       );
       return;
     // v0.18 (PR #71, Phase 3) — Invitation lifecycle. These three
@@ -227,7 +226,7 @@ async function dispatch(event: ClerkWebhookEvent, svixId: string): Promise<void>
         "organizationInvitation.created",
         event,
         svixId,
-        () => handleInvitationCreated(event)
+        () => handleInvitationCreated(event, svixId)
       );
       return;
     case "organizationInvitation.accepted":
@@ -235,7 +234,7 @@ async function dispatch(event: ClerkWebhookEvent, svixId: string): Promise<void>
         "organizationInvitation.accepted",
         event,
         svixId,
-        () => handleInvitationAccepted(event)
+        () => handleInvitationAccepted(event, svixId)
       );
       return;
     case "organizationInvitation.revoked":
@@ -243,7 +242,7 @@ async function dispatch(event: ClerkWebhookEvent, svixId: string): Promise<void>
         "organizationInvitation.revoked",
         event,
         svixId,
-        () => handleInvitationRevoked(event)
+        () => handleInvitationRevoked(event, svixId)
       );
       return;
     default:
@@ -282,7 +281,10 @@ async function withSentryBoundary(
 
 // ─── v0.17 user/session handlers (extended in v0.18 with org provisioning) ───
 
-async function handleUserCreated(event: ClerkWebhookEvent): Promise<void> {
+async function handleUserCreated(
+  event: ClerkWebhookEvent,
+  svixId: string
+): Promise<void> {
   const userId = event.data.id;
   if (!userId) return;
   // signup_completed conversion event (v0.17).
@@ -299,15 +301,23 @@ async function handleUserCreated(event: ClerkWebhookEvent): Promise<void> {
   captureServerEvent({
     userId,
     event: "signup_completed",
+    eventId: clerkWebhookEventId(svixId, "posthog", "signup_completed"),
   });
   // v0.24 — parallel first-party sink (see src/lib/usage/record.ts).
   // Awaited: the webhook lambda can freeze right after responding, so a
   // floating write could be lost — logins/signups are the headline signal.
   // No org context on user.created (orgId stays null).
-  await recordUsageEventAwait({ userId, eventName: "signup" });
+  await recordUsageEventAwait({
+    userId,
+    eventName: "signup",
+    eventId: clerkWebhookEventId(svixId, "usage", "signup"),
+  });
 }
 
-async function handleSessionCreated(event: ClerkWebhookEvent): Promise<void> {
+async function handleSessionCreated(
+  event: ClerkWebhookEvent,
+  svixId: string
+): Promise<void> {
   const userId = event.data.user_id;
   const sessionCreatedAt = event.data.created_at;
   if (!userId) return;
@@ -319,13 +329,18 @@ async function handleSessionCreated(event: ClerkWebhookEvent): Promise<void> {
   captureServerEvent({
     userId,
     event: "login_completed",
+    eventId: clerkWebhookEventId(svixId, "posthog", "login_completed"),
   });
   // v0.24 — parallel first-party sink. Placed AFTER the post-signup
   // dedup guard so "login" mirrors login_completed's non-double-fire
   // behavior (the auto-login right after signup records "signup", not a
   // second "login"). session.created carries no org, so orgId stays null.
   // Awaited so the headline login signal can't be lost to lambda freeze.
-  await recordUsageEventAwait({ userId, eventName: "login" });
+  await recordUsageEventAwait({
+    userId,
+    eventName: "login",
+    eventId: clerkWebhookEventId(svixId, "usage", "login"),
+  });
 }
 
 async function isWithinSignupWindow(args: {
@@ -420,7 +435,10 @@ async function handleOrganizationDeleted(event: ClerkWebhookEvent): Promise<void
   );
 }
 
-async function handleMembershipCreated(event: ClerkWebhookEvent): Promise<void> {
+async function handleMembershipCreated(
+  event: ClerkWebhookEvent,
+  svixId: string
+): Promise<void> {
   const clerkMembershipId = event.data.id;
   const clerkOrgId = event.data.organization?.id;
   const userId = event.data.public_user_data?.user_id ?? event.data.user_id;
@@ -498,6 +516,11 @@ async function handleMembershipCreated(event: ClerkWebhookEvent): Promise<void> 
       captureServerEvent({
         userId,
         event: "org_member_joined",
+        eventId: clerkWebhookEventId(
+          svixId,
+          "posthog",
+          "org_member_joined"
+        ),
         properties: {
           org_id: org.id,
           // Membership.created on its own can't distinguish
@@ -514,7 +537,10 @@ async function handleMembershipCreated(event: ClerkWebhookEvent): Promise<void> 
   }
 }
 
-async function handleMembershipUpdated(event: ClerkWebhookEvent): Promise<void> {
+async function handleMembershipUpdated(
+  event: ClerkWebhookEvent,
+  svixId: string
+): Promise<void> {
   const clerkMembershipId = event.data.id;
   const newRole = event.data.role;
   if (!clerkMembershipId || !newRole) return;
@@ -536,6 +562,7 @@ async function handleMembershipUpdated(event: ClerkWebhookEvent): Promise<void> 
     captureServerEvent({
       userId: existing.userId,
       event: "org_role_changed",
+      eventId: clerkWebhookEventId(svixId, "posthog", "org_role_changed"),
       properties: {
         org_id: existing.organizationId,
         user_id: existing.userId,
@@ -546,7 +573,10 @@ async function handleMembershipUpdated(event: ClerkWebhookEvent): Promise<void> 
   }
 }
 
-async function handleMembershipDeleted(event: ClerkWebhookEvent): Promise<void> {
+async function handleMembershipDeleted(
+  event: ClerkWebhookEvent,
+  svixId: string
+): Promise<void> {
   const clerkMembershipId = event.data.id;
   if (!clerkMembershipId) return;
 
@@ -612,6 +642,11 @@ async function handleMembershipDeleted(event: ClerkWebhookEvent): Promise<void> 
       captureServerEvent({
         userId: userIdFromPayload,
         event: "org_member_removed",
+        eventId: clerkWebhookEventId(
+          svixId,
+          "posthog",
+          "org_member_removed"
+        ),
         properties: {
           org_id: dbOrgId ?? clerkOrgId,
           removed_user_id: userIdFromPayload,
@@ -672,7 +707,10 @@ async function handleMembershipDeleted(event: ClerkWebhookEvent): Promise<void> 
 /** organizationInvitation.created — admin sent an invite. Fires
  *  org_member_invited with the invitee's email DOMAIN ONLY (never
  *  the full email — see PRIVACY.md). */
-async function handleInvitationCreated(event: ClerkWebhookEvent): Promise<void> {
+async function handleInvitationCreated(
+  event: ClerkWebhookEvent,
+  svixId: string
+): Promise<void> {
   const clerkOrgId = event.data.organization_id;
   const email = event.data.email_address;
   // The admin who sent the invite isn't always in the payload;
@@ -697,6 +735,7 @@ async function handleInvitationCreated(event: ClerkWebhookEvent): Promise<void> 
       userId: null,
       anonymousId: `org-${clerkOrgId}`,
       event: "org_member_invited",
+      eventId: clerkWebhookEventId(svixId, "posthog", "org_member_invited"),
       properties: {
         org_id: clerkOrgId, // clerk-side id as fallback
         invited_email_domain: extractEmailDomain(email),
@@ -708,6 +747,7 @@ async function handleInvitationCreated(event: ClerkWebhookEvent): Promise<void> 
     userId: null,
     anonymousId: `org-${orgRow.id}`,
     event: "org_member_invited",
+    eventId: clerkWebhookEventId(svixId, "posthog", "org_member_invited"),
     properties: {
       org_id: orgRow.id,
       invited_email_domain: extractEmailDomain(email),
@@ -726,7 +766,10 @@ async function handleInvitationCreated(event: ClerkWebhookEvent): Promise<void> 
  *  disambiguate. Both events on the same userId are intentional
  *  (funnel attribution); deduplication happens dashboard-side via
  *  the join_method property. */
-async function handleInvitationAccepted(event: ClerkWebhookEvent): Promise<void> {
+async function handleInvitationAccepted(
+  event: ClerkWebhookEvent,
+  svixId: string
+): Promise<void> {
   const clerkOrgId = event.data.organization_id;
   const userId = event.data.user_id;
   const email = event.data.email_address;
@@ -749,6 +792,7 @@ async function handleInvitationAccepted(event: ClerkWebhookEvent): Promise<void>
     captureServerEvent({
       userId,
       event: "org_member_joined",
+      eventId: clerkWebhookEventId(svixId, "posthog", "org_member_joined"),
       properties: {
         org_id: clerkOrgId,
         member_user_id: userId,
@@ -761,6 +805,7 @@ async function handleInvitationAccepted(event: ClerkWebhookEvent): Promise<void>
   captureServerEvent({
     userId,
     event: "org_member_joined",
+    eventId: clerkWebhookEventId(svixId, "posthog", "org_member_joined"),
     properties: {
       org_id: orgRow.id,
       member_user_id: userId,
@@ -807,7 +852,10 @@ async function handleInvitationAccepted(event: ClerkWebhookEvent): Promise<void>
  *  invite. Closes the invitation-funnel loop in PostHog (so we can
  *  attribute the gap between "invited" and "joined" to either
  *  expired, declined, or revoked). */
-async function handleInvitationRevoked(event: ClerkWebhookEvent): Promise<void> {
+async function handleInvitationRevoked(
+  event: ClerkWebhookEvent,
+  svixId: string
+): Promise<void> {
   const clerkOrgId = event.data.organization_id;
   const email = event.data.email_address;
   if (!clerkOrgId) return;
@@ -820,6 +868,11 @@ async function handleInvitationRevoked(event: ClerkWebhookEvent): Promise<void> 
     userId: null,
     anonymousId: `org-${orgIdForEvent}`,
     event: "org_invitation_revoked",
+    eventId: clerkWebhookEventId(
+      svixId,
+      "posthog",
+      "org_invitation_revoked"
+    ),
     properties: {
       org_id: orgIdForEvent,
       invited_email_domain: extractEmailDomain(email),
