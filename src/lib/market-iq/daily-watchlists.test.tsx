@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS,
   matchMarketIqDailyWatchlist,
+  parseMarketIqDailyWatchlistFilters,
   parseMarketIqDailyWatchlistInput,
   type MarketIqDailyWatchlistView,
 } from "@/lib/market-iq/daily-watchlists";
@@ -31,6 +32,8 @@ const activity: MarketIqMarketActivity = {
       propertyName: "The Atlas",
       propertyManagerName: "Northstar Residential",
       listingUrl: "https://example.com/new-1",
+      latitude: 39.961,
+      longitude: -83.002,
     },
     {
       id: "rent-1",
@@ -44,6 +47,8 @@ const activity: MarketIqMarketActivity = {
       previousRent: 2_400,
       observedAt: "2026-08-22T18:00:00.000Z",
       propertyManagerName: "Northstar Residential",
+      latitude: 40.10,
+      longitude: -83.11,
     },
   ],
   leaseUpAlerts: [{
@@ -104,6 +109,22 @@ describe("personal Daily Watchlists", () => {
     expect(matchMarketIqDailyWatchlist(watchlist({ eventTypes: ["lease_up"], minimumRentMagnitude: 50 }), activity)).toEqual([]);
   });
 
+  it("matches only source-located activity inside a saved competitive-set radius", () => {
+    const matches = matchMarketIqDailyWatchlist(watchlist({
+      competitiveSet: { latitude: 39.96, longitude: -83, radiusMiles: 1, label: "River House" },
+    }), activity);
+    expect(matches.map((match) => match.id)).toEqual(["lease-1", "new-1"]);
+  });
+
+  it("excludes records without coordinates when a competitive-set radius is active", () => {
+    const withoutCoordinates = { ...activity, events: [{ ...activity.events[0], latitude: null, longitude: null }] };
+    const matches = matchMarketIqDailyWatchlist(watchlist({
+      eventTypes: ["new_to_market"],
+      competitiveSet: { latitude: 39.96, longitude: -83, radiusMiles: 3, label: "Pinned point" },
+    }), withoutCoordinates);
+    expect(matches).toEqual([]);
+  });
+
   it("validates names, scopes, event types, and bounded free-text queries", () => {
     expect(parseMarketIqDailyWatchlistInput({
       name: "Downtown arrivals",
@@ -117,5 +138,19 @@ describe("personal Daily Watchlists", () => {
       name: "Invalid",
       filters: { ...EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS, query: "x".repeat(121) },
     }).ok).toBe(false);
+    expect(parseMarketIqDailyWatchlistInput({
+      name: "Invalid radius",
+      filters: { ...EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS, competitiveSet: { latitude: 39.96, longitude: -83, radiusMiles: 25, label: "Too broad" } },
+    }).ok).toBe(false);
+    expect(parseMarketIqDailyWatchlistInput({
+      name: "Downtown radius",
+      filters: { ...EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS, competitiveSet: { latitude: 39.96, longitude: -83, radiusMiles: 3, label: "River House" } },
+    }).ok).toBe(true);
+  });
+
+  it("keeps existing saved watchlists valid with no competitive-set radius", () => {
+    const legacy = { ...EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS } as Record<string, unknown>;
+    delete legacy.competitiveSet;
+    expect(parseMarketIqDailyWatchlistFilters(JSON.stringify(legacy))?.competitiveSet).toBeNull();
   });
 });

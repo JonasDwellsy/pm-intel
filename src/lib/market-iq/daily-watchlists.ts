@@ -20,6 +20,16 @@ export const MARKET_IQ_DAILY_WATCHLIST_EVENT_TYPES = [
 
 export type MarketIqDailyWatchlistEventType = typeof MARKET_IQ_DAILY_WATCHLIST_EVENT_TYPES[number];
 
+export const MARKET_IQ_COMPETITIVE_SET_RADII_MILES = [1, 3, 5] as const;
+export type MarketIqCompetitiveSetRadiusMiles = typeof MARKET_IQ_COMPETITIVE_SET_RADII_MILES[number];
+
+export type MarketIqDailyCompetitiveSet = {
+  latitude: number;
+  longitude: number;
+  radiusMiles: MarketIqCompetitiveSetRadiusMiles;
+  label: string;
+};
+
 export type MarketIqDailyWatchlistFilters = {
   query: string;
   eventTypes: MarketIqDailyWatchlistEventType[];
@@ -28,6 +38,7 @@ export type MarketIqDailyWatchlistFilters = {
   propertyType: MarketIqDailyEventPropertyType;
   rentDirection: MarketIqDailyEventRentDirection;
   minimumRentMagnitude: MarketIqDailyEventRentMagnitude;
+  competitiveSet: MarketIqDailyCompetitiveSet | null;
 };
 
 export type MarketIqDailyWatchlistView = {
@@ -71,6 +82,7 @@ export const EMPTY_MARKET_IQ_DAILY_WATCHLIST_FILTERS: MarketIqDailyWatchlistFilt
   propertyType: "all",
   rentDirection: "all",
   minimumRentMagnitude: 0,
+  competitiveSet: null,
 };
 
 const EVENT_TYPES = new Set<string>(MARKET_IQ_DAILY_WATCHLIST_EVENT_TYPES);
@@ -78,6 +90,7 @@ const BEDROOMS = new Set(["all", "studio", "1", "2", "3", "4_plus"]);
 const PROPERTY_TYPES = new Set(["all", "apartment", "house"]);
 const RENT_DIRECTIONS = new Set(["all", "increase", "decrease"]);
 const RENT_MAGNITUDES = new Set([0, 50, 100, 200]);
+const COMPETITIVE_SET_RADII = new Set<number>(MARKET_IQ_COMPETITIVE_SET_RADII_MILES);
 
 const SECTION_HREFS: Record<MarketIqDailyWatchlistEventType, string> = {
   new_to_market: "#daily-new-listings",
@@ -98,12 +111,31 @@ function validGeography(value: unknown): value is string {
     && (value === "all" || value.startsWith("city:") || value.startsWith("zip:"));
 }
 
+function parseCompetitiveSet(value: unknown): MarketIqDailyCompetitiveSet | null | undefined {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "object") return undefined;
+  const candidate = value as Record<string, unknown>;
+  if (typeof candidate.latitude !== "number" || !Number.isFinite(candidate.latitude)
+    || candidate.latitude < -90 || candidate.latitude > 90
+    || typeof candidate.longitude !== "number" || !Number.isFinite(candidate.longitude)
+    || candidate.longitude < -180 || candidate.longitude > 180
+    || !COMPETITIVE_SET_RADII.has(candidate.radiusMiles as number)
+    || typeof candidate.label !== "string" || !candidate.label.trim() || candidate.label.trim().length > 120) return undefined;
+  return {
+    latitude: candidate.latitude,
+    longitude: candidate.longitude,
+    radiusMiles: candidate.radiusMiles as MarketIqCompetitiveSetRadiusMiles,
+    label: candidate.label.trim(),
+  };
+}
+
 function parseFilters(value: unknown): MarketIqDailyWatchlistFilters | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Record<string, unknown>;
   const eventTypes = Array.isArray(candidate.eventTypes)
     ? [...new Set(candidate.eventTypes)]
     : null;
+  const competitiveSet = parseCompetitiveSet(candidate.competitiveSet);
   if (!eventTypes || eventTypes.length > MARKET_IQ_DAILY_WATCHLIST_EVENT_TYPES.length
     || eventTypes.some((eventType) => typeof eventType !== "string" || !EVENT_TYPES.has(eventType))) return null;
   if (typeof candidate.query !== "string" || candidate.query.trim().length > 120
@@ -111,7 +143,8 @@ function parseFilters(value: unknown): MarketIqDailyWatchlistFilters | null {
     || !BEDROOMS.has(candidate.bedrooms as string)
     || !PROPERTY_TYPES.has(candidate.propertyType as string)
     || !RENT_DIRECTIONS.has(candidate.rentDirection as string)
-    || !RENT_MAGNITUDES.has(candidate.minimumRentMagnitude as number)) return null;
+    || !RENT_MAGNITUDES.has(candidate.minimumRentMagnitude as number)
+    || competitiveSet === undefined) return null;
   return {
     query: candidate.query.trim(),
     eventTypes: eventTypes as MarketIqDailyWatchlistEventType[],
@@ -120,6 +153,7 @@ function parseFilters(value: unknown): MarketIqDailyWatchlistFilters | null {
     propertyType: candidate.propertyType as MarketIqDailyEventPropertyType,
     rentDirection: candidate.rentDirection as MarketIqDailyEventRentDirection,
     minimumRentMagnitude: candidate.minimumRentMagnitude as MarketIqDailyEventRentMagnitude,
+    competitiveSet,
   };
 }
 
@@ -161,6 +195,28 @@ function eventMatch(headline: MarketIqDailyEventHeadline): MarketIqDailyWatchlis
   };
 }
 
+function validCoordinates(latitude: number | null | undefined, longitude: number | null | undefined) {
+  return typeof latitude === "number" && Number.isFinite(latitude) && latitude >= -90 && latitude <= 90
+    && typeof longitude === "number" && Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
+}
+
+export function marketIqDistanceMiles(left: { latitude: number; longitude: number }, right: { latitude: number; longitude: number }) {
+  const radians = (degrees: number) => degrees * Math.PI / 180;
+  const latitudeDelta = radians(right.latitude - left.latitude);
+  const longitudeDelta = radians(right.longitude - left.longitude);
+  const firstLatitude = radians(left.latitude);
+  const secondLatitude = radians(right.latitude);
+  const haversine = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(firstLatitude) * Math.cos(secondLatitude) * Math.sin(longitudeDelta / 2) ** 2;
+  return 3_958.7613 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function competitiveSetMatches(latitude: number | null | undefined, longitude: number | null | undefined, competitiveSet: MarketIqDailyCompetitiveSet | null) {
+  if (!competitiveSet) return true;
+  if (!validCoordinates(latitude, longitude)) return false;
+  return marketIqDistanceMiles(competitiveSet, { latitude: latitude!, longitude: longitude! }) <= competitiveSet.radiusMiles;
+}
+
 function leaseUpMatches(alert: MarketIqLeaseUpAlert, filters: MarketIqDailyWatchlistFilters) {
   if (filters.bedrooms !== "all" || filters.propertyType === "house"
     || filters.rentDirection !== "all" || filters.minimumRentMagnitude > 0) return false;
@@ -170,6 +226,7 @@ function leaseUpMatches(alert: MarketIqLeaseUpAlert, filters: MarketIqDailyWatch
     if (kind === "city" && normalized(alert.city) !== value) return false;
     if (kind === "zip" && normalized(alert.zip) !== value) return false;
   }
+  if (!competitiveSetMatches(alert.latitude, alert.longitude, filters.competitiveSet)) return false;
   const query = normalized(filters.query);
   if (!query) return true;
   return [alert.propertyName, alert.propertyManagerName, alert.address, alert.city, alert.zip]
@@ -214,6 +271,7 @@ export function matchMarketIqDailyWatchlist(
     },
   )
     .filter((headline) => includesAll || includedTypes.has(headline.section))
+    .filter((headline) => competitiveSetMatches(headline.event.latitude, headline.event.longitude, filters.competitiveSet))
     .map(eventMatch);
   const leaseUpMatchesForScope = (includesAll || includedTypes.has("lease_up"))
     ? (activity.leaseUpAlerts ?? []).filter((alert) => leaseUpMatches(alert, filters)).map(leaseUpMatch)
@@ -230,5 +288,6 @@ export function marketIqDailyWatchlistScopeLabel(filters: MarketIqDailyWatchlist
   if (filters.bedrooms !== "all") labels.push(filters.bedrooms === "studio" ? "Studios" : filters.bedrooms === "4_plus" ? "4+ bedrooms" : `${filters.bedrooms} bedrooms`);
   if (filters.rentDirection !== "all") labels.push(`${filters.rentDirection}s`);
   if (filters.minimumRentMagnitude) labels.push(`$${filters.minimumRentMagnitude}+ moves`);
+  if (filters.competitiveSet) labels.push(`Within ${filters.competitiveSet.radiusMiles} mi of ${filters.competitiveSet.label}`);
   return labels.length ? labels.join(" · ") : "All retained daily activity";
 }
