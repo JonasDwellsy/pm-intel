@@ -21,6 +21,7 @@ jobs:
       HEALTH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq-stable-preview-health
       REFRESH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/source/trends/refresh
       SUPPLY_REFRESH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/source/dwellsy/refresh
+      NATIONAL_SUPPLY_REFRESH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/source/dwellsy/national-supply
       DELIVERY_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/daily-watchlist-delivery
       MARKET_IQ_SOURCE_REFRESH_TOKEN: ${{ secrets.MARKET_IQ_SOURCE_REFRESH_TOKEN }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.MARKET_IQ_VERCEL_AUTOMATION_BYPASS_SECRET }}
@@ -93,7 +94,60 @@ jobs:
             rm -f "$response_file"
           done
 
-      - name: Capture verified listing supply for every market
+      - name: Capture national supply history before markets launch
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+
+          status="$(curl --silent --show-error \
+            --connect-timeout 10 --max-time 360 \
+            --output "$response_file" --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $MARKET_IQ_SOURCE_REFRESH_TOKEN" \
+            --header "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+            "$NATIONAL_SUPPLY_REFRESH_URL")"
+
+          HTTP_STATUS="$status" RESPONSE_FILE="$response_file" node <<'NODE'
+          const fs = require("node:fs");
+          let response;
+          try {
+            response = JSON.parse(fs.readFileSync(process.env.RESPONSE_FILE, "utf8"));
+          } catch {
+            console.error("National listing-supply capture did not return valid JSON.");
+            process.exit(1);
+          }
+          const capturedAt = new Date(response.capturedAt);
+          const captureAge = Date.now() - capturedAt.getTime();
+          const captured = process.env.HTTP_STATUS === "200"
+            && response.status === "stored"
+            && Number.isInteger(response.totalMarkets)
+            && response.totalMarkets > 4
+            && Number.isInteger(response.eligibleMarkets)
+            && response.eligibleMarkets >= 4
+            && Number.isFinite(capturedAt.getTime())
+            && captureAge >= 0
+            && captureAge <= 20 * 60 * 1000;
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+            "## National listing supply",
+            "",
+            `- HTTP status: ${process.env.HTTP_STATUS}`,
+            `- Result: ${response.status ?? "unavailable"}`,
+            `- Markets observed: ${response.totalMarkets ?? "unavailable"}`,
+            `- Markets eligible to publish: ${response.eligibleMarkets ?? "unavailable"}`,
+            `- Insufficient coverage: ${response.insufficientMarkets ?? "unavailable"}`,
+            `- Stale source: ${response.staleMarkets ?? "unavailable"}`,
+            `- Invalid aggregates: ${response.invalidMarkets ?? "unavailable"}`,
+            "",
+          ].join("\n"));
+          if (!captured) {
+            console.error("National listing-supply capture failed its persisted-evidence contract.");
+            process.exit(1);
+          }
+          NODE
+
+      - name: Capture detailed listing events for launched markets
         shell: bash
         run: |
           set -euo pipefail

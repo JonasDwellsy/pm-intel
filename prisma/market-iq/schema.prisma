@@ -254,6 +254,41 @@ model MarketIqListingSupplySnapshot {
   @@index([marketId, snapshotDate(sort: Desc)])
 }
 
+// One compact daily aggregate for every Dwellsy MSA with qualifying active
+// rental inventory. This national history is collected before a market is
+// launched in Market IQ, so enabling a market never starts its history clock.
+model MarketIqNationalSupplySnapshot {
+  id                     String    @id @default(cuid())
+  cbsaCode               String
+  marketName             String
+  stateCodes             String    @default("[]")
+  timeZone               String?
+  snapshotDate           DateTime  @db.Date
+  coverageStatus         String
+  sourceAvailableThrough DateTime?
+  activeListings         Int
+  apartmentListings      Int
+  houseListings          Int
+  ageObservedListings    Int
+  medianActiveAgeDays    Int?
+  activeOver30Days       Int
+  activeOver30SharePct   Float?
+  activatedLast7Days     Int
+  activatedLast30Days    Int
+  age0To7Days            Int
+  age8To14Days           Int
+  age15To30Days          Int
+  age31To60Days          Int
+  age61PlusDays          Int
+  capturedAt             DateTime
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@unique([cbsaCode, snapshotDate])
+  @@index([cbsaCode, snapshotDate(sort: Desc)])
+  @@index([coverageStatus, snapshotDate(sort: Desc)])
+}
+
 model MarketIqLiveListingSnapshot {
   id                     String    @id @default(cuid())
   runId                  String

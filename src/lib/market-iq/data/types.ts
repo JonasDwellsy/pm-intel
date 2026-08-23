@@ -24,6 +24,7 @@ export type MarketIqListingPulse = ListingSupplySummary & {
   activeListings: number;
   apartmentListings: number;
   houseListings: number;
+  eventCountsAvailable: boolean;
   newEvents: number;
   relistedEvents: number;
   reactivatedEvents: number;

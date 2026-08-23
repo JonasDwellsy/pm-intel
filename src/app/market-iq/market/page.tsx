@@ -75,7 +75,7 @@ export default async function MarketIqPage({
 
   const [{ report, listingPulse }, listingSupplyHistory] = await Promise.all([
     loadMarketIqMarketData(activeMarket.id),
-    loadListingSupplyHistory(activeMarket.id),
+    loadListingSupplyHistory({ marketId: activeMarket.id, cbsaCode: activeMarket.cbsaCode }),
   ]);
 
   if (!report) {
@@ -103,6 +103,7 @@ export default async function MarketIqPage({
           activeListings: listingPulse.activeListings,
           apartmentListings: listingPulse.apartmentListings,
           houseListings: listingPulse.houseListings,
+          eventCountsAvailable: listingPulse.eventCountsAvailable,
           ageObservedListings: listingPulse.ageObservedListings,
           medianActiveAgeDays: listingPulse.medianActiveAgeDays,
           activeOver30Days: listingPulse.activeOver30Days,

@@ -10,7 +10,7 @@ const SOURCE_NAME = "Persisted Dwellsy listing supply snapshot";
 type UnavailableReason = Exclude<MarketIqListingPulse["unavailableReason"], null>;
 
 export type PersistedMarketIqListingSupplySnapshot = {
-  sourceAvailableThrough: Date;
+  sourceAvailableThrough: Date | null;
   capturedAt: Date;
   activeListings: number;
   apartmentListings: number;
@@ -26,7 +26,7 @@ export type PersistedMarketIqListingSupplySnapshot = {
   age15To30Days: number;
   age31To60Days: number;
   age61PlusDays: number;
-  feedRun: {
+  feedRun?: {
     status: string;
     newCount: number;
     relistedCount: number;
@@ -58,6 +58,7 @@ export function unavailablePersistedMarketListingPulse(input: {
     activeListings: 0,
     apartmentListings: 0,
     houseListings: 0,
+    eventCountsAvailable: false,
     newEvents: 0,
     relistedEvents: 0,
     reactivatedEvents: 0,
@@ -78,6 +79,9 @@ export function resolvePersistedMarketListingPulse(input: {
 }): MarketIqListingPulse {
   const snapshot = input.snapshot;
   if (!snapshot) return unavailablePersistedMarketListingPulse({ marketName: input.marketName, attemptedAt: input.now, reason: "missing" });
+  if (!snapshot.sourceAvailableThrough) {
+    return unavailablePersistedMarketListingPulse({ marketName: input.marketName, attemptedAt: input.now, reason: "stale" });
+  }
   const sourceAge = input.now.getTime() - snapshot.sourceAvailableThrough.getTime();
   const captureAge = input.now.getTime() - snapshot.capturedAt.getTime();
   if (sourceAge < 0 || captureAge < 0
@@ -85,7 +89,7 @@ export function resolvePersistedMarketListingPulse(input: {
     || captureAge > MARKET_IQ_LISTING_FEED_MAX_SOURCE_AGE_MS) {
     return unavailablePersistedMarketListingPulse({ marketName: input.marketName, attemptedAt: input.now, reason: "stale" });
   }
-  const valid = ["complete", "baseline_complete"].includes(snapshot.feedRun.status)
+  const valid = (!snapshot.feedRun || ["complete", "baseline_complete"].includes(snapshot.feedRun.status))
     && snapshot.activeListings >= MARKET_IQ_LISTING_FEED_MINIMUM_RECORDS
     && snapshot.apartmentListings + snapshot.houseListings === snapshot.activeListings
     && snapshot.ageObservedListings >= 0
@@ -104,6 +108,7 @@ export function resolvePersistedMarketListingPulse(input: {
     activeListings: snapshot.activeListings,
     apartmentListings: snapshot.apartmentListings,
     houseListings: snapshot.houseListings,
+    eventCountsAvailable: Boolean(snapshot.feedRun),
     ageObservedListings: ageTotal,
     medianActiveAgeDays: snapshot.medianActiveAgeDays,
     activeOver30Days: snapshot.activeOver30Days,
@@ -117,11 +122,11 @@ export function resolvePersistedMarketListingPulse(input: {
       bucket("31_60", "31–60", snapshot.age31To60Days, ageTotal),
       bucket("61_plus", "61+", snapshot.age61PlusDays, ageTotal),
     ],
-    newEvents: snapshot.feedRun.newCount,
-    relistedEvents: snapshot.feedRun.relistedCount,
-    reactivatedEvents: snapshot.feedRun.reactivatedCount,
-    priceChangeEvents: snapshot.feedRun.priceChangeCount,
-    deactivatedEvents: snapshot.feedRun.deactivatedCount,
+    newEvents: snapshot.feedRun?.newCount ?? 0,
+    relistedEvents: snapshot.feedRun?.relistedCount ?? 0,
+    reactivatedEvents: snapshot.feedRun?.reactivatedCount ?? 0,
+    priceChangeEvents: snapshot.feedRun?.priceChangeCount ?? 0,
+    deactivatedEvents: snapshot.feedRun?.deactivatedCount ?? 0,
     message: `Current ${input.marketName} inventory and listing age come from the latest verified nightly snapshot.`,
   };
 }

@@ -127,6 +127,7 @@ function listingPulseFixture(): MarketIqListingPulse {
     activeListings: 1,
     apartmentListings: 1,
     houseListings: 0,
+    eventCountsAvailable: true,
     newEvents: 1,
     relistedEvents: 0,
     reactivatedEvents: 0,
