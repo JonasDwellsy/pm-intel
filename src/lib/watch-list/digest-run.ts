@@ -2,7 +2,9 @@
 // helpers live in digest-gather.ts (server-only-free, unit-tested). Per-recipient
 // cadence gating: send only when there is new data since the recipient was last
 // notified AND their cadence throttle has elapsed; diff against the snapshot they
-// were last notified through ("since you last heard from us").
+// were last notified through ("since you last heard from us"). A shared durable
+// ledger claims each recipient before SendGrid, preventing overlapping runs from
+// sending the same digest twice.
 import { prisma } from "@/lib/prisma";
 import * as Sentry from "@sentry/nextjs";
 import { clerkClient } from "@clerk/nextjs/server";
@@ -17,6 +19,13 @@ import { currentGenerationVersions } from "@/lib/operators/trajectory";
 import { signUnsubToken } from "./digest-unsubscribe";
 import { listAllForOrg, listMembers } from "./store";
 import { sendEmail } from "@/lib/email/send";
+import {
+  claimDigestDelivery,
+  completeDigestDelivery,
+  DIGEST_KIND,
+  finalizeDigestRun,
+  startDigestRun,
+} from "@/lib/email/digest-delivery-ledger";
 
 /** Newest snapshot per slug AT a specific date (equality on snapshotDate).
  *  `methodologyVersions` (when given) restricts to the current estimator
@@ -251,16 +260,9 @@ export async function runDigest(opts: {
     return runPreview(opts.previewEmail, latest, distinctDates, genVersions);
   }
 
-  // Reuse an existing non-completed run for `latest` rather than minting a new
-  // one, so the per-recipient WatchListDigestSend guard spans a cross-day retry
-  // after a mid-run crash (a fresh run.id would re-key the guard).
-  const run = dryRun
+  const deliveryRun = dryRun
     ? null
-    : ((await prisma.watchListDigestRun.findFirst({
-        where: { snapshotDate: latest, status: { not: "completed" } },
-        orderBy: { startedAt: "desc" },
-      })) ??
-      (await prisma.watchListDigestRun.create({ data: { snapshotDate: latest, status: "running" } })));
+    : await startDigestRun(DIGEST_KIND.watchList, latest);
 
   const monthLabel = latest.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
   const base = appBase();
@@ -275,8 +277,9 @@ export async function runDigest(opts: {
     select: { organizationId: true },
   });
 
-  let sent = 0, failed = 0, recipients = 0, orgErrors = 0;
+  let sent = 0, failed = 0, recipients = 0, orgErrors = 0, skippedClaims = 0;
 
+  try {
   for (const { organizationId } of orgRows) {
     if (!organizationId) continue;
     // Isolate each org: one org's failure (e.g. a stale Clerk org that 404s in
@@ -347,25 +350,32 @@ export async function runDigest(opts: {
       if (!digest) continue;
       recipients++;
       if (dryRun) { sent++; continue; }
-      if (run) {
-        const already = await prisma.watchListDigestSend.findUnique({
-          where: { runId_userId: { runId: run.id, userId: m.userId } },
-        });
-        if (already) continue; // retry-safe within a run
+      if (!deliveryRun) continue;
+      const claim = await claimDigestDelivery({
+        runId: deliveryRun.id,
+        digestKind: DIGEST_KIND.watchList,
+        snapshotDate: latest,
+        userId: m.userId,
+        email: m.email,
+      });
+      if (!claim) {
+        skippedClaims++;
+        continue;
       }
       const result = await sendEmail({ to: m.email, subject: digest.subject, html: digest.html, text: digest.text });
       if (result.ok) sent++; else failed++;
-      if (run) {
-        await prisma.watchListDigestSend.create({
-          data: { runId: run.id, userId: m.userId, email: m.email, status: result.ok ? "sent" : "failed" },
+      await completeDigestDelivery(
+        claim.id,
+        result.ok
+          ? { status: "sent", providerMessageId: result.id }
+          : { status: "failed", error: result.error },
+      );
+      if (result.ok) {
+        await prisma.digestPreference.upsert({
+          where: { userId: m.userId },
+          update: { lastNotifiedSnapshotDate: latest, lastDigestAt: now },
+          create: { userId: m.userId, lastNotifiedSnapshotDate: latest, lastDigestAt: now },
         });
-        if (result.ok) {
-          await prisma.digestPreference.upsert({
-            where: { userId: m.userId },
-            update: { lastNotifiedSnapshotDate: latest, lastDigestAt: now },
-            create: { userId: m.userId, lastNotifiedSnapshotDate: latest, lastDigestAt: now },
-          });
-        }
       }
     }
     } catch (err) {
@@ -380,18 +390,10 @@ export async function runDigest(opts: {
       });
     }
   }
-
-  if (run) {
-    await prisma.watchListDigestRun.update({
-      where: { id: run.id },
-      data: {
-        // Distinguish a clean run from one that skipped a failing org, and
-        // never leave a run stuck "running" — the loop no longer throws.
-        status: orgErrors > 0 ? "completed_with_errors" : "completed",
-        completedAt: new Date(),
-        recipientCount: recipients,
-      },
-    });
+  } finally {
+    if (deliveryRun) {
+      await finalizeDigestRun(deliveryRun.id, skippedClaims, orgErrors > 0);
+    }
   }
   return { snapshotDate: latest.toISOString(), skipped: "", recipients, sent, failed, dryRun, orgErrors };
 }

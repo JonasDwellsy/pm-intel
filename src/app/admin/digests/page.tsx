@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { DigestPreviewPanel } from "./DigestPreviewPanel";
 
 // Admin → Digests. Send yourself a preview of the watch-list change-alert
-// digest (no CRON_SECRET needed) and see the recent scheduled-run history at a
-// glance. Auth: gated by src/app/admin/layout.tsx.
+// digest (no CRON_SECRET needed) and see reconciled delivery outcomes for both
+// scheduled digest types. Auth: gated by src/app/admin/layout.tsx.
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -34,17 +34,27 @@ function statusClass(status: string): string {
   return "text-red-700"; // failed / anything else
 }
 
+function digestLabel(kind: string): string {
+  if (kind === "watch_list") return "Watch list";
+  if (kind === "market_brief") return "Market brief";
+  return kind;
+}
+
 export default async function AdminDigestsPage() {
-  const runs = await prisma.watchListDigestRun.findMany({
+  const runs = await prisma.operatorDigestRun.findMany({
     orderBy: { startedAt: "desc" },
-    take: 8,
+    take: 12,
     select: {
       id: true,
+      digestKind: true,
       snapshotDate: true,
       status: true,
-      recipientCount: true,
+      attemptedCount: true,
+      sentCount: true,
+      failedCount: true,
+      uncertainCount: true,
+      skippedCount: true,
       startedAt: true,
-      _count: { select: { sends: true } },
     },
   });
 
@@ -77,22 +87,30 @@ export default async function AdminDigestsPage() {
             <thead>
               <tr className="text-left text-grey-600 border-b border-grid">
                 <th className="py-2 pr-4 font-medium">Started (UTC)</th>
+                <th className="py-2 pr-4 font-medium">Digest</th>
                 <th className="py-2 pr-4 font-medium">Snapshot</th>
                 <th className="py-2 pr-4 font-medium">Status</th>
-                <th className="py-2 pr-4 font-medium text-right">Recipients</th>
-                <th className="py-2 font-medium text-right">Sent</th>
+                <th className="py-2 pr-4 font-medium text-right">Attempted</th>
+                <th className="py-2 pr-4 font-medium text-right">Sent</th>
+                <th className="py-2 pr-4 font-medium text-right">Failed</th>
+                <th className="py-2 pr-4 font-medium text-right">Uncertain</th>
+                <th className="py-2 font-medium text-right">Suppressed</th>
               </tr>
             </thead>
             <tbody>
               {runs.map((r) => (
                 <tr key={r.id} className="border-b border-grid/60">
                   <td className="py-2 pr-4 text-navy">{fmtWhen(r.startedAt.toISOString())}</td>
+                  <td className="py-2 pr-4 text-grey-600">{digestLabel(r.digestKind)}</td>
                   <td className="py-2 pr-4 text-grey-600">
                     {r.snapshotDate.toISOString().slice(0, 10)}
                   </td>
                   <td className={`py-2 pr-4 font-medium ${statusClass(r.status)}`}>{r.status}</td>
-                  <td className="py-2 pr-4 text-right text-navy">{r.recipientCount}</td>
-                  <td className="py-2 text-right text-navy">{r._count.sends}</td>
+                  <td className="py-2 pr-4 text-right text-navy">{r.attemptedCount}</td>
+                  <td className="py-2 pr-4 text-right text-navy">{r.sentCount}</td>
+                  <td className="py-2 pr-4 text-right text-navy">{r.failedCount}</td>
+                  <td className="py-2 pr-4 text-right text-navy">{r.uncertainCount}</td>
+                  <td className="py-2 text-right text-navy">{r.skippedCount}</td>
                 </tr>
               ))}
             </tbody>

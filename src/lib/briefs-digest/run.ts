@@ -4,8 +4,8 @@
 //   - deterministic content (change counts + links, no LLM in the cron path),
 //   - one all-snapshot load, grouped per market + nationally, reused across recipients.
 // Per-recipient gate: subscribed + new snapshot since last notified + cadence
-// throttle. Idempotency = BriefDigestPreference.lastNotifiedSnapshotDate (no
-// Run/Send tables — a mid-run crash simply re-sends only the not-yet-stamped).
+// throttle. A shared durable ledger claims each recipient before SendGrid, so
+// overlapping or retried cron invocations cannot duplicate an external send.
 import { prisma } from "@/lib/prisma";
 import { clerkClient } from "@clerk/nextjs/server";
 import { toSnapshotRow, type SnapshotRow } from "@/lib/watch-list/snapshot";
@@ -20,6 +20,13 @@ import {
 import { getEntitledMarketIds, isMarketEntitled } from "@/lib/auth/market-entitlements.server";
 import { readCachedNationalHeadline } from "@/lib/national-brief-prose";
 import { sendEmail } from "@/lib/email/send";
+import {
+  claimDigestDelivery,
+  completeDigestDelivery,
+  DIGEST_KIND,
+  finalizeDigestRun,
+  startDigestRun,
+} from "@/lib/email/digest-delivery-ledger";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import {
   buildBriefDigestEmail,
@@ -198,6 +205,10 @@ export async function runBriefDigest(opts: {
     return { snapshotDate: latest.toISOString().slice(0, 10), recipients: 1, sent: r.ok ? 1 : 0, failed: r.ok ? 0 : 1, dryRun };
   }
 
+  const deliveryRun = dryRun
+    ? null
+    : await startDigestRun(DIGEST_KIND.marketBrief, latest);
+
   const prefByUser = new Map(
     (await prisma.briefDigestPreference.findMany()).map((p) => [p.userId, p]),
   );
@@ -206,9 +217,11 @@ export async function runBriefDigest(opts: {
     select: { id: true, clerkOrgId: true },
   });
 
-  let sent = 0, failed = 0, recipients = 0;
+  let sent = 0, failed = 0, recipients = 0, skippedClaims = 0;
+  let runErrored = false;
   const emailedThisRun = new Set<string>();
 
+  try {
   for (const org of orgs) {
     const entitlement = await getEntitledMarketIds(org.id);
     // The org's entitled markets, with any change, as digest lines.
@@ -249,8 +262,26 @@ export async function runBriefDigest(opts: {
       recipients++;
       emailedThisRun.add(m.userId);
       if (dryRun) { sent++; continue; }
+      if (!deliveryRun) continue;
+      const claim = await claimDigestDelivery({
+        runId: deliveryRun.id,
+        digestKind: DIGEST_KIND.marketBrief,
+        snapshotDate: latest,
+        userId: m.userId,
+        email: m.email,
+      });
+      if (!claim) {
+        skippedClaims++;
+        continue;
+      }
 
       const r = await sendEmail({ to: m.email, subject: email.subject, html: email.html, text: email.text });
+      await completeDigestDelivery(
+        claim.id,
+        r.ok
+          ? { status: "sent", providerMessageId: r.id }
+          : { status: "failed", error: r.error },
+      );
       if (r.ok) {
         sent++;
         await prisma.briefDigestPreference.upsert({
@@ -261,6 +292,14 @@ export async function runBriefDigest(opts: {
       } else {
         failed++;
       }
+    }
+  }
+  } catch (error) {
+    runErrored = true;
+    throw error;
+  } finally {
+    if (deliveryRun) {
+      await finalizeDigestRun(deliveryRun.id, skippedClaims, runErrored);
     }
   }
 
