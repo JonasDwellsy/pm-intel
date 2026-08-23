@@ -250,6 +250,7 @@ export async function runBriefDigest(opts: {
       });
       if (!due) continue;
 
+      const unsubscribeUrl = `${base}/api/brief-digest/unsubscribe?u=${encodeURIComponent(m.userId)}&t=${signBriefUnsubToken(m.userId)}`;
       const email = buildBriefDigestEmail({
         recipientFirstName: null,
         monthLabel,
@@ -257,7 +258,7 @@ export async function runBriefDigest(opts: {
         nationalHeadline,
         national: nationalCounts,
         markets: orgMarketLines,
-        unsubscribeUrl: `${base}/api/brief-digest/unsubscribe?u=${encodeURIComponent(m.userId)}&t=${signBriefUnsubToken(m.userId)}`,
+        unsubscribeUrl,
       });
       if (!email) continue;
       recipients++;
@@ -275,7 +276,13 @@ export async function runBriefDigest(opts: {
       }
       claimedDeliveryIds.push(claim.id);
 
-      const r = await sendEmail({ to: m.email, subject: email.subject, html: email.html, text: email.text });
+      const r = await sendEmail({
+        to: m.email,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+        unsubscribeUrl,
+      });
       await completeDigestDelivery(
         claim.id,
         r.ok

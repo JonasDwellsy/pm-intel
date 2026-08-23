@@ -343,9 +343,10 @@ export async function runDigest(opts: {
           latestBySlug, priorBySlug, metaBySlug: c.metaBySlug,
         }))
         .filter((l) => l.operators.length > 0);
+      const unsubscribeUrl = `${base}/api/digest/unsubscribe?u=${encodeURIComponent(m.userId)}&t=${signUnsubToken(m.userId)}`;
       const digest = buildDigest({
         recipientFirstName: null, monthLabel, lists,
-        unsubscribeUrl: `${base}/api/digest/unsubscribe?u=${encodeURIComponent(m.userId)}&t=${signUnsubToken(m.userId)}`,
+        unsubscribeUrl,
         scorecardBaseUrl: base,
       });
       if (!digest) continue;
@@ -362,7 +363,13 @@ export async function runDigest(opts: {
         continue;
       }
       claimedDeliveryIds.push(claim.id);
-      const result = await sendEmail({ to: m.email, subject: digest.subject, html: digest.html, text: digest.text });
+      const result = await sendEmail({
+        to: m.email,
+        subject: digest.subject,
+        html: digest.html,
+        text: digest.text,
+        unsubscribeUrl,
+      });
       if (result.ok) sent++; else failed++;
       await completeDigestDelivery(
         claim.id,
