@@ -39,12 +39,22 @@ test("nightly automation captures the national history before launched-market ev
 
 test("the national capture endpoint is machine-authenticated and preview-gated", async () => {
   const route = await source("src/app/api/market-iq/source/dwellsy/national-supply/route.ts");
+  const protectedRoutes = await source("src/lib/auth/protected-routes.ts");
   assert.match(route, /timingSafeEqual/);
   assert.match(route, /marketIqReportSourceRefreshEnabled\(process\.env\)/);
   assert.match(route, /marketIqDatabaseConfigured\(\)/);
   assert.match(route, /dwellsySourceConfigured\(\)/);
   assert.match(route, /runNationalListingSupplyCapture\(\)/);
   assert.doesNotMatch(route, /auth\(\)|isAdminUser|GET\(/);
+  assert.match(protectedRoutes, /\/api\/market-iq\/source\/dwellsy\/national-supply/);
+});
+
+test("national capture diagnostics expose response shape without exposing its body", async () => {
+  const workflow = await source(".github/workflows/market-iq-source-staleness.yml");
+  assert.match(workflow, /%\{http_code\}\\t%\{content_type\}/);
+  assert.match(workflow, /Response bytes:/);
+  assert.match(workflow, /body withheld/);
+  assert.doesNotMatch(workflow, /console\.(?:error|log)\(responseText/);
 });
 
 test("future launched markets read national history by CBSA without a live source call", async () => {

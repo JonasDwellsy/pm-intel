@@ -114,6 +114,7 @@ export const PUBLIC_BUYBOX_PATTERNS = [
   "/api/market-iq/import/trends",
   "/api/market-iq/source/trends/refresh",
   "/api/market-iq/source/dwellsy/refresh",
+  "/api/market-iq/source/dwellsy/national-supply",
   "/api/market-iq/source-snapshots",
   "/api/market-iq/daily-watchlist-delivery",
   // Stripe signs this request independently. The route verifies the raw-body
