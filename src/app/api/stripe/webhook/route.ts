@@ -234,7 +234,10 @@ async function handleCheckoutCompleted(
   // always collects an email at Checkout, so `email` is present for guest and
   // org buyers alike.
   const recipient = (email ?? guestEmail) || null;
-  if (recipient && (kind === "single_report" || kind === "market_pass")) {
+  if (
+    recipient &&
+    (kind === "single_report" || kind === "market_pass" || kind === "subscription")
+  ) {
     const pmSlug = session.metadata?.pmSlug || null;
     const marketId = session.metadata?.marketId || null;
     const [pm, market] = await Promise.all([

@@ -57,8 +57,14 @@ export async function sendReportPurchaseEmail(
       ctaUrl = `${base}/report/r/${args.pmSlug}${tq}`;
       const pdfUrl = `${base}/api/report/${args.pmSlug}/pdf${tq}`;
       pdfBlock = `<p style="margin:16px 0 0"><a href="${pdfUrl}">Download the PDF</a> to keep a copy.</p>`;
+    } else if (args.kind === "subscription") {
+      subject = "Your Operator IQ subscription is active";
+      heading = "Your Keep Watching subscription is active";
+      ctaLabel = "Manage your subscription";
+      ctaUrl = `${base}/report/account${tq}`;
+      pdfBlock = `<p style="margin:16px 0 0">Browse and open any manager&rsquo;s report in your market from <a href="${base}/report${tq}">here</a>.</p>`;
     } else {
-      // market_pass / subscription — market-wide access.
+      // market_pass — market-wide access for 30 days.
       const market = args.marketName ?? "your market";
       subject = `Your Operator IQ market access — ${market}`;
       heading = `Your market pass for ${market} is active`;
