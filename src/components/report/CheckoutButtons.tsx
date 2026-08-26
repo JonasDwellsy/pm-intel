@@ -57,16 +57,26 @@ export function CheckoutButtons({
             type="button"
             disabled={pending !== null}
             onClick={() => start(offer.kind)}
+            // Primary CTA takes the partner accent (set by ReportShell as
+            // --report-accent); falls back to navy off the funnel.
+            style={
+              primary
+                ? {
+                    backgroundColor: "var(--report-accent, #0f2140)",
+                    color: "var(--report-accent-fg, #ffffff)",
+                  }
+                : undefined
+            }
             className={
               primary
-                ? "inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-navy px-6 text-[15px] font-semibold text-white transition-colors hover:bg-navy-700 disabled:opacity-60"
+                ? "inline-flex h-12 w-full items-center justify-center gap-2 rounded-md px-6 text-[15px] font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
                 : "inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border border-navy bg-white px-6 text-[14px] font-semibold text-navy transition-colors hover:bg-navy-soft disabled:opacity-60"
             }
           >
             {busy ? "Redirecting…" : (
               <>
                 <span>{offer.label}</span>
-                <span className={primary ? "text-white/80" : "text-navy/70"}>
+                <span className={primary ? "opacity-80" : "text-navy/70"}>
                   {offer.priceLabel}
                 </span>
               </>

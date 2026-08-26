@@ -24,6 +24,7 @@ import { verifyReportAccessToken } from "@/lib/report/access-token";
 import { tierFromScorecard } from "@/lib/report/confidence-tier";
 import { ReportTeaser } from "@/components/report/ReportTeaser";
 import { ReportToolbar } from "@/components/report/ReportToolbar";
+import { ReportShell } from "@/components/report/ReportShell";
 import { sessionGrantsReport } from "@/lib/billing/verify-session";
 
 export const dynamic = "force-dynamic";
@@ -84,11 +85,13 @@ export default async function ReportPage({
 
   if (!accessible) {
     return (
-      <ReportTeaser
-        scorecard={scorecard}
-        tierInfo={tierFromScorecard(scorecard)}
-        partner={partner ?? null}
-      />
+      <ReportShell partner={partner ?? null}>
+        <ReportTeaser
+          scorecard={scorecard}
+          tierInfo={tierFromScorecard(scorecard)}
+          partner={partner ?? null}
+        />
+      </ReportShell>
     );
   }
 
@@ -134,20 +137,22 @@ export default async function ReportPage({
   });
 
   return (
-    <main className="bg-[#FBFAF6]">
-      {/* Consumer toolbar: PDF download (public /api/report route, gated by
-          the same resolver) for durable buyers, or a "check your inbox" note
-          for the immediate post-checkout view. ScorecardBody's own Copy-link +
-          B2B Download-PDF buttons stay hidden (publicSample) since they route
-          to the login-gated B2B endpoints. */}
-      <ReportToolbar slug={slug} token={token ?? null} durable={durable} />
-      <ScorecardBody
-        view={scorecardView}
-        scorecard={scorecard}
-        isClaimed={pm.claimed}
-        geographicCoverage={scorecard.geographicCoverage}
-        publicSample
-      />
-    </main>
+    <ReportShell partner={partner ?? null}>
+      <main className="bg-[#FBFAF6]">
+        {/* Consumer toolbar: PDF download (public /api/report route, gated by
+            the same resolver) for durable buyers, or a "check your inbox" note
+            for the immediate post-checkout view. ScorecardBody's own Copy-link +
+            B2B Download-PDF buttons stay hidden (publicSample) since they route
+            to the login-gated B2B endpoints. */}
+        <ReportToolbar slug={slug} token={token ?? null} durable={durable} />
+        <ScorecardBody
+          view={scorecardView}
+          scorecard={scorecard}
+          isClaimed={pm.claimed}
+          geographicCoverage={scorecard.geographicCoverage}
+          publicSample
+        />
+      </main>
+    </ReportShell>
   );
 }
