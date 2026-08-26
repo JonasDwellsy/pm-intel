@@ -59,6 +59,7 @@ export function ReportShell({
           </p>
           <nav className="flex gap-4">
             <Link href="/methodology" className="hover:underline">How we measure</Link>
+            <Link href={`/report/account${partnerQuery}`} className="hover:underline">Manage subscription</Link>
             <Link href="/terms" className="hover:underline">Terms</Link>
             <Link href="/privacy" className="hover:underline">Privacy</Link>
           </nav>
