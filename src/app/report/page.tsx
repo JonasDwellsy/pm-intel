@@ -5,6 +5,8 @@
 
 import type { Metadata } from "next";
 import { ReportSearch } from "@/components/report/ReportSearch";
+import { ReportShell } from "@/components/report/ReportShell";
+import { resolvePartner } from "@/lib/report/partners";
 
 export const metadata: Metadata = {
   title: "Check your property manager",
@@ -19,11 +21,15 @@ export default async function ReportLandingPage({
   searchParams: Promise<{ partner?: string }>;
 }) {
   const { partner } = await searchParams;
+  const theme = resolvePartner(partner);
 
   return (
+    <ReportShell partner={partner}>
     <main className="bg-[#FBFAF6]">
       <section className="mx-auto max-w-[760px] px-6 pb-16 pt-14 sm:pt-20">
-        <p className="dq-eyebrow text-teal">Operator IQ · for owners</p>
+        <p className="dq-eyebrow" style={{ color: "var(--report-accent)" }}>
+          {theme.eyebrow}
+        </p>
         <h1 className="mt-3 text-[32px] font-semibold leading-[1.1] text-navy sm:text-[40px]">
           Before you hand over your property, check the manager.
         </h1>
@@ -59,6 +65,7 @@ export default async function ReportLandingPage({
         </p>
       </section>
     </main>
+    </ReportShell>
   );
 }
 
