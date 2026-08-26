@@ -23,7 +23,8 @@ import { resolveReportAccess } from "@/lib/auth/report-entitlements.server";
 import { verifyReportAccessToken } from "@/lib/report/access-token";
 import { tierFromScorecard } from "@/lib/report/confidence-tier";
 import { ReportTeaser } from "@/components/report/ReportTeaser";
-import { getStripe, stripeConfigured } from "@/lib/stripe";
+import { ReportToolbar } from "@/components/report/ReportToolbar";
+import { sessionGrantsReport } from "@/lib/billing/verify-session";
 
 export const dynamic = "force-dynamic";
 
@@ -54,30 +55,6 @@ export async function generateMetadata({
   };
 }
 
-/** Post-checkout return path: confirm the Stripe session was paid and covers
- *  THIS report, so the buyer sees it immediately even before the webhook has
- *  written the durable entitlement. Defensive — any mismatch falls through to
- *  the normal (DB-backed) gate. */
-async function sessionGrantsReport(
-  sessionId: string,
-  slug: string,
-  marketId: string
-): Promise<boolean> {
-  if (!stripeConfigured()) return false;
-  try {
-    const session = await getStripe().checkout.sessions.retrieve(sessionId);
-    if (session.payment_status !== "paid") return false;
-    const md = session.metadata ?? {};
-    if (md.kind === "single_report") return md.pmSlug === slug;
-    if (md.kind === "market_pass" || md.kind === "subscription") {
-      return md.marketId === marketId;
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
-
 export default async function ReportPage({
   params,
   searchParams,
@@ -96,7 +73,11 @@ export default async function ReportPage({
 
   const guestEmail = verifyReportAccessToken(token);
   const access = await resolveReportAccess(slug, marketId, { guestEmail });
-  let accessible = access.accessible;
+  // `durable` = access backed by a DB entitlement (offer the PDF download). A
+  // just-paid Stripe session grants the immediate view but not yet the durable
+  // grant (the webhook writes that + emails the links).
+  const durable = access.accessible;
+  let accessible = durable;
   if (!accessible && sessionId) {
     accessible = await sessionGrantsReport(sessionId, slug, marketId);
   }
@@ -154,14 +135,17 @@ export default async function ReportPage({
 
   return (
     <main className="bg-[#FBFAF6]">
+      {/* Consumer toolbar: PDF download (public /api/report route, gated by
+          the same resolver) for durable buyers, or a "check your inbox" note
+          for the immediate post-checkout view. ScorecardBody's own Copy-link +
+          B2B Download-PDF buttons stay hidden (publicSample) since they route
+          to the login-gated B2B endpoints. */}
+      <ReportToolbar slug={slug} token={token ?? null} durable={durable} />
       <ScorecardBody
         view={scorecardView}
         scorecard={scorecard}
         isClaimed={pm.claimed}
         geographicCoverage={scorecard.geographicCoverage}
-        // Hide the header Copy-link + Download-PDF buttons for now: the PDF
-        // route is still B2B-gated, so a guest buyer would dead-end. The
-        // consumer PDF route + emailed delivery land in the next slice.
         publicSample
       />
     </main>

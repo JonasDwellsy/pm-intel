@@ -28,6 +28,7 @@ import {
   flushAnalyticsServer,
   type ServerEventName,
 } from "@/lib/analytics-server";
+import { sendReportPurchaseEmail } from "@/lib/report/delivery";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -226,6 +227,31 @@ async function handleCheckoutCompleted(
     // The Subscription row is authored by customer.subscription.* events,
     // which carry status + period end. Nothing to grant here.
     event = null;
+  }
+
+  // Deliver the buyer's access links by email (best-effort — the grant above
+  // is the source of truth; a failed send never blocks the webhook). Stripe
+  // always collects an email at Checkout, so `email` is present for guest and
+  // org buyers alike.
+  const recipient = (email ?? guestEmail) || null;
+  if (recipient && (kind === "single_report" || kind === "market_pass")) {
+    const pmSlug = session.metadata?.pmSlug || null;
+    const marketId = session.metadata?.marketId || null;
+    const [pm, market] = await Promise.all([
+      kind === "single_report" && pmSlug
+        ? prisma.pM.findUnique({ where: { slug: pmSlug }, select: { name: true } })
+        : Promise.resolve(null),
+      kind === "market_pass" && marketId
+        ? prisma.market.findUnique({ where: { id: marketId }, select: { fullName: true } })
+        : Promise.resolve(null),
+    ]);
+    await sendReportPurchaseEmail({
+      email: recipient,
+      kind,
+      pmSlug,
+      pmName: pm?.name ?? null,
+      marketName: market?.fullName ?? null,
+    });
   }
 
   if (event) {
