@@ -499,6 +499,13 @@ model Organization {
   watchLists      WatchList[]
   pendingWelcomes PendingWelcome[]
   marketAccess    OrganizationMarketAccess[]
+  // v0.30 — consumer single-report product. An org can also accrue
+  // per-report purchases, time-boxed market passes, and subscriptions
+  // when a signed-in workspace user buys through the consumer funnel.
+  reportEntitlements ReportEntitlement[]
+  marketPasses       MarketPass[]
+  subscriptions      Subscription[]
+  stripeCustomer     StripeCustomer?
 
   // Hot lookups: "find personal org for user X" (already covered by
   // the @unique on personalForUserId) and "find org by Clerk id"
@@ -770,4 +777,124 @@ model PropertyHome {
 
   @@unique([pmSlug, addressId])
   @@index([pmSlug])
+}
+
+// ===========================================================================
+// v0.30 — Consumer single-report product (Operator IQ for owners).
+//
+// A new self-serve funnel sells access one property manager at a time:
+//   - $29  single report      → ReportEntitlement (per-PM, permanent)
+//   - $49  30-day market pass  → MarketPass (time-boxed, whole market)
+//   - $19/mo keep-watching     → Subscription (Stripe subscription mirror)
+//
+// Ownership is guest-OR-org, mirroring the existing Lead guest pattern and
+// the OrganizationMarketAccess org pattern:
+//   - Guest checkout keys on a lowercased `guestEmail` (no Clerk identity).
+//   - A signed-in workspace user keys on `organizationId` (our DB row id,
+//     resolved via getActiveOrgContext()).
+// Exactly one of the two is set per row. `stripeSessionId @unique` is the
+// hard idempotency guarantee: one completed Checkout Session grants one row,
+// so a replayed webhook is a no-op upsert. market/pm keys are plain strings
+// (Market.id / PM.slug) — not FKs — exactly like OrganizationMarketAccess,
+// so a grant can't be blocked by row lifecycle. See
+// src/lib/auth/report-entitlements.ts for the resolver.
+// ===========================================================================
+
+// Stripe customer link. One row per billing identity (org or guest email),
+// so repeat purchases reuse the same Stripe customer. `stripeCustomerId` is
+// the @unique sync key; org/user/email are the owner handles (opaque Clerk
+// ids, no FK — same convention as elsewhere).
+model StripeCustomer {
+  id               String   @id @default(cuid())
+  stripeCustomerId String   @unique
+  organizationId   String?  @unique
+  userId           String?  @unique // Clerk userId, opaque (no FK)
+  email            String? // guest / receipt email, lowercased
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+}
+
+// Per-PM report purchase ($29). Permanent access to one operator's scorecard
+// (web + PDF). Guest-or-org owned. The two compound uniques keep grants
+// idempotent per owner; stripeSessionId is the authoritative idempotency key.
+model ReportEntitlement {
+  id              String   @id @default(cuid())
+  pmSlug          String // → PM.slug (string key, not FK — OrganizationMarketAccess precedent)
+  organizationId  String?
+  guestEmail      String? // lowercased; Lead-style guest key
+  stripeSessionId String   @unique
+  createdAt       DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // NULLs are distinct in Postgres, so these only constrain rows that
+  // actually carry the respective owner — a guest row (org null) and an org
+  // row (guestEmail null) never collide, and duplicate grants to the SAME
+  // owner are prevented.
+  @@unique([pmSlug, organizationId])
+  @@unique([pmSlug, guestEmail])
+  @@index([guestEmail])
+  @@index([organizationId])
+}
+
+// Time-boxed whole-market pass ($49 / 30 days). Grants full access to every
+// operator in one market while `expiresAt` is in the future. Guest-or-org
+// owned. Non-renewing by design (distinct from the $19/mo Subscription).
+model MarketPass {
+  id              String   @id @default(cuid())
+  marketId        String // → Market.id string key
+  organizationId  String?
+  guestEmail      String? // lowercased
+  stripeSessionId String   @unique
+  startsAt        DateTime @default(now())
+  expiresAt       DateTime // startsAt + 30d, computed at grant time
+  createdAt       DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Hot query: "any live pass for this market owned by this key" —
+  // (marketId, expiresAt) covers the range scan.
+  @@index([marketId, expiresAt])
+  @@index([guestEmail])
+  @@index([organizationId])
+}
+
+// Stripe subscription mirror ($19/mo keep-watching). One row per Stripe
+// subscription, kept in sync by customer.subscription.* webhook events.
+// `status` mirrors Stripe's string values ("active" | "past_due" |
+// "canceled" | ...) — stored as a string so new Stripe states don't require
+// a migration, same rationale as OrganizationMembership.role.
+model Subscription {
+  id                   String   @id @default(cuid())
+  stripeSubscriptionId String   @unique
+  stripeCustomerId     String
+  organizationId       String?
+  userId               String? // Clerk userId, opaque
+  guestEmail           String? // lowercased, when bought via guest funnel
+  status               String
+  priceId              String
+  currentPeriodEnd     DateTime
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([stripeCustomerId])
+  @@index([guestEmail])
+}
+
+// Idempotency ledger for the Stripe webhook. First write of a given Stripe
+// event.id wins; a replayed delivery hits the PK and short-circuits before
+// re-running side effects. Complements the natural-key upserts on
+// stripeSessionId. Mirrors the deterministic-id replay-safety the Clerk
+// webhook relies on (see src/lib/auth/webhook-idempotency.ts).
+model StripeWebhookEvent {
+  id          String   @id // Stripe event.id (evt_...)
+  type        String
+  processedAt DateTime @default(now())
 }
