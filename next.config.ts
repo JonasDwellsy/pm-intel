@@ -105,16 +105,16 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // v0.33 — Mount the consumer funnel at the ROOT of the dedicated product
-  // subdomain (intel.iq.dwellsy.com by default; override with FUNNEL_HOST).
-  // The funnel's own routes live at /report/* and are unchanged — this only
-  // rewrites the subdomain root to the funnel landing so the public URL is
-  // simply the subdomain. `beforeFiles` so it wins over the B2B homepage
-  // filesystem route; host-scoped via `has` so iq.dwellsy.com and every other
-  // host are completely untouched. The query string (e.g. ?partner=…) is
-  // forwarded to /report automatically.
+  // v0.33 — Mount the consumer funnel at the ROOT of its dedicated product
+  // subdomain. Set FUNNEL_HOST to the real host (e.g. pmcheck.iq.dwellsy.com);
+  // the default below is a placeholder to change. The funnel's own routes live
+  // at /report/* and are unchanged; this only rewrites the subdomain root to
+  // the funnel landing so the public URL is simply the subdomain. beforeFiles
+  // so it wins over the B2B homepage filesystem route; host-scoped via `has` so
+  // iq.dwellsy.com and every other host are untouched. The query string (e.g.
+  // ?partner=…) forwards to /report automatically.
   async rewrites() {
-    const funnelHost = process.env.FUNNEL_HOST ?? "intel.iq.dwellsy.com";
+    const funnelHost = process.env.FUNNEL_HOST ?? "pmcheck.iq.dwellsy.com";
     return {
       beforeFiles: [
         {
