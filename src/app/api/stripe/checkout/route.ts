@@ -23,7 +23,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const BodySchema = z.object({
-  kind: z.enum(["single_report", "market_pass", "subscription"]),
+  kind: z.enum(["single_report", "market_pass", "subscription", "api_access"]),
   pmSlug: z.string().min(1).optional(),
   marketId: z.string().min(1).optional(),
   // Partner attribution (e.g. "biggerpockets") — carried through to the
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     pmSlug = pm.slug;
     marketId = pm.marketId;
     displayName = pm.name;
-  } else {
+  } else if (product.target === "market") {
     if (!parsed.marketId) {
       return Response.json({ error: "marketId required" }, { status: 400 });
     }
@@ -79,6 +79,10 @@ export async function POST(req: Request) {
     }
     marketId = market.id;
     displayName = market.fullName;
+  } else {
+    // Account-level plan (api_access): targets neither a PM nor a market, so
+    // there is nothing to look up. The plan label is the display name.
+    displayName = product.label;
   }
 
   // Buyer identity (optional — guests are fine). Signed-in users attach their
@@ -95,12 +99,19 @@ export async function POST(req: Request) {
   };
 
   const base = baseUrl(req);
-  const successPath =
-    product.target === "pm"
-      ? `/report/r/${pmSlug}?session_id={CHECKOUT_SESSION_ID}`
-      : `/report/market/${marketId}?session_id={CHECKOUT_SESSION_ID}`;
-  const cancelPath =
-    product.target === "pm" ? `/report/r/${pmSlug}` : `/report/market/${marketId}`;
+  let successPath: string;
+  let cancelPath: string;
+  if (product.target === "pm") {
+    successPath = `/report/r/${pmSlug}?session_id={CHECKOUT_SESSION_ID}`;
+    cancelPath = `/report/r/${pmSlug}`;
+  } else if (product.target === "market") {
+    successPath = `/report/market/${marketId}?session_id={CHECKOUT_SESSION_ID}`;
+    cancelPath = `/report/market/${marketId}`;
+  } else {
+    // Account-level plan (api_access) returns to its own billing page.
+    successPath = `/api-access?status=success&session_id={CHECKOUT_SESSION_ID}`;
+    cancelPath = `/api-access?status=canceled`;
+  }
 
   try {
     const params: Stripe.Checkout.SessionCreateParams = {

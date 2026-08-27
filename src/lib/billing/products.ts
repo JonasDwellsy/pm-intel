@@ -1,6 +1,6 @@
 // v0.30 — Consumer product catalog for the single-report funnel.
 //
-// Three SKUs, each mapped to a Stripe Price created out-of-band in the Stripe
+// SKUs, each mapped to a Stripe Price created out-of-band in the Stripe
 // dashboard and referenced here by env var (never hard-coded — test vs live
 // prices differ per environment, same pattern as every other secret in this
 // repo which is read straight from process.env).
@@ -10,12 +10,26 @@
 //   single_report → ReportEntitlement   (per-PM, permanent)
 //   market_pass   → MarketPass          (whole market, 30 days)
 //   subscription  → Subscription        ($19/mo, whole market while active)
+//   api_access    → Subscription        ($250/mo, Dwellsy API while active)
 //
 // Prices below are DISPLAY ONLY (marketing copy, receipts). The charged
 // amount is whatever the Stripe Price says — Stripe is the source of truth
 // for money.
+//
+// api_access is the B2B Dwellsy API plan (added post-v0.32): a $250/mo
+// recurring subscription that includes 500 API calls per month. It reuses the
+// SAME subscription rails as the consumer "Keep Watching" SKU — the Stripe
+// subscription is mirrored into the Subscription table by the
+// customer.subscription.* webhook events. It is account-level (`target:
+// "account"`), so it targets neither a PM nor a market. Provisioning of the
+// actual API key + the 500-call/month meter is a separate concern from billing
+// and is NOT handled here; this catalog entry only drives the charge.
 
-export type ProductKind = "single_report" | "market_pass" | "subscription";
+export type ProductKind =
+  | "single_report"
+  | "market_pass"
+  | "subscription"
+  | "api_access";
 
 export interface BillingProduct {
   kind: ProductKind;
@@ -31,8 +45,9 @@ export interface BillingProduct {
   stripeMode: "payment" | "subscription";
   /** Name of the env var holding this SKU's Stripe Price id. */
   priceEnvVar: string;
-  /** Whether the buyer picks a single PM (report) or a market (pass/sub). */
-  target: "pm" | "market";
+  /** What the buyer selects: a single PM (report), a market (pass/sub), or
+   *  nothing — an account-level plan like the Dwellsy API subscription. */
+  target: "pm" | "market" | "account";
 }
 
 export const PRODUCTS: Record<ProductKind, BillingProduct> = {
@@ -66,10 +81,25 @@ export const PRODUCTS: Record<ProductKind, BillingProduct> = {
     priceEnvVar: "STRIPE_PRICE_SUBSCRIPTION",
     target: "market",
   },
+  api_access: {
+    kind: "api_access",
+    label: "Dwellsy API Access",
+    blurb: "Programmatic access to Dwellsy data — 500 API calls per month.",
+    priceUsd: 250,
+    cadence: "monthly",
+    stripeMode: "subscription",
+    priceEnvVar: "STRIPE_PRICE_API_ACCESS",
+    target: "account",
+  },
 };
 
 /** Duration of a market pass, in days. Grant time = now + this. */
 export const MARKET_PASS_DAYS = 30;
+
+/** API calls included with the Dwellsy API Access plan each billing month.
+ *  Display/copy source of truth — actual metering is provisioned separately
+ *  from billing (see the api_access note at the top of this file). */
+export const API_ACCESS_MONTHLY_CALLS = 500;
 
 /** Resolve the Stripe Price id for a SKU from env. Throws (loud) if unset —
  *  a checkout can't proceed without it and a silent fallback would charge the

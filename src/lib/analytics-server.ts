@@ -129,7 +129,11 @@ export type ServerEventName =
   | "report_purchased"
   | "market_pass_purchased"
   | "subscription_started"
-  | "subscription_canceled";
+  | "subscription_canceled"
+  // B2B Dwellsy API Access plan ($250/mo) — fired from the Stripe webhook on
+  // checkout.session.completed for the api_access SKU. Same privacy rules as
+  // the consumer funnel events above.
+  | "api_access_purchased";
 
 interface CaptureArgs {
   /** Clerk userId when signed in, or null. When null, the helper

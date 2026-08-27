@@ -227,6 +227,13 @@ async function handleCheckoutCompleted(
     // The Subscription row is authored by customer.subscription.* events,
     // which carry status + period end. Nothing to grant here.
     event = null;
+  } else if (kind === "api_access") {
+    // B2B Dwellsy API Access plan. Like the consumer subscription SKU, the
+    // Subscription row is authored by customer.subscription.* events, so there
+    // is nothing to grant here — we only record the conversion. Stripe sends
+    // the recurring invoice receipt itself, so no delivery email is sent from
+    // this webhook (it stays out of the report-email block below).
+    event = "api_access_purchased";
   }
 
   // Deliver the buyer's access links by email (best-effort — the grant above
