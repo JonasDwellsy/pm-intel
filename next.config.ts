@@ -105,6 +105,26 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // v0.33 — Mount the consumer funnel at the ROOT of the dedicated product
+  // subdomain (intel.iq.dwellsy.com by default; override with FUNNEL_HOST).
+  // The funnel's own routes live at /report/* and are unchanged — this only
+  // rewrites the subdomain root to the funnel landing so the public URL is
+  // simply the subdomain. `beforeFiles` so it wins over the B2B homepage
+  // filesystem route; host-scoped via `has` so iq.dwellsy.com and every other
+  // host are completely untouched. The query string (e.g. ?partner=…) is
+  // forwarded to /report automatically.
+  async rewrites() {
+    const funnelHost = process.env.FUNNEL_HOST ?? "intel.iq.dwellsy.com";
+    return {
+      beforeFiles: [
+        {
+          source: "/",
+          has: [{ type: "host", value: funnelHost }],
+          destination: "/report",
+        },
+      ],
+    };
+  },
 };
 
 // v0.17 — Sentry wrapper. withSentryConfig hooks the Next.js build
