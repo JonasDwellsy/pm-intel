@@ -35,6 +35,8 @@ test("nightly automation captures the national history before launched-market ev
   assert.ok(national > 0 && national < detailed && detailed < delivery);
   assert.match(workflow, /response\.totalMarkets > 4/);
   assert.match(workflow, /response\.eligibleMarkets >= 4/);
+  assert.match(workflow, /response\.trackedMarketCount === 25/);
+  assert.match(workflow, /response\.trackedMarketsObserved === 25/);
 });
 
 test("the national capture endpoint is machine-authenticated and preview-gated", async () => {
@@ -75,4 +77,13 @@ test("a first observation renders current composition instead of empty chart pan
   assert.match(component, /Current inventory mix/);
   assert.match(component, /Current active listing age/);
   assert.match(component, /hasSupplyTrend \? <SupplyTrendLine/);
+});
+
+test("the national response reports coverage for the explicit 25-market cohort", async () => {
+  const manifest = await source("src/data/market-iq/tracked-markets.ts");
+  const runner = await source("src/lib/market-iq/national-listing-supply-run.server.ts");
+  assert.equal((manifest.match(/cbsaCode:/g) ?? []).length, 25);
+  assert.match(runner, /MARKET_IQ_TRACKED_MARKETS/);
+  assert.match(runner, /trackedMarketsObserved/);
+  assert.match(runner, /trackedEligibleMarkets/);
 });

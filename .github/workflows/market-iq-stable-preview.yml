@@ -18,9 +18,9 @@ jobs:
     env:
       EXPECTED_BRANCH: codex/market-iq-integration
       EXPECTED_SHA: ${{ github.sha }}
-      IDENTITY_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq-deployment-identity
-      HEALTH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq-stable-preview-health
-      PREVIEW_ORIGIN: https://market-preview.intel.iq.dwellsy.com
+      IDENTITY_URL: https://market-iq-git-codex-market-iq-integration-dwellsybordo.vercel.app/api/market-iq-deployment-identity
+      HEALTH_URL: https://market-iq-git-codex-market-iq-integration-dwellsybordo.vercel.app/api/market-iq-stable-preview-health
+      PREVIEW_ORIGIN: https://market-iq-git-codex-market-iq-integration-dwellsybordo.vercel.app
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.MARKET_IQ_VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - name: Require the preview automation credential

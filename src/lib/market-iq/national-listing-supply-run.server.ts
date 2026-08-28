@@ -1,6 +1,7 @@
 import "server-only";
 
 import { loadNationalListingSupply } from "@/lib/dwellsy-source/national-listing-supply.server";
+import { MARKET_IQ_TRACKED_MARKETS } from "@/data/market-iq/tracked-markets";
 import {
   assessNationalListingSupply,
   summarizeNationalSupplyCoverage,
@@ -17,6 +18,10 @@ export async function runNationalListingSupplyCapture(capturedAt = new Date()) {
 
   const assessed = source.map((row) => assessNationalListingSupply(row, capturedAt));
   const coverage = summarizeNationalSupplyCoverage(assessed);
+  const trackedCodes = new Set<string>(MARKET_IQ_TRACKED_MARKETS.map((market) => market.cbsaCode));
+  const trackedCoverage = summarizeNationalSupplyCoverage(
+    assessed.filter((row) => trackedCodes.has(row.cbsaCode)),
+  );
   if (coverage.eligibleMarkets === 0) {
     throw new Error("No Dwellsy MSA passed the national listing-supply coverage contract.");
   }
@@ -63,6 +68,12 @@ export async function runNationalListingSupplyCapture(capturedAt = new Date()) {
     snapshotDate: snapshotDate.toISOString().slice(0, 10),
     capturedAt: capturedAt.toISOString(),
     sourceAvailableThrough: sourceAvailableThrough?.toISOString() ?? null,
+    trackedMarketCount: MARKET_IQ_TRACKED_MARKETS.length,
+    trackedMarketsObserved: trackedCoverage.totalMarkets,
+    trackedEligibleMarkets: trackedCoverage.eligibleMarkets,
+    trackedInsufficientMarkets: trackedCoverage.insufficientMarkets,
+    trackedStaleMarkets: trackedCoverage.staleMarkets,
+    trackedInvalidMarkets: trackedCoverage.invalidMarkets,
     ...coverage,
   };
 }
