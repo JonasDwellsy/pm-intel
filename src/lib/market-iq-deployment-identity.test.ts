@@ -91,7 +91,7 @@ test("readiness and CI expose and verify the same deployment identity", () => {
   assert.match(config, /MARKET_IQ_BUILD_TIMESTAMP: new Date\(\)\.toISOString\(\)/);
 
   assert.match(workflow, /codex\/market-iq-integration/);
-  assert.match(workflow, /market-preview\.intel\.iq\.dwellsy\.com/);
+  assert.match(workflow, /market-iq-git-codex-market-iq-integration-dwellsybordo\.vercel\.app/);
   assert.match(workflow, /x-vercel-protection-bypass/);
   assert.match(workflow, /github\.sha/);
   assert.doesNotMatch(workflow, /continue-on-error/);

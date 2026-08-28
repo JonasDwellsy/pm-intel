@@ -5,6 +5,12 @@ on:
     # 09:00 UTC is 2:00 a.m. PDT and 1:00 a.m. PST.
     - cron: "0 9 * * *"
   workflow_dispatch:
+    inputs:
+      deliver:
+        description: Send watchlist emails during this manual recovery run
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: market-iq-nightly-source-snapshots
@@ -18,13 +24,17 @@ jobs:
     permissions:
       contents: read
     env:
-      HEALTH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq-stable-preview-health
-      REFRESH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/source/trends/refresh
-      SUPPLY_REFRESH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/source/dwellsy/refresh
-      NATIONAL_SUPPLY_REFRESH_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/source/dwellsy/national-supply
-      DELIVERY_URL: https://market-preview.intel.iq.dwellsy.com/api/market-iq/daily-watchlist-delivery
+      EXPECTED_BRANCH: codex/market-iq-integration
+      AUTOMATION_ORIGIN: https://market-iq-git-codex-market-iq-integration-dwellsybordo.vercel.app
+      IDENTITY_URL: https://market-iq-git-codex-market-iq-integration-dwellsybordo.vercel.app/api/market-iq-deployment-identity
+      HEALTH_URL: https://market-iq-git-codex-market-iq-integration-dwellsybordo.vercel.app/api/market-iq-stable-preview-health
+      REFRESH_URL: https://market-iq-git-codex-market-iq-integration-dwellsybordo.vercel.app/api/market-iq/source/trends/refresh
+      SUPPLY_REFRESH_URL: https://market-iq-git-codex-market-iq-integration-dwellsybordo.vercel.app/api/market-iq/source/dwellsy/refresh
+      NATIONAL_SUPPLY_REFRESH_URL: https://market-iq-git-codex-market-iq-integration-dwellsybordo.vercel.app/api/market-iq/source/dwellsy/national-supply
+      DELIVERY_URL: https://market-iq-git-codex-market-iq-integration-dwellsybordo.vercel.app/api/market-iq/daily-watchlist-delivery
       MARKET_IQ_SOURCE_REFRESH_TOKEN: ${{ secrets.MARKET_IQ_SOURCE_REFRESH_TOKEN }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.MARKET_IQ_VERCEL_AUTOMATION_BYPASS_SECRET }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Require the preview automation credentials
         shell: bash
@@ -33,6 +43,45 @@ jobs:
             echo "The Market IQ snapshot automation credentials are not configured."
             exit 1
           fi
+
+      - name: Verify the Market IQ integration deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          expected_sha="$(gh api "/repos/$GITHUB_REPOSITORY/git/ref/heads/$EXPECTED_BRANCH" --jq '.object.sha')"
+          status="$(curl --silent --show-error --location \
+            --retry 2 --retry-all-errors --retry-delay 5 \
+            --connect-timeout 10 --max-time 30 \
+            --output "$response_file" --write-out '%{http_code}' \
+            --header "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+            "$IDENTITY_URL")"
+
+          EXPECTED_SHA="$expected_sha" IDENTITY_STATUS="$status" IDENTITY_RESPONSE_FILE="$response_file" node <<'NODE'
+          const fs = require("node:fs");
+          let response;
+          try {
+            response = JSON.parse(fs.readFileSync(process.env.IDENTITY_RESPONSE_FILE, "utf8"));
+          } catch {
+            console.error("The Market IQ integration deployment did not return a valid identity response.");
+            process.exit(1);
+          }
+          const ready = process.env.IDENTITY_STATUS === "200"
+            && response.product === "market-iq"
+            && response.branch === process.env.EXPECTED_BRANCH
+            && response.commit === process.env.EXPECTED_SHA;
+          if (!ready) {
+            console.error("The nightly loader refused to write through an unexpected deployment.", {
+              httpStatus: process.env.IDENTITY_STATUS,
+              branch: response.branch,
+              expectedCommit: process.env.EXPECTED_SHA,
+              observedCommit: response.commit,
+            });
+            process.exit(1);
+          }
+          console.log(`Verified ${response.branch} at ${response.commit}.`);
+          NODE
 
       - name: Publish every configured market snapshot
         shell: bash
@@ -145,6 +194,8 @@ jobs:
             && response.totalMarkets > 4
             && Number.isInteger(response.eligibleMarkets)
             && response.eligibleMarkets >= 4
+            && response.trackedMarketCount === 25
+            && response.trackedMarketsObserved === 25
             && Number.isFinite(capturedAt.getTime())
             && captureAge >= 0
             && captureAge <= 20 * 60 * 1000;
@@ -157,6 +208,8 @@ jobs:
             `- Result: ${response.status ?? "unavailable"}`,
             `- Markets observed: ${response.totalMarkets ?? "unavailable"}`,
             `- Markets eligible to publish: ${response.eligibleMarkets ?? "unavailable"}`,
+            `- Selected markets observed: ${response.trackedMarketsObserved ?? "unavailable"} / ${response.trackedMarketCount ?? "unavailable"}`,
+            `- Selected markets eligible: ${response.trackedEligibleMarkets ?? "unavailable"}`,
             `- Insufficient coverage: ${response.insufficientMarkets ?? "unavailable"}`,
             `- Stale source: ${response.staleMarkets ?? "unavailable"}`,
             `- Invalid aggregates: ${response.invalidMarkets ?? "unavailable"}`,
@@ -266,6 +319,7 @@ jobs:
           NODE
 
       - name: Materialize and deliver personal watchlist matches
+        if: github.event_name == 'schedule' || inputs.deliver == true
         shell: bash
         run: |
           set -euo pipefail

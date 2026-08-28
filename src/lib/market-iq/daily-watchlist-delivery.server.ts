@@ -188,7 +188,7 @@ export async function runMarketIqDailyWatchlistDelivery(input: { now?: Date; app
   });
   const identities = await userIdentities([...new Set(due.map((preference) => preference.userId))]);
   const counts = { eligible: due.length, sent: 0, failed: 0, empty: 0, missingEmail: 0 };
-  const origin = (input.appOrigin ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://market-preview.intel.iq.dwellsy.com").replace(/\/$/, "");
+  const origin = (input.appOrigin ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://market-iq-git-codex-market-iq-integration-dwellsybordo.vercel.app").replace(/\/$/, "");
 
   for (const preference of due) {
     const cadence = parseMarketIqDailyDeliveryCadence(preference.cadence);

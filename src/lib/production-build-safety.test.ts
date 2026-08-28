@@ -18,10 +18,9 @@ test("Vercel builds compile without mutating production data", () => {
   const build = packageJson.scripts["vercel-build"];
 
   assert.match(build, /prisma:generate/);
-  assert.match(build, /run-market-iq-preview-migrations/);
   assert.doesNotMatch(
     build,
-    /prisma migrate deploy|prisma db seed|export_name_corrections/
+    /migrate|seed|export_name_corrections/
   );
 });
 
