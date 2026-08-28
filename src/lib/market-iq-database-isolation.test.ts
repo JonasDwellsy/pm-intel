@@ -66,13 +66,9 @@ test("project database fallback is locked to the authorized Market IQ preview", 
     scripts: Record<string, string>;
   };
   assert.match(packageJson.scripts["vercel-build"], /prisma:generate/);
-  assert.match(
-    packageJson.scripts["vercel-build"],
-    /run-market-iq-preview-migrations/,
-  );
   assert.doesNotMatch(
     packageJson.scripts["vercel-build"],
-    /market-iq:migrate|seed|export_name_corrections/,
+    /migrate|seed|export_name_corrections/,
   );
   assert.match(packageJson.scripts["prisma:generate"], /prisma\/market-iq\/schema\.prisma/);
   assert.match(packageJson.scripts["market-iq:migrate"], /deploy-market-iq-migrations/);
@@ -80,7 +76,7 @@ test("project database fallback is locked to the authorized Market IQ preview", 
   assert.match(packageJson.scripts["db:migrate"], /market-iq:migrate/);
 });
 
-test("Vercel runs Market IQ migrations only for the isolated preview project", () => {
+test("Market IQ preview migrations remain an explicit, isolated operation", () => {
   const isolatedMarketIqPreview = {
     VERCEL_ENV: "preview",
     VERCEL_PROJECT_PRODUCTION_URL: "market-iq-mu.vercel.app",
@@ -119,12 +115,12 @@ test("Vercel runs Market IQ migrations only for the isolated preview project", (
   );
 
   const runner = readFileSync("scripts/run-market-iq-preview-migrations.ts", "utf8");
-  assert.match(runner, /\["db:migrate:control", "market-iq:migrate"\]/);
-  assert.match(runner, /for \(const migrationScript of migrationScripts\)/);
+  assert.match(runner, /const migrationScript = "market-iq:migrate"/);
+  assert.doesNotMatch(runner, /db:migrate:control/);
   assert.ok(
     runner.indexOf("shouldRunMarketIqPreviewMigrations(environment)") <
-      runner.indexOf("migrationScripts"),
-    "The isolated-preview guard must execute before either migration set.",
+      runner.indexOf('const migrationScript = "market-iq:migrate"'),
+    "The isolated-preview guard must execute before the analytical migration.",
   );
 });
 

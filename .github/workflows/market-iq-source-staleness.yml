@@ -5,6 +5,12 @@ on:
     # 09:00 UTC is 2:00 a.m. PDT and 1:00 a.m. PST.
     - cron: "0 9 * * *"
   workflow_dispatch:
+    inputs:
+      deliver:
+        description: Send watchlist emails during this manual recovery run
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: market-iq-nightly-source-snapshots
@@ -313,6 +319,7 @@ jobs:
           NODE
 
       - name: Materialize and deliver personal watchlist matches
+        if: github.event_name == 'schedule' || inputs.deliver == true
         shell: bash
         run: |
           set -euo pipefail
