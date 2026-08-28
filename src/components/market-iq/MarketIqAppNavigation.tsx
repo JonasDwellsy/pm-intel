@@ -14,6 +14,13 @@ const ADVISORY_ITEMS = [
   { href: MARKET_IQ_CANONICAL_ROUTES.clientReporting, label: "Client reporting", area: "client-reporting" },
 ] as const;
 
+const INTERNAL_ITEMS = [
+  { href: "/market-iq/internal/admin", label: "Admin overview", area: null },
+  { href: "/market-iq/internal/readiness", label: "Operations readiness", area: null },
+  { href: "/market-iq/internal/data-operations", label: "Data loading", area: null },
+  { href: "/market-iq/internal/pilot-telemetry", label: "Pilot telemetry", area: null },
+] as const;
+
 const PUBLIC_ITEMS = [
   { href: "/market-iq/welcome#product", label: "Product" },
   { href: "/market-iq/welcome#workflow", label: "How it works" },
@@ -24,15 +31,18 @@ const PUBLIC_ITEMS = [
 export function MarketIqAppNavigation({ signedIn, hasProduct, clientAdvisoryEnabled }: { signedIn: boolean; hasProduct: boolean; clientAdvisoryEnabled: boolean }) {
   const pathname = usePathname() ?? "";
   const currentArea = marketIqProductArea(pathname);
-  const items = signedIn && hasProduct
-    ? [...INTELLIGENCE_ITEMS, ...(clientAdvisoryEnabled ? ADVISORY_ITEMS : [])]
-    : signedIn
-      ? [{ href: "/market-iq/subscribe", label: "Plans", area: null }]
-    : PUBLIC_ITEMS.map((item) => ({ ...item, area: null }));
+  const internal = pathname.startsWith("/market-iq/internal/");
+  const items = internal
+    ? INTERNAL_ITEMS
+    : signedIn && hasProduct
+      ? [...INTELLIGENCE_ITEMS, ...(clientAdvisoryEnabled ? ADVISORY_ITEMS : [])]
+      : signedIn
+        ? [{ href: "/market-iq/subscribe", label: "Plans", area: null }]
+        : PUBLIC_ITEMS.map((item) => ({ ...item, area: null }));
 
   return (
     <>
-      <nav aria-label="Market IQ" className="hidden items-center gap-1 lg:flex">
+      <nav aria-label={internal ? "Market IQ administration" : "Market IQ"} className="hidden items-center gap-1 lg:flex">
         {items.map((item) => {
           const active = item.area ? currentArea === item.area : pathname.startsWith(item.href);
           return (
@@ -57,7 +67,7 @@ export function MarketIqAppNavigation({ signedIn, hasProduct, clientAdvisoryEnab
             <path d="M4 7h16M4 12h16M4 17h16" />
           </svg>
         </summary>
-        <nav aria-label="Market IQ mobile" className="absolute right-0 top-12 z-50 w-64 rounded-xl border border-grid bg-white p-2 shadow-xl">
+        <nav aria-label={internal ? "Market IQ administration mobile" : "Market IQ mobile"} className="absolute right-0 top-12 z-50 w-64 rounded-xl border border-grid bg-white p-2 shadow-xl">
           {items.map((item) => {
             const active = item.area ? currentArea === item.area : pathname.startsWith(item.href);
             return (
