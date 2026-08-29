@@ -1,7 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { SearchModal } from "./SearchModal";
+
+// SearchModal imports the 4.5 MB operator index and Fuse search engine. Keep
+// that payload out of the app shell and request it only when search is opened.
+const SearchModal = dynamic(
+  () => import("./SearchModal").then((module) => module.SearchModal),
+  { ssr: false, loading: () => null },
+);
 
 // Global search overlay — mounts the Cmd+K modal and the keyboard
 // listener once at app shell level. Exposes a context so any descendant
@@ -61,7 +68,7 @@ export function SearchOverlayProvider({
   return (
     <SearchOverlayContext.Provider value={{ open: handleOpen, close: handleClose }}>
       {children}
-      <SearchModal open={open} onClose={handleClose} />
+      {open && <SearchModal open onClose={handleClose} />}
     </SearchOverlayContext.Provider>
   );
 }

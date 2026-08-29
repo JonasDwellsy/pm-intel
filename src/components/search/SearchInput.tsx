@@ -2,13 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  filterResultsByEntitlement,
-  getSearchCounts,
-  partitionByTier,
-  searchPMs,
-  type PMSearchResult,
-} from "@/lib/pm-search";
+import type { PMSearchResult } from "@/lib/pm-search";
 import { SearchResultRow } from "./SearchResultRow";
 import { useSearchOverlay } from "./SearchOverlay";
 import { useEntitledMarkets } from "./useEntitledMarkets";
@@ -32,6 +26,38 @@ const DROPDOWN_LIMIT = 10;
 // see FUSE_OPTIONS comment in pm-search.ts for the score-band anchors.
 const STRICT_MATCH_SCORE = 0.3;
 
+type SearchCounts = {
+  ranked: number;
+  tracked: number;
+  canonical: number;
+  markets: number;
+  total: number;
+};
+
+const EMPTY_COUNTS: SearchCounts = {
+  ranked: 0,
+  tracked: 0,
+  canonical: 0,
+  markets: 0,
+  total: 0,
+};
+
+let searchModulePromise: Promise<typeof import("@/lib/pm-search")> | null = null;
+
+function loadSearchModule() {
+  searchModulePromise ??= import("@/lib/pm-search");
+  return searchModulePromise;
+}
+
+function partitionResults(results: PMSearchResult[]) {
+  return {
+    canonical: results.filter((result): result is Extract<PMSearchResult, { tier: "canonical" }> => result.tier === "canonical"),
+    ranked: results.filter((result): result is Extract<PMSearchResult, { tier: "ranked" }> => result.tier === "ranked"),
+    tracked: results.filter((result): result is Extract<PMSearchResult, { tier: "tracked" }> => result.tier === "tracked"),
+    markets: results.filter((result): result is Extract<PMSearchResult, { tier: "market" }> => result.tier === "market"),
+  };
+}
+
 export function SearchInput() {
   // Pull the Cmd+K modal opener from the global overlay provider so the
   // "Open full search" hint in the not-found state hands off to the
@@ -50,13 +76,20 @@ function SearchInputInner({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [results, setResults] = useState<PMSearchResult[]>([]);
+  const [counts, setCounts] = useState<SearchCounts>(EMPTY_COUNTS);
+  const [searchLoading, setSearchLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Debounce the query so Fuse.js fires once per ~150ms of typing rather
   // than on every keystroke. Cleared on unmount or rapid change.
   useEffect(() => {
-    const id = setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS);
+    const id = setTimeout(() => {
+      setDebouncedQuery(query);
+      setSearchLoading(query.trim().length >= 2);
+      if (query.trim().length < 2) setResults([]);
+    }, DEBOUNCE_MS);
     return () => clearTimeout(id);
   }, [query]);
 
@@ -64,13 +97,22 @@ function SearchInputInner({
   // once; "all" until it resolves).
   const entitledMarkets = useEntitledMarkets();
 
-  // Run the search against the debounced query. Memoized so re-renders
-  // from active-index changes don't rerun the search.
-  const results = useMemo(() => {
-    return filterResultsByEntitlement(
-      searchPMs(debouncedQuery, DROPDOWN_LIMIT),
-      entitledMarkets
-    );
+  // The corpus and Fuse runtime are intentionally absent from the initial app
+  // shell. Focus begins fetching the shared chunk; a real query awaits it and
+  // ignores stale responses if the user keeps typing while it downloads.
+  useEffect(() => {
+    if (debouncedQuery.trim().length < 2) return;
+    let active = true;
+    void loadSearchModule().then((search) => {
+      if (!active) return;
+      setResults(search.filterResultsByEntitlement(
+        search.searchPMs(debouncedQuery, DROPDOWN_LIMIT),
+        entitledMarkets,
+      ));
+      setCounts(search.getSearchCounts());
+      setSearchLoading(false);
+    });
+    return () => { active = false; };
   }, [debouncedQuery, entitledMarkets]);
 
   // Partition strict-match results from fuzzy suggestions for the
@@ -92,7 +134,7 @@ function SearchInputInner({
     [strictResults]
   );
   const { canonical, ranked, tracked, markets } = useMemo(
-    () => partitionByTier(visibleResults),
+    () => partitionResults(visibleResults),
     [visibleResults]
   );
 
@@ -162,7 +204,7 @@ function SearchInputInner({
         }
       }
     },
-    [activeIndex, open, visibleResults]
+    [activeIndex, debouncedQuery.length, open, strictResults.length, visibleResults]
   );
 
   // v0.17 — single helper for the "user committed a search by
@@ -181,17 +223,17 @@ function SearchInputInner({
     [debouncedQuery.length, strictResults.length]
   );
 
-  const counts = useMemo(() => getSearchCounts(), []);
-
   // Render-time state classifier so the JSX below stays readable.
   let state:
     | "closed"
     | "empty"
+    | "loading"
     | "results"
     | "no-match"
     | "fuzzy" = "closed";
   if (open) {
     if (debouncedQuery.trim().length < 2) state = "empty";
+    else if (searchLoading) state = "loading";
     else if (strictResults.length > 0) state = "results";
     else if (fuzzyResults.length > 0) state = "fuzzy";
     else state = "no-match";
@@ -232,7 +274,10 @@ function SearchInputInner({
             setQuery(e.target.value);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setOpen(true);
+            void loadSearchModule().then((search) => setCounts(search.getSearchCounts()));
+          }}
           onKeyDown={handleKeyDown}
           className="h-9 w-[260px] rounded-md border border-grid bg-white pl-8 pr-12 text-[13.5px] text-navy placeholder:text-muted-2 transition-colors focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/15"
         />
@@ -261,6 +306,12 @@ function SearchInputInner({
                 </kbd>{" "}
                 anywhere on the site to open full search.
               </p>
+            </div>
+          )}
+
+          {state === "loading" && (
+            <div className="px-4 py-5 text-[13px] text-muted-foreground" role="status">
+              Loading search…
             </div>
           )}
 
