@@ -377,6 +377,38 @@ def percentile_rank(value, sorted_values):
     return round(100.0 * le / n, 1)
 
 
+# v0.11 — Marketing Discipline is scored against an ABSOLUTE bar, not a cohort
+# quartile. Every other metric is market-relative because it has to be:
+# days-on-market, rent and retention all depend on local conditions. Listing
+# completeness does not — a complete listing is complete in Bozeman and in Los
+# Angeles — and the metric's purpose is to indicate quality and professionalism,
+# which is a claim about the listing itself rather than about its neighbours.
+#
+# A cohort quartile actively worked against that purpose: a Small MF/BTR
+# Independent scoring 60 could earn gold for topping a weak cohort while a Large
+# MF/BTR Institutional scoring 82 earned silver mid-pack in a strong one. The
+# scorecard already displays this metric absolutely ("82 / 100"), so the star
+# was contradicting the number printed beside it.
+#
+# Bars set against the national distribution of ranked PMs (4,023 operators,
+# post-#422): >=80 clears 19.1%, >=70 clears a further 23.1%. That is close to
+# the 25/25/50 shape a quartile star produces, so the change does not jolt
+# expectations — it just makes the threshold mean something a reader can act on.
+MARKETING_GOLD_MIN = 80.0
+MARKETING_SILVER_MIN = 70.0
+
+
+def marketing_star_absolute(score):
+    """Star for Marketing Discipline from the raw composite, no cohort."""
+    if score is None:
+        return None
+    if score >= MARKETING_GOLD_MIN:
+        return "gold"
+    if score >= MARKETING_SILVER_MIN:
+        return "silver"
+    return None
+
+
 def star_for_pct(p):
     if p is None: return None
     if p >= 75: return "gold"
@@ -1497,6 +1529,19 @@ for norm in pm_features:
         block = multi_pct[norm].get(metric)
         if not block:
             star_data[norm][metric] = None; continue
+        if metric == "marketing":
+            # Absolute bar — see marketing_star_absolute. The cohort percentiles
+            # are still computed and stored below (the MSA level feeds the
+            # internal composite, and the numbers stay available for analysis),
+            # but they no longer decide this star.
+            score = metric_values["marketing"].get(norm)
+            star_data[norm][metric] = {
+                "star": marketing_star_absolute(score),
+                "cohortUsed": "absolute",
+                "cohortName": f"All operators (gold at {int(MARKETING_GOLD_MIN)}+)",
+                "percentile": block["msa"],
+            }
+            continue
         if block["primaryCohortN"] >= 10 and block["primary"] is not None:
             used, pct = "primary", block["primary"]
         elif block["fallbackCohortN"] >= 10 and block["fallback"] is not None:

@@ -13,5 +13,5 @@
 //
 // DESIGN_VERSION tracks the scorecard layout / typography spec.
 
-export const METHODOLOGY_VERSION = "v0.7";
+export const METHODOLOGY_VERSION = "v0.8";
 export const DESIGN_VERSION = "v2.0";
