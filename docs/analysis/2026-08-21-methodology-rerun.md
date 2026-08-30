@@ -1,53 +1,44 @@
 # Methodology re-run: what it involves
 
-Two merged changes need a full pipeline re-run before they reach anyone, and a
-third is blocked behind it. This is a **methodology release on existing data**,
-not a monthly data refresh — no new export, `dataAsOf` does not move. That
+A **methodology release on existing data** — the pipeline is re-run to apply
+changed scoring, but no new export is merged and `dataAsOf` does not move. That
 distinction drives most of what follows.
 
 Companion to `scripts/data-pipeline/MONTHLY_REFRESH.md`, which owns the normal
 monthly flow and the production release boundary. This covers only what is
 different about a methodology re-run.
 
-## What is waiting on it
+Written for, and verified against, the v0.7 → v0.8 release of August 2026. The
+measured numbers throughout are from that run.
+
+## The v0.8 release
 
 | PR | change | effect |
 |---|---|---|
-| #420 | marketing star fallback scored nationally | ~10–15% of operators change cohort; institutional gold rate 50.3% → ~26% |
-| #422 | stated rules a first-class component | composite reweighted; 65 of 279 stars moved in the two test markets |
-| — | absolute marketing star | **blocked** — needs the post-re-run distribution to calibrate against |
+| #422 | stated rules a first-class composite component | every operator's composite reweighted |
+| #426 | marketing star scored on an absolute bar | gold at 80, silver at 70, no cohort |
+| #427 | retires #420's national marketing cohort | see below |
 
-Also resolved incidentally: the data-vintage spread (2 markets on 08-05, 40 on
-08-06, 1 on 08-07, Bozeman on 08-20) collapses to one date only if a new export
-is merged first. A methodology-only re-run leaves the spread as-is.
+#420 had scored the marketing star's *fallback* cohort against a national
+7-cell distribution, to stop institutional operators earning gold at twice the
+independent rate. #426 makes that machinery unnecessary: an absolute bar has no
+cohort to be unfair about. #427 removes it, which is what collapses this
+runbook from two passes to one.
 
-## The part that is easy to get wrong
+## The part that used to be easy to get wrong
 
-**It takes two full passes, not one.**
+**It no longer takes two passes.** Older copies of this runbook required them.
 
-`marketing_national_cohorts.json` is generated *from* the merged seed, and
-`pipeline.py` *reads* it to score the marketing fallback. #422 changed the
-composite formula, so the committed cohort file now holds old-formula scores. A
-single pass would score fallback operators against a stale distribution.
+The second pass existed only because `marketing_national_cohorts.json` was
+generated *from* the merged seed while `pipeline.py` *read* it to score the
+marketing fallback — a circular dependency, so any change to the composite
+formula left the committed file holding old-formula scores. With #420 retired
+the file is gone and the cycle with it. One pass is now correct, not merely
+approximately correct.
 
-```
-pass 1:  run all 44  →  merge  →  seed now has new-formula composites
-         (fallback stars in this pass are scored against the STALE file)
-
-regenerate:  python3 build_marketing_cohorts.py
-
-pass 2:  run all 44  →  merge  →  fallback stars now correct
-```
-
-A single pass would be *approximately* right — the composite distribution
-barely moved (median 68.5 → 68.6), and only the ~10–15% on the fallback level
-are affected — but "approximately right stars" is not what a methodology
-release should ship.
-
-This two-pass cost is a wart introduced by #420. The clean fix is to split star
-assignment into a post-merge pass that sees all markets at once, which would
-remove the precomputed file entirely. Worth doing before the next methodology
-change, not during this one.
+If you are looking at a branch that still contains
+`build_marketing_cohorts.py`, you are before #427 and the two-pass rule still
+applies to it.
 
 ## The part that is easy to miss
 
@@ -63,21 +54,19 @@ Consequences:
 - Snapshots silently disagree with the scorecards until the next real refresh.
 - Anything reading snapshots rather than `PM` — the watch-list changes page,
   market-brief change blocks — shows stale stars.
-- The digest is protected, but only by accident: the stale rows keep
-  `methodologyVersion: v0.7`, so the next refresh's v0.8 rows trip the
+- The digest is protected, but only by accident: the stale rows keep the old
+  `methodologyVersion`, so the next refresh's rows trip the
   `methodologyChanged` guard and the whole diff is suppressed.
 
-**Therefore: delete the snapshot rows for the affected dates as part of the
-release, so they are rewritten.** That is a destructive production operation and
-belongs to the authorized operator, alongside the restore point the monthly
-runbook already requires. Deleting is the right call — leaving them means
-carrying a known inconsistency for a month.
+**Therefore the snapshot rows at the current `dataAsOf` must be deleted before
+the seed, so the seed rewrites them.** `scripts/maintenance/refresh-current-snapshots.ts`
+does exactly this and nothing else — see step 8.
 
 ## Version bump
 
-This changes stars, so `methodologyVersion` moves **v0.7 → v0.8** in
-`markets.json`, and `METHODOLOGY_VERSION` in `src/lib/version.ts` must move with
-it — `version.test.ts` fails CI if they disagree.
+A methodology re-run changes stars, so `methodologyVersion` moves in
+`markets.json`, and `METHODOLOGY_VERSION` in `src/lib/version.ts` must move
+with it — `version.test.ts` fails CI if they disagree.
 
 One consequence to time deliberately: `diffSnapshots` suppresses **every**
 change type when the methodology version differs between two snapshots. The
@@ -95,15 +84,12 @@ Best paired with a month where that is acceptable.
 
 ## Sequence
 
-All commands from `scripts/data-pipeline/`.
+All pipeline commands from `scripts/data-pipeline/`.
 
-Each **pass** is three steps — run, re-apply canonicals, merge — and the middle
-one is the easy one to skip. It was skipped on the first attempt at this
-re-run, which is why it is called out this loudly.
+Steps 1–3 are one pass, and step 2 is the one that gets skipped. It was skipped
+on the first attempt at this re-run, which is why it is called out this loudly.
 
-### Pass 1
-
-**1a. Run every market.** Exceeds any 10-minute foreground limit; run it in the
+**1. Run every market.** Exceeds any 10-minute foreground limit; run it in the
 background and watch the log.
 
 ```bash
@@ -114,7 +100,7 @@ done
 
 Gate: every market ends `Operator dignity validation failures: 0`.
 
-**1b. Re-apply the curated canonical decisions.** *Do not skip this.*
+**2. Re-apply the curated canonical decisions.** *Do not skip this.*
 
 `pipeline.py` regenerates each per-market JSON from raw CSV, which **overwrites
 the curated cross-market operator groupings** `apply_canonicals.py` patches in.
@@ -133,7 +119,7 @@ curation before earlier. Sort numerically. Each file reporting skipped slugs
 "not in current data" is normal — those are decisions about operators that have
 since merged, renamed or dropped out.
 
-**1c. Merge.**
+**3. Merge.**
 
 ```bash
 python3 merge.py                # dry run, prints the structural diff
@@ -141,27 +127,7 @@ python3 merge.py --apply
 ```
 
 Gate: `Canonical operators: N → N (+0 / -0 / ~0)`. **Any negative number means
-1b was missed or incomplete — stop and re-apply rather than merging.**
-
-### Between passes
-
-**2. Regenerate the national cohort distribution** — the step that makes pass 2
-necessary at all.
-
-```bash
-python3 build_marketing_cohorts.py
-```
-
-Gate: all 7 cells present and each ≥ `MIN_COHORT_N`;
-`test_marketing_cohorts.py` enforces both.
-
-### Pass 2
-
-**3. Repeat 1a, 1b and 1c.** All three, in that order — pass 2 re-runs the
-pipeline, so it overwrites the canonical patches again exactly as pass 1 did.
-Marketing fallback stars are now scored against the correct distribution.
-
-### Then
+step 2 was missed or incomplete — stop and re-apply rather than merging.**
 
 **4. Rebuild the search index.**
 
@@ -172,19 +138,32 @@ npx tsx scripts/build-operator-universe.ts
 Gate: **Tier 2 stays ~12,951.** If it prints 0, the builder could not find its
 source JSONs — that is the silent failure mode, and it does not error.
 
-**5. Bump the version.** `markets.json` `methodologyVersion` → `v0.8`, and
+**5. Bump the version.** `markets.json` `methodologyVersion`, and
 `METHODOLOGY_VERSION` in `src/lib/version.ts` to match.
 
-**6. Update the methodology page** for the marketing changes — the rules
-component and, if it ships in the same release, the absolute star.
+**6. Update the methodology page** for whatever changed.
 
-**7. Open the data-release PR.** Full gate: `tsc`, node tests, component tests,
-the five pipeline suites.
+**7. Open the data-release PR.** Full gate: `tsc`, `npm run lint`,
+`npm run test:watch-list`, `npm run test:components`, the pipeline suites
+(`python3 -m unittest test_marketing test_merge test_operator_grouping
+test_property_detail test_property_homes test_tenancy_survival
+test_classify_management_website`).
 
 **8. Production release** — follow the controlled procedure in
-MONTHLY_REFRESH.md (restore point, no concurrent operations,
-`FORCE_SEED=true npm run db:seed:production`). Add the snapshot deletion from
-the section above.
+MONTHLY_REFRESH.md (restore point, no concurrent operations). Two steps, in
+this order:
+
+```bash
+npx tsx scripts/maintenance/refresh-current-snapshots.ts           # dry run
+APPLY=1 npx tsx scripts/maintenance/refresh-current-snapshots.ts   # deletes
+FORCE_SEED=true npm run db:seed:production                         # rewrites
+```
+
+The delete must precede the seed — reversed, the seed skips the existing rows
+and the delete then leaves a hole with no snapshots at all for that date. The
+script reads its target date from the seed rather than taking an argument, so
+the two cannot disagree; it refuses to act if the rows already carry the seed's
+methodology version, and it never touches an older date.
 
 ## Acceptance: this is not a 0-drift release
 
@@ -194,14 +173,14 @@ are the intended ones and nothing else moved:
 
 - `marketing` blocks change; `performance`, `tenancy`, `rentPerformance`,
   `communityVisibility` do **not**
-- `compositeScore` changes only from the #422 reweighting, not from cohort
-  changes — a cohort change moves the *star*, never the score
-- marketing cohort names read `National <7-cell>` only for operators on the
-  fallback level
+- `compositeScore` changes only from the reweighting, not from cohort changes —
+  a cohort change moves the *star*, never the score
+- every marketing star agrees with the absolute bar: gold iff score ≥ 80,
+  silver iff 70 ≤ score < 80
 - market count stays 44, PM count stays ~4,468 — a big move means something
   else broke
 
-Measured on the real pass-1 run across all 44 markets (4,468 operators):
+Measured on the shipped v0.8 seed (44 markets, 4,468 operators, 188 canonicals):
 
 ```
 marketing            4,468 changed   <- expected, every operator gains policiesScore
@@ -210,9 +189,9 @@ tenancy                  0 changed
 rentPerformance          0 changed
 communityVisibility      0 changed
 
-marketing stars moved    1,008 (22.6%), both directions
-cohort level changes     510 msa -> fallback
-on a National cohort     795
+marketing gold             767 (19.1%)
+marketing silver           929 (23.1%)
+threshold violations         0
 ```
 
 Zero movement in the other four metric blocks is the load-bearing check — it is
@@ -220,10 +199,11 @@ what proves the change is scoped to marketing.
 
 ## Estimated cost
 
-~15–20 minutes per pass over 19.1 GB (Dallas, 1.7 GB / 222 PMs, measured at
-78s), so **roughly 45–60 minutes** end to end including both merges and the
-index rebuild. Then the production release, which is its own controlled
-operation.
+~15–20 minutes over 19.1 GB (Dallas, 1.7 GB / 222 PMs, measured at 78s), so
+**roughly 25–30 minutes** end to end including the merge and the index rebuild.
+Then the production release, which is its own controlled operation.
+
+Before #427 this was two passes and 45–60 minutes.
 
 ## Rollback
 

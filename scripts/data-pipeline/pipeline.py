@@ -137,9 +137,6 @@ DO_NOT_MERGE = load_do_not_merge(os.path.join(_SCRIPT_DIR, "do_not_merge.json"))
 # -> empty map (no-op; matches launch state until decisions are curated).
 CURATED_MAP = load_merge_decisions(os.path.join(_SCRIPT_DIR, "merge_decisions.json"))
 
-MARKETING_COHORTS_PATH = os.path.join(
-    _SCRIPT_DIR, "marketing_national_cohorts.json"
-)
 NATIONAL_LOOKUP = os.path.join(
     BASE, _cfg.get("nationalLookup", "Operator_National_Urus_v0.6.2.json")
 )
@@ -1370,71 +1367,14 @@ def cohort_members(level, focal_norm):
     return out
 
 
-def cohort_name(level, focal_norm, metric=None):
+def cohort_name(level, focal_norm):
     f = pm_features[focal_norm]
     if level == "primary": return f"{MARKET_NAME} {f['quadrant7Cell']}"
-    if level == "fallback" and metric == "marketing" and _MARKETING_NATIONAL.get(f["quadrant7Cell"]):
-        # Name it honestly — the reader is being compared nationally, not to
-        # their local neighbours.
-        return f"National {f['quadrant7Cell']}"
     if level == "fallback":
         m = {"SFR": "SFR (any scale)", "Small_MF_BTR": "Small MF/BTR (any scale)",
              "Large_MF_BTR": "Large MF/BTR (any scale)", "Hybrid": "Hybrid"}
         return f"{MARKET_NAME} {m[f['op_type']]}"
     return f"{MARKET_NAME} MSA cohort"
-
-
-# v0.10 — national marketing cohorts.
-#
-# Marketing Discipline stars were systematically easier for institutional
-# operators to earn. The ladder relaxes the Institutional/Independent axis at
-# the fallback level, and institutional operators are rare enough per market
-# that 76.7% of them landed there (vs 1.2% of independents). Since the
-# marketing composite is strongly confounded with type and scale — median 85.6
-# for Large MF/BTR Institutional vs 57.6 for Small MF/BTR Independent — that
-# compared them against structurally lower-scoring independents. 50.3% of
-# institutional operators earned gold vs 26.8% of independents; a quartile star
-# should give ~25% to each.
-#
-# Fix: for MARKETING ONLY, the fallback relaxes GEOGRAPHY instead of the
-# classification. A listing description has no local baseline the way DOM or
-# rent do, so the same 7-cell nationally is a truer peer group than a different
-# 7-cell locally. Simulated on the shipped seed this takes the cross-cell gold
-# spread from 28.5pt to 2.1pt (institutional 26.0% vs independent 25.2%).
-#
-# Deliberately surgical: operators whose LOCAL 7-cell cohort clears N>=10 —
-# about 85% — still score against local peers exactly as before. Only the
-# broken fallback path changes.
-#
-# Absent or stale file: fall through to the previous behaviour rather than
-# fail. A market can still be rebuilt without the national distribution; it
-# just keeps the old fallback for the operators that need one.
-_MARKETING_NATIONAL = {}
-_MARKETING_NATIONAL_MIN_N = 10
-try:
-    with open(MARKETING_COHORTS_PATH) as _f:
-        _mc = json.load(_f)
-    _MARKETING_NATIONAL = {k: sorted(v) for k, v in (_mc.get("cohorts") or {}).items()}
-    _MARKETING_NATIONAL_MIN_N = _mc.get("minCohortN", 10)
-    log(f"Marketing national cohorts: {len(_MARKETING_NATIONAL)} cells "
-        f"from {_mc.get('dataAsOf')}")
-except (OSError, ValueError) as _e:
-    log(f"Marketing national cohorts unavailable ({_e}); "
-        f"marketing fallback keeps the local op_type cohort")
-
-
-def marketing_national_percentile(focal_norm):
-    """Percentile of this operator's marketing composite within its 7-cell
-    NATIONAL distribution. Returns (pct, n), or (None, 0) when the cell is
-    missing or too small to be a usable distribution."""
-    q7 = pm_features[focal_norm]["quadrant7Cell"]
-    dist = _MARKETING_NATIONAL.get(q7)
-    if not dist or len(dist) < _MARKETING_NATIONAL_MIN_N:
-        return None, 0
-    focal_v = metric_values["marketing"].get(focal_norm)
-    if focal_v is None:
-        return None, len(dist)
-    return percentile_rank(focal_v, dist), len(dist)
 
 
 def percentile_for_metric(metric, focal_norm, members):
@@ -1466,14 +1406,6 @@ for norm in pm_features:
             multi_pct[norm][metric] = None; continue
         levels = {}
         for lvl in ("primary", "fallback", "msa"):
-            # Marketing's fallback is the national 7-cell, not the local
-            # op_type cohort (see marketing_national_percentile). Falls back to
-            # the old local behaviour when the national file is absent.
-            if metric == "marketing" and lvl == "fallback":
-                pct, n = marketing_national_percentile(norm)
-                if n:
-                    levels[lvl] = {"pct": pct, "n": n}
-                    continue
             members = cohort_members(lvl, norm)
             if metric == "communityVisibility":
                 members = [m for m in members if m in metric_values["communityVisibility"]]
@@ -1550,7 +1482,7 @@ for norm in pm_features:
             used, pct = "msa", block["msa"]
         star_data[norm][metric] = {
             "star": star_for_pct(pct), "cohortUsed": used,
-            "cohortName": cohort_name(used, norm, metric), "percentile": pct,
+            "cohortName": cohort_name(used, norm), "percentile": pct,
         }
 
 # Ranks — v0.6.4 Patch 9: partitioned by operator_type. PMs are ranked
