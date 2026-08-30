@@ -57,7 +57,7 @@ Reasons, in order of weight:
 
 1. **`dataAsOf` semantics.** It is defined as the newest real listing event in the data, not "now". `merge_listings.py --apply` derives it from the export and patches `markets.json`. A live query has no equivalent anchor.
 2. **Reproducibility.** The pipeline guarantees byte-identical output for a given input under `PYTHONHASHSEED=0`, and the monthly acceptance gate is a per-market `json.dumps` comparison. Two runs a day apart against a live database would silently differ, and that gate would become meaningless.
-3. **Load.** The T12 window across 44 MSAs is a large analytical scan against an OLTP database — Dallas alone is 1.7 GB over that window. One controlled extract is kinder than 44 pipeline runs hitting it, and kinder still than two passes of 44.
+3. **Load.** The T12 window across 44 MSAs is a large analytical scan against an OLTP database — Dallas alone is 1.7 GB over that window. One controlled extract is kinder than 44 pipeline runs hitting it.
 4. **Failure isolation.** A snapshot on disk can be re-run against, diffed, and rolled back. A transient query failure mid-refresh cannot.
 
 The snapshot replaces the *export*, not the *file*. What goes away is the dependency on another team and the 19.1 GB of merged CSVs — not the discipline of running against a frozen input.
