@@ -207,8 +207,12 @@ function metricValueBenchmark(
     return {
       value: cs != null ? String(Math.round(cs)) : "—",
       benchmark: "quality / 100", sub: [],
+      // v0.11 — names all five components (rules became first-class in #422)
+      // and states the bar, because the star is now an absolute threshold
+      // rather than a cohort quartile. A reader can act on "get to 80"; they
+      // cannot act on "out-rank your peers".
       interpretation: cs != null
-        ? `Composite listing-quality score of ${Math.round(cs)} out of 100 (photos, description, completeness).`
+        ? `Composite listing-quality score of ${Math.round(cs)} out of 100 — completeness, photos, description, amenities and stated rules. Gold at 80+, silver at 70+.`
         : "",
     };
   }

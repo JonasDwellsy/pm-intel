@@ -1445,7 +1445,7 @@ export default async function MethodologyPage() {
               lede="Marketing discipline — whether the operator presents their listings with complete data, consistent quality, and care."
             >
               <p>
-                Four subscores, each on a{" "}
+                Five subscores, each on a{" "}
                 <span className="dq-chip dq-tnum">0–100</span> scale, are
                 computed from trailing-12-month listings. Each richness
                 subscore saturates near the p90 of the cross-market operator
@@ -1478,9 +1478,10 @@ export default async function MethodologyPage() {
                   </span>
                   . Length uses distinct words (robust to whitespace or
                   boilerplate padding); content richness counts how many of
-                  seven content areas — amenities, location, transit, parking,
-                  and pet / fee / lease terms — the prose touches, so an
-                  informative listing outscores a long but repetitive one. An
+                  four descriptive areas — amenities, location, transit and
+                  parking — the prose touches, so an informative listing
+                  outscores a long but repetitive one. Rules are scored
+                  separately, below. An
                   operator needs at least five non-blank descriptions to be
                   assessed on the non-blank subset; below that, blanks count
                   (their absence is already reflected in Completeness).
@@ -1493,22 +1494,74 @@ export default async function MethodologyPage() {
                   </span>
                   .
                 </li>
+                <li>
+                  <strong>Stated rules</strong> — whether the listing tells a
+                  renter the terms: pet policy, fees and deposits, and lease
+                  requirements. Scored on how many of those three areas a
+                  typical description covers, with two of three reaching 100:{" "}
+                  <span className="dq-mono">
+                    100 × min(1, mean_policy_areas ÷ 2)
+                  </span>
+                  . Assessed on the same non-blank basis as Description — a
+                  blank description is already penalised by Completeness, and
+                  counting it again here would charge an operator twice for one
+                  omission. These three were previously folded into content
+                  richness as three of seven interchangeable areas, which let an
+                  operator saturate that subscore on amenities and location
+                  while telling a renter nothing about the terms. They are also
+                  the least-stated part of a listing in practice, which is why
+                  they now carry their own weight.
+                </li>
               </ul>
               <p>
                 The reported Marketing Discipline score is a{" "}
-                <strong>weighted blend</strong> of the four subscores, not a
+                <strong>weighted blend</strong> of the five subscores, not a
                 simple average:
               </p>
               <FormulaBlock label="Formula · marketing discipline">
-                <span className="text-navy">marketing</span> <Op>=</Op> 0.35{" "}
-                <Op>×</Op> completeness <Op>+</Op> 0.20 <Op>×</Op> amenities{" "}
-                <Op>+</Op> 0.20 <Op>×</Op> description <Op>+</Op> 0.25 <Op>×</Op>{" "}
-                photos
+                <span className="text-navy">marketing</span> <Op>=</Op> 0.30{" "}
+                <Op>×</Op> completeness <Op>+</Op> 0.20 <Op>×</Op> photos{" "}
+                <Op>+</Op> 0.20 <Op>×</Op> description <Op>+</Op> 0.15 <Op>×</Op>{" "}
+                amenities <Op>+</Op> 0.15 <Op>×</Op> rules
               </FormulaBlock>
               <p>
                 Operators with consistently well-prepared, informative listings
                 score in the 80s and 90s. Operators with sparse data, missing
                 photos, or threadbare descriptions score lower.
+              </p>
+              <h3
+                id="marketing-absolute"
+                className="mt-10 text-[18px] font-semibold leading-tight tracking-[-0.014em] text-navy"
+              >
+                Scored against a fixed bar, not a cohort.
+              </h3>
+              <p>
+                Marketing Discipline is the one metric whose star is awarded on
+                an <strong>absolute threshold</strong> rather than a rank within
+                a peer cohort: <strong>gold at{" "}
+                <span className="dq-chip dq-tnum">80</span></strong> and above,{" "}
+                <strong>silver at <span className="dq-chip dq-tnum">70</span></strong>{" "}
+                and above, everywhere and for every operator.
+              </p>
+              <p>
+                Every other metric has to be market-relative, because it
+                measures something local — days on market, rent and retention
+                all move with conditions in the metro. Listing completeness does
+                not. A complete listing is complete in Bozeman and in Los
+                Angeles, so a fixed bar is the honest comparison, and it is the
+                one an operator can act on: the gap to 80 is a specific list of
+                things to add, whereas a percentile only says to outrank
+                whoever happens to be nearby.
+              </p>
+              <p className="text-[13.5px] italic text-muted-foreground">
+                Earlier versions ranked this metric within the same cohorts used
+                for the others, which produced the perverse result that an
+                operator scoring 60 could earn gold for leading a weak cohort
+                while one scoring 82 earned silver in a strong one — while the
+                scorecard printed the raw score beside it. The bars above were
+                set against the national distribution: 19.1% of ranked operators
+                clear 80 and a further 23.1% clear 70, close to the shape the
+                previous quartile ranking produced.
               </p>
             </SectionAnchor>
 
