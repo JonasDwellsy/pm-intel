@@ -189,10 +189,16 @@ tenancy                  0 changed
 rentPerformance          0 changed
 communityVisibility      0 changed
 
-marketing gold             767 (19.1%)
-marketing silver           929 (23.1%)
-threshold violations         0
+marketing gold             767 (19.1%)   \
+marketing silver           929 (23.1%)   |  of 4,023 active PM-type operators
+threshold violations         0           /
 ```
+
+**State the population when you re-measure.** Those star counts are over
+`operatorType == "pm"` AND `operatorStatus != "dormant"` (n = 4,023). The same
+seed gives 829 / 984 over all PM-type operators including dormant ones
+(n = 4,221), and 872 / 1,064 including brokers (n = 4,468). All three are
+correct; a gate that does not name its denominator will read as drift.
 
 Zero movement in the other four metric blocks is the load-bearing check — it is
 what proves the change is scoped to marketing.
