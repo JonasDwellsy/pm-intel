@@ -97,8 +97,14 @@ Best paired with a month where that is acceptable.
 
 All commands from `scripts/data-pipeline/`.
 
-**1. Pass 1 — run every market.** Exceeds any 10-minute foreground limit; run it
-in the background and watch the log.
+Each **pass** is three steps — run, re-apply canonicals, merge — and the middle
+one is the easy one to skip. It was skipped on the first attempt at this
+re-run, which is why it is called out this loudly.
+
+### Pass 1
+
+**1a. Run every market.** Exceeds any 10-minute foreground limit; run it in the
+background and watch the log.
 
 ```bash
 for M in $(python3 -c "import json;print(' '.join(m['id'] for m in json.load(open('markets.json'))['markets']))"); do
@@ -108,15 +114,39 @@ done
 
 Gate: every market ends `Operator dignity validation failures: 0`.
 
-**2. Merge.** Review the diff before applying.
+**1b. Re-apply the curated canonical decisions.** *Do not skip this.*
+
+`pipeline.py` regenerates each per-market JSON from raw CSV, which **overwrites
+the curated cross-market operator groupings** `apply_canonicals.py` patches in.
+Skipping it silently destroys them. Measured on this exact re-run: the merge
+diff read `Canonical operators: 188 → 116 (+7 / -79 / ~2)` — 79 groupings gone —
+and after re-applying, `188 → 188 (+0 / -0 / ~0)`.
+
+```bash
+ORDER="canonical_decisions_v064_p1_base.json"
+for n in 2 3 4 5 6 7 8 9 10 11 12 13; do ORDER="$ORDER canonical_decisions_v064_p${n}.json"; done
+for f in $ORDER; do python3 apply_canonicals.py --decisions "$f" --apply; done
+```
+
+Order matters: a plain `ls` sorts `p10`–`p13` before `p2`, applying later
+curation before earlier. Sort numerically. Each file reporting skipped slugs
+"not in current data" is normal — those are decisions about operators that have
+since merged, renamed or dropped out.
+
+**1c. Merge.**
 
 ```bash
 python3 merge.py                # dry run, prints the structural diff
 python3 merge.py --apply
 ```
 
-**3. Regenerate the national cohort distribution** — the step that makes pass 2
-necessary.
+Gate: `Canonical operators: N → N (+0 / -0 / ~0)`. **Any negative number means
+1b was missed or incomplete — stop and re-apply rather than merging.**
+
+### Between passes
+
+**2. Regenerate the national cohort distribution** — the step that makes pass 2
+necessary at all.
 
 ```bash
 python3 build_marketing_cohorts.py
@@ -125,11 +155,15 @@ python3 build_marketing_cohorts.py
 Gate: all 7 cells present and each ≥ `MIN_COHORT_N`;
 `test_marketing_cohorts.py` enforces both.
 
-**4. Pass 2 — run every market again, then merge again.** Same two commands as
-steps 1 and 2. Marketing fallback stars are now scored against the correct
-distribution.
+### Pass 2
 
-**5. Rebuild the search index.**
+**3. Repeat 1a, 1b and 1c.** All three, in that order — pass 2 re-runs the
+pipeline, so it overwrites the canonical patches again exactly as pass 1 did.
+Marketing fallback stars are now scored against the correct distribution.
+
+### Then
+
+**4. Rebuild the search index.**
 
 ```bash
 npx tsx scripts/build-operator-universe.ts
@@ -138,16 +172,16 @@ npx tsx scripts/build-operator-universe.ts
 Gate: **Tier 2 stays ~12,951.** If it prints 0, the builder could not find its
 source JSONs — that is the silent failure mode, and it does not error.
 
-**6. Bump the version.** `markets.json` `methodologyVersion` → `v0.8`, and
+**5. Bump the version.** `markets.json` `methodologyVersion` → `v0.8`, and
 `METHODOLOGY_VERSION` in `src/lib/version.ts` to match.
 
-**7. Update the methodology page** for the marketing changes — the rules
+**6. Update the methodology page** for the marketing changes — the rules
 component and, if it ships in the same release, the absolute star.
 
-**8. Open the data-release PR.** Full gate: `tsc`, node tests, component tests,
+**7. Open the data-release PR.** Full gate: `tsc`, node tests, component tests,
 the five pipeline suites.
 
-**9. Production release** — follow the controlled procedure in
+**8. Production release** — follow the controlled procedure in
 MONTHLY_REFRESH.md (restore point, no concurrent operations,
 `FORCE_SEED=true npm run db:seed:production`). Add the snapshot deletion from
 the section above.
@@ -167,9 +201,22 @@ are the intended ones and nothing else moved:
 - market count stays 44, PM count stays ~4,468 — a big move means something
   else broke
 
-Measured on the two test markets for reference: Dallas 24 of 239 operators
-changed cohort with `compositeScore` unchanged for all of them; Chattanooga +
-Dallas together showed 65 of 279 marketing stars move from the reweighting.
+Measured on the real pass-1 run across all 44 markets (4,468 operators):
+
+```
+marketing            4,468 changed   <- expected, every operator gains policiesScore
+performance              0 changed
+tenancy                  0 changed
+rentPerformance          0 changed
+communityVisibility      0 changed
+
+marketing stars moved    1,008 (22.6%), both directions
+cohort level changes     510 msa -> fallback
+on a National cohort     795
+```
+
+Zero movement in the other four metric blocks is the load-bearing check — it is
+what proves the change is scoped to marketing.
 
 ## Estimated cost
 
