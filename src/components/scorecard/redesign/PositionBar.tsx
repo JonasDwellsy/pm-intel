@@ -1,10 +1,33 @@
 // Shared presentational primitive — scorecard redesign.
 // Pure server component; no client hooks.
 
+/** A labelled tick on the track. `at` is 0-1 along the bar. */
+export interface BarTick {
+  at: number;
+  label: string;
+}
+
+/** Cohort default: the operator sits somewhere in a peer distribution, so the
+ *  reference points are that distribution's quartiles. */
+const COHORT_TICKS: BarTick[] = [
+  { at: 0.25, label: "P25" },
+  { at: 0.5, label: "med" },
+  { at: 0.75, label: "P75" },
+];
+
+/** Warm at the bottom, neutral through the middle, green at the top. */
+const COHORT_GRADIENT =
+  "linear-gradient(90deg,#f3d9a8,#eef0f4 45%,#eef0f4 55%,#bfe3cf)";
+
 interface PositionBarProps {
-  /** Operator's cohort position, 0–1 (0 = bottom, 1 = top).
+  /** Position along the track, 0–1 (0 = bottom, 1 = top).
    *  null → render a muted "n/a" state with no marker. */
   position: number | null;
+  /** Reference marks under the track. Defaults to the cohort quartiles;
+   *  an absolutely-scored metric passes its own thresholds instead. */
+  ticks?: BarTick[];
+  /** Track fill. Defaults to the cohort gradient. */
+  gradient?: string;
 }
 
 /** Clamp a number to [min, max]. */
@@ -12,17 +35,41 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+/** Tick labels under the track, positioned by fraction. */
+function Ticks({ ticks }: { ticks: BarTick[] }) {
+  return (
+    <div style={{ position: "relative", height: "16px" }}>
+      {ticks.map((t) => (
+        <span
+          key={t.label}
+          style={{
+            position: "absolute",
+            left: `${clamp(t.at, 0, 1) * 100}%`,
+            top: "2px",
+            fontSize: "9px",
+            color: "#a0a9ba",
+            transform: "translateX(-50%)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {t.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 /**
- * Horizontal position bar with P25 / median / P75 tick marks.
+ * Horizontal position bar with reference tick marks.
  * Matches the `.pos` / `.posmark` / `.poslab` look in scorecard-v5.html.
- *
- * Track: a gradient from warm-amber (low end) through neutral to soft-green
- * (high end), per the mockup's `linear-gradient(90deg,#f3d9a8,#eef0f4
- * 45%,#eef0f4 55%,#bfe3cf)`.
  *
  * Marker: 3 × 16px navy bar positioned at `position * 100%`.
  */
-export function PositionBar({ position }: PositionBarProps) {
+export function PositionBar({
+  position,
+  ticks = COHORT_TICKS,
+  gradient = COHORT_GRADIENT,
+}: PositionBarProps) {
   const clamped = position != null ? clamp(position, 0, 1) : null;
 
   if (clamped == null) {
@@ -37,45 +84,7 @@ export function PositionBar({ position }: PositionBarProps) {
             borderRadius: "5px",
           }}
         />
-        {/* P25 / med / P75 labels */}
-        <div style={{ position: "relative", height: "16px" }}>
-          <span
-            style={{
-              position: "absolute",
-              left: "25%",
-              top: "2px",
-              fontSize: "9px",
-              color: "#a0a9ba",
-              transform: "translateX(-50%)",
-            }}
-          >
-            P25
-          </span>
-          <span
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: "2px",
-              fontSize: "9px",
-              color: "#a0a9ba",
-              transform: "translateX(-50%)",
-            }}
-          >
-            med
-          </span>
-          <span
-            style={{
-              position: "absolute",
-              left: "75%",
-              top: "2px",
-              fontSize: "9px",
-              color: "#a0a9ba",
-              transform: "translateX(-50%)",
-            }}
-          >
-            P75
-          </span>
-        </div>
+        <Ticks ticks={ticks} />
         {/* n/a label */}
         <span
           style={{
@@ -99,8 +108,7 @@ export function PositionBar({ position }: PositionBarProps) {
         style={{
           position: "relative",
           height: "8px",
-          background:
-            "linear-gradient(90deg,#f3d9a8,#eef0f4 45%,#eef0f4 55%,#bfe3cf)",
+          background: gradient,
           borderRadius: "5px",
         }}
       >
@@ -120,45 +128,7 @@ export function PositionBar({ position }: PositionBarProps) {
         />
       </div>
 
-      {/* Tick labels: P25 / med / P75 */}
-      <div style={{ position: "relative", height: "16px" }}>
-        <span
-          style={{
-            position: "absolute",
-            left: "25%",
-            top: "2px",
-            fontSize: "9px",
-            color: "#a0a9ba",
-            transform: "translateX(-50%)",
-          }}
-        >
-          P25
-        </span>
-        <span
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "2px",
-            fontSize: "9px",
-            color: "#a0a9ba",
-            transform: "translateX(-50%)",
-          }}
-        >
-          med
-        </span>
-        <span
-          style={{
-            position: "absolute",
-            left: "75%",
-            top: "2px",
-            fontSize: "9px",
-            color: "#a0a9ba",
-            transform: "translateX(-50%)",
-          }}
-        >
-          P75
-        </span>
-      </div>
+      <Ticks ticks={ticks} />
     </div>
   );
 }

@@ -84,6 +84,11 @@ export interface ScaleFitView {
 export interface MetricRow {
   key: MetricKey; title: string; label: ScoreLabel; value: string; benchmark: string;
   position: number | null; star: "gold" | "silver" | null; sub: string[];
+  /** What `position` is measured against. "cohort" → a percentile within the
+   *  operator's peer group, ticked at the quartiles. "absolute" → the raw
+   *  0-100 score itself, ticked at its own thresholds. Marketing is the only
+   *  absolute metric (see labels.ts). */
+  scale: "cohort" | "absolute";
   // Plain-English note shown at the top of the card (parity with the
   // concession card). "" → fall back to benchmark.
   interpretation: string;
@@ -486,30 +491,51 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
     cohortRetention.length > 0
       ? cohortRetention[Math.floor((cohortRetention.length - 1) / 2)]
       : null;
+  // Marketing's bar plots the COMPOSITE ITSELF on a 0-100 track, not a
+  // percentile — the star is absolute, so a cohort position would contradict
+  // it. Before this, an operator scoring 25.6 could pin the bar to the far
+  // right and read "strong" purely because its local peers were worse.
+  const marketingScore = scorecard.marketing?.compositeScore ?? null;
   const metrics: MetricRow[] = metricKeys
-    .filter((k) => pcts[k] != null || metricStar(scorecard, k) != null
-      || (k === "tenancy" && scorecard.tenancy?.tenancySuppressed === true))
+    .filter((k) => k === "marketing"
+      ? marketingScore != null
+      : pcts[k] != null || metricStar(scorecard, k) != null
+        || (k === "tenancy" && scorecard.tenancy?.tenancySuppressed === true))
     .map((k) => {
       const vb = metricValueBenchmark(scorecard, k, k === "tenancy" ? cohortMedianRetention18 : null);
+      const absolute = k === "marketing";
+      const position = absolute
+        ? (marketingScore != null ? marketingScore / 100 : null)
+        : (pcts[k] != null ? pcts[k]! / 100 : null);
       return { key: k, title: METRIC_TITLES[k], label: labels[k], value: vb.value,
-        benchmark: vb.benchmark, position: pcts[k] != null ? pcts[k]! / 100 : null,
+        benchmark: vb.benchmark, position, scale: absolute ? "absolute" as const : "cohort" as const,
         star: metricStar(scorecard, k), sub: vb.sub, interpretation: vb.interpretation };
     });
-  const aboveCount = metrics.filter((m) => m.label === "strong" || m.label === "good").length;
+  // "Above the cohort median" is a claim about cohorts, so only the
+  // cohort-scored metrics may be counted in it. Marketing clearing an absolute
+  // bar says nothing about where its peers sit; folding it in would make the
+  // sentence false. Its standing stays visible on its own card.
+  const cohortMetrics = metrics.filter((m) => m.scale === "cohort");
+  const aboveCount = cohortMetrics.filter((m) => m.label === "strong" || m.label === "good").length;
+  const cohortTotal = cohortMetrics.length;
   const operatingTakeaway = metrics.length === 0
     ? "Insufficient data to score operating performance."
-    : aboveCount === metrics.length
-      ? `Above the cohort median on all ${metrics.length} scored dimensions.`
-      : aboveCount === 0
-        ? `Below the cohort median on all ${metrics.length} scored dimensions.`
-        : `Above the cohort median on ${aboveCount} of ${metrics.length} scored dimensions.`;
+    : cohortTotal === 0
+      ? "Scored on listing quality only — no peer-scored dimensions available."
+      : aboveCount === cohortTotal
+        ? `Above the cohort median on all ${cohortTotal} peer-scored dimensions.`
+        : aboveCount === 0
+          ? `Below the cohort median on all ${cohortTotal} peer-scored dimensions.`
+          : `Above the cohort median on ${aboveCount} of ${cohortTotal} peer-scored dimensions.`;
   const operating: OperatingView = {
     sectionLabel: opLabel, takeaway: operatingTakeaway,
     strongest: sw.strongest.map((k) => METRIC_TITLES[k]),
     watch: sw.watch.map((k) => METRIC_TITLES[k]), metrics,
     concession,
   };
-  readout[1].value = `Above cohort median on ${aboveCount} of ${metrics.length} scored dimensions`;
+  readout[1].value = cohortTotal === 0
+    ? "Listing quality scored; no peer-scored dimensions available"
+    : `Above cohort median on ${aboveCount} of ${cohortTotal} peer-scored dimensions`;
 
   const portfolioSeries = (input.trajectory?.points ?? [])
     .map((p) => p.portfolioPoint)

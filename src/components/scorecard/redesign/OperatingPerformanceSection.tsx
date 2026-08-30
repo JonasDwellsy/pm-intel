@@ -6,7 +6,20 @@ import type { OperatingView, MetricRow } from "@/lib/scorecard/view-model";
 import type { MetricTone } from "@/lib/scorecard/operating-detail";
 import { LabelChip } from "./LabelChip";
 import { MetricInfoModal } from "./MetricInfoModal";
-import { PositionBar } from "./PositionBar";
+import { PositionBar, type BarTick } from "./PositionBar";
+import { MARKETING_GOLD_MIN, MARKETING_SILVER_MIN } from "@/lib/scorecard/labels";
+
+// An absolutely-scored metric plots its raw 0-100 score, so the useful
+// reference marks are its own award thresholds rather than the cohort
+// quartiles — and the track turns green exactly where gold begins, so the
+// marker's colour agrees with the star beside it.
+const ABSOLUTE_TICKS: BarTick[] = [
+  { at: MARKETING_SILVER_MIN / 100, label: `silver ${MARKETING_SILVER_MIN}` },
+  { at: MARKETING_GOLD_MIN / 100, label: `gold ${MARKETING_GOLD_MIN}` },
+];
+const ABSOLUTE_GRADIENT =
+  `linear-gradient(90deg,#f3d9a8,#eef0f4 ${MARKETING_SILVER_MIN - 10}%,` +
+  `#eef0f4 ${MARKETING_GOLD_MIN}%,#bfe3cf ${MARKETING_GOLD_MIN + 6}%,#bfe3cf)`;
 import { ComparisonBar } from "./ComparisonBar";
 
 interface OperatingPerformanceSectionProps {
@@ -159,7 +172,12 @@ function MetricCard({ metric }: { metric: MetricRow }) {
 
         {/* Position bar */}
         <div>
-          <PositionBar position={metric.position} />
+          <PositionBar
+            position={metric.position}
+            {...(metric.scale === "absolute"
+              ? { ticks: ABSOLUTE_TICKS, gradient: ABSOLUTE_GRADIENT }
+              : {})}
+          />
         </div>
       </div>
 
