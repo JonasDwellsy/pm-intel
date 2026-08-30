@@ -62,7 +62,9 @@ import statistics
 # bump warrants a methodology review, not a casual edit.
 AMEN_SATURATION = 18.0          # mean amenities per listing
 DESC_WORDS_SATURATION = 195.0   # mean distinct words / listing -> length_component=100
-DESC_CATEGORIES = 6.0           # content-marker categories present -> richness_component=100
+DESC_CATEGORIES = 6.0           # legacy 7-category saturation (diagnostic only)
+DESCRIPTIVE_CATEGORIES = 3.0    # of 4 descriptive categories -> richness_component=100
+POLICY_CATEGORIES = 2.0         # of 3 policy categories -> policiesScore=100
 PHOTO_SATURATION = 30.0         # median photos per listing
 # DESC_WORDS_SATURATION / DESC_CATEGORIES are the cross-market p90 of ranked
 # operators (measured over Seattle+LA, the two markets the signal audit
@@ -72,10 +74,16 @@ PHOTO_SATURATION = 30.0         # median photos per listing
 # amenities (~9%) and photos (~11%) sub-scores.
 
 # Composite weights (sum to 1.0).
-W_COMPLETENESS = 0.35
-W_AMENITIES = 0.20
-W_DESCRIPTION = 0.20
-W_PHOTOS = 0.25
+# v0.11 reweighting. The prior split had no component for stated rules, so
+# adding one required taking weight from the rest. Completeness stays the
+# largest single component — it is the hygiene floor everything else builds on.
+# Photos and description are the two elements a renter actually reads, then
+# itemised amenities and stated rules as the supporting detail.
+W_COMPLETENESS = 0.30           # was 0.35
+W_PHOTOS = 0.20                 # was 0.25
+W_DESCRIPTION = 0.20            # unchanged
+W_AMENITIES = 0.15              # was 0.20
+W_POLICIES = 0.15               # new
 
 # Description sub-score internal blend (length vs content richness; sum to 1.0).
 W_DESC_LENGTH = 0.5
@@ -110,7 +118,28 @@ _CONTENT_PATTERNS = {
     "lease": r"\b(lease|application|credit|income|month-to-month|background check|"
              r"minimum|qualif\w*)\b",
 }
+# v0.11 — policies are scored as their own composite component rather than
+# as three of seven interchangeable "richness" categories.
+#
+# WHY. A complete listing states its rules: pet policy, fees, lease terms. That
+# is part of what makes a listing useful to a renter, and it is the part
+# operators most often skip — measured over 19,688 non-blank Chattanooga
+# descriptions, amenities appear in 78.0% and location in 72.2%, but pet 36.4%,
+# fees 35.0%, lease 34.6%. Burying the three least-stated elements inside a
+# 7-category average let an operator max the richness component on amenities
+# and location alone while telling a renter nothing about the rules.
+#
+# The two sets are DISJOINT so nothing is double-counted: richness now measures
+# the four descriptive categories, `policies` measures the three rule ones.
+_POLICY_CATEGORIES = ("pet", "fees", "lease")
+_DESCRIPTIVE_CATEGORIES = tuple(
+    k for k in _CONTENT_PATTERNS if k not in _POLICY_CATEGORIES
+)
 _CONTENT_RES = [re.compile(p, re.I) for p in _CONTENT_PATTERNS.values()]
+_DESCRIPTIVE_RES = [
+    re.compile(_CONTENT_PATTERNS[k], re.I) for k in _DESCRIPTIVE_CATEGORIES
+]
+_POLICY_RES = [re.compile(_CONTENT_PATTERNS[k], re.I) for k in _POLICY_CATEGORIES]
 _WORD_RE = re.compile(r"[a-z0-9']+")
 
 
@@ -125,10 +154,27 @@ def count_distinct_words(desc):
 
 def count_content_categories(desc):
     """How many of the 7 content-marker categories the description touches
-    (0-7). 0 for blank/None."""
+    (0-7). 0 for blank/None. Retained for the reported `descContentCats`
+    diagnostic; the description sub-score now uses the descriptive subset."""
     if not desc:
         return 0
     return sum(1 for rx in _CONTENT_RES if rx.search(desc))
+
+
+def count_descriptive_categories(desc):
+    """Descriptive categories touched (0-4): amenities, location, transit,
+    parking. Excludes the policy categories, which score separately."""
+    if not desc:
+        return 0
+    return sum(1 for rx in _DESCRIPTIVE_RES if rx.search(desc))
+
+
+def count_policy_categories(desc):
+    """Policy categories touched (0-3): pet, fees, lease. This is the
+    "rules clearly stated" half of a complete listing."""
+    if not desc:
+        return 0
+    return sum(1 for rx in _POLICY_RES if rx.search(desc))
 
 
 def compute_marketing(d):
@@ -138,7 +184,9 @@ def compute_marketing(d):
                 "amenitiesMentioned": 0.0, "amenitiesScore": 0.0,
                 "descLen": 0, "descWords": 0, "descContentCats": 0.0, "descScore": 0.0,
                 "zeroPhotoT12": 0.0, "amenitiesT12": 0.0,
-                "medianPhotosT12": 0, "photosScore": 0.0, "compositeScore": 0.0}
+                "medianPhotosT12": 0, "photosScore": 0.0,
+                "descriptiveCats": 0.0, "policyCats": 0.0, "policiesScore": 0.0,
+                "compositeScore": 0.0}
     n = len(listings)
     amen_mean = statistics.mean(l["amenities_n"] for l in listings)
     desc_mean = statistics.mean(l["desc_len"] for l in listings)
@@ -159,15 +207,25 @@ def compute_marketing(d):
     basis = nonblank if len(nonblank) >= MIN_NONBLANK_FOR_DESC else listings
     words_mean = statistics.mean(l["distinct_words"] for l in basis)
     cats_mean = statistics.mean(l["content_cats"] for l in basis)
+    # Richness now spans the DESCRIPTIVE categories only; the policy ones are
+    # scored as their own component so they can't be substituted away.
+    desc_cats_mean = statistics.mean(l.get("descriptive_cats", 0) for l in basis)
+    policy_cats_mean = statistics.mean(l.get("policy_cats", 0) for l in basis)
     length_component = min(100.0, 100.0 * words_mean / DESC_WORDS_SATURATION)
-    richness_component = 100.0 * min(1.0, cats_mean / DESC_CATEGORIES)
+    richness_component = 100.0 * min(1.0, desc_cats_mean / DESCRIPTIVE_CATEGORIES)
     desc_score = W_DESC_LENGTH * length_component + W_DESC_RICHNESS * richness_component
+    # "Rules clearly stated." Assessed on the same non-blank basis as the
+    # description: a blank description already costs the operator via
+    # completeness, and counting it as a policy failure too would double-
+    # penalize the same omission.
+    policies_score = 100.0 * min(1.0, policy_cats_mean / POLICY_CATEGORIES)
 
     composite = round(
         W_COMPLETENESS * completeness_score
         + W_AMENITIES * amen_score
         + W_DESCRIPTION * desc_score
-        + W_PHOTOS * photo_score,
+        + W_PHOTOS * photo_score
+        + W_POLICIES * policies_score,
         1,
     )
     return {
@@ -177,5 +235,7 @@ def compute_marketing(d):
         "descContentCats": round(cats_mean, 2), "descScore": round(desc_score, 1),
         "zeroPhotoT12": round(zero_photo_pct, 1), "amenitiesT12": round(amen_mean, 1),
         "medianPhotosT12": int(photos_med), "photosScore": round(photo_score, 1),
+        "descriptiveCats": round(desc_cats_mean, 2),
+        "policyCats": round(policy_cats_mean, 2), "policiesScore": round(policies_score, 1),
         "compositeScore": composite,
     }

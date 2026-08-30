@@ -48,7 +48,13 @@ from operator_grouping import (
     compute_auto_merges, auto_merge_map, assert_auto_merge_invariants,
     format_auto_merge_report, strong_name_key, GENERIC_TOKENS,
 )
-from marketing import compute_marketing, count_distinct_words, count_content_categories
+from marketing import (
+    compute_marketing,
+    count_content_categories,
+    count_descriptive_categories,
+    count_distinct_words,
+    count_policy_categories,
+)
 from property_detail import compute_market_comps, assemble_property_detail, build_home_records
 
 csv.field_size_limit(sys.maxsize)
@@ -769,6 +775,8 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
                 "desc_len": len(desc),
                 "distinct_words": count_distinct_words(desc),
                 "content_cats": count_content_categories(desc),
+                "descriptive_cats": count_descriptive_categories(desc),
+                "policy_cats": count_policy_categories(desc),
                 "photos_n": len([x for x in photos.split(";") if x.strip()]) if photos else 0,
             }
             d["marketing_listings_t12"].append(marketing_entry)
