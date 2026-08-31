@@ -14,6 +14,7 @@
 import { revalidatePath } from "next/cache";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { isClerkAPIResponseError } from "@clerk/shared/error";
+import { operatorIqInvitationPublicMetadata, operatorIqInvitationRedirectUrl, setOperatorIqMemberProductAccess } from "@/lib/auth/operator-product-access.server";
 import { isAdminUser } from "@/lib/auth/is-admin";
 import { prisma } from "@/lib/prisma";
 
@@ -145,6 +146,8 @@ export async function inviteUserToOrganization(
       organizationId: clerkOrgId,
       emailAddress: email,
       role,
+      publicMetadata: operatorIqInvitationPublicMetadata(),
+      redirectUrl: operatorIqInvitationRedirectUrl(),
       // NOTE: inviterUserId intentionally omitted. With it, Clerk runs
       // a member-permission check on the inviter — fine for in-app
       // invites from someone who's already in the org, but a 403 trap
@@ -169,6 +172,23 @@ export interface DeleteOrganizationResult {
   /** Deleted org name on success, for the confirmation line. */
   name?: string;
   error?: string;
+}
+
+export async function setOperatorIqOrganizationMemberProductAccess(formData: FormData) {
+  const { userId } = await auth();
+  if (!userId || !isAdminUser(userId)) throw new Error("Not found.");
+  const organizationId = formData.get("organizationId");
+  const memberUserId = formData.get("userId");
+  const enabled = formData.get("enabled");
+  if (typeof organizationId !== "string" || typeof memberUserId !== "string" || (enabled !== "true" && enabled !== "false")) {
+    throw new Error("Invalid product-access request.");
+  }
+  await setOperatorIqMemberProductAccess({
+    organizationId,
+    userId: memberUserId,
+    enabled: enabled === "true",
+  });
+  revalidatePath("/admin/organizations");
 }
 
 /** Permanently delete a team/enterprise organization and everything the
