@@ -25,6 +25,8 @@ import {
   type MarketAccessGroup,
 } from "@/components/admin/MarketAccessForm";
 import { STATE_CODE_TO_NAME } from "@/lib/slugify";
+import { loadOperatorIqProductMembers } from "@/lib/auth/operator-product-access.server";
+import { setOperatorIqOrganizationMemberProductAccess } from "@/app/admin/organizations/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +42,7 @@ interface MemberRow {
   email: string;
   role: string;
   createdAt: Date;
+  hasOperatorIqAccess: boolean;
 }
 
 function formatDate(d: Date): string {
@@ -115,6 +118,8 @@ export default async function AdminOrganizationDetailPage({
   // the Clerk user ID; the person's identity lives in Clerk. Batch-fetch in one
   // call. If the lookup fails (Clerk API error) or a user can't be resolved
   // (e.g. deleted account), we fall back to showing just the ID.
+  const productMembers = await loadOperatorIqProductMembers(org.clerkOrgId);
+  const productMemberByUserId = new Map(productMembers.map((member) => [member.userId, member]));
   const memberUserIds = org.memberships.map((m) => m.userId);
   const identityByUserId = new Map<string, { name: string; email: string }>();
   if (memberUserIds.length > 0) {
@@ -144,6 +149,7 @@ export default async function AdminOrganizationDetailPage({
     email: identityByUserId.get(m.userId)?.email ?? "",
     role: m.role,
     createdAt: m.createdAt,
+    hasOperatorIqAccess: productMemberByUserId.get(m.userId)?.enabled ?? false,
   }));
 
   return (
@@ -229,6 +235,9 @@ export default async function AdminOrganizationDetailPage({
                   <th className="text-left px-3 py-2 font-semibold text-grey-600 text-[12px] uppercase tracking-wider">
                     Joined
                   </th>
+                  <th className="text-left px-3 py-2 font-semibold text-grey-600 text-[12px] uppercase tracking-wider">
+                    Operator IQ
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -249,6 +258,7 @@ export default async function AdminOrganizationDetailPage({
                     <td className="px-3 py-3 align-top text-grey-600">
                       {formatDate(m.createdAt)}
                     </td>
+                    <td className="px-3 py-3 align-top"><form action={setOperatorIqOrganizationMemberProductAccess}><input type="hidden" name="organizationId" value={org.clerkOrgId} /><input type="hidden" name="userId" value={m.userId} /><input type="hidden" name="enabled" value={m.hasOperatorIqAccess ? "false" : "true"} /><button className={`rounded-md px-3 py-2 text-[12px] font-semibold ${m.hasOperatorIqAccess ? "border border-red-200 text-red-700" : "bg-navy text-white"}`}>{m.hasOperatorIqAccess ? "Remove" : "Grant"}</button></form></td>
                   </tr>
                 ))}
               </tbody>

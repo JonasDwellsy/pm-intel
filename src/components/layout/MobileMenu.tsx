@@ -136,6 +136,8 @@ export function MobileMenu({ isSignedIn }: { isSignedIn: boolean }) {
                 <div className="flex flex-col gap-3 px-3 py-2">
                   <OrganizationSwitcher
                     hidePersonal={false}
+                    organizationProfileMode="navigation"
+                    organizationProfileUrl="/organization"
                     afterCreateOrganizationUrl="/watch-lists"
                     afterSelectOrganizationUrl="/watch-lists"
                     afterLeaveOrganizationUrl="/watch-lists"

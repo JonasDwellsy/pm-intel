@@ -1,10 +1,6 @@
-// v0.18 (PR #71, Phase 3) — Dedicated route for Clerk's
-// <OrganizationProfile />. Lets users bookmark or link directly to
-// org management (invitations, member list, role changes, org
-// rename). The same surface is also reachable as a modal via the
-// "Manage organization" link inside <OrganizationSwitcher>'s
-// dropdown — having both routes-and-modal access is intentional
-// for v1 ergonomics.
+// Product-aware organization management for the shared Dwellsy IQ identity.
+// Clerk remains authoritative for membership, while this route makes the
+// Operator IQ assignment an explicit, independent control.
 //
 // Auth + soft-fallback parallel the other authed surfaces:
 //   - No userId      → notFound() (middleware should have caught it
@@ -14,18 +10,14 @@
 //   - Otherwise      → render OrganizationProfile inside the
 //                       standard SiteHeader layout.
 //
-// Role-gating: Clerk's <OrganizationProfile /> handles this
-// internally. Members see a read-only members list and cannot
-// invite or change roles; admins see the full surface. No code-
-// level gating required on our side. Verified by inspection — if
-// Clerk's component starts requiring explicit role config to
-// behave this way, configure here.
+// Every mutation re-checks the authenticated Clerk organization administrator.
 
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import { OrganizationProfile } from "@clerk/nextjs";
 import { getActiveOrgId } from "@/lib/auth/active-org";
+import { loadOperatorIqProductMembers } from "@/lib/auth/operator-product-access.server";
+import { inviteOperatorIqOrganizationMemberAction, updateOperatorIqMemberProductAccessAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -34,40 +26,19 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function OrganizationPage() {
-  const { userId } = await auth();
+export default async function OrganizationPage({ searchParams }: { searchParams: Promise<{ invited?: string }> }) {
+  const session = await auth();
+  const { userId } = session;
   if (!userId) notFound();
   const organizationId = await getActiveOrgId();
   if (!organizationId) {
     redirect("/setup-workspace?from=/organization");
   }
 
-  return (
-    <main className="bg-white">
-      {/* Wider container than /setup-workspace because
-          OrganizationProfile is a substantive surface (tabs for
-          Members, Invitations, General settings). Tracks the
-          ~max-w-[920px] feel of the existing watch-list workspace. */}
-      <div className="mx-auto max-w-[920px] px-6 py-12">
-        <OrganizationProfile
-          // Keep Clerk's defaults for layout; lightly theme to match
-          // the navy + teal palette used elsewhere. Heavy
-          // customization isn't worth the maintenance cost —
-          // visual consistency comes from matching the existing
-          // UserButton + OrganizationSwitcher tone, not pixel
-          // re-skinning of Clerk's components.
-          appearance={{
-            elements: {
-              rootBox: "w-full",
-              card: "shadow-none border border-grid",
-              headerTitle: "text-navy",
-              navbar: "bg-surface-soft",
-              formButtonPrimary:
-                "bg-navy hover:bg-navy-700 text-white text-[13px] font-semibold",
-            },
-          }}
-        />
-      </div>
-    </main>
-  );
+  const [members, query] = await Promise.all([
+    session.orgId ? loadOperatorIqProductMembers(session.orgId) : Promise.resolve([]),
+    searchParams,
+  ]);
+
+  return <main className="bg-white"><div className="mx-auto max-w-[920px] px-6 py-12"><header><p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-teal">Shared Dwellsy IQ organization</p><h1 className="mt-2 text-3xl font-bold text-navy">Operator IQ access</h1><p className="mt-3 max-w-[700px] text-[15px] leading-7 text-grey-600">Organization membership and product access are separate. People listed here remain part of Dwellsy IQ even when Operator IQ is removed.</p></header>{query.invited === "1" && <p role="status" className="mt-6 rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-[13px] font-semibold text-teal-900">Invitation sent with Operator IQ access only.</p>}{session.orgRole === "org:admin" && <section className="mt-8 rounded-md border border-grid bg-surface-soft p-5"><h2 className="text-lg font-semibold text-navy">Invite an Operator IQ member</h2><p className="mt-1 text-[13px] text-grey-600">This invitation joins the shared organization and assigns Operator IQ only.</p><form action={inviteOperatorIqOrganizationMemberAction} className="mt-4 grid gap-3 md:grid-cols-[1fr_180px_auto]"><input required type="email" name="email" placeholder="name@company.com" className="rounded-md border border-grid bg-white px-3 py-2 text-[14px]" /><select name="role" defaultValue="org:member" className="rounded-md border border-grid bg-white px-3 py-2 text-[14px]"><option value="org:member">Member</option><option value="org:admin">Administrator</option></select><button className="rounded-md bg-navy px-4 py-2 text-[13px] font-semibold text-white">Send invitation</button></form></section>}<section className="mt-8"><h2 className="text-lg font-semibold text-navy">Members</h2><div className="mt-3 divide-y divide-grid rounded-md border border-grid">{members.map((member) => <div key={member.userId} className="flex flex-wrap items-center justify-between gap-4 px-4 py-4"><div><p className="font-medium text-navy">{member.name}</p><p className="mt-1 text-[12px] text-grey-500">{member.email} · {member.role === "org:admin" ? "Organization administrator" : "Organization member"}</p></div>{session.orgRole === "org:admin" && <form action={updateOperatorIqMemberProductAccessAction}><input type="hidden" name="userId" value={member.userId} /><input type="hidden" name="enabled" value={member.enabled ? "false" : "true"} /><button disabled={member.userId === session.userId && member.enabled} className={`rounded-md px-4 py-2 text-[12px] font-semibold ${member.enabled ? "border border-red-200 text-red-700 disabled:cursor-not-allowed disabled:opacity-40" : "bg-navy text-white"}`}>{member.enabled ? member.userId === session.userId ? "Your access" : "Remove Operator IQ" : "Grant Operator IQ"}</button></form>}</div>)}</div></section></div></main>;
 }

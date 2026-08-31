@@ -11,6 +11,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { isAdminUser } from "@/lib/auth/is-admin";
+import { operatorIqMemberHasProductAccess } from "@/lib/auth/operator-product-access.server";
 import {
   ALL_MARKETS,
   computeEntitlement,
@@ -48,9 +49,10 @@ export async function getEntitledMarketIds(
  *  This is the entry point LOGIN-PROTECTED premium pages/data layers
  *  call. */
 export async function resolveViewerEntitlement(): Promise<MarketEntitlement> {
-  const { userId, organizationId } = await getActiveOrgContext();
+  const { userId, organizationId, clerkOrgId } = await getActiveOrgContext();
   if (isAdminUser(userId)) return ALL_MARKETS;
-  if (!organizationId) return new Set<string>();
+  if (!userId || !organizationId || !clerkOrgId) return new Set<string>();
+  if (!await operatorIqMemberHasProductAccess(clerkOrgId, userId)) return new Set<string>();
   return getEntitledMarketIds(organizationId);
 }
 
@@ -76,9 +78,10 @@ export async function viewerHasAnyMarketAccess(): Promise<boolean> {
 export async function resolveViewerEntitlementForPublicSurface(): Promise<
   MarketEntitlement | undefined
 > {
-  const { userId, organizationId } = await getActiveOrgContext();
+  const { userId, organizationId, clerkOrgId } = await getActiveOrgContext();
   if (!userId) return undefined;
   if (isAdminUser(userId)) return ALL_MARKETS;
-  if (!organizationId) return new Set<string>();
+  if (!organizationId || !clerkOrgId) return new Set<string>();
+  if (!await operatorIqMemberHasProductAccess(clerkOrgId, userId)) return new Set<string>();
   return getEntitledMarketIds(organizationId);
 }

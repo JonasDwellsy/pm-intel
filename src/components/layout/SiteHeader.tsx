@@ -158,6 +158,7 @@ export async function SiteHeader() {
                     hidePersonal: false  → Personal workspace shows in
                                            the dropdown alongside any
                                            joined team orgs.
+                    Manage organization → the product-aware /organization page.
                     afterSelect/Create/Leave → land on /watch-lists so
                                                the user sees the
                                                org-filtered list
@@ -165,6 +166,8 @@ export async function SiteHeader() {
               <div className="hidden lg:flex max-w-[200px] [&_.cl-organizationSwitcherTrigger]:!h-[34px] [&_.cl-organizationPreviewMainIdentifier]:!truncate">
                 <OrganizationSwitcher
                   hidePersonal={false}
+                  organizationProfileMode="navigation"
+                  organizationProfileUrl="/organization"
                   afterCreateOrganizationUrl="/watch-lists"
                   afterSelectOrganizationUrl="/watch-lists"
                   afterLeaveOrganizationUrl="/watch-lists"
