@@ -53,6 +53,7 @@ import type {
   ScaleFitView,
 } from "@/lib/scorecard/view-model";
 import type { ScoreLabel } from "@/lib/scorecard/labels";
+import { MARKETING_GOLD_MIN, MARKETING_SILVER_MIN } from "@/lib/scorecard/labels";
 import type { MomentumDirection } from "@/lib/scorecard/momentum";
 import type { MetricTone } from "@/lib/scorecard/operating-detail";
 import type { WatchItem, WatchItemKind } from "@/lib/scorecard/watch-items";
@@ -1180,16 +1181,34 @@ function qualitativePosition(label: string): number | null {
  * at 50%; operator marker dot colored by tone (violet strong / teal good / grey
  * neutral) with a white ring; the value label floats above the marker.
  */
+/** Reference marks under a bar. Cohort default: the interquartile band with
+ *  the median ticked. An absolutely-scored metric passes its own thresholds —
+ *  see ABSOLUTE_MARKS. */
+interface BarMarks { bandStart: number; bandEnd: number; tick: number }
+const COHORT_MARKS: BarMarks = { bandStart: 0.25, bandEnd: 0.75, tick: 0.5 };
+/** Marketing Discipline is scored on a fixed bar, so P25/median mean nothing
+ *  on it: the band becomes the silver zone and the tick the gold line. */
+const ABSOLUTE_MARKS: BarMarks = {
+  bandStart: MARKETING_SILVER_MIN / 100,
+  bandEnd: MARKETING_GOLD_MIN / 100,
+  tick: MARKETING_GOLD_MIN / 100,
+};
+
 function QuartileBar({
   position,
   value,
   markerColor,
+  marks = COHORT_MARKS,
 }: {
   position: number | null;
   value: string;
   markerColor: string;
+  marks?: BarMarks;
 }) {
   const pct = position != null ? clamp01(position) * 100 : null;
+  const bandLeft = `${marks.bandStart * 100}%`;
+  const bandWidth = `${(marks.bandEnd - marks.bandStart) * 100}%`;
+  const tickLeft = `${marks.tick * 100}%`;
   return (
     <View style={{ marginTop: 22 }}>
       {/* Value label floated above the marker */}
@@ -1214,10 +1233,10 @@ function QuartileBar({
       <View style={{ position: "relative", height: 8 }}>
         {/* Track */}
         <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, borderRadius: 4, backgroundColor: TILE }} />
-        {/* Cohort band 25→75 */}
-        <View style={{ position: "absolute", left: "25%", width: "50%", top: 0, bottom: 0, backgroundColor: BAND }} />
-        {/* Median tick */}
-        <View style={{ position: "absolute", left: "50%", marginLeft: -1, top: -3, height: 14, width: 2, backgroundColor: MUTED }} />
+        {/* Reference band (cohort P25→P75, or the silver zone when absolute) */}
+        <View style={{ position: "absolute", left: bandLeft, width: bandWidth, top: 0, bottom: 0, backgroundColor: BAND }} />
+        {/* Reference tick (cohort median, or the gold threshold when absolute) */}
+        <View style={{ position: "absolute", left: tickLeft, marginLeft: -1, top: -3, height: 14, width: 2, backgroundColor: MUTED }} />
         {/* Operator marker */}
         {pct != null ? (
           <View
@@ -1277,7 +1296,12 @@ function MetricCard({ metric }: { metric: MetricRow }) {
           {subLine ? <Text style={{ color: FAINT }}>{`  ${subLine}`}</Text> : null}
         </Text>
       ) : null}
-      <QuartileBar position={position} value={metric.value} markerColor={markerColor} />
+      <QuartileBar
+        position={position}
+        value={metric.value}
+        markerColor={markerColor}
+        marks={metric.scale === "absolute" ? ABSOLUTE_MARKS : COHORT_MARKS}
+      />
     </View>
   );
 }
@@ -1336,6 +1360,14 @@ function OperatingSection({ operating }: { operating: OperatingView }) {
       <Text style={{ fontSize: 9, color: FAINT, marginTop: 4, lineHeight: 1.4 }}>
         Marker = this operator · grey band = cohort P25–P75 · tick = cohort median. Gold dot = top of cohort.
       </Text>
+      {operating.metrics.some((m) => m.scale === "absolute") ? (
+        <Text style={{ fontSize: 9, color: FAINT, marginTop: 3, lineHeight: 1.4 }}>
+          Marketing discipline is the exception: it is scored against a fixed
+          bar rather than the cohort, so its marker is the 0–100 score itself —
+          band = silver ({MARKETING_SILVER_MIN}–{MARKETING_GOLD_MIN}), tick =
+          gold ({MARKETING_GOLD_MIN}).
+        </Text>
+      ) : null}
     </View>
   );
 }

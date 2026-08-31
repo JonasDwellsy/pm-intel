@@ -334,7 +334,10 @@ export function buildWatchItems(
         goldTitles.length === 1
           ? `Top-tier ${goldTitles[0].toLowerCase()}`
           : `Top-tier on ${goldTitles.length} graded dimensions`,
-      explanation: `Gold-tier (top of cohort) on ${joinList(goldTitles.map((t) => t.toLowerCase()))}.`,
+      // No "(top of cohort)" gloss: gold means top-of-cohort on the four
+      // peer-scored metrics but clearing a fixed 80 on marketing discipline,
+      // and this line can list both. The per-metric cards carry the scale.
+      explanation: `Gold-tier on ${joinList(goldTitles.map((t) => t.toLowerCase()))}.`,
     });
   }
 

@@ -263,6 +263,7 @@ const FIXTURE_VIEW: ScorecardView = {
     metrics: [
       {
         key: "dom",
+        scale: "cohort" as const,
         title: "Lease-up speed",
         label: "strong",
         value: "21d",
@@ -274,6 +275,7 @@ const FIXTURE_VIEW: ScorecardView = {
       },
       {
         key: "tenancy",
+        scale: "cohort" as const,
         title: "Tenant retention",
         label: "good",
         value: "9.2mo",
@@ -286,6 +288,7 @@ const FIXTURE_VIEW: ScorecardView = {
       },
       {
         key: "rentPerformance",
+        scale: "cohort" as const,
         title: "Rent performance",
         label: "good",
         value: "3.8%",
@@ -297,11 +300,15 @@ const FIXTURE_VIEW: ScorecardView = {
       },
       {
         key: "marketing",
+        scale: "absolute" as const,
         title: "Marketing discipline",
-        label: "strong",
+        // 78 clears silver (70) but not gold (80): the label, the star and the
+        // marker's position all have to agree, which is the whole point of the
+        // absolute bar.
+        label: "good",
         value: "78",
         benchmark: "quality / 100",
-        position: 0.76,
+        position: 0.78,
         star: "silver",
         sub: [],
         interpretation:
