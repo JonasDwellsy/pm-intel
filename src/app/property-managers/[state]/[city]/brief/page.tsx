@@ -268,7 +268,7 @@ export default async function MarketBriefPage({
           {prose ? (
             <p>
               Generated {fmtDate(prose.generatedAt.toISOString())} · Powered
-              by Operator IQ research methodology · See{" "}
+              by Dwellsy IQ Markets research methodology · See{" "}
               <Link href="/methodology" className="text-teal hover:underline">
                 methodology
               </Link>{" "}
@@ -277,7 +277,7 @@ export default async function MarketBriefPage({
             </p>
           ) : (
             <p>
-              Powered by Operator IQ research methodology · See{" "}
+              Powered by Dwellsy IQ Markets research methodology · See{" "}
               <Link href="/methodology" className="text-teal hover:underline">
                 methodology
               </Link>{" "}
@@ -321,7 +321,7 @@ function BriefSection({ title, body }: { title: string; body: string }) {
         {title}
       </h2>
       {/* Reuses the .dq-markdown stylesheet defined in globals.css for the
-          Ask Operator IQ chat — same link / paragraph / strong treatment.
+          Ask Dwellsy IQ Markets chat — same link / paragraph / strong treatment.
           Slightly larger base size + line-height for the magazine read. */}
       <div className="dq-markdown mt-3 text-[16.5px] leading-[1.65] text-foreground/85">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
@@ -491,14 +491,14 @@ function MoverList({ title, rows }: { title: string; rows: ShareMovement[] }) {
   );
 }
 
-/** Multi-market operators — operators active here that Operator IQ also
+/** Multi-market operators — operators active here that Dwellsy IQ Markets also
  *  tracks elsewhere, linking to their cross-market profile. */
 function MultiMarketOperators({ rows }: { rows: CrossMarketOperatorEntry[] }) {
   return (
     <section>
       <DataSectionHeading
         title="Multi-market operators"
-        sub="Operators active here that Operator IQ also tracks in other markets."
+        sub="Operators active here that Dwellsy IQ Markets also tracks in other markets."
       />
       <ul className="mt-4 divide-y divide-grid border-t border-grid">
         {rows.map((o) => (

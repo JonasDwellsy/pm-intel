@@ -1707,7 +1707,7 @@ def build_distinguishing(name, focal_norm, q7, feats):
         if len(markets) >= 1:
             other_count = len(markets)
             label_market = "market" if other_count == 1 else "markets"
-            bullets.append(f"Also observed in {other_count} other Operator IQ covered {label_market} ({', '.join(sorted(markets))}).")
+            bullets.append(f"Also observed in {other_count} other {label_market} covered by Dwellsy IQ Markets ({', '.join(sorted(markets))}).")
     n_comm = feats["observed_communities"]
     median_conc = int(feats["median_concentrated_size"])
     if q7.startswith("Large MF/BTR"):

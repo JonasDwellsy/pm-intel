@@ -10,6 +10,9 @@ import {
 } from "@/lib/auth/product-access";
 import { resolveSiteUrl } from "@/lib/seo";
 
+// Compatibility contract: existing Clerk membership metadata stores this key.
+// The customer-facing product name is Dwellsy IQ Markets, but changing the key
+// would revoke access until every organization record had been migrated.
 export const OPERATOR_IQ_PRODUCT_KEY = "operator-iq";
 
 async function findOperatorIqMembership(organizationId: string, userId: string) {

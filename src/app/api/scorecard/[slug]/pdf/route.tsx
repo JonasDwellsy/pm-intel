@@ -21,6 +21,7 @@
 
 import { renderToBuffer } from "@react-pdf/renderer";
 import * as Sentry from "@sentry/nextjs";
+import { PRODUCT_DOWNLOAD_SLUG } from "@/lib/brand";
 import { prisma } from "@/lib/prisma";
 import {
   resolveViewerEntitlement,
@@ -184,13 +185,13 @@ export async function GET(
       <OperatorProfilePDF view={view} scorecard={scorecard} coverageMap={coverageMap} />
     );
 
-    // Trigger a download with a stable filename. The dwellsy-iq- prefix makes
+    // Trigger a download with a stable filename. The product prefix makes
     // the file recognizable in deal-room folders alongside other artifacts.
     return new Response(new Uint8Array(buffer), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="dwellsy-iq-${slug}.pdf"`,
+        "Content-Disposition": `attachment; filename="${PRODUCT_DOWNLOAD_SLUG}-${slug}.pdf"`,
         // Cache for an hour at the edge so re-downloads in the same session
         // don't re-render. Content is deterministic for a given seed version +
         // slug; an hour is conservative.

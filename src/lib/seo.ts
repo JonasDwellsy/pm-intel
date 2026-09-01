@@ -1,7 +1,7 @@
 // Single source of truth for whether this site may appear in search engines,
 // and for the canonical base URL used in anything we emit publicly.
 //
-// WHY THIS EXISTS. Operator IQ is not ready to be a public, indexed site — the
+// WHY THIS EXISTS. Dwellsy IQ Markets is not ready to be a public, indexed site — the
 // sales motion is direct, and the surfaces that are reachable without auth
 // (the homepage, /methodology, /sample) exist to be shown to named prospects,
 // not to be found cold. Until that changes we want to be deliberately absent

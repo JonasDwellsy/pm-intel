@@ -46,7 +46,7 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
             <span className="text-teal">Know where yours stand.</span>
           </h1>
           <p className="mt-6 max-w-[60ch] text-[17px] leading-[1.55] text-foreground/85 sm:text-[19px]">
-            Your property managers report on your assets. Operator IQ measures
+            Your property managers report on your assets. Dwellsy IQ Markets measures
             the managers themselves — lease-up speed, tenant retention, rent
             performance — for every operator in your market, from the listings
             they ran.

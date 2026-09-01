@@ -11,14 +11,14 @@ import { FormulaBlock, Op } from "@/components/methodology/FormulaBlock";
 // explicit limitations section, no interactive JS; everything renders static.
 
 export const metadata: Metadata = {
-  // `absolute` so the root template ("%s · Operator IQ") doesn't append and
-  // double-brand ("… Operator IQ Methodology · Operator IQ").
-  title: { absolute: "Portfolio Size Estimator — Operator IQ Methodology" },
+  // `absolute` so the root template ("%s · Dwellsy IQ Markets") doesn't append and
+  // double-brand ("… Dwellsy IQ Markets Methodology · Dwellsy IQ Markets").
+  title: { absolute: "Portfolio Size Estimator — Dwellsy IQ Markets Methodology" },
   description:
-    "How Operator IQ estimates an operator's total managed units from observed on-market turnover: house URUs × 3.3 + apartment URUs × 2.6, reported as a size band rather than a point estimate — and what calibration against operator-reported counts showed about the limits of any listing-derived estimate.",
+    "How Dwellsy IQ Markets estimates an operator's total managed units from observed on-market turnover: house URUs × 3.3 + apartment URUs × 2.6, reported as a size band rather than a point estimate — and what calibration against operator-reported counts showed about the limits of any listing-derived estimate.",
   alternates: { canonical: "/methodology/portfolio-estimator" },
   openGraph: {
-    title: "Portfolio Size Estimator — Operator IQ Methodology",
+    title: "Portfolio Size Estimator — Dwellsy IQ Markets Methodology",
     description:
       "Unit-type turnover model, reported as a band. Includes the calibration study against operator-reported counts and why coverage — not the multipliers — is the dominant source of error.",
     type: "article",
@@ -50,7 +50,7 @@ export default function PortfolioEstimatorPage() {
         <p className="mt-4 text-[16.5px] leading-[1.65] text-foreground/85">
           The estimator answers a single question:{" "}
           <em>about how many units does this operator actually manage?</em>{" "}
-          Operator IQ observes only listing activity — the subset of an
+          Dwellsy IQ Markets observes only listing activity — the subset of an
           operator&rsquo;s portfolio that hits the open rental market in a given
           window. A unit only appears when it lists, and it only lists on
           turnover, so observed units are a fraction of the managed book. The
@@ -312,7 +312,7 @@ export default function PortfolioEstimatorPage() {
         <p className="mt-3 text-[15.5px] leading-[1.6] text-foreground/85">
           <strong>It does not change anything you see.</strong> A reported count
           never replaces the estimate, never moves the size band, and never
-          enters cohorts, peer sets, or rankings. Every operator on Operator IQ
+          enters cohorts, peer sets, or rankings. Every operator on Dwellsy IQ Markets
           is measured on the same observed basis, whether or not we have ever
           spoken to them — the moment that stops being true, no two operators
           are comparable.
@@ -326,7 +326,7 @@ export default function PortfolioEstimatorPage() {
           Estimator version{" "}
           <span className="dq-mono">v0.8-house-apt-turnover</span>. Computed at
           seed time and surfaced on the scorecard; also available through the
-          Ask Operator IQ tools and the market-brief generator. See the{" "}
+          Ask Dwellsy IQ Markets tools and the market-brief generator. See the{" "}
           <Link
             href="/methodology"
             className="font-medium text-teal hover:text-teal-700 hover:underline"

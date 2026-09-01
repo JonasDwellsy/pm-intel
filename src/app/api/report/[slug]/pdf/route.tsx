@@ -9,6 +9,7 @@
 
 import { renderToBuffer } from "@react-pdf/renderer";
 import * as Sentry from "@sentry/nextjs";
+import { PRODUCT_DOWNLOAD_SLUG } from "@/lib/brand";
 import { prisma } from "@/lib/prisma";
 import { resolveReportAccess } from "@/lib/auth/report-entitlements.server";
 import { verifyReportAccessToken } from "@/lib/report/access-token";
@@ -107,7 +108,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="operator-iq-${slug}.pdf"`,
+        "Content-Disposition": `attachment; filename="${PRODUCT_DOWNLOAD_SLUG}-${slug}.pdf"`,
         // Per-buyer content behind an entitlement — do NOT cache at the shared
         // edge, or a token'd URL could serve a paid PDF from cache to another
         // caller. Private, no shared caching.

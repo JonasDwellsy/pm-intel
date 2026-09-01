@@ -48,7 +48,7 @@ export function OwnerQuestions() {
         <HomepageSectionHead
           eyebrow="What you should be able to answer"
           title="Questions every owner should be able to answer."
-          context="Operator IQ answers these from observed market activity. The same measures, on every operator, in every market."
+          context="Dwellsy IQ Markets answers these from observed market activity. The same measures, on every operator, in every market."
         />
 
         <div className="overflow-hidden rounded-md border border-grid">

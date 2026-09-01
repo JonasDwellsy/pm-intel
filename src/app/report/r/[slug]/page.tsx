@@ -51,7 +51,7 @@ export async function generateMetadata({
   if (!pm) return { title: "Report not found" };
   return {
     title: `${pm.name} — property manager report`,
-    description: `An independent Operator IQ performance report on ${pm.name}: how they rank against local peers on lease-up speed, tenant retention, rent performance, and listing quality.`,
+    description: `An independent Dwellsy IQ Markets performance report on ${pm.name}: how they rank against local peers on lease-up speed, tenant retention, rent performance, and listing quality.`,
     robots: { index: false }, // paid content — don't index per-operator report pages
   };
 }

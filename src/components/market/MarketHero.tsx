@@ -166,7 +166,7 @@ export function MarketHero({
         <p className="mt-6 max-w-[580px] text-[17px] leading-[1.55] text-foreground/85">
           {filtered ? (
             <>
-              Operator IQ identifies the operators worth knowing in{" "}
+              Dwellsy IQ Markets identifies the operators worth knowing in{" "}
               {filtered.displayName} (within the {market.fullName}). Find
               property managers with proven lease velocity, stable rent
               trajectories, and durable tenant retention. Filter by portfolio
@@ -176,7 +176,7 @@ export function MarketHero({
             </>
           ) : (
             <>
-              Operator IQ identifies the operators worth knowing in{" "}
+              Dwellsy IQ Markets identifies the operators worth knowing in{" "}
               {market.fullName}. Find property managers with proven lease
               velocity, stable rent trajectories, and durable tenant retention.
               Filter by portfolio composition and ownership posture. Every

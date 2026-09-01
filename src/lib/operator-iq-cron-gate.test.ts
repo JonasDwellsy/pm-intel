@@ -8,7 +8,7 @@ const operatorCronRoutes = [
   "src/app/api/cron/brief-digest/route.ts",
 ] as const;
 
-test("Operator IQ scheduling fails closed unless its dedicated flag is exactly 1", () => {
+test("Dwellsy IQ Markets scheduling fails closed unless its dedicated flag is exactly 1", () => {
   assert.equal(operatorIqSchedulerEnabled(undefined), false);
   assert.equal(operatorIqSchedulerEnabled(""), false);
   assert.equal(operatorIqSchedulerEnabled("true"), false);
@@ -16,7 +16,7 @@ test("Operator IQ scheduling fails closed unless its dedicated flag is exactly 1
   assert.equal(operatorIqSchedulerEnabled("1"), true);
 });
 
-test("both Operator IQ cron routes authenticate before checking the scheduler gate", async () => {
+test("both Dwellsy IQ Markets cron routes authenticate before checking the scheduler gate", async () => {
   for (const routePath of operatorCronRoutes) {
     const source = await readFile(routePath, "utf8");
     const authentication = source.indexOf("if (!authorized(req))");
@@ -31,7 +31,7 @@ test("both Operator IQ cron routes authenticate before checking the scheduler ga
   }
 });
 
-test("both Operator IQ schedules remain unchanged", async () => {
+test("both Dwellsy IQ Markets schedules remain unchanged", async () => {
   const source = await readFile("vercel.json", "utf8");
   const config = JSON.parse(source) as {
     crons: Array<{ path: string; schedule: string }>;

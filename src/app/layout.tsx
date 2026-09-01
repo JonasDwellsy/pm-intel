@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PRODUCT_NAME } from "@/lib/brand";
 import { siteRobotsMetadata } from "@/lib/seo";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -58,11 +59,11 @@ export const metadata: Metadata = {
   // strips response headers. Driven by the same flag so they can't disagree.
   robots: siteRobotsMetadata(),
   title: {
-    default: "Operator IQ — Select, screen & monitor property managers",
-    template: "%s · Operator IQ",
+    default: `${PRODUCT_NAME} — Select, screen & monitor property managers`,
+    template: `%s · ${PRODUCT_NAME}`,
   },
   description:
-    "Independent performance intelligence on the property managers running your assets. Operator IQ measures 30,000+ operators across U.S. rental markets from observed listing activity, so owners can select, evaluate, and monitor them against real peers. Part of Dwellsy IQ.",
+    `Independent performance intelligence on the property managers running your assets. ${PRODUCT_NAME} measures 30,000+ operators across U.S. rental markets from observed listing activity, so owners can select, evaluate, and monitor them against real peers.`,
 };
 
 export default function RootLayout({

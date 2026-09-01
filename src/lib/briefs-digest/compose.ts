@@ -67,7 +67,7 @@ export function buildBriefDigestEmail(input: BriefDigestInput): BriefDigestEmail
   }
 
   const greeting = input.recipientFirstName ? `Hi ${input.recipientFirstName},` : "Hi,";
-  const subject = `Operator IQ market briefs — ${input.monthLabel}`;
+  const subject = `Dwellsy IQ Markets market briefs — ${input.monthLabel}`;
 
   // ---- text ----
   const t: string[] = [greeting, "", `Your ${input.monthLabel} market briefs.`, ""];
@@ -114,9 +114,9 @@ export function buildBriefDigestEmail(input: BriefDigestInput): BriefDigestEmail
     }`;
 
   const html = wrapEmail({
-    preheader: `Your ${input.monthLabel} Operator IQ market briefs`,
+    preheader: `Your ${input.monthLabel} Dwellsy IQ Markets market briefs`,
     contentHtml: content,
-    footerNote: "You're receiving this because your organization has Operator IQ access.",
+    footerNote: "You're receiving this because your organization has Dwellsy IQ Markets access.",
     unsubscribeUrl: esc(input.unsubscribeUrl),
     unsubscribeLabel: "Unsubscribe from brief emails",
   });

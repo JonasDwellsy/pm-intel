@@ -69,7 +69,7 @@ export async function POST(req: Request) {
   if (!apiKey) {
     console.error("[api/ask] ANTHROPIC_API_KEY env var missing");
     return Response.json(
-      { error: "Ask Operator IQ is not configured." },
+      { error: "Ask Dwellsy IQ Markets is not configured." },
       { status: 500 }
     );
   }

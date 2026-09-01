@@ -2,9 +2,11 @@
 // watch-list). Table-based layout with inline styles (no flexbox/grid — Outlook
 // et al. ignore them), max 600px, so it renders consistently across clients.
 //
-// Branding: the PRODUCT is Operator IQ; the umbrella brand is Dwellsy IQ. The
+// Branding: the PRODUCT is Dwellsy IQ Markets; the umbrella brand is Dwellsy IQ. The
 // header wordmark is text (not an image) so it survives image-blocking, which is
 // on by default in most clients. Colors mirror the scorecard/PDF palette.
+
+import { PRODUCT_NAME } from "@/lib/brand";
 
 export const EMAIL = {
   ink: "#0f1f3f", // navy headings
@@ -21,9 +23,9 @@ export const EMAIL = {
   gold: "#b8860b",
 } as const;
 
-/** The Operator IQ wordmark, rendered as styled text (image-blocking-proof). */
+/** The Dwellsy IQ Markets wordmark, rendered as styled text (image-blocking-proof). */
 function wordmark(): string {
-  return `<span style="font-size:18px;font-weight:700;letter-spacing:-0.2px;color:${EMAIL.ink}">Operator<span style="color:${EMAIL.tealBright}"> IQ</span></span>`;
+  return `<span style="font-size:18px;font-weight:700;letter-spacing:-0.2px;color:${EMAIL.ink}">Dwellsy IQ <span style="color:${EMAIL.tealBright}">Markets</span></span>`;
 }
 
 /** Small uppercase section eyebrow — reused by the digest bodies for consistency. */
@@ -56,7 +58,6 @@ export function wrapEmail(opts: {
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;background:${EMAIL.card};border:1px solid ${EMAIL.border};border-radius:14px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
   <tr><td style="padding:20px 28px;border-bottom:1px solid ${EMAIL.hairline}">
     ${wordmark()}
-    <span style="font-size:12px;color:${EMAIL.faint};margin-left:8px">from Dwellsy IQ</span>
   </td></tr>
   <tr><td style="padding:24px 28px 8px">
     ${opts.contentHtml}
@@ -66,7 +67,7 @@ export function wrapEmail(opts: {
       <p style="font-size:11px;line-height:1.5;color:${EMAIL.faint};margin:0">
         ${opts.footerNote} <a href="${opts.unsubscribeUrl}" style="color:${EMAIL.faint};text-decoration:underline">${opts.unsubscribeLabel}</a>.
       </p>
-      <p style="font-size:11px;color:${EMAIL.faint};margin:8px 0 0">Operator IQ · Dwellsy, Inc.</p>
+      <p style="font-size:11px;color:${EMAIL.faint};margin:8px 0 0">${PRODUCT_NAME} · Dwellsy, Inc.</p>
     </div>
   </td></tr>
 </table>

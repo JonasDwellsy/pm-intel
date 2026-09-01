@@ -17,7 +17,7 @@ export interface PartnerTheme {
   brandName: string;
   /** Sub-label under the wordmark, e.g. the product name. */
   productLabel: string;
-  /** Whether to show the "Powered by Dwellsy Operator IQ" attribution. */
+  /** Whether to show the "Powered by Dwellsy IQ Markets" attribution. */
   showPoweredBy: boolean;
   /** Primary accent (CTA / header). Any CSS color. */
   accent: string;
@@ -29,12 +29,12 @@ export interface PartnerTheme {
 
 export const DEFAULT_PARTNER: PartnerTheme = {
   slug: "default",
-  brandName: "Operator IQ",
+  brandName: "Dwellsy IQ Markets",
   productLabel: "for owners",
   showPoweredBy: false,
-  accent: "#0f2140", // navy — matches the Dwellsy Operator IQ palette
+  accent: "#0f2140", // navy — matches the Dwellsy IQ Markets palette
   accentFg: "#ffffff",
-  eyebrow: "Operator IQ · for owners",
+  eyebrow: "Dwellsy IQ Markets · for owners",
 };
 
 const PARTNERS: Record<string, PartnerTheme> = {

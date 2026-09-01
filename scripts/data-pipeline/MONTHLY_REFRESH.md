@@ -28,7 +28,8 @@ automatically.
 The canonical source data lives in the company Google Shared Drive:
 **Shared drives → Dwellsy Enterprise → Products → Operator IQ → Data Files**
 (34 `merged_<market>_<date>.csv` + `markets.json` + `CHECKSUMS.sha256` +
-`MIGRATION_MANIFEST.md`). New monthly exports go here.
+`MIGRATION_MANIFEST.md`). New monthly exports go here. `Operator IQ` is the
+legacy storage-folder name and remains unchanged for path compatibility.
 
 The pipeline reads a local filesystem path, so mount that folder with **Google
 Drive for Desktop** and point `IQ_DATA_DIR` at the mount (tip: mark the folder
@@ -169,7 +170,7 @@ writing to production and makes the shipped artifact reproducible.
 Only an authorized operator may apply a migration. Before merging code that
 depends on a new schema, confirm the migration is backward-compatible with the
 currently deployed application, confirm the shell's existing `DATABASE_URL`
-and `DATABASE_URL_UNPOOLED` target the intended Operator IQ production database
+and `DATABASE_URL_UNPOOLED` target the intended Dwellsy IQ Markets production database
 without printing either value, and run this from the repository root:
 
 ```bash
@@ -193,7 +194,7 @@ not a deployment side effect.
 2. Confirm there is no concurrent deployment or data operation. Create or
    confirm a recoverable database restore point immediately before the run.
 3. In an authorized shell whose existing `DATABASE_URL` and
-   `DATABASE_URL_UNPOOLED` both target Operator IQ production, run the
+   `DATABASE_URL_UNPOOLED` both target Dwellsy IQ Markets production, run the
    command-scoped forced seed. The seed prefers the unpooled URL. Do not persist
    `FORCE_SEED` in Vercel or print either database URL.
 

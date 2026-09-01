@@ -35,7 +35,7 @@ export function OperatorAggregateTrajectorySection({
       <h2 className="dq-eyebrow text-teal">Trajectory</h2>
       <p className="mt-1 text-[13px] text-muted-foreground">
         Total estimated portfolio and market footprint across this
-        operator&rsquo;s markets, over successive Operator IQ refreshes.
+        operator&rsquo;s markets, over successive Dwellsy IQ Markets refreshes.
       </p>
 
       {summary.pointCount === 1 ? (

@@ -126,7 +126,7 @@ function MatchCard({
             cta: "email_operator",
           }}
           href={`mailto:${operatorEmail(pm.slug)}?subject=${encodeURIComponent(
-            "Property manager inquiry via Operator IQ"
+            "Property manager inquiry via Dwellsy IQ Markets"
           )}`}
           className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-teal bg-white px-5 text-[14px] font-semibold text-teal transition-colors hover:bg-teal/5"
         >

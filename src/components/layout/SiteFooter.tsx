@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { PRODUCT_NAME, PRODUCT_SHORT_NAME } from "@/lib/brand";
 import { FOOTER_LINKS } from "@/lib/nav";
 import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
 
@@ -11,12 +12,12 @@ export function SiteFooter() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {/* PR #46 — footer uses the same logo asset as SiteHeader.
               Sized smaller (h-7 vs h-12) so the footer keeps its
-              compact one-line layout. The Operator IQ sub-label sits
+              compact one-line layout. The Markets sub-label sits
               next to the logo on a thin divider, matching the
-              header's "Dwellsy IQ | Operator IQ" stack visually. */}
+              header's "Dwellsy IQ | Markets" stack visually. */}
           <Link
             href="/"
-            aria-label="Dwellsy IQ — Operator IQ"
+            aria-label={PRODUCT_NAME}
             className="flex items-center gap-3 text-navy"
           >
             <Image
@@ -27,9 +28,7 @@ export function SiteFooter() {
               className="h-7 w-auto"
             />
             <span aria-hidden className="h-3.5 w-px bg-grid" />
-            <span className="text-xs text-muted-foreground">Operator IQ</span>
-            <span aria-hidden className="h-3.5 w-px bg-grid" />
-            <span className="text-xs text-muted-2">A Dwellsy IQ product</span>
+            <span className="text-xs text-muted-foreground">{PRODUCT_SHORT_NAME}</span>
           </Link>
           <p className="text-xs text-muted-foreground dq-tnum">
             Methodology {METHODOLOGY_VERSION}

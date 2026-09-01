@@ -42,7 +42,7 @@ export function ReportShell({
           </Link>
           {theme.showPoweredBy && (
             <span className="text-[12px] text-muted-foreground">
-              Powered by <span className="font-semibold text-foreground/80">Dwellsy Operator IQ</span>
+              Powered by <span className="font-semibold text-foreground/80">Dwellsy IQ Markets</span>
             </span>
           )}
         </div>
@@ -54,7 +54,7 @@ export function ReportShell({
         <div className="mx-auto flex max-w-[1280px] flex-col gap-1 px-6 py-6 text-[12.5px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>
             Independent property-manager intelligence from{" "}
-            <span className="font-medium text-foreground/80">Dwellsy Operator IQ</span>.
+            <span className="font-medium text-foreground/80">Dwellsy IQ Markets</span>.
             Measured from observed listing activity — not paid for by the managers we rate.
           </p>
           <nav className="flex gap-4">

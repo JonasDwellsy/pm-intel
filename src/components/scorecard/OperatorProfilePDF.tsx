@@ -1879,7 +1879,7 @@ function MethodologySection({ scorecard, num }: { scorecard: ScorecardData; num:
         <Text style={styles.subHead}>Disclaimer</Text>
         <View style={{ backgroundColor: TILE, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16 }}>
           <Text style={{ fontSize: 10.5, color: BODY, lineHeight: 1.5 }}>
-            Operator IQ scorecards reflect operator behavior observable in our first-party listings
+            Dwellsy IQ Markets scorecards reflect operator behavior observable in our first-party listings
             data. Figures are not portfolio totals; they&rsquo;re what we see. Operators with shorter
             observation history have noisier estimates on metrics built from observed tenancy episodes
             (Tenant Retention, a Kaplan-Meier survival estimate) or multi-year trajectory (Rent
@@ -1892,7 +1892,7 @@ function MethodologySection({ scorecard, num }: { scorecard: ScorecardData; num:
         <Text style={styles.subHead}>Suggested citation</Text>
         <View style={{ borderWidth: 1, borderStyle: "solid", borderColor: BORDER, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16 }}>
           <Text style={{ fontSize: 10, fontFamily: "Courier", color: BODY, lineHeight: 1.5 }}>
-            {`Dwellsy IQ, 2026. Operator IQ Scorecard for ${scorecard.pm.name} (${scorecard.market.name}). Methodology ${scorecard.methodologyVersion}${scorecard.designVersion ? ` · Design ${scorecard.designVersion}` : ""}. intel.iq.dwellsy.com/property-managers/${scorecard.pm.slug}`}
+            {`Dwellsy IQ Markets, 2026. Scorecard for ${scorecard.pm.name} (${scorecard.market.name}). Methodology ${scorecard.methodologyVersion}${scorecard.designVersion ? ` · Design ${scorecard.designVersion}` : ""}. intel.iq.dwellsy.com/property-managers/${scorecard.pm.slug}`}
           </Text>
         </View>
         <Link src="https://intel.iq.dwellsy.com/methodology" style={{ fontSize: 10.5, fontWeight: 700, color: VIOLET, marginTop: 10 }}>

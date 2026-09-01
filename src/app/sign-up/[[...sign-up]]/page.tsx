@@ -43,7 +43,7 @@ export default function SignUpPage() {
           />
           <span aria-hidden className="h-4 w-px bg-grid" />
           <span className="text-[13px] font-semibold tracking-[-0.005em]">
-            Operator IQ
+            Dwellsy IQ Markets
           </span>
         </div>
 
@@ -52,7 +52,7 @@ export default function SignUpPage() {
             By invitation only
           </h1>
           <p className="text-[14px] leading-relaxed text-muted-foreground">
-            Operator IQ is currently sold through enterprise sales —
+            Dwellsy IQ Markets is currently sold through enterprise sales —
             self-serve signup is closed. Already have an account?{" "}
             <Link
               href="/sign-in"

@@ -59,7 +59,7 @@ export default async function ReportLandingPage({
         </div>
 
         <p className="mt-8 text-[13px] leading-relaxed text-muted-foreground">
-          Independent and data-driven. Operator IQ measures property managers
+          Independent and data-driven. Dwellsy IQ Markets measures property managers
           from observed rental-listing activity across U.S. markets — we are not
           paid by the managers we rate.
         </p>

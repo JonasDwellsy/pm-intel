@@ -4,14 +4,14 @@ import { HomepageSectionHead } from "./SectionHead";
 // first thing a visitor reads after the hero. An operator sees performance
 // across its whole book; the owner sees its own assets plus whatever the
 // operator reports. That's a context gap, not a trust problem, and the copy is
-// deliberately non-adversarial about it: Operator IQ adds the outside view, it
+// deliberately non-adversarial about it: Dwellsy IQ Markets adds the outside view, it
 // doesn't accuse anyone. The three columns are ordered operator → owner →
-// Operator IQ so the third column reads as the thing that closes the gap.
+// Dwellsy IQ Markets so the third column reads as the thing that closes the gap.
 
 type Panel = {
   heading: string;
   items: string[];
-  /** The Operator IQ column is the resolution, so it carries the accent. */
+  /** The Dwellsy IQ Markets column is the resolution, so it carries the accent. */
   accent?: boolean;
   footnote?: string;
 };
@@ -37,7 +37,7 @@ const PANELS: Panel[] = [
     ],
   },
   {
-    heading: "What Operator IQ adds",
+    heading: "What Dwellsy IQ Markets adds",
     accent: true,
     items: [
       "Independent benchmarks",
@@ -57,7 +57,7 @@ export function BlindSpot() {
         <HomepageSectionHead
           eyebrow="The blind spot"
           title="Your operators know more than you do about how they're doing."
-          context="An operator sees performance across its whole portfolio. You see your properties and the reports your operator prepares. No one is hiding anything; operators simply have more context. Operator IQ gives you the independent outside view."
+          context="An operator sees performance across its whole portfolio. You see your properties and the reports your operator prepares. No one is hiding anything; operators simply have more context. Dwellsy IQ Markets gives you the independent outside view."
         />
         <div className="grid gap-6 md:grid-cols-3">
           {PANELS.map((panel) => (

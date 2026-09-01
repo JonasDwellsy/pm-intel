@@ -6,7 +6,7 @@
 // token) and enabled only by OPERATOR_IQ_SCHEDULER_ENABLED=1.
 // Modes: default = send; ?dryRun=1 = compose+count, send/record nothing;
 // ?preview=<email> = one fully-rendered digest to <email> (bypasses recipient
-// gating). The route itself remains inert unless the dedicated Operator IQ
+// gating). The route itself remains inert unless the dedicated Dwellsy IQ Markets
 // scheduler flag is enabled.
 // INERT until SENDGRID_API_KEY + DIGEST_FROM_EMAIL + CRON_SECRET +
 // DIGEST_UNSUB_SECRET + OPERATOR_IQ_SCHEDULER_ENABLED=1 are set in Vercel.
@@ -25,7 +25,7 @@ function authorized(req: Request): boolean {
 export async function GET(req: Request) {
   if (!authorized(req)) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!operatorIqSchedulerEnabled()) {
-    return Response.json({ error: "Operator IQ scheduler is disabled" }, { status: 404 });
+    return Response.json({ error: "Dwellsy IQ Markets scheduler is disabled" }, { status: 404 });
   }
   const url = new URL(req.url);
   const dryRun = url.searchParams.get("dryRun") === "1";

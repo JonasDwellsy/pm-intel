@@ -780,7 +780,7 @@ model PropertyHome {
 }
 
 // ===========================================================================
-// v0.30 — Consumer single-report product (Operator IQ for owners).
+// v0.30 — Consumer single-report product (Dwellsy IQ Markets for owners).
 //
 // A new self-serve funnel sells access one property manager at a time:
 //   - $29  single report      → ReportEntitlement (per-PM, permanent)

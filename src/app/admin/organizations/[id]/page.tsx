@@ -236,7 +236,7 @@ export default async function AdminOrganizationDetailPage({
                     Joined
                   </th>
                   <th className="text-left px-3 py-2 font-semibold text-grey-600 text-[12px] uppercase tracking-wider">
-                    Operator IQ
+                    Dwellsy IQ Markets
                   </th>
                 </tr>
               </thead>

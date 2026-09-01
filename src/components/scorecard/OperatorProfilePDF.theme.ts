@@ -1,4 +1,4 @@
-// PDF design tokens + StyleSheet for the Operator IQ scorecard PDF (design v3).
+// PDF design tokens + StyleSheet for the Dwellsy IQ Markets scorecard PDF (design v3).
 //
 // This is the VIOLET print system from the Claude-Design handoff
 // (docs/design/pdf-scorecard-v3/README.md). It intentionally DIVERGES from the

@@ -20,7 +20,7 @@ import { TrackEvent } from "@/components/analytics/TrackEvent";
 export const metadata: Metadata = {
   title: "Methodology",
   description:
-    "How Operator IQ scores property managers (methodology v0.7): inclusion and category exclusions, URU resolution, the 7-cell operator taxonomy with the apartment-dominant override, community visibility, days-on-market and Kaplan-Meier tenant retention, rent trajectory and performance, marketing discipline, the internal composite and per-metric star system, canonical and within-market operator identity, portfolio-size estimation, and honest limitations.",
+    "How Dwellsy IQ Markets scores property managers (methodology v0.7): inclusion and category exclusions, URU resolution, the 7-cell operator taxonomy with the apartment-dominant override, community visibility, days-on-market and Kaplan-Meier tenant retention, rent trajectory and performance, marketing discipline, the internal composite and per-metric star system, canonical and within-market operator identity, portfolio-size estimation, and honest limitations.",
 };
 
 async function loadVersion() {
@@ -150,7 +150,7 @@ const GLOSSARY: GlossaryRow[] = [
   {
     term: "Years visible",
     definition:
-      "Length of operator observation history in Operator IQ data, measured from the first observed listing. Surfaced as operator-tenure context; it no longer gates the retention metric, which now uses a Kaplan-Meier survival estimate with its own qualification test.",
+      "Length of operator observation history in Dwellsy IQ Markets data, measured from the first observed listing. Surfaced as operator-tenure context; it no longer gates the retention metric, which now uses a Kaplan-Meier survival estimate with its own qualification test.",
     ref: "§05",
   },
   {
@@ -380,7 +380,7 @@ export default async function MethodologyPage() {
               id="inclusion"
               num="01"
               title="Inclusion criteria."
-              lede="How a property manager qualifies for an Operator IQ scorecard."
+              lede="How a property manager qualifies for a Dwellsy IQ Markets scorecard."
             >
               <p>
                 Every operator in our coverage markets is evaluated against
@@ -680,7 +680,7 @@ export default async function MethodologyPage() {
                 the operator&apos;s footprint. An operator is{" "}
                 <strong>Institutional</strong> if they manage{" "}
                 <span className="dq-chip dq-tnum">500 or more</span> distinct
-                units across all Operator IQ coverage markets in the trailing
+                units across all markets covered by Dwellsy IQ Markets in the trailing
                 12 months, <strong>Independent</strong> otherwise. The 500-unit
                 threshold is a judgment call; in practice it cleanly separates
                 names that operate at scale requiring institutional capital
@@ -689,7 +689,7 @@ export default async function MethodologyPage() {
               <p>
                 <em>
                   Scale classification considers an operator&apos;s observed
-                  presence across all Operator IQ coverage markets, not just the
+                  presence across all markets covered by Dwellsy IQ Markets, not just the
                   market in which a given scorecard is published. Operators
                   are Institutional if their combined trailing-12-month
                   observed units across all our covered markets meet or

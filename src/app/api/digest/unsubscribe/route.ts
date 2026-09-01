@@ -49,7 +49,7 @@ export function createDigestUnsubscribeHandlers(deps: UnsubscribeDependencies) {
       }
       return page(
         "Confirm unsubscribe",
-        "Stop receiving the Operator IQ watch-list monthly digest? You can re-enable it anytime from your workspace settings.",
+        "Stop receiving the Dwellsy IQ Markets watch-list monthly digest? You can re-enable it anytime from your workspace settings.",
         `${url.pathname}${url.search}`,
       );
     },
@@ -59,7 +59,7 @@ export function createDigestUnsubscribeHandlers(deps: UnsubscribeDependencies) {
         return page("Link invalid", "This unsubscribe link is invalid or has expired. Please use the link from your most recent digest email.", undefined, 400);
       }
       await deps.unsubscribe(userId);
-      return page("You're unsubscribed", "You will no longer receive the Operator IQ watch-list monthly digest. You can re-enable it anytime from your workspace settings.");
+      return page("You're unsubscribed", "You will no longer receive the Dwellsy IQ Markets watch-list monthly digest. You can re-enable it anytime from your workspace settings.");
     },
   };
 }

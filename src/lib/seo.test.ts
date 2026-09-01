@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { INDEXING_ENABLED, resolveSiteUrl, siteRobotsMetadata } from "./seo";
 import robots from "../app/robots";
 
-// Operator IQ is deliberately absent from search engines until it goes public.
+// Dwellsy IQ Markets is deliberately absent from search engines until it goes public.
 // These tests exist because it was previously absent by ACCIDENT — robots.txt
 // advertised http://localhost:3000/sitemap.xml and the sitemap served 4,794
 // localhost URLs — and an accident reverses the moment someone sets an env

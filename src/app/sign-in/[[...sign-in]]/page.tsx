@@ -69,7 +69,7 @@ function signInContext(redirectUrl: string | undefined): {
     };
   if (url.includes("/ask"))
     return {
-      title: "Sign in to use Ask Operator IQ",
+      title: "Sign in to use Ask Dwellsy IQ Markets",
       sub: "The AI research tool is available to signed-in members.",
     };
   if (url.includes("/watch-lists"))
@@ -77,7 +77,7 @@ function signInContext(redirectUrl: string | undefined): {
       title: "Sign in to open your watch lists",
       sub: "Your saved watch lists are waiting.",
     };
-  return { title: "Sign in", sub: "Welcome back — continue to Operator IQ." };
+  return { title: "Sign in", sub: "Welcome back — continue to Dwellsy IQ Markets." };
 }
 
 export default async function SignInPage({
@@ -106,11 +106,11 @@ export default async function SignInPage({
           />
           <span aria-hidden className="h-4 w-px bg-grid" />
           <span className="text-[13px] font-semibold tracking-[-0.005em]">
-            Operator IQ
+            Dwellsy IQ Markets
           </span>
         </Link>
         {/* One concise heading — replaces Clerk's verbose
-            "Sign in to Operator IQ from Dwellsy IQ" title. */}
+            "Sign in to Dwellsy IQ Markets from Dwellsy IQ" title. */}
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-[22px] font-semibold tracking-[-0.01em] text-navy">
             {ctx.title}

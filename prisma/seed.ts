@@ -1849,7 +1849,7 @@ export async function runSeed(
           value: SEED_CONTENT_VERSION,
           type: "string",
           description:
-            "sha256 fingerprint of the committed Operator IQ seed inputs. Drives the isDataCurrent() guard.",
+            "sha256 fingerprint of the committed Dwellsy IQ Markets seed inputs. Drives the isDataCurrent() guard.",
         },
         update: { value: SEED_CONTENT_VERSION },
       });

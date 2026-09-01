@@ -80,10 +80,10 @@ export function getCoverageMarkets(): MarketCoverageEntry[] {
 export function buildCoverageRequestMailto(market?: MarketCoverageEntry): string {
   const to = "partnerships@dwellsy.com";
   const subject = market
-    ? `Operator IQ coverage request: ${market.name}`
-    : "Operator IQ coverage request";
+    ? `Dwellsy IQ Markets coverage request: ${market.name}`
+    : "Dwellsy IQ Markets coverage request";
   const body = market
     ? `I'm interested in seeing coverage for ${market.name}. Please reach out to discuss.`
-    : "I'd like to discuss Operator IQ coverage in a market that isn't live yet. Please reach out.";
+    : "I'd like to discuss Dwellsy IQ Markets coverage in a market that isn't live yet. Please reach out.";
   return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }

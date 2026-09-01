@@ -145,7 +145,7 @@ export function MethodologyFooter({
         <div className="rounded-md border border-grid bg-surface-soft p-5">
           <p className="dq-eyebrow-muted mb-2">Disclaimer</p>
           <p className="text-[13px] leading-[1.6] text-foreground">
-            Operator IQ scorecards reflect operator behavior observable in our
+            Dwellsy IQ Markets scorecards reflect operator behavior observable in our
             first-party listings data. Figures are not portfolio totals;
             they&rsquo;re what we see. Operators with shorter observation
             history have noisier estimates on metrics built from observed
@@ -195,7 +195,7 @@ export function MethodologyFooter({
         <p className="dq-mono text-[12.5px] leading-[1.55] text-navy">
           Dwellsy IQ, 2026.{" "}
           <em>
-            Operator IQ Scorecard for {scorecard.pm.name} ({scorecard.market.name}
+            Dwellsy IQ Markets Scorecard for {scorecard.pm.name} ({scorecard.market.name}
             ).
           </em>{" "}
           Methodology v{scorecard.methodologyVersion.replace(/^v/, "")}
@@ -291,7 +291,7 @@ function PortfolioComposition({ scorecard }: { scorecard: ScorecardData }) {
           {c.nationalObservedUnitsT12 !== null && (
             <tr>
               <td>
-                Observed units · all Operator IQ markets{" "}
+                Observed units · all markets covered by Dwellsy IQ Markets{" "}
                 <span className="text-muted-foreground">(T12)</span>
               </td>
               <td className="num">{fmtInt(c.nationalObservedUnitsT12)}</td>

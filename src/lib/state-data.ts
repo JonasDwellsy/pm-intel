@@ -132,10 +132,10 @@ function buildStateIntro({
   const n = markets.length;
   if (n === 1) {
     const m = markets[0];
-    return `Operator IQ identifies the operators worth knowing across ${stateName}'s rental markets. 1 MSA in coverage. Drill into ${m.city} for ranked operators and full scorecards.`;
+    return `Dwellsy IQ Markets identifies the operators worth knowing across ${stateName}'s rental markets. 1 MSA in coverage. Drill into ${m.city} for ranked operators and full scorecards.`;
   }
   const pieces = [
-    `Operator IQ identifies the operators worth knowing across ${stateName}'s rental markets.`,
+    `Dwellsy IQ Markets identifies the operators worth knowing across ${stateName}'s rental markets.`,
     `${n} MSAs in coverage with ${stateActiveOperatorCount.toLocaleString("en-US")} active operators total.`,
   ];
   if (fastestMarket) {

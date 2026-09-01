@@ -116,7 +116,7 @@ export const runtime = "nodejs";
 // Twitter all crop to ~1.91:1; 1200×630 hits the sweet spot.
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Operator IQ scorecard preview";
+export const alt = "Dwellsy IQ Markets scorecard preview";
 
 // v0.6.4 Patch 6 — ASCII-only sanitizer for any text the OG image
 // renders. The original implementation passed strings containing
@@ -250,7 +250,7 @@ export default async function Image({
             {/* ASCII-only — no `·`/em dash here either (same Satori font-
                 preflight risk as the separator above). */}
             <span style={{ color: COLOR_TEAL, fontWeight: 600, fontSize: 18 }}>
-              Operator IQ: Property Manager Scorecard
+              Dwellsy IQ Markets: Property Manager Scorecard
             </span>
           </div>
 

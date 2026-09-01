@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import * as Sentry from "@sentry/nextjs";
 import { MobileMenu } from "@/components/layout/MobileMenu";
 import { SearchInput } from "@/components/search/SearchInput";
+import { PRODUCT_NAME, PRODUCT_SHORT_NAME } from "@/lib/brand";
 import { NAV_ITEMS, PRIMARY_CTA } from "@/lib/nav";
 
 // v0.18 PR #72 hotfix — Resolve signed-in state via try/catch'd
@@ -62,7 +63,7 @@ export async function SiteHeader() {
       <div className="mx-auto flex h-[60px] max-w-[1440px] flex-nowrap items-center justify-between gap-3 px-4 sm:h-[76px] sm:gap-4 sm:px-6 lg:px-10">
         <Link
           href="/"
-          aria-label="Dwellsy IQ — Operator IQ"
+          aria-label={PRODUCT_NAME}
           className="flex min-w-0 shrink items-center gap-2.5 whitespace-nowrap text-navy sm:shrink-0 sm:gap-4"
         >
           {/* Real Dwellsy IQ brand logo. Native asset is 1000×313 (3.2:1
@@ -89,7 +90,7 @@ export async function SiteHeader() {
           />
           <span aria-hidden className="hidden h-5 w-px bg-grid sm:block" />
           <span className="hidden text-sm font-semibold text-navy sm:inline">
-            Operator IQ
+            {PRODUCT_SHORT_NAME}
           </span>
         </Link>
         <nav className="flex shrink-0 items-center gap-2 sm:gap-5">

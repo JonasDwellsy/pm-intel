@@ -49,7 +49,7 @@ export function createBriefUnsubscribeHandlers(deps: UnsubscribeDependencies) {
       }
       return page(
         "Confirm unsubscribe",
-        "Stop receiving the Operator IQ market-brief email? This does not affect your watch-list digest.",
+        "Stop receiving the Dwellsy IQ Markets market-brief email? This does not affect your watch-list digest.",
         `${url.pathname}${url.search}`,
       );
     },
@@ -59,7 +59,7 @@ export function createBriefUnsubscribeHandlers(deps: UnsubscribeDependencies) {
         return page("Link invalid", "This unsubscribe link is invalid or has expired. Please use the link from your most recent brief email.", undefined, 400);
       }
       await deps.unsubscribe(userId);
-      return page("You're unsubscribed", "You will no longer receive the Operator IQ market-brief email. This does not affect your watch-list digest.");
+      return page("You're unsubscribed", "You will no longer receive the Dwellsy IQ Markets market-brief email. This does not affect your watch-list digest.");
     },
   };
 }

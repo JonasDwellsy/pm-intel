@@ -1,4 +1,4 @@
-// Shared TypeScript types for the Operator IQ platform.
+// Shared TypeScript types for the Dwellsy IQ Markets platform.
 // Canonical shapes for v0.6.2 — see Methodology_v0.6_Spec.md (Sections 2–10),
 // Methodology_v0.6.1_Patches.md, and Methodology_v0.6.2_Patches.md (8 patches:
 // 7-cell taxonomy, multi-level percentile ranks, stars, rent stability,

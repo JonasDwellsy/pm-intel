@@ -7,7 +7,7 @@
 // :slug and are gated by PROTECTED_ROUTE_PATTERNS (see
 // src/lib/auth/protected-routes.ts + src/middleware.ts). This route is the one
 // complete example we show anonymously, so a prospect can see exactly what an
-// Operator IQ profile looks like before signing in.
+// Dwellsy IQ Markets profile looks like before signing in.
 //
 // It is NOT listed in PROTECTED_ROUTE_PATTERNS (and never should be) — the
 // middleware only gates the patterns in that list, so /sample falls through as
@@ -39,17 +39,17 @@ import { buildScorecardView } from "@/lib/scorecard/view-model";
 import { ScorecardBody } from "@/components/scorecard/ScorecardBody";
 
 // Public marketing sample — indexable is fine (it's the same content a
-// prospect would see). Title mirrors the "%s · Operator IQ" root template only
+// prospect would see). Title mirrors the "%s · Dwellsy IQ Markets" root template only
 // loosely; we set the full title here so the sample reads distinctly in search.
 export const metadata: Metadata = {
   title: "Sample scorecard",
   description:
-    "A complete example Operator IQ operator scorecard — portfolio scale, operator type, operating signals, momentum, and market footprint. One illustrative profile of the kind produced for every property manager we cover.",
+    "A complete example Dwellsy IQ Markets operator scorecard — portfolio scale, operator type, operating signals, momentum, and market footprint. One illustrative profile of the kind produced for every property manager we cover.",
   alternates: { canonical: "/sample" },
   openGraph: {
     title: "Sample scorecard",
     description:
-      "A complete example Operator IQ operator scorecard — one illustrative profile of the kind produced for every property manager we cover.",
+      "A complete example Dwellsy IQ Markets operator scorecard — one illustrative profile of the kind produced for every property manager we cover.",
     type: "website",
   },
 };
@@ -129,12 +129,12 @@ export default async function SampleScorecardPage() {
               Sample scorecard
             </span>
             <span>
-              One example of what every Operator IQ operator profile looks like.
+              One example of what every Dwellsy IQ Markets operator profile looks like.
             </span>
           </p>
           <div className="flex flex-shrink-0 flex-wrap items-center gap-3">
             {/* Primary CTA — "Request access" (mailto sales), matching the
-                homepage hero's primary action. Operator IQ is enterprise/
+                homepage hero's primary action. Dwellsy IQ Markets is enterprise/
                 invite-only, so this leads with the real conversion path
                 rather than the signed-in-only watch-list builder. */}
             <Link

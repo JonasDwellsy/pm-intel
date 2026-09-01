@@ -8,7 +8,7 @@
 // Modes: default = send; ?dryRun=1 = compose+count, send nothing, record
 // nothing; ?preview=<email> = send one fully-rendered digest to <email>
 // (bypasses recipient gating + bookkeeping). The route itself remains inert
-// unless the dedicated Operator IQ scheduler flag is enabled.
+// unless the dedicated Dwellsy IQ Markets scheduler flag is enabled.
 import { runDigest } from "@/lib/watch-list/digest-run";
 import { operatorIqSchedulerEnabled } from "@/lib/operator-iq/feature";
 
@@ -25,7 +25,7 @@ function authorized(req: Request): boolean {
 export async function GET(req: Request) {
   if (!authorized(req)) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!operatorIqSchedulerEnabled()) {
-    return Response.json({ error: "Operator IQ scheduler is disabled" }, { status: 404 });
+    return Response.json({ error: "Dwellsy IQ Markets scheduler is disabled" }, { status: 404 });
   }
   const url = new URL(req.url);
   const dryRun = url.searchParams.get("dryRun") === "1";

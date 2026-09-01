@@ -27,9 +27,9 @@ import { parseScorecard } from "@/lib/scorecard/parse";
 import type { ScorecardData } from "@/lib/types";
 
 const HOME_TITLE =
-  "Operator IQ — Independent performance intelligence on property managers";
+  "Dwellsy IQ Markets — Independent performance intelligence on property managers";
 const HOME_DESCRIPTION =
-  "The best operators drive the best yield. Operator IQ independently benchmarks the property managers running your assets, measuring 30,000+ operators from Dwellsy's nationwide listing record so owners can select, evaluate, and monitor them against real peers. Observed, not self-reported.";
+  "The best operators drive the best yield. Dwellsy IQ Markets independently benchmarks the property managers running your assets, measuring 30,000+ operators from Dwellsy's nationwide listing record so owners can select, evaluate, and monitor them against real peers. Observed, not self-reported.";
 
 export const metadata: Metadata = {
   title: HOME_TITLE,

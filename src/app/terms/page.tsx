@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-// v0.22 — public Terms page for the Operator IQ product. The operative
+// v0.22 — public Terms page for the Dwellsy IQ Markets product. The operative
 // agreement is the customer's signed order form / master agreement; where
 // none exists, Dwellsy's company-wide Terms of Use
 // (dwellsy.com/pages/terms-of-use) govern. This page restates the key
@@ -11,7 +11,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Use",
-  description: "The terms that govern use of the Operator IQ product.",
+  description: "The terms that govern use of the Dwellsy IQ Markets product.",
 };
 
 const LAST_UPDATED = "June 29, 2026";
@@ -42,10 +42,10 @@ export default function TermsPage() {
       <header className="border-b border-grid pb-6">
         <p className="dq-eyebrow text-teal">Terms of Use</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-navy">
-          Operator IQ Terms of Use
+          Dwellsy IQ Markets Terms of Use
         </h1>
         <p className="mt-3 text-[14.5px] leading-relaxed text-muted-foreground">
-          Operator IQ is operated by Dwellsy, Inc. These terms govern access to
+          Dwellsy IQ Markets is operated by Dwellsy, Inc. These terms govern access to
           and use of the product. Where your organization has a signed order
           form or master agreement with Dwellsy, that agreement controls; these
           terms and Dwellsy&rsquo;s company-wide{" "}
@@ -68,7 +68,7 @@ export default function TermsPage() {
         <p>
           Subject to these terms and your agreement, Dwellsy grants your
           organization a limited, non-exclusive, non-transferable right to
-          access Operator IQ for its internal business purposes. Access is
+          access Dwellsy IQ Markets for its internal business purposes. Access is
           provisioned by Dwellsy and scoped to the markets your organization has
           licensed. Credentials are for your organization&rsquo;s authorized
           members and may not be shared outside it.
@@ -124,7 +124,7 @@ export default function TermsPage() {
 
       <Section title="5. No investment advice">
         <p>
-          Operator IQ provides data and analytics, not investment, legal, or
+          Dwellsy IQ Markets provides data and analytics, not investment, legal, or
           financial advice. Outputs are estimates derived from observed market
           signals and a stated methodology and may contain errors or omissions.
           You are responsible for your own diligence and decisions.

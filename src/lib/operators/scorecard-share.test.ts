@@ -161,7 +161,7 @@ test("opengraph-image handles the quadrant-segment branch", () => {
 test("opengraph-image Sentry-instruments its failure mode", () => {
   // A broken OG image is worse than a generic one for the share
   // experience — the prospect sees a "preview failed" error
-  // instead of an Operator IQ card. The route must catch any
+  // instead of a Dwellsy IQ Markets card. The route must catch any
   // unexpected error and surface it to Sentry while falling
   // through to the branded fallback.
   assert.ok(

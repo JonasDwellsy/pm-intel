@@ -51,14 +51,14 @@ export async function sendReportPurchaseEmail(
 
     if (args.kind === "single_report" && args.pmSlug) {
       const name = args.pmName ?? "your property manager";
-      subject = `Your Operator IQ report on ${name}`;
+      subject = `Your Dwellsy IQ Markets report on ${name}`;
       heading = `Your report on ${name} is ready`;
       ctaLabel = "View the full report";
       ctaUrl = `${base}/report/r/${args.pmSlug}${tq}`;
       const pdfUrl = `${base}/api/report/${args.pmSlug}/pdf${tq}`;
       pdfBlock = `<p style="margin:16px 0 0"><a href="${pdfUrl}">Download the PDF</a> to keep a copy.</p>`;
     } else if (args.kind === "subscription") {
-      subject = "Your Operator IQ subscription is active";
+      subject = "Your Dwellsy IQ Markets subscription is active";
       heading = "Your Keep Watching subscription is active";
       ctaLabel = "Manage your subscription";
       ctaUrl = `${base}/report/account${tq}`;
@@ -66,7 +66,7 @@ export async function sendReportPurchaseEmail(
     } else {
       // market_pass — market-wide access for 30 days.
       const market = args.marketName ?? "your market";
-      subject = `Your Operator IQ market access — ${market}`;
+      subject = `Your Dwellsy IQ Markets market access — ${market}`;
       heading = `Your market pass for ${market} is active`;
       ctaLabel = "Browse managers in your market";
       ctaUrl = `${base}/report${tq}`;
@@ -80,9 +80,9 @@ export async function sendReportPurchaseEmail(
           <a href="${ctaUrl}" style="display:inline-block;background:#0f2140;color:#fff;text-decoration:none;padding:12px 22px;border-radius:6px;font-weight:600">${ctaLabel}</a>
         </p>
         ${pdfBlock}
-        <p style="font-size:13px;color:#667085;margin-top:28px">Operator IQ measures property managers independently from observed rental-listing activity. We are not paid by the managers we rate.</p>
+        <p style="font-size:13px;color:#667085;margin-top:28px">Dwellsy IQ Markets measures property managers independently from observed rental-listing activity. We are not paid by the managers we rate.</p>
       </div>`;
-    const text = `${heading}\n\nThanks for your purchase. Your access is ready:\n${ctaUrl}\n\nOperator IQ · independent property-manager intelligence.`;
+    const text = `${heading}\n\nThanks for your purchase. Your access is ready:\n${ctaUrl}\n\nDwellsy IQ Markets · independent property-manager intelligence.`;
 
     const result = await sendEmail({ to: args.email, subject, html, text });
     if (!result.ok) {

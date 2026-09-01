@@ -13,13 +13,13 @@ test("legacy organization memberships keep their existing access", () => {
   assert.equal(dwellsyIqMemberHasProductAccess({}, OPERATOR_IQ), true);
 });
 
-test("an Operator IQ invitation grants Operator IQ only", () => {
+test("a Dwellsy IQ Markets invitation grants Dwellsy IQ Markets only", () => {
   const metadata = dwellsyIqProductInvitationMetadata(OPERATOR_IQ);
   assert.equal(dwellsyIqMemberHasProductAccess(metadata, OPERATOR_IQ), true);
   assert.equal(dwellsyIqMemberHasProductAccess(metadata, "another-product"), false);
 });
 
-test("an explicit Operator IQ override does not change another product default", () => {
+test("an explicit Dwellsy IQ Markets override does not change another product default", () => {
   const metadata = dwellsyIqProductAccessMetadataUpdate({}, OPERATOR_IQ, false);
   assert.equal(dwellsyIqMemberHasProductAccess(metadata, OPERATOR_IQ), false);
   assert.equal(dwellsyIqMemberHasProductAccess(metadata, "another-product"), true);

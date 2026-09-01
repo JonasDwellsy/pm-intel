@@ -4,7 +4,7 @@ import { INDEXING_ENABLED } from "./src/lib/seo";
 
 const nextConfig: NextConfig = {
   // Site-wide search-engine opt-out. This is the mechanism that actually keeps
-  // Operator IQ out of the index, and it lives here rather than in page
+  // Dwellsy IQ Markets out of the index, and it lives here rather than in page
   // metadata for two reasons:
   //
   //   1. It covers EVERY response — routes, static assets, API responses, PDFs

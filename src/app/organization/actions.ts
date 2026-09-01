@@ -34,7 +34,7 @@ export async function updateOperatorIqMemberProductAccessAction(formData: FormDa
   if (!session.userId || !session.orgId || session.orgRole !== "org:admin") throw new Error("Organization administrator access is required.");
   const userId = z.string().min(1).max(255).parse(String(formData.get("userId") ?? ""));
   const enabled = z.enum(["true", "false"]).parse(String(formData.get("enabled") ?? "")) === "true";
-  if (!enabled && userId === session.userId) throw new Error("You cannot remove your own Operator IQ access.");
+  if (!enabled && userId === session.userId) throw new Error("You cannot remove your own Dwellsy IQ Markets access.");
   await setOperatorIqMemberProductAccess({ organizationId: session.orgId, userId, enabled });
   revalidatePath("/organization");
 }

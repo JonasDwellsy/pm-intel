@@ -179,14 +179,14 @@ export const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   operatorStability: {
     name: "Operator Stability",
     definition:
-      "Composite of observation tenure (years visible in Operator IQ data) and cross-market presence (count of covered markets where operator surfaces). Higher tenure and broader footprint = more favorable.",
+      "Composite of observation tenure (years visible in Dwellsy IQ Markets data) and cross-market presence (count of covered markets where operator surfaces). Higher tenure and broader footprint = more favorable.",
     formula:
       "stability = f(years_visible, market_count, persistent_eligibility)\nv0.6.2 surfaces years_visible + market_count factually; persistent_eligibility deferred to v0.7",
     cohortScope:
       "Same primary→fallback→MSA waterfall on yearsVisible percentile.",
     caveats: [
       "Persistent-eligibility-across-last-8-windows component is not in v0.6.2 — surfacing in v0.7 will tighten the composite.",
-      "Cross-market footprint depends on the markets currently covered by Operator IQ. National operators in non-covered markets aren't reflected.",
+      "Cross-market footprint depends on the markets currently covered by Dwellsy IQ Markets. National operators in non-covered markets aren't reflected.",
     ],
     methodologyHref: "/methodology#lending-signals",
   },

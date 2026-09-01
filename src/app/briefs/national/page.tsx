@@ -146,7 +146,7 @@ export default async function NationalBriefPage() {
         {prose && (
           <p className="mt-12 border-t border-grid pt-5 text-[12px] text-muted-foreground">
             Generated {fmtDate(prose.generatedAt.toISOString())} · Powered by
-            Operator IQ methodology {data.methodologyVersion}
+            Dwellsy IQ Markets methodology {data.methodologyVersion}
           </p>
         )}
       </article>

@@ -163,7 +163,7 @@ export function buildDigest(input: DigestInput): DigestEmail | null {
   if (lists.length === 0) return null;
 
   const opCount = lists.reduce((n, l) => n + l.operators.length, 0);
-  const subject = `Your Operator IQ watch-list update — ${input.monthLabel}`;
+  const subject = `Your Dwellsy IQ Markets watch-list update — ${input.monthLabel}`;
   const greeting = input.recipientFirstName ? `Hi ${input.recipientFirstName},` : "Hi,";
   const lede = `${opCount} watched operator${opCount === 1 ? "" : "s"} changed in the latest data (${input.monthLabel}).`;
 
@@ -214,7 +214,7 @@ export function buildDigest(input: DigestInput): DigestEmail | null {
   const html = wrapEmail({
     preheader: lede,
     contentHtml: content,
-    footerNote: "You're receiving this because your organization has an Operator IQ watch list.",
+    footerNote: "You're receiving this because your organization has a Dwellsy IQ Markets watch list.",
     unsubscribeUrl: esc(input.unsubscribeUrl),
     unsubscribeLabel: "Unsubscribe",
   });
