@@ -4,10 +4,8 @@
 // BiggerPockets).
 
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { ReportSearch } from "@/components/report/ReportSearch";
 import { ReportShell } from "@/components/report/ReportShell";
-import { clientAdvisoryEnabled } from "@/lib/client-advisory-feature";
 import { resolvePartner } from "@/lib/report/partners";
 
 export const metadata: Metadata = {
@@ -22,8 +20,6 @@ export default async function ReportLandingPage({
 }: {
   searchParams: Promise<{ partner?: string }>;
 }) {
-  if (!clientAdvisoryEnabled()) notFound();
-
   const { partner } = await searchParams;
   const theme = resolvePartner(partner);
 
