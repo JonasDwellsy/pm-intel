@@ -5,11 +5,9 @@
 // ReportShell so it carries the partner brand.
 
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { ReportShell } from "@/components/report/ReportShell";
 import { ManageSubscriptionButton } from "@/components/report/ManageSubscriptionButton";
 import { resolveViewerBilling } from "@/lib/billing/customer.server";
-import { clientAdvisoryEnabled } from "@/lib/client-advisory-feature";
 import { verifyReportAccessToken } from "@/lib/report/access-token";
 
 export const dynamic = "force-dynamic";
@@ -33,8 +31,6 @@ export default async function AccountPage({
 }: {
   searchParams: Promise<{ token?: string; partner?: string }>;
 }) {
-  if (!clientAdvisoryEnabled()) notFound();
-
   const { token, partner } = await searchParams;
   const guestEmail = verifyReportAccessToken(token);
   const { stripeCustomerId, subscription } = await resolveViewerBilling(guestEmail);
