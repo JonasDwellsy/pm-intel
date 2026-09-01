@@ -18,6 +18,7 @@ import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { PRODUCTS, resolvePriceId } from "@/lib/billing/products";
+import { clientAdvisoryEnabled } from "@/lib/client-advisory-feature";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,10 @@ function baseUrl(req: Request): string {
 }
 
 export async function POST(req: Request) {
+  if (!clientAdvisoryEnabled()) {
+    return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
   let parsed: z.infer<typeof BodySchema>;
   try {
     parsed = BodySchema.parse(await req.json());
