@@ -24,6 +24,7 @@ import { buildScorecardView } from "@/lib/scorecard/view-model";
 import { parseScorecard } from "@/lib/scorecard/parse";
 import { fetchCoverageMapImage } from "@/lib/scorecard/pdf-coverage-map";
 import { MAP_W, MAP_H } from "@/lib/scorecard/coverage-map-geo";
+import { clientAdvisoryEnabled } from "@/lib/client-advisory-feature";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,10 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  if (!clientAdvisoryEnabled()) {
+    return new Response("Report not found", { status: 404 });
+  }
+
   const { slug } = await params;
   const url = new URL(req.url);
   const token = url.searchParams.get("token");

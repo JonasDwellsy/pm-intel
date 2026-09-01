@@ -10,6 +10,7 @@ import * as Sentry from "@sentry/nextjs";
 import { getStripe, stripeConfigured } from "@/lib/stripe";
 import { resolveViewerBilling } from "@/lib/billing/customer.server";
 import { verifyReportAccessToken } from "@/lib/report/access-token";
+import { clientAdvisoryEnabled } from "@/lib/client-advisory-feature";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,10 @@ function baseUrl(req: Request): string {
 }
 
 export async function POST(req: Request) {
+  if (!clientAdvisoryEnabled()) {
+    return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
   if (!stripeConfigured()) {
     return Response.json({ error: "Billing unavailable" }, { status: 503 });
   }

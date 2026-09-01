@@ -26,6 +26,7 @@ import { ReportTeaser } from "@/components/report/ReportTeaser";
 import { ReportToolbar } from "@/components/report/ReportToolbar";
 import { ReportShell } from "@/components/report/ReportShell";
 import { sessionGrantsReport } from "@/lib/billing/verify-session";
+import { clientAdvisoryEnabled } from "@/lib/client-advisory-feature";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,8 @@ export async function generateMetadata({
 }: {
   params: Promise<RouteParams>;
 }): Promise<Metadata> {
+  if (!clientAdvisoryEnabled()) notFound();
+
   const { slug } = await params;
   const pm = await prisma.pM.findUnique({
     where: { slug },
@@ -63,6 +66,8 @@ export default async function ReportPage({
   params: Promise<RouteParams>;
   searchParams: Promise<RouteSearch>;
 }) {
+  if (!clientAdvisoryEnabled()) notFound();
+
   const { slug } = await params;
   const { token, session_id: sessionId, partner } = await searchParams;
 
