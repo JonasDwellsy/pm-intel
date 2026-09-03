@@ -118,20 +118,19 @@ export function ReportTeaser({
             <div className="mt-4">
               <CheckoutButtons
                 pmSlug={scorecard.pm.slug}
-                marketId={scorecard.market.id}
                 partner={partner}
                 offers={[
                   {
                     kind: "single_report",
                     label: "Get this report",
-                    priceLabel: "$29",
+                    priceLabel: "$149",
                     sub: "Full scorecard + PDF, yours to keep.",
                   },
                   {
-                    kind: "market_pass",
-                    label: "Compare the whole market",
-                    priceLabel: "$49",
-                    sub: `Every operator in ${marketName} for 30 days.`,
+                    kind: "three_pack",
+                    label: "Get three reports",
+                    priceLabel: "$299",
+                    sub: "Check this manager and two more, whenever you choose.",
                   },
                 ]}
               />

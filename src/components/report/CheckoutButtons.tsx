@@ -8,10 +8,9 @@ import { useState } from "react";
 import type { ProductKind } from "@/lib/billing/products";
 
 interface CheckoutButtonsProps {
-  /** Required for single_report. */
+  /** Operator being bought. Optional: a pack can be bought with no operator
+   *  in context, and its credits redeemed later from the account wallet. */
   pmSlug?: string;
-  /** Required for market_pass / subscription. */
-  marketId?: string;
   /** Attribution channel, e.g. "biggerpockets". */
   partner?: string | null;
   /** SKUs to offer, in display order. First is styled as primary. */
@@ -20,7 +19,6 @@ interface CheckoutButtonsProps {
 
 export function CheckoutButtons({
   pmSlug,
-  marketId,
   partner,
   offers,
 }: CheckoutButtonsProps) {
@@ -34,7 +32,7 @@ export function CheckoutButtons({
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, pmSlug, marketId, partner: partner ?? undefined }),
+        body: JSON.stringify({ kind, pmSlug, partner: partner ?? undefined }),
       });
       if (!res.ok) throw new Error(`Checkout failed (${res.status})`);
       const data: { url?: string } = await res.json();
