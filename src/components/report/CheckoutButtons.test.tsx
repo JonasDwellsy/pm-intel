@@ -4,8 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { CheckoutButtons } from "./CheckoutButtons";
 
 // The buttons are the last thing between a buyer and a charge, so what they
-// POST matters more than how they look. marketId is gone with the market pass;
-// a stale prop here would send a field the route now rejects.
+// POST matters more than how they look. marketId is gone with the market pass —
+// we guard against re-adding it with a compile-time check, not runtime logic
+// (see the test below).
 
 const OFFERS = [
   { kind: "single_report" as const, label: "Get this report", priceLabel: "$149" },
@@ -29,7 +30,7 @@ describe("CheckoutButtons", () => {
     expect(screen.getByText("$299")).toBeTruthy();
   });
 
-  test("posts kind and pmSlug, and never a marketId", async () => {
+  test("posts kind, pmSlug, and partner to the checkout API", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ url: "https://checkout.stripe.com/x" }),
@@ -44,7 +45,20 @@ describe("CheckoutButtons", () => {
     expect(body.kind).toBe("three_pack");
     expect(body.pmSlug).toBe("acme-denver-co");
     expect(body.partner).toBe("bp");
+    // Not load-bearing: JSON.stringify drops undefined keys, so this passes
+    // whether or not marketId was forwarded. The real guard is compile-time (see below).
     expect("marketId" in body).toBe(false);
+  });
+
+  test("marketId is not an accepted prop (compile-time guard)", () => {
+    // The checkout route removed `marketId` from its request schema. A compile-time
+    // guard is the only reliable detector — JSON.stringify drops undefined-valued keys,
+    // so a runtime check on the serialised body cannot catch a regression even if
+    // `marketId` is re-added to CheckoutButtonsProps. This @ts-expect-error directive
+    // ensures that if `marketId` is ever re-added, the directive becomes unused and
+    // `tsc` reports "Unused '@ts-expect-error' directive", failing the build.
+    // @ts-expect-error — marketId is no longer a CheckoutButtons prop
+    render(<CheckoutButtons pmSlug="acme-denver-co" marketId="denver-co" offers={OFFERS} />);
   });
 
   test("surfaces an error instead of silently doing nothing", async () => {
