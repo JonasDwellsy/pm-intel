@@ -62,23 +62,46 @@ export async function redeemCredit(
       // Never burn a credit on something they already hold — a
       // double-clicked redeem button would otherwise cost the buyer a
       // report. Checked inside the transaction (via `tx`, not `prisma`) so
-      // it reads the same snapshot the claim below commits against —
-      // otherwise two concurrent redemptions of the same pmSlug can both
-      // pass this check before either commits.
+      // the check and the claim below commit or roll back atomically
+      // together: this is READ COMMITTED, not a frozen snapshot, so a
+      // concurrent same-operator redemption isn't blocked here — it's
+      // caught when its `reportEntitlement.create` hits the unique
+      // constraint below and gets mapped to `already_owned` in the catch.
       const existing = await tx.reportEntitlement.findFirst({
         where: { pmSlug, ...where },
         select: { id: true },
       });
       if (existing) return { ok: false, reason: "already_owned" } as const;
 
-      const credit = await tx.reportCredit.findFirst({
-        where: { ...where, redeemedAt: null },
-        orderBy: { createdAt: "asc" },
-        select: { id: true },
-      });
+      // Claim with FOR UPDATE SKIP LOCKED: a plain SELECT (findFirst) would
+      // let every concurrent caller pick the SAME candidate row (all
+      // credits from one pack share a `createdAt`, so there's no tie-break),
+      // then serialize on the UPDATE — the losers would re-check
+      // `redeemedAt: null` against that one row's now-committed state and
+      // wrongly report `no_credits` even when other unredeemed credits
+      // exist. SKIP LOCKED instead has each caller skip rows already locked
+      // by another in-flight transaction and take the next available one,
+      // so concurrent callers fan out across distinct credits. The owner
+      // predicate is built with Prisma.sql so the value is a bound
+      // parameter, never interpolated text.
+      const ownerSql = owner.organizationId
+        ? Prisma.sql`"organizationId" = ${owner.organizationId}`
+        : Prisma.sql`"guestEmail" = ${owner.guestEmail}`;
+
+      const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT "id" FROM "ReportCredit"
+         WHERE ${ownerSql} AND "redeemedAt" IS NULL
+         ORDER BY "createdAt" ASC
+         LIMIT 1
+         FOR UPDATE SKIP LOCKED
+      `);
+      const credit = rows[0];
       if (!credit) return { ok: false, reason: "no_credits" } as const;
 
-      // The guard: only one transaction can satisfy `redeemedAt: null`.
+      // Defence-in-depth, not the primary guarantee: SKIP LOCKED already
+      // ensures no other transaction holds or can claim this row, so this
+      // `updateMany` should always affect exactly one row. Kept as a belt
+      // for `redeemedAt: null` in case that invariant is ever violated.
       const claimed = await tx.reportCredit.updateMany({
         where: { id: credit.id, redeemedAt: null },
         data: { redeemedPmSlug: pmSlug, redeemedAt: new Date() },
