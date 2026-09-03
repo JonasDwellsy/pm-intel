@@ -86,7 +86,7 @@ export default async function ReportPage({
 
   if (!accessible) {
     return (
-      <ReportShell partner={partner ?? null}>
+      <ReportShell partner={partner ?? null} token={token ?? null}>
         <ReportTeaser
           scorecard={scorecard}
           tierInfo={tierFromScorecard(scorecard)}
@@ -138,7 +138,7 @@ export default async function ReportPage({
   });
 
   return (
-    <ReportShell partner={partner ?? null}>
+    <ReportShell partner={partner ?? null} token={token ?? null}>
       <main className="bg-[#FBFAF6]">
         {/* Consumer toolbar: PDF download (public /api/report route, gated by
             the same resolver) for durable buyers, or a "check your inbox" note

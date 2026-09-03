@@ -63,7 +63,7 @@ export default async function AccountPage({
   const nameBySlug = new Map(names.map((n) => [n.slug, n.name]));
 
   return (
-    <ReportShell partner={partner}>
+    <ReportShell partner={partner} token={token ?? null}>
       <main className="bg-[#FBFAF6]">
         <section className="mx-auto max-w-[760px] px-6 pb-20 pt-14">
           <h1 className="text-[28px] font-semibold text-navy">Your reports</h1>
