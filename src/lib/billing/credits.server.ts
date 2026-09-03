@@ -10,6 +10,7 @@
 // transaction, so a credit is never spent without an entitlement appearing.
 
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ownerWhere, type CreditOwner } from "./credits";
 
@@ -56,37 +57,64 @@ export async function redeemCredit(
 ): Promise<RedeemResult> {
   const where = ownerWhere(owner);
 
-  // Never burn a credit on something they already hold — a double-clicked
-  // redeem button would otherwise cost the buyer a report.
-  const existing = await prisma.reportEntitlement.findFirst({
-    where: { pmSlug, ...where },
-    select: { id: true },
-  });
-  if (existing) return { ok: false, reason: "already_owned" };
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // Never burn a credit on something they already hold — a
+      // double-clicked redeem button would otherwise cost the buyer a
+      // report. Checked inside the transaction (via `tx`, not `prisma`) so
+      // it reads the same snapshot the claim below commits against —
+      // otherwise two concurrent redemptions of the same pmSlug can both
+      // pass this check before either commits.
+      const existing = await tx.reportEntitlement.findFirst({
+        where: { pmSlug, ...where },
+        select: { id: true },
+      });
+      if (existing) return { ok: false, reason: "already_owned" } as const;
 
-  return prisma.$transaction(async (tx) => {
-    const credit = await tx.reportCredit.findFirst({
-      where: { ...where, redeemedAt: null },
-      orderBy: { createdAt: "asc" },
-      select: { id: true },
-    });
-    if (!credit) return { ok: false, reason: "no_credits" } as const;
+      const credit = await tx.reportCredit.findFirst({
+        where: { ...where, redeemedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+      if (!credit) return { ok: false, reason: "no_credits" } as const;
 
-    // The guard: only one transaction can satisfy `redeemedAt: null`.
-    const claimed = await tx.reportCredit.updateMany({
-      where: { id: credit.id, redeemedAt: null },
-      data: { redeemedPmSlug: pmSlug, redeemedAt: new Date() },
-    });
-    if (claimed.count !== 1) return { ok: false, reason: "no_credits" } as const;
+      // The guard: only one transaction can satisfy `redeemedAt: null`.
+      const claimed = await tx.reportCredit.updateMany({
+        where: { id: credit.id, redeemedAt: null },
+        data: { redeemedPmSlug: pmSlug, redeemedAt: new Date() },
+      });
+      if (claimed.count !== 1) return { ok: false, reason: "no_credits" } as const;
 
-    await tx.reportEntitlement.create({
-      data: {
-        pmSlug,
-        organizationId: owner.organizationId,
-        guestEmail: owner.guestEmail,
-        sourceCreditId: credit.id,
-      },
+      await tx.reportEntitlement.create({
+        data: {
+          pmSlug,
+          organizationId: owner.organizationId,
+          guestEmail: owner.guestEmail,
+          sourceCreditId: credit.id,
+        },
+      });
+      return { ok: true, pmSlug } as const;
     });
-    return { ok: true, pmSlug } as const;
-  });
+  } catch (error) {
+    // Two concurrent redemptions of the SAME pmSlug can both pass the
+    // `existing` check above (neither entitlement exists yet at the time
+    // each transaction reads it) and both proceed to claim a credit. The
+    // loser's `reportEntitlement.create` then hits the unique constraint on
+    // (pmSlug, organizationId)/(pmSlug, guestEmail) — Postgres reports this
+    // as a raw error, not a RedeemResult, and the transaction rolls back
+    // (so the loser's claimed credit is restored, unspent). Read `.code`
+    // defensively rather than matching on message text.
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        // The winner already granted the entitlement; the buyer owns it now.
+        return { ok: false, reason: "already_owned" };
+      }
+      if (error.code === "P2034") {
+        // Write conflict / deadlock under serialisation: another
+        // redemption claimed the credit first.
+        return { ok: false, reason: "no_credits" };
+      }
+    }
+    throw error;
+  }
 }

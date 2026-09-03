@@ -16,11 +16,15 @@ import type { CreditOwner } from "../../src/lib/billing/credits";
 // and the transaction, not of the TypeScript.
 
 // Same database contract as seed-atomicity.test.ts: CI sets
-// SEED_TEST_DATABASE_URL (and DATABASE_URL) against a disposable Postgres and
-// runs `prisma migrate deploy` first. Locally, skip rather than scribble on
+// SEED_TEST_DATABASE_URL against a disposable Postgres and runs
+// `prisma migrate deploy` first. Locally, skip rather than scribble on
 // whatever DATABASE_URL happens to point at — which may be production.
-const DB_URL =
-  process.env.SEED_TEST_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim();
+//
+// No DATABASE_URL fallback: importing @prisma/client auto-loads this repo's
+// .env, which sets DATABASE_URL to the production Neon database — and it
+// does so before any guard here runs. A fallback to DATABASE_URL would mean
+// a plain local run connects to production instead of skipping.
+const DB_URL = process.env.SEED_TEST_DATABASE_URL?.trim();
 const IN_CI = Boolean(
   process.env.CI && !["false", "0"].includes(process.env.CI.trim().toLowerCase())
 );
@@ -30,9 +34,10 @@ if (IN_CI && !DB_URL) {
   );
 }
 
-const prisma = new PrismaClient(
-  DB_URL ? { datasources: { db: { url: DB_URL } } } : undefined
-);
+// `datasourceUrl` (not `datasources.db.url`) so this client is unambiguously
+// pinned to SEED_TEST_DATABASE_URL and never falls back to whatever .env
+// supplied for DATABASE_URL.
+const prisma = new PrismaClient(DB_URL ? { datasourceUrl: DB_URL } : undefined);
 
 /** Unique per run so parallel or repeated runs never collide. */
 function guest(tag: string): CreditOwner {
@@ -158,6 +163,47 @@ test("three concurrent redemptions of two credits grant exactly two reports", { 
     2
   );
 });
+
+test(
+  "two concurrent redemptions of the SAME pmSlug grant exactly one",
+  { skip: !DB_URL },
+  async (t) => {
+    // The already_owned check moved inside the transaction so it reads the
+    // same snapshot as the credit claim. Before that fix, both callers could
+    // pass the pre-transaction check, and the loser's INSERT would hit the
+    // ReportEntitlement unique constraint and throw instead of returning a
+    // RedeemResult. Neither call may throw; exactly one must win.
+    const owner = guest("same-slug");
+    t.after(() => cleanup(owner));
+    await mintCredits({ owner, stripeSessionId: `cs_ss_${owner.guestEmail}`, count: 3 });
+    const slug = "same-slug-operator-denver-co";
+
+    const results = await Promise.all([
+      redeemCredit(owner, slug),
+      redeemCredit(owner, slug),
+    ]);
+
+    const granted = results.filter((r) => r.ok);
+    const alreadyOwned = results.filter(
+      (r) => !r.ok && r.reason === "already_owned"
+    );
+    assert.equal(granted.length, 1, `expected exactly 1 grant, got ${granted.length}`);
+    assert.equal(
+      alreadyOwned.length,
+      1,
+      `expected exactly 1 already_owned, got ${alreadyOwned.length}`
+    );
+
+    assert.equal(await countUnredeemed(owner), 2, "exactly one credit spent");
+    assert.equal(
+      await prisma.reportEntitlement.count({
+        where: { guestEmail: owner.guestEmail!, pmSlug: slug },
+      }),
+      1,
+      "exactly one entitlement created"
+    );
+  }
+);
 
 test.after(async () => {
   await prisma.$disconnect();
