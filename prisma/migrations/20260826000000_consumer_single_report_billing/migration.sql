@@ -17,41 +17,25 @@ CREATE TABLE "ReportEntitlement" (
     "pmSlug" TEXT NOT NULL,
     "organizationId" TEXT,
     "guestEmail" TEXT,
-    "stripeSessionId" TEXT NOT NULL,
+    "stripeSessionId" TEXT,
+    "sourceCreditId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ReportEntitlement_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "MarketPass" (
+CREATE TABLE "ReportCredit" (
     "id" TEXT NOT NULL,
-    "marketId" TEXT NOT NULL,
     "organizationId" TEXT,
     "guestEmail" TEXT,
     "stripeSessionId" TEXT NOT NULL,
-    "startsAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "slot" INTEGER NOT NULL,
+    "redeemedPmSlug" TEXT,
+    "redeemedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "MarketPass_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Subscription" (
-    "id" TEXT NOT NULL,
-    "stripeSubscriptionId" TEXT NOT NULL,
-    "stripeCustomerId" TEXT NOT NULL,
-    "organizationId" TEXT,
-    "userId" TEXT,
-    "guestEmail" TEXT,
-    "status" TEXT NOT NULL,
-    "priceId" TEXT NOT NULL,
-    "currentPeriodEnd" TIMESTAMP(3) NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ReportCredit_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -76,7 +60,7 @@ CREATE UNIQUE INDEX "StripeCustomer_userId_key" ON "StripeCustomer"("userId");
 CREATE INDEX "StripeCustomer_email_idx" ON "StripeCustomer"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ReportEntitlement_stripeSessionId_key" ON "ReportEntitlement"("stripeSessionId");
+CREATE UNIQUE INDEX "ReportEntitlement_sourceCreditId_key" ON "ReportEntitlement"("sourceCreditId");
 
 -- CreateIndex
 CREATE INDEX "ReportEntitlement_guestEmail_idx" ON "ReportEntitlement"("guestEmail");
@@ -91,28 +75,13 @@ CREATE UNIQUE INDEX "ReportEntitlement_pmSlug_organizationId_key" ON "ReportEnti
 CREATE UNIQUE INDEX "ReportEntitlement_pmSlug_guestEmail_key" ON "ReportEntitlement"("pmSlug", "guestEmail");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "MarketPass_stripeSessionId_key" ON "MarketPass"("stripeSessionId");
+CREATE UNIQUE INDEX "ReportCredit_stripeSessionId_slot_key" ON "ReportCredit"("stripeSessionId", "slot");
 
 -- CreateIndex
-CREATE INDEX "MarketPass_marketId_expiresAt_idx" ON "MarketPass"("marketId", "expiresAt");
+CREATE INDEX "ReportCredit_organizationId_redeemedAt_idx" ON "ReportCredit"("organizationId", "redeemedAt");
 
 -- CreateIndex
-CREATE INDEX "MarketPass_guestEmail_idx" ON "MarketPass"("guestEmail");
-
--- CreateIndex
-CREATE INDEX "MarketPass_organizationId_idx" ON "MarketPass"("organizationId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Subscription_stripeSubscriptionId_key" ON "Subscription"("stripeSubscriptionId");
-
--- CreateIndex
-CREATE INDEX "Subscription_organizationId_idx" ON "Subscription"("organizationId");
-
--- CreateIndex
-CREATE INDEX "Subscription_stripeCustomerId_idx" ON "Subscription"("stripeCustomerId");
-
--- CreateIndex
-CREATE INDEX "Subscription_guestEmail_idx" ON "Subscription"("guestEmail");
+CREATE INDEX "ReportCredit_guestEmail_redeemedAt_idx" ON "ReportCredit"("guestEmail", "redeemedAt");
 
 -- AddForeignKey
 ALTER TABLE "StripeCustomer" ADD CONSTRAINT "StripeCustomer_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -121,8 +90,4 @@ ALTER TABLE "StripeCustomer" ADD CONSTRAINT "StripeCustomer_organizationId_fkey"
 ALTER TABLE "ReportEntitlement" ADD CONSTRAINT "ReportEntitlement_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "MarketPass" ADD CONSTRAINT "MarketPass_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
+ALTER TABLE "ReportCredit" ADD CONSTRAINT "ReportCredit_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;

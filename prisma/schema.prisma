@@ -503,8 +503,7 @@ model Organization {
   // per-report purchases, time-boxed market passes, and subscriptions
   // when a signed-in workspace user buys through the consumer funnel.
   reportEntitlements ReportEntitlement[]
-  marketPasses       MarketPass[]
-  subscriptions      Subscription[]
+  reportCredits      ReportCredit[]
   stripeCustomer     StripeCustomer?
 
   // Hot lookups: "find personal org for user X" (already covered by
@@ -782,21 +781,23 @@ model PropertyHome {
 // ===========================================================================
 // v0.30 — Consumer single-report product (Operator IQ for owners).
 //
-// A new self-serve funnel sells access one property manager at a time:
-//   - $29  single report      → ReportEntitlement (per-PM, permanent)
-//   - $49  30-day market pass  → MarketPass (time-boxed, whole market)
-//   - $19/mo keep-watching     → Subscription (Stripe subscription mirror)
+// A self-serve funnel sells access one property manager at a time, two SKUs:
+//   - $149  single report  → ReportEntitlement, granted directly
+//   - $299  three-report pack → 3x ReportCredit minted, each redeemed later
+//     into its own ReportEntitlement (the buyer usually knows only one
+//     operator name at checkout)
 //
 // Ownership is guest-OR-org, mirroring the existing Lead guest pattern and
 // the OrganizationMarketAccess org pattern:
 //   - Guest checkout keys on a lowercased `guestEmail` (no Clerk identity).
 //   - A signed-in workspace user keys on `organizationId` (our DB row id,
 //     resolved via getActiveOrgContext()).
-// Exactly one of the two is set per row. `stripeSessionId @unique` is the
-// hard idempotency guarantee: one completed Checkout Session grants one row,
-// so a replayed webhook is a no-op upsert. market/pm keys are plain strings
-// (Market.id / PM.slug) — not FKs — exactly like OrganizationMarketAccess,
-// so a grant can't be blocked by row lifecycle. See
+// Exactly one of the two is set per row. Idempotency is per-owner (the
+// composite uniques on ReportEntitlement, the (stripeSessionId, slot) unique
+// on ReportCredit) rather than a unique stripeSessionId, because a three-pack
+// Checkout Session mints/grants more than one row. market/pm keys are plain
+// strings (Market.id / PM.slug) — not FKs — exactly like
+// OrganizationMarketAccess, so a grant can't be blocked by row lifecycle. See
 // src/lib/auth/report-entitlements.ts for the resolver.
 // ===========================================================================
 
@@ -818,74 +819,57 @@ model StripeCustomer {
   @@index([email])
 }
 
-// Per-PM report purchase ($29). Permanent access to one operator's scorecard
-// (web + PDF). Guest-or-org owned. The two compound uniques keep grants
-// idempotent per owner; stripeSessionId is the authoritative idempotency key.
+// Per-PM report purchase ($149) or a redeemed pack credit. Permanent access to
+// one operator's scorecard for one owner (an org, or a guest email).
 model ReportEntitlement {
-  id              String   @id @default(cuid())
-  pmSlug          String // → PM.slug (string key, not FK — OrganizationMarketAccess precedent)
-  organizationId  String?
-  guestEmail      String? // lowercased; Lead-style guest key
-  stripeSessionId String   @unique
-  createdAt       DateTime @default(now())
+  id             String  @id @default(cuid())
+  pmSlug         String // → PM.slug (string key, not FK — OrganizationMarketAccess precedent)
+  organizationId String?
+  guestEmail     String? // lowercased; Lead-style guest key
+  // Audit only, and NOT unique: a three-pack yields up to three entitlements
+  // from one Checkout Session. Idempotency is carried by the composite uniques
+  // below (an owner cannot hold the same report twice) plus StripeWebhookEvent.
+  stripeSessionId String?
+  // Set when this entitlement came from redeeming a pack credit. Unique, so a
+  // credit can be spent at most once.
+  sourceCreditId String?  @unique
+  createdAt      DateTime @default(now())
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  // NULLs are distinct in Postgres, so these only constrain rows that
-  // actually carry the respective owner — a guest row (org null) and an org
-  // row (guestEmail null) never collide, and duplicate grants to the SAME
-  // owner are prevented.
+  // NULLs are distinct in Postgres, so these only constrain rows that actually
+  // carry the respective owner — a guest row (org null) and an org row
+  // (guestEmail null) never collide, and duplicate grants to the SAME owner
+  // are prevented.
   @@unique([pmSlug, organizationId])
   @@unique([pmSlug, guestEmail])
   @@index([guestEmail])
   @@index([organizationId])
 }
 
-// Time-boxed whole-market pass ($49 / 30 days). Grants full access to every
-// operator in one market while `expiresAt` is in the future. Guest-or-org
-// owned. Non-renewing by design (distinct from the $19/mo Subscription).
-model MarketPass {
-  id              String   @id @default(cuid())
-  marketId        String // → Market.id string key
-  organizationId  String?
-  guestEmail      String? // lowercased
-  stripeSessionId String   @unique
-  startsAt        DateTime @default(now())
-  expiresAt       DateTime // startsAt + 30d, computed at grant time
-  createdAt       DateTime @default(now())
+// Unredeemed report purchases. A three-pack mints three rows; a single report
+// grants its entitlement directly and mints none.
+//
+// One row per credit rather than a counter column: redemption is then a
+// guarded row claim with no read-modify-write race, and the ledger shows which
+// credit bought which report.
+model ReportCredit {
+  id             String  @id @default(cuid())
+  organizationId String?
+  guestEmail     String? // lowercased, same guest key as ReportEntitlement
+  // The pack purchase. NOT unique — three rows share it. Paired with `slot` it
+  // makes minting safely repeatable under concurrent webhook delivery.
+  stripeSessionId String
+  slot            Int
+  redeemedPmSlug  String? // null while unredeemed
+  redeemedAt      DateTime?
+  createdAt       DateTime  @default(now())
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  // Hot query: "any live pass for this market owned by this key" —
-  // (marketId, expiresAt) covers the range scan.
-  @@index([marketId, expiresAt])
-  @@index([guestEmail])
-  @@index([organizationId])
-}
-
-// Stripe subscription mirror ($19/mo keep-watching). One row per Stripe
-// subscription, kept in sync by customer.subscription.* webhook events.
-// `status` mirrors Stripe's string values ("active" | "past_due" |
-// "canceled" | ...) — stored as a string so new Stripe states don't require
-// a migration, same rationale as OrganizationMembership.role.
-model Subscription {
-  id                   String   @id @default(cuid())
-  stripeSubscriptionId String   @unique
-  stripeCustomerId     String
-  organizationId       String?
-  userId               String? // Clerk userId, opaque
-  guestEmail           String? // lowercased, when bought via guest funnel
-  status               String
-  priceId              String
-  currentPeriodEnd     DateTime
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@index([organizationId])
-  @@index([stripeCustomerId])
-  @@index([guestEmail])
+  @@unique([stripeSessionId, slot])
+  @@index([organizationId, redeemedAt])
+  @@index([guestEmail, redeemedAt])
 }
 
 // Idempotency ledger for the Stripe webhook. First write of a given Stripe
