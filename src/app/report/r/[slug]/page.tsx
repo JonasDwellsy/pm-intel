@@ -80,7 +80,7 @@ export default async function ReportPage({
   const durable = access.accessible;
   let accessible = durable;
   if (!accessible && sessionId) {
-    accessible = await sessionGrantsReport(sessionId, slug, marketId);
+    accessible = await sessionGrantsReport(sessionId, slug);
   }
 
   if (!accessible) {
