@@ -30,7 +30,8 @@ export interface ReportDeliveryArgs {
   kind: ProductKind;
   pmSlug?: string | null;
   pmName?: string | null;
-  marketName?: string | null;
+  /** Unredeemed credits left after this purchase. 0 for a single report. */
+  creditsRemaining: number;
 }
 
 /** Send the purchase confirmation + access links. Returns whether the send
@@ -50,26 +51,24 @@ export async function sendReportPurchaseEmail(
     let pdfBlock = "";
 
     if (args.kind === "single_report" && args.pmSlug) {
-      const name = args.pmName ?? "your property manager";
-      subject = `Your Operator IQ report on ${name}`;
-      heading = `Your report on ${name} is ready`;
-      ctaLabel = "View the full report";
+      subject = `Your report on ${args.pmName ?? "your property manager"}`;
+      heading = "Your report is ready";
+      ctaLabel = "Read the report";
       ctaUrl = `${base}/report/r/${args.pmSlug}${tq}`;
       const pdfUrl = `${base}/api/report/${args.pmSlug}/pdf${tq}`;
       pdfBlock = `<p style="margin:16px 0 0"><a href="${pdfUrl}">Download the PDF</a> to keep a copy.</p>`;
-    } else if (args.kind === "subscription") {
-      subject = "Your Operator IQ subscription is active";
-      heading = "Your Keep Watching subscription is active";
-      ctaLabel = "Manage your subscription";
-      ctaUrl = `${base}/report/account${tq}`;
-      pdfBlock = `<p style="margin:16px 0 0">Browse and open any manager&rsquo;s report in your market from <a href="${base}/report${tq}">here</a>.</p>`;
+    } else if (args.pmSlug) {
+      // Pack bought from a report page: one redeemed, the rest waiting.
+      subject = `Your report on ${args.pmName ?? "your property manager"}, plus ${args.creditsRemaining} to use`;
+      heading = "Your report is ready";
+      ctaLabel = "Read the report";
+      ctaUrl = `${base}/report/r/${args.pmSlug}${tq}`;
     } else {
-      // market_pass — market-wide access for 30 days.
-      const market = args.marketName ?? "your market";
-      subject = `Your Operator IQ market access — ${market}`;
-      heading = `Your market pass for ${market} is active`;
-      ctaLabel = "Browse managers in your market";
-      ctaUrl = `${base}/report${tq}`;
+      // Pack bought from the landing page: nothing redeemed yet.
+      subject = `Your ${args.creditsRemaining} property manager reports`;
+      heading = `You have ${args.creditsRemaining} reports to use`;
+      ctaLabel = "Choose your first report";
+      ctaUrl = `${base}/report/account${tq}`;
     }
 
     const html = `
