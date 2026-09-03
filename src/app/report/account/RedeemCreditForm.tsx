@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { buildReportQuery } from "@/lib/report/query";
 
 const REASONS: Record<string, string> = {
   no_credits: "You have no reports left to use.",
@@ -31,9 +32,15 @@ export function RedeemCreditForm({ token }: { token: string | null }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pmSlug: slug.trim(), token: token ?? undefined }),
       });
-      const data: { ok: boolean; reason?: string } = await res.json();
+      const data: { ok: boolean; reason?: string; pmSlug?: string } = await res.json();
       if (data.ok) {
-        router.push(`/report/r/${slug.trim()}`);
+        // Redirect target comes from the server-echoed pmSlug, not the
+        // client's typed input — they should match, but the server's value
+        // is the one actually redeemed. The token carries forward too: a
+        // guest has no session, so a redirect without it would drop them
+        // right back on the teaser for the report they just spent a credit
+        // on.
+        router.push(`/report/r/${data.pmSlug ?? slug.trim()}${buildReportQuery({ token })}`);
         return;
       }
       setError(REASONS[data.reason ?? ""] ?? "That didn't work. Please try again.");

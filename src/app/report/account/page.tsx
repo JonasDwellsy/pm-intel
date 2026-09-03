@@ -12,6 +12,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { verifyReportAccessToken } from "@/lib/report/access-token";
+import { buildReportQuery } from "@/lib/report/query";
 import { ReportShell } from "@/components/report/ReportShell";
 import { countUnredeemed } from "@/lib/billing/credits.server";
 import type { CreditOwner } from "@/lib/billing/credits";
@@ -33,6 +34,13 @@ export default async function AccountPage({
   const { organizationId } = await getActiveOrgContext();
   const guestEmail = organizationId ? null : verifyReportAccessToken(token);
   const identified = Boolean(organizationId || guestEmail);
+
+  // Every "/report/r/<slug>" link out of this page must carry the guest's
+  // token forward — they have no session, so dropping it here means an
+  // owner clicking "Open" lands unidentified on the teaser for a report
+  // they already own (see the redeem-form redirect below for the same
+  // requirement).
+  const linkQuery = buildReportQuery({ token, partner });
 
   const owner: CreditOwner = { organizationId, guestEmail };
   const [owned, credits] = identified
@@ -111,7 +119,7 @@ export default async function AccountPage({
                         {nameBySlug.get(o.pmSlug) ?? o.pmSlug}
                       </span>
                       <Link
-                        href={`/report/r/${o.pmSlug}`}
+                        href={`/report/r/${o.pmSlug}${linkQuery}`}
                         className="text-[14px] font-semibold text-teal underline-offset-2 hover:underline"
                       >
                         Open

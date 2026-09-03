@@ -47,14 +47,14 @@ export default async function ReportLandingPage({
         {/* Pricing summary */}
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
           <PriceCard
-            price="$29"
+            price="$149"
             title="Single report"
             body="The full scorecard for one manager — rank, lease-up speed, retention, rent performance, and marketing quality. Yours to keep, as a PDF."
           />
           <PriceCard
-            price="$49"
-            title="30-day market pass"
-            body="Shopping around? Unlock every ranked manager in your market and compare your shortlist side by side for 30 days."
+            price="$299"
+            title="Three-report pack"
+            body="Comparing more than one manager? Buy three credits and use them on any managers you choose, whenever you choose — each report yours to keep."
           />
         </div>
 

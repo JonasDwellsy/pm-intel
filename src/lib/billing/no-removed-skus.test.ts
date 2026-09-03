@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 // The market pass and the $19/mo subscription were removed across 18 files.
 // A single surviving reference is how a dead consumer grant comes back — and
@@ -10,13 +11,12 @@ import { execFileSync } from "node:child_process";
 // Grep over src/ rather than a type check, because the dangerous leftovers are
 // strings in metadata and Prisma model names, which typecheck fine.
 
-function grep(pattern: string): string[] {
+function grep(pattern: string, opts: { ignoreCase?: boolean } = {}): string[] {
+  const flags = ["-rIn", "--include=*.ts", "--include=*.tsx"];
+  if (opts.ignoreCase) flags.push("-i");
+  flags.push("-E", pattern, "src");
   try {
-    const out = execFileSync(
-      "grep",
-      ["-rIn", "--include=*.ts", "--include=*.tsx", "-E", pattern, "src"],
-      { encoding: "utf8" }
-    );
+    const out = execFileSync("grep", flags, { encoding: "utf8" });
     return out.trim().split("\n").filter(Boolean);
   } catch (e) {
     // grep's exit codes: 1 = no matches (our success case), 2 = a real
@@ -30,6 +30,24 @@ function grep(pattern: string): string[] {
         `not run, so treat this as a failure rather than a clean result`
     );
   }
+}
+
+// A grep hit's line content, stripped of grep's own "path:line:" prefix
+// (paths here never contain ":", so the first two colons are always the
+// separators grep inserted).
+function contentOf(hit: string): string {
+  const m = hit.match(/^[^:]+:\d+:(.*)$/);
+  return m ? m[1] : hit;
+}
+
+// A price string or "market pass" copy is fine to survive in an explanatory
+// `//` comment (e.g. products.ts's "WHY NO MARKET PASS" note) — those are
+// exactly the kind of history this guard should NOT flag. It's only a defect
+// when it's live: JSX prose, a string literal, a template string. This is a
+// line-prefix heuristic, not a parser, but it's sufficient for this repo's
+// comment style (checked against every current hit below).
+function isCommentLine(hit: string): boolean {
+  return /^\s*(\/\/|\/\*|\*)/.test(contentOf(hit));
 }
 
 test("the guard can actually see the codebase (positive control)", () => {
@@ -74,4 +92,54 @@ test("MARKET_PASS_DAYS is gone", () => {
     (l) => !l.startsWith("src/lib/billing/no-removed-skus.test.ts")
   );
   assert.deepEqual(hits, [], `dead constant:\n${hits.join("\n")}`);
+});
+
+// The two tests above are grep-over-src, which can't see JSX prose (findings
+// come back as element children, not string literals matching a clean
+// pattern) or .env.example (not under src/ at all, and not a .ts/.tsx file).
+// Both were exactly how the removed SKUs almost came back: the /report
+// landing page still advertised the $29/$49 prices and the whole-market
+// pass, and .env.example still told whoever provisions Stripe to create a
+// $19/mo recurring Price.
+
+test(".env.example documents the two current SKUs, not the removed ones", () => {
+  const content = readFileSync(".env.example", "utf8");
+  assert.ok(
+    !content.includes("STRIPE_PRICE_MARKET_PASS"),
+    ".env.example still declares STRIPE_PRICE_MARKET_PASS — a removed SKU's price var"
+  );
+  assert.ok(
+    !content.includes("STRIPE_PRICE_SUBSCRIPTION"),
+    ".env.example still declares STRIPE_PRICE_SUBSCRIPTION — a removed SKU's price var"
+  );
+  assert.ok(
+    content.includes("STRIPE_PRICE_THREE_PACK"),
+    ".env.example is missing STRIPE_PRICE_THREE_PACK — the $299 SKU's checkout throws without it"
+  );
+});
+
+test("no live price string for a removed SKU, or market-pass copy, outside comments", () => {
+  // Word/price-boundary match: "\\$(29|49|19)\\b" requires "$" immediately
+  // before the digits AND a non-digit (or end of token) right after, so it
+  // does not fire on "$149" or "$299" (verified below) — a bare substring
+  // match would, since both contain "29" as their last two digits.
+  const hits = grep('\\$(29|49|19)\\b|market pass', { ignoreCase: true }).filter(
+    (l) => !l.startsWith("src/lib/billing/no-removed-skus.test.ts") && !isCommentLine(l)
+  );
+  assert.deepEqual(
+    hits,
+    [],
+    `live $29/$49/$19 price string or "market pass" copy outside a comment:\n${hits.join("\n")}`
+  );
+});
+
+test("the price-boundary pattern does not false-positive on $149/$299 (positive control)", () => {
+  const falsePositives = ["$149", "$299", 'price="$149"', 'price="$299"'].filter((s) =>
+    /\$(29|49|19)\b/.test(s)
+  );
+  assert.deepEqual(
+    falsePositives,
+    [],
+    `the price guard's pattern would wrongly flag legitimate prices: ${falsePositives.join(", ")}`
+  );
 });
