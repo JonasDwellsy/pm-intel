@@ -1,16 +1,19 @@
-// v0.30 — per-report / market-pass access (pure logic).
+// v0.33 — per-report access (pure logic).
 //
-// The consumer single-report funnel adds THREE new ways to reach a scorecard,
-// on top of the existing B2B market entitlement (market-entitlements.ts). This
-// module is a SIBLING of that one, not a replacement: the existing market gate
-// is unchanged and always wins first. A viewer can read an operator's report
+// The consumer funnel adds ONE new way to reach a scorecard on top of the
+// existing B2B market entitlement (market-entitlements.ts). This module is a
+// SIBLING of that one, not a replacement: the existing market gate is
+// unchanged and always wins first. A viewer can read an operator's report
 // when ANY of these holds:
-//   1. isAdmin                 — internal bypass (same as market gate)
-//   2. marketEntitled          — the existing B2B path: entitled to the PM's
-//                                whole market (org allMarkets or explicit grant)
-//   3. hasReportPurchase       — bought the $29 single report for THIS pm
-//   4. hasActiveMarketPass     — holds a live $49 30-day pass, or an active
-//                                $19/mo subscription, for the PM's market
+//   1. isAdmin           — internal bypass (same as market gate)
+//   2. marketEntitled    — existing B2B path: entitled to the PM's whole
+//                          market (org allMarkets or explicit grant)
+//   3. hasReportPurchase — holds a ReportEntitlement for THIS pm, bought
+//                          outright ($149) or redeemed from a pack credit
+//
+// There is deliberately no market-wide consumer path. The removed $19/mo
+// subscription carried no marketId and was resolved without one, so it
+// granted every operator in all 44 markets. Deleting the input is the fix.
 //
 // Pure (no Prisma / Clerk / server-only) so it unit-tests like
 // market-entitlements.ts. The async gatherer lives in
@@ -19,8 +22,7 @@
 export type ReportAccessReason =
   | "admin"
   | "market" // existing B2B market entitlement
-  | "report" // per-PM single-report purchase
-  | "pass" // time-boxed market pass or active subscription
+  | "report" // per-PM entitlement: direct purchase or redeemed credit
   | null; // no access — show the purchase CTA
 
 export interface ReportAccessInputs {
@@ -29,19 +31,15 @@ export interface ReportAccessInputs {
   marketEntitled: boolean;
   /** A ReportEntitlement row exists for this pm owned by the viewer. */
   hasReportPurchase: boolean;
-  /** A live MarketPass or active Subscription for this market owned by the
-   *  viewer. */
-  hasActiveMarketPass: boolean;
 }
 
 /** Highest-precedence reason the viewer may read this report, or null if they
  *  may not. Precedence mirrors the market gate (admin first) and keeps the
- *  existing market path ahead of the new consumer paths. */
+ *  existing market path ahead of the consumer path. */
 export function reportAccessReason(i: ReportAccessInputs): ReportAccessReason {
   if (i.isAdmin) return "admin";
   if (i.marketEntitled) return "market";
   if (i.hasReportPurchase) return "report";
-  if (i.hasActiveMarketPass) return "pass";
   return null;
 }
 

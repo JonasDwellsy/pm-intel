@@ -6,11 +6,17 @@ import {
   type ReportAccessInputs,
 } from "./report-entitlements";
 
+// v0.33 — THREE ways to reach a report, not four. The `hasActiveMarketPass`
+// input is gone with the market-pass and subscription SKUs. It is worth
+// stating why in a test: `Subscription` carried no marketId and the server
+// resolver filtered only on status and period end, so a single $19/month
+// subscription granted every operator in all 44 markets. Removing the input
+// removes the possibility.
+
 const NONE: ReportAccessInputs = {
   isAdmin: false,
   marketEntitled: false,
   hasReportPurchase: false,
-  hasActiveMarketPass: false,
 };
 
 test("no signals → no access", () => {
@@ -20,38 +26,35 @@ test("no signals → no access", () => {
 
 test("admin bypass wins over everything", () => {
   assert.equal(reportAccessReason({ ...NONE, isAdmin: true }), "admin");
-});
-
-test("existing market entitlement is honored (non-breaking B2B path)", () => {
-  assert.equal(reportAccessReason({ ...NONE, marketEntitled: true }), "market");
-  assert.equal(isReportAccessible({ ...NONE, marketEntitled: true }), true);
-});
-
-test("per-report purchase grants access", () => {
-  assert.equal(reportAccessReason({ ...NONE, hasReportPurchase: true }), "report");
-});
-
-test("active market pass / subscription grants access", () => {
-  assert.equal(reportAccessReason({ ...NONE, hasActiveMarketPass: true }), "pass");
-});
-
-test("precedence: market beats report beats pass", () => {
   assert.equal(
     reportAccessReason({
-      isAdmin: false,
+      isAdmin: true,
       marketEntitled: true,
       hasReportPurchase: true,
-      hasActiveMarketPass: true,
     }),
+    "admin"
+  );
+});
+
+test("the existing B2B market entitlement outranks a consumer purchase", () => {
+  assert.equal(
+    reportAccessReason({ ...NONE, marketEntitled: true, hasReportPurchase: true }),
     "market"
   );
-  assert.equal(
-    reportAccessReason({
-      isAdmin: false,
-      marketEntitled: false,
-      hasReportPurchase: true,
-      hasActiveMarketPass: true,
-    }),
-    "report"
-  );
+});
+
+test("a per-PM purchase grants access on its own", () => {
+  assert.equal(reportAccessReason({ ...NONE, hasReportPurchase: true }), "report");
+  assert.equal(isReportAccessible({ ...NONE, hasReportPurchase: true }), true);
+});
+
+test("there is no pass reason any more", () => {
+  // A stray "pass" would mean a market-wide consumer grant came back.
+  const reasons = [
+    reportAccessReason(NONE),
+    reportAccessReason({ ...NONE, isAdmin: true }),
+    reportAccessReason({ ...NONE, marketEntitled: true }),
+    reportAccessReason({ ...NONE, hasReportPurchase: true }),
+  ];
+  assert.deepEqual(reasons, [null, "admin", "market", "report"]);
 });
