@@ -1,6 +1,6 @@
 # Bifurcating Operator IQ and the Reports product
 
-**Status:** design, awaiting review
+**Status:** approved — all three open decisions resolved 2026-09-01 (see Decisions)
 **Date:** 2026-09-01
 
 ## Summary
@@ -115,9 +115,10 @@ product's proof. A prospect evaluating a measurement business wants to know
 whether the data is any good, and a public report lets them verify the work on
 an operator they already know before they ever take a call. That converts
 "trust us" into "check for yourself," which is worth more than the transaction.
-It also concentrates brand, SEO and design system in one place, and the report
-funnel becomes a demand signal — which operators and markets people pay to look
-up.
+It also concentrates brand and design system in one place, and the report funnel
+becomes a demand signal — which operators and markets people pay to look up.
+It positions the site to earn search traffic later, when indexing is turned on,
+without a rebuild.
 
 **The risk this creates is message dilution, not price anchoring.** The
 homepage speaks to owners and asset managers ("The best operators drive the
@@ -127,9 +128,11 @@ doors, sized by how the visitor arrived:
 
 - **Homepage / brand traffic** keeps the institutional framing. Enterprise is
   the CTA; the report is a self-serve proof point, not the headline.
-- **Operator report pages** are the SEO surface — one per operator across 4,468
-  of them — and speak to the individual decision. Most buyers arrive here from
-  a search and never see the homepage.
+- **Operator report pages** speak to the individual decision, one per operator
+  across 4,468 of them. In the invite and partner phases a buyer arrives here
+  from a link rather than a search, often without seeing the homepage at all —
+  so this page has to stand alone: what the product is, why the measurement is
+  credible, what $149 buys.
 
 The enterprise tease must show what a report cannot do: a watch list, a change
 alert firing, a market brief. Not a feature grid.
@@ -294,11 +297,19 @@ and the pack placement beside the peer table. Depends on Plan 1 for the pack to
 exist. Includes merging PR #413's teaser and shell work minus its hosting
 rewrite.
 
-**Plan 3 — Go public and migrate the host.** The indexing flip with per-path
-robots rules, and the `intel.*` → `operators.*` canonical sweep plus permanent
-301. Independent of Plans 1 and 2, and gated on decisions 1 and 2 below. Worth
-keeping separate precisely because it is the irreversible one: a sweep of
-hardcoded hosts and a public search index are both hard to walk back.
+**Plan 3 — Canonical host migration.** Make `operators.iq.dwellsy.com`
+canonical and 301 `intel.*` permanently: the sweep of hardcoded hosts across
+emails, PDFs, digest links, checkout redirects, Clerk allowed origins and
+canonical metadata. Independent of Plans 1 and 2; can run in parallel. Do it
+now, while there are no clients whose links can break.
+
+**Plan 4 — Public indexing.** DEFERRED, not scheduled. Launch is invite-led,
+so `INDEXING_ENABLED` stays `false` and no robots work is needed yet. When
+Jonas decides to open the directory, this becomes its own plan: per-path robots
+rules that allow the public surface and disallow the app paths, a sitemap over
+the operator pages, and the customer-relationship review that publishing 4,468
+operator ratings deserves. Kept separate because it is the one irreversible
+step — a search index is hard to walk back.
 
 ## Out of scope
 
@@ -308,31 +319,42 @@ hardcoded hosts and a public search index are both hard to walk back.
 - Enterprise billing. Enterprise stays contract-and-invoice, provisioned by
   admin through Clerk orgs and market entitlements. Stripe is consumer-only.
 - Changes to scorecard content, methodology or the data pipeline.
+- **Public search indexing.** Launch is invite-led, so `INDEXING_ENABLED` stays
+  `false` and no robots or sitemap work happens here. Deferred to Plan 4, which
+  is unscheduled.
+- Partner-specific pricing or discount codes. $149/$299 is the rate card that
+  partner deals will discount from; the machinery for that is a later scope.
 
-## Decisions still needed
+## Decisions
 
-These are business calls, not design gaps. Each has a recommendation; none
-blocks writing the implementation plan, but the first two block launch.
+All three resolved by Jonas, 2026-09-01.
 
-**1. Going public.** Launching Reports means indexing operator pages.
-`src/lib/seo.ts` carries a single global `INDEXING_ENABLED = false`, feeding
-`robots.ts`, `sitemap.ts` and the root layout. Reports cannot work without
-search — the whole distribution model is an owner googling a manager's name. So
-launch requires flipping it and adding per-path robots rules that allow the
-public surface and disallow the app paths.
+**1. Indexing — NOT yet.** Launch is **invite-led**: Jonas invites the first
+buyers directly, then distribution partners follow. `INDEXING_ENABLED` stays
+`false` and no robots work happens in this scope.
 
-This publicly reverses the homepage's "no public PM lookup, sales motion only"
-rule, and puts 4,468 operator names and ratings on the open web — some of whom
-are or could be Dwellsy customers. *Recommendation: proceed, but as an explicit
-decision, not a side effect of shipping.*
+This is a better sequence than the one I proposed. I had argued Reports cannot
+work without search, because the distribution model is an owner googling a
+manager's name. That is true of the *growth* phase and wrong about the
+*launch* phase: an invite link and a partner placement both work perfectly on
+unindexed pages. Sequencing this way also means the product gets proved by real
+buyers before a public directory of operator ratings exists — which defuses,
+for now, the customer-relationship question that publishing 4,468 operator
+names raises.
 
-**2. Canonical host.** `intel.iq.dwellsy.com` is hardcoded as canonical across
-emails, PDFs, digest links and checkout redirects (swept there in #297).
-*Recommendation: make `operators.iq.dwellsy.com` canonical and 301 `intel.*`
-permanently. Do the sweep once, now, while there are no clients to break.*
+Two consequences for the design. Report pages must stand alone, since an
+invited buyer lands on one from a link with no homepage context (reflected in
+the two-doors section above). And indexing becomes Plan 4, deferred and
+unscheduled, rather than a launch gate.
 
-**3. Partner channels.** If BiggerPockets or a similar partner is a major
-distribution path, their audience's reference prices and the rev-share
-economics may argue for a different number than a direct-to-owner funnel.
-*Recommendation: hold $149/$299 for direct; price partner placements separately
-once terms are known.*
+**2. Canonical host — `operators.iq.dwellsy.com`.** Confirmed. `intel.*` gets a
+permanent 301. This is Plan 3, and it runs now, while no client links exist to
+break.
+
+**3. Distribution partners — yes, and $149/$299 is the rate card.** Partner
+deals discount from that baseline rather than setting it. This is the practical
+argument for pricing at $149 rather than $29 that outweighs the positioning
+one: you can hand a partner a 30% discount off $149 and still clear more than
+full price at $29, and a partner negotiation that starts at $29 has nowhere to
+go. No partner-specific pricing is built in this scope — the existing
+`?partner=` theming is presentational only.
