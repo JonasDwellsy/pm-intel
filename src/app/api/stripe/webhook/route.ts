@@ -190,6 +190,7 @@ async function handleCheckoutCompleted(
   const pmSlug = session.metadata?.pmSlug || null;
   let event: ServerEventName;
   let redeemedNow = false;
+  let redeemReason: string | null = null;
 
   if (kind === "single_report") {
     if (!pmSlug) throw new Error(`single_report session ${session.id} missing pmSlug`);
@@ -216,6 +217,7 @@ async function handleCheckoutCompleted(
       const res = await redeemCredit(owner, pmSlug);
       redeemedNow = res.ok;
       if (!res.ok) {
+        redeemReason = res.reason;
         console.warn(
           `[stripe/webhook] pack ${session.id}: immediate redeem of ${pmSlug} returned ${res.reason}`
         );
@@ -233,10 +235,24 @@ async function handleCheckoutCompleted(
     const pm = pmSlug
       ? await prisma.pM.findUnique({ where: { slug: pmSlug }, select: { name: true } })
       : null;
+    // The email branches on pmSlug being present to say "Your report is
+    // ready" with a direct link to it — that promise is only true if the
+    // buyer can actually open pmSlug's report right now. A three_pack whose
+    // immediate redeem failed with no_credits leaves no entitlement for
+    // pmSlug (replayed delivery after all credits are spent, or a claim
+    // race), so gate on real access rather than on pmSlug's mere presence:
+    // an email that says "ready" and lands on the teaser is worse than the
+    // generic "you have N reports to use" copy the module falls back to
+    // when pmSlug is null.
+    const hasPmReportAccess = !pmSlug
+      ? false
+      : kind === "single_report"
+        ? true
+        : redeemedNow || redeemReason === "already_owned";
     await sendReportPurchaseEmail({
       email: recipient,
       kind,
-      pmSlug,
+      pmSlug: hasPmReportAccess ? pmSlug : null,
       pmName: pm?.name ?? null,
       // Key off the actual redemption result: a failed immediate redeem leaves
       // all three credits unspent, so don't subtract 1.
