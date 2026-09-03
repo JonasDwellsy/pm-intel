@@ -11,18 +11,25 @@
 //   1. StripeWebhookEvent ledger — fast-path skip for an already-processed
 //      event.id. Written only AFTER successful processing, so a failure
 //      leaves no ledger row and the retry reprocesses.
-//   2. Natural-key upserts on stripeSessionId / stripeSubscriptionId — the
-//      actual correctness guarantee: reprocessing the same session/subscription
-//      is a no-op. Correctness never depends on the ledger.
+//   2. Natural-key writes — the actual correctness guarantee, independent of
+//      the ledger: ReportEntitlement's (pmSlug, organizationId)/(pmSlug,
+//      guestEmail) composite uniques (createMany + skipDuplicates) for a
+//      single_report, and ReportCredit's (stripeSessionId, slot) unique for
+//      a three_pack mint. Reprocessing the same session is a no-op.
 //
-// Non-breaking: only writes to the NEW v0.30 tables; touches no existing model.
+// v0.33 — two one-time SKUs only (single_report, three_pack). No recurring
+// product: subscriptions and the market pass are gone, along with the event
+// dispatch that used to mirror subscription lifecycle updates. See
+// src/lib/billing/products.ts for why.
 
 import { createHash } from "node:crypto";
 import * as Sentry from "@sentry/nextjs";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
-import { MARKET_PASS_DAYS, type ProductKind } from "@/lib/billing/products";
+import { creditsFor, type ProductKind } from "@/lib/billing/products";
+import { mintCredits, redeemCredit } from "@/lib/billing/credits.server";
+import type { CreditOwner } from "@/lib/billing/credits";
 import {
   captureServerEvent,
   flushAnalyticsServer,
@@ -55,18 +62,6 @@ function guestDistinctId(email: string): string {
 function asString(v: string | { id: string } | null | undefined): string | null {
   if (!v) return null;
   return typeof v === "string" ? v : v.id;
-}
-
-/** current_period_end moved onto subscription items in recent Stripe API
- *  versions; read it from there, falling back to the legacy top-level field. */
-function subPeriodEnd(sub: Stripe.Subscription): Date {
-  const item = sub.items?.data?.[0] as
-    | { current_period_end?: number }
-    | undefined;
-  const ts =
-    item?.current_period_end ??
-    (sub as unknown as { current_period_end?: number }).current_period_end;
-  return ts ? new Date(ts * 1000) : new Date();
 }
 
 interface Owner {
@@ -150,18 +145,6 @@ async function dispatch(event: Stripe.Event): Promise<void> {
         event.id
       );
       return;
-    case "customer.subscription.created":
-    case "customer.subscription.updated":
-      await handleSubscriptionUpsert(
-        event.data.object as Stripe.Subscription,
-        event.id
-      );
-      return;
-    case "customer.subscription.deleted":
-      await handleSubscriptionCanceled(
-        event.data.object as Stripe.Subscription
-      );
-      return;
     default:
       // Unknown/uninteresting type — 200 so Stripe stops retrying.
       return;
@@ -203,30 +186,40 @@ async function handleCheckoutCompleted(
     });
   }
 
-  let event: ServerEventName | null = null;
+  const owner: CreditOwner = { organizationId, guestEmail };
+  const pmSlug = session.metadata?.pmSlug || null;
+  let event: ServerEventName;
+
   if (kind === "single_report") {
-    const pmSlug = session.metadata?.pmSlug;
     if (!pmSlug) throw new Error(`single_report session ${session.id} missing pmSlug`);
-    await prisma.reportEntitlement.upsert({
-      where: { stripeSessionId: session.id },
-      create: { pmSlug, organizationId, guestEmail, stripeSessionId: session.id },
-      update: {},
+    // createMany + skipDuplicates rather than upsert: the (pmSlug, owner)
+    // composite uniques make this idempotent without branching on which
+    // owner column is set, and stripeSessionId is no longer unique.
+    await prisma.reportEntitlement.createMany({
+      data: [{ pmSlug, organizationId, guestEmail, stripeSessionId: session.id }],
+      skipDuplicates: true,
     });
     event = "report_purchased";
-  } else if (kind === "market_pass") {
-    const marketId = session.metadata?.marketId;
-    if (!marketId) throw new Error(`market_pass session ${session.id} missing marketId`);
-    const expiresAt = new Date(Date.now() + MARKET_PASS_DAYS * 24 * 60 * 60 * 1000);
-    await prisma.marketPass.upsert({
-      where: { stripeSessionId: session.id },
-      create: { marketId, organizationId, guestEmail, stripeSessionId: session.id, expiresAt },
-      update: {},
+  } else {
+    // three_pack — mint the credits, then redeem one immediately if the buyer
+    // came from an operator's report page. Bought from the landing page there
+    // is no operator yet and all three stay unredeemed.
+    await mintCredits({
+      owner,
+      stripeSessionId: session.id,
+      count: creditsFor(kind),
     });
-    event = "market_pass_purchased";
-  } else if (kind === "subscription") {
-    // The Subscription row is authored by customer.subscription.* events,
-    // which carry status + period end. Nothing to grant here.
-    event = null;
+    if (pmSlug) {
+      // Not fatal if this fails — the credits exist and the buyer can redeem
+      // from the account wallet.
+      const res = await redeemCredit(owner, pmSlug);
+      if (!res.ok) {
+        console.warn(
+          `[stripe/webhook] pack ${session.id}: immediate redeem of ${pmSlug} returned ${res.reason}`
+        );
+      }
+    }
+    event = "pack_purchased";
   }
 
   // Deliver the buyer's access links by email (best-effort — the grant above
@@ -234,103 +227,30 @@ async function handleCheckoutCompleted(
   // always collects an email at Checkout, so `email` is present for guest and
   // org buyers alike.
   const recipient = (email ?? guestEmail) || null;
-  if (
-    recipient &&
-    (kind === "single_report" || kind === "market_pass" || kind === "subscription")
-  ) {
-    const pmSlug = session.metadata?.pmSlug || null;
-    const marketId = session.metadata?.marketId || null;
-    const [pm, market] = await Promise.all([
-      kind === "single_report" && pmSlug
-        ? prisma.pM.findUnique({ where: { slug: pmSlug }, select: { name: true } })
-        : Promise.resolve(null),
-      kind === "market_pass" && marketId
-        ? prisma.market.findUnique({ where: { id: marketId }, select: { fullName: true } })
-        : Promise.resolve(null),
-    ]);
+  if (recipient) {
+    const pm = pmSlug
+      ? await prisma.pM.findUnique({ where: { slug: pmSlug }, select: { name: true } })
+      : null;
     await sendReportPurchaseEmail({
       email: recipient,
       kind,
       pmSlug,
       pmName: pm?.name ?? null,
-      marketName: market?.fullName ?? null,
+      creditsRemaining:
+        kind === "three_pack" ? creditsFor(kind) - (pmSlug ? 1 : 0) : 0,
     });
   }
 
-  if (event) {
-    captureServerEvent({
-      userId,
-      anonymousId: guestEmail ? guestDistinctId(guestEmail) : null,
-      event,
-      eventId: deterministicUuid(`stripe:${eventId}:posthog`),
-      properties: {
-        pmSlug: session.metadata?.pmSlug || null,
-        marketId: session.metadata?.marketId || null,
-        partner,
-        buyer: organizationId ? "org" : "guest",
-      },
-    });
-  }
-}
-
-async function handleSubscriptionUpsert(
-  sub: Stripe.Subscription,
-  eventId: string
-): Promise<void> {
-  const organizationId = sub.metadata?.organizationId || null;
-  const userId = sub.metadata?.userId || null;
-  const guestEmail = organizationId ? null : sub.metadata?.guestEmail?.toLowerCase() || null;
-  const priceId = sub.items?.data?.[0]?.price?.id ?? "";
-  const stripeCustomerId = asString(sub.customer) ?? "";
-
-  const existing = await prisma.subscription.findUnique({
-    where: { stripeSubscriptionId: sub.id },
-    select: { id: true },
-  });
-
-  await prisma.subscription.upsert({
-    where: { stripeSubscriptionId: sub.id },
-    create: {
-      stripeSubscriptionId: sub.id,
-      stripeCustomerId,
-      organizationId,
-      userId,
-      guestEmail,
-      status: sub.status,
-      priceId,
-      currentPeriodEnd: subPeriodEnd(sub),
+  captureServerEvent({
+    userId,
+    anonymousId: guestEmail ? guestDistinctId(guestEmail) : null,
+    event,
+    eventId: deterministicUuid(`stripe:${eventId}:posthog`),
+    properties: {
+      pmSlug,
+      partner,
+      buyer: organizationId ? "org" : "guest",
+      credits: creditsFor(kind),
     },
-    update: {
-      status: sub.status,
-      priceId,
-      currentPeriodEnd: subPeriodEnd(sub),
-    },
-  });
-
-  // Fire "started" only on the first transition into active (create path),
-  // not on every renewal/update.
-  if (!existing && sub.status === "active") {
-    captureServerEvent({
-      userId,
-      anonymousId: guestEmail ? guestDistinctId(guestEmail) : null,
-      event: "subscription_started",
-      eventId: deterministicUuid(`stripe:${eventId}:posthog`),
-      properties: { buyer: organizationId ? "org" : "guest" },
-    });
-  }
-}
-
-async function handleSubscriptionCanceled(
-  sub: Stripe.Subscription
-): Promise<void> {
-  // Mark canceled if we mirror it; ignore unknown subscriptions.
-  const existing = await prisma.subscription.findUnique({
-    where: { stripeSubscriptionId: sub.id },
-    select: { id: true },
-  });
-  if (!existing) return;
-  await prisma.subscription.update({
-    where: { stripeSubscriptionId: sub.id },
-    data: { status: "canceled" },
   });
 }

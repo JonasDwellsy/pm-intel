@@ -121,15 +121,13 @@ export type ServerEventName =
   | "org_member_removed"
   | "org_role_changed"
   | "org_invitation_revoked"
-  // v0.30 — consumer single-report funnel conversions. Fired from the Stripe
-  // webhook on checkout.session.completed / subscription lifecycle. PRIVACY:
-  // distinctId is the Clerk userId when signed in, else a stable
-  // "guest-<sha>" handle the caller derives from the purchase email — the
-  // raw email never reaches PostHog, same rule as the invitation events.
+  // v0.33 — consumer funnel conversions (two one-time SKUs). Fired from the
+  // Stripe webhook on checkout.session.completed. PRIVACY: distinctId is the
+  // Clerk userId when signed in, else a stable "guest-<sha>" handle the
+  // caller derives from the purchase email — the raw email never reaches
+  // PostHog, same rule as the invitation events.
   | "report_purchased"
-  | "market_pass_purchased"
-  | "subscription_started"
-  | "subscription_canceled";
+  | "pack_purchased";
 
 interface CaptureArgs {
   /** Clerk userId when signed in, or null. When null, the helper
