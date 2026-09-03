@@ -1,7 +1,8 @@
 // v0.30 — Consumer single-report page. PUBLIC route (not in
 // PROTECTED_ROUTE_PATTERNS): anyone can reach it, but the full scorecard is
 // gated per-request by resolveReportAccess (admin → B2B market entitlement →
-// per-PM purchase → market pass / subscription). Non-buyers get the teaser.
+// per-PM entitlement, bought outright or redeemed from a pack credit).
+// Non-buyers get the teaser.
 //
 // Renders the SAME <ScorecardBody> as /sample and the B2B scorecard page, from
 // the same buildScorecardView pipeline — single-source, no drift. force-dynamic
