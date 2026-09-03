@@ -1,29 +1,27 @@
-// v0.32 — Consumer account / subscription hub. PUBLIC, force-dynamic. Shows the
-// viewer's subscription status and a "Manage subscription" button that opens
-// the Stripe Billing Portal. Guest viewers arrive via a magic-link token
-// (?token=…); signed-in viewers are resolved from their session. Wrapped in
-// ReportShell so it carries the partner brand.
+// v0.33 — Buyer wallet. PUBLIC, force-dynamic.
+//
+// Replaces the subscription hub: there is no recurring SKU any more. What a
+// three-pack buyer needs instead is the reports they own, the credits they
+// have left, and a way to spend one.
+//
+// Guest-or-org, keyed exactly like the entitlement resolver: a signed-in
+// workspace user by organizationId, a guest by a verified magic-link email.
 
 import type { Metadata } from "next";
-import { ReportShell } from "@/components/report/ReportShell";
-import { ManageSubscriptionButton } from "@/components/report/ManageSubscriptionButton";
-import { resolveViewerBilling } from "@/lib/billing/customer.server";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { getActiveOrgContext } from "@/lib/auth/active-org";
 import { verifyReportAccessToken } from "@/lib/report/access-token";
+import { ReportShell } from "@/components/report/ReportShell";
+import { countUnredeemed } from "@/lib/billing/credits.server";
+import type { CreditOwner } from "@/lib/billing/credits";
+import { RedeemCreditForm } from "./RedeemCreditForm";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Your account",
-  robots: { index: false },
-};
-
-const STATUS_COPY: Record<string, string> = {
-  active: "Active",
-  trialing: "Trial",
-  past_due: "Payment past due",
-  canceled: "Canceled",
-  unpaid: "Unpaid",
-  incomplete: "Incomplete",
+  title: "Your reports",
+  robots: { index: false, follow: false },
 };
 
 export default async function AccountPage({
@@ -32,76 +30,99 @@ export default async function AccountPage({
   searchParams: Promise<{ token?: string; partner?: string }>;
 }) {
   const { token, partner } = await searchParams;
-  const guestEmail = verifyReportAccessToken(token);
-  const { stripeCustomerId, subscription } = await resolveViewerBilling(guestEmail);
+  const { organizationId } = await getActiveOrgContext();
+  const guestEmail = organizationId ? null : verifyReportAccessToken(token);
+  const identified = Boolean(organizationId || guestEmail);
 
-  const periodEnd = subscription?.currentPeriodEnd
-    ? subscription.currentPeriodEnd.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
+  const owner: CreditOwner = { organizationId, guestEmail };
+  const [owned, credits] = identified
+    ? await Promise.all([
+        prisma.reportEntitlement.findMany({
+          where: organizationId ? { organizationId } : { guestEmail: guestEmail! },
+          orderBy: { createdAt: "desc" },
+          select: { pmSlug: true, createdAt: true },
+        }),
+        countUnredeemed(owner),
+      ])
+    : [[], 0];
+
+  const names = owned.length
+    ? await prisma.pM.findMany({
+        where: { slug: { in: owned.map((o) => o.pmSlug) } },
+        select: { slug: true, name: true },
       })
-    : null;
-  const canceled = subscription?.status === "canceled";
+    : [];
+  const nameBySlug = new Map(names.map((n) => [n.slug, n.name]));
 
   return (
-    <ReportShell partner={partner ?? null}>
+    <ReportShell partner={partner}>
       <main className="bg-[#FBFAF6]">
-        <div className="mx-auto max-w-[640px] px-6 py-12">
-          <h1 className="text-[26px] font-semibold text-navy">Your account</h1>
+        <section className="mx-auto max-w-[760px] px-6 pb-20 pt-14">
+          <h1 className="text-[28px] font-semibold text-navy">Your reports</h1>
 
-          {subscription ? (
-            <div className="mt-6 rounded-xl border border-grid bg-white p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[15px] font-semibold text-navy">Keep Watching</p>
-                  <p className="mt-0.5 text-[13px] text-muted-foreground">
-                    {STATUS_COPY[subscription.status] ?? subscription.status}
-                    {periodEnd
-                      ? canceled
-                        ? ` · access ends ${periodEnd}`
-                        : ` · renews ${periodEnd}`
-                      : ""}
-                  </p>
-                </div>
-                <span className="text-[20px] font-semibold text-navy">$19<span className="text-[13px] font-normal text-muted-foreground">/mo</span></span>
-              </div>
-              <div className="mt-5 border-t border-grid pt-5">
-                <ManageSubscriptionButton token={token ?? null} partner={partner ?? null} />
-                <p className="mt-3 text-[12.5px] text-muted-foreground">
-                  Update your card, view invoices, or cancel anytime — you keep
-                  access through the end of the period you&rsquo;ve paid for.
-                </p>
-              </div>
-            </div>
-          ) : stripeCustomerId ? (
-            <div className="mt-6 rounded-xl border border-grid bg-white p-6">
-              <p className="text-[15px] text-foreground/85">
-                You don&rsquo;t have an active subscription.
-              </p>
-              <div className="mt-4">
-                <ManageSubscriptionButton token={token ?? null} partner={partner ?? null} />
-              </div>
-            </div>
+          {!identified ? (
+            <p className="mt-4 max-w-[60ch] text-[15px] leading-relaxed text-muted-foreground">
+              Open this page from the link in your purchase email to see the
+              reports you own.{" "}
+              <Link href="/report" className="text-teal underline-offset-2 hover:underline">
+                Look up a property manager
+              </Link>
+              .
+            </p>
           ) : (
-            <div className="mt-6 rounded-xl border border-grid bg-white p-6">
-              <p className="text-[15px] text-foreground/85">
-                We couldn&rsquo;t find a subscription for you here.
-              </p>
-              <p className="mt-2 text-[13px] text-muted-foreground">
-                If you subscribed as a guest, open this page from the link in
-                your confirmation email. Otherwise, browse managers to get
-                started.
-              </p>
-              <a
-                href="/report"
-                className="mt-4 inline-flex h-10 items-center rounded-md border border-navy bg-white px-5 text-[14px] font-semibold text-navy hover:bg-navy-soft"
-              >
-                Browse managers
-              </a>
-            </div>
+            <>
+              <div className="mt-6 rounded-xl border border-navy/15 bg-white p-6">
+                <p className="text-[13px] font-medium text-muted-foreground">
+                  Reports left to use
+                </p>
+                <p className="mt-1 text-[32px] font-semibold leading-none text-navy">
+                  {credits}
+                </p>
+                {credits > 0 ? (
+                  <>
+                    <p className="mt-3 text-[14px] text-muted-foreground">
+                      Use one on any property manager. Search for them first if
+                      you need their exact name.
+                    </p>
+                    <RedeemCreditForm token={token ?? null} />
+                  </>
+                ) : (
+                  <p className="mt-3 text-[14px] text-muted-foreground">
+                    <Link href="/report" className="text-teal underline-offset-2 hover:underline">
+                      Look up another property manager
+                    </Link>{" "}
+                    to buy more.
+                  </p>
+                )}
+              </div>
+
+              <h2 className="mt-10 text-[18px] font-semibold text-navy">
+                Reports you own
+              </h2>
+              {owned.length === 0 ? (
+                <p className="mt-3 text-[14px] text-muted-foreground">
+                  Nothing yet.
+                </p>
+              ) : (
+                <ul className="mt-3 divide-y divide-navy/10 rounded-xl border border-navy/15 bg-white">
+                  {owned.map((o) => (
+                    <li key={o.pmSlug} className="flex items-center gap-3 px-5 py-4">
+                      <span className="flex-1 text-[15px] font-medium text-navy">
+                        {nameBySlug.get(o.pmSlug) ?? o.pmSlug}
+                      </span>
+                      <Link
+                        href={`/report/r/${o.pmSlug}`}
+                        className="text-[14px] font-semibold text-teal underline-offset-2 hover:underline"
+                      >
+                        Open
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
-        </div>
+        </section>
       </main>
     </ReportShell>
   );
