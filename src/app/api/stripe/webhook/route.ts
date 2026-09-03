@@ -189,6 +189,7 @@ async function handleCheckoutCompleted(
   const owner: CreditOwner = { organizationId, guestEmail };
   const pmSlug = session.metadata?.pmSlug || null;
   let event: ServerEventName;
+  let redeemedNow = false;
 
   if (kind === "single_report") {
     if (!pmSlug) throw new Error(`single_report session ${session.id} missing pmSlug`);
@@ -213,6 +214,7 @@ async function handleCheckoutCompleted(
       // Not fatal if this fails — the credits exist and the buyer can redeem
       // from the account wallet.
       const res = await redeemCredit(owner, pmSlug);
+      redeemedNow = res.ok;
       if (!res.ok) {
         console.warn(
           `[stripe/webhook] pack ${session.id}: immediate redeem of ${pmSlug} returned ${res.reason}`
@@ -236,8 +238,10 @@ async function handleCheckoutCompleted(
       kind,
       pmSlug,
       pmName: pm?.name ?? null,
+      // Key off the actual redemption result: a failed immediate redeem leaves
+      // all three credits unspent, so don't subtract 1.
       creditsRemaining:
-        kind === "three_pack" ? creditsFor(kind) - (pmSlug ? 1 : 0) : 0,
+        kind === "three_pack" ? creditsFor(kind) - (redeemedNow ? 1 : 0) : 0,
     });
   }
 
