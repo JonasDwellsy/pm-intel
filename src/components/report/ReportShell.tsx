@@ -9,12 +9,15 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { resolvePartner } from "@/lib/report/partners";
+import { buildReportQuery } from "@/lib/report/query";
 
 export function ReportShell({
   partner,
+  token,
   children,
 }: {
   partner?: string | null;
+  token?: string | null;
   children: React.ReactNode;
 }) {
   const theme = resolvePartner(partner);
@@ -22,8 +25,15 @@ export function ReportShell({
     "--report-accent": theme.accent,
     "--report-accent-fg": theme.accentFg,
   } as CSSProperties;
-  const partnerQuery =
-    theme.slug !== "default" ? `?partner=${theme.slug}` : "";
+  const partnerSlug = theme.slug !== "default" ? theme.slug : null;
+  // Two suffixes on purpose. The logo goes to the PUBLIC landing page, which
+  // has no use for an identity — and that is the URL most likely to be shared
+  // or screenshotted, so the guest's token stays off it. The wallet link is
+  // the opposite: a guest has no session, so without the token it lands them
+  // on "open this page from your emailed link" while they are holding a
+  // perfectly good one.
+  const partnerQuery = buildReportQuery({ partner: partnerSlug });
+  const walletQuery = buildReportQuery({ token, partner: partnerSlug });
 
   return (
     <div style={style} className="flex min-h-full flex-1 flex-col">
@@ -59,7 +69,7 @@ export function ReportShell({
           </p>
           <nav className="flex gap-4">
             <Link href="/methodology" className="hover:underline">How we measure</Link>
-            <Link href={`/report/account${partnerQuery}`} className="hover:underline">Manage subscription</Link>
+            <Link href={`/report/account${walletQuery}`} className="hover:underline">Your reports</Link>
             <Link href="/terms" className="hover:underline">Terms</Link>
             <Link href="/privacy" className="hover:underline">Privacy</Link>
           </nav>

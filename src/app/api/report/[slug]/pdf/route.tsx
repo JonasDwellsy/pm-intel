@@ -48,7 +48,7 @@ export async function GET(
     const access = await resolveReportAccess(slug, pm.marketId, { guestEmail });
     let accessible = access.accessible;
     if (!accessible && sessionId) {
-      accessible = await sessionGrantsReport(sessionId, slug, pm.marketId);
+      accessible = await sessionGrantsReport(sessionId, slug);
     }
     if (!accessible) return new Response("Report not found", { status: 404 });
 

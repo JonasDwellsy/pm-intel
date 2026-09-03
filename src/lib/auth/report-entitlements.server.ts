@@ -1,10 +1,16 @@
-// v0.30 — per-report / market-pass access (server resolver).
+// v0.33 — per-report access (server resolver).
 //
 // Thin DB/auth wrapper around the pure logic in report-entitlements.ts, in the
 // exact shape of market-entitlements.server.ts. NON-BREAKING BY DESIGN: this
 // FIRST calls the existing resolveViewerEntitlement()/isMarketEntitled() pair,
-// so every B2B viewer keeps their current access unchanged; the new
-// purchase/pass reads only ever ADD access, never remove it.
+// so every B2B viewer keeps their current access unchanged; the new purchase
+// read only ever ADDS access, never removes it.
+//
+// Three access paths: admin, existing B2B market entitlement, per-PM report
+// purchase. There is deliberately no fourth, market-wide consumer path — the
+// removed $19/mo Subscription carried no marketId, so the query that resolved
+// it granted every operator in all 44 markets. Deleting that query (and the
+// MarketPass query alongside it) is the fix.
 //
 // Ownership is guest-OR-org:
 //   - Signed-in workspace viewer → keyed on our Organization.id (via
@@ -28,7 +34,7 @@ import {
 
 export interface ResolveReportAccessOptions {
   /** Verified guest email (from a signed token), lowercased by the caller or
-   *  here. Enables guest-keyed purchase/pass lookups. */
+   *  here. Enables guest-keyed purchase lookups. */
   guestEmail?: string | null;
 }
 
@@ -39,7 +45,7 @@ export interface ReportAccess {
 
 /** Resolve whether the current request may read `pmSlug` (in `marketId`).
  *  Order matches the pure resolver: admin → existing market entitlement →
- *  per-PM purchase → live market pass / active subscription. */
+ *  per-PM report purchase. */
 export async function resolveReportAccess(
   pmSlug: string,
   marketId: string,
@@ -64,7 +70,6 @@ export async function resolveReportAccess(
       isAdmin,
       marketEntitled,
       hasReportPurchase: false,
-      hasActiveMarketPass: false,
     });
     return { accessible: reason !== null, reason };
   }
@@ -81,31 +86,15 @@ export async function resolveReportAccess(
     return { accessible: false, reason: null };
   }
 
-  const now = new Date();
-  const [purchase, pass, sub] = await Promise.all([
-    prisma.reportEntitlement.findFirst({
-      where: { pmSlug, OR: owners },
-      select: { id: true },
-    }),
-    prisma.marketPass.findFirst({
-      where: { marketId, expiresAt: { gt: now }, OR: owners },
-      select: { id: true },
-    }),
-    prisma.subscription.findFirst({
-      where: {
-        status: "active",
-        currentPeriodEnd: { gt: now },
-        OR: owners,
-      },
-      select: { id: true },
-    }),
-  ]);
+  const purchase = await prisma.reportEntitlement.findFirst({
+    where: { pmSlug, OR: owners },
+    select: { id: true },
+  });
 
   const reason = reportAccessReason({
     isAdmin: false,
     marketEntitled: false,
     hasReportPurchase: Boolean(purchase),
-    hasActiveMarketPass: Boolean(pass || sub),
   });
   return { accessible: reason !== null, reason };
 }

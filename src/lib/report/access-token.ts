@@ -3,7 +3,9 @@
 // A guest who buys a report has no Clerk account, so their durable access link
 // carries a signed token instead of a session. The token asserts one thing: a
 // verified email. Entitlement itself still comes from the DB
-// (resolveReportAccess checks ReportEntitlement/MarketPass by guestEmail) — the
+// (resolveReportAccess checks admin, then the B2B market entitlement, then a
+// per-PM ReportEntitlement by guestEmail — bought outright or redeemed from a
+// pack credit) — the
 // token only proves the visitor owns that email, so it can't be used to read a
 // report the email didn't pay for. HMAC-SHA256, same stateless pattern as the
 // digest unsubscribe links (DIGEST_UNSUB_SECRET).

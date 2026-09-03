@@ -1,11 +1,12 @@
 // v0.30 — Consumer funnel: create a Stripe Checkout Session.
 //
-// POST { kind, pmSlug?, marketId?, partner? } → { url } (redirect target).
+// POST { kind, pmSlug?, partner? } → { url } (redirect target). Both SKUs are
+// one-time (mode: "payment") — there is no recurring SKU.
 // The buyer is resolved guest-OR-org: a signed-in workspace user is attached
 // by organizationId/userId (via getActiveOrgContext); a guest is left to
 // Stripe Checkout to collect their email, which the webhook reads to key the
 // entitlement. Everything the webhook needs to grant access is stamped into
-// session.metadata (and subscription_data.metadata for the recurring SKU).
+// session.metadata and payment_intent_data.metadata.
 //
 // This route is PUBLIC (not in PROTECTED_ROUTE_PATTERNS) so guests can buy;
 // it never grants access itself — the webhook does, after Stripe confirms
@@ -23,11 +24,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const BodySchema = z.object({
-  kind: z.enum(["single_report", "market_pass", "subscription"]),
+  kind: z.enum(["single_report", "three_pack"]),
+  // Required for single_report. Optional for three_pack: a pack bought from
+  // the landing page has no operator in context, and its credits are redeemed
+  // later. When present on a pack, the webhook redeems one credit immediately
+  // for this operator.
   pmSlug: z.string().min(1).optional(),
-  marketId: z.string().min(1).optional(),
-  // Partner attribution (e.g. "biggerpockets") — carried through to the
-  // entitlement + analytics so we can rev-share and measure by channel.
+  // Partner attribution (e.g. "biggerpockets") — carried through to analytics
+  // so we can rev-share and measure by channel.
   partner: z.string().max(64).optional(),
 });
 
@@ -47,15 +51,12 @@ export async function POST(req: Request) {
 
   const product = PRODUCTS[parsed.kind];
 
-  // Resolve what the purchase targets, and validate it exists so we never
-  // create a Checkout Session for a bogus pm/market.
+  // Validate the operator when one is supplied, so we never create a Checkout
+  // Session against a bogus slug.
   let pmSlug = "";
   let marketId = "";
   let displayName = "";
-  if (product.target === "pm") {
-    if (!parsed.pmSlug) {
-      return Response.json({ error: "pmSlug required" }, { status: 400 });
-    }
+  if (parsed.pmSlug) {
     const pm = await prisma.pM.findUnique({
       where: { slug: parsed.pmSlug },
       select: { slug: true, name: true, marketId: true },
@@ -66,19 +67,10 @@ export async function POST(req: Request) {
     pmSlug = pm.slug;
     marketId = pm.marketId;
     displayName = pm.name;
-  } else {
-    if (!parsed.marketId) {
-      return Response.json({ error: "marketId required" }, { status: 400 });
-    }
-    const market = await prisma.market.findUnique({
-      where: { id: parsed.marketId },
-      select: { id: true, fullName: true },
-    });
-    if (!market) {
-      return Response.json({ error: "Market not found" }, { status: 404 });
-    }
-    marketId = market.id;
-    displayName = market.fullName;
+  } else if (parsed.kind === "single_report") {
+    // A single report is *about* an operator; without one there is nothing to
+    // sell. A pack is fine without one.
+    return Response.json({ error: "pmSlug required" }, { status: 400 });
   }
 
   // Buyer identity (optional — guests are fine). Signed-in users attach their
@@ -95,33 +87,27 @@ export async function POST(req: Request) {
   };
 
   const base = baseUrl(req);
-  const successPath =
-    product.target === "pm"
-      ? `/report/r/${pmSlug}?session_id={CHECKOUT_SESSION_ID}`
-      : `/report/market/${marketId}?session_id={CHECKOUT_SESSION_ID}`;
-  const cancelPath =
-    product.target === "pm" ? `/report/r/${pmSlug}` : `/report/market/${marketId}`;
+  // With an operator in context, return to its report. Without one (a pack
+  // bought from the landing page), return to the account wallet where the
+  // buyer redeems credits.
+  const successPath = pmSlug
+    ? `/report/r/${pmSlug}?session_id={CHECKOUT_SESSION_ID}`
+    : `/report/account?session_id={CHECKOUT_SESSION_ID}`;
+  const cancelPath = pmSlug ? `/report/r/${pmSlug}` : `/report`;
 
   try {
     const params: Stripe.Checkout.SessionCreateParams = {
-      mode: product.stripeMode,
+      mode: product.stripeMode, // always "payment" — no recurring SKU
       line_items: [{ price: resolvePriceId(parsed.kind), quantity: 1 }],
       success_url: `${base}${successPath}`,
       cancel_url: `${base}${cancelPath}`,
       metadata,
       // Let Checkout collect the email for guests; reused as the entitlement
-      // key in the webhook. Enable an email receipt where supported.
+      // key in the webhook.
       billing_address_collection: "auto",
       allow_promotion_codes: true,
+      payment_intent_data: { metadata },
     };
-    // Carry metadata onto the Subscription object too, so later
-    // customer.subscription.* events can resolve the owner without the
-    // original session.
-    if (product.stripeMode === "subscription") {
-      params.subscription_data = { metadata };
-    } else {
-      params.payment_intent_data = { metadata };
-    }
 
     const session = await getStripe().checkout.sessions.create(params);
     return Response.json({ url: session.url, id: session.id });
