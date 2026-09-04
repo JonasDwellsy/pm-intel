@@ -22,11 +22,11 @@ import { CheckoutButtons } from "@/components/report/CheckoutButtons";
 const LOCKED_ROWS: Array<{ label: string; reveals: string }> = [
   {
     label: "Lease-up speed",
-    reveals: "Days on market against same-cohort local peers, with the cohort median.",
+    reveals: "Days on market against same-cohort peers where available, market-wide otherwise.",
   },
   {
     label: "Tenant retention",
-    reveals: "Share of tenancies reaching 18 months, and how that compares locally.",
+    reveals: "Share of tenancies reaching 18 months, or the reason there isn't enough data to score it.",
   },
   {
     label: "Rent performance",
