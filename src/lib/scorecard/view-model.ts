@@ -518,24 +518,36 @@ export function buildScorecardView(input: BuildViewInput): ScorecardView {
   const cohortMetrics = metrics.filter((m) => m.scale === "cohort");
   const aboveCount = cohortMetrics.filter((m) => m.label === "strong" || m.label === "good").length;
   const cohortTotal = cohortMetrics.length;
+  // The summary carries BOTH scales, each stated on its own terms. Counting
+  // marketing among the peer-scored metrics would assert it beat its cohort
+  // median when all we know is that it cleared a fixed bar — and those come
+  // apart: an 84.3 composite earns gold while sitting at the 49th percentile.
+  // Naming it separately keeps the metric in the top line without either half
+  // borrowing the other's meaning.
+  const marketingRow = metrics.find((m) => m.scale === "absolute");
+  const marketingClause = marketingRow
+    ? ` · marketing ${marketingRow.star ?? "below silver"}`
+    : "";
+  const cohortClause = (lead: string) =>
+    cohortTotal === 0
+      ? "No peer-scored dimensions available"
+      : aboveCount === cohortTotal
+        ? `Above ${lead} on all ${cohortTotal} peer-scored dimensions`
+        : aboveCount === 0
+          ? `Below ${lead} on all ${cohortTotal} peer-scored dimensions`
+          : `Above ${lead} on ${aboveCount} of ${cohortTotal} peer-scored dimensions`;
   const operatingTakeaway = metrics.length === 0
     ? "Insufficient data to score operating performance."
-    : cohortTotal === 0
-      ? "Scored on listing quality only — no peer-scored dimensions available."
-      : aboveCount === cohortTotal
-        ? `Above the cohort median on all ${cohortTotal} peer-scored dimensions.`
-        : aboveCount === 0
-          ? `Below the cohort median on all ${cohortTotal} peer-scored dimensions.`
-          : `Above the cohort median on ${aboveCount} of ${cohortTotal} peer-scored dimensions.`;
+    : `${cohortClause("the cohort median")}${marketingClause}.`;
   const operating: OperatingView = {
     sectionLabel: opLabel, takeaway: operatingTakeaway,
     strongest: sw.strongest.map((k) => METRIC_TITLES[k]),
     watch: sw.watch.map((k) => METRIC_TITLES[k]), metrics,
     concession,
   };
-  readout[1].value = cohortTotal === 0
-    ? "Listing quality scored; no peer-scored dimensions available"
-    : `Above cohort median on ${aboveCount} of ${cohortTotal} peer-scored dimensions`;
+  readout[1].value = metrics.length === 0
+    ? "Insufficient data to score operating performance"
+    : `${cohortClause("cohort median")}${marketingClause}`;
 
   const portfolioSeries = (input.trajectory?.points ?? [])
     .map((p) => p.portfolioPoint)

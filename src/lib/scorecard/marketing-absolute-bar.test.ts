@@ -124,10 +124,11 @@ test("marketing renders even with no cohort percentile at all", () => {
   assert.equal(row.label, "strong");
 });
 
-test("the cohort-median takeaway excludes marketing from its count", () => {
+test("the cohort-median count excludes marketing", () => {
   // "Above the cohort median on N of M" is a claim about cohorts. Marketing
   // clearing an absolute bar says nothing about peer position, so counting it
-  // would make the sentence false.
+  // would make the sentence false — an 84.3 composite is gold while sitting
+  // at the 49th percentile, i.e. BELOW its cohort median.
   const v = view(sc({ marketing: { compositeScore: 95, star: "gold" } }));
   const cohortCount = v.operating.metrics.filter((m) => m.scale === "cohort").length;
   assert.match(v.operating.takeaway, new RegExp(`of ${cohortCount} peer-scored dimensions`));
@@ -137,10 +138,46 @@ test("the cohort-median takeaway excludes marketing from its count", () => {
   );
 });
 
-test("a gold marketing score does not inflate the cohort-median count", () => {
+test("the cohort count does not move with marketing", () => {
+  const strip = (t: string) => t.split(" · ")[0];
   const poor = view(sc({ marketing: { compositeScore: 10, star: null } })).operating.takeaway;
   const great = view(sc({ marketing: { compositeScore: 99, star: "gold" } })).operating.takeaway;
-  assert.equal(poor, great, "the cohort-median sentence must not move with marketing");
+  assert.equal(strip(poor), strip(great), "the cohort-median half must not move with marketing");
+});
+
+test("the summary names marketing on its own terms", () => {
+  // Both scales in one line, neither borrowing the other's meaning.
+  for (const [score, star, expected] of [
+    [95, "gold", "· marketing gold"],
+    [74, "silver", "· marketing silver"],
+    [61, null, "· marketing below silver"],
+    [12, null, "· marketing below silver"],
+  ] as const) {
+    const v = view(sc({ marketing: { compositeScore: score, star } }));
+    assert.ok(
+      v.operating.takeaway.includes(expected),
+      `score ${score}: expected "${expected}" in "${v.operating.takeaway}"`
+    );
+    assert.ok(
+      v.readout[1].value.includes(expected),
+      `score ${score}: the exec readout must say it too, got "${v.readout[1].value}"`
+    );
+  }
+});
+
+test("the takeaway reads as one sentence, the readout as a terse line", () => {
+  const v = view(sc({ marketing: { compositeScore: 84.3, star: "gold" } }));
+  assert.match(v.operating.takeaway, /^Above the cohort median on \d+ of \d+ peer-scored dimensions · marketing gold\.$/);
+  assert.match(v.readout[1].value, /^Above cohort median on \d+ of \d+ peer-scored dimensions · marketing gold$/);
+});
+
+test("no marketing clause when marketing is unscored", () => {
+  const v = view(sc({ marketing: {} }));
+  assert.ok(
+    !v.operating.takeaway.includes("marketing"),
+    `an unscored marketing metric must not be named: "${v.operating.takeaway}"`
+  );
+  assert.match(v.operating.takeaway, /peer-scored dimensions\.$/);
 });
 
 // ── Copy that made a cohort claim about an absolutely-scored metric ────────
