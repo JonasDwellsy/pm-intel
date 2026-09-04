@@ -12,6 +12,7 @@ import { RentTierMarker } from "./RentTierMarker";
 import { CoverageMapClient } from "@/components/scorecard/CoverageMapClient";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { sizeBandLabel } from "@/lib/operator-size-bands";
+import { PRODUCTS } from "@/lib/billing/products";
 
 const MAX_MEMBER_MARKETS_SHOWN = 4;
 
@@ -209,6 +210,10 @@ interface ScaleFitSectionProps {
    *  scorecard URLs share these path segments. Used to link peer rows. */
   marketStateCode: string;
   marketCity: string;
+  /** Show the three-report pack offer under the peer table. Consumer report
+   *  view only — never on the B2B scorecard, /sample, or the PDF, which is
+   *  why this defaults to false rather than being inferred. */
+  showPackOffer?: boolean;
 }
 
 /**
@@ -219,7 +224,7 @@ interface ScaleFitSectionProps {
  *                right = CoverageMapClient
  *  - Similar local players peer table
  */
-export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFullName, marketStateCode, marketCity }: ScaleFitSectionProps) {
+export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFullName, marketStateCode, marketCity, showPackOffer = false }: ScaleFitSectionProps) {
   // Peers are same-MSA, so each peer's scorecard lives under the focal
   // operator's state/city path segments.
   const peerHref = (slug: string) =>
@@ -746,6 +751,45 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
               </tbody>
             </table>
           </div>
+
+          {showPackOffer && (
+            <div
+              style={{
+                marginTop: "14px",
+                border: "1px solid #cfe3ea",
+                background: "#f4fafc",
+                borderRadius: "8px",
+                padding: "13px 15px",
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: "12px",
+              }}
+            >
+              <span style={{ fontSize: "13px", color: "#2a3547", flex: "1 1 320px" }}>
+                Checking more than one of these? Three reports for $
+                {PRODUCTS.three_pack.priceUsd}, redeemable on any operator.
+                They don&rsquo;t expire.
+              </span>
+              <a
+                href="/report"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  height: "34px",
+                  padding: "0 14px",
+                  borderRadius: "5px",
+                  background: "#0f1f3f",
+                  color: "#ffffff",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  textDecoration: "none",
+                }}
+              >
+                Get three reports
+              </a>
+            </div>
+          )}
         </div>
       )}
     </div>
