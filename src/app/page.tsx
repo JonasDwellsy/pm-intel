@@ -7,6 +7,7 @@ import { OwnerQuestions } from "@/components/homepage/OwnerQuestions";
 import { SelectEvaluateMonitor } from "@/components/homepage/SelectEvaluateMonitor";
 import { FinalCta } from "@/components/homepage/FinalCta";
 import { MethodologyPillars } from "@/components/homepage/MethodologyPillars";
+import { SingleReportOffer } from "@/components/homepage/SingleReportOffer";
 import {
   CoveredMarkets,
   type LiveMarket,
@@ -396,6 +397,7 @@ export default async function HomePage() {
       <SelectEvaluateMonitor />
       <CoveredMarkets markets={liveMarkets} />
       <MethodologyPillars />
+      <SingleReportOffer />
       <FinalCta />
       <MethodologyFooter
         version={METHODOLOGY_VERSION.replace(/^v/, "")}
