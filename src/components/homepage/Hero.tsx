@@ -2,6 +2,7 @@ import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { buttonVariants } from "@/components/ui/button";
 import { ScorecardCard, type SampleCard } from "./SampleScorecards";
 import { METHODOLOGY_VERSION, DESIGN_VERSION } from "@/lib/version";
+import { ReportSearch } from "@/components/report/ReportSearch";
 
 // v0.14 — Hero right column is now a single live scorecard card
 // (Doorby Property Management in Chattanooga) instead of the v0.12
@@ -75,6 +76,21 @@ export function Hero({ heroCard, marketCount }: HeroProps) {
             >
               Request access
             </TrackedLink>
+          </div>
+          {/* Search early, price late. An invited owner's first job is to look
+              up one manager; the price for that lives far below, after the
+              enterprise pitch, so nothing here anchors a five-figure
+              conversation. Searching is free and lands on the teaser. */}
+          <div className="mt-8 max-w-[52ch] border-t border-grid pt-6">
+            <p className="text-[13px] font-semibold text-navy">
+              Look up a property manager
+            </p>
+            <div className="mt-3">
+              <ReportSearch />
+            </div>
+            <p className="mt-2 text-[12.5px] text-muted-foreground">
+              Free. Their rating, coverage and confidence tier, without an account.
+            </p>
           </div>
           <p className="mt-6 text-[14.5px] text-muted-foreground">
             Observed from Dwellsy&apos;s nationwide listing record, not

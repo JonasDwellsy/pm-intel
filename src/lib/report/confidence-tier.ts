@@ -55,8 +55,8 @@ function rankedInfo(
     t12Listings,
     domObservations,
     blurb: high
-      ? "Enough observed activity to rank this operator against local peers with high confidence."
-      : "Ranked against local peers, on a smaller sample — read the percentiles as directional.",
+      ? "Enough observed activity to score this operator's stars and standing against local peers with high confidence."
+      : "Scored against local peers on a smaller sample — read the standing as directional.",
   };
 }
 

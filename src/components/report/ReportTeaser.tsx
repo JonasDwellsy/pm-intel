@@ -11,13 +11,36 @@ import { countOperatorStars } from "@/lib/operators/stars";
 import type { ReportTierInfo } from "@/lib/report/confidence-tier";
 import { ConfidenceBadge } from "@/components/report/ConfidenceBadge";
 import { CheckoutButtons } from "@/components/report/CheckoutButtons";
+import { PRODUCTS } from "@/lib/billing/products";
 
-const LOCKED_ROWS = [
-  "Overall peer rank & percentiles",
-  "Lease-up speed vs local peers",
-  "Tenant retention",
-  "Rent performance vs market",
-  "Marketing & listing quality",
+// Each locked row states what the PAID report actually contains.
+//
+// The old first row advertised a peer-standing figure that the scorecard
+// deliberately never shows — surfacing that figure or the composite score is
+// a standing hard constraint (PR #132 removed exactly that leak), so the
+// teaser was selling something the buyer would not receive. Rows now
+// describe the star-and-position treatment the report really gives.
+const LOCKED_ROWS: Array<{ label: string; reveals: string }> = [
+  {
+    label: "Lease-up speed",
+    reveals: "Days on market against same-cohort peers where available, market-wide otherwise.",
+  },
+  {
+    label: "Tenant retention",
+    reveals: "Share of tenancies reaching 18 months, or the reason there isn't enough data to score it.",
+  },
+  {
+    label: "Rent performance",
+    reveals: "Year-over-year rent movement against same-cohort peers, shown only when there's enough data to score it.",
+  },
+  {
+    label: "Listing quality",
+    reveals: "Completeness, photos, description, amenities and stated rules, scored 0-100.",
+  },
+  {
+    label: "Scale and fit",
+    reveals: "Portfolio size band, concentration, coverage map, and similar local operators.",
+  },
 ];
 
 export function ReportTeaser({
@@ -90,24 +113,47 @@ export function ReportTeaser({
             <ul className="mt-4 space-y-3">
               {LOCKED_ROWS.map((row) => (
                 <li
-                  key={row}
-                  className="flex items-center justify-between gap-3 border-b border-grid/60 pb-3 last:border-0 last:pb-0"
+                  key={row.label}
+                  className="border-b border-grid/60 pb-3 last:border-0 last:pb-0"
                 >
-                  <span className="text-[14px] text-foreground/85">{row}</span>
-                  <span
-                    aria-hidden
-                    className="inline-flex select-none items-center rounded bg-slate-100 px-6 py-1 text-slate-300"
-                  >
-                    ▓▓▓
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <svg
+                      aria-hidden
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <rect x="5" y="11" width="14" height="9" rx="2" />
+                      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                    </svg>
+                    <span className="text-[14px] font-medium text-foreground/85">
+                      {row.label}
+                    </span>
+                    <span className="ml-auto rounded bg-slate-100 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                      Locked
+                    </span>
+                  </div>
+                  <p className="mt-1 pl-[22px] text-[12.5px] leading-snug text-muted-foreground">
+                    {row.reveals}
+                  </p>
                 </li>
               ))}
             </ul>
             <p className="mt-5 text-[13px] leading-relaxed text-muted-foreground">
-              The full scorecard shows exactly where {name} ranks against local
-              peers on lease-up speed, tenant retention, rent performance, and
-              listing quality — the signals that tell you whether they&rsquo;ll
-              keep your property rented and your tenants happy.
+              The full scorecard shows how {name} performs against same-cohort
+              local peers on lease-up speed, tenant retention, rent performance
+              and listing quality, measured from the listings they ran.
+            </p>
+            <p className="mt-3 text-[13px]">
+              <Link
+                href="/sample"
+                className="font-semibold text-teal underline-offset-2 hover:underline"
+              >
+                See a complete sample report
+              </Link>
+              <span className="text-muted-foreground"> — a real operator, nothing locked.</span>
             </p>
           </div>
 
@@ -123,13 +169,13 @@ export function ReportTeaser({
                   {
                     kind: "single_report",
                     label: "Get this report",
-                    priceLabel: "$149",
+                    priceLabel: `$${PRODUCTS.single_report.priceUsd}`,
                     sub: "Full scorecard + PDF, yours to keep.",
                   },
                   {
                     kind: "three_pack",
                     label: "Get three reports",
-                    priceLabel: "$299",
+                    priceLabel: `$${PRODUCTS.three_pack.priceUsd}`,
                     sub: "Check this manager and two more, whenever you choose.",
                   },
                 ]}

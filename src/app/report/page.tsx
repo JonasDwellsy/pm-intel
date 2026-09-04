@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import { ReportSearch } from "@/components/report/ReportSearch";
 import { ReportShell } from "@/components/report/ReportShell";
 import { resolvePartner } from "@/lib/report/partners";
+import { PRODUCTS } from "@/lib/billing/products";
 
 export const metadata: Metadata = {
   title: "Check your property manager",
@@ -44,15 +45,16 @@ export default async function ReportLandingPage({
           <ReportSearch partner={partner ?? null} />
         </div>
 
-        {/* Pricing summary */}
+        {/* Pricing summary — prices from PRODUCTS so this can never drift
+            from what Stripe charges (same source SingleReportOffer.tsx uses). */}
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
           <PriceCard
-            price="$149"
+            price={`$${PRODUCTS.single_report.priceUsd}`}
             title="Single report"
-            body="The full scorecard for one manager — rank, lease-up speed, retention, rent performance, and marketing quality. Yours to keep, as a PDF."
+            body="The full scorecard for one manager — lease-up speed, retention, rent performance, and marketing quality. Yours to keep, as a PDF."
           />
           <PriceCard
-            price="$299"
+            price={`$${PRODUCTS.three_pack.priceUsd}`}
             title="Three-report pack"
             body="Comparing more than one manager? Buy three credits and use them on any managers you choose, whenever you choose — each report yours to keep."
           />
