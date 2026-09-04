@@ -52,14 +52,16 @@ test("the guard can actually see showPackOffer (positive control)", () => {
 });
 
 test("no caller passes showPackOffer to ScaleFitSection", () => {
-  // A caller SETTING the prop always writes "showPackOffer" followed by "="
-  // (JSX `showPackOffer={...}` or, if it were ever shorthand-boolean,
-  // "showPackOffer" alone wouldn't compile against `boolean | undefined`
-  // without a value, so "=" is the real signature of "someone passed this").
-  // The prop's own file is exempt: its interface field
-  // (`showPackOffer?: boolean;`, no "=") and its destructure default
-  // (`showPackOffer = false`) both live there and are not a caller.
-  const hits = grep("showPackOffer\\s*=").filter(
+  // A caller SETTING the prop writes either `showPackOffer={...}` or the
+  // JSX shorthand `showPackOffer` alone — shorthand IS valid TypeScript for
+  // a `boolean | undefined` prop (it's sugar for `showPackOffer={true}`), so
+  // requiring a trailing "=" would miss it entirely. Grep for the bare
+  // identifier instead and rely on the file-path filter, not the regex, to
+  // exempt non-caller mentions: the prop's own file (its interface field
+  // `showPackOffer?: boolean;`, its destructure default
+  // `showPackOffer = false`, and its usage `{showPackOffer && ...}`) and
+  // this test file (whose comments and grep patterns say the name).
+  const hits = grep("showPackOffer").filter(
     (l) => !l.startsWith(`${FILE}:`) && !l.startsWith(`${SELF}:`)
   );
   assert.deepEqual(
