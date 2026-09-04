@@ -67,22 +67,6 @@ export function creditsFor(kind: ProductKind): number {
   return PRODUCTS[kind].credits;
 }
 
-// Small-number word forms for shortlist copy ("Three reports for $299").
-// Falls back to the numeral for anything not spelled out here, so the copy
-// degrades gracefully instead of lying if a pack's credit count ever changes.
-const COUNT_WORDS: Record<number, string> = {
-  2: "Two",
-  3: "Three",
-  4: "Four",
-  5: "Five",
-  6: "Six",
-};
-
-/** Word form of a small credit count, for pack-offer copy. */
-export function countWord(n: number): string {
-  return COUNT_WORDS[n] ?? String(n);
-}
-
 /** Resolve the Stripe Price id for a SKU from env. Throws (loud) if unset — a
  *  checkout can't proceed without it and a silent fallback would charge the
  *  wrong price. */

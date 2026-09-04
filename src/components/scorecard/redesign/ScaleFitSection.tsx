@@ -12,7 +12,8 @@ import { RentTierMarker } from "./RentTierMarker";
 import { CoverageMapClient } from "@/components/scorecard/CoverageMapClient";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { sizeBandLabel } from "@/lib/operator-size-bands";
-import { PRODUCTS, countWord } from "@/lib/billing/products";
+import { PRODUCTS } from "@/lib/billing/products";
+import { countAsWord } from "@/lib/format-count";
 
 const MAX_MEMBER_MARKETS_SHOWN = 4;
 
@@ -774,7 +775,7 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
               }}
             >
               <span style={{ fontSize: "13px", color: "#2a3547", flex: "1 1 320px" }}>
-                Checking more than one of these? {countWord(PRODUCTS.three_pack.credits)} reports for $
+                Checking more than one of these? {countAsWord(PRODUCTS.three_pack.credits)} reports for $
                 {PRODUCTS.three_pack.priceUsd}, redeemable on any operator.
                 They don&rsquo;t expire.
               </span>

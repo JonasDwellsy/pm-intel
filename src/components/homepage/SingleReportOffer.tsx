@@ -1,5 +1,6 @@
 import { TrackedLink } from "@/components/analytics/TrackedLink";
-import { PRODUCTS, countWord } from "@/lib/billing/products";
+import { PRODUCTS } from "@/lib/billing/products";
+import { countAsWord } from "@/lib/format-count";
 
 // v0.34 — The consumer offer, placed LAST on the homepage by design.
 //
@@ -30,7 +31,7 @@ export function SingleReportOffer() {
               keep, no account needed.
             </p>
             <p className="mt-3 text-[13.5px] text-muted-foreground">
-              Comparing a shortlist? {countWord(pack.credits)} reports for $
+              Comparing a shortlist? {countAsWord(pack.credits)} reports for $
               {pack.priceUsd}. They don&rsquo;t expire.
             </p>
           </div>
