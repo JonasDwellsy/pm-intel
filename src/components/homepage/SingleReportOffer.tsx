@@ -1,5 +1,20 @@
-import Link from "next/link";
+import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { PRODUCTS } from "@/lib/billing/products";
+
+// Small-number word forms for the shortlist copy ("Three reports for $299").
+// Falls back to the numeral for anything not spelled out here, so the copy
+// degrades gracefully instead of lying if the pack size ever changes.
+const COUNT_WORDS: Record<number, string> = {
+  2: "Two",
+  3: "Three",
+  4: "Four",
+  5: "Five",
+  6: "Six",
+};
+
+function countWord(n: number): string {
+  return COUNT_WORDS[n] ?? String(n);
+}
 
 // v0.34 — The consumer offer, placed LAST on the homepage by design.
 //
@@ -30,8 +45,8 @@ export function SingleReportOffer() {
               keep, no account needed.
             </p>
             <p className="mt-3 text-[13.5px] text-muted-foreground">
-              Comparing a shortlist? Three reports for ${pack.priceUsd}. They
-              don&rsquo;t expire.
+              Comparing a shortlist? {countWord(pack.credits)} reports for $
+              {pack.priceUsd}. They don&rsquo;t expire.
             </p>
           </div>
           <div className="lg:text-right">
@@ -41,12 +56,14 @@ export function SingleReportOffer() {
                 one report
               </span>
             </p>
-            <Link
+            <TrackedLink
+              event="pm_card_click"
+              properties={{ source: "homepage_single_report_offer", cta: "look_up_manager" }}
               href="/report"
               className="mt-4 inline-flex h-11 items-center justify-center rounded-md bg-navy px-6 text-[14px] font-semibold text-white transition-opacity hover:opacity-90"
             >
               Look up a manager
-            </Link>
+            </TrackedLink>
           </div>
         </div>
       </div>
