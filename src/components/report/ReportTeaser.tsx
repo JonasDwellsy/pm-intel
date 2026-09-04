@@ -30,7 +30,7 @@ const LOCKED_ROWS: Array<{ label: string; reveals: string }> = [
   },
   {
     label: "Rent performance",
-    reveals: "Year-over-year rent movement against the market, mix-adjusted.",
+    reveals: "Year-over-year rent movement against a same-cohort median, shown only when there's enough data to score it.",
   },
   {
     label: "Listing quality",
