@@ -11,6 +11,7 @@ import { countOperatorStars } from "@/lib/operators/stars";
 import type { ReportTierInfo } from "@/lib/report/confidence-tier";
 import { ConfidenceBadge } from "@/components/report/ConfidenceBadge";
 import { CheckoutButtons } from "@/components/report/CheckoutButtons";
+import { PRODUCTS } from "@/lib/billing/products";
 
 // Each locked row states what the PAID report actually contains.
 //
@@ -30,7 +31,7 @@ const LOCKED_ROWS: Array<{ label: string; reveals: string }> = [
   },
   {
     label: "Rent performance",
-    reveals: "Year-over-year rent movement against a same-cohort median, shown only when there's enough data to score it.",
+    reveals: "Year-over-year rent movement against same-cohort peers, shown only when there's enough data to score it.",
   },
   {
     label: "Listing quality",
@@ -168,13 +169,13 @@ export function ReportTeaser({
                   {
                     kind: "single_report",
                     label: "Get this report",
-                    priceLabel: "$149",
+                    priceLabel: `$${PRODUCTS.single_report.priceUsd}`,
                     sub: "Full scorecard + PDF, yours to keep.",
                   },
                   {
                     kind: "three_pack",
                     label: "Get three reports",
-                    priceLabel: "$299",
+                    priceLabel: `$${PRODUCTS.three_pack.priceUsd}`,
                     sub: "Check this manager and two more, whenever you choose.",
                   },
                 ]}
