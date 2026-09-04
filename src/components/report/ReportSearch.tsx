@@ -5,36 +5,73 @@
 // link to their /report/r/[slug] page; tracked operators show as Profiles
 // (real, observed, not yet rankable) so a miss reads honestly instead of as
 // "not found".
+//
+// Hero.tsx mounts this unconditionally on the marketing homepage, above the
+// fold. @/lib/pm-search statically imports src/data/search_index.json (4.5 MB)
+// plus Fuse, so a static import here would ship that payload in the
+// homepage's initial bundle. Load it lazily on first real query instead — the
+// same cached-dynamic-import idiom SearchInput.tsx uses for the top-nav
+// search (see its loadSearchModule()).
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { searchPMs, type PMSearchResult } from "@/lib/pm-search";
+import type { PMSearchResult } from "@/lib/pm-search";
 import { tierFromSearch } from "@/lib/report/confidence-tier";
 import { ConfidenceBadge } from "@/components/report/ConfidenceBadge";
 
 type RankedResult = Extract<PMSearchResult, { tier: "ranked" }>;
 type TrackedResult = Extract<PMSearchResult, { tier: "tracked" }>;
 
+let searchModulePromise: Promise<typeof import("@/lib/pm-search")> | null = null;
+
+function loadSearchModule() {
+  searchModulePromise ??= import("@/lib/pm-search");
+  return searchModulePromise;
+}
+
 export function ReportSearch({ partner }: { partner?: string | null }) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
+  const [results, setResults] = useState<PMSearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
 
+  // Debounce, and flip `loading` / clear stale results in the SAME tick
+  // `debounced` updates (both inside the timeout callback, matching
+  // SearchInput.tsx's shape) rather than as a separate synchronous setState
+  // call in the fetch effect's body below.
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(query), 150);
+    const t = setTimeout(() => {
+      setDebounced(query);
+      const trimmed = query.trim();
+      setLoading(trimmed.length >= 2);
+      if (trimmed.length < 2) setResults([]);
+    }, 150);
     return () => clearTimeout(t);
   }, [query]);
 
+  useEffect(() => {
+    if (debounced.trim().length < 2) return;
+    let active = true;
+    void loadSearchModule().then((search) => {
+      if (!active) return;
+      setResults(search.searchPMs(debounced, 20));
+      setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [debounced]);
+
   const { ranked, tracked } = useMemo(() => {
-    const results = debounced.trim().length >= 2 ? searchPMs(debounced, 20) : [];
     return {
       ranked: results.filter((r): r is RankedResult => r.tier === "ranked"),
       tracked: results.filter((r): r is TrackedResult => r.tier === "tracked"),
     };
-  }, [debounced]);
+  }, [results]);
 
   const suffix = partner ? `?partner=${encodeURIComponent(partner)}` : "";
   const showResults = debounced.trim().length >= 2;
-  const empty = showResults && ranked.length === 0 && tracked.length === 0;
+  const empty = showResults && !loading && ranked.length === 0 && tracked.length === 0;
 
   return (
     <div className="w-full">
