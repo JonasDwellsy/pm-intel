@@ -1,20 +1,5 @@
 import { TrackedLink } from "@/components/analytics/TrackedLink";
-import { PRODUCTS } from "@/lib/billing/products";
-
-// Small-number word forms for the shortlist copy ("Three reports for $299").
-// Falls back to the numeral for anything not spelled out here, so the copy
-// degrades gracefully instead of lying if the pack size ever changes.
-const COUNT_WORDS: Record<number, string> = {
-  2: "Two",
-  3: "Three",
-  4: "Four",
-  5: "Five",
-  6: "Six",
-};
-
-function countWord(n: number): string {
-  return COUNT_WORDS[n] ?? String(n);
-}
+import { PRODUCTS, countWord } from "@/lib/billing/products";
 
 // v0.34 — The consumer offer, placed LAST on the homepage by design.
 //

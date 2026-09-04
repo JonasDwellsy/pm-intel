@@ -12,7 +12,7 @@ import { RentTierMarker } from "./RentTierMarker";
 import { CoverageMapClient } from "@/components/scorecard/CoverageMapClient";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { sizeBandLabel } from "@/lib/operator-size-bands";
-import { PRODUCTS } from "@/lib/billing/products";
+import { PRODUCTS, countWord } from "@/lib/billing/products";
 
 const MAX_MEMBER_MARKETS_SHOWN = 4;
 
@@ -752,7 +752,14 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
             </table>
           </div>
 
-          {showPackOffer && (
+          {/* Requires a real comparison, not merely a non-empty table — the
+              table always includes the focal operator itself
+              (selectSimilarLocalPlayers's `chosen = [focal, ...nearest]`), so
+              a market with no other same-cell candidates still yields
+              peers.length === 1. Without this check the offer's "more than
+              one of these?" copy would sit beside a single row: the operator
+              the reader is already looking at. */}
+          {showPackOffer && peers.some((peer) => !peer.isFocal) && (
             <div
               style={{
                 marginTop: "14px",
@@ -767,7 +774,7 @@ export function ScaleFitSection({ scaleFit, peers, geographicCoverage, marketFul
               }}
             >
               <span style={{ fontSize: "13px", color: "#2a3547", flex: "1 1 320px" }}>
-                Checking more than one of these? Three reports for $
+                Checking more than one of these? {countWord(PRODUCTS.three_pack.credits)} reports for $
                 {PRODUCTS.three_pack.priceUsd}, redeemable on any operator.
                 They don&rsquo;t expire.
               </span>
