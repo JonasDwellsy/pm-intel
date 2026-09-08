@@ -45,7 +45,7 @@ test("ranked tier resolves to slug", () => {
   assert.equal(operatorMemberKey(result), "29th-street-denver-co");
 });
 
-test("tracked tier resolves to null (below ranking threshold, no scorecard/slug)", () => {
+test("tracked tier resolves to null (below scoring threshold, no scorecard/slug)", () => {
   const result = {
     tier: "tracked",
     name: "Some Small Landlord",

@@ -500,11 +500,11 @@ export default async function MethodologyPage() {
                 A dormant operator&apos;s twelve-month window ended whenever their
                 listings did, so ranking it against operators whose window ends
                 today compares two different things. Dormant operators are still{" "}
-                <em>scored against</em> the ranked cohort — their metrics and
+                <em>measured against</em> the scored cohort — their metrics and
                 stars are computed on the same scale — but they are not{" "}
                 <em>members</em> of it, and they are absent from every median,
                 percentile, and eligible-operator count. That separation is what
-                makes the state purely additive: no ranked operator&apos;s
+                makes the state purely additive: no scored operator&apos;s
                 numbers move because some other operator went quiet.
               </p>
               <p>
@@ -970,7 +970,7 @@ export default async function MethodologyPage() {
                   been tracked N years.&rdquo; Separately, operators whose most
                   recent listing event is more than 60 days old are classified{" "}
                   <strong>dormant</strong>: they keep a scorecard but are held
-                  out of the ranked set and every cohort baseline, so a stale
+                  out of the scored set and every cohort baseline, so a stale
                   window never sets the bar for currently-listing peers (see
                   §01).
                 </p>

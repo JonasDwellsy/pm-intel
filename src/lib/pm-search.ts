@@ -7,7 +7,7 @@
 // markers without leaving the search.
 //
 // Tier 2 (tracked): the ~1,431 operators we observe with ≥3 listings T12
-// who don't have a scorecard yet (below the ≥30 ranking threshold).
+// who don't have a scorecard yet (below the ≥30 scoring threshold).
 // Clicks route to the market landing page with a ?highlight= query so a
 // future iteration can scroll-into-view; today the param is forward-
 // compat and the page ignores it.
@@ -30,7 +30,7 @@ export type PMSearchTier = "ranked" | "tracked" | "canonical" | "market";
 // Result row shape — discriminated on `tier` so the renderer can branch
 // without re-narrowing every field.
 //   ranked    — single-market operator with a scorecard. Click → scorecard.
-//   tracked   — universe operator below ranking threshold. Click → market
+//   tracked   — universe operator below scoring threshold. Click → market
 //               landing with ?highlight=.
 //   canonical — v0.6.4 Patch 1: multi-market operator. Click → operator
 //               scorecard at /operators/<canonicalSlug>. Star counts are

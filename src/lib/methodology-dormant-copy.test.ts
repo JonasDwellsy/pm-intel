@@ -48,11 +48,11 @@ test("the stated recency window matches the pipeline constant", () => {
 
 test("the page explains that dormant operators leave the cohort baselines", () => {
   // This is the load-bearing claim: the tier is only safe to ship because a
-  // dormant operator cannot move a ranked operator's percentile. If the page
+  // dormant operator cannot move a scored operator's percentile. If the page
   // stops saying so, the reader has no way to know the ranks are stable.
   // JSX wraps mid-sentence, so match against a whitespace-collapsed copy.
   const flat = methodologySrc().replace(/\s+/g, " ");
-  assert.match(flat, /<em>scored against<\/em> the ranked cohort/);
+  assert.match(flat, /<em>measured against<\/em> the scored cohort/);
   assert.match(flat, /<em>members<\/em> of it/);
   assert.match(flat, /absent from every median, percentile, and eligible-operator count/);
   assert.match(flat, /purely additive/);
