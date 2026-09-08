@@ -78,8 +78,8 @@ export function describeChange(c: OperatorChange): string {
       return `${METRIC_LABEL[c.metric] ?? c.metric}: ${star(c.before)} → ${star(c.after)}`;
     case "eligibility_flip":
       return c.direction === "entered"
-        ? "Entered the ranked cohort"
-        : "Dropped below the ranking threshold";
+        ? "Entered the scored cohort"
+        : "Dropped below the scoring threshold";
     case "market_added":
       return `Entered a new market (${c.marketId})`;
     case "market_dropped":

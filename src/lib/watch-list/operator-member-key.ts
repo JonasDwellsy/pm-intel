@@ -4,7 +4,7 @@ import type { PMSearchResult } from "@/lib/pm-search";
 // (single-market, has a scorecard `slug`) and "canonical" (multi-market,
 // has a `canonicalSlug`) tiers carry a PM/canonical identity that the
 // pin system's `canonicalOperatorId ?? pmSlug` convention (see apply.ts)
-// can key on. "tracked" rows are below the ranking threshold — no PM
+// can key on. "tracked" rows are below the scoring threshold — no PM
 // record, no scorecard, no slug of any kind — so there's nothing to pin
 // to (a pin nobody can ever resolve back to an operator). "market" rows
 // aren't operators at all. Returns null for both, which callers treat

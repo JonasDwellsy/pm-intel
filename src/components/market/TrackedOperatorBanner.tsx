@@ -99,13 +99,13 @@ export function TrackedOperatorBanner({
                 them. Name the real requirement set instead of guessing. */}
             {t12Listings < ELIG_T12_MIN ? (
               <>
-                Below the ≥{ELIG_T12_MIN} listings needed for full ranking, so
+                Below the ≥{ELIG_T12_MIN} listings needed to be scored, so
                 there is no scorecard yet.
               </>
             ) : (
               <>
-                Not in the ranked set for this market, so there is no scorecard
-                yet. Ranking also requires listings at {ELIG_ADDR_MIN}+ distinct
+                Not in the scored set for this market, so there is no scorecard
+                yet. Scoring also requires listings at {ELIG_ADDR_MIN}+ distinct
                 addresses and recent listing activity.
               </>
             )}
