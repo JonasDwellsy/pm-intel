@@ -152,6 +152,10 @@ export default async function ReportPage({
           isClaimed={pm.claimed}
           geographicCoverage={scorecard.geographicCoverage}
           publicSample
+          // Consumer paid report — the one surface that shows the $299
+          // three-pack offer beside the peer table. Not on /sample or the B2B
+          // scorecard (they pass neither) or the PDF (a different renderer).
+          showPackOffer
         />
       </main>
     </ReportShell>
