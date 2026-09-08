@@ -125,7 +125,7 @@ export function ReportSearch({ partner }: { partner?: string | null }) {
                   {r.name}
                 </p>
                 <p className="text-[13px] text-muted-foreground">
-                  {r.marketCity}, {r.stateCode} · not yet enough activity to rank
+                  {r.marketCity}, {r.stateCode} · not yet enough activity to score
                 </p>
               </div>
               <ConfidenceBadge info={tierFromSearch(r)} />
