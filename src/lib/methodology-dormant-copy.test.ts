@@ -24,7 +24,7 @@ function methodologySrc(): string {
 test("the methodology page documents all three operator states", () => {
   const src = methodologySrc();
   assert.match(src, /Three operator states\./);
-  for (const state of ["Ranked", "Dormant", "Not eligible"]) {
+  for (const state of ["Scored", "Dormant", "Not eligible"]) {
     assert.match(
       src,
       new RegExp(`<strong>${state}</strong>`),

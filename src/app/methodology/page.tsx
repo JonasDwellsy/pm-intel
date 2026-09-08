@@ -434,7 +434,7 @@ export default async function MethodologyPage() {
                   <tbody>
                     <tr>
                       <td>
-                        <strong>Ranked</strong>
+                        <strong>Scored</strong>
                       </td>
                       <td>
                         Clears both eligibility tests and has listing activity
