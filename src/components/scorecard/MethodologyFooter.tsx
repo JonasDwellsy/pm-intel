@@ -103,7 +103,7 @@ export function MethodologyFooter({
             The Properties section above presents descriptive observations
             plus MSA-median comps per property — intentionally un-scored,
             since per-property sample sizes are too small to support a
-            reliable rank; its rent YoY is a raw median-rent delta for that
+            reliable score; its rent YoY is a raw median-rent delta for that
             property, not the mix-adjusted Rent Performance metric reported
             elsewhere on this scorecard; and scattered single-family
             holdings are shown as submarket rollups rather than individual

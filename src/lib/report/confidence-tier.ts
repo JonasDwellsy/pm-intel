@@ -11,7 +11,7 @@
 //             (Threshold from the stability analysis: below ~50 DOM
 //             observations the percentile carries meaningfully wider error.)
 //   Profile — observed but below the ranking bar (search-index "tracked"
-//             tier). Real, active operator; not enough listing volume to rank.
+//             tier). Real, active operator; not enough listing volume to score.
 //
 // Pure — type-only imports, unit-testable.
 
@@ -50,7 +50,7 @@ function rankedInfo(
   return {
     tier: "ranked",
     confidence: high ? "high" : "moderate",
-    label: "Ranked",
+    label: "Scored",
     confidenceLabel: high ? "High confidence" : "Moderate confidence",
     t12Listings,
     domObservations,
@@ -67,7 +67,7 @@ const PROFILE_INFO: Omit<ReportTierInfo, "t12Listings"> = {
   confidenceLabel: null,
   domObservations: null,
   blurb:
-    "A real, active operator we track, but not yet enough listing volume to rank against peers.",
+    "A real, active operator we track, but not yet enough listing volume to score against peers.",
 };
 
 /** Tier for an operator we hold a full scorecard for. */

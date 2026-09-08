@@ -16,10 +16,13 @@ export function ConfidenceBadge({
         ? "bg-teal-soft text-teal ring-teal/20"
         : "bg-amber-50 text-amber-700 ring-amber-200";
 
+  // Read the label off the tier rather than repeating it here — these are
+  // the same fact, and a second copy is how "Scored" and "Ranked" end up on
+  // screen together after a rename.
   const text =
     info.tier === "profile"
-      ? "Profile"
-      : `Ranked · ${info.confidenceLabel}`;
+      ? info.label
+      : `${info.label} · ${info.confidenceLabel}`;
 
   return (
     <span className="inline-flex flex-col gap-1">

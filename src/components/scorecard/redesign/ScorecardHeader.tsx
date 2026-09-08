@@ -148,7 +148,7 @@ export function ScorecardHeader({
             {header.lastListingDate ? ` since ${formatLastListing(header.lastListingDate)}` : ""}.
           </strong>{" "}
           The figures below reflect this operator&apos;s last 12 months of
-          observed activity. They are shown for reference and are not ranked
+          observed activity. They are shown for reference and are not scored
           against operators currently listing in this market.
         </div>
       )}
