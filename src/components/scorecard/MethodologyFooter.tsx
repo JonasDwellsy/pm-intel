@@ -3,6 +3,7 @@ import { sanitizeClassificationRationale } from "@/lib/scorecard/classification-
 import type { ScorecardData } from "@/lib/types";
 import { fmtDate, fmtInt, fmtPct } from "@/lib/format";
 import { LayerSectionHeader } from "@/components/scorecard/LayerSectionHeader";
+import { CANONICAL_HOST } from "@/lib/seo";
 
 // Layer 6A — Methodology footer (Scorecard_Design_Spec_v1.0.md Section 3,
 // Layer 6). Quiet, small-text section at the bottom of the scorecard.
@@ -202,8 +203,8 @@ export function MethodologyFooter({
           {scorecard.designVersion ? ` · Design ${scorecard.designVersion}` : ""}
           .{" "}
           {publicSample
-            ? "intel.iq.dwellsy.com/sample"
-            : `intel.iq.dwellsy.com/property-managers/${scorecard.pm.slug}`}
+            ? `${CANONICAL_HOST}/sample`
+            : `${CANONICAL_HOST}/property-managers/${scorecard.pm.slug}`}
         </p>
       </div>
     </section>

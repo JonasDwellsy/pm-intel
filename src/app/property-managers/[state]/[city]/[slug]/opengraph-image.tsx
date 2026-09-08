@@ -48,6 +48,7 @@ import {
 } from "@/lib/operators/stars";
 import type { ScorecardData } from "@/lib/types";
 import { parseScorecard } from "@/lib/scorecard/parse";
+import { CANONICAL_HOST } from "@/lib/seo";
 
 /** PR #80 — Load the canonical Dwellsy IQ wordmark from public/
  *  and embed it as a data URL in the OG composition. Module-scope
@@ -337,7 +338,7 @@ export default async function Image({
           >
             <span style={{ fontWeight: 600 }}>{cohortLine}</span>
             <span style={{ color: COLOR_TEAL, fontWeight: 600 }}>
-              intel.iq.dwellsy.com →
+              {CANONICAL_HOST} →
             </span>
           </div>
         </div>

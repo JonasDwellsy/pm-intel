@@ -103,6 +103,7 @@ import {
   POS,
   NEG,
 } from "./OperatorProfilePDF.theme";
+import { CANONICAL_HOST, CANONICAL_ORIGIN } from "@/lib/seo";
 
 // --- Font registration (once per lambda) ---
 // Inter, bundled under public/fonts (loaded the same proven way the wordmark
@@ -1694,7 +1695,7 @@ function PageFooter({ scorecard }: { scorecard: ScorecardData }) {
         {" · Data as of "}
         {fmtDate(scorecard.dataAsOf)}
       </Text>
-      <Text render={({ pageNumber, totalPages }) => `intel.iq.dwellsy.com · ${pageNumber} of ${totalPages}`} />
+      <Text render={({ pageNumber, totalPages }) => `${CANONICAL_HOST} · ${pageNumber} of ${totalPages}`} />
     </View>
   );
 }
@@ -1892,11 +1893,11 @@ function MethodologySection({ scorecard, num }: { scorecard: ScorecardData; num:
         <Text style={styles.subHead}>Suggested citation</Text>
         <View style={{ borderWidth: 1, borderStyle: "solid", borderColor: BORDER, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16 }}>
           <Text style={{ fontSize: 10, fontFamily: "Courier", color: BODY, lineHeight: 1.5 }}>
-            {`Dwellsy IQ, 2026. Operator IQ Scorecard for ${scorecard.pm.name} (${scorecard.market.name}). Methodology ${scorecard.methodologyVersion}${scorecard.designVersion ? ` · Design ${scorecard.designVersion}` : ""}. intel.iq.dwellsy.com/property-managers/${scorecard.pm.slug}`}
+            {`Dwellsy IQ, 2026. Operator IQ Scorecard for ${scorecard.pm.name} (${scorecard.market.name}). Methodology ${scorecard.methodologyVersion}${scorecard.designVersion ? ` · Design ${scorecard.designVersion}` : ""}. ${CANONICAL_HOST}/property-managers/${scorecard.pm.slug}`}
           </Text>
         </View>
-        <Link src="https://intel.iq.dwellsy.com/methodology" style={{ fontSize: 10.5, fontWeight: 700, color: VIOLET, marginTop: 10 }}>
-          Full methodology » intel.iq.dwellsy.com/methodology
+        <Link src={`${CANONICAL_ORIGIN}/methodology`} style={{ fontSize: 10.5, fontWeight: 700, color: VIOLET, marginTop: 10 }}>
+          {`Full methodology » ${CANONICAL_HOST}/methodology`}
         </Link>
       </View>
     </View>

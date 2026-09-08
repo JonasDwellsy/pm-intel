@@ -34,6 +34,7 @@ import {
   type BriefDigestMarketLine,
 } from "./compose";
 import { signBriefUnsubToken } from "./unsubscribe";
+import { CANONICAL_ORIGIN } from "@/lib/seo";
 
 export interface BriefDigestRunSummary {
   snapshotDate: string | null;
@@ -48,7 +49,7 @@ function appBase(): string {
   return (
     process.env.NEXT_PUBLIC_APP_URL ??
     process.env.APP_BASE_URL ??
-    "https://intel.iq.dwellsy.com"
+    CANONICAL_ORIGIN
   ).replace(/\/$/, "");
 }
 

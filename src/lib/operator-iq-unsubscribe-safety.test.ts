@@ -27,7 +27,7 @@ for (const [label, createHandlers] of factories) {
     });
 
     const response = await handlers.GET(new Request(
-      "https://intel.iq.dwellsy.com/unsubscribe?u=user_1&t=valid",
+      "https://operators.iq.dwellsy.com/unsubscribe?u=user_1&t=valid",
     ));
 
     assert.equal(response.status, 200);
@@ -45,7 +45,7 @@ for (const [label, createHandlers] of factories) {
     });
 
     const response = await handlers.POST(new Request(
-      "https://intel.iq.dwellsy.com/unsubscribe?u=user_1&t=valid",
+      "https://operators.iq.dwellsy.com/unsubscribe?u=user_1&t=valid",
       {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -64,7 +64,7 @@ for (const [label, createHandlers] of factories) {
       verify: () => false,
       unsubscribe: async (userId) => { unsubscribed.push(userId); },
     });
-    const url = "https://intel.iq.dwellsy.com/unsubscribe?u=user_1&t=invalid";
+    const url = "https://operators.iq.dwellsy.com/unsubscribe?u=user_1&t=invalid";
 
     assert.equal((await handlers.GET(new Request(url))).status, 400);
     assert.equal((await handlers.POST(new Request(url, { method: "POST" }))).status, 400);
@@ -73,7 +73,7 @@ for (const [label, createHandlers] of factories) {
 }
 
 test("one-click headers use the signed HTTPS endpoint", () => {
-  const url = "https://intel.iq.dwellsy.com/api/digest/unsubscribe?u=user_1&t=signed";
+  const url = "https://operators.iq.dwellsy.com/api/digest/unsubscribe?u=user_1&t=signed";
   assert.deepEqual(oneClickUnsubscribeHeaders(url), {
     "List-Unsubscribe": `<${url}>`,
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",

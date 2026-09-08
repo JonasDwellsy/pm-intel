@@ -66,9 +66,9 @@ test("resolveSiteUrl prefers the Vercel production host over a preview URL", () 
     dep: process.env.VERCEL_URL,
   };
   delete process.env.NEXT_PUBLIC_SITE_URL;
-  process.env.VERCEL_PROJECT_PRODUCTION_URL = "intel.iq.dwellsy.com";
+  process.env.VERCEL_PROJECT_PRODUCTION_URL = "operators.iq.dwellsy.com";
   process.env.VERCEL_URL = "pm-intel-abc123.vercel.app";
-  assert.equal(resolveSiteUrl(), "https://intel.iq.dwellsy.com");
+  assert.equal(resolveSiteUrl(), "https://operators.iq.dwellsy.com");
   for (const [k, v] of [
     ["NEXT_PUBLIC_SITE_URL", saved.site],
     ["VERCEL_PROJECT_PRODUCTION_URL", saved.prod],
