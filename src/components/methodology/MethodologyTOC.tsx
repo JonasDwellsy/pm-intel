@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CANONICAL_HOST } from "@/lib/seo";
 
 export type TocItem = {
   id: string;
@@ -58,7 +59,7 @@ export function MethodologyTOC({
   }, [items]);
 
   function handleCopy() {
-    const citation = `Dwellsy IQ, 2026. Operator IQ Methodology ${version}. intel.iq.dwellsy.com/methodology`;
+    const citation = `Dwellsy IQ, 2026. Operator IQ Methodology ${version}. ${CANONICAL_HOST}/methodology`;
     void navigator.clipboard.writeText(citation).then(() => {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1400);
@@ -120,7 +121,7 @@ export function MethodologyTOC({
             <p className="dq-mono text-[11.5px] leading-[1.5] text-navy">
               Dwellsy IQ, 2026.{" "}
               <em>Operator IQ Methodology {version}</em>.
-              intel.iq.dwellsy.com/methodology
+              {CANONICAL_HOST}/methodology
             </p>
             <button
               type="button"

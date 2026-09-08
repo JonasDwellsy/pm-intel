@@ -17,6 +17,7 @@ import { projectResultsForView } from "@/lib/watch-list/results-view";
 import { getEntitledMarketIds } from "@/lib/auth/market-entitlements.server";
 import { currentGenerationVersions } from "@/lib/operators/trajectory";
 import { signUnsubToken } from "./digest-unsubscribe";
+import { CANONICAL_ORIGIN } from "@/lib/seo";
 import { listAllForOrg, listMembers } from "./store";
 import { sendEmail } from "@/lib/email/send";
 import {
@@ -83,7 +84,7 @@ export interface DigestRunSummary {
 }
 
 function appBase(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "https://intel.iq.dwellsy.com";
+  return process.env.NEXT_PUBLIC_APP_URL ?? CANONICAL_ORIGIN;
 }
 
 /** Enumerate an org's members (userId + email) via the Clerk backend SDK. */

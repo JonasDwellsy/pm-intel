@@ -39,6 +39,33 @@
 export const INDEXING_ENABLED = false;
 
 /**
+ * The public host, as a human reads it — for citations, PDF footers and any
+ * other place we print our own address as TEXT rather than link to it.
+ *
+ * Deliberately a constant, not `resolveSiteUrl()`. Those answer different
+ * questions: resolveSiteUrl() asks "what origin is this deployment served
+ * from", which is correctly `localhost:3000` in dev and a preview URL on a
+ * branch deploy. A citation in a downloaded PDF must name the canonical public
+ * address in every environment, or a scorecard saved from a preview build
+ * cites a host nobody can reach.
+ *
+ * This is ONE constant because the host has now moved twice — bare
+ * iq.dwellsy.com to intel.iq.dwellsy.com (PR #297), then intel to operators —
+ * and each move meant hunting the literal through PDFs, footers and OG images.
+ * The next move is this line. `no-hardcoded-host.test.ts` keeps it that way.
+ *
+ * NOT the Clerk frontend-API host. Clerk stays on clerk.intel.iq.dwellsy.com,
+ * which is shared by every Dwellsy IQ app on the instance (markets, portfolio,
+ * and this one) and is a separate DNS record from the app host — so the
+ * intel → operators redirect does not touch it. Do not "fix" that reference
+ * to match this constant; it would break authentication for all of them.
+ */
+export const CANONICAL_HOST = "operators.iq.dwellsy.com";
+
+/** The same host as an absolute origin, no trailing slash. */
+export const CANONICAL_ORIGIN = `https://${CANONICAL_HOST}`;
+
+/**
  * Canonical public base URL, no trailing slash.
  *
  * Resolution order mirrors the one layout.tsx has used since PR #79 (added to
