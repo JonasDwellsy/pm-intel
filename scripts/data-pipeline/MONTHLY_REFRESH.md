@@ -142,11 +142,22 @@ from `scripts/data-pipeline/`.
    **every** `canonical_decisions_v064_p*.json` that exists — new markets add new
    sets (e.g. p9 = Milwaukee), and omitting one drops that market's cross-market
    canonicals. Derive the list from the files rather than hard-coding it:
+   **Order governs, and a plain `ls` no longer gives it.** `ls` sorts
+   lexically, so once `p10` existed the naive loop began yielding
+   `p10 p11 p12 p13 p1_base p2 ...` — applying four later curated sets *before*
+   the base. That was invisible while only `p1_base`-`p9` existed, because
+   lexical order happened to match numeric order then. `p1_base` is the
+   largest set by far (290 of the 672 edits applied on 2026-09-08), so running
+   it late overwrites everything stacked on top of it. Sort numerically:
    ```
-   for f in $(ls canonical_decisions_v064_p*.json | sed -E 's/canonical_decisions_v064_(p[^.]*)\.json/\1/'); do
+   ORDER=$(ls canonical_decisions_v064_p*.json \
+     | sed -E 's/canonical_decisions_v064_(p[^.]*)\.json/\1/' | sort -t p -k2 -n)
+   echo "applying in order: $ORDER"   # expect p1_base p2 ... p9 p10 ... p13
+   for f in $ORDER; do
      PYTHONHASHSEED=0 python3 apply_canonicals.py --decisions "canonical_decisions_v064_$f.json" --apply
    done
    ```
+   Always echo the order and eyeball it before applying.
    (As of 2026-07-19 that is p1_base p2 p3 p4 p5 p6 p7 p8 p9. Note the `version`
    label *inside* some files is off — e.g. p7's file says `-p10`, p8's `-p11-LA`
    — but the filename order p1_base→p9 is what governs.)
