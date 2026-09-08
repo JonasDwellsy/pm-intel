@@ -27,8 +27,28 @@ automatically.
 
 The canonical source data lives in the company Google Shared Drive:
 **Shared drives → Dwellsy Enterprise → Products → Operator IQ → Data Files**
-(34 `merged_<market>_<date>.csv` + `markets.json` + `CHECKSUMS.sha256` +
-`MIGRATION_MANIFEST.md`). New monthly exports go here.
+(one `merged_<market>_<date>.csv` per tracked market + `markets.json` +
+`CHECKSUMS.sha256` + `MIGRATION_MANIFEST.md`). New monthly exports go in the
+`incoming/<yyyy-mm>-refresh/` subfolder — see step 1.
+
+**Check for laptop-orphaned markets before every run.** A market refreshed
+outside the main batch can end up with its `csvFile` present only on the
+machine that ran it. On 2026-09-08 `milwaukee-waukesha-west-allis-wi` and
+`bozeman-mt` were in exactly that state — Bozeman had *no* file on the Drive at
+all — so a run from any other machine would have silently lost two markets:
+
+```
+python3 - <<'EOS'
+import json, os
+d = os.environ["IQ_DATA_DIR"]
+ms = json.load(open("markets.json"))["markets"]
+gone = [m["id"] for m in ms
+        if not os.path.exists(os.path.join(d, os.path.basename(m.get("csvFile", ""))))]
+print("csvFile missing from IQ_DATA_DIR:", gone or "none")
+EOS
+```
+
+Copy any it names up to the Drive before continuing.
 
 The pipeline reads a local filesystem path, so mount that folder with **Google
 Drive for Desktop** and point `IQ_DATA_DIR` at the mount (tip: mark the folder
@@ -47,8 +67,54 @@ Drive is now the source of truth; set `IQ_DATA_DIR` so runs read from it.)
 Run everything with `PYTHONHASHSEED=0` for reproducible ranks. All commands
 from `scripts/data-pipeline/`.
 
-1. **Get the new monthly export(s)** — one or more `export_*.csv` from the data
-   team.
+1. **Collect, verify, and repair the new export(s).**
+
+   Exports arrive as **several** `export_<timestamp>.csv.zip` files, not one —
+   the data team splits by market group, so a single refresh can be 7+ archives
+   (2026-09-08 was 7, ~367 MB zipped / ~1 GB extracted, covering all 44
+   markets). Ask for them in `Data Files/incoming/<yyyy-mm>-refresh/`, raw and
+   un-renamed: `merge_listings.py` splits by `msa_code` itself, so never
+   pre-split or pre-filter them.
+
+   Extract to a local staging dir (NOT the Drive — intermediates would sync):
+   ```
+   STAGE="$HOME/Documents/Claude/Projects/Product Support/_staging_<yyyy-mm>-refresh"
+   mkdir -p "$STAGE"
+   for z in "$IQ_DATA_DIR"/incoming/<yyyy-mm>-refresh/*.zip; do
+     unzip -o -q -j "$z" -d "$STAGE"
+   done
+   ```
+
+   **Preflight every file**, then repair CSV quoting damage:
+   ```
+   python3 preflight_export.py "$STAGE"/export_*.csv
+   python3 repair_export_quoting.py "$STAGE"/export_*.csv   # writes *_clean.csv
+   ```
+
+   `preflight_export.py` reports missing columns, `msa_code`s matching no
+   tracked market, unparseable dates, which markets would actually advance, and
+   which tracked markets are absent. Confirm the coverage count equals the
+   market count before merging — a market absent from every export keeps its old
+   `dataAsOf` and silently sits out the period.
+
+   **The export does not reliably quote `description`.** When its text contains
+   commas the row over-splits and every column after it shifts right, so
+   `creation_time` / `deactivation_time` come through holding prose ("Tradition",
+   "or Whitechapel or cheer on the keyboard jockeys..."). On 2026-09-08 this hit
+   15 San Francisco rows (69-70 fields against a 53-field header).
+   `_track_date` in `merge_listings.py` already guards `dataAsOf` with a date
+   regex, so the as-of stays correct — but the broken rows would still reach the
+   canonical merged CSV with unusable dates and carry forward every month.
+   `repair_export_quoting.py` re-joins the over-split description (the break is
+   deterministic: N extra fields means the description was split into N+1
+   pieces), keeps only rows whose dates then parse, and reports repaired vs
+   dropped. All 15 repaired cleanly in September; none were dropped.
+
+   **This is an upstream bug and it will recur** — worth asking the data team to
+   quote the field at source.
+
+   Pass the `_clean.csv` where one was produced, and the original otherwise, to
+   step 2.
 
 2. **Merge listings + advance `dataAsOf`:**
    ```
@@ -59,7 +125,8 @@ from `scripts/data-pipeline/`.
    Confirm `dataAsOf` advanced (`git diff markets.json`). Preview without
    `--apply` first if unsure.
 
-3. **Run the pipeline for every market** (35):
+3. **Run the pipeline for every market** (44 as of 2026-09-08 — the loop below
+   derives the list, so never hard-code the count):
    ```
    for M in $(python3 -c "import json;print(' '.join(m['id'] for m in json.load(open('markets.json'))['markets']))"); do
      PYTHONHASHSEED=0 python3 pipeline.py --market "$M" --data-dir "$IQ_DATA_DIR"
@@ -106,9 +173,25 @@ from `scripts/data-pipeline/`.
    — **add each new market to it** (id + slugs), or the market's ranked +
    tracked operators won't appear in search even though the seed has them.
 
-9. **Verify the seed** (`src/data/scorecard_data.json`): `marketCount` 34,
-   `methodologyVersion` v0.7 / `designVersion` v2.0 unchanged, and **`dataAsOf`
-   advanced to the new cutoff**.
+9. **Verify the seed** (`src/data/scorecard_data.json`): `marketCount` matches
+   `markets.json` (44 as of 2026-09-08), `methodologyVersion` v0.8 /
+   `designVersion` v2.0 unchanged, and **`dataAsOf` advanced to the new cutoff**.
+
+   `dataAsOf` is per-market and the seed's headline value is the **max** across
+   them, so one market can carry the whole seed's date. Before the September
+   refresh 40 markets sat at `2026-08-06` while the seed read `2026-08-20` —
+   Bozeman alone. Check the spread, not just the headline:
+
+   ```
+   python3 -c "
+   import json, collections
+   ms = json.load(open('markets.json'))['markets']
+   for d, n in sorted(collections.Counter(m['dataAsOf'] for m in ms).items()):
+       print(f'{d}  {n} markets')"
+   ```
+
+   It matters because a digest diffs against the **last snapshot**, not the last
+   month: a market that sat out a period shows two periods of movement at once.
 
 10. **Commit + open the data-release PR.** Review the generated data diff and
     wait for CI plus the Vercel preview. `vercel-build` only compiles the app;
@@ -245,7 +328,9 @@ HOMES_DIR="$IQ_DATA_DIR" npx tsx scripts/load-property-homes.ts --reset
   `DONE. PropertyHome rows: <N>`; the total should equal the summed extract
   line counts. Baseline from the 2026-07-21 full load: **221,709 rows / 3,258
   operators / 35 markets** (sanity anchor — a big pure-MF operator like Equity
-  Residential should contribute 0 homes).
+  Residential should contribute 0 homes). That baseline predates nine market
+  adds (35 → 44), so expect all three numbers to be materially higher now; use
+  it as an order-of-magnitude check, not an equality test.
 
 ## Refreshing search after operator name corrections
 
