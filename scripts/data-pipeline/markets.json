@@ -486,6 +486,17 @@
       "primaryCity": "Bozeman",
       "csvFile": "merged_bozeman-mt_20260908.csv",
       "dataAsOf": "2026-09-08"
+    },
+    {
+      "id": "atlanta-sandy-springs-marietta-ga",
+      "outputSlug": "atlanta",
+      "msaCode": "12060",
+      "msaFullName": "Atlanta-Sandy Springs-Marietta, GA MSA",
+      "name": "Atlanta",
+      "state": "GA",
+      "primaryCity": "Atlanta",
+      "csvFile": "merged_atlanta-sandy-springs-marietta-ga_20260908.csv",
+      "dataAsOf": "2026-09-08"
     }
   ]
 }
