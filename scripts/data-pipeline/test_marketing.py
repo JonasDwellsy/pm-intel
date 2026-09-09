@@ -192,5 +192,45 @@ class DescriptionHelpers(unittest.TestCase):
         self.assertEqual(count_content_categories(None), 0)
 
 
+class DocstringMatchesConstants(unittest.TestCase):
+    """The module docstring states the composite formula in prose. It has
+    drifted from the code twice (it documented the v0.9 four-way split while
+    the code was v0.11), and a wrong formula in the one place a reader looks
+    first is worse than none. Pin the prose to the constants."""
+
+    def test_docstring_formula_matches_the_weight_constants(self):
+        import marketing
+        doc = marketing.__doc__ or ""
+        flat = doc.replace(" ", "").replace("\n", "")
+        for name, weight in (
+            ("completeness", marketing.W_COMPLETENESS),
+            ("photos", marketing.W_PHOTOS),
+            ("description", marketing.W_DESCRIPTION),
+            ("amenities", marketing.W_AMENITIES),
+            ("policies", marketing.W_POLICIES),
+        ):
+            term = "{:.2f}*{}".format(weight, name)
+            self.assertIn(
+                term, flat,
+                "module docstring must state '{}' — update it when the "
+                "weights change".format(term),
+            )
+
+    def test_weights_sum_to_one(self):
+        import marketing
+        total = (marketing.W_COMPLETENESS + marketing.W_PHOTOS
+                 + marketing.W_DESCRIPTION + marketing.W_AMENITIES
+                 + marketing.W_POLICIES)
+        self.assertAlmostEqual(total, 1.0, places=9)
+
+    def test_richness_and_policy_categories_stay_disjoint(self):
+        import marketing
+        overlap = set(marketing._DESCRIPTIVE_CATEGORIES) & set(
+            marketing._POLICY_CATEGORIES)
+        self.assertEqual(overlap, set(),
+                         "a category counted in both richness and policies "
+                         "would be double-counted in the composite")
+
+
 if __name__ == "__main__":
     unittest.main()

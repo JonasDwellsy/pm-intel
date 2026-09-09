@@ -6,7 +6,7 @@ test). Mirrors the tenancy_survival / operator_grouping module pattern.
 
 Calibration — "Sharp" (p90-anchored) profile
 --------------------------------------------
-The composite blends four listing-quality signals. Each *richness* sub-score
+The composite blends five listing-quality signals. Each *richness* sub-score
 saturates near the top of the real cross-market distribution, so the top
 decile earns 100 and everyone else spreads across the range. The prior
 calibration saturated in the *middle* of the distribution (description at 500
@@ -18,13 +18,19 @@ counts became reliable once the ';'-delimited source field was parsed
 correctly, so median photos/listing is now a real signal rather than a
 constant 1.
 
-    composite = 0.35*completeness + 0.20*amenities + 0.20*description
-              + 0.25*photos
+    composite = 0.30*completeness + 0.20*photos + 0.20*description
+              + 0.15*amenities + 0.15*policies
       completeness: % of listings that have a description AND photos AND
                     amenities (the hygiene floor)
-      amenities:   min(100, 100 * mean_amenities_per_listing / 18)
-      description: 0.5*length + 0.5*richness (see below)
       photos:      min(100, 100 * median_photos_per_listing  / 30)
+      description: 0.5*length + 0.5*richness (see below)
+      amenities:   min(100, 100 * mean_amenities_per_listing / 18)
+      policies:    100 * min(1, mean_policy_categories / 2)   # of 3
+
+The weights are the v0.11 split (see the W_* constants) and sum to 1.0.
+`policies` is new in v0.11; completeness, photos and amenities each gave up
+weight to make room for it. Completeness stays the largest single component —
+it is the hygiene floor everything else builds on.
 
 Description sub-score — length + content richness (v0.9)
 --------------------------------------------------------
@@ -38,13 +44,26 @@ length but to blend it with a content signal:
 
     description = 0.5 * length_component + 0.5 * richness_component
       length_component:   min(100, 100 * mean_distinct_words / 195)   # ≈ cross-market p90
-      richness_component: 100 * min(1, mean_content_categories / 6)
+      richness_component: 100 * min(1, mean_descriptive_categories / 3)  # of 4
 
 `length_component` uses distinct words rather than chars — collinear with chars
 (r≈0.98, so ranking is preserved) but robust to whitespace/HTML padding.
-`richness_component` counts how many of 7 content categories (amenities,
-location, transit, parking, pet, fees, lease) the prose touches — a fee
-schedule can't win it on verbosity. Both means are taken over NON-BLANK
+`richness_component` counts how many of the 4 DESCRIPTIVE content categories
+(amenities, location, transit, parking) the prose touches — a fee schedule
+can't win it on verbosity.
+
+v0.11 split the old 7-category lexicon in two. The three rule categories (pet,
+fees, lease) moved out of richness into the separate `policies` component
+above, and the two sets are disjoint so nothing is double-counted. The reason
+is that the rules are both useful to a renter and the part operators most often
+skip: over 19,688 non-blank Chattanooga descriptions, amenities appear in 78.0%
+and location in 72.2%, but pet in 36.4%, fees in 35.0% and lease in 34.6%.
+Averaging all seven together let an operator max richness on amenities and
+location alone while saying nothing about the rules. (`DESC_CATEGORIES = 6.0`
+survives as a diagnostic of the retired 7-category blend; it no longer feeds
+the score.)
+
+Both means are taken over NON-BLANK
 descriptions; blank descriptions are already penalized by `completeness`, so
 counting them as 0 here too would double-penalize. A reliability guard applies:
 only operators with at least MIN_NONBLANK_FOR_DESC non-blank descriptions get
