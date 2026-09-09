@@ -195,7 +195,27 @@ def load_curated_canon_slugs(decisions_dir=SCRIPT_DIR):
     return slugs
 
 
-def link_by_parent_id(pms, curated_canon_slugs=frozenset()):
+def load_incumbent_slugs(target_path):
+    """Map {pm slug -> canonicalOperatorId} from the seed currently on disk.
+
+    Establishes which operator already owns each /operators/<slug> URL, so a
+    slug collision introduced by a new market cannot rename an existing one.
+    Missing or unreadable seed -> empty mapping, and the tiebreak falls back to
+    its previous behavior."""
+    try:
+        with open(target_path) as fh:
+            blob = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for pm in blob.get("pms") or blob.get("operators") or []:
+        slug, cid = pm.get("slug"), pm.get("canonicalOperatorId")
+        if slug and cid:
+            out[slug] = cid
+    return out
+
+
+def link_by_parent_id(pms, curated_canon_slugs=frozenset(), incumbent_slugs=None):
     """Group operators across markets by parentCompanyId and assign each
     group a shared canonicalOperatorId (slug of the parent name) +
     canonicalOperatorName, overriding the name-based value already present.
@@ -240,10 +260,26 @@ def link_by_parent_id(pms, curated_canon_slugs=frozenset()):
         # is the opposite of the stability this tiebreak exists to protect. When
         # no dormant operators are present this is identical to the old ordering
         # (active count == group size), so existing slugs are untouched.
+        # v0.12 — an operator that ALREADY holds the bare slug keeps it.
+        # canonicalOperatorId is a live route segment (/operators/<slug>), so
+        # for two single-operator groups the old tiebreak fell through to the
+        # parent id sorting lexically — which has nothing to do with who owns
+        # the URL. Adding Atlanta in 2026-09 hit this: its "Property Management
+        # Unlimited" (pid 12060) sorted before Dallas's (pid 39677) and would
+        # have silently repointed /operators/property-management-unlimited at a
+        # different company in another metro (same for RPM Executives vs LA).
+        # Incumbency ranks below the v0.8 dormant guard — a live operator still
+        # outranks an incumbent that has gone quiet — and above group size,
+        # which was only ever a proxy for the stability we can now measure
+        # directly. With no prior seed this term is constant and the ordering
+        # is exactly as before.
         def _slug_priority(p):
             grp = pid_groups[p]
             n_active = sum(1 for pm in grp if pm.get("operatorStatus") != "dormant")
-            return (-n_active, -len(grp), p)
+            holds_slug = any(
+                (incumbent_slugs or {}).get(pm.get("slug")) == base for pm in grp
+            )
+            return (-n_active, -int(holds_slug), -len(grp), p)
 
         for i, pid in enumerate(sorted(pids, key=_slug_priority)):
             pid_slug[pid] = base if i == 0 else f"{base}-{pid}"
@@ -268,7 +304,7 @@ def link_by_parent_id(pms, curated_canon_slugs=frozenset()):
 # Merge
 # ---------------------------------------------------------------------------
 
-def merge_markets(per_market_blobs, methodology_version="v0.7"):
+def merge_markets(per_market_blobs, methodology_version="v0.7", incumbent_slugs=None):
     """Combine per-market JSONs into a single merged blob.
 
     The canonical-operator IDs on each PM are preserved verbatim from
@@ -330,7 +366,9 @@ def merge_markets(per_market_blobs, methodology_version="v0.7"):
     # decision-file canonicalOperatorId already on each PM. Operators with
     # no parentCompanyId keep their existing canonicalOperatorId — that's
     # the fallback path covering the untyped market(s) + standalone ops.
-    id_linked = link_by_parent_id(merged["pms"], load_curated_canon_slugs())
+    id_linked = link_by_parent_id(
+        merged["pms"], load_curated_canon_slugs(), incumbent_slugs=incumbent_slugs
+    )
     merged["_id_linked_count"] = id_linked
 
     # Roll up canonicalOperators from the merged PM set.
@@ -891,7 +929,11 @@ def main():
         print(f"  ✓ {m['id']:50s} {os.path.basename(path)} ({len(blob.get('pms', []))} pms)")
 
     print(f"\n[merge] merging...")
-    merged = merge_markets(per_market, registry.get("methodologyVersion", "v0.7"))
+    merged = merge_markets(
+        per_market,
+        registry.get("methodologyVersion", "v0.7"),
+        incumbent_slugs=load_incumbent_slugs(args.target),
+    )
 
     errors = validate(merged)
     if errors:

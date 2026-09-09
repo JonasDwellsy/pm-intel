@@ -50,6 +50,69 @@ class LinkByParentIdCuratedGuard(unittest.TestCase):
         self.assertEqual(pms[0]["canonicalOperatorId"], "pure-property-management-of-arizona")
 
 
+class LinkByParentIdSlugIncumbency(unittest.TestCase):
+    """Adding a market must not rename an existing operator's /operators/<slug>.
+
+    `canonicalOperatorId` is a live route segment (src/app/operators/
+    [canonicalSlug]). When two genuinely different parents slugify the same,
+    one keeps the bare slug and the rest get an id suffix. The tiebreak ranked
+    on (active count, group size, parent id) — and for two single-operator
+    groups all that decides it is the parent id sorting lexically, which has
+    nothing to do with who already holds the URL.
+
+    Adding Atlanta in 2026-09 hit exactly this: Atlanta's "Property Management
+    Unlimited" (pid 12060x) sorted before Dallas's (pid 39677) and took
+    /operators/property-management-unlimited, silently repointing that URL at a
+    different company in another metro. Same for RPM Executives vs Los Angeles.
+
+    This is the same failure v0.8 fixed for the dormant tier; a market add is
+    another instance of it.
+    """
+
+    def _pair(self):
+        # Two same-named, genuinely different operators. The NEWCOMER's parent
+        # id sorts first, so the bare lexical tiebreak would hand it the slug.
+        incumbent = _pm("dallas-fort-worth-arlington-tx", "pmu-dfw",
+                        "Property Management Unlimited",
+                        "property-management-unlimited",
+                        pid="39677", pname="Property Management Unlimited")
+        newcomer = _pm("atlanta-sandy-springs-marietta-ga", "pmu-atl",
+                       "Property Management Unlimited",
+                       "pmu-atl",
+                       pid="12060", pname="Property Management Unlimited")
+        return incumbent, newcomer
+
+    def test_incumbent_keeps_the_bare_slug_when_a_new_market_collides(self):
+        incumbent, newcomer = self._pair()
+        pms = [incumbent, newcomer]
+        # The prior seed is what establishes incumbency.
+        link_by_parent_id(pms, incumbent_slugs={"pmu-dfw": "property-management-unlimited"})
+        self.assertEqual(
+            incumbent["canonicalOperatorId"], "property-management-unlimited",
+            "the operator that already held the URL must keep it")
+        self.assertEqual(
+            newcomer["canonicalOperatorId"], "property-management-unlimited-12060",
+            "the newcomer must take the suffixed slug")
+
+    def test_without_incumbency_data_the_lexical_tiebreak_still_applies(self):
+        # Backward compat: a fresh build with no prior seed behaves as before.
+        incumbent, newcomer = self._pair()
+        pms = [incumbent, newcomer]
+        link_by_parent_id(pms)
+        self.assertEqual(newcomer["canonicalOperatorId"], "property-management-unlimited")
+        self.assertEqual(incumbent["canonicalOperatorId"], "property-management-unlimited-39677")
+
+    def test_incumbency_does_not_outrank_active_over_dormant(self):
+        # The v0.8 dormant guard must still win: an incumbent that has gone
+        # dormant should not hold the slug against a live operator.
+        incumbent, newcomer = self._pair()
+        incumbent["operatorStatus"] = "dormant"
+        pms = [incumbent, newcomer]
+        link_by_parent_id(pms, incumbent_slugs={"pmu-dfw": "property-management-unlimited"})
+        self.assertEqual(newcomer["canonicalOperatorId"], "property-management-unlimited")
+        self.assertEqual(incumbent["canonicalOperatorId"], "property-management-unlimited-39677")
+
+
 class LoadCuratedCanonSlugs(unittest.TestCase):
     def test_loads_real_decision_slugs(self):
         slugs = load_curated_canon_slugs()

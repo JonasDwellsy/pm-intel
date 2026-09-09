@@ -267,6 +267,7 @@ const MARKETS: Array<{
   { slug: "san-francisco", id: "san-francisco-oakland-berkeley-ca", city: "San Francisco", state: "CA", stateSlug: "california", citySlug: "san-francisco" },
   { slug: "san-jose", id: "san-jose-sunnyvale-santa-clara-ca", city: "San Jose", state: "CA", stateSlug: "california", citySlug: "san-jose" },
   { slug: "bozeman", id: "bozeman-mt", city: "Bozeman", state: "MT", stateSlug: "montana", citySlug: "bozeman" },
+  { slug: "atlanta", id: "atlanta-sandy-springs-marietta-ga", city: "Atlanta", state: "GA", stateSlug: "georgia", citySlug: "atlanta" },
 ];
 const MIN_T12 = 3;
 
