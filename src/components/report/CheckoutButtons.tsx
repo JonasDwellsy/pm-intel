@@ -13,8 +13,18 @@ interface CheckoutButtonsProps {
   pmSlug?: string;
   /** Attribution channel, e.g. "biggerpockets". */
   partner?: string | null;
-  /** SKUs to offer, in display order. First is styled as primary. */
-  offers: Array<{ kind: ProductKind; label: string; priceLabel: string; sub?: string }>;
+  /** SKUs to offer, in display order. First is styled as primary unless an
+   *  offer sets its own `emphasis`. */
+  offers: Array<{
+    kind: ProductKind;
+    label: string;
+    priceLabel: string;
+    sub?: string;
+    /** Override the default (first = primary) styling. Lets a single-offer
+     *  render sit as a SECONDARY action beside a different primary CTA — e.g.
+     *  the homepage pack button under "Look up a manager". */
+    emphasis?: "primary" | "secondary";
+  }>;
 }
 
 export function CheckoutButtons({
@@ -47,7 +57,7 @@ export function CheckoutButtons({
   return (
     <div className="flex flex-col gap-3">
       {offers.map((offer, i) => {
-        const primary = i === 0;
+        const primary = offer.emphasis ? offer.emphasis === "primary" : i === 0;
         const busy = pending === offer.kind;
         return (
           <button
