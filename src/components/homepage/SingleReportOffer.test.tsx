@@ -101,6 +101,21 @@ describe("SingleReportOffer", () => {
     expect(hrefs.some((h) => h?.includes("checkout"))).toBe(false);
   });
 
+  test("the pack button reads as a sentence, not title case mid-phrase", () => {
+    // countAsWord() is TITLE-cased for sentence-initial copy ("Three reports
+    // for $299."). Using it inside a button label produced "Get Three
+    // reports" on the primary purchase CTA. countAsLowerWord() is the
+    // mid-sentence form and exists for exactly this.
+    const { container } = render(<SingleReportOffer />);
+    const labels = [...container.querySelectorAll("button")].map(
+      (b) => b.textContent ?? ""
+    );
+    const pack = labels.find((l) => /reports/i.test(l));
+    expect(pack).toBeTruthy();
+    expect(pack).not.toMatch(/\bGet [A-Z]/);
+    expect(pack?.toLowerCase()).toContain("reports");
+  });
+
   test("unlimited access is offered as a conversation, not a third price", () => {
     // Jonas asked for a third option on the homepage. It must NOT become a
     // price card: unlimited is the monitoring system, and the block's whole
