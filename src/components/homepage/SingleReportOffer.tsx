@@ -12,7 +12,11 @@ import { countAsWord } from "@/lib/format-count";
 // the smaller question, not as what Operator IQ costs.
 //
 // Framed by INTENT ("one manager"), never as a tier of the enterprise
-// product — the two differ in kind, not in volume.
+// product — the two differ in kind, not in volume. Three ways in: buy one
+// report (funnel — a report is ABOUT an operator, so the buyer picks one
+// first), buy the pack (direct checkout, no operator dependency), or start
+// a conversation about unlimited access (no price — that is the system,
+// not a bigger pack).
 //
 // Prices come from PRODUCTS so this can never drift from what Stripe charges.
 
@@ -68,6 +72,35 @@ export function SingleReportOffer() {
                 },
               ]}
             />
+            {/* Third way in, and deliberately NOT a third price card.
+                Unlimited is the monitoring system, not a larger pack — it
+                differs in kind, not in volume, the same distinction this
+                block's framing rests on. Pricing it here would anchor the
+                enterprise conversation against $149 (the exact failure the
+                section order exists to avoid) and would trip this
+                component's enterprise-price guard. So it carries no number
+                and opens a conversation instead, reusing the sales@ contact
+                the hero and closing band already use. */}
+            <div className="mt-5 border-t border-teal/20 pt-4">
+              <p className="text-[13.5px] font-semibold text-foreground">
+                Unlimited access
+              </p>
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                Every operator in your markets, monitored continuously with
+                alerts when something moves.
+              </p>
+              <TrackedLink
+                event="pm_card_click"
+                properties={{
+                  source: "homepage_single_report_offer",
+                  cta: "unlimited_access",
+                }}
+                href="mailto:sales@dwellsy.com?subject=Operator%20IQ%20unlimited%20access"
+                className="mt-2 inline-flex items-center text-[13.5px] font-semibold text-teal underline underline-offset-4 transition-colors hover:text-teal-700"
+              >
+                Talk to us &rarr;
+              </TrackedLink>
+            </div>
           </div>
         </div>
       </div>

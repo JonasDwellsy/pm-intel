@@ -101,6 +101,51 @@ describe("SingleReportOffer", () => {
     expect(hrefs.some((h) => h?.includes("checkout"))).toBe(false);
   });
 
+  test("unlimited access is offered as a conversation, not a third price", () => {
+    // Jonas asked for a third option on the homepage. It must NOT become a
+    // price card: unlimited is the monitoring system, and the block's whole
+    // framing is that it differs from a report in KIND, not in volume. A
+    // number here would anchor the enterprise conversation against $149 —
+    // which is also why the enterprise-price guard above must keep passing.
+    const { container } = render(<SingleReportOffer />);
+    const text = container.textContent ?? "";
+    expect(text).toMatch(/unlimited access/i);
+
+    const hrefs = [...container.querySelectorAll("a")].map((a) =>
+      a.getAttribute("href")
+    );
+    const contact = hrefs.find((h) => h?.startsWith("mailto:"));
+    expect(contact).toBeTruthy();
+    expect(contact).toContain("sales@dwellsy.com");
+  });
+
+  test("the unlimited option carries no price of its own", () => {
+    // Only two dollar amounts belong in this block: the single report and the
+    // pack. A third would mean unlimited got priced on the page.
+    const { container } = render(<SingleReportOffer />);
+    const text = container.textContent ?? "";
+    const amounts = text.match(/\$\s*\d[\d,]*/g) ?? [];
+    const distinct = [...new Set(amounts.map((a) => a.replace(/\s+/g, "")))];
+    expect(distinct.sort()).toEqual(
+      [
+        `$${PRODUCTS.single_report.priceUsd}`,
+        `$${PRODUCTS.three_pack.priceUsd}`,
+      ].sort()
+    );
+  });
+
+  test("all three ways in are present and distinct", () => {
+    // funnel link for the single report, a real checkout button for the pack,
+    // a mailto for unlimited — three different mechanisms, by design.
+    const { container } = render(<SingleReportOffer />);
+    const hrefs = [...container.querySelectorAll("a")].map((a) =>
+      a.getAttribute("href")
+    );
+    expect(hrefs).toContain("/report");
+    expect(hrefs.some((h) => h?.startsWith("mailto:sales@dwellsy.com"))).toBe(true);
+    expect(container.querySelectorAll("button").length).toBeGreaterThan(0);
+  });
+
   test("the pack can be bought directly, with no operator", () => {
     // The three-pack has no operator dependency (its credits are redeemed
     // later), so the homepage offers it as a real checkout button rather than
