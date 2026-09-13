@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { HomepageSectionHead } from "./SectionHead";
-import { countAsWord } from "@/lib/format-count";
+import { countAsLowerWord } from "@/lib/format-count";
 import { MarketsCoverageMap } from "@/components/markets/MarketsCoverageMap";
 
 export type LiveMarket = {
@@ -25,7 +25,10 @@ export function CoveredMarkets({ markets }: { markets: LiveMarket[] }) {
   // as "coming soon" once they shipped. Per-market stat detail still
   // lives on /markets and each market page.
   const count = markets.length;
-  const countWord = countAsWord(count);
+  // Mid-sentence ("measured across N live metros"), so the lowercase
+  // form. Masked today only because the market count exceeds the
+  // helper's 20-word cutoff and falls through to digits.
+  const countWord = countAsLowerWord(count);
   return (
     <section className="border-t border-grid">
       <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 lg:py-28">

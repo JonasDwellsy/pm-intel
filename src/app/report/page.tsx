@@ -10,7 +10,7 @@ import { ReportShell } from "@/components/report/ReportShell";
 import { CheckoutButtons } from "@/components/report/CheckoutButtons";
 import { resolvePartner } from "@/lib/report/partners";
 import { PRODUCTS } from "@/lib/billing/products";
-import { countAsWord } from "@/lib/format-count";
+import { countAsLowerWord } from "@/lib/format-count";
 
 export const metadata: Metadata = {
   title: "Check your property manager",
@@ -75,7 +75,7 @@ export default async function ReportLandingPage({
                 offers={[
                   {
                     kind: PRODUCTS.three_pack.kind,
-                    label: `Get ${countAsWord(PRODUCTS.three_pack.credits)} reports`,
+                    label: `Get ${countAsLowerWord(PRODUCTS.three_pack.credits)} reports`,
                     priceLabel: `$${PRODUCTS.three_pack.priceUsd}`,
                   },
                 ]}

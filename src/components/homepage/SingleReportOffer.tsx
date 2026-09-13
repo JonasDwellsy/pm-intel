@@ -1,7 +1,7 @@
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 import { CheckoutButtons } from "@/components/report/CheckoutButtons";
 import { PRODUCTS } from "@/lib/billing/products";
-import { countAsWord } from "@/lib/format-count";
+import { countAsWord, countAsLowerWord } from "@/lib/format-count";
 
 // v0.34 — The consumer offer, placed LAST on the homepage by design.
 //
@@ -66,7 +66,7 @@ export function SingleReportOffer() {
               offers={[
                 {
                   kind: pack.kind,
-                  label: `Get ${countAsWord(pack.credits)} reports`,
+                  label: `Get ${countAsLowerWord(pack.credits)} reports`,
                   priceLabel: `$${pack.priceUsd}`,
                   emphasis: "secondary",
                 },
