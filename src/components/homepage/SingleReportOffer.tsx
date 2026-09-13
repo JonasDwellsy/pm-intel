@@ -1,4 +1,5 @@
 import { TrackedLink } from "@/components/analytics/TrackedLink";
+import { CheckoutButtons } from "@/components/report/CheckoutButtons";
 import { PRODUCTS } from "@/lib/billing/products";
 import { countAsWord } from "@/lib/format-count";
 
@@ -35,7 +36,11 @@ export function SingleReportOffer() {
               {pack.priceUsd}. They don&rsquo;t expire.
             </p>
           </div>
-          <div className="lg:text-right">
+          {/* Two ways in. A single report is ABOUT one operator, so it can't
+              start a checkout here — the buyer picks the manager first, hence
+              the funnel link. The pack has no operator dependency (its credits
+              are redeemed later), so it starts Stripe Checkout directly. */}
+          <div className="w-full sm:w-[260px] lg:justify-self-end">
             <p className="dq-tnum text-[30px] font-bold leading-none text-navy">
               ${single.priceUsd}
               <span className="ml-2 text-[13px] font-semibold text-muted-foreground">
@@ -46,10 +51,23 @@ export function SingleReportOffer() {
               event="pm_card_click"
               properties={{ source: "homepage_single_report_offer", cta: "look_up_manager" }}
               href="/report"
-              className="mt-4 inline-flex h-11 items-center justify-center rounded-md bg-navy px-6 text-[14px] font-semibold text-white transition-opacity hover:opacity-90"
+              className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-md bg-navy px-6 text-[15px] font-semibold text-white transition-opacity hover:opacity-90"
             >
               Look up a manager
             </TrackedLink>
+            <p className="mt-4 mb-2 text-center text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+              or
+            </p>
+            <CheckoutButtons
+              offers={[
+                {
+                  kind: pack.kind,
+                  label: `Get ${countAsWord(pack.credits)} reports`,
+                  priceLabel: `$${pack.priceUsd}`,
+                  emphasis: "secondary",
+                },
+              ]}
+            />
           </div>
         </div>
       </div>

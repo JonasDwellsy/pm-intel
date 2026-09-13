@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { SingleReportOffer } from "./SingleReportOffer";
 import { PRODUCTS } from "@/lib/billing/products";
 
@@ -91,11 +91,33 @@ describe("SingleReportOffer", () => {
     expect(re.test(text)).toBe(true);
   });
 
-  test("it routes to the funnel, not to checkout", () => {
-    // The block cannot start a purchase: the buyer picks an operator first.
+  test("the single report routes into the funnel (operator picked first)", () => {
+    // A single report is ABOUT one operator, so it cannot start a purchase
+    // here — checkout needs a chosen manager. Its CTA is the funnel link, and
+    // that path never carries an operator-less "checkout" URL.
     const { container } = render(<SingleReportOffer />);
     const hrefs = [...container.querySelectorAll("a")].map((a) => a.getAttribute("href"));
     expect(hrefs).toContain("/report");
     expect(hrefs.some((h) => h?.includes("checkout"))).toBe(false);
+  });
+
+  test("the pack can be bought directly, with no operator", () => {
+    // The three-pack has no operator dependency (its credits are redeemed
+    // later), so the homepage offers it as a real checkout button rather than
+    // routing through the funnel. The count in the label tracks the catalog.
+    render(<SingleReportOffer />);
+    const n = PRODUCTS.three_pack.credits;
+    const words: Record<number, string> = {
+      1: "one",
+      2: "two",
+      3: "three",
+      4: "four",
+      5: "five",
+      6: "six",
+    };
+    const word = words[n] ?? String(n);
+    expect(
+      screen.getByRole("button", { name: new RegExp(`${word} reports`, "i") })
+    ).toBeTruthy();
   });
 });

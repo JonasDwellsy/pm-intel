@@ -29,6 +29,7 @@ export function ScorecardBody({
   isClaimed,
   geographicCoverage,
   publicSample = false,
+  showPackOffer = false,
 }: {
   /** Pre-built view model from buildScorecardView(). */
   view: ScorecardView;
@@ -42,6 +43,14 @@ export function ScorecardBody({
    *  public /sample URL — both otherwise dead-end a logged-out visitor at the
    *  auth gate. Defaults to false, so the real scorecard page is unchanged. */
   publicSample?: boolean;
+  /** Surface the $299 three-report pack offer beside the peer table. TRUE only
+   *  on the consumer paid report view (/report/r/[slug]); never on the B2B
+   *  scorecard, /sample, or the PDF — those either have no consumer buyer or
+   *  route the pitch at the wrong audience. Threaded straight into
+   *  ScaleFitSection; note it is orthogonal to `publicSample` (the paid report
+   *  sets both), so it cannot be inferred from that flag. Guarded by
+   *  scale-fit-pack-offer-containment.test.ts. */
+  showPackOffer?: boolean;
 }) {
   void isClaimed; // reserved for future claimed-operator badge rendering
 
@@ -129,6 +138,7 @@ export function ScorecardBody({
           marketFullName={view.header.marketFullName}
           marketStateCode={scorecard.market.state}
           marketCity={scorecard.market.name}
+          showPackOffer={showPackOffer}
         />
 
         {/* 02 Operating Performance */}

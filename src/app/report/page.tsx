@@ -4,10 +4,13 @@
 // BiggerPockets).
 
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { ReportSearch } from "@/components/report/ReportSearch";
 import { ReportShell } from "@/components/report/ReportShell";
+import { CheckoutButtons } from "@/components/report/CheckoutButtons";
 import { resolvePartner } from "@/lib/report/partners";
 import { PRODUCTS } from "@/lib/billing/products";
+import { countAsWord } from "@/lib/format-count";
 
 export const metadata: Metadata = {
   title: "Check your property manager",
@@ -46,17 +49,38 @@ export default async function ReportLandingPage({
         </div>
 
         {/* Pricing summary — prices from PRODUCTS so this can never drift
-            from what Stripe charges (same source SingleReportOffer.tsx uses). */}
+            from what Stripe charges (same source SingleReportOffer.tsx uses).
+            A single report is ABOUT one operator, so its only entry point is
+            the search above (checkout needs a chosen manager); the pack has no
+            operator dependency, so it starts Stripe Checkout right here and its
+            credits are redeemed later from the account wallet. */}
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
           <PriceCard
             price={`$${PRODUCTS.single_report.priceUsd}`}
             title="Single report"
             body="The full scorecard for one manager — lease-up speed, retention, rent performance, and marketing quality. Yours to keep, as a PDF."
+            cta={
+              <p className="text-[13px] font-medium text-foreground/70">
+                Look up a manager above to begin.
+              </p>
+            }
           />
           <PriceCard
             price={`$${PRODUCTS.three_pack.priceUsd}`}
             title="Three-report pack"
             body="Comparing more than one manager? Buy three credits and use them on any managers you choose, whenever you choose — each report yours to keep."
+            cta={
+              <CheckoutButtons
+                partner={partner ?? null}
+                offers={[
+                  {
+                    kind: PRODUCTS.three_pack.kind,
+                    label: `Get ${countAsWord(PRODUCTS.three_pack.credits)} reports`,
+                    priceLabel: `$${PRODUCTS.three_pack.priceUsd}`,
+                  },
+                ]}
+              />
+            }
           />
         </div>
 
@@ -75,18 +99,23 @@ function PriceCard({
   price,
   title,
   body,
+  cta,
 }: {
   price: string;
   title: string;
   body: string;
+  /** Action row rendered at the foot of the card (a checkout button, or a
+   *  note pointing at the search for the operator-first single report). */
+  cta?: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-grid bg-white p-5">
+    <div className="flex flex-col rounded-xl border border-grid bg-white p-5">
       <div className="flex items-baseline gap-2">
         <span className="text-[22px] font-semibold text-navy">{price}</span>
         <span className="text-[14px] font-medium text-foreground/80">{title}</span>
       </div>
       <p className="mt-2 text-[13.5px] leading-snug text-muted-foreground">{body}</p>
+      {cta && <div className="mt-4">{cta}</div>}
     </div>
   );
 }
