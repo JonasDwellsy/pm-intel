@@ -385,14 +385,15 @@
       "status": "available"
     },
     {
-      "slug": "atlanta-ga",
-      "name": "Atlanta-Sandy Springs-Alpharetta, GA MSA",
+      "slug": "atlanta-sandy-springs-marietta-ga",
+      "name": "Atlanta-Sandy Springs-Marietta, GA MSA",
       "shortName": "Atlanta",
       "centroid": {
         "lat": 33.749,
         "lng": -84.388
       },
-      "status": "available"
+      "status": "live",
+      "marketPageHref": "/property-managers/georgia/atlanta"
     },
     {
       "slug": "billings-mt",
