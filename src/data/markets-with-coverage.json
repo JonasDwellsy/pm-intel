@@ -598,14 +598,14 @@
       "status": "available"
     },
     {
-      "slug": "new-york-ny",
-      "name": "New York-Newark-Jersey City, NY-NJ-PA MSA",
+      "slug": "new-york-northern-new-jersey-long-island-ny-nj-pa",
+      "name": "New York-Northern New Jersey-Long Island, NY-NJ-PA MSA",
       "shortName": "New York",
       "centroid": {
         "lat": 40.7128,
         "lng": -74.006
       },
-      "status": "available"
+      "status": "live"
     },
     {
       "slug": "newark-nj",
@@ -638,14 +638,14 @@
       "status": "available"
     },
     {
-      "slug": "philadelphia-pa",
+      "slug": "philadelphia-camden-wilmington-pa-nj-de-md",
       "name": "Philadelphia-Camden-Wilmington, PA-NJ-DE-MD MSA",
       "shortName": "Philadelphia",
       "centroid": {
         "lat": 39.9526,
         "lng": -75.1652
       },
-      "status": "available"
+      "status": "live"
     },
     {
       "slug": "portland-me",
@@ -740,14 +740,14 @@
       "status": "available"
     },
     {
-      "slug": "tampa-fl",
+      "slug": "tampa-st-petersburg-clearwater-fl",
       "name": "Tampa-St. Petersburg-Clearwater, FL MSA",
       "shortName": "Tampa",
       "centroid": {
         "lat": 27.9506,
         "lng": -82.4572
       },
-      "status": "available"
+      "status": "live"
     },
     {
       "slug": "virginia-beach-va",
