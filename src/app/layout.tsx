@@ -85,7 +85,10 @@ export default function RootLayout({
   return (
     <ClerkProvider
       appearance={clerkAppearance}
-      allowedRedirectOrigins={["https://portfolio.iq.dwellsy.com"]}
+      allowedRedirectOrigins={[
+        "https://portfolio.iq.dwellsy.com",
+        "https://evidence.iq.dwellsy.com",
+      ]}
     >
       <html
         lang="en"
