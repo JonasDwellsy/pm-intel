@@ -54,6 +54,7 @@ model Market {
   // pre-Patch-2 reseeds.
   operatorsWithConcessions          Int      @default(0)
   pms                               PM[]
+  marketReportLeads                 MarketReportLead[]
   createdAt                         DateTime @default(now())
   updatedAt                         DateTime @updatedAt
 }
@@ -167,6 +168,27 @@ model Lead {
   matchedPms        String // JSON array of pm slugs
   source            String? // referring page
   createdAt         DateTime @default(now())
+}
+
+// Anonymous homepage visitors who request the free report for their home
+// market. This is intentionally separate from Lead: that workflow collects
+// an owner's property requirements and produces operator matches, while this
+// one records only the email and market needed to deliver a one-time report.
+model MarketReportLead {
+  id                String    @id @default(cuid())
+  marketId          String
+  market            Market    @relation(fields: [marketId], references: [id])
+  email             String
+  source            String?
+  status            String    @default("pending") // pending | delivered | failed
+  providerMessageId String?
+  deliveryError     String?
+  requestedAt       DateTime  @default(now())
+  deliveredAt       DateTime?
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([marketId, email])
+  @@index([requestedAt])
 }
 
 model Claim {

@@ -23,6 +23,10 @@ Last updated: v0.17 / 2026-05-22.
 | `markets_page_viewed` | market_slug |
 | `state_page_viewed` | state (2-letter code) |
 | `search_performed` | query_length_chars, result_tier, had_strict_results, entry_point |
+| `market_report_offer_viewed` | source only |
+| `market_report_offer_dismissed` | source only |
+| `market_report_requested` | marketId and source only; email is never sent to PostHog |
+| `market_report_request_failed` | marketId and source only; email and provider error are never sent to PostHog |
 | `org_member_invited` | org_id, invited_email_domain (domain only — see below) |
 | `org_member_joined` | org_id, member_user_id, join_method, invited_email_domain (domain only) |
 | `org_member_removed` | org_id, removed_user_id |
@@ -83,6 +87,11 @@ Enabled with PII masking:
   scope. Identification is by Clerk userId only.
 - IP addresses are not retained beyond Vercel's edge log default
   retention.
+- A visitor who explicitly requests a free home-market report has their
+  normalized email address and selected market stored in Postgres so the
+  one-time report can be delivered and the request can be audited. The email
+  is sent to SendGrid for delivery, but is never attached to analytics events
+  or Sentry reports. This request does not create a recurring subscription.
 
 **Content guardrails**:
 

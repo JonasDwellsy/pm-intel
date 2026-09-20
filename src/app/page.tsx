@@ -19,6 +19,7 @@ import {
   type ObservedScale,
 } from "@/components/homepage/SampleScorecards";
 import { MethodologyFooter } from "@/components/homepage/MethodologyFooter";
+import { MarketReportExitOffer } from "@/components/homepage/MarketReportExitOffer";
 import { countOperatorStars } from "@/lib/operators/stars";
 import { citySlug, stateCodeToSlug } from "@/lib/slugify";
 import { fmtInt, fmtNumber, fmtPct } from "@/lib/format";
@@ -403,6 +404,12 @@ export default async function HomePage() {
         version={METHODOLOGY_VERSION.replace(/^v/, "")}
         designVersion={DESIGN_VERSION}
         dataAsOf={dataAsOf}
+      />
+      <MarketReportExitOffer
+        markets={liveMarkets.map((market) => ({
+          id: market.id,
+          label: `${market.city}, ${market.state}`,
+        }))}
       />
     </main>
   );

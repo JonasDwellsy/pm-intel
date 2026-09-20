@@ -151,6 +151,10 @@ export type EventName =
   | "markets_page_viewed"
   | "state_page_viewed"
   | "search_performed"
+  | "market_report_offer_viewed"
+  | "market_report_offer_dismissed"
+  | "market_report_requested"
+  | "market_report_request_failed"
   // PR #75 — Prospect-share polish. Fires when a viewer clicks the
   // Copy link button on a scorecard. Property: operator_slug. Used
   // to see which operator pages get shared most so we can target
