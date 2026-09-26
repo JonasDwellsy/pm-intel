@@ -287,6 +287,97 @@ class MarketListings(unittest.TestCase):
             checked += 1
         self.assertEqual(checked, len(sample_ids))
 
+    def test_identity_keys_are_populated(self):
+        # p.company_id was 100% on Bozeman 2026-09-26 (field_mapping.md).
+        with_company = [r for r in self.bozeman_rows if r["child_company_id"]]
+        self.assertEqual(len(with_company), len(self.bozeman_rows))
+
+    @unittest.skipUnless(
+        os.path.isfile(BOZEMAN_EXPORT), "Bozeman export CSV not present on this machine"
+    )
+    def test_company_fields_match_the_export(self):
+        # The export's rule, reproduced (field_mapping.md, "Parent company vs
+        # organization"): compare per child company -- one value set per
+        # company per side, not per row -- against the 2026-09-08 Bozeman
+        # export. ''/'null' are both blank.
+        FIELDS = (
+            "company_name", "child_company_type", "parent_company_id",
+            "parent_company_name", "parent_company_type",
+        )
+
+        def norm(v):
+            v = (v or "").strip()
+            return "" if v.lower() == "null" else v
+
+        db_by_company: dict[str, tuple] = {}
+        for row in self.bozeman_rows:
+            cid = norm(row.get("child_company_id"))
+            if cid and cid not in db_by_company:
+                db_by_company[cid] = tuple(norm(row.get(f)) for f in FIELDS)
+
+        export_by_company: dict[str, tuple] = {}
+        with open(BOZEMAN_EXPORT, newline="", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                cid = norm(row.get("child_company_id"))
+                if cid and cid not in export_by_company:
+                    export_by_company[cid] = tuple(norm(row.get(f)) for f in FIELDS)
+
+        common_ids = set(db_by_company) & set(export_by_company)
+        self.assertGreater(
+            len(common_ids), 0, "no child_company_id matched between DB and export"
+        )
+
+        mismatched = [
+            cid for cid in common_ids if db_by_company[cid] != export_by_company[cid]
+        ]
+
+        if not mismatched:
+            return
+
+        # A mismatch is allowed through only when it traces to a
+        # company_table row -- the company itself or its parent -- updated
+        # after the export's 2026-09-08 pull: a real change since, not a
+        # reader bug. Every other mismatch fails the test.
+        drift_rows = dwellsy_db.query(
+            """
+            select c.id::text as company_id,
+                   (c.last_update_time > '2026-09-08 00:00:00+00'
+                    or coalesce(pc.last_update_time > '2026-09-08 00:00:00+00', false))
+                                                    as drifted
+              from dwellsy_prod.company_table c
+              left join dwellsy_prod.company_table pc on pc.id = c.parent_company_id
+             where c.id = any(%(ids)s::bigint[])
+            """,
+            {"ids": [int(cid) for cid in mismatched]},
+        )
+        drifted_ids = {r["company_id"] for r in drift_rows if r["drifted"]}
+        non_drifted_mismatches = [cid for cid in mismatched if cid not in drifted_ids]
+
+        self.assertEqual(
+            non_drifted_mismatches, [],
+            f"unexplained company field mismatches: {non_drifted_mismatches[:10]}",
+        )
+        # Every mismatch was explained by a post-export company_table update
+        # -- this count is the whole story, not just the samples above.
+        self.assertEqual(
+            len(drifted_ids), len(mismatched),
+            f"{len(mismatched) - len(drifted_ids)} mismatch(es) were neither "
+            "clean nor drift-explained",
+        )
+
+    def test_organization_does_not_multiply_rows(self):
+        # organization_company_table is many-to-many; organization_id must
+        # come from a correlated/pre-aggregated lookup, never a join that
+        # could fan out a listing into more than one row.
+        ids = [r["listing_id"] for r in self.bozeman_rows]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_organization_is_deterministic_per_company(self):
+        by_company: dict[str, set] = {}
+        for r in self.bozeman_rows:
+            by_company.setdefault(r["child_company_id"], set()).add(r["organization_id"])
+        self.assertEqual({k: v for k, v in by_company.items() if len(v) > 1}, {})
+
     def test_timestamps_are_pacific_wall_clock(self):
         ts_re = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
         checked = 0

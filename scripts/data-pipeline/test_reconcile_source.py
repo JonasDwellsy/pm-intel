@@ -388,6 +388,110 @@ class FieldDriftGroupCoverage(unittest.TestCase):
                 self.assertTrue(t.startswith("dwellsy_prod."))
 
 
+class CompanyIdentityFields(unittest.TestCase):
+    """Task 6: company_name, child_company_type, parent_company_id,
+    parent_company_name and parent_company_type -- exact comparison,
+    threshold 0.99 (field_mapping.md measured 100%, 12,935/12,935), grouped
+    under the new "company" drift group (company_table's own
+    last_update_time, for the listing's company or its parent)."""
+
+    NEW_FIELDS = (
+        "company_name",
+        "child_company_type",
+        "parent_company_id",
+        "parent_company_name",
+        "parent_company_type",
+    )
+
+    def test_not_yet_emitted_is_now_empty(self):
+        self.assertEqual(reconcile_source.NOT_YET_EMITTED, ())
+        for field in self.NEW_FIELDS:
+            self.assertNotIn(field, reconcile_source.NOT_YET_EMITTED)
+
+    def test_new_fields_have_exact_specs_and_099_threshold(self):
+        for field in self.NEW_FIELDS:
+            export_col, reader_key, comparator = reconcile_source.FIELD_SPECS[field]
+            self.assertEqual(export_col, field)
+            self.assertEqual(reader_key, field)
+            self.assertEqual(comparator, "exact")
+            self.assertEqual(reconcile_source.FIELD_THRESHOLDS[field], 0.99)
+
+    def test_new_fields_are_grouped_under_company_drift(self):
+        for field in self.NEW_FIELDS:
+            self.assertEqual(reconcile_source.FIELD_DRIFT_GROUP[field], "company")
+
+    def test_company_group_has_a_documented_source_table(self):
+        self.assertEqual(
+            reconcile_source.DRIFT_GROUP_SOURCE_TABLES["company"],
+            ("dwellsy_prod.company_table",),
+        )
+
+    def test_company_id_is_not_moved_to_the_company_group(self):
+        # company_id's value is p.company_id (a property_table foreign-key
+        # assignment), not a company_table attribute -- a property
+        # reassignment is what would change it, and that's already caught by
+        # "property_address" (p.last_update_time). A company_table rename or
+        # re-type (what the new "company" group watches) changes none of
+        # company_id's own value, so it stays put -- this was a genuine
+        # property_table dependency, not a placeholder used only for lack of
+        # a company group.
+        self.assertEqual(
+            reconcile_source.FIELD_DRIFT_GROUP["company_id"], "property_address"
+        )
+
+    def test_mismatch_on_drifted_company_row_does_not_count_against_the_rate(self):
+        pairs = [
+            (str(i), {"company_name": "Acme Property Management"},
+             {"company_name": "Acme Property Management"})
+            for i in range(200)
+        ]
+        pairs.append(
+            ("drifted-1", {"company_name": "Old Name LLC"}, {"company_name": "New Name LLC"})
+        )
+        drift = {"company_name": {"drifted-1": True}}
+        report = reconcile_source.compare_matched_fields(pairs, drift=drift)
+        self.assertTrue(report["company_name"]["ok"])
+        self.assertEqual(report["company_name"]["agreement_non_drifted"], 1.0)
+        self.assertEqual(report["company_name"]["drifted"], 1)
+        self.assertEqual(report["company_name"]["non_drifted"], 200)
+
+    def test_mismatch_on_non_drifted_company_row_still_fails(self):
+        good = [
+            (str(i), {"parent_company_name": "Acme Holdings"},
+             {"parent_company_name": "Acme Holdings"})
+            for i in range(200)
+        ]
+        bad = [
+            (f"bad-{i}", {"parent_company_name": "Acme Holdings"},
+             {"parent_company_name": "Mismatch LLC"})
+            for i in range(10)
+        ]
+        pairs = good + bad
+        drift = {"parent_company_name": {lid: False for lid, _, _ in pairs}}
+        report = reconcile_source.compare_matched_fields(pairs, drift=drift)
+        self.assertFalse(report["parent_company_name"]["ok"])
+        self.assertEqual(report["parent_company_name"]["reason"], "below_threshold")
+        self.assertEqual(len(report["parent_company_name"]["mismatch_samples_non_drifted"]), 5)
+
+    def test_no_export_column_is_left_unemitted(self):
+        # The gate-level roll-up should now report nothing outstanding.
+        result = reconcile_source._compose_result(
+            msa_code="99999",
+            export_rows=1,
+            malformed_export_rows=0,
+            db_rows=1,
+            matched_ids={"1"},
+            export_only_summary=reconcile_source.summarise_export_only_classifications([]),
+            db_only_detail=_empty_db_only_detail(),
+            db_only_count=0,
+            export_only_count=0,
+            field_report=reconcile_source.compare_matched_fields(
+                [(str(i), {"uru_id": "9"}, {"uru_id": "9"}) for i in range(200)]
+            ),
+        )
+        self.assertEqual(result["not_yet_emitted"], [])
+
+
 class ToleranceMatch(unittest.TestCase):
     """Fix round 2: latitude/longitude/top_down_community_count switch from
     exact equality to a comparator that fits how each is actually used."""

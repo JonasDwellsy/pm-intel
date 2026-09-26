@@ -186,12 +186,15 @@ def community_count_diff_bucket(diff: int) -> str:
 # share one name on both sides; two don't:
 #   - "company_id" (reader) == "child_company_id" (export): field_mapping.md
 #     -- `c.id` (= `p.company_id`) VERIFIED 1000/1000 + 12,935/12,935
-#     whole-export against `child_company_id`. The reader does not (yet)
-#     emit a key literally named `child_company_id`, but it DOES emit the
-#     equivalent value under `company_id` (module docstring: "`company_id`
-#     (the join key Task 6 needs) ... [is] emitted here"). Comparing it here,
-#     rather than folding it into NOT_YET_EMITTED, is a judgment call --
-#     see task-5-report.md.
+#     whole-export against `child_company_id`. This entry predates Task 6 and
+#     was kept unchanged rather than folded into the new `child_company_id`
+#     column: the reader has emitted the equivalent value under `company_id`
+#     since Task 3 (module docstring), and this entry already compares it
+#     against the export's `child_company_id` column, so a second FIELD_SPECS
+#     entry comparing the reader's own new `child_company_id` key against the
+#     same export column would be redundant. Task 6 (dwellsy_source.py) now
+#     also emits a literal `child_company_id` key with the same value, purely
+#     so dwellsy_source's own tests can assert on it directly.
 #   - "amenities_string": the same `amenities` value on both sides, compared
 #     exactly (not by count) -- field_mapping.md's separate 98.6% exact-string
 #     measurement, distinct from the 98.7% by-count measurement used by
@@ -221,19 +224,28 @@ FIELD_SPECS: dict[str, tuple[str, str, str]] = {
     "amenities":                   ("amenities",                 "amenities",                 "count"),
     "amenities_string":            ("amenities",                 "amenities",                 "exact"),
     "photos":                      ("photos",                    "photos",                    "count"),
+
+    # Task 6: operator identity from the company hierarchy (Jonas's
+    # 2026-09-26 ruling -- see dwellsy_source.py's module docstring and
+    # field_mapping.md's "Parent company vs organization"). child_company_id
+    # is not a new entry here: it is already compared above under the
+    # "company_id" field, against the reader's `company_id` key -- the same
+    # value the reader now also emits under a literal `child_company_id` key
+    # (dwellsy_source.py Task 6). export_col == reader_key for all five,
+    # since the reader emits these under the export's own column names.
+    "company_name":                ("company_name",              "company_name",              "exact"),
+    "child_company_type":           ("child_company_type",        "child_company_type",        "exact"),
+    "parent_company_id":            ("parent_company_id",         "parent_company_id",         "exact"),
+    "parent_company_name":          ("parent_company_name",       "parent_company_name",       "exact"),
+    "parent_company_type":          ("parent_company_type",       "parent_company_type",       "exact"),
 }
 
-# Task 6 fields: operator identity, arriving with the parent-company join.
-# child_company_id is listed here per the controller's ruling, but is already
-# available today via the reader's `company_id` key (see FIELD_SPECS above
-# and task-5-report.md's "Judgment calls") -- it is compared, not skipped.
-NOT_YET_EMITTED = (
-    "company_name",
-    "child_company_type",
-    "parent_company_id",
-    "parent_company_name",
-    "parent_company_type",
-)
+# Every export column now has a reader-emitted source (Task 6 closed the
+# last gap: the five company-identity fields below). Kept as an explicit
+# empty tuple, not deleted, so the constant and its reporting
+# (`_compose_result`'s `not_yet_emitted`, the CLI summary's "not yet
+# emitted" line) stay in place for any field a future task adds here.
+NOT_YET_EMITTED: tuple[str, ...] = ()
 
 # Thresholds = field_mapping.md's measured agreement rate (2026-09-26,
 # Bozeman n=1000 unless noted) minus a margin for drift between that probe
@@ -295,6 +307,11 @@ FIELD_THRESHOLDS: dict[str, float] = {
                                          # to specific parent properties with deleted_property_media_table
                                          # activity after as_of (e.g. parent 20357449, 2026-09-22..25): drift,
                                          # not a reader bug
+    "company_name": 0.99,               # measured 100% (12,935/12,935, field_mapping.md), non-drifted rate
+    "child_company_type": 0.99,         # measured 100% (12,935/12,935, field_mapping.md), non-drifted rate
+    "parent_company_id": 0.99,          # measured 100% (12,935/12,935, field_mapping.md), non-drifted rate
+    "parent_company_name": 0.99,        # measured 100% (12,935/12,935, field_mapping.md), non-drifted rate
+    "parent_company_type": 0.99,        # measured 100% (12,935/12,935, field_mapping.md), non-drifted rate
 }
 
 # ---------------------------------------------------------------------------
@@ -303,8 +320,18 @@ FIELD_THRESHOLDS: dict[str, float] = {
 # One field -> drift-group map, and one drift-group -> source-tables map, per
 # the controller's ruling ("define its source tables in one constant").
 # `company_table` was checked via information_schema (it does have
-# last_update_time) but backs no field compared here -- the operator-identity
-# columns it would explain are Task 6's NOT_YET_EMITTED fields.
+# last_update_time) and, as of Task 6, backs the five operator-identity
+# fields below via the new "company" group.
+#
+# `company_id` stays on "property_address", not "company": its VALUE is
+# `p.company_id` (a property_table foreign-key assignment -- see
+# dwellsy_source.py's BASE_SQL), so what would make it drift is the
+# property's own company reassignment, which bumps `p.last_update_time` and
+# is already caught by the property_address group. A company_table rename or
+# re-type (what the new "company" group watches) changes none of
+# company_id's own value. This is not a case of company_id having been
+# mapped to property_address "only for lack of a company group" -- it is
+# the group its value actually depends on -- so it was left unmoved.
 FIELD_DRIFT_GROUP: dict[str, str] = {
     "uru_id": "property_address",
     "community_id": "property_address",
@@ -325,6 +352,11 @@ FIELD_DRIFT_GROUP: dict[str, str] = {
     "amenities": "amenities",
     "amenities_string": "amenities",
     "photos": "photos",
+    "company_name": "company",
+    "child_company_type": "company",
+    "parent_company_id": "company",
+    "parent_company_name": "company",
+    "parent_company_type": "company",
 }
 
 # Deliberately coarse per the controller's own grouping: e.g. every field in
@@ -348,6 +380,15 @@ DRIFT_GROUP_SOURCE_TABLES: dict[str, tuple[str, ...]] = {
         "dwellsy_prod.property_media_table",
         "dwellsy_prod.deleted_property_media_table",
     ),
+    # company_table only (not company_type_table): the same deliberately
+    # coarse choice as every other group -- e.g. child_company_type reads
+    # ct.type via c.company_type_id, but company_type_table's own
+    # last_update_time is not tracked here, mirroring how "property_address"
+    # already omits address_type_table's for the address_type field. A
+    # lookup-vocabulary table's own row almost never changes, and even if it
+    # did this can only ever shrink the non-drifted pool, never hide a
+    # mismatch inside it.
+    "company": ("dwellsy_prod.company_table",),
 }
 
 DRIFT_CHUNK = 2000
@@ -533,6 +574,39 @@ def fetch_photos_drift(as_of: str, media_ids) -> dict:
     return result
 
 
+def fetch_company_drift(as_of: str, company_ids) -> dict:
+    """{company_id: bool} -- true when company_table.last_update_time is
+    after as_of for the company itself OR its parent (a self-join, still
+    to-one: `c.parent_company_id` targets `company_table.id`, its PRIMARY
+    KEY, so this can't fan out). Backs the five Task 6 identity fields
+    (company_name, child_company_type, parent_company_id,
+    parent_company_name, parent_company_type) -- all five read off either
+    `c` or `pc` (see dwellsy_source.py's BASE_SQL), so one boolean per
+    company covers all of them, the same deliberately-coarse-per-group
+    choice as every other drift group here. An EXISTS-shaped boolean
+    expression, not a join that could return more than one row per company
+    -- no fan-out possible since the self-join target is a PRIMARY KEY."""
+    import dwellsy_db
+
+    as_of_ts = _as_of_ts(as_of)
+    result: dict[str, bool] = {}
+    for chunk in _chunked(sorted(int(x) for x in company_ids), DRIFT_CHUNK):
+        rows = dwellsy_db.query(
+            """
+            select c.id::text as company_id,
+                   (c.last_update_time > %(as_of)s
+                    or coalesce(pc.last_update_time > %(as_of)s, false)) as drifted
+              from dwellsy_prod.company_table c
+              left join dwellsy_prod.company_table pc on pc.id = c.parent_company_id
+             where c.id = any(%(ids)s::bigint[])
+            """,
+            {"ids": chunk, "as_of": as_of_ts},
+        )
+        for row in rows:
+            result[row["company_id"]] = bool(row["drifted"])
+    return result
+
+
 def compute_drift(as_of: str, db_by_listing_id: dict, matched_ids) -> dict:
     """Runs every drift-group fetch and expands the result into
     {field_name: {listing_id: bool}}, one entry per FIELD_SPECS field, ready
@@ -540,10 +614,16 @@ def compute_drift(as_of: str, db_by_listing_id: dict, matched_ids) -> dict:
     looked up in db_by_listing_id for their `property_id`."""
     matched_ids = list(matched_ids)
     property_ids = {db_by_listing_id[lid]["property_id"] for lid in matched_ids}
+    company_ids = {
+        _norm_blank(db_by_listing_id[lid].get("company_id"))
+        for lid in matched_ids
+        if _norm_blank(db_by_listing_id[lid].get("company_id"))
+    }
 
     listing_drift = fetch_listing_drift(as_of, matched_ids)
     context = fetch_property_context(as_of, property_ids)
     amenities_drift_by_property = fetch_amenities_drift(as_of, property_ids)
+    company_drift_by_company = fetch_company_drift(as_of, company_ids)
 
     media_relevant_ids = set(property_ids)
     for pid in property_ids:
@@ -556,6 +636,7 @@ def compute_drift(as_of: str, db_by_listing_id: dict, matched_ids) -> dict:
     community_drift = {}
     amenities_drift = {}
     photos_drift = {}
+    company_drift = {}
     for lid in matched_ids:
         pid = db_by_listing_id[lid]["property_id"]
         ctx = context.get(pid, {})
@@ -566,6 +647,8 @@ def compute_drift(as_of: str, db_by_listing_id: dict, matched_ids) -> dict:
         photos_drift[lid] = bool(photos_drift_by_id.get(pid, False)) or (
             bool(parent) and bool(photos_drift_by_id.get(parent, False))
         )
+        cid = _norm_blank(db_by_listing_id[lid].get("company_id"))
+        company_drift[lid] = bool(company_drift_by_company.get(cid, False)) if cid else False
 
     group_drift = {
         "listing": listing_drift,
@@ -573,6 +656,7 @@ def compute_drift(as_of: str, db_by_listing_id: dict, matched_ids) -> dict:
         "community": community_drift,
         "amenities": amenities_drift,
         "photos": photos_drift,
+        "company": company_drift,
     }
     return {field: group_drift[group] for field, group in FIELD_DRIFT_GROUP.items()}
 

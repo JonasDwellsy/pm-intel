@@ -51,9 +51,21 @@ database and are not handled -- only properties phase 2 never saw at all
 are.
 
 - company_name, child_company_id, child_company_type, parent_company_id,
-  parent_company_name, parent_company_type (operator identity) arrive in
-  Task 6. `company_id` (the join key Task 6 needs) and `listing_id` (the key
-  Task 5 reconciles on) are emitted here.
+  parent_company_name, parent_company_type (operator identity, Task 6) are
+  read straight off the existing to-one `c`/`ct`/`pc`/`pct` joins in
+  BASE_FROM -- no new join needed. Per Jonas's 2026-09-26 ruling, identity is
+  the COMPANY hierarchy (`c.parent_company_id`, a company self-reference),
+  never an organization: field_mapping.md's "Parent company vs organization"
+  section found 0 of 10,554 parented Bozeman rows where parent_company_id
+  equals any organization id of the child company. `organization_id` is
+  carried alongside as an inert extra key (never used for identity or
+  grouping) via a correlated subquery over `organization_company_table` --
+  a true many-to-many bridge (field_mapping.md: UNIQUE only on
+  (organization_id, company_id), 0 of 600,292 companies globally have more
+  than one today) that must never be added to BASE_FROM, the same rule
+  Task 4 already applies to `listing_amount_log_table`. `company_id` (the
+  join key, `p.company_id`) and `listing_id` (the key Task 5 reconciles on)
+  were already emitted from Task 3.
 """
 from typing import Iterator
 
@@ -241,6 +253,22 @@ select
                                          as longitude,
     p.msa_code::text                    as msa_code,
     p.company_id::text                  as company_id,
+    coalesce(pc.company_name_displayed, c.company_name_displayed)
+                                         as company_name,
+    c.id::text                          as child_company_id,
+    ct.type                              as child_company_type,
+    c.parent_company_id::text           as parent_company_id,
+    pc.company_name_displayed           as parent_company_name,
+    pct.type                             as parent_company_type,
+    -- inert extra key (never identity, never grouped on): see the module
+    -- docstring's Task 6 paragraph. organization_company_table is a true
+    -- many-to-many bridge, so it is looked up with a correlated subquery,
+    -- never joined into BASE_FROM. min() is a deterministic tie-break for
+    -- the schema's still-permitted (but, as of 2026-09-26, unobserved
+    -- globally) multi-organization case.
+    (select min(oc.organization_id)::text
+       from dwellsy_prod.organization_company_table oc
+      where oc.company_id = c.id)        as organization_id,
     l.listing_amount                    as rent_amount,
     l.listing_long_text                 as description,
     to_char(l.creation_time at time zone 'America/Los_Angeles',
