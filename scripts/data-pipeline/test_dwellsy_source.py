@@ -11,6 +11,7 @@ import os
 import re
 import unittest
 
+import dwellsy_db
 import dwellsy_source
 
 SECRET = os.path.expanduser("~/Documents/Dwellsy/secrets/db_connection.txt")
@@ -157,6 +158,89 @@ class MarketListings(unittest.TestCase):
             f"amenity string agreement {amenity_string_matches}/{n}",
         )
 
+    def test_batched_lookup_equals_correlated_form(self):
+        # Fix round 1 replaced Task 4's per-row correlated subqueries with a
+        # property-set + chunked-lookup design (see dwellsy_source.py's
+        # module docstring). This test pins that the new design's amenities/
+        # photos are byte-identical to the ORIGINAL Task 4 expressions
+        # (copied verbatim from commit 2f2571a below), on a deterministic
+        # spread sample of ~100 Bozeman listing_ids.
+        rows_by_id = {r["listing_id"]: r for r in self.bozeman_rows}
+        sorted_ids = sorted(rows_by_id, key=lambda lid: int(lid))
+        sample_size = min(len(sorted_ids), 100)
+        step = max(1, len(sorted_ids) // sample_size)
+        sample_ids = sorted_ids[::step][:sample_size]
+
+        # Fold in any Bozeman listings whose property has a non-null
+        # parent_property_id, so the photos parent-merge path is exercised
+        # by this DB-backed sample too (not just the pure unit test below).
+        parent_rows = dwellsy_db.query(
+            """
+            select l.id::text as listing_id
+              from dwellsy_prod.property_listing_table l
+              join dwellsy_prod.property_table p on p.id = l.property_id
+             where p.msa_code = %(msa_code)s
+               and p.parent_property_id is not null
+             limit 10
+            """,
+            {"msa_code": BOZEMAN},
+        )
+        parent_ids_found = [
+            r["listing_id"] for r in parent_rows if r["listing_id"] in rows_by_id
+        ]
+        if parent_ids_found:
+            sample_ids = list(dict.fromkeys(sample_ids + parent_ids_found))
+        # else: no Bozeman listing's property currently has a non-null
+        # parent_property_id, so this DB-backed sample cannot exercise the
+        # parent-merge path -- it's covered instead by the pure unit test
+        # MergePhotoIds.test_union_of_own_and_parent below. Noted in the
+        # fix-round report too.
+
+        # Verbatim from commit 2f2571a's BASE_SQL (the Task 4 report's
+        # "Final SQL added to BASE_SQL"), restricted to the sampled listings.
+        original_sql = """
+            select l.id::text as listing_id,
+                (select string_agg(ad.amenity_name, '; ' order by ad.amenity_name)
+                   from (select distinct a.amenity_name
+                           from dwellsy_prod.property_amenity_table pa
+                           join dwellsy_prod.amenity_table a on a.id = pa.amenity_id
+                          where pa.property_id = p.id and a.amenity_name <> 'Other') ad)
+                                                     as amenities,
+                (select string_agg(mp.id::text, ';' order by mp.id)
+                   from dwellsy_prod.property_media_table mp
+                  where mp.property_id = any(array[p.id, p.parent_property_id])
+                    and mp.property_media_status = 'active'
+                    and mp.media_type in ('image', 'floorplan'))
+                                                     as photos
+              from dwellsy_prod.property_listing_table l
+              join dwellsy_prod.property_table p on p.id = l.property_id
+             where l.id = any(%(ids)s::bigint[])
+        """
+        original_rows = dwellsy_db.query(
+            original_sql, {"ids": [int(lid) for lid in sample_ids]}
+        )
+        original_by_id = {r["listing_id"]: r for r in original_rows}
+
+        checked = 0
+        for lid in sample_ids:
+            db_row = rows_by_id[lid]
+            original = original_by_id.get(lid)
+            self.assertIsNotNone(
+                original, f"listing_id={lid} missing from original-form query"
+            )
+            self.assertEqual(
+                db_row["amenities"],
+                original["amenities"] or "",
+                f"listing_id={lid} amenities mismatch",
+            )
+            self.assertEqual(
+                db_row["photos"],
+                original["photos"] or "",
+                f"listing_id={lid} photos mismatch",
+            )
+            checked += 1
+        self.assertEqual(checked, len(sample_ids))
+
     def test_timestamps_are_pacific_wall_clock(self):
         ts_re = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
         checked = 0
@@ -225,3 +309,14 @@ class MarketListings(unittest.TestCase):
             "sample had no rows with a non-blank deactivation_time on both "
             "sides -- the parity check would pass vacuously",
         )
+
+
+class MergePhotoIds(unittest.TestCase):
+    """Pure unit tests for the photo-merge helper -- no network, no
+    skipUnless gate, so these run even without Dwellsy DB credentials."""
+
+    def test_union_of_own_and_parent(self):
+        self.assertEqual(dwellsy_source._merge_photo_ids([5, 3], [3, 10]), "3;5;10")
+
+    def test_no_ids_on_either_side(self):
+        self.assertEqual(dwellsy_source._merge_photo_ids([], []), "")

@@ -7,9 +7,32 @@ population filter's translation from dwellsy_prod.full_export_view is
 explained inline in the WHERE_SQL comments below.
 
 Task 3 scope: pass-through fields only. Task 4 added amenities, photos and
-address_type (correlated subqueries against the same base FROM -- see
-field_mapping.md's AMENITIES/PHOTOS sections and dwellsy_source.py's SELECT
-list comments).
+address_type, originally as two correlated subqueries per listing row (one
+execution of both per output row). That was correct (98-99.7% export
+agreement) but did not scale: Kansas City went from 10.8s to 232.9s because
+the subqueries re-scan property_amenity_table/property_media_table once per
+listing, and many listings share a property.
+
+Fix round 1 replaced the correlated subqueries with a three-phase batched
+design that computes each property's amenities/photos ONCE, not once per
+listing that shares it:
+  1. `_collect_property_ids` streams `select distinct p.id,
+     p.parent_property_id` over the SAME base FROM/WHERE the listing reader
+     uses (reusing BASE_FROM/WHERE_SQL verbatim, so the property population
+     can't drift from the listing population), and collects every p.id plus
+     every non-null p.parent_property_id (PHOTOS unions media from both).
+  2. `_batched_lookups` looks those ids up in chunks of LOOKUP_CHUNK via
+     dwellsy_db.query() (not stream() -- each chunk is its own bounded
+     statement): one grouped query for amenities-by-property, one for
+     active-media-ids-by-property.
+  3. `market_listings` streams the listing rows with the two subqueries
+     removed (p.id/p.parent_property_id carried as internal columns
+     instead) and attaches amenities/photos from the two lookup dicts built
+     in step 2.
+See field_mapping.md's AMENITIES/PHOTOS sections for the semantics being
+preserved; test_batched_lookup_equals_correlated_form pins this design
+against the original per-row correlated-subquery expressions.
+
 - company_name, child_company_id, child_company_type, parent_company_id,
   parent_company_name, parent_company_type (operator identity) arrive in
   Task 6. `company_id` (the join key Task 6 needs) and `listing_id` (the key
@@ -25,7 +48,8 @@ import dwellsy_db
 # listing_amount_log_table (one row per price change) or
 # organization_company_table (see field_mapping.md, "Parent company vs
 # organization"). Tasks 4 and 6 add SELECT columns against this same FROM;
-# they do not need new joins.
+# they do not need new joins. Also reused verbatim by PROPERTY_SET_SQL below
+# so the property population can never drift from the listing population.
 BASE_FROM = """
 from dwellsy_prod.property_listing_table l
 join dwellsy_prod.property_table p                on p.id   = l.property_id
@@ -87,6 +111,52 @@ where p.msa_code = %(msa_code)s
   and l.listing_amount <= 20000
 """
 
+# Phase 1 (see module docstring): every property the listing population
+# touches, streamed once per market. `distinct` collapses the many listings
+# that share a property; Python then dedupes further when parent ids are
+# folded in (see _collect_property_ids).
+PROPERTY_SET_SQL = (
+    """
+select distinct p.id, p.parent_property_id
+"""
+    + BASE_FROM
+    + WHERE_SQL
+)
+
+# Phase 2 (see module docstring): chunked, grouped lookups replacing Task 4's
+# per-row correlated subqueries. Semantics preserved verbatim from
+# field_mapping.md's AMENITIES/PHOTOS sections; see
+# test_batched_lookup_equals_correlated_form for the pinning test.
+LOOKUP_CHUNK = 2000
+
+# Same predicate/dedupe/order/join-delimiter as field_mapping.md's AMENITIES
+# subquery, just grouped by property_id instead of correlated per-row.
+# `string_agg(DISTINCT ...)` is Postgres-legal here because the only ORDER BY
+# expression (a.amenity_name) matches the DISTINCT target.
+AMENITIES_SQL = """
+select pa.property_id,
+       string_agg(distinct a.amenity_name, '; ' order by a.amenity_name)
+                                         as amenities
+  from dwellsy_prod.property_amenity_table pa
+  join dwellsy_prod.amenity_table a       on a.id = pa.amenity_id
+ where pa.property_id = any(%(ids)s::bigint[])
+   and a.amenity_name <> 'Other'
+ group by pa.property_id
+"""
+
+# Same predicates as field_mapping.md's PHOTOS subquery (active image/
+# floorplan media), one row per media id instead of a pre-joined string --
+# the Python merge in _merge_photo_ids does the p.id/parent_property_id
+# union that the original `= any(array[p.id, p.parent_property_id])` did
+# inside the correlated subquery.
+MEDIA_SQL = """
+select mp.property_id, mp.id
+  from dwellsy_prod.property_media_table mp
+ where mp.property_id = any(%(ids)s::bigint[])
+   and mp.property_media_status = 'active'
+   and mp.media_type in ('image', 'floorplan')
+"""
+
 BASE_SQL = (
     """
 select
@@ -114,20 +184,10 @@ select
     ac.count_top_down                   as top_down_community_count,
     coalesce(aty.address_type, p.property_category)
                                          as address_type,
-    (select string_agg(ad.amenity_name, '; ' order by ad.amenity_name)
-       from (select distinct a.amenity_name
-               from dwellsy_prod.property_amenity_table pa
-               join dwellsy_prod.amenity_table a on a.id = pa.amenity_id
-              where pa.property_id = p.id and a.amenity_name <> 'Other') ad)
-                                         as amenities,
-    -- photo media ids, not URLs; the pipeline only counts them; see
-    -- field_mapping.md PHOTOS for the URL form
-    (select string_agg(mp.id::text, ';' order by mp.id)
-       from dwellsy_prod.property_media_table mp
-      where mp.property_id = any(array[p.id, p.parent_property_id])
-        and mp.property_media_status = 'active'
-        and mp.media_type in ('image', 'floorplan'))
-                                         as photos
+    -- internal only: consumed by market_listings to attach amenities/photos
+    -- from the Phase 2 lookup dicts, then popped before the row is yielded.
+    p.id                                 as _property_id,
+    p.parent_property_id                 as _parent_property_id
 """
     + BASE_FROM
     + WHERE_SQL
@@ -141,8 +201,67 @@ def market_listings(msa_code: str, as_of: str | None = None) -> Iterator[dict]:
     filter here: the pipeline computes its own T12 window from row timestamps,
     and filtering twice would silently change metric semantics.
     """
+    property_ids = _collect_property_ids(msa_code)
+    amenities_by_property, media_by_property = _batched_lookups(property_ids)
     for row in dwellsy_db.stream(BASE_SQL, {"msa_code": msa_code}):
+        property_id = row.pop("_property_id")
+        parent_property_id = row.pop("_parent_property_id")
+
+        row["amenities"] = amenities_by_property.get(property_id, "")
+        own_media = media_by_property.get(property_id, [])
+        parent_media = (
+            media_by_property.get(parent_property_id, [])
+            if parent_property_id is not None
+            else []
+        )
+        row["photos"] = _merge_photo_ids(own_media, parent_media)
+        row["property_id"] = str(property_id)
+
         yield _stringify(row)
+
+
+def _collect_property_ids(msa_code: str) -> list[int]:
+    """Phase 1: every property id the listing population touches (p.id plus
+    each non-null p.parent_property_id), streamed so memory stays bounded
+    even though the result is fully materialized into a set."""
+    ids: set[int] = set()
+    for row in dwellsy_db.stream(PROPERTY_SET_SQL, {"msa_code": msa_code}):
+        ids.add(row["id"])
+        if row["parent_property_id"] is not None:
+            ids.add(row["parent_property_id"])
+    return sorted(ids)
+
+
+def _batched_lookups(
+    property_ids: list[int],
+) -> tuple[dict[int, str], dict[int, list[int]]]:
+    """Phase 2: chunked dwellsy_db.query() lookups (one bounded statement per
+    chunk per table) building property_id -> amenities string and
+    property_id -> [active media id, ...]."""
+    amenities_by_property: dict[int, str] = {}
+    media_by_property: dict[int, list[int]] = {}
+    for chunk in _chunked(property_ids, LOOKUP_CHUNK):
+        for row in dwellsy_db.query(AMENITIES_SQL, {"ids": chunk}):
+            amenities_by_property[row["property_id"]] = row["amenities"]
+        for row in dwellsy_db.query(MEDIA_SQL, {"ids": chunk}):
+            media_by_property.setdefault(row["property_id"], []).append(row["id"])
+    return amenities_by_property, media_by_property
+
+
+def _chunked(seq: list[int], size: int) -> Iterator[list[int]]:
+    for i in range(0, len(seq), size):
+        yield seq[i : i + size]
+
+
+def _merge_photo_ids(own_ids: list[int], parent_ids: list[int]) -> str:
+    """Union of active-media ids belonging to a property and its parent
+    property, sorted numerically and ';'-joined -- identical in result to
+    Task 4's `mp.property_id = any(array[p.id, p.parent_property_id])`
+    expression (a media row belongs to exactly one property_id, so there is
+    no cross-property duplicate in practice; the set-union below is a pure
+    safety net, not something the live data is expected to exercise)."""
+    merged = sorted(set(own_ids) | set(parent_ids))
+    return ";".join(str(i) for i in merged)
 
 
 def _stringify(row: dict) -> dict:
