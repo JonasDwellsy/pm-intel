@@ -577,6 +577,20 @@ def compute_drift(as_of: str, db_by_listing_id: dict, matched_ids) -> dict:
     return {field: group_drift[group] for field, group in FIELD_DRIFT_GROUP.items()}
 
 
+MIN_NON_DRIFTED_ROWS = 200
+MIN_NON_DRIFTED_SHARE = 0.25
+# Fix round 3 (per-field vacuous pass): a field could previously pass with
+# `rate_non_drifted = ... if non_drifted_count else 1.0` -- so a field where
+# every compared row happened to be drifted (non_drifted_count == 0) reported
+# a fabricated 100% and passed. The floor below is the larger of an absolute
+# row count and a share of what was compared, so it scales with a small
+# reconciliation run without letting a huge one get away with a
+# proportionally tiny non-drifted sample. The live runs' smallest
+# non-drifted share was Bozeman's property_address group at ~51% (6,592
+# rows) -- this floor leaves that ample room while forbidding a pass built
+# on a near-empty denominator.
+
+
 def compare_matched_fields(
     pairs, drift: "dict | None" = None, thresholds=None, max_samples: int = 5
 ) -> dict:
@@ -605,7 +619,15 @@ def compare_matched_fields(
     numeric-equality rate alongside it -- never hidden, never gating.
     top_down_community_count's entry also carries `diff_histogram`: a
     signed (db - export) bucket count over non-drifted EXACT mismatches
-    (not gated by tolerance, so it shows the full shape of disagreement)."""
+    (not gated by tolerance, so it shows the full shape of disagreement).
+
+    Fix round 3: a field is NOT ok when non_drifted_count falls below
+    max(MIN_NON_DRIFTED_ROWS, MIN_NON_DRIFTED_SHARE * compared) --
+    `reason` is "insufficient_non_drifted" in that case, "below_threshold"
+    when there's enough evidence but the rate misses the bar, and None when
+    ok. A rate with a zero denominator is reported as None, not a
+    fabricated 1.0 (this alone would also fail the floor check, since
+    MIN_NON_DRIFTED_ROWS > 0)."""
     thresholds = FIELD_THRESHOLDS if thresholds is None else thresholds
     drift = drift or {}
     pairs = list(pairs)
@@ -661,11 +683,32 @@ def compare_matched_fields(
                     if e_num is not None and d_num is not None:
                         diff_histogram[community_count_diff_bucket(int(d_num - e_num))] += 1
 
-        rate_all = (matches_all / compared) if compared else 1.0
+        # Zero-denominator rates are reported as None, never a fabricated
+        # 1.0 -- a report should never show 100% agreement on nothing.
+        rate_all = (matches_all / compared) if compared else None
         rate_non_drifted = (
-            (matches_non_drifted / non_drifted_count) if non_drifted_count else 1.0
+            (matches_non_drifted / non_drifted_count) if non_drifted_count else None
         )
         threshold = thresholds.get(field, 0.0)
+
+        # Fix round 3: the floor is checked BEFORE the threshold -- a field
+        # can fail for having too little non-drifted evidence even when the
+        # (fabricated-looking) rate on what little there is would clear the
+        # bar.
+        min_non_drifted_required = max(
+            MIN_NON_DRIFTED_ROWS, MIN_NON_DRIFTED_SHARE * compared
+        )
+        insufficient_non_drifted = non_drifted_count < min_non_drifted_required
+        if insufficient_non_drifted:
+            field_ok = False
+            reason = "insufficient_non_drifted"
+        elif rate_non_drifted is not None and rate_non_drifted < threshold:
+            field_ok = False
+            reason = "below_threshold"
+        else:
+            field_ok = True
+            reason = None
+
         entry = {
             "compared": compared,
             "drifted": drifted_count,
@@ -673,18 +716,20 @@ def compare_matched_fields(
             "agreement_all": rate_all,
             "agreement_non_drifted": rate_non_drifted,
             "threshold": threshold,
-            "ok": rate_non_drifted >= threshold,
+            "min_non_drifted_required": min_non_drifted_required,
+            "ok": field_ok,
+            "reason": reason,
             "mismatch_samples_non_drifted": samples_non_drifted,
             "mismatch_samples_drifted": samples_drifted,
         }
         if is_tolerance_field:
             entry["exact_agreement_all"] = (
-                (exact_matches_all / compared) if compared else 1.0
+                (exact_matches_all / compared) if compared else None
             )
             entry["exact_agreement_non_drifted"] = (
                 (exact_matches_non_drifted / non_drifted_count)
                 if non_drifted_count
-                else 1.0
+                else None
             )
         if diff_histogram is not None:
             entry["diff_histogram"] = dict(diff_histogram)
@@ -949,6 +994,64 @@ def _load_db(msa_code: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Top-level gate (Fix round 3)
+#
+# The pre-fix `ok = export_only_ok(...) and not fields_below_threshold` had
+# no floor: an empty export CSV, or a wrong msa argument that makes
+# _is_malformed (see above) reject every row, yields zero matched rows.
+# Every field then reports compared=0, non_drifted=0 and (pre-fix) a
+# fabricated rate of 1.0 -- every field "ok", export_only_ok trivially true
+# on an empty export-only set, and the gate exits 0 having reconciled
+# nothing at all. These three conditions close that hole; each is reported
+# by name in `gate_failures` so a failing run says WHY, not just that it
+# failed.
+# ---------------------------------------------------------------------------
+
+MAX_MALFORMED_SHARE = 0.01
+# A wrong msa argument makes _is_malformed reject every row (row_msa can
+# never equal the requested market), which would otherwise masquerade as
+# "just some corrupt rows". The known upstream description-quoting bug that
+# malformed-row detection actually exists for has historically corrupted far
+# fewer than 1% of rows (field_mapping.md) -- so a share above 1% is itself
+# a signal the input (or the msa argument) is wrong, not ordinary export
+# corruption.
+
+CAVEATS = [
+    "amenities/amenities_string: property_amenity_table has no delete-audit "
+    "table (unlike photos' deleted_property_media_table), so a property "
+    "whose amenities were entirely removed after as_of is invisible to the "
+    "drift check and is scored as non-drifted -- their non-drifted "
+    "agreement rate is a slight under-estimate of true agreement on rows "
+    "that really didn't change.",
+]
+
+
+def compute_gate_failures(
+    *, export_rows: int, malformed_export_rows: int, matched_rows: int
+) -> list:
+    """Named top-level gate conditions, each of which alone makes `ok`
+    False:
+      - no_export_rows: zero well-formed export rows -- nothing to reconcile.
+      - no_matched_rows: zero matched listing_ids -- the export and the
+        database share no rows under the reconciliation key at all.
+      - malformed_share_exceeded: malformed_export_rows is more than
+        MAX_MALFORMED_SHARE of (well-formed + malformed) -- the export (or
+        the msa argument) is wrong, not just ordinarily noisy.
+    Returns the list of names that fired, in that order; empty when none
+    did. Division is guarded: a totally empty export (both counts zero)
+    reports no_export_rows/no_matched_rows without also dividing by zero."""
+    failures = []
+    if export_rows == 0:
+        failures.append("no_export_rows")
+    if matched_rows == 0:
+        failures.append("no_matched_rows")
+    total_rows = export_rows + malformed_export_rows
+    if total_rows and (malformed_export_rows / total_rows) > MAX_MALFORMED_SHARE:
+        failures.append("malformed_share_exceeded")
+    return failures
+
+
+# ---------------------------------------------------------------------------
 # Top-level composition
 # ---------------------------------------------------------------------------
 
@@ -968,7 +1071,16 @@ def _compose_result(
     field_report,
 ) -> dict:
     fields_below_threshold = [f for f, r in field_report.items() if not r["ok"]]
-    ok = export_only_ok(export_only_summary) and not fields_below_threshold
+    gate_failures = compute_gate_failures(
+        export_rows=export_rows,
+        malformed_export_rows=malformed_export_rows,
+        matched_rows=len(matched_ids),
+    )
+    ok = (
+        not gate_failures
+        and export_only_ok(export_only_summary)
+        and not fields_below_threshold
+    )
     return {
         "msa_code": msa_code,
         "as_of": as_of,
@@ -976,6 +1088,7 @@ def _compose_result(
         "malformed_export_rows": malformed_export_rows,
         "db_rows": db_rows,
         "matched": len(matched_ids),
+        "gate_failures": gate_failures,
         "export_only": export_only_count,
         "export_only_detail": export_only_summary,
         "db_only": db_only_count,
@@ -983,6 +1096,7 @@ def _compose_result(
         "fields": field_report,
         "fields_below_threshold": fields_below_threshold,
         "not_yet_emitted": list(NOT_YET_EMITTED),
+        "caveats": list(CAVEATS),
         "ok": ok,
     }
 
@@ -997,6 +1111,35 @@ def reconcile(msa_code: str, csv_path: str, as_of: "str | None" = None) -> dict:
         export_max,
         export_company_ids,
     ) = _load_export(csv_path, msa_code)
+
+    if not export_by_id:
+        # Zero well-formed export rows -- no_export_rows (and, when
+        # malformed_count > 0, likely malformed_share_exceeded too, e.g. a
+        # wrong msa argument that makes _is_malformed reject every row) will
+        # fail the gate no matter what the database holds. Short-circuit
+        # before the DB pull: it's cheaper, and a `db_rows`/`matched` count
+        # pulled against a CSV that describes nothing would only confuse the
+        # summary.
+        field_report = compare_matched_fields([])
+        return _compose_result(
+            msa_code=msa_code,
+            as_of=as_of,
+            export_rows=0,
+            malformed_export_rows=malformed_count,
+            db_rows=0,
+            matched_ids=set(),
+            export_only_summary=summarise_export_only_classifications([]),
+            db_only_detail={
+                "buckets": {},
+                "other_distinct_address1_ids": 0,
+                "other_distinct_companies": 0,
+                "other_company_in_export_share": None,
+            },
+            db_only_count=0,
+            export_only_count=0,
+            field_report=field_report,
+        )
+
     db_by_id = _load_db(msa_code)
 
     export_keys = set(export_by_id)
@@ -1035,10 +1178,19 @@ def reconcile(msa_code: str, csv_path: str, as_of: "str | None" = None) -> dict:
 # ---------------------------------------------------------------------------
 
 
+def _fmt_rate(rate) -> str:
+    """A None rate (zero denominator) prints as 'n/a', never a fabricated
+    percentage."""
+    return f"{rate * 100:6.2f}%" if rate is not None else "   n/a"
+
+
 def _print_summary(result: dict) -> None:
     print(f"market {result['msa_code']}  as_of {result.get('as_of', '')}")
     for key in ("export_rows", "malformed_export_rows", "db_rows", "matched", "export_only", "db_only"):
         print(f"  {key:26s} {result[key]:,}")
+
+    gate_failures = result.get("gate_failures") or []
+    print(f"  gate_failures: {', '.join(gate_failures) if gate_failures else 'none'}")
 
     eo = result["export_only_detail"]
     print("  export-only classification:")
@@ -1068,16 +1220,17 @@ def _print_summary(result: dict) -> None:
     for field, r in result["fields"].items():
         flag = "OK" if r["ok"] else "FAIL"
         rate_label = "tolerance_non_drifted" if "exact_agreement_non_drifted" in r else "non_drifted"
+        reason_suffix = f" reason={r['reason']}" if r.get("reason") else ""
         print(
-            f"    {field:26s} {rate_label}={r['agreement_non_drifted']*100:6.2f}% "
-            f"(n={r['non_drifted']:,}) all={r['agreement_all']*100:6.2f}% "
+            f"    {field:26s} {rate_label}={_fmt_rate(r['agreement_non_drifted'])} "
+            f"(n={r['non_drifted']:,}) all={_fmt_rate(r['agreement_all'])} "
             f"(n={r['compared']:,}, drifted={r['drifted']:,}) "
-            f"threshold={r['threshold']*100:.0f}% [{flag}]"
+            f"threshold={r['threshold']*100:.0f}% [{flag}]{reason_suffix}"
         )
         if "exact_agreement_non_drifted" in r:
             print(
-                f"      {'':26s} exact_non_drifted={r['exact_agreement_non_drifted']*100:6.2f}% "
-                f"exact_all={r['exact_agreement_all']*100:6.2f}%"
+                f"      {'':26s} exact_non_drifted={_fmt_rate(r['exact_agreement_non_drifted'])} "
+                f"exact_all={_fmt_rate(r['exact_agreement_all'])}"
             )
         if "diff_histogram" in r:
             hist = ", ".join(
@@ -1097,6 +1250,13 @@ def _print_summary(result: dict) -> None:
                 )
 
     print(f"  not yet emitted (Task 6): {', '.join(result['not_yet_emitted'])}")
+
+    caveats = result.get("caveats") or []
+    if caveats:
+        print("  caveats:")
+        for c in caveats:
+            print(f"    - {c}")
+
     print("OK — database is a superset of the export" if result["ok"] else "BLOCKED")
 
 
