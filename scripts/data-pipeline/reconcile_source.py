@@ -20,9 +20,10 @@ a dated pull, so this is the acceptance test instead:
   reader must not just cover the same rows, it must agree on their values,
   within a measured-and-justified threshold per field (FIELD_THRESHOLDS).
 
-Key = listing_id (Task 2 proved export listing_id == property_listing_table.id
-1:1, and the reader emits it -- this supersedes the original brief's
-(uru_id, creation date) key).
+Key = listing_id: export listing_id == property_listing_table.id 1:1 (it is
+the table's PRIMARY KEY, and the export carries it), and the reader emits
+it -- the stronger key, over the brief's original (uru_id, creation date)
+(see field_mapping.md, "How the mapping was proven").
 """
 import argparse
 import csv
@@ -55,8 +56,8 @@ def build_key_set(rows) -> set:
 # ---------------------------------------------------------------------------
 # Blank / numeric / count normalisation
 #
-# The pipeline treats '' and 'null' as missing (field_mapping.md, "Notes for
-# Task 3 on output shape"), and reads numeric text through safe_int/safe_float
+# The pipeline treats '' and 'null' as missing (field_mapping.md, "Notes on
+# output shape"), and reads numeric text through safe_int/safe_float
 # (pipeline.py), which tolerate '1450.00' the same as '1450'. Field
 # comparison here must apply the SAME tolerance, or a value the pipeline
 # treats as identical would be reported as a parity miss.
@@ -92,30 +93,28 @@ def _values_match(comparator: str, export_val, db_val) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Tolerance comparators (Fix round 2)
+# Tolerance comparators
 #
-# Controller ruling on the 3 fields still BLOCKED after Fix round 1
-# (latitude, longitude, top_down_community_count): round 1's diagnosis found
-# a real post-export value change with no tracking timestamp anywhere in the
-# schema (checked last_update_time, ss_update_time, ss_pro_update_time for
+# latitude, longitude and top_down_community_count each have a real
+# post-export value change with no tracking timestamp anywhere in the schema
+# (checked last_update_time, ss_update_time, ss_pro_update_time for
 # coordinates; last_update_time, significant_updates_time for the community
-# roster) -- so these fields switch from exact/drift-only to a comparator
-# that fits how each is actually used, on top of (not instead of) the
-# existing drift split. Thresholds are UNCHANGED (0.99 for both); they now
-# apply to the tolerance-agreement rate on non-drifted rows, and the exact
-# rate is still reported alongside every tolerance rate, never hidden.
+# roster) -- so these fields use a comparator that fits how each is actually
+# used, on top of (not instead of) the existing drift split. Thresholds are
+# 0.99 for both; they apply to the tolerance-agreement rate on non-drifted
+# rows, and the exact rate is still reported alongside every tolerance rate,
+# never hidden.
 # ---------------------------------------------------------------------------
 
 LATLON_TOLERANCE_DEG = 0.001
 # ~111m of latitude, ~86m of longitude at Kansas City's 39 degrees N.
 # Coordinates are re-geocoded by a background process that updates no
-# timestamp we have access to (Fix round 1 checked property_table /
-# address_line1_table's last_update_time, ss_update_time and
-# ss_pro_update_time -- all stale on every non-drifted mismatch sample). The
-# pipeline uses these coordinates for maps and market geography, where a
-# ~100m difference is immaterial. Round 0's diagnosis already found 98.7% of
-# Kansas City's latitude mismatches were within 100m (median ~2m); this
-# tolerance formalizes that finding as the pass bar instead of exact
+# timestamp we have access to (property_table / address_line1_table's
+# last_update_time, ss_update_time and ss_pro_update_time are all stale on
+# every non-drifted mismatch sample). The pipeline uses these coordinates
+# for maps and market geography, where a ~100m difference is immaterial.
+# 98.7% of Kansas City's latitude mismatches were within 100m (median ~2m);
+# this tolerance formalizes that finding as the pass bar instead of exact
 # equality, rather than papering over it with a wider miss-rate threshold.
 
 
@@ -123,8 +122,8 @@ def _community_count_tolerance(export_value: float) -> float:
     """max(2, 10% of the export's count). top_down_community_count is a
     community roster aggregate (address_community_table.count_top_down)
     recomputed by some process that touches no timestamp we can see
-    (Fix round 1: last_update_time was years stale and significant_updates_time
-    was NULL on every non-drifted mismatch sample) -- it is current state by
+    (last_update_time was years stale and significant_updates_time was NULL
+    on every non-drifted mismatch sample) -- it is current state by
     construction, not a point-in-time snapshot. A flat absolute tolerance
     would be too loose for a 4-unit building and too tight for a 400-unit
     complex; a flat percentage would be too loose for tiny communities (10%
@@ -226,31 +225,30 @@ FIELD_SPECS: dict[str, tuple[str, str, str]] = {
     "parent_company_type":          ("parent_company_type",       "parent_company_type",       "exact"),
 }
 
-# Every export column now has a reader-emitted source (Task 6 closed the
-# last gap: the five company-identity fields below). Kept as an explicit
-# empty tuple, not deleted, so the constant and its reporting
-# (`_compose_result`'s `not_yet_emitted`, the CLI summary's "not yet
-# emitted" line) stay in place for any field a future task adds here.
+# Every export column now has a reader-emitted source. NOT_YET_EMITTED is
+# kept as an explicit empty tuple, not deleted, so the constant and its
+# reporting (`_compose_result`'s `not_yet_emitted`, the CLI summary's "not
+# yet emitted" line) stay in place for any field added here later without
+# a reader-emitted source yet.
 NOT_YET_EMITTED: tuple[str, ...] = ()
 
 # Thresholds = field_mapping.md's measured agreement rate (2026-09-26,
 # Bozeman n=1000 unless noted) minus a margin for drift between that probe
-# and whenever this gate runs. Two anchor points, given in the task: a field
-# measured at 1.0 gets margin 0.01 (threshold >= 0.99); a field measured at
-# ~0.97 gets margin ~0.04 (threshold >= 0.93, the photos-count case below,
-# verbatim). Margin widens as the measured rate drops, since a field that
-# already disagrees more often has more room for further live drift.
+# and whenever this gate runs. Two anchor points: a field measured at 1.0
+# gets margin 0.01 (threshold >= 0.99); a field measured at ~0.97 gets
+# margin ~0.04 (threshold >= 0.93, the photos-count case below, verbatim).
+# Margin widens as the measured rate drops, since a field that already
+# disagrees more often has more room for further live drift.
 #
-# Fix round 1 (controller ruling on the Kansas City BLOCKED finding): every
-# threshold below now applies to the NON-DRIFTED rate -- rows whose source
+# Every threshold below applies to the NON-DRIFTED rate -- rows whose source
 # record(s) did not change after the export's as-of date (see
 # FIELD_DRIFT_GROUP / compare_matched_fields below). information_schema
-# confirmed all six source tables the controller asked about
-# (property_table, address_line1_table, address_line2_table,
-# address_community_table, company_table, property_amenity_table) carry
-# `last_update_time`, so no field here falls back to the all-rows rate; the
-# one documented exception is amenities' delete-blind-spot (the drift signal
-# is incomplete there, not absent -- see its comment below).
+# confirms all six source tables this depends on (property_table,
+# address_line1_table, address_line2_table, address_community_table,
+# company_table, property_amenity_table) carry `last_update_time`, so no
+# field here falls back to the all-rows rate; the one documented exception
+# is amenities' delete-blind-spot (the drift signal is incomplete there,
+# not absent -- see its comment below).
 FIELD_THRESHOLDS: dict[str, float] = {
     "uru_id": 0.99,                    # measured 100.0% (1000/1000), applies to the non-drifted rate
     "community_id": 0.99,               # measured 100.0% (1000/1000), applies to the non-drifted rate
@@ -259,22 +257,22 @@ FIELD_THRESHOLDS: dict[str, float] = {
     "address_city": 0.99,               # measured 100.0% (1000/1000), applies to the non-drifted rate
     "address_type": 0.99,               # measured 100.0% (1000/1000), applies to the non-drifted rate
     "bedrooms": 0.99,                   # measured 100.0% (coalesce form, 1000/1000), applies to the non-drifted rate
-    "latitude": 0.99,                   # measured 100.0% (1000/1000). Fix round 2: applies to the
+    "latitude": 0.99,                   # measured 100.0% (1000/1000). Applies to the
                                          # TOLERANCE-agreement rate (see LATLON_TOLERANCE_DEG) on
                                          # non-drifted rows -- coordinates are re-geocoded by a process
-                                         # that updates no timestamp we have (round 1 checked
+                                         # that updates no timestamp we have (checked
                                          # last_update_time/ss_update_time/ss_pro_update_time), and the
                                          # pipeline only needs ~100m precision for maps/market geography
-    "longitude": 0.99,                  # measured 100.0% (1000/1000). Fix round 2: same tolerance rate,
+    "longitude": 0.99,                  # measured 100.0% (1000/1000). Same tolerance rate,
                                          # same rationale as latitude (see LATLON_TOLERANCE_DEG)
     "child_company_id": 0.99,           # measured 100.0% (1000/1000 + 12,935/12,935 whole-export), non-drifted rate
     "rent_amount": 0.99,                # measured 99.9% (999/1000; the 1 miss was rewritten after the pull), non-drifted rate
     "creation_time": 0.99,               # measured 100.0% (1000/1000), applies to the non-drifted rate
-    "top_down_community_count": 0.99,   # measured 100.0% (1000/1000). Fix round 2: applies to the
+    "top_down_community_count": 0.99,   # measured 100.0% (1000/1000). Applies to the
                                          # TOLERANCE-agreement rate (see _community_count_tolerance) on
                                          # non-drifted rows -- this is a community roster aggregate
                                          # recomputed by a process that updates no timestamp we have
-                                         # (round 1: last_update_time stale, significant_updates_time
+                                         # (last_update_time stale, significant_updates_time
                                          # NULL), current state by construction, not a point-in-time
                                          # snapshot
     "description": 0.98,                # measured 99.6% (996/1000), applies to the non-drifted rate
@@ -301,7 +299,7 @@ FIELD_THRESHOLDS: dict[str, float] = {
 }
 
 # ---------------------------------------------------------------------------
-# Drift-aware field comparison (Fix round 1)
+# Drift-aware field comparison
 #
 # One field -> drift-group map, and one drift-group -> source-tables map.
 # `company_table` was checked via information_schema (it does have
@@ -345,14 +343,14 @@ FIELD_DRIFT_GROUP: dict[str, str] = {
     "parent_company_type": "company",
 }
 
-# Deliberately coarse per the controller's own grouping: e.g. every field in
-# "property_address" shares ONE drift flag (p OR a1 OR a2 changed), even
-# though not every field in the group depends on all three tables. This can
-# over-flag drift for an individual field (an a1-only change also excuses
-# company_id, which only ever reads p) but never UNDER-flags it for the
-# field(s) that really do depend on whichever table changed -- the safe
-# direction for an acceptance gate: it only ever shrinks the strict
-# "non-drifted" pool, never hides a mismatch inside it.
+# Deliberately coarse grouping: e.g. every field in "property_address"
+# shares ONE drift flag (p OR a1 OR a2 changed), even though not every field
+# in the group depends on all three tables. This can over-flag drift for an
+# individual field (an a1-only change also excuses child_company_id, which
+# only ever reads p) but never UNDER-flags it for the field(s) that really
+# do depend on whichever table changed -- the safe direction for an
+# acceptance gate: it only ever shrinks the strict "non-drifted" pool, never
+# hides a mismatch inside it.
 DRIFT_GROUP_SOURCE_TABLES: dict[str, tuple[str, ...]] = {
     "listing": ("dwellsy_prod.property_listing_table",),
     "property_address": (
@@ -564,7 +562,7 @@ def fetch_company_drift(as_of: str, company_ids) -> dict:
     """{company_id: bool} -- true when company_table.last_update_time is
     after as_of for the company itself OR its parent (a self-join, still
     to-one: `c.parent_company_id` targets `company_table.id`, its PRIMARY
-    KEY, so this can't fan out). Backs the five Task 6 identity fields
+    KEY, so this can't fan out). Backs the five operator-identity fields
     (company_name, child_company_type, parent_company_id,
     parent_company_name, parent_company_type) -- all five read off either
     `c` or `pc` (see dwellsy_source.py's BASE_SQL), so one boolean per
@@ -663,7 +661,7 @@ def compute_drift(as_of: str, db_by_listing_id: dict, matched_ids) -> dict:
 
 MIN_NON_DRIFTED_ROWS = 200
 MIN_NON_DRIFTED_SHARE = 0.25
-# Fix round 3 (per-field vacuous pass): a field could previously pass with
+# Without this floor, a field could pass with
 # `rate_non_drifted = ... if non_drifted_count else 1.0` -- so a field where
 # every compared row happened to be drifted (non_drifted_count == 0) reported
 # a fabricated 100% and passed. The floor below is the larger of an absolute
@@ -690,22 +688,20 @@ def compare_matched_fields(
     drift-awareness existed, rather than silently exempting it.
 
     Per field, reports both `agreement_all` (informational) and
-    `agreement_non_drifted` (what `ok`/threshold is judged against, per the
-    controller's ruling), plus mismatch samples split drifted/non-drifted
-    (a mismatch on a drifted row is not a failure signal; one on a
-    non-drifted row still is).
+    `agreement_non_drifted` (what `ok`/threshold is judged against), plus
+    mismatch samples split drifted/non-drifted (a mismatch on a drifted row
+    is not a failure signal; one on a non-drifted row still is).
 
-    Fix round 2: for a "tolerance" field (latitude, longitude,
-    top_down_community_count -- see TOLERANCE_FUNCS), `agreement_all`/
-    `agreement_non_drifted` are the TOLERANCE rate (what `ok` is judged
-    against, per this round's ruling), and two more keys,
+    For a "tolerance" field (latitude, longitude, top_down_community_count
+    -- see TOLERANCE_FUNCS), `agreement_all`/`agreement_non_drifted` are the
+    TOLERANCE rate (what `ok` is judged against), and two more keys,
     `exact_agreement_all`/`exact_agreement_non_drifted`, report the plain
     numeric-equality rate alongside it -- never hidden, never gating.
     top_down_community_count's entry also carries `diff_histogram`: a
     signed (db - export) bucket count over non-drifted EXACT mismatches
     (not gated by tolerance, so it shows the full shape of disagreement).
 
-    Fix round 3: a field is NOT ok when non_drifted_count falls below
+    A field is NOT ok when non_drifted_count falls below
     max(MIN_NON_DRIFTED_ROWS, MIN_NON_DRIFTED_SHARE * compared) --
     `reason` is "insufficient_non_drifted" in that case, "below_threshold"
     when there's enough evidence but the rate misses the bar, and None when
@@ -1087,7 +1083,7 @@ def _load_db(msa_code: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Top-level gate (Fix round 3)
+# Top-level gate
 #
 # The pre-fix `ok = export_only_ok(...) and not fields_below_threshold` had
 # no floor: an empty export CSV, or a wrong msa argument that makes

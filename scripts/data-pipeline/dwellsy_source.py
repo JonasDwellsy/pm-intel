@@ -1,21 +1,20 @@
 """Read one market's listing history from the Dwellsy database.
 
 Yields dicts keyed exactly like the CSV export's rows, so pipeline.py's row
-handling is unchanged (that swap is Task 7's job, not this module's). See
-field_mapping.md for the column derivation and its verification status. The
-population filter's translation from dwellsy_prod.full_export_view is
-explained inline in the WHERE_SQL comments below.
+handling is unchanged. See field_mapping.md for the column derivation and
+its verification status. The population filter's translation from
+dwellsy_prod.full_export_view is explained inline in the WHERE_SQL comments
+below.
 
-Task 3 scope: pass-through fields only. Task 4 added amenities, photos and
-address_type, originally as two correlated subqueries per listing row (one
-execution of both per output row). That was correct (98-99.7% export
-agreement) but did not scale: Kansas City went from 10.8s to 232.9s because
-the subqueries re-scan property_amenity_table/property_media_table once per
-listing, and many listings share a property.
+amenities, photos and address_type were originally sourced via two
+correlated subqueries per listing row (one execution of both per output
+row). That was correct (98-99.7% export agreement) but did not scale:
+Kansas City went from 10.8s to 232.9s because the subqueries re-scan
+property_amenity_table/property_media_table once per listing, and many
+listings share a property.
 
-Fix round 1 replaced the correlated subqueries with a three-phase batched
-design that computes each property's amenities/photos ONCE, not once per
-listing that shares it:
+A three-phase batched design replaces the correlated subqueries, computing
+each property's amenities/photos ONCE, not once per listing that shares it:
   1. `_collect_property_ids` streams `select distinct p.id,
      p.parent_property_id` over the SAME base FROM/WHERE the listing reader
      uses (reusing BASE_FROM/WHERE_SQL verbatim, so the property population
@@ -33,8 +32,8 @@ See field_mapping.md's AMENITIES/PHOTOS sections for the semantics being
 preserved; test_batched_lookup_equals_correlated_form pins this design
 against the original per-row correlated-subquery expressions.
 
-Fix round 2: phase 1 and phase 2 each run in their own transaction against a
-live database, so a property that appears in phase 3's listing stream but
+Phase 1 and phase 2 each run in their own transaction against a live
+database, so a property that appears in phase 3's listing stream but
 was absent from phase 1's set (e.g. created between the two phases, or a
 parent property that was) would otherwise fall through the lookup dicts'
 `.get(id, "")` to an empty string -- indistinguishable from a real empty.
@@ -51,34 +50,34 @@ database and are not handled -- only properties phase 2 never saw at all
 are.
 
 - company_name, child_company_id, child_company_type, parent_company_id,
-  parent_company_name, parent_company_type (operator identity, Task 6) are
-  read straight off the existing to-one `c`/`ct`/`pc`/`pct` joins in
-  BASE_FROM -- no new join needed. Per Jonas's 2026-09-26 ruling, identity is
-  the COMPANY hierarchy (`c.parent_company_id`, a company self-reference),
-  never an organization: field_mapping.md's "Parent company vs organization"
-  section found 0 of 10,554 parented Bozeman rows where parent_company_id
-  equals any organization id of the child company. `organization_id` is
-  carried alongside as an inert extra key (never used for identity or
-  grouping) via a correlated subquery over `organization_company_table` --
-  a true many-to-many bridge (field_mapping.md: UNIQUE only on
-  (organization_id, company_id), 0 of 600,292 companies globally have more
-  than one today) that must never be added to BASE_FROM, the same rule
-  Task 4 already applies to `listing_amount_log_table`. `company_id` (the
-  join key, `p.company_id`) and `listing_id` (the key Task 5 reconciles on)
-  were already emitted from Task 3.
+  parent_company_name, parent_company_type (operator identity) are read
+  straight off the existing to-one `c`/`ct`/`pc`/`pct` joins in BASE_FROM --
+  no new join needed. Identity is the COMPANY hierarchy
+  (`c.parent_company_id`, a company self-reference), never an organization:
+  field_mapping.md's "Parent company vs organization" section found 0 of
+  10,554 parented Bozeman rows where parent_company_id equals any
+  organization id of the child company. `organization_id` is carried
+  alongside as an inert extra key (never used for identity or grouping) via
+  a correlated subquery over `organization_company_table` -- a true
+  many-to-many bridge (field_mapping.md: UNIQUE only on (organization_id,
+  company_id), 0 of 600,292 companies globally have more than one today)
+  that must never be added to BASE_FROM, the same rule already applied to
+  `listing_amount_log_table`. `company_id` (the join key, `p.company_id`)
+  and `listing_id` (the reconciliation gate's key) are pass-through fields.
 """
 from typing import Iterator
 
 import dwellsy_db
 
-# Base FROM clause, verbatim from field_mapping.md ("Base FROM clause (paste
-# into Task 3)"). Every join after l -> p is to-one (each target's `id` is its
-# PRIMARY KEY), so nothing here multiplies rows. Do not join
-# listing_amount_log_table (one row per price change) or
-# organization_company_table (see field_mapping.md, "Parent company vs
-# organization"). Tasks 4 and 6 add SELECT columns against this same FROM;
-# they do not need new joins. Also reused verbatim by PROPERTY_SET_SQL below
-# so the property population can never drift from the listing population.
+# Base FROM clause, verbatim from field_mapping.md's "Base FROM clause".
+# Every join after l -> p is to-one (each target's `id` is its PRIMARY KEY),
+# so nothing here multiplies rows. Do not join listing_amount_log_table (one
+# row per price change) or organization_company_table (see field_mapping.md,
+# "Parent company vs organization"). Every SELECT column added against this
+# FROM (amenities/photos/address_type, the six company-identity fields)
+# reuses these same joins; none of them need a new one. Also reused verbatim
+# by PROPERTY_SET_SQL below so the property population can never drift from
+# the listing population.
 BASE_FROM = """
 from dwellsy_prod.property_listing_table l
 join dwellsy_prod.property_table p                on p.id   = l.property_id
@@ -94,7 +93,7 @@ left join dwellsy_prod.company_type_table pct     on pct.id = pc.company_type_id
 
 # Population filter, translated from `pg_get_viewdef('dwellsy_prod.full_export_view')`
 # (read 2026-09-26). Every predicate below is kept in the same meaning as the
-# view's WHERE clause, with three deliberate omissions (Jonas, 2026-09-26):
+# view's WHERE clause, with three deliberate omissions:
 #   - the apartment-only clause
 #     `a2.address_type_id = 1 OR (a1.address_type_id = 1 AND a2.address_type_id IS NULL)`
 #     -- the export includes houses, so this would wrongly drop them.
@@ -104,15 +103,14 @@ left join dwellsy_prod.company_type_table pct     on pct.id = pc.company_type_id
 #     -- a fixed pull-date window, meaningless for a live read.
 #
 # Kept as an ordered list of (name, sql) pairs -- rather than one opaque WHERE
-# string -- so Task 5's reconciliation gate can run each predicate on its own
-# as a boolean column (`coalesce((<sql>), false) as <name>`) against the
-# UNFILTERED base join, to classify exactly which predicate(s) excluded an
-# export-only row. WHERE_SQL below is generated from this list and is
-# semantically identical to the flat form it replaces: wrapping each
-# predicate in parens and joining with `and` does not change SQL boolean
-# evaluation (AND is associative/commutative), so no dwellsy_source test
-# needed to change for this refactor. Each predicate's explanatory comment
-# is kept next to it, unchanged from the original.
+# string -- so the reconciliation gate (reconcile_source.py) can run each
+# predicate on its own as a boolean column (`coalesce((<sql>), false) as
+# <name>`) against the UNFILTERED base join, to classify exactly which
+# predicate(s) excluded an export-only row. WHERE_SQL below is generated
+# from this list and is semantically identical to the flat form it
+# replaces: wrapping each predicate in parens and joining with `and` does
+# not change SQL boolean evaluation (AND is associative/commutative). Each
+# predicate's explanatory comment is kept next to it.
 POPULATION_PREDICATES: list[tuple[str, str]] = [
     ("market", "p.msa_code = %(msa_code)s"),
     (
@@ -199,8 +197,8 @@ select distinct p.id, p.parent_property_id
     + WHERE_SQL
 )
 
-# Phase 2 (see module docstring): chunked, grouped lookups replacing Task 4's
-# per-row correlated subqueries. Semantics preserved verbatim from
+# Phase 2 (see module docstring): chunked, grouped lookups replacing the
+# original per-row correlated subqueries. Semantics preserved verbatim from
 # field_mapping.md's AMENITIES/PHOTOS sections; see
 # test_batched_lookup_equals_correlated_form for the pinning test.
 LOOKUP_CHUNK = 2000
@@ -261,9 +259,9 @@ select
     pc.company_name_displayed           as parent_company_name,
     pct.type                             as parent_company_type,
     -- inert extra key (never identity, never grouped on): see the module
-    -- docstring's Task 6 paragraph. organization_company_table is a true
-    -- many-to-many bridge, so it is looked up with a correlated subquery,
-    -- never joined into BASE_FROM. min() is a deterministic tie-break for
+    -- docstring's operator-identity paragraph. organization_company_table
+    -- is a true many-to-many bridge, so it is looked up with a correlated
+    -- subquery, never joined into BASE_FROM. min() is a deterministic tie-break for
     -- the schema's still-permitted (but, as of 2026-09-26, unobserved
     -- globally) multi-organization case.
     (select min(oc.organization_id)::text
@@ -290,7 +288,7 @@ select
 
 
 # Reset at the start of every market_listings call; see the module
-# docstring's "Fix round 2" paragraph. Kept as a plain dict (no logging
+# docstring's late-lookup paragraph. Kept as a plain dict (no logging
 # framework) so a caller can just read LAST_RUN_STATS["late_lookups"]
 # after exhausting the generator.
 LAST_RUN_STATS: dict[str, int] = {}
@@ -395,8 +393,8 @@ def _attach_amenities_and_photos(
     `_parent_property_id` columns off `row` and attach amenities/photos from
     the two lookup dicts phase 2 built, mutating them (and `looked_up_ids`,
     and LAST_RUN_STATS) in place for any property phase 2 didn't already
-    cover -- see the module docstring's "Fix round 2" paragraph for why that
-    can happen against a live database.
+    cover -- see the module docstring's phase 1/phase 2 transaction
+    paragraph for why that can happen against a live database.
 
     `lookup_fn` defaults to the real `_batched_lookups` but is injectable so
     the late-lookup path can be unit tested without a database connection
@@ -434,8 +432,9 @@ def _attach_amenities_and_photos(
 def _merge_photo_ids(own_ids: list[int], parent_ids: list[int]) -> str:
     """Union of active-media ids belonging to a property and its parent
     property, sorted numerically and ';'-joined -- identical in result to
-    Task 4's `mp.property_id = any(array[p.id, p.parent_property_id])`
-    expression (a media row belongs to exactly one property_id, so there is
+    the original correlated subquery's
+    `mp.property_id = any(array[p.id, p.parent_property_id])` expression (a
+    media row belongs to exactly one property_id, so there is
     no cross-property duplicate in practice; the set-union below is a pure
     safety net, not something the live data is expected to exercise)."""
     merged = sorted(set(own_ids) | set(parent_ids))

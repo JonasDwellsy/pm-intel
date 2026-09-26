@@ -1,9 +1,8 @@
-"""Tests for the superset reconciliation gate (Task 5).
+"""Tests for the superset reconciliation gate.
 
 No network: everything here exercises the pure key/classification/comparison
 logic with fabricated inputs. The two live-database runs (Bozeman 14580,
-Kansas City 28140) are driven separately via the CLI, not by this suite --
-see task-5-report.md for their output.
+Kansas City 28140) are driven separately via the CLI, not by this suite.
 """
 import contextlib
 import csv
@@ -17,9 +16,9 @@ import reconcile_source
 
 
 class ListingKey(unittest.TestCase):
-    """Task 2 proved the export's listing_id equals property_listing_table.id
-    1:1, and the reader emits it -- so the key is listing_id, not the
-    brief's original (uru_id, creation date)."""
+    """The export's listing_id equals property_listing_table.id 1:1, and the
+    reader emits it -- so the key is listing_id, not (uru_id, creation
+    date)."""
 
     def test_key_is_listing_id(self):
         row = {"listing_id": "123", "uru_id": "9", "x": "y"}
@@ -115,7 +114,7 @@ class ClassifyDbOnlyRow(unittest.TestCase):
 
 class BlankAndNumericNormalisation(unittest.TestCase):
     """The pipeline treats '' and 'null' as missing (field_mapping.md,
-    'Notes for Task 3 on output shape') -- the comparison logic must too."""
+    'Notes on output shape') -- the comparison logic must too."""
 
     def test_norm_blank_treats_empty_and_null_as_blank(self):
         self.assertEqual(reconcile_source._norm_blank(""), "")
@@ -237,7 +236,7 @@ class CompareMatchedFields(unittest.TestCase):
         self.assertEqual(report["child_company_id"]["agreement_non_drifted"], 0.0)
 
     def test_threshold_failure_marks_field_not_ok(self):
-        # Fix round 3: enough rows to clear MIN_NON_DRIFTED_ROWS, so this
+        # enough rows to clear MIN_NON_DRIFTED_ROWS, so this
         # is a genuine below_threshold failure, not insufficient_non_drifted.
         good = [(str(i), {"uru_id": "9"}, {"uru_id": "9"}) for i in range(200)]
         bad = [(f"bad-{i}", {"uru_id": "9"}, {"uru_id": "MISMATCH"}) for i in range(10)]
@@ -250,7 +249,7 @@ class CompareMatchedFields(unittest.TestCase):
         self.assertEqual(report["uru_id"]["threshold"], 0.99)
 
     def test_threshold_pass_marks_field_ok(self):
-        # Fix round 3: needs >= MIN_NON_DRIFTED_ROWS (200) non-drifted rows
+        # needs >= MIN_NON_DRIFTED_ROWS (200) non-drifted rows
         # to clear the new floor, not just a rate above the threshold.
         pairs = [(str(i), {"uru_id": "9"}, {"uru_id": "9"}) for i in range(200)]
         thresholds = dict(reconcile_source.FIELD_THRESHOLDS)
@@ -260,7 +259,7 @@ class CompareMatchedFields(unittest.TestCase):
         self.assertIsNone(report["uru_id"]["reason"])
 
     def test_no_compared_rows_is_insufficient_and_not_ok(self):
-        # Fix round 3: zero compared rows means zero non-drifted rows, which
+        # zero compared rows means zero non-drifted rows, which
         # is below MIN_NON_DRIFTED_ROWS -- this can no longer pass
         # vacuously, and the rate is None (not a fabricated 1.0).
         report = reconcile_source.compare_matched_fields([])
@@ -272,13 +271,12 @@ class CompareMatchedFields(unittest.TestCase):
 
 
 class DriftSplit(unittest.TestCase):
-    """Controller ruling (Fix round 1): the strict threshold applies only to
-    NON-drifted rows -- a mismatch on a row whose source changed after
-    as_of is not a failure signal, but a mismatch on a row that did NOT
-    change is still a real one."""
+    """The strict threshold applies only to NON-drifted rows -- a mismatch
+    on a row whose source changed after as_of is not a failure signal, but a
+    mismatch on a row that did NOT change is still a real one."""
 
     def test_mismatch_on_drifted_row_does_not_count_against_the_rate(self):
-        # Fix round 3: 200 clean non-drifted rows clear the new floor, so the
+        # 200 clean non-drifted rows clear the new floor, so the
         # single drifted mismatch's effect on agreement_non_drifted (none)
         # vs. agreement_all (some) is isolated cleanly.
         pairs = [(str(i), {"uru_id": "9"}, {"uru_id": "9"}) for i in range(200)]
@@ -297,7 +295,7 @@ class DriftSplit(unittest.TestCase):
         self.assertEqual(report["uru_id"]["mismatch_samples_non_drifted"], [])
 
     def test_mismatch_on_non_drifted_row_still_counts_against_the_rate(self):
-        # Fix round 3: enough non-drifted rows to clear the floor, with a
+        # enough non-drifted rows to clear the floor, with a
         # mismatch rate that still misses the threshold.
         good = [(str(i), {"uru_id": "9"}, {"uru_id": "9"}) for i in range(200)]
         bad = [(f"bad-{i}", {"uru_id": "9"}, {"uru_id": "MISMATCH"}) for i in range(10)]
@@ -327,7 +325,7 @@ class DriftSplit(unittest.TestCase):
         self.assertEqual(report["uru_id"]["agreement_non_drifted"], 0.0)
 
     def test_all_drifted_fails_insufficient_non_drifted(self):
-        # Fix round 3: this used to be "vacuously ok" -- non_drifted_count
+        # this used to be "vacuously ok" -- non_drifted_count
         # of 0 defaulted the rate to a fabricated 1.0 and passed. Now zero
         # non-drifted rows is below the floor, the rate is None, and the
         # field fails with reason "insufficient_non_drifted", not ok.
@@ -382,8 +380,9 @@ class AsOfParsing(unittest.TestCase):
 
 class FieldDriftGroupCoverage(unittest.TestCase):
     """Structural consistency: every compared field has a drift group, and
-    every drift group used has its source tables documented -- the "one
-    constant" the controller's ruling asked for."""
+    every drift group used has its source tables documented in one
+    constant, so a field can't silently fall through with no drift
+    signal."""
 
     def test_every_compared_field_has_a_drift_group(self):
         for field in reconcile_source.FIELD_SPECS:
@@ -399,10 +398,10 @@ class FieldDriftGroupCoverage(unittest.TestCase):
 
 
 class CompanyIdentityFields(unittest.TestCase):
-    """Task 6: company_name, child_company_type, parent_company_id,
-    parent_company_name and parent_company_type -- exact comparison,
-    threshold 0.99 (field_mapping.md measured 100%, 12,935/12,935), grouped
-    under the new "company" drift group (company_table's own
+    """The five operator-identity fields -- company_name, child_company_type,
+    parent_company_id, parent_company_name and parent_company_type -- exact
+    comparison, threshold 0.99 (field_mapping.md measured 100%, 12,935/12,935),
+    grouped under the "company" drift group (company_table's own
     last_update_time, for the listing's company or its parent)."""
 
     NEW_FIELDS = (
@@ -515,8 +514,8 @@ class CompanyIdentityFields(unittest.TestCase):
 
 
 class ToleranceMatch(unittest.TestCase):
-    """Fix round 2: latitude/longitude/top_down_community_count switch from
-    exact equality to a comparator that fits how each is actually used."""
+    """latitude/longitude/top_down_community_count use a comparator that
+    fits how each is actually used, instead of exact equality."""
 
     def test_latlon_within_tolerance_passes(self):
         # 0.0009 degrees apart -- inside LATLON_TOLERANCE_DEG (0.001).
@@ -633,7 +632,7 @@ class CompareMatchedFieldsTolerance(unittest.TestCase):
     top_down_community_count also carries a diff_histogram."""
 
     def test_tolerance_pass_but_not_exact_is_ok_and_reports_both_rates(self):
-        # Fix round 3: 200 rows clears the non-drifted floor.
+        # 200 rows clears the non-drifted floor.
         pairs = [
             (str(i), {"latitude": "39.000000"}, {"latitude": "39.000900"})
             for i in range(200)
@@ -644,7 +643,7 @@ class CompareMatchedFieldsTolerance(unittest.TestCase):
         self.assertEqual(report["latitude"]["exact_agreement_non_drifted"], 0.0)
 
     def test_beyond_tolerance_on_non_drifted_row_fails(self):
-        # Fix round 3: enough good rows to clear the floor, plus enough
+        # enough good rows to clear the floor, plus enough
         # beyond-tolerance rows to miss the threshold -- a genuine
         # below_threshold failure, not insufficient_non_drifted.
         good = [
@@ -662,7 +661,7 @@ class CompareMatchedFieldsTolerance(unittest.TestCase):
         self.assertEqual(len(report["latitude"]["mismatch_samples_non_drifted"]), 5)
 
     def test_beyond_tolerance_on_drifted_row_does_not_fail(self):
-        # Fix round 3: 200 clean non-drifted rows clear the floor, isolating
+        # 200 clean non-drifted rows clear the floor, isolating
         # the claim that a beyond-tolerance mismatch on a DRIFTED row still
         # doesn't fail the gate.
         pairs = [
@@ -811,7 +810,7 @@ class Reconcile(unittest.TestCase):
             db_only_count=0,
             export_only_count=1,
             field_report=reconcile_source.compare_matched_fields(
-                # Fix round 3: 200 rows clears the non-drifted floor for
+                # 200 rows clears the non-drifted floor for
                 # every field (blank-vs-blank matches trivially for fields
                 # not set here).
                 [(str(i), {"uru_id": "9"}, {"uru_id": "9"}) for i in range(200)]
@@ -877,13 +876,13 @@ def _empty_db_only_detail() -> dict:
 
 
 class ComputeGateFailures(unittest.TestCase):
-    """Fix round 3, finding 1 (top-level vacuous pass): the old
-    `ok = export_only_ok(...) and not fields_below_threshold` had no floor
-    -- an empty export, or a wrong msa argument that makes every row
-    "malformed" (see _is_malformed), gave zero matched rows, and every field
-    reported compared=0 and (pre-fix) vacuously ok, so the gate exited 0
-    having reconciled nothing. compute_gate_failures names each new
-    condition that closes that hole."""
+    """Guards the top-level vacuous pass: `ok = export_only_ok(...) and not
+    fields_below_threshold` alone has no floor -- an empty export, or a
+    wrong msa argument that makes every row "malformed" (see
+    _is_malformed), gives zero matched rows, and every field reports
+    compared=0 and would be vacuously ok, so the gate would exit 0 having
+    reconciled nothing. compute_gate_failures names each condition that
+    closes that hole."""
 
     def test_zero_export_rows_fails_no_export_rows(self):
         failures = reconcile_source.compute_gate_failures(
@@ -1073,10 +1072,9 @@ class NonDriftedFloor(unittest.TestCase):
 
 
 class SummaryPrinterHandlesNoneAndGateFailures(unittest.TestCase):
-    """Fix round 3: the CLI summary must render a None rate (zero
-    denominator) and a non-empty gate_failures list without raising, and
-    must actually show both -- a silent gate failure defeats the point of
-    naming it."""
+    """The CLI summary must render a None rate (zero denominator) and a
+    non-empty gate_failures list without raising, and must actually show
+    both -- a silent gate failure defeats the point of naming it."""
 
     def test_prints_none_rates_as_n_a_without_raising(self):
         result = reconcile_source._compose_result(
@@ -1188,10 +1186,10 @@ class SummaryPrinterHandlesNoneAndGateFailures(unittest.TestCase):
 
 
 class Caveats(unittest.TestCase):
-    """Fix round 3, finding 3: the amenities delete-audit blind spot (no
-    delete-audit table backs property_amenity_table, so a fully deleted
-    amenity set after as_of looks non-drifted) must be visible in the
-    result and the CLI summary, not just in a code comment."""
+    """The amenities delete-audit blind spot (no delete-audit table backs
+    property_amenity_table, so a fully deleted amenity set after as_of
+    looks non-drifted) must be visible in the result and the CLI summary,
+    not just in a code comment."""
 
     def test_result_includes_the_amenities_caveat(self):
         result = reconcile_source._compose_result(
@@ -1228,12 +1226,12 @@ class Caveats(unittest.TestCase):
 
 
 class ReconcileShortCircuitsOnEmptyExport(unittest.TestCase):
-    """Fix round 3, run item 4: when the export has zero well-formed rows
-    (an empty CSV, or a wrong msa argument that makes _is_malformed reject
-    every row), reconcile() must fail fast WITHOUT pulling the database --
-    cheaper, and a db_rows/matched count pulled against a CSV describing a
-    different market would only be misleading. No network: _load_db is
-    monkeypatched to raise if it's ever called."""
+    """When the export has zero well-formed rows (an empty CSV, or a wrong
+    msa argument that makes _is_malformed reject every row), reconcile()
+    must fail fast WITHOUT pulling the database -- cheaper, and a
+    db_rows/matched count pulled against a CSV describing a different
+    market would only be misleading. No network: _load_db is monkeypatched
+    to raise if it's ever called."""
 
     def _csv_path(self, header, rows):
         fh = tempfile.NamedTemporaryFile(

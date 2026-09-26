@@ -1,4 +1,4 @@
-"""Per-market before/after for the CSV -> database cutover (Task 8).
+"""Per-market before/after for the CSV -> database cutover.
 
 Compares a market's per-market scorecard JSON produced with `pipeline.py
 --source csv` against the same market run with `--source db`, at the SAME

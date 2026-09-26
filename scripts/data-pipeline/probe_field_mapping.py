@@ -453,7 +453,8 @@ def section_8_drift(sample, db, mism):
 
 
 # ---------------------------------------------------------------------------
-# 9. Population reconciliation — context for Task 5, not field logic.
+# 9. Population reconciliation — context for the reconciliation gate
+#    (reconcile_source.py), not field logic.
 # ---------------------------------------------------------------------------
 VIEW_FILTERS = {
     "lifecycle":   "(l.property_listing_status = 'active' and l.deactivation_time is null) or "

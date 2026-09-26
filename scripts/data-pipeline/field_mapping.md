@@ -1,8 +1,8 @@
 # Dwellsy export field mapping
 
 This file maps each of the 24 export columns the pipeline reads to the
-`dwellsy_prod` expression that produces it. Task 3 builds its query from this
-file. It was established on 2026-09-26 against the live production database,
+`dwellsy_prod` expression that produces it. dwellsy_source.py's reader is
+built from this file. It was established on 2026-09-26 against the live production database,
 read-only and scoped to Bozeman (msa 14580). The reference file was
 `merged_bozeman-mt_20260908.csv` (12,935 rows, all well-formed).
 
@@ -35,14 +35,14 @@ To reproduce: `cd scripts/data-pipeline && python3 probe_field_mapping.py`
   agreement rate is given in the row. Any residual mismatches were diagnosed.
 - **UNVERIFIED**: a plausible source exists, but its values were not proven to
   match. The row says why.
-- **UNRESOLVED**: no source was found. Any UNRESOLVED row blocks Task 3.
+- **UNRESOLVED**: no source was found. Any UNRESOLVED row blocks the reader.
 
-**Result: 24 VERIFIED, 0 UNVERIFIED, 0 UNRESOLVED. Nothing blocks Task 3.**
+**Result: 24 VERIFIED, 0 UNVERIFIED, 0 UNRESOLVED. Nothing blocks the reader.**
 
 ## Open questions for the data team
 
-None of these block Task 3. Every field has a proven source. They affect
-parity (Task 5) and semantics.
+None of these block the reader. Every field has a proven source. They affect
+parity (the reconciliation gate, reconcile_source.py) and semantics.
 
 1. **What SQL produced the export?** It is not `full_export_view` verbatim, and
    the producing query is not stored in the DB. We searched views, matviews and
@@ -66,7 +66,8 @@ parity (Task 5) and semantics.
      addresses: `is_hidden`, `canonical_type`, dpv, precision, `multi_family`,
      `reviewed`, `unit_structure`, city/zip, and recent updates.
 
-   What excludes them? Task 5 owns this reconciliation.
+   What excludes them? The reconciliation gate (reconcile_source.py)
+   characterizes this population gap.
 4. **Descriptions that are now NULL.** 100 export rows (0.8%) carry description
    text where `l.listing_long_text` is now NULL.
    - 90 of them come from two operators: Montana Crestview (54) and Connect
@@ -84,7 +85,7 @@ parity (Task 5) and semantics.
    does not reconstruct the export (see `photos` below). Is there a media or
    amenity audit trail?
 
-## Base FROM clause (paste into Task 3)
+## Base FROM clause
 
 ```sql
 from dwellsy_prod.property_listing_table l
@@ -107,7 +108,8 @@ where p.msa_code = %(msa)s
   export has exactly one row per `listing_id` (12,935 unique).
 - **Do not** join `organization_company_table` (see "Parent company" below).
 - The joins are LEFT so the mapping is independent of population. Which rows to
-  keep is Task 3's and Task 5's decision (see "Population filters").
+  keep is the reader's and the reconciliation gate's decision (see "Population
+  filters").
 
 ## Mapping
 
@@ -197,7 +199,7 @@ where p.msa_code = %(msa)s
   to 555/1000. Media `creation_time` is not a reliable capture time, so use
   current state.
 
-## Timestamps (Task 5 depends on this)
+## Timestamps
 
 - **Types:** `l.creation_time`, `l.deactivation_time` and `l.last_update_time`
   are all `timestamp with time zone`. The probe session's TimeZone is UTC.
@@ -212,13 +214,14 @@ where p.msa_code = %(msa)s
     hard-code Pacific midnights such as `'2026-01-01 08:00:00+00'`.
 - **Pipeline impact:** `pipeline.parse_dt` stamps these strings as UTC. Today's
   metrics therefore treat Pacific wall-clock as UTC, which is 7–8 h off.
-  - For byte-parity with the export, Task 3 should emit the `at time zone
-    'America/Los_Angeles'` form above.
+  - For byte-parity with the export, the reader emits the `at time zone
+    'America/Los_Angeles'` form above (see dwellsy_source.py's BASE_SQL).
   - Moving to true UTC would shift the T12 window edges, quarter buckets and
     per-home dates for listings near midnight. It would not change DOM, which is
-    a difference of two values in the same zone. That choice belongs to Task 5.
+    a difference of two values in the same zone. The reconciliation gate's
+    field-parity comparisons depend on the choice made here.
 
-## Parent company vs organization, and org multiplicity (Task 6)
+## Parent company vs organization, and org multiplicity
 
 - **The export's parent is a company, not an organization.**
   `parent_company_id = company_table.parent_company_id`, with name and type
@@ -238,9 +241,10 @@ where p.msa_code = %(msa)s
     than one organization.
   - The schema still allows many-to-many (UNIQUE is only on
     `(organization_id, company_id)`), and the skill says to treat it as M:N.
-    Task 6 should guard against multiplicity even though none exists today.
+    The reader guards against multiplicity with a deterministic `min()`
+    tie-break, even though none exists today.
 
-## Population filters (context for Task 3 and Task 5; not field logic)
+## Population filters (context for the reader and the reconciliation gate; not field logic)
 
 `full_export_view`'s WHERE clause, measured against the export's rows:
 
@@ -263,7 +267,7 @@ where p.msa_code = %(msa)s
   the apartment clause. 12,930 of those are in the export. The 5,740 left over
   are open question 3.
 
-## Notes for Task 3 on output shape
+## Notes on output shape
 
 The pipeline reads CSV strings through `row.get(...)`. It treats `''` and
 `'null'` as missing, and it compares `msa_code` to a string.

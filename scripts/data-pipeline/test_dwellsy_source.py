@@ -1,10 +1,8 @@
 """Tests for the market_listings database reader.
 
-Task 3 scope: pass-through fields only. amenities/photos/address_type land in
-Task 4; the six company-identity fields land in Task 6. See field_mapping.md
-for the column derivations and their verification status; the population
-filter's translation from full_export_view is explained inline in
-dwellsy_source.py's WHERE_SQL comments.
+See field_mapping.md for the column derivations and their verification
+status; the population filter's translation from full_export_view is
+explained inline in dwellsy_source.py's WHERE_SQL comments.
 """
 import csv
 import os
@@ -173,12 +171,12 @@ class MarketListings(unittest.TestCase):
         )
 
     def test_batched_lookup_equals_correlated_form(self):
-        # Fix round 1 replaced Task 4's per-row correlated subqueries with a
-        # property-set + chunked-lookup design (see dwellsy_source.py's
-        # module docstring). This test pins that the new design's amenities/
-        # photos are byte-identical to the ORIGINAL Task 4 expressions
-        # (copied verbatim from commit 2f2571a below), on a deterministic
-        # spread sample of ~100 Bozeman listing_ids.
+        # Pins the batched property-set + chunked-lookup design (see
+        # dwellsy_source.py's module docstring) against amenities/photos
+        # computed by the ORIGINAL per-row correlated-subquery expressions
+        # (copied verbatim from commit 2f2571a below): the batched rewrite
+        # exists purely to scale, so its output must be byte-identical, on
+        # a deterministic spread sample of ~100 Bozeman listing_ids.
         rows_by_id = {r["listing_id"]: r for r in self.bozeman_rows}
         sorted_ids = sorted(rows_by_id, key=lambda lid: int(lid))
         sample_size = min(len(sorted_ids), 100)
@@ -256,8 +254,8 @@ class MarketListings(unittest.TestCase):
             "media after folding in a deterministic candidate",
         )
 
-        # Verbatim from commit 2f2571a's BASE_SQL (the Task 4 report's
-        # "Final SQL added to BASE_SQL"), restricted to the sampled listings.
+        # Verbatim from commit 2f2571a's BASE_SQL (the original per-row
+        # correlated-subquery form), restricted to the sampled listings.
         original_sql = """
             select l.id::text as listing_id,
                 (select string_agg(ad.amenity_name, '; ' order by ad.amenity_name)
@@ -500,10 +498,10 @@ class UruCoverageSql(unittest.TestCase):
 
 
 class AttachAmenitiesAndPhotos(unittest.TestCase):
-    """Pure unit tests for the phase-3 late-lookup fallback (Fix round 2) --
-    no network, no skipUnless gate. A fake `lookup_fn` stands in for
-    `_batched_lookups` so the "property phase 1 never saw" path can be
-    exercised deterministically."""
+    """Pure unit tests for the phase-3 late-lookup fallback -- no network,
+    no skipUnless gate. A fake `lookup_fn` stands in for `_batched_lookups`
+    so the "property phase 1 never saw" path can be exercised
+    deterministically."""
 
     def setUp(self):
         dwellsy_source.LAST_RUN_STATS.clear()
