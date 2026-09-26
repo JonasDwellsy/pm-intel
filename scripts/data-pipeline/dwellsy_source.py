@@ -90,43 +90,90 @@ left join dwellsy_prod.company_type_table pct     on pct.id = pc.company_type_id
 #     (`deactivation_time > '2026-01-01 08:00:00+00' OR deactivation_time IS NULL`,
 #     `creation_time > ('2026-01-01' - 120)`, `creation_time < '2026-09-01 07:00:00+00'`)
 #     -- a fixed pull-date window, meaningless for a live read.
-# One predicate per line, each tagged with what it excludes.
-WHERE_SQL = """
-where p.msa_code = %(msa_code)s
-  -- lifecycle: active and still open, or inactive with a lifetime over 4h
-  -- (excludes listings that opened and closed within 4 hours -- noise)
-  and (
+#
+# Kept as an ordered list of (name, sql) pairs -- rather than one opaque WHERE
+# string -- so Task 5's reconciliation gate can run each predicate on its own
+# as a boolean column (`coalesce((<sql>), false) as <name>`) against the
+# UNFILTERED base join, to classify exactly which predicate(s) excluded an
+# export-only row. WHERE_SQL below is generated from this list and is
+# semantically identical to the flat form it replaces: wrapping each
+# predicate in parens and joining with `and` does not change SQL boolean
+# evaluation (AND is associative/commutative), so no dwellsy_source test
+# needed to change for this refactor. Each predicate's explanatory comment
+# is kept next to it, unchanged from the original.
+POPULATION_PREDICATES: list[tuple[str, str]] = [
+    ("market", "p.msa_code = %(msa_code)s"),
+    (
+        # lifecycle: active and still open, or inactive with a lifetime over
+        # 4h (excludes listings that opened and closed within 4 hours --
+        # noise)
+        "lifecycle",
+        """
         (l.property_listing_status = 'active' and l.deactivation_time is null)
      or (l.property_listing_status = 'inactive'
          and (l.creation_time + interval '4 hours') < l.deactivation_time)
-      )
-  -- allowed address types only: apartment(1) / house(2) / mobile(3)
-  and a1.address_type_id in (1, 2, 3)
-  -- USPS DPV match on the property's own address
-  -- (excludes addresses the postal service could not confirm)
-  and p.ss_raw_dpv_match_code = 'Y'
-  -- a1 'D' dpv rule: a building-level-only match ('D') is acceptable only
-  -- when a secondary (unit) address exists to disambiguate it
-  -- (excludes building-level-only matches with no unit on file)
-  and (
+        """,
+    ),
+    (
+        # allowed address types only: apartment(1) / house(2) / mobile(3)
+        "address_type",
+        "a1.address_type_id in (1, 2, 3)",
+    ),
+    (
+        # USPS DPV match on the property's own address
+        # (excludes addresses the postal service could not confirm)
+        "dpv_match",
+        "p.ss_raw_dpv_match_code = 'Y'",
+    ),
+    (
+        # a1 'D' dpv rule: a building-level-only match ('D') is acceptable
+        # only when a secondary (unit) address exists to disambiguate it
+        # (excludes building-level-only matches with no unit on file)
+        "dpv_d_rule",
+        """
         (a1.ss_raw_dpv_match_code = 'D' and p.address2_id is not null)
      or (a1.ss_raw_dpv_match_code <> 'D')
-      )
-  -- exclude single-room listings (rooms, not units)
-  and p.is_room = 0
-  -- must resolve to a canonical rental unit (URU)
-  and p.uru_id is not null
-  -- managing company must be active
-  and c.company_status = 'active'
-  -- exclude blacklisted companies unless explicitly whitelisted
-  and (c.blacklist_status is null or c.is_whitelisted)
-  -- exclude waitlist-only postings (not a real listing)
-  and p.property_category <> 'Waitlist'
-  -- plausible rent band: at least $250 per bedroom (minimum 1), at most $20,000
-  -- (excludes data-entry noise at both ends)
-  and l.listing_amount >= greatest(p.bedrooms, 1) * 250
-  and l.listing_amount <= 20000
-"""
+        """,
+    ),
+    (
+        # exclude single-room listings (rooms, not units)
+        "not_room",
+        "p.is_room = 0",
+    ),
+    (
+        # must resolve to a canonical rental unit (URU)
+        "has_uru",
+        "p.uru_id is not null",
+    ),
+    (
+        # managing company must be active
+        "company_active",
+        "c.company_status = 'active'",
+    ),
+    (
+        # exclude blacklisted companies unless explicitly whitelisted
+        "not_blacklisted",
+        "(c.blacklist_status is null or c.is_whitelisted)",
+    ),
+    (
+        # exclude waitlist-only postings (not a real listing)
+        "not_waitlist",
+        "p.property_category <> 'Waitlist'",
+    ),
+    (
+        # plausible rent band: at least $250 per bedroom (minimum 1), at most
+        # $20,000 (excludes data-entry noise at both ends)
+        "rent_band",
+        """
+        l.listing_amount >= greatest(p.bedrooms, 1) * 250
+    and l.listing_amount <= 20000
+        """,
+    ),
+]
+
+WHERE_SQL = "where " + "\n  and ".join(
+    f"({sql.strip()})" for _, sql in POPULATION_PREDICATES
+)
 
 # Phase 1 (see module docstring): every property the listing population
 # touches, streamed once per market. `distinct` collapses the many listings
