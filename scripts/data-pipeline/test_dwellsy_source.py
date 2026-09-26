@@ -171,30 +171,76 @@ class MarketListings(unittest.TestCase):
         step = max(1, len(sorted_ids) // sample_size)
         sample_ids = sorted_ids[::step][:sample_size]
 
-        # Fold in any Bozeman listings whose property has a non-null
-        # parent_property_id, so the photos parent-merge path is exercised
-        # by this DB-backed sample too (not just the pure unit test below).
-        parent_rows = dwellsy_db.query(
-            """
-            select l.id::text as listing_id
-              from dwellsy_prod.property_listing_table l
-              join dwellsy_prod.property_table p on p.id = l.property_id
-             where p.msa_code = %(msa_code)s
-               and p.parent_property_id is not null
-             limit 10
-            """,
-            {"msa_code": BOZEMAN},
+        # Confirm the parent-merge path in _merge_photo_ids is really
+        # exercised by this DB-backed sample, not just asserted vacuously:
+        # find which sampled listings have a property with a non-null
+        # parent_property_id, then query the PARENT's own media to confirm
+        # at least one such parent actually has an active media row (a
+        # parent with no media would make the union a no-op).
+        def listings_with_parent_media(ids):
+            parent_rows = dwellsy_db.query(
+                """
+                select l.id::text as listing_id, p.parent_property_id
+                  from dwellsy_prod.property_listing_table l
+                  join dwellsy_prod.property_table p on p.id = l.property_id
+                 where l.id = any(%(ids)s::bigint[])
+                   and p.parent_property_id is not null
+                """,
+                {"ids": [int(lid) for lid in ids]},
+            )
+            if not parent_rows:
+                return []
+            parent_ids = sorted({r["parent_property_id"] for r in parent_rows})
+            media_rows = dwellsy_db.query(
+                dwellsy_source.MEDIA_SQL, {"ids": parent_ids}
+            )
+            parents_with_media = {r["property_id"] for r in media_rows}
+            return [
+                r["listing_id"]
+                for r in parent_rows
+                if r["parent_property_id"] in parents_with_media
+            ]
+
+        parent_merge_ids = listings_with_parent_media(sample_ids)
+        if not parent_merge_ids:
+            # The deterministic spread sample happened not to land on a
+            # listing whose parent has its own media. Find one
+            # deterministically (lowest listing_id under an ORDER BY, not an
+            # unordered `limit`) restricted to the SAME BASE_FROM/WHERE_SQL
+            # population market_listings uses, so any hit is guaranteed to
+            # already be in rows_by_id, and fold it in.
+            candidates = dwellsy_db.query(
+                """
+                select l.id::text as listing_id
+                """
+                + dwellsy_source.BASE_FROM
+                + """
+                join dwellsy_prod.property_media_table mp
+                  on mp.property_id = p.parent_property_id
+                 and mp.property_media_status = 'active'
+                 and mp.media_type in ('image', 'floorplan')
+                """
+                + dwellsy_source.WHERE_SQL
+                + """
+                 order by l.id
+                 limit 1
+                """,
+                {"msa_code": BOZEMAN},
+            )
+            found = [r["listing_id"] for r in candidates if r["listing_id"] in rows_by_id]
+            self.assertTrue(
+                found,
+                "no Bozeman listing exercises the parent-media-merge path -- "
+                "cannot confirm this DB-backed sample covers it",
+            )
+            sample_ids = list(dict.fromkeys(sample_ids + found))
+            parent_merge_ids = listings_with_parent_media(sample_ids)
+
+        self.assertTrue(
+            parent_merge_ids,
+            "the sample still does not exercise a parent with its own "
+            "media after folding in a deterministic candidate",
         )
-        parent_ids_found = [
-            r["listing_id"] for r in parent_rows if r["listing_id"] in rows_by_id
-        ]
-        if parent_ids_found:
-            sample_ids = list(dict.fromkeys(sample_ids + parent_ids_found))
-        # else: no Bozeman listing's property currently has a non-null
-        # parent_property_id, so this DB-backed sample cannot exercise the
-        # parent-merge path -- it's covered instead by the pure unit test
-        # MergePhotoIds.test_union_of_own_and_parent below. Noted in the
-        # fix-round report too.
 
         # Verbatim from commit 2f2571a's BASE_SQL (the Task 4 report's
         # "Final SQL added to BASE_SQL"), restricted to the sampled listings.
@@ -320,3 +366,82 @@ class MergePhotoIds(unittest.TestCase):
 
     def test_no_ids_on_either_side(self):
         self.assertEqual(dwellsy_source._merge_photo_ids([], []), "")
+
+
+class AttachAmenitiesAndPhotos(unittest.TestCase):
+    """Pure unit tests for the phase-3 late-lookup fallback (Fix round 2) --
+    no network, no skipUnless gate. A fake `lookup_fn` stands in for
+    `_batched_lookups` so the "property phase 1 never saw" path can be
+    exercised deterministically."""
+
+    def setUp(self):
+        dwellsy_source.LAST_RUN_STATS.clear()
+        dwellsy_source.LAST_RUN_STATS["late_lookups"] = 0
+
+    def test_late_lookup_fills_a_property_phase_1_missed(self):
+        row = {"_property_id": 555, "_parent_property_id": None}
+        amenities_by_property = {}
+        media_by_property = {}
+        looked_up_ids = set()  # phase 1 never saw 555
+
+        def fake_lookup(ids):
+            self.assertEqual(ids, [555])
+            return {555: "Pool; Gym"}, {555: [2, 1]}
+
+        out = dwellsy_source._attach_amenities_and_photos(
+            row,
+            amenities_by_property,
+            media_by_property,
+            looked_up_ids,
+            lookup_fn=fake_lookup,
+        )
+
+        self.assertEqual(out["amenities"], "Pool; Gym")
+        self.assertEqual(out["photos"], "1;2")
+        self.assertEqual(out["property_id"], "555")
+        self.assertIn(555, looked_up_ids)
+        self.assertEqual(dwellsy_source.LAST_RUN_STATS["late_lookups"], 1)
+
+    def test_late_lookup_covers_both_property_and_missing_parent(self):
+        row = {"_property_id": 10, "_parent_property_id": 20}
+        amenities_by_property = {10: "Pool"}  # property already known
+        media_by_property = {10: [1]}
+        looked_up_ids = {10}  # parent (20) was NOT in phase 1's set
+
+        def fake_lookup(ids):
+            self.assertEqual(ids, [20])
+            return {}, {20: [9]}
+
+        out = dwellsy_source._attach_amenities_and_photos(
+            row,
+            amenities_by_property,
+            media_by_property,
+            looked_up_ids,
+            lookup_fn=fake_lookup,
+        )
+
+        self.assertEqual(out["amenities"], "Pool")
+        self.assertEqual(out["photos"], "1;9")
+        self.assertIn(20, looked_up_ids)
+        self.assertEqual(dwellsy_source.LAST_RUN_STATS["late_lookups"], 1)
+
+    def test_already_looked_up_property_does_not_trigger_a_late_lookup(self):
+        row = {"_property_id": 7, "_parent_property_id": None}
+        amenities_by_property = {7: "Pool"}
+        media_by_property = {7: [9]}
+        looked_up_ids = {7}
+
+        def fail_lookup(ids):
+            self.fail(f"lookup_fn should not be called; got ids={ids!r}")
+
+        out = dwellsy_source._attach_amenities_and_photos(
+            row,
+            amenities_by_property,
+            media_by_property,
+            looked_up_ids,
+            lookup_fn=fail_lookup,
+        )
+
+        self.assertEqual(out["amenities"], "Pool")
+        self.assertEqual(out["photos"], "9")
+        self.assertEqual(dwellsy_source.LAST_RUN_STATS["late_lookups"], 0)

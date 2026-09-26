@@ -28,10 +28,27 @@ listing that shares it:
   3. `market_listings` streams the listing rows with the two subqueries
      removed (p.id/p.parent_property_id carried as internal columns
      instead) and attaches amenities/photos from the two lookup dicts built
-     in step 2.
+     in step 2, via `_attach_amenities_and_photos`.
 See field_mapping.md's AMENITIES/PHOTOS sections for the semantics being
 preserved; test_batched_lookup_equals_correlated_form pins this design
 against the original per-row correlated-subquery expressions.
+
+Fix round 2: phase 1 and phase 2 each run in their own transaction against a
+live database, so a property that appears in phase 3's listing stream but
+was absent from phase 1's set (e.g. created between the two phases, or a
+parent property that was) would otherwise fall through the lookup dicts'
+`.get(id, "")` to an empty string -- indistinguishable from a real empty.
+`_attach_amenities_and_photos` guards against this: it tracks which property
+ids phase 2 actually looked up, and for any row referencing an id outside
+that set, looks it up on demand (via the same chunked lookup function,
+injectable for testing) and folds the result into the shared dicts so later
+rows sharing the property benefit too. The count of such late lookups is
+exposed on the module-level `LAST_RUN_STATS` dict, reset at the start of
+each `market_listings` call, so a caller can confirm it stayed at 0 (or
+near it) on a real run. Values that CHANGED between phases for a property
+phase 2 already looked up are accepted as current-state skew against a live
+database and are not handled -- only properties phase 2 never saw at all
+are.
 
 - company_name, child_company_id, child_company_type, parent_company_id,
   parent_company_name, parent_company_type (operator identity) arrive in
@@ -144,6 +161,9 @@ select pa.property_id,
  group by pa.property_id
 """
 
+# photo media ids, not URLs; the pipeline only counts them; see
+# field_mapping.md PHOTOS for the URL form
+#
 # Same predicates as field_mapping.md's PHOTOS subquery (active image/
 # floorplan media), one row per media id instead of a pre-joined string --
 # the Python merge in _merge_photo_ids does the p.id/parent_property_id
@@ -194,6 +214,13 @@ select
 )
 
 
+# Reset at the start of every market_listings call; see the module
+# docstring's "Fix round 2" paragraph. Kept as a plain dict (no logging
+# framework) so a caller can just read LAST_RUN_STATS["late_lookups"]
+# after exhausting the generator.
+LAST_RUN_STATS: dict[str, int] = {}
+
+
 def market_listings(msa_code: str, as_of: str | None = None) -> Iterator[dict]:
     """One market's full listing history, newest-agnostic (the caller windows).
 
@@ -201,22 +228,15 @@ def market_listings(msa_code: str, as_of: str | None = None) -> Iterator[dict]:
     filter here: the pipeline computes its own T12 window from row timestamps,
     and filtering twice would silently change metric semantics.
     """
+    LAST_RUN_STATS.clear()
+    LAST_RUN_STATS["late_lookups"] = 0
     property_ids = _collect_property_ids(msa_code)
+    looked_up_ids = set(property_ids)
     amenities_by_property, media_by_property = _batched_lookups(property_ids)
     for row in dwellsy_db.stream(BASE_SQL, {"msa_code": msa_code}):
-        property_id = row.pop("_property_id")
-        parent_property_id = row.pop("_parent_property_id")
-
-        row["amenities"] = amenities_by_property.get(property_id, "")
-        own_media = media_by_property.get(property_id, [])
-        parent_media = (
-            media_by_property.get(parent_property_id, [])
-            if parent_property_id is not None
-            else []
+        row = _attach_amenities_and_photos(
+            row, amenities_by_property, media_by_property, looked_up_ids
         )
-        row["photos"] = _merge_photo_ids(own_media, parent_media)
-        row["property_id"] = str(property_id)
-
         yield _stringify(row)
 
 
@@ -251,6 +271,53 @@ def _batched_lookups(
 def _chunked(seq: list[int], size: int) -> Iterator[list[int]]:
     for i in range(0, len(seq), size):
         yield seq[i : i + size]
+
+
+def _attach_amenities_and_photos(
+    row: dict,
+    amenities_by_property: dict[int, str],
+    media_by_property: dict[int, list[int]],
+    looked_up_ids: set[int],
+    lookup_fn=_batched_lookups,
+) -> dict:
+    """Phase 3 (see module docstring): pop the internal `_property_id`/
+    `_parent_property_id` columns off `row` and attach amenities/photos from
+    the two lookup dicts phase 2 built, mutating them (and `looked_up_ids`,
+    and LAST_RUN_STATS) in place for any property phase 2 didn't already
+    cover -- see the module docstring's "Fix round 2" paragraph for why that
+    can happen against a live database.
+
+    `lookup_fn` defaults to the real `_batched_lookups` but is injectable so
+    the late-lookup path can be unit tested without a database connection
+    (see AttachAmenitiesAndPhotos in test_dwellsy_source.py).
+    """
+    property_id = row.pop("_property_id")
+    parent_property_id = row.pop("_parent_property_id")
+
+    missing_ids = [
+        pid
+        for pid in (property_id, parent_property_id)
+        if pid is not None and pid not in looked_up_ids
+    ]
+    if missing_ids:
+        late_amenities, late_media = lookup_fn(missing_ids)
+        amenities_by_property.update(late_amenities)
+        media_by_property.update(late_media)
+        looked_up_ids.update(missing_ids)
+        LAST_RUN_STATS["late_lookups"] = (
+            LAST_RUN_STATS.get("late_lookups", 0) + len(missing_ids)
+        )
+
+    row["amenities"] = amenities_by_property.get(property_id, "")
+    own_media = media_by_property.get(property_id, [])
+    parent_media = (
+        media_by_property.get(parent_property_id, [])
+        if parent_property_id is not None
+        else []
+    )
+    row["photos"] = _merge_photo_ids(own_media, parent_media)
+    row["property_id"] = str(property_id)
+    return row
 
 
 def _merge_photo_ids(own_ids: list[int], parent_ids: list[int]) -> str:
