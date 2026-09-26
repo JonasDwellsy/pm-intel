@@ -167,8 +167,11 @@ class ValuesMatch(unittest.TestCase):
 
 
 class CompareMatchedFields(unittest.TestCase):
-    """The per-field aggregate: agreement rate, threshold pass/fail, capped
-    mismatch samples."""
+    """The per-field aggregate: agreement rate (all-rows and non-drifted),
+    threshold pass/fail against the non-drifted rate, capped mismatch
+    samples split drifted/non-drifted. No `drift` argument (the default,
+    None) means every row is treated as NOT drifted -- the conservative
+    default that keeps old callers' behavior unchanged."""
 
     def test_all_fields_agree(self):
         pairs = [
@@ -179,11 +182,13 @@ class CompareMatchedFields(unittest.TestCase):
             )
         ]
         report = reconcile_source.compare_matched_fields(pairs)
-        self.assertEqual(report["uru_id"]["agreement"], 1.0)
-        self.assertEqual(report["bedrooms"]["agreement"], 1.0)
-        self.assertEqual(report["amenities"]["agreement"], 1.0)  # count-based
-        self.assertEqual(report["amenities_string"]["agreement"], 0.0)  # exact
-        self.assertEqual(report["photos"]["agreement"], 1.0)
+        self.assertEqual(report["uru_id"]["agreement_non_drifted"], 1.0)
+        self.assertEqual(report["bedrooms"]["agreement_non_drifted"], 1.0)
+        self.assertEqual(report["amenities"]["agreement_non_drifted"], 1.0)  # count-based
+        self.assertEqual(report["amenities_string"]["agreement_non_drifted"], 0.0)  # exact
+        self.assertEqual(report["photos"]["agreement_non_drifted"], 1.0)
+        # agreement_all matches agreement_non_drifted when nothing is drifted.
+        self.assertEqual(report["uru_id"]["agreement_all"], 1.0)
 
     def test_mismatch_is_counted_and_sampled(self):
         pairs = [
@@ -191,17 +196,21 @@ class CompareMatchedFields(unittest.TestCase):
             ("2", {"uru_id": "9"}, {"uru_id": "10"}),
         ]
         report = reconcile_source.compare_matched_fields(pairs)
-        self.assertEqual(report["uru_id"]["agreement"], 0.5)
+        self.assertEqual(report["uru_id"]["agreement_non_drifted"], 0.5)
+        self.assertEqual(report["uru_id"]["agreement_all"], 0.5)
         self.assertEqual(report["uru_id"]["compared"], 2)
-        self.assertEqual(len(report["uru_id"]["mismatch_samples"]), 1)
-        self.assertEqual(report["uru_id"]["mismatch_samples"][0]["listing_id"], "2")
+        self.assertEqual(report["uru_id"]["drifted"], 0)
+        self.assertEqual(report["uru_id"]["non_drifted"], 2)
+        self.assertEqual(len(report["uru_id"]["mismatch_samples_non_drifted"]), 1)
+        self.assertEqual(report["uru_id"]["mismatch_samples_non_drifted"][0]["listing_id"], "2")
+        self.assertEqual(report["uru_id"]["mismatch_samples_drifted"], [])
 
     def test_mismatch_samples_capped(self):
         pairs = [
             (str(i), {"uru_id": "9"}, {"uru_id": "x"}) for i in range(10)
         ]
         report = reconcile_source.compare_matched_fields(pairs, max_samples=5)
-        self.assertEqual(len(report["uru_id"]["mismatch_samples"]), 5)
+        self.assertEqual(len(report["uru_id"]["mismatch_samples_non_drifted"]), 5)
         self.assertEqual(report["uru_id"]["compared"], 10)
 
     def test_company_id_compares_against_export_child_company_id(self):
@@ -209,7 +218,7 @@ class CompareMatchedFields(unittest.TestCase):
         # `child_company_id`, VERIFIED 1000/1000 + 12,935/12,935 whole-export.
         pairs = [("1", {"child_company_id": "555"}, {"company_id": "555"})]
         report = reconcile_source.compare_matched_fields(pairs)
-        self.assertEqual(report["company_id"]["agreement"], 1.0)
+        self.assertEqual(report["company_id"]["agreement_non_drifted"], 1.0)
 
     def test_threshold_failure_marks_field_not_ok(self):
         pairs = [
@@ -233,6 +242,124 @@ class CompareMatchedFields(unittest.TestCase):
         report = reconcile_source.compare_matched_fields([])
         self.assertEqual(report["uru_id"]["compared"], 0)
         self.assertTrue(report["uru_id"]["ok"])
+
+
+class DriftSplit(unittest.TestCase):
+    """Controller ruling (Fix round 1): the strict threshold applies only to
+    NON-drifted rows -- a mismatch on a row whose source changed after
+    as_of is not a failure signal, but a mismatch on a row that did NOT
+    change is still a real one."""
+
+    def test_mismatch_on_drifted_row_does_not_count_against_the_rate(self):
+        pairs = [
+            ("1", {"uru_id": "9"}, {"uru_id": "9"}),        # clean, matches
+            ("2", {"uru_id": "9"}, {"uru_id": "CHANGED"}),  # mismatch, but drifted
+        ]
+        drift = {"uru_id": {"2": True}}
+        report = reconcile_source.compare_matched_fields(pairs, drift=drift)
+        self.assertEqual(report["uru_id"]["agreement_non_drifted"], 1.0)
+        self.assertEqual(report["uru_id"]["agreement_all"], 0.5)
+        self.assertEqual(report["uru_id"]["drifted"], 1)
+        self.assertEqual(report["uru_id"]["non_drifted"], 1)
+        self.assertTrue(report["uru_id"]["ok"])
+        self.assertEqual(len(report["uru_id"]["mismatch_samples_drifted"]), 1)
+        self.assertEqual(report["uru_id"]["mismatch_samples_drifted"][0]["listing_id"], "2")
+        self.assertEqual(report["uru_id"]["mismatch_samples_non_drifted"], [])
+
+    def test_mismatch_on_non_drifted_row_still_counts_against_the_rate(self):
+        pairs = [
+            ("1", {"uru_id": "9"}, {"uru_id": "9"}),
+            ("2", {"uru_id": "9"}, {"uru_id": "MISMATCH"}),
+        ]
+        drift = {"uru_id": {"1": False, "2": False}}  # both explicitly clean
+        thresholds = dict(reconcile_source.FIELD_THRESHOLDS)
+        thresholds["uru_id"] = 0.99
+        report = reconcile_source.compare_matched_fields(
+            pairs, drift=drift, thresholds=thresholds
+        )
+        self.assertEqual(report["uru_id"]["agreement_non_drifted"], 0.5)
+        self.assertEqual(report["uru_id"]["drifted"], 0)
+        self.assertEqual(report["uru_id"]["non_drifted"], 2)
+        self.assertFalse(report["uru_id"]["ok"])
+        self.assertEqual(len(report["uru_id"]["mismatch_samples_non_drifted"]), 1)
+        self.assertEqual(report["uru_id"]["mismatch_samples_non_drifted"][0]["listing_id"], "2")
+
+    def test_missing_drift_entry_defaults_to_not_drifted(self):
+        # A listing_id absent from the field's drift dict entirely (not
+        # explicitly True or False) must still count against the strict
+        # rate -- unknown drift status is never a free pass.
+        pairs = [("1", {"uru_id": "9"}, {"uru_id": "MISMATCH"})]
+        drift = {"uru_id": {}}  # no entry at all for listing_id "1"
+        report = reconcile_source.compare_matched_fields(pairs, drift=drift)
+        self.assertEqual(report["uru_id"]["non_drifted"], 1)
+        self.assertEqual(report["uru_id"]["drifted"], 0)
+        self.assertEqual(report["uru_id"]["agreement_non_drifted"], 0.0)
+
+    def test_all_drifted_is_vacuously_ok_on_the_non_drifted_rate(self):
+        pairs = [("1", {"uru_id": "9"}, {"uru_id": "MISMATCH"})]
+        drift = {"uru_id": {"1": True}}
+        thresholds = dict(reconcile_source.FIELD_THRESHOLDS)
+        thresholds["uru_id"] = 0.99
+        report = reconcile_source.compare_matched_fields(
+            pairs, drift=drift, thresholds=thresholds
+        )
+        self.assertEqual(report["uru_id"]["non_drifted"], 0)
+        self.assertEqual(report["uru_id"]["agreement_non_drifted"], 1.0)
+        self.assertTrue(report["uru_id"]["ok"])
+
+
+class AsOfParsing(unittest.TestCase):
+    def test_parses_trailing_yyyymmdd_from_filename(self):
+        self.assertEqual(
+            reconcile_source.parse_as_of(
+                "/x/y/merged_bozeman-mt_20260908.csv"
+            ),
+            "2026-09-08",
+        )
+
+    def test_parses_kansas_city_filename_too(self):
+        self.assertEqual(
+            reconcile_source.parse_as_of(
+                "/x/merged_kansas-city-mo-ks_20260908.csv"
+            ),
+            "2026-09-08",
+        )
+
+    def test_explicit_as_of_overrides_the_filename(self):
+        self.assertEqual(
+            reconcile_source.parse_as_of(
+                "/x/merged_bozeman-mt_20260908.csv", "2026-01-01"
+            ),
+            "2026-01-01",
+        )
+
+    def test_raises_when_neither_filename_nor_explicit_available(self):
+        with self.assertRaises(ValueError):
+            reconcile_source.parse_as_of("/x/no_date_suffix_here.csv")
+
+    def test_rejects_a_malformed_explicit_as_of(self):
+        with self.assertRaises(ValueError):
+            reconcile_source.parse_as_of(
+                "/x/merged_bozeman-mt_20260908.csv", "not-a-date"
+            )
+
+
+class FieldDriftGroupCoverage(unittest.TestCase):
+    """Structural consistency: every compared field has a drift group, and
+    every drift group used has its source tables documented -- the "one
+    constant" the controller's ruling asked for."""
+
+    def test_every_compared_field_has_a_drift_group(self):
+        for field in reconcile_source.FIELD_SPECS:
+            self.assertIn(field, reconcile_source.FIELD_DRIFT_GROUP)
+
+    def test_every_drift_group_has_documented_source_tables(self):
+        groups_in_use = set(reconcile_source.FIELD_DRIFT_GROUP.values())
+        self.assertEqual(groups_in_use, set(reconcile_source.DRIFT_GROUP_SOURCE_TABLES))
+        for tables in reconcile_source.DRIFT_GROUP_SOURCE_TABLES.values():
+            self.assertTrue(tables)
+            for t in tables:
+                self.assertTrue(t.startswith("dwellsy_prod."))
 
 
 class ExportOnlySummary(unittest.TestCase):
