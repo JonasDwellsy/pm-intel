@@ -63,6 +63,100 @@ class MarketListings(unittest.TestCase):
         self.assertGreater(len(self.bozeman_rows), 18000)
         self.assertLess(len(self.bozeman_rows), 19500)
 
+    def test_amenities_and_photos_are_semicolon_delimited(self):
+        # marketing.py splits these on ";" -- the DB reader must match that
+        # contract or every marketing score changes silently.
+        rows = self.bozeman_rows[:500]
+        with_amen = [r for r in rows if r["amenities"]]
+        self.assertTrue(with_amen, "no amenities found in 500 rows — mapping wrong")
+        for r in with_amen[:20]:
+            self.assertNotIn(",,", r["amenities"])
+            parts = [x for x in r["amenities"].split(";") if x.strip()]
+            self.assertTrue(parts)
+
+    def test_photos_split_into_digit_media_ids(self):
+        # photos are emitted as active-media ids (not URLs); each ';'-part
+        # must be a bare digit string.
+        rows = [r for r in self.bozeman_rows if r["photos"]][:20]
+        self.assertTrue(rows, "no photos found in cached Bozeman rows — mapping wrong")
+        for r in rows:
+            parts = [x for x in r["photos"].split(";") if x.strip()]
+            self.assertTrue(parts)
+            for part in parts:
+                self.assertTrue(part.isdigit(), f"photos part not a digit id: {part!r}")
+
+    def test_address_type_vocabulary_is_closed_and_non_blank(self):
+        # pipeline.py lowercases address_type and compares to "house" /
+        # "apartment" (see uru_addr_type). The population filter
+        # (a1.address_type_id in (1,2,3)) should make aty.address_type always
+        # non-null in our population, so the property_category fallback
+        # should never fire and no row should have a blank value.
+        seen = set()
+        for row in self.bozeman_rows:
+            value = row["address_type"]
+            self.assertTrue(value, "address_type is blank on a row")
+            seen.add(value.strip().lower())
+        self.assertLessEqual(
+            seen, {"apartment", "house", "mobile"},
+            f"address_type vocabulary is {sorted(seen)}",
+        )
+        self.assertIn("apartment", seen)
+        self.assertIn("house", seen)
+
+    @unittest.skipUnless(
+        os.path.isfile(BOZEMAN_EXPORT), "Bozeman export CSV not present on this machine"
+    )
+    def test_photo_and_amenity_counts_match_the_export(self):
+        # Same contract the pipeline applies (pipeline.py amenities_n/photos_n):
+        # count non-blank ';'-parts. Compare that count -- and, for amenities,
+        # the raw string -- against the 2026-09-08 export on a deterministic
+        # spread sample of listing_ids present on both sides.
+        def count_parts(value):
+            return len([x for x in value.split(";") if x.strip()]) if value else 0
+
+        by_listing_id = {row["listing_id"]: row for row in self.bozeman_rows}
+        matched_pairs = []
+        with open(BOZEMAN_EXPORT, newline="", encoding="utf-8") as fh:
+            for export_row in csv.DictReader(fh):
+                db_row = by_listing_id.get(export_row.get("listing_id"))
+                if db_row is not None:
+                    matched_pairs.append((export_row.get("listing_id"), db_row, export_row))
+        self.assertGreater(len(matched_pairs), 0, "no export rows matched a DB listing_id")
+
+        matched_pairs.sort(key=lambda triple: triple[0])
+        sample_size = min(len(matched_pairs), 300)
+        step = max(1, len(matched_pairs) // sample_size)
+        sample = matched_pairs[::step][:sample_size]
+
+        photo_matches = 0
+        amenity_count_matches = 0
+        amenity_string_matches = 0
+        for listing_id, db_row, export_row in sample:
+            db_photo_n = count_parts(db_row.get("photos") or "")
+            export_photo_n = count_parts(export_row.get("photos") or "")
+            if db_photo_n == export_photo_n:
+                photo_matches += 1
+
+            db_amen = db_row.get("amenities") or ""
+            export_amen = export_row.get("amenities") or ""
+            if count_parts(db_amen) == count_parts(export_amen):
+                amenity_count_matches += 1
+            if db_amen == export_amen:
+                amenity_string_matches += 1
+
+        n = len(sample)
+        self.assertGreaterEqual(
+            photo_matches / n, 0.93, f"photo count agreement {photo_matches}/{n}"
+        )
+        self.assertGreaterEqual(
+            amenity_count_matches / n, 0.96,
+            f"amenity count agreement {amenity_count_matches}/{n}",
+        )
+        self.assertGreaterEqual(
+            amenity_string_matches / n, 0.95,
+            f"amenity string agreement {amenity_string_matches}/{n}",
+        )
+
     def test_timestamps_are_pacific_wall_clock(self):
         ts_re = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
         checked = 0

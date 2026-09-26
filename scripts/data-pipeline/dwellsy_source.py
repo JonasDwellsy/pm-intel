@@ -6,8 +6,10 @@ field_mapping.md for the column derivation and its verification status. The
 population filter's translation from dwellsy_prod.full_export_view is
 explained inline in the WHERE_SQL comments below.
 
-Task 3 scope: pass-through fields only.
-- amenities, photos, address_type arrive in Task 4.
+Task 3 scope: pass-through fields only. Task 4 added amenities, photos and
+address_type (correlated subqueries against the same base FROM -- see
+field_mapping.md's AMENITIES/PHOTOS sections and dwellsy_source.py's SELECT
+list comments).
 - company_name, child_company_id, child_company_type, parent_company_id,
   parent_company_name, parent_company_type (operator identity) arrive in
   Task 6. `company_id` (the join key Task 6 needs) and `listing_id` (the key
@@ -109,7 +111,23 @@ select
     to_char(l.deactivation_time at time zone 'America/Los_Angeles',
              'YYYY-MM-DD HH24:MI:SS')   as deactivation_time,
     l.property_listing_status::text     as property_listing_status,
-    ac.count_top_down                   as top_down_community_count
+    ac.count_top_down                   as top_down_community_count,
+    coalesce(aty.address_type, p.property_category)
+                                         as address_type,
+    (select string_agg(ad.amenity_name, '; ' order by ad.amenity_name)
+       from (select distinct a.amenity_name
+               from dwellsy_prod.property_amenity_table pa
+               join dwellsy_prod.amenity_table a on a.id = pa.amenity_id
+              where pa.property_id = p.id and a.amenity_name <> 'Other') ad)
+                                         as amenities,
+    -- photo media ids, not URLs; the pipeline only counts them; see
+    -- field_mapping.md PHOTOS for the URL form
+    (select string_agg(mp.id::text, ';' order by mp.id)
+       from dwellsy_prod.property_media_table mp
+      where mp.property_id = any(array[p.id, p.parent_property_id])
+        and mp.property_media_status = 'active'
+        and mp.media_type in ('image', 'floorplan'))
+                                         as photos
 """
     + BASE_FROM
     + WHERE_SQL
