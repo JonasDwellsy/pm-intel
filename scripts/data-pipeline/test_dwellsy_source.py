@@ -2,9 +2,9 @@
 
 Task 3 scope: pass-through fields only. amenities/photos/address_type land in
 Task 4; the six company-identity fields land in Task 6. See field_mapping.md
-for the column derivations and their verification status, and
-task-3-report.md for how the population filter was translated from
-full_export_view.
+for the column derivations and their verification status; the population
+filter's translation from full_export_view is explained inline in
+dwellsy_source.py's WHERE_SQL comments.
 """
 import csv
 import os
@@ -81,18 +81,53 @@ class MarketListings(unittest.TestCase):
         # Embedded newlines inside description fields mean this file must be
         # read with the csv module, never wc -l or naive line-splitting.
         by_listing_id = {row["listing_id"]: row for row in self.bozeman_rows}
-        matched = 0
+        matched_pairs = []
         with open(BOZEMAN_EXPORT, newline="", encoding="utf-8") as fh:
             for export_row in csv.DictReader(fh):
                 db_row = by_listing_id.get(export_row.get("listing_id"))
-                if db_row is None:
-                    continue
-                matched += 1
-                self.assertEqual(
-                    db_row["creation_time"],
-                    export_row["creation_time"],
-                    f"listing_id={export_row.get('listing_id')} creation_time mismatch",
-                )
-                if matched >= 50:
-                    break
-        self.assertGreater(matched, 0, "no export rows matched a DB listing_id")
+                if db_row is not None:
+                    matched_pairs.append((export_row.get("listing_id"), db_row, export_row))
+        self.assertGreater(len(matched_pairs), 0, "no export rows matched a DB listing_id")
+
+        # Deterministic spread sample rather than "first N in file order":
+        # sort by listing_id and take every Nth pair, capped at a few hundred.
+        matched_pairs.sort(key=lambda triple: triple[0])
+        sample_size = min(len(matched_pairs), 300)
+        step = max(1, len(matched_pairs) // sample_size)
+        sample = matched_pairs[::step][:sample_size]
+
+        creation_checked = 0
+        both_sides_had_deactivation = 0
+        for listing_id, db_row, export_row in sample:
+            self.assertEqual(
+                db_row["creation_time"],
+                export_row["creation_time"],
+                f"listing_id={listing_id} creation_time mismatch",
+            )
+            creation_checked += 1
+
+            db_deact = db_row["deactivation_time"]
+            export_deact = export_row["deactivation_time"]
+            if db_deact and export_deact:
+                both_sides_had_deactivation += 1
+            if db_deact == export_deact:
+                continue
+            # Tolerate exactly one explained mismatch class: export blank,
+            # DB non-blank -- the listing closed after the 2026-09-08 pull
+            # (field_mapping.md: 8/1000 such rows). Every other mismatch
+            # (including DB blank / export non-blank, which would mean the
+            # DB thinks a closed listing is still open) fails the test.
+            if export_deact == "" and db_deact != "":
+                continue
+            self.fail(
+                f"listing_id={listing_id} deactivation_time mismatch: "
+                f"db={db_deact!r} export={export_deact!r}"
+            )
+
+        self.assertGreater(creation_checked, 0)
+        self.assertGreater(
+            both_sides_had_deactivation,
+            0,
+            "sample had no rows with a non-blank deactivation_time on both "
+            "sides -- the parity check would pass vacuously",
+        )

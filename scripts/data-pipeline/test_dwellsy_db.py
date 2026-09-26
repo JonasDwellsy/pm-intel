@@ -28,6 +28,36 @@ class DwellsyDbConnection(unittest.TestCase):
         self.assertNotIn("@", str(ctx.exception))
         self.assertIsNone(ctx.exception.__context__)
 
+    def test_stream_yields_all_rows_across_batches(self):
+        rows = list(
+            dwellsy_db.stream(
+                "select g as n from generate_series(1, 7) g", batch_size=3
+            )
+        )
+        self.assertEqual(rows, [{"n": n} for n in range(1, 8)])
+
+    def test_stream_session_is_read_only(self):
+        gen = dwellsy_db.stream("select current_setting('transaction_read_only') as ro")
+        try:
+            self.assertEqual(next(gen), {"ro": "on"})
+        finally:
+            gen.close()
+
+    def test_stream_errors_are_scrubbed_with_no_chain(self):
+        with self.assertRaises(Exception) as ctx:
+            next(dwellsy_db.stream("select * from table_that_does_not_exist_12345"))
+        self.assertIsNone(ctx.exception.__context__)
+        self.assertIsNone(ctx.exception.__cause__)
+
+    def test_stream_early_close_releases_the_connection(self):
+        gen = dwellsy_db.stream(
+            "select g as n from generate_series(1, 20000) g", batch_size=10
+        )
+        self.assertEqual(next(gen), {"n": 1})
+        gen.close()
+        rows = dwellsy_db.query("select 1 as x")
+        self.assertEqual(rows, [{"x": 1}])
+
 
 class DwellsyDbScrub(unittest.TestCase):
     """Unit test for _scrub() directly. No network, no credentials required."""

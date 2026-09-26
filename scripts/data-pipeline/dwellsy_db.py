@@ -7,12 +7,14 @@ to run a mutating statement.
 """
 import os
 import re
+from typing import Iterator
 
 import psycopg
 from psycopg.rows import dict_row
 
 SECRET_PATH = os.path.expanduser("~/Documents/Dwellsy/secrets/db_connection.txt")
 STATEMENT_TIMEOUT = "120s"
+STREAM_BATCH = 5000
 
 
 def _dsn() -> str:
@@ -61,3 +63,25 @@ def query(sql: str, params: dict | None = None) -> list[dict]:
     except Exception as exc:
         err = _scrubbed(exc)
     raise err
+
+
+def stream(sql: str, params: dict | None = None, batch_size: int = STREAM_BATCH) -> Iterator[dict]:
+    """Yield rows through a server-side cursor, batch_size at a time.
+
+    Each FETCH is its own statement, so statement_timeout bounds one batch,
+    not the whole market. The session is the same READ ONLY transaction
+    connect() opens. Closing the generator early closes the connection.
+    """
+    err = None
+    try:
+        with connect() as conn, conn.cursor(name="dwellsy_stream") as cur:
+            cur.execute(sql, params or {})
+            while True:
+                rows = cur.fetchmany(batch_size)
+                if not rows:
+                    break
+                yield from rows
+    except Exception as exc:
+        err = _scrubbed(exc)
+    if err is not None:
+        raise err

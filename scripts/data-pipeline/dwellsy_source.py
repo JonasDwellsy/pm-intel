@@ -2,9 +2,9 @@
 
 Yields dicts keyed exactly like the CSV export's rows, so pipeline.py's row
 handling is unchanged (that swap is Task 7's job, not this module's). See
-field_mapping.md for the column derivation and its verification status, and
-task-3-report.md for how the population filter below was translated from
-dwellsy_prod.full_export_view.
+field_mapping.md for the column derivation and its verification status. The
+population filter's translation from dwellsy_prod.full_export_view is
+explained inline in the WHERE_SQL comments below.
 
 Task 3 scope: pass-through fields only.
 - amenities, photos, address_type arrive in Task 4.
@@ -123,7 +123,7 @@ def market_listings(msa_code: str, as_of: str | None = None) -> Iterator[dict]:
     filter here: the pipeline computes its own T12 window from row timestamps,
     and filtering twice would silently change metric semantics.
     """
-    for row in dwellsy_db.query(BASE_SQL, {"msa_code": msa_code}):
+    for row in dwellsy_db.stream(BASE_SQL, {"msa_code": msa_code}):
         yield _stringify(row)
 
 
