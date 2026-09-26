@@ -18,6 +18,8 @@ Both sides run at the SAME `--as-of 2026-09-08` — this isolates the source cha
 | Operators scored (ranked+dormant, T12 >=30) | 21 | 24 | +3 |
 | uru_id coverage (non-blank share of input rows) | 99.97% | 100.00% | — |
 
+_db-side uru_id coverage is 100% by construction: `market_listings` filters on `has_uru` itself, so every row it emits already has a uru_id. See "Rows dropped only for a missing URU" in the invariant checklist below for what that filter actually costs._
+
 ### Lost operators (scored in csv, not in db)
 
 - No operator lost scored status.
@@ -34,12 +36,12 @@ Both sides run at the SAME `--as-of 2026-09-08` — this isolates the source cha
 
 ### Metric movements (operators scored in both)
 
-| metric | n | median ∣Δ∣ | unchanged | up1 | up2+ | down1 | down2+ |
-|---|---|---|---|---|---|---|---|
-| DOM (T12 median, days) | 21 | 1.0 | 17 | 0 | 2 | 1 | 1 |
-| Rent YoY change | 21 | +1.8% | 19 | 0 | 1 | 0 | 1 |
-| 18-mo retention | 21 | 2.3% | 16 | 1 | 2 | 1 | 1 |
-| Marketing composite | 21 | 0.7 | 21 | 0 | 0 | 0 | 0 |
+| metric | n | median ∣Δ∣ | unchanged | up1 | up2+ | down1 | down2+ | rating gained/lost |
+|---|---|---|---|---|---|---|---|---|
+| DOM (T12 median, days) | 21 | 1.0 | 17 | 0 | 2 | 1 | 1 | 0 |
+| Rent YoY change | 21 | +1.8% | 19 | 0 | 1 | 0 | 1 | 0 |
+| 18-mo retention | 21 | 2.3% | 16 | 1 | 2 | 1 | 1 | 0 |
+| Marketing composite | 21 | 0.7 | 6 | 0 | 0 | 0 | 0 | 0 |
 
 **Top movers — DOM (T12 median, days)**
 
@@ -83,7 +85,7 @@ Both sides run at the SAME `--as-of 2026-09-08` — this isolates the source cha
 
 ### Marketing / photos
 
-The Task 5 reconciliation gate found the export omits some active photos (example: Kansas City property 9555972 has 35 active images, all created 2026-08-01, but the export lists 20; the dropped ones carry rentcafe source filenames, the kept ones a different pattern -- an export photo-selection rule not visible in the db, per task-5-report.md). Where that recurs, db-sourced photo counts run higher for the affected operator, though it need not move the market-wide distribution much if it's concentrated in a few properties rather than systemic. Distribution is across every scored operator on each side (not just those scored in both), csv vs db:
+The reconciliation gate found the export omits some active photos for some properties (example: property 9555972 has 35 active images, all created 2026-08-01, but the export lists only 20 of them; the dropped ones carry a different source-filename pattern from the kept ones -- an export photo-selection rule the database doesn't expose). On this market, the raw median photo count runs about the same on the db side (see the table below); the shift need not be uniform across operators if it's concentrated in a few properties rather than systemic. Distribution is across every scored operator on each side (not just those scored in both), csv vs db:
 
 | | csv median | csv p10 | csv p90 | db median | db p10 | db p90 |
 |---|---|---|---|---|---|---|
@@ -99,7 +101,7 @@ The Task 5 reconciliation gate found the export omits some active photos (exampl
 |---|---|
 | No unexplained lost operators | PASS |
 | Counts move in the expected direction (db >= csv rows) | PASS |
-| uru_id coverage 100% (db snapshot) | PASS |
+| Rows dropped only for a missing URU: 4 (0.02%) | PASS |
 
 ## kansas-city-mo-ks
 
@@ -109,12 +111,14 @@ The Task 5 reconciliation gate found the export omits some active photos (exampl
 
 | | csv | db | delta |
 |---|---|---|---|
-| Input rows (this MSA) | 89,246 | 105,709 | +16,463 |
-| Distinct URUs (T12, market-wide) | 14,273 | 16,135 | +1,862 |
+| Input rows (this MSA) | 89,246 | 105,712 | +16,466 |
+| Distinct URUs (T12, market-wide) | 14,273 | 16,137 | +1,864 |
 | Operators observed (T12 >=1) | 848 | 888 | +40 |
 | Active operators (T12 >=3) | 345 | 354 | +9 |
 | Operators scored (ranked+dormant, T12 >=30) | 124 | 132 | +8 |
 | uru_id coverage (non-blank share of input rows) | 100.00% | 100.00% | — |
+
+_db-side uru_id coverage is 100% by construction: `market_listings` filters on `has_uru` itself, so every row it emits already has a uru_id. See "Rows dropped only for a missing URU" in the invariant checklist below for what that filter actually costs._
 
 ### Lost operators (scored in csv, not in db)
 
@@ -140,12 +144,12 @@ The Task 5 reconciliation gate found the export omits some active photos (exampl
 
 ### Metric movements (operators scored in both)
 
-| metric | n | median ∣Δ∣ | unchanged | up1 | up2+ | down1 | down2+ |
-|---|---|---|---|---|---|---|---|
-| DOM (T12 median, days) | 123 | 0.5 | 112 | 4 | 4 | 1 | 2 |
-| Rent YoY change | 101 | +1.0% | 99 | 3 | 6 | 8 | 7 |
-| 18-mo retention | 85 | 1.0% | 108 | 4 | 6 | 1 | 4 |
-| Marketing composite | 123 | 0.5 | 121 | 0 | 0 | 1 | 1 |
+| metric | n | median ∣Δ∣ | unchanged | up1 | up2+ | down1 | down2+ | rating gained/lost |
+|---|---|---|---|---|---|---|---|---|
+| DOM (T12 median, days) | 123 | 0.5 | 112 | 4 | 4 | 1 | 2 | 0 |
+| Rent YoY change | 101 | +1.0% | 78 | 3 | 6 | 8 | 6 | 0 |
+| 18-mo retention | 85 | 1.0% | 72 | 4 | 4 | 1 | 4 | 0 |
+| Marketing composite | 123 | 0.5 | 59 | 0 | 0 | 1 | 0 | 1 |
 
 **Top movers — DOM (T12 median, days)**
 
@@ -189,7 +193,7 @@ The Task 5 reconciliation gate found the export omits some active photos (exampl
 
 ### Marketing / photos
 
-The Task 5 reconciliation gate found the export omits some active photos (example: Kansas City property 9555972 has 35 active images, all created 2026-08-01, but the export lists 20; the dropped ones carry rentcafe source filenames, the kept ones a different pattern -- an export photo-selection rule not visible in the db, per task-5-report.md). Where that recurs, db-sourced photo counts run higher for the affected operator, though it need not move the market-wide distribution much if it's concentrated in a few properties rather than systemic. Distribution is across every scored operator on each side (not just those scored in both), csv vs db:
+The reconciliation gate found the export omits some active photos for some properties (example: property 9555972 has 35 active images, all created 2026-08-01, but the export lists only 20 of them; the dropped ones carry a different source-filename pattern from the kept ones -- an export photo-selection rule the database doesn't expose). On this market, the raw median photo count runs about the same on the db side (see the table below); the shift need not be uniform across operators if it's concentrated in a few properties rather than systemic. Distribution is across every scored operator on each side (not just those scored in both), csv vs db:
 
 | | csv median | csv p10 | csv p90 | db median | db p10 | db p90 |
 |---|---|---|---|---|---|---|
@@ -205,4 +209,4 @@ The Task 5 reconciliation gate found the export omits some active photos (exampl
 |---|---|
 | No unexplained lost operators | PASS |
 | Counts move in the expected direction (db >= csv rows) | PASS |
-| uru_id coverage 100% (db snapshot) | PASS |
+| Rows dropped only for a missing URU: 0 (0.00%) | PASS |
