@@ -806,9 +806,17 @@ git commit -m "feat: cutover restatement report"
 
 Do NOT flip `--source` to `db` by default until all of these hold:
 
-- [ ] `reconcile_source.py` reports `export_only 0` for `14580` and `28140`
-- [ ] no field in `field_mapping.md` is still `UNRESOLVED`
-- [ ] `photos` resolves, or the marketing photo sub-score change is accepted explicitly
-- [ ] multi-organization companies are under 5%, or the resolution rule is curated
-- [ ] the restatement report shows `no longer scored` at 0 for both markets
-- [ ] the data team has answered why the export delivers ~60% of the rows
+- [ ] `reconcile_source.py` reports 0 `not_in_db` and 0 `in_population_but_missed` for every in-scope market, and explained export-only rows are <= 1% of well-formed export rows (`explained_share_exceeded`)
+- [ ] no field is below its threshold, including the non-drifted evidence floor (`MIN_NON_DRIFTED_ROWS` / `MIN_NON_DRIFTED_SHARE`) -- a field can't pass on too thin a non-drifted sample
+- [ ] the marketing photo sub-score change is accepted explicitly by Jonas (db-sourced counts do not move the same direction on every market -- see restatement_report.py's per-market photo narrative)
+- [ ] `organization_id` stays inert (never identity, never grouping) -- multi-organization companies are informational only, not a blocker
+- [ ] the restatement report shows 0 UNEXPLAINED lost operators for every in-scope market, with every EXPLAINED loss signed off
+- [ ] the data team has answered why the export delivers only a fraction of the population (open question, still pending)
+
+### Preconditions for flipping the default
+
+- [ ] a timed Los Angeles pull, with RSS, max per-chunk latency and `late_lookups` recorded
+- [ ] a deterministic snapshot row order (a re-pull of the same market writes rows in the same order)
+- [ ] the trajectory backfill wired to `--db-snapshot`, so its hundreds of `--market` invocations share one pull instead of pulling once each
+- [ ] a decision on what `markets.json`'s `dataAsOf` means under `--source db` (db mode already uses the snapshot's own `pulled_on_pacific` instead of it -- decide whether `dataAsOf` should be touched at all under db mode)
+- [ ] the smallest in-scope market checked against the gate's 200-row evidence floor (`MIN_NON_DRIFTED_ROWS`) -- a market too small to clear it needs its own plan, not a silent pass

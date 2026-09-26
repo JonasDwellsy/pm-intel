@@ -47,8 +47,22 @@ class MarketListings(unittest.TestCase):
             self.assertEqual(row["msa_code"], BOZEMAN)
 
     def test_uru_coverage_is_total(self):
+        # has_uru is one of market_listings' own POPULATION_PREDICATES, so
+        # the READER'S OUTPUT is 100% uru_id coverage by construction --
+        # this can never fail and isn't a meaningful check on its own. What
+        # matters is how much of the would-be population never makes it in
+        # because it lacks a URU: LAST_RUN_STATS carries that as a count on
+        # each side of the ratio, checked here against a 1% ceiling.
         missing = [r for r in self.bozeman_rows if not r.get("uru_id")]
-        self.assertEqual(missing, [], "uru_id was 100% on 2026-09-26; a drop is a bug")
+        self.assertEqual(missing, [], "uru_id coverage is total by construction (has_uru)")
+        stats = dwellsy_source.LAST_RUN_STATS
+        self.assertIn("rows_passing_other_predicates", stats)
+        self.assertIn("rows_excluded_only_by_has_uru", stats)
+        passing = stats["rows_passing_other_predicates"]
+        excluded = stats["rows_excluded_only_by_has_uru"]
+        self.assertGreater(passing, 0)
+        share = excluded / passing
+        self.assertLess(share, 0.01, f"share dropped only for a missing URU: {share:.4%}")
 
     def test_no_row_multiplication(self):
         # A join through a many-to-many bridge silently inflates counts.
@@ -457,6 +471,32 @@ class MergePhotoIds(unittest.TestCase):
 
     def test_no_ids_on_either_side(self):
         self.assertEqual(dwellsy_source._merge_photo_ids([], []), "")
+
+
+class UruCoverageSql(unittest.TestCase):
+    """Pure string-building tests for _uru_coverage_sql -- no network. Must
+    be built from POPULATION_PREDICATES so it can't drift from WHERE_SQL:
+    every predicate except has_uru filters the rows counted, and has_uru
+    itself only appears in the `filter (where not (...))` clause."""
+
+    def test_has_uru_is_excluded_from_the_where_clause(self):
+        sql = dwellsy_source._uru_coverage_sql()
+        # has_uru appears ONLY inside the `filter (where not (...))` clause,
+        # never as its own `and (...)`-joined predicate.
+        self.assertNotIn("and (p.uru_id is not null)", sql)
+        self.assertIn("not (p.uru_id is not null)", sql)
+
+    def test_every_other_predicate_is_in_the_where_clause(self):
+        sql = dwellsy_source._uru_coverage_sql()
+        for name, predicate_sql in dwellsy_source.POPULATION_PREDICATES:
+            if name == "has_uru":
+                continue
+            self.assertIn(f"({predicate_sql.strip()})", sql)
+
+    def test_has_uru_appears_in_the_filter_clause(self):
+        sql = dwellsy_source._uru_coverage_sql()
+        self.assertIn("rows_excluded_only_by_has_uru", sql)
+        self.assertIn("filter (where not (p.uru_id is not null))", sql)
 
 
 class AttachAmenitiesAndPhotos(unittest.TestCase):

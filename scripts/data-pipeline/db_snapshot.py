@@ -60,7 +60,11 @@ def write_snapshot(rows: Iterable[dict], path: str, meta: dict) -> dict:
     only once every row has been written successfully. A pull that raises
     partway through leaves neither the temp file nor `path` behind, and the
     exception propagates to the caller -- a later run pointed at the same
-    `path` will not mistake a partial pull for a complete one.
+    `path` will not mistake a partial pull for a complete one. A pull that
+    completes but yields ZERO rows is treated the same way: it raises
+    ValueError instead of moving an empty file into place, since a 0-row
+    snapshot is essentially always a wrong msa_code or a database problem,
+    never a market with no data at all.
 
     `meta` supplies the caller's fields (msa_code, pulled_at,
     pulled_on_pacific, source); this function fills in `row_count` and
@@ -85,6 +89,16 @@ def write_snapshot(rows: Iterable[dict], path: str, meta: dict) -> dict:
     except BaseException:
         os.remove(tmp_path)
         raise
+    if row_count == 0:
+        # A fresh pull that yields nothing is never a valid snapshot -- most
+        # likely a wrong msa_code or a database problem, not an empty
+        # market. Refuse before the temp file ever reaches `path`, the same
+        # way a pull that raises midway leaves nothing at the final path.
+        os.remove(tmp_path)
+        raise ValueError(
+            f"pull for msa_code {meta.get('msa_code')!r} yielded 0 rows -- "
+            f"refusing to write an empty snapshot at {path!r}"
+        )
     os.replace(tmp_path, path)
 
     full_meta = dict(meta)

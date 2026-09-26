@@ -295,6 +295,41 @@ select
 # after exhausting the generator.
 LAST_RUN_STATS: dict[str, int] = {}
 
+# has_uru ("must resolve to a canonical rental unit") is applied in
+# market_listings' own WHERE_SQL, so the READER'S OUTPUT has 100% uru_id
+# coverage by construction -- that can never fail, and isn't a meaningful
+# check. What can fail is how much of the population that would otherwise
+# qualify gets dropped for a missing URU. _uru_coverage_sql, built from
+# POPULATION_PREDICATES so it can't drift from WHERE_SQL, counts rows
+# passing every OTHER predicate, and of those, how many fail has_uru.
+_OTHER_THAN_HAS_URU = [(name, sql) for name, sql in POPULATION_PREDICATES if name != "has_uru"]
+_HAS_URU_SQL = dict(POPULATION_PREDICATES)["has_uru"]
+_OTHER_WHERE_SQL = "where " + "\n  and ".join(
+    f"({sql.strip()})" for _, sql in _OTHER_THAN_HAS_URU
+)
+
+
+def _uru_coverage_sql() -> str:
+    return (
+        "select count(*) as rows_passing_other_predicates,\n"
+        f"       count(*) filter (where not ({_HAS_URU_SQL.strip()})) "
+        "as rows_excluded_only_by_has_uru\n"
+        + BASE_FROM
+        + _OTHER_WHERE_SQL
+    )
+
+
+def _compute_uru_coverage_stats(msa_code: str) -> dict[str, int]:
+    """One aggregate query (no rows fetched beyond the single summary row):
+    of the rows that pass every population predicate EXCEPT has_uru, how
+    many of them fail has_uru. Exposed on LAST_RUN_STATS so it reaches the
+    snapshot meta through db_snapshot.write_snapshot's reader_stats copy."""
+    row = dwellsy_db.query(_uru_coverage_sql(), {"msa_code": msa_code})[0]
+    return {
+        "rows_passing_other_predicates": row["rows_passing_other_predicates"],
+        "rows_excluded_only_by_has_uru": row["rows_excluded_only_by_has_uru"],
+    }
+
 
 def market_listings(msa_code: str, as_of: str | None = None) -> Iterator[dict]:
     """One market's full listing history, newest-agnostic (the caller windows).
@@ -305,6 +340,7 @@ def market_listings(msa_code: str, as_of: str | None = None) -> Iterator[dict]:
     """
     LAST_RUN_STATS.clear()
     LAST_RUN_STATS["late_lookups"] = 0
+    LAST_RUN_STATS.update(_compute_uru_coverage_stats(msa_code))
     property_ids = _collect_property_ids(msa_code)
     looked_up_ids = set(property_ids)
     amenities_by_property, media_by_property = _batched_lookups(property_ids)

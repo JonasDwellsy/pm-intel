@@ -24,6 +24,7 @@ Key = listing_id (Task 2 proved export listing_id == property_listing_table.id
 1:1, and the reader emits it -- this supersedes the original brief's
 (uru_id, creation date) key).
 """
+import argparse
 import csv
 import json
 import os
@@ -183,18 +184,7 @@ def community_count_diff_bucket(diff: int) -> str:
 # Field-level parity on matched rows
 #
 # field name -> (export column, reader-emitted key, comparator). Most fields
-# share one name on both sides; two don't:
-#   - "company_id" (reader) == "child_company_id" (export): field_mapping.md
-#     -- `c.id` (= `p.company_id`) VERIFIED 1000/1000 + 12,935/12,935
-#     whole-export against `child_company_id`. This entry predates Task 6 and
-#     was kept unchanged rather than folded into the new `child_company_id`
-#     column: the reader has emitted the equivalent value under `company_id`
-#     since Task 3 (module docstring), and this entry already compares it
-#     against the export's `child_company_id` column, so a second FIELD_SPECS
-#     entry comparing the reader's own new `child_company_id` key against the
-#     same export column would be redundant. Task 6 (dwellsy_source.py) now
-#     also emits a literal `child_company_id` key with the same value, purely
-#     so dwellsy_source's own tests can assert on it directly.
+# share one name on both sides; one doesn't:
 #   - "amenities_string": the same `amenities` value on both sides, compared
 #     exactly (not by count) -- field_mapping.md's separate 98.6% exact-string
 #     measurement, distinct from the 98.7% by-count measurement used by
@@ -214,7 +204,7 @@ FIELD_SPECS: dict[str, tuple[str, str, str]] = {
     "bedrooms":                   ("bedrooms",                  "bedrooms",                  "numeric"),
     "latitude":                   ("latitude",                  "latitude",                  "tolerance"),
     "longitude":                  ("longitude",                 "longitude",                 "tolerance"),
-    "company_id":                 ("child_company_id",          "company_id",                "exact"),
+    "child_company_id":           ("child_company_id",          "child_company_id",          "exact"),
     "rent_amount":                ("rent_amount",               "rent_amount",               "numeric"),
     "description":                ("description",               "description",               "exact"),
     "creation_time":               ("creation_time",             "creation_time",             "exact"),
@@ -225,14 +215,10 @@ FIELD_SPECS: dict[str, tuple[str, str, str]] = {
     "amenities_string":            ("amenities",                 "amenities",                 "exact"),
     "photos":                      ("photos",                    "photos",                    "count"),
 
-    # Task 6: operator identity from the company hierarchy (Jonas's
-    # 2026-09-26 ruling -- see dwellsy_source.py's module docstring and
-    # field_mapping.md's "Parent company vs organization"). child_company_id
-    # is not a new entry here: it is already compared above under the
-    # "company_id" field, against the reader's `company_id` key -- the same
-    # value the reader now also emits under a literal `child_company_id` key
-    # (dwellsy_source.py Task 6). export_col == reader_key for all five,
-    # since the reader emits these under the export's own column names.
+    # Operator identity from the company hierarchy -- see dwellsy_source.py's
+    # module docstring and field_mapping.md's "Parent company vs
+    # organization". export_col == reader_key for all five, since the reader
+    # emits these under the export's own column names.
     "company_name":                ("company_name",              "company_name",              "exact"),
     "child_company_type":           ("child_company_type",        "child_company_type",        "exact"),
     "parent_company_id":            ("parent_company_id",         "parent_company_id",         "exact"),
@@ -281,7 +267,7 @@ FIELD_THRESHOLDS: dict[str, float] = {
                                          # pipeline only needs ~100m precision for maps/market geography
     "longitude": 0.99,                  # measured 100.0% (1000/1000). Fix round 2: same tolerance rate,
                                          # same rationale as latitude (see LATLON_TOLERANCE_DEG)
-    "company_id": 0.99,                 # measured 100.0% (child_company_id: 1000/1000 + 12,935/12,935 whole-export), non-drifted rate
+    "child_company_id": 0.99,           # measured 100.0% (1000/1000 + 12,935/12,935 whole-export), non-drifted rate
     "rent_amount": 0.99,                # measured 99.9% (999/1000; the 1 miss was rewritten after the pull), non-drifted rate
     "creation_time": 0.99,               # measured 100.0% (1000/1000), applies to the non-drifted rate
     "top_down_community_count": 0.99,   # measured 100.0% (1000/1000). Fix round 2: applies to the
@@ -317,21 +303,21 @@ FIELD_THRESHOLDS: dict[str, float] = {
 # ---------------------------------------------------------------------------
 # Drift-aware field comparison (Fix round 1)
 #
-# One field -> drift-group map, and one drift-group -> source-tables map, per
-# the controller's ruling ("define its source tables in one constant").
+# One field -> drift-group map, and one drift-group -> source-tables map.
 # `company_table` was checked via information_schema (it does have
-# last_update_time) and, as of Task 6, backs the five operator-identity
-# fields below via the new "company" group.
+# last_update_time) and backs the five operator-identity fields below via
+# the "company" group.
 #
-# `company_id` stays on "property_address", not "company": its VALUE is
-# `p.company_id` (a property_table foreign-key assignment -- see
+# `child_company_id` stays on "property_address", not "company": its VALUE
+# is `p.company_id` (a property_table foreign-key assignment -- see
 # dwellsy_source.py's BASE_SQL), so what would make it drift is the
 # property's own company reassignment, which bumps `p.last_update_time` and
 # is already caught by the property_address group. A company_table rename or
-# re-type (what the new "company" group watches) changes none of
-# company_id's own value. This is not a case of company_id having been
-# mapped to property_address "only for lack of a company group" -- it is
-# the group its value actually depends on -- so it was left unmoved.
+# re-type (what the "company" group watches) changes none of
+# child_company_id's own value. This is not a case of child_company_id
+# having been mapped to property_address "only for lack of a company group"
+# -- it is the group its value actually depends on -- so it was left
+# unmoved.
 FIELD_DRIFT_GROUP: dict[str, str] = {
     "uru_id": "property_address",
     "community_id": "property_address",
@@ -342,7 +328,7 @@ FIELD_DRIFT_GROUP: dict[str, str] = {
     "bedrooms": "property_address",
     "latitude": "property_address",
     "longitude": "property_address",
-    "company_id": "property_address",
+    "child_company_id": "property_address",
     "rent_amount": "listing",
     "description": "listing",
     "creation_time": "listing",
@@ -1123,6 +1109,17 @@ MAX_MALFORMED_SHARE = 0.01
 # a signal the input (or the msa argument) is wrong, not ordinary export
 # corruption.
 
+MAX_EXPLAINED_SHARE = 0.01
+# export_only_ok() never fails the gate on an "excluded:*" row -- that's the
+# point of classifying it as explained. But a mistranslated population
+# predicate (a boolean flipped, an operator swapped) would ALSO explain away
+# real export rows it wrongly excludes, and would still pass export_only_ok
+# no matter how many rows it silently drops, as long as some predicate comes
+# back false for each one. This cap catches that: measured 0.04% in Bozeman
+# and 0.27% in Kansas City, so a share above 1% of well-formed export rows
+# is itself a signal a predicate is mistranslated, not ordinary population
+# filtering.
+
 CAVEATS = [
     "amenities/amenities_string: property_amenity_table has no delete-audit "
     "table (unlike photos' deleted_property_media_table), so a property "
@@ -1134,7 +1131,11 @@ CAVEATS = [
 
 
 def compute_gate_failures(
-    *, export_rows: int, malformed_export_rows: int, matched_rows: int
+    *,
+    export_rows: int,
+    malformed_export_rows: int,
+    matched_rows: int,
+    explained_export_only_rows: int = 0,
 ) -> list:
     """Named top-level gate conditions, each of which alone makes `ok`
     False:
@@ -1144,6 +1145,10 @@ def compute_gate_failures(
       - malformed_share_exceeded: malformed_export_rows is more than
         MAX_MALFORMED_SHARE of (well-formed + malformed) -- the export (or
         the msa argument) is wrong, not just ordinarily noisy.
+      - explained_share_exceeded: explained_export_only_rows (the
+        "excluded:*" rows export_only_ok never fails on) is more than
+        MAX_EXPLAINED_SHARE of export_rows -- see MAX_EXPLAINED_SHARE's own
+        comment for why an uncapped "explained" bucket can hide a real bug.
     Returns the list of names that fired, in that order; empty when none
     did. Division is guarded: a totally empty export (both counts zero)
     reports no_export_rows/no_matched_rows without also dividing by zero."""
@@ -1155,6 +1160,8 @@ def compute_gate_failures(
     total_rows = export_rows + malformed_export_rows
     if total_rows and (malformed_export_rows / total_rows) > MAX_MALFORMED_SHARE:
         failures.append("malformed_share_exceeded")
+    if export_rows and (explained_export_only_rows / export_rows) > MAX_EXPLAINED_SHARE:
+        failures.append("explained_share_exceeded")
     return failures
 
 
@@ -1182,6 +1189,7 @@ def _compose_result(
         export_rows=export_rows,
         malformed_export_rows=malformed_export_rows,
         matched_rows=len(matched_ids),
+        explained_export_only_rows=export_only_summary.get("explained_count", 0),
     )
     ok = (
         not gate_failures
@@ -1358,7 +1366,8 @@ def _print_summary(result: dict) -> None:
                     f"export={s['export']!r} db={s['db']!r}"
                 )
 
-    print(f"  not yet emitted (Task 6): {', '.join(result['not_yet_emitted'])}")
+    if result["not_yet_emitted"]:
+        print(f"  not yet emitted: {', '.join(result['not_yet_emitted'])}")
 
     caveats = result.get("caveats") or []
     if caveats:
@@ -1369,21 +1378,29 @@ def _print_summary(result: dict) -> None:
     print("OK — database is a superset of the export" if result["ok"] else "BLOCKED")
 
 
-def main(argv) -> int:
-    msa_code = argv[0]
-    csv_path = argv[1]
-    as_of = None
-    if "--as-of" in argv:
-        as_of = argv[argv.index("--as-of") + 1]
-    json_out = None
-    if "--json" in argv:
-        json_out = argv[argv.index("--json") + 1]
+def _build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("msa_code")
+    parser.add_argument("csv_path")
+    parser.add_argument(
+        "--as-of", default=None,
+        help="Export as-of date (YYYY-MM-DD). Derived from the CSV filename when omitted.",
+    )
+    parser.add_argument(
+        "--json", dest="json_out", default=None,
+        help="Write the full result as JSON to this path.",
+    )
+    return parser
 
-    result = reconcile(msa_code, csv_path, as_of=as_of)
+
+def main(argv) -> int:
+    args = _build_arg_parser().parse_args(argv)
+
+    result = reconcile(args.msa_code, args.csv_path, as_of=args.as_of)
     _print_summary(result)
 
-    if json_out:
-        with open(json_out, "w") as fh:
+    if args.json_out:
+        with open(args.json_out, "w") as fh:
             json.dump(result, fh, indent=2, default=str)
 
     return 0 if result["ok"] else 1

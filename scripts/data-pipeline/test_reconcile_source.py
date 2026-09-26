@@ -219,12 +219,22 @@ class CompareMatchedFields(unittest.TestCase):
         self.assertEqual(len(report["uru_id"]["mismatch_samples_non_drifted"]), 5)
         self.assertEqual(report["uru_id"]["compared"], 10)
 
-    def test_company_id_compares_against_export_child_company_id(self):
-        # field_mapping.md: c.id (reader's `company_id`) == export's
+    def test_child_company_id_compares_against_export_child_company_id(self):
+        # field_mapping.md: c.id (the reader's `child_company_id`, the key
+        # pipeline.py actually consumes for identity) == export's
         # `child_company_id`, VERIFIED 1000/1000 + 12,935/12,935 whole-export.
-        pairs = [("1", {"child_company_id": "555"}, {"company_id": "555"})]
+        pairs = [("1", {"child_company_id": "555"}, {"child_company_id": "555"})]
         report = reconcile_source.compare_matched_fields(pairs)
-        self.assertEqual(report["company_id"]["agreement_non_drifted"], 1.0)
+        self.assertEqual(report["child_company_id"]["agreement_non_drifted"], 1.0)
+
+    def test_child_company_id_blank_when_the_company_join_fails(self):
+        # The reader's `company_id` (p.company_id) stays populated even when
+        # the company join misses, but `child_company_id` (c.id) goes blank
+        # -- this is exactly the case the gate must catch: pipeline.py reads
+        # `child_company_id`, not `company_id`, for operator identity.
+        pairs = [("1", {"child_company_id": "555"}, {"child_company_id": ""})]
+        report = reconcile_source.compare_matched_fields(pairs)
+        self.assertEqual(report["child_company_id"]["agreement_non_drifted"], 0.0)
 
     def test_threshold_failure_marks_field_not_ok(self):
         # Fix round 3: enough rows to clear MIN_NON_DRIFTED_ROWS, so this
@@ -438,17 +448,17 @@ class CompanyIdentityFields(unittest.TestCase):
             ("dwellsy_prod.company_table",),
         )
 
-    def test_company_id_is_not_moved_to_the_company_group(self):
-        # company_id's value is p.company_id (a property_table foreign-key
-        # assignment), not a company_table attribute -- a property
-        # reassignment is what would change it, and that's already caught by
-        # "property_address" (p.last_update_time). A company_table rename or
-        # re-type (what the new "company" group watches) changes none of
-        # company_id's own value, so it stays put -- this was a genuine
-        # property_table dependency, not a placeholder used only for lack of
-        # a company group.
+    def test_child_company_id_is_not_moved_to_the_company_group(self):
+        # child_company_id's value is p.company_id (a property_table
+        # foreign-key assignment), not a company_table attribute -- a
+        # property reassignment is what would change it, and that's already
+        # caught by "property_address" (p.last_update_time). A company_table
+        # rename or re-type (what the "company" group watches) changes none
+        # of child_company_id's own value, so it stays put -- this was a
+        # genuine property_table dependency, not a placeholder used only for
+        # lack of a company group.
         self.assertEqual(
-            reconcile_source.FIELD_DRIFT_GROUP["company_id"], "property_address"
+            reconcile_source.FIELD_DRIFT_GROUP["child_company_id"], "property_address"
         )
 
     def test_mismatch_on_drifted_company_row_does_not_count_against_the_rate(self):
@@ -782,9 +792,13 @@ class Reconcile(unittest.TestCase):
         self.assertFalse(result["ok"])
 
     def test_ok_true_when_export_only_fully_explained_and_fields_pass(self):
+        # export_rows=200 (not 1): explained_share_exceeded is judged against
+        # well-formed export rows, and 1 explained-away row out of just 1
+        # total would itself exceed the 1% cap -- 200 keeps this test about
+        # what it says it's about (full explanation still passes).
         result = reconcile_source._compose_result(
             msa_code="99999",
-            export_rows=1,
+            export_rows=200,
             malformed_export_rows=0,
             db_rows=1,
             matched_ids={"1"},
@@ -827,6 +841,30 @@ class Reconcile(unittest.TestCase):
         )
         self.assertFalse(result["ok"])
         self.assertIn("uru_id", result["fields_below_threshold"])
+
+    def test_ok_false_when_explained_share_exceeds_the_cap(self):
+        # 11 explained-away export-only rows out of 1000 well-formed export
+        # rows (1.1%) -- export_only_ok alone would pass this (every row is
+        # "excluded:has_uru"), but compute_gate_failures' explained_share_
+        # exceeded must still fail the gate.
+        result = reconcile_source._compose_result(
+            msa_code="99999",
+            export_rows=1000,
+            malformed_export_rows=0,
+            db_rows=989,
+            matched_ids={str(i) for i in range(989)},
+            export_only_summary=reconcile_source.summarise_export_only_classifications(
+                ["excluded:has_uru"] * 11
+            ),
+            db_only_detail=_empty_db_only_detail(),
+            db_only_count=0,
+            export_only_count=11,
+            field_report=reconcile_source.compare_matched_fields(
+                [(str(i), {"uru_id": "9"}, {"uru_id": "9"}) for i in range(989)]
+            ),
+        )
+        self.assertIn("explained_share_exceeded", result["gate_failures"])
+        self.assertFalse(result["ok"])
 
 
 def _empty_db_only_detail() -> dict:
@@ -881,6 +919,39 @@ class ComputeGateFailures(unittest.TestCase):
             export_rows=990, malformed_export_rows=10, matched_rows=990
         )
         self.assertNotIn("malformed_share_exceeded", failures)
+
+    def test_explained_share_just_below_one_percent_passes(self):
+        # 9 explained / 1000 well-formed export rows = 0.9%.
+        failures = reconcile_source.compute_gate_failures(
+            export_rows=1000, malformed_export_rows=0, matched_rows=991,
+            explained_export_only_rows=9,
+        )
+        self.assertNotIn("explained_share_exceeded", failures)
+
+    def test_explained_share_just_above_one_percent_fails(self):
+        # 11 explained / 1000 well-formed export rows = 1.1%.
+        failures = reconcile_source.compute_gate_failures(
+            export_rows=1000, malformed_export_rows=0, matched_rows=989,
+            explained_export_only_rows=11,
+        )
+        self.assertIn("explained_share_exceeded", failures)
+
+    def test_explained_share_exactly_at_threshold_is_not_exceeded(self):
+        # 10 / 1000 = exactly 1.0% -- the check is strictly '>'.
+        failures = reconcile_source.compute_gate_failures(
+            export_rows=1000, malformed_export_rows=0, matched_rows=990,
+            explained_export_only_rows=10,
+        )
+        self.assertNotIn("explained_share_exceeded", failures)
+
+    def test_explained_share_defaults_to_zero_and_never_fires(self):
+        # Callers that don't pass explained_export_only_rows (e.g. existing
+        # callers of this function predating this gate) get 0, which never
+        # exceeds the cap.
+        failures = reconcile_source.compute_gate_failures(
+            export_rows=100, malformed_export_rows=0, matched_rows=100
+        )
+        self.assertNotIn("explained_share_exceeded", failures)
 
     def test_all_malformed_wrong_msa_fails_both_export_and_share_gates(self):
         # A wrong msa argument makes _is_malformed reject every row: zero
@@ -1053,6 +1124,47 @@ class SummaryPrinterHandlesNoneAndGateFailures(unittest.TestCase):
         self.assertIn("malformed_share_exceeded", output)
         self.assertFalse(result["ok"])
 
+    def test_omits_not_yet_emitted_line_when_the_tuple_is_empty(self):
+        # NOT_YET_EMITTED is currently (), so the line has nothing to say --
+        # printing it anyway ("not yet emitted: ") is just noise.
+        result = reconcile_source._compose_result(
+            msa_code="99999",
+            export_rows=1,
+            malformed_export_rows=0,
+            db_rows=1,
+            matched_ids={"1"},
+            export_only_summary=reconcile_source.summarise_export_only_classifications([]),
+            db_only_detail=_empty_db_only_detail(),
+            db_only_count=0,
+            export_only_count=0,
+            field_report=reconcile_source.compare_matched_fields([]),
+        )
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            reconcile_source._print_summary(result)
+        self.assertNotIn("not yet emitted", buf.getvalue())
+
+    def test_prints_not_yet_emitted_line_when_the_tuple_is_non_empty(self):
+        result = reconcile_source._compose_result(
+            msa_code="99999",
+            export_rows=1,
+            malformed_export_rows=0,
+            db_rows=1,
+            matched_ids={"1"},
+            export_only_summary=reconcile_source.summarise_export_only_classifications([]),
+            db_only_detail=_empty_db_only_detail(),
+            db_only_count=0,
+            export_only_count=0,
+            field_report=reconcile_source.compare_matched_fields([]),
+        )
+        result["not_yet_emitted"] = ["some_future_field"]
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            reconcile_source._print_summary(result)
+        output = buf.getvalue()
+        self.assertIn("not yet emitted: some_future_field", output)
+        self.assertNotIn("Task 6", output)
+
     def test_prints_none_when_no_gate_failures(self):
         result = reconcile_source._compose_result(
             msa_code="99999",
@@ -1167,6 +1279,47 @@ class ReconcileShortCircuitsOnEmptyExport(unittest.TestCase):
         self.assertIn("no_export_rows", result["gate_failures"])
         self.assertIn("no_matched_rows", result["gate_failures"])
         self.assertIn("malformed_share_exceeded", result["gate_failures"])
+
+
+class MainCliArgParsing(unittest.TestCase):
+    """The CLI used to parse --as-of/--json by hand
+    (`argv[argv.index(...) + 1]`), which raises an unhelpful IndexError when
+    the flag is the last argv token with no value. argparse gives a clean,
+    documented error (SystemExit) instead."""
+
+    def _csv_path(self, header, rows):
+        fh = tempfile.NamedTemporaryFile(
+            mode="w", suffix="_20260908.csv", delete=False, newline=""
+        )
+        writer = csv.writer(fh)
+        writer.writerow(header)
+        for row in rows:
+            writer.writerow(row)
+        fh.close()
+        self.addCleanup(os.unlink, fh.name)
+        return fh.name
+
+    def test_as_of_missing_value_exits_cleanly(self):
+        path = self._csv_path(["listing_id", "msa_code"], [])
+        with self.assertRaises(SystemExit):
+            reconcile_source.main(["14580", path, "--as-of"])
+
+    def test_json_missing_value_exits_cleanly(self):
+        path = self._csv_path(["listing_id", "msa_code"], [])
+        with self.assertRaises(SystemExit):
+            reconcile_source.main(["14580", path, "--json"])
+
+    def test_main_runs_end_to_end_against_an_empty_export(self):
+        # No network: an empty (header-only) export short-circuits
+        # reconcile() before any database pull (see
+        # ReconcileShortCircuitsOnEmptyExport).
+        path = self._csv_path(["listing_id", "msa_code"], [])
+        with mock.patch.object(
+            reconcile_source, "_load_db",
+            side_effect=AssertionError("must not pull the database"),
+        ):
+            exit_code = reconcile_source.main(["14580", path])
+        self.assertEqual(exit_code, 1)
 
 
 if __name__ == "__main__":

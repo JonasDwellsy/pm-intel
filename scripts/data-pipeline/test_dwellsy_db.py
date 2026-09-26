@@ -1,6 +1,8 @@
 import os
 import unittest
 
+import psycopg
+
 import dwellsy_db
 
 SECRET = os.path.expanduser("~/Documents/Dwellsy/secrets/db_connection.txt")
@@ -17,7 +19,7 @@ class DwellsyDbConnection(unittest.TestCase):
         self.assertEqual(rows, [{"a": 1, "b": "x"}])
 
     def test_writes_are_rejected(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(psycopg.errors.ReadOnlySqlTransaction):
             dwellsy_db.query("create temporary table should_not_exist (i int)")
 
     def test_connection_string_is_never_returned(self):
@@ -75,6 +77,23 @@ class DwellsyDbScrub(unittest.TestCase):
         self.assertNotIn("db.example.com", scrubbed)
         self.assertNotIn("10.1.2.3", scrubbed)
         self.assertNotIn("agent_x", scrubbed)
+
+    def test_scrub_redacts_could_not_translate_host_name(self):
+        msg = ('could not translate host name "db.internal.example.com" to '
+               'address: Name or service not known')
+        scrubbed = dwellsy_db._scrub(msg)
+        self.assertNotIn("db.internal.example.com", scrubbed)
+        self.assertIn("could not translate host name", scrubbed)
+
+    def test_scrubbed_preserves_the_exception_type(self):
+        # A specific error type (e.g. psycopg.errors.ReadOnlySqlTransaction)
+        # must survive _scrubbed unchanged -- only its message is rewritten.
+        original = psycopg.errors.ReadOnlySqlTransaction(
+            'could not translate host name "db.example.com" to address'
+        )
+        scrubbed = dwellsy_db._scrubbed(original)
+        self.assertIsInstance(scrubbed, psycopg.errors.ReadOnlySqlTransaction)
+        self.assertNotIn("db.example.com", str(scrubbed))
 
     def test_query_error_carries_no_exception_chain(self):
         # Force a failure before any network I/O by pointing the secret at a missing file.

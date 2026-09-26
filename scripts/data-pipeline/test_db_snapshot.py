@@ -92,6 +92,16 @@ class AtomicWrite(unittest.TestCase):
         self.assertFalse(os.path.isfile(self.path + ".meta.json"))
         self.assertEqual(os.listdir(self._tmp.name), [])
 
+    def test_a_zero_row_pull_raises_and_leaves_no_final_file(self):
+        meta_in = {"msa_code": "14580", "pulled_at": "x", "pulled_on_pacific": "2026-09-26"}
+
+        with self.assertRaises(ValueError):
+            db_snapshot.write_snapshot(iter(()), self.path, meta_in)
+
+        self.assertFalse(os.path.isfile(self.path))
+        self.assertFalse(os.path.isfile(self.path + ".meta.json"))
+        self.assertEqual(os.listdir(self._tmp.name), [])
+
 
 class EnsureSnapshot(unittest.TestCase):
     def setUp(self):

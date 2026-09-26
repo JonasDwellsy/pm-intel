@@ -87,24 +87,51 @@ def _parse_summary_counts(json_path: str) -> dict:
     return out
 
 
-def _db_snapshot_info(db_json_path: str) -> dict:
-    """Best-effort: db_snapshot.py (Task 7) writes `db_snapshot_<slug>_
-    <date>.csv` + a `.meta.json` sidecar next to the run's JSON output. If
-    one is found here, read its `row_count` and compute a live uru-id
-    coverage percentage from the snapshot itself. Returns {} when nothing
-    is found -- e.g. every unit test here, which uses fabricated JSON with
-    no snapshot file alongside it."""
+def _load_json_or_none(path: str) -> Optional[dict]:
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _db_snapshot_info(db_json_path: str, msa_code: Optional[str] = None) -> dict:
+    """Best-effort: db_snapshot.py writes `db_snapshot_<slug>_<date>.csv` + a
+    `.meta.json` sidecar next to the run's JSON output. If one is found
+    here, read its `row_count`, its `reader_stats` (the has_uru exclusion
+    counts -- see the module docstring), and compute a live uru-id coverage
+    percentage from the snapshot itself. Returns {} when nothing is found --
+    e.g. every unit test here, which uses fabricated JSON with no snapshot
+    file alongside it.
+
+    `msa_code`, when given, picks the meta whose OWN `msa_code` matches --
+    a directory can hold snapshots for more than one market (e.g. a shared
+    OUT_DIR across several runs), and the lexically-last filename has no
+    relationship to which one is THIS market's. Falls back to the
+    lexically-last meta when msa_code isn't given, or none matches, so
+    callers that can't supply it keep the old behavior."""
     out: dict = {}
     directory = os.path.dirname(os.path.abspath(db_json_path))
     metas = sorted(glob.glob(os.path.join(directory, "db_snapshot_*.csv.meta.json")))
     if not metas:
         return out
-    meta_path = metas[-1]
-    try:
-        meta = json.load(open(meta_path, encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return out
+    meta_path = None
+    meta = None
+    if msa_code:
+        for candidate_path in metas:
+            candidate_meta = _load_json_or_none(candidate_path)
+            if candidate_meta is not None and str(candidate_meta.get("msa_code")) == str(msa_code):
+                meta_path, meta = candidate_path, candidate_meta
+                break
+    if meta is None:
+        meta_path = metas[-1]
+        meta = _load_json_or_none(meta_path)
+        if meta is None:
+            return out
     out["row_count"] = meta.get("row_count")
+    reader_stats = meta.get("reader_stats") or {}
+    out["rows_passing_other_predicates"] = reader_stats.get("rows_passing_other_predicates")
+    out["rows_excluded_only_by_has_uru"] = reader_stats.get("rows_excluded_only_by_has_uru")
     snapshot_csv = meta_path[: -len(".meta.json")]
     try:
         total = 0
@@ -164,6 +191,28 @@ def _pct_delta(before, after) -> str:
     return f"{delta:+,}"
 
 
+# The reader's own OUTPUT is 100% uru_id coverage by construction (has_uru is
+# one of its own population predicates -- see dwellsy_source.py), so that can
+# never fail and was never a meaningful invariant. What can fail is how much
+# of the would-be population is dropped for lacking a URU at all: this is
+# the same 1% ceiling dwellsy_source's own test applies to LAST_RUN_STATS.
+MAX_URU_DROP_SHARE = 0.01
+
+
+def _uru_drop_invariant(counts_facts: dict) -> tuple[str, str]:
+    """(label, verdict) for the invariant-checklist row -- label carries the
+    actual count and share inline, per its own instruction, rather than a
+    bare pass/fail with the numbers hidden in the Counts table."""
+    passing = counts_facts.get("rows_passing_other_predicates")
+    excluded = counts_facts.get("rows_excluded_only_by_has_uru")
+    if not passing:
+        return "Rows dropped only for a missing URU: n/a", "n/a"
+    share = (excluded or 0) / passing
+    label = f"Rows dropped only for a missing URU: {excluded:,} ({share * 100:.2f}%)"
+    verdict = "PASS" if share <= MAX_URU_DROP_SHARE else "FAIL"
+    return label, verdict
+
+
 def _counts_section(a: dict, b: dict, csv_json_path: str, db_json_path: str,
                      csv_snapshot_meta: Optional[dict], ap: dict, bp: dict) -> list[str]:
     am = _market_summary(a)
@@ -171,7 +220,7 @@ def _counts_section(a: dict, b: dict, csv_json_path: str, db_json_path: str,
     csv_extra = dict(csv_snapshot_meta or {})
     csv_summary = _parse_summary_counts(csv_json_path)
     db_summary = _parse_summary_counts(db_json_path)
-    db_extra = _db_snapshot_info(db_json_path)
+    db_extra = _db_snapshot_info(db_json_path, msa_code=bm.get("msaCode"))
 
     csv_rows = csv_summary.get("input_rows", csv_extra.get("input_rows"))
     db_rows = db_summary.get("input_rows", db_extra.get("row_count"))
@@ -199,9 +248,20 @@ def _counts_section(a: dict, b: dict, csv_json_path: str, db_json_path: str,
         f"| uru_id coverage (non-blank share of input rows) | "
         f"{_fmt_pct(csv_uru_cov)} | {_fmt_pct(db_uru_cov)} | — |",
     ]
+    if db_uru_cov is not None:
+        lines += [
+            "",
+            "_db-side uru_id coverage is 100% by construction: "
+            "`market_listings` filters on `has_uru` itself, so every row it "
+            "emits already has a uru_id. See \"Rows dropped only for a "
+            "missing URU\" in the invariant checklist below for what that "
+            "filter actually costs._",
+        ]
     return lines, {
         "csv_rows": csv_rows, "db_rows": db_rows,
         "csv_uru_cov": csv_uru_cov, "db_uru_cov": db_uru_cov,
+        "rows_passing_other_predicates": db_extra.get("rows_passing_other_predicates"),
+        "rows_excluded_only_by_has_uru": db_extra.get("rows_excluded_only_by_has_uru"),
     }
 
 
@@ -288,29 +348,44 @@ def _metric_movements_section(both: list, ap: dict, bp: dict) -> list[str]:
     if not both:
         return ["- No operator scored in both runs.", ""]
     lines = [
-        "| metric | n | median ∣Δ∣ | unchanged | up1 | up2+ | down1 | down2+ |",
-        "|---|---|---|---|---|---|---|---|",
+        "| metric | n | median ∣Δ∣ | unchanged | up1 | up2+ | down1 | down2+ | rating gained/lost |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     movers_lines = []
     for group, value_field, star_field, label, fmt in METRICS:
         diffs = []
         movers = []
         buckets = {"unchanged": 0, "up1": 0, "up2+": 0, "down1": 0, "down2+": 0}
+        rating_changed = 0
         for slug in both:
             pa, pb = ap[slug], bp[slug]
             va, vb = _get(pa, group, value_field), _get(pb, group, value_field)
-            if va is not None and vb is not None:
-                d = abs(vb - va)
-                diffs.append(d)
-                movers.append((d, slug, pa.get("name"), va, vb))
+            if va is None or vb is None:
+                continue
+            d = abs(vb - va)
+            diffs.append(d)
+            movers.append((d, slug, pa.get("name"), va, vb))
+
+            # Star buckets are computed over this SAME population (both
+            # sides have a value) -- not over every operator scored in both
+            # runs -- so the bucket counts sum to `n`, not to len(both). A
+            # star appearing or disappearing (no rating on one side) is a
+            # coverage change, not a delta on the tier scale, so it's
+            # reported as its own count instead of being forced through
+            # STAR_RANK's None->0 mapping (which used to misread it as a
+            # 2+ tier swing).
             sa, sb = _get(pa, group, star_field), _get(pb, group, star_field)
+            if sa is None or sb is None:
+                if sa != sb:
+                    rating_changed += 1
+                continue
             delta = STAR_RANK.get(sb, 0) - STAR_RANK.get(sa, 0)
             buckets[_star_bucket(delta)] += 1
         median_change = statistics.median(diffs) if diffs else None
         lines.append(
             f"| {label} | {len(diffs)} | {fmt(median_change) if median_change is not None else 'n/a'} | "
             f"{buckets['unchanged']} | {buckets['up1']} | {buckets['up2+']} | "
-            f"{buckets['down1']} | {buckets['down2+']} |"
+            f"{buckets['down1']} | {buckets['down2+']} | {rating_changed} |"
         )
         movers.sort(key=lambda m: m[0], reverse=True)
         if movers:
@@ -323,6 +398,19 @@ def _metric_movements_section(both: list, ap: dict, bp: dict) -> list[str]:
             movers_lines.append("")
     lines.append("")
     return lines + movers_lines
+
+
+def _direction_word(before, after) -> str:
+    """higher / lower / about the same (within +-1 on the raw median photo
+    count) -- computed per market from the actual distributions rather than
+    assumed, since which way it moves is not the same on every market
+    (Bozeman's own numbers come out LOWER on the db side, not higher)."""
+    if before is None or after is None:
+        return "differently"
+    diff = after - before
+    if abs(diff) <= 1:
+        return "about the same"
+    return "higher" if diff > 0 else "lower"
 
 
 def _marketing_photo_section(ap: dict, bp: dict, both: list) -> list[str]:
@@ -338,6 +426,7 @@ def _marketing_photo_section(ap: dict, bp: dict, both: list) -> list[str]:
         if _get(ap[slug], "marketing", "star") != _get(bp[slug], "marketing", "star"):
             star_changed += 1
     star_pct = round(100 * star_changed / len(both), 1) if both else None
+    direction = _direction_word(raw_csv["median"], raw_db["median"])
 
     def row(label, d_csv, d_db):
         def f(v):
@@ -346,16 +435,16 @@ def _marketing_photo_section(ap: dict, bp: dict, both: list) -> list[str]:
                 f"{f(d_db['median'])} | {f(d_db['p10'])} | {f(d_db['p90'])} |")
 
     lines = [
-        "The Task 5 reconciliation gate found the export omits some active photos "
-        "(example: Kansas City property 9555972 has 35 active images, all created "
-        "2026-08-01, but the export lists 20; the dropped ones carry rentcafe "
-        "source filenames, the kept ones a different pattern -- an export photo-"
-        "selection rule not visible in the db, per task-5-report.md). Where that "
-        "recurs, db-sourced photo counts run higher for the affected operator, "
-        "though it need not move the market-wide distribution much if it's "
-        "concentrated in a few properties rather than systemic. Distribution is "
-        "across every scored operator on each side (not just those scored in "
-        "both), csv vs db:",
+        "The reconciliation gate found the export omits some active photos for "
+        "some properties (example: property 9555972 has 35 active images, all "
+        "created 2026-08-01, but the export lists only 20 of them; the dropped "
+        "ones carry a different source-filename pattern from the kept ones -- "
+        "an export photo-selection rule the database doesn't expose). On this "
+        f"market, the raw median photo count runs {direction} on the db side "
+        "(see the table below); the shift need not be uniform across operators "
+        "if it's concentrated in a few properties rather than systemic. "
+        "Distribution is across every scored operator on each side (not just "
+        "those scored in both), csv vs db:",
         "",
         "| | csv median | csv p10 | csv p90 | db median | db p10 | db p90 |",
         "|---|---|---|---|---|---|---|",
@@ -410,8 +499,7 @@ def report(csv_json_path: str, db_json_path: str, csv_snapshot_meta: Optional[di
                and counts_facts["db_rows"] >= counts_facts["csv_rows"])
     rows_verdict = "PASS" if rows_ok else ("n/a" if counts_facts["db_rows"] is None or
                                             counts_facts["csv_rows"] is None else "FAIL")
-    db_uru = counts_facts["db_uru_cov"]
-    uru_verdict = "n/a" if db_uru is None else ("PASS" if db_uru >= 100.0 else "FAIL")
+    uru_label, uru_verdict = _uru_drop_invariant(counts_facts)
     lost_verdict = "PASS" if lost_all_explained else "FAIL"
 
     takeaway = (
@@ -449,7 +537,7 @@ def report(csv_json_path: str, db_json_path: str, csv_snapshot_meta: Optional[di
         "|---|---|",
         f"| No unexplained lost operators | {lost_verdict} |",
         f"| Counts move in the expected direction (db >= csv rows) | {rows_verdict} |",
-        f"| uru_id coverage 100% (db snapshot) | {uru_verdict} |",
+        f"| {uru_label} | {uru_verdict} |",
         "",
     ]
     return "\n".join(lines)

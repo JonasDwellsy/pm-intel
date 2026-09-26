@@ -27,6 +27,11 @@ def _scrub(msg: str) -> str:
     msg = re.sub(r"postgres(?:ql)?://\S+", "<dsn redacted>", msg)
     msg = re.sub(r"\S+:\S+@\S+", "<dsn redacted>", msg)
     msg = re.sub(r'server at "[^"]*"(?: \([^)]*\))?', "server at <host redacted>", msg)
+    msg = re.sub(
+        r'could not translate host name "[^"]*"',
+        'could not translate host name "<host redacted>"',
+        msg,
+    )
     return re.sub(r'user "[^"]*"', "user <redacted>", msg)
 
 
@@ -44,7 +49,18 @@ def _scrubbed(exc: Exception) -> Exception:
 
 
 def connect() -> psycopg.Connection:
-    conn = psycopg.connect(_dsn(), row_factory=dict_row, autocommit=False)
+    # Session-level defaults set at connect time, on top of (not instead of)
+    # the per-transaction SETs below: belt and suspenders. A libpq `options`
+    # startup parameter applies before this session runs any SQL at all, so
+    # a caller that got a raw connection some other way still can't write or
+    # run past the timeout even if the per-transaction SETs below were ever
+    # skipped or reordered.
+    conn = psycopg.connect(
+        _dsn(),
+        row_factory=dict_row,
+        autocommit=False,
+        options=f"-c default_transaction_read_only=on -c statement_timeout={STATEMENT_TIMEOUT}",
+    )
     try:
         with conn.cursor() as cur:
             cur.execute("SET TRANSACTION READ ONLY")

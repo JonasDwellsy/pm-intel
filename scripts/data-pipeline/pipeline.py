@@ -161,6 +161,17 @@ NATIONAL_LOOKUP = os.path.join(
     BASE, _cfg.get("nationalLookup", "Operator_National_Urus_v0.6.2.json")
 )
 if _args.source == "db":
+    # Checked before the pull below, not just in the combined loop further
+    # down: a --source db run that's about to spend 1-2 minutes pulling a
+    # market shouldn't find out only afterward that the national lookup it
+    # needs later is missing. Same check, same message the combined loop
+    # already used -- csv mode is untouched, still checked only there.
+    if not os.path.isfile(NATIONAL_LOOKUP):
+        sys.exit(f"[pipeline] missing input (nationalLookup): {NATIONAL_LOOKUP}")
+    if _mkt["msaCode"] == "35620":
+        sys.exit(
+            "[pipeline] msa_code 35620 (New York) is out of scope for --source db"
+        )
     import db_snapshot
     CSV_PATH, DB_SNAPSHOT_META = db_snapshot.ensure_snapshot(
         _mkt["msaCode"], OUT_DIR, _mkt["outputSlug"], snapshot_path=_args.db_snapshot,
@@ -189,6 +200,13 @@ MARKET_STATE = _mkt["state"]
 PRIMARY_CITY_FOR_MARKET = _mkt["primaryCity"]
 
 if _args.source == "db":
+    if _args.as_of and _args.as_of > DB_SNAPSHOT_META["pulled_on_pacific"]:
+        sys.exit(
+            f"[pipeline] --as-of {_args.as_of} is later than the snapshot's "
+            f"pulled_on_pacific {DB_SNAPSHOT_META['pulled_on_pacific']!r} -- "
+            f"the snapshot holds no data through that date; pull a fresh "
+            f"snapshot or pass an earlier --as-of"
+        )
     # markets.json's dataAsOf dates the CSV export, not this DB pull -- it
     # would silently mis-window T12/T24 against data the pull never touched.
     DATA_AS_OF = _args.as_of or DB_SNAPSHOT_META["pulled_on_pacific"]
