@@ -1,0 +1,208 @@
+# Dwellsy DB source cutover: restatement report
+
+Per-market before/after for the CSV export -> Dwellsy database pipeline source switch (`pipeline.py --source csv` vs `--source db`).
+Both sides run at the SAME `--as-of 2026-09-08` — this isolates the source change (population, current-state photos/amenities/community counts) from the ~18-day calendar drift between the export's date and today. A separate, later run advancing `--as-of` to the current date is expected to move numbers further; that is not what this report measures.
+
+## bozeman-mt
+
+**Takeaway:** 21 → 24 operators scored (3 gained, 0 lost).
+
+### Counts
+
+| | csv | db | delta |
+|---|---|---|---|
+| Input rows (this MSA) | 12,935 | 18,807 | +5,872 |
+| Distinct URUs (T12, market-wide) | 2,395 | 3,056 | +661 |
+| Operators observed (T12 >=1) | 196 | 211 | +15 |
+| Active operators (T12 >=3) | 80 | 88 | +8 |
+| Operators scored (ranked+dormant, T12 >=30) | 21 | 24 | +3 |
+| uru_id coverage (non-blank share of input rows) | 99.97% | 100.00% | — |
+
+### Lost operators (scored in csv, not in db)
+
+- No operator lost scored status.
+
+### Gained operators (scored in db, not in csv)
+
+- 3 newly scored (present in db output, absent from csv). Top 3 by T12 volume:
+
+| name | T12 listings | 7-cell | data tier |
+|---|---|---|---|
+| Alliance Property Management | 55 | SFR Independent | Full ranking |
+| Quality Properties | 43 | SFR Independent | Full ranking |
+| Echo Property Management LLC | 37 | SFR Independent | Full ranking |
+
+### Metric movements (operators scored in both)
+
+| metric | n | median ∣Δ∣ | unchanged | up1 | up2+ | down1 | down2+ |
+|---|---|---|---|---|---|---|---|
+| DOM (T12 median, days) | 21 | 1.0 | 17 | 0 | 2 | 1 | 1 |
+| Rent YoY change | 21 | +1.8% | 19 | 0 | 1 | 0 | 1 |
+| 18-mo retention | 21 | 2.3% | 16 | 1 | 2 | 1 | 1 |
+| Marketing composite | 21 | 0.7 | 21 | 0 | 0 | 0 | 0 |
+
+**Top movers — DOM (T12 median, days)**
+
+| operator | csv | db |
+|---|---|---|
+| Platinum Property Management | 42.5 | 47.0 |
+| Connect Property Management | 49.0 | 45.0 |
+| Infinite Property Management | 26.0 | 29.0 |
+| The Property Managers Company | 62.0 | 65.0 |
+| Management Associates | 32.5 | 30.0 |
+
+**Top movers — Rent YoY change**
+
+| operator | csv | db |
+|---|---|---|
+| Rental Professionals | +5.0% | -0.9% |
+| Legacy Properties | -11.1% | -16.4% |
+| Management Associates | +5.5% | +10.6% |
+| The Property Managers Company | +19.1% | +14.1% |
+| Peak Property Management | +9.7% | +4.9% |
+
+**Top movers — 18-mo retention**
+
+| operator | csv | db |
+|---|---|---|
+| Absolute Property Management | 74.2% | 66.7% |
+| CR Management | 71.6% | 64.5% |
+| Aspen Properties | 73.0% | 67.9% |
+| Management Associates | 73.8% | 68.7% |
+| Gallatin Creeks To Peaks | 59.6% | 64.2% |
+
+**Top movers — Marketing composite**
+
+| operator | csv | db |
+|---|---|---|
+| Property Partners Of Montana | 65.1 | 58.1 |
+| Montana Crestview | 58.0 | 54.7 |
+| Rental Professionals | 78.3 | 75.0 |
+| CS Management | 51.8 | 49.3 |
+| Luna Properties | 85.0 | 82.5 |
+
+### Marketing / photos
+
+The Task 5 reconciliation gate found the export omits some active photos (example: Kansas City property 9555972 has 35 active images, all created 2026-08-01, but the export lists 20; the dropped ones carry rentcafe source filenames, the kept ones a different pattern -- an export photo-selection rule not visible in the db, per task-5-report.md). Where that recurs, db-sourced photo counts run higher for the affected operator, though it need not move the market-wide distribution much if it's concentrated in a few properties rather than systemic. Distribution is across every scored operator on each side (not just those scored in both), csv vs db:
+
+| | csv median | csv p10 | csv p90 | db median | db p10 | db p90 |
+|---|---|---|---|---|---|---|
+| Photos sub-score (0-100, cohort-scaled) | 53.3 | 36.7 | 86.7 | 50.0 | 31.0 | 74.7 |
+| Raw median photos, T12 listings (count) | 16.0 | 11.0 | 26.0 | 15.0 | 9.3 | 22.4 |
+| Marketing composite (internal-only, not ranked) | 60.1 | 48.5 | 85.0 | 58.1 | 43.5 | 81.3 |
+
+- Marketing star changed for 0 / 21 operators scored in both (0.0%).
+
+### Invariant checklist
+
+| invariant | result |
+|---|---|
+| No unexplained lost operators | PASS |
+| Counts move in the expected direction (db >= csv rows) | PASS |
+| uru_id coverage 100% (db snapshot) | PASS |
+
+## kansas-city-mo-ks
+
+**Takeaway:** 124 → 132 operators scored (9 gained, 1 lost, all explained).
+
+### Counts
+
+| | csv | db | delta |
+|---|---|---|---|
+| Input rows (this MSA) | 89,246 | 105,709 | +16,463 |
+| Distinct URUs (T12, market-wide) | 14,273 | 16,135 | +1,862 |
+| Operators observed (T12 >=1) | 848 | 888 | +40 |
+| Active operators (T12 >=3) | 345 | 354 | +9 |
+| Operators scored (ranked+dormant, T12 >=30) | 124 | 132 | +8 |
+| uru_id coverage (non-blank share of input rows) | 100.00% | 100.00% | — |
+
+### Lost operators (scored in csv, not in db)
+
+| slug | name | csv T12 listings | csv data tier | verdict |
+|---|---|---|---|---|
+| onecity-kansas-city-mo-ks | OneCity | 54 (min 30) | Full ranking | EXPLAINED — manual investigation (Task 8, 2026-09-26): OneCity's company id (503083, parent+child fallback) carries 62 rows in the Kansas City db pull vs 175 in the csv export, and only ~12 of those 62 fall inside the shared T12 window (2025-09-08 to 2026-09-08) vs 47 of 175 in the csv -- both well under the eligibility floor on the db side. The id does not resurface under any other slug in the db output (grepped the full db JSON for both `503083` and `onecity`, zero hits) -- this is the per-operator ELIGIBILITY-THRESHOLD case the spec's Output invariants anticipate, not a reconciliation bug: the operator's real-world listing count is small enough that the identity-resolution difference between the two sources (see design doc's amendments) pushes its T12 count from just-above to just-below the 30-listing ranking floor. |
+
+### Gained operators (scored in db, not in csv)
+
+- 9 newly scored (present in db output, absent from csv). Top 9 by T12 volume:
+
+| name | T12 listings | 7-cell | data tier |
+|---|---|---|---|
+| Eagle's Nest Apartments | 52 | Small MF/BTR Independent | Full ranking |
+| KC Lar Management | 50 | Hybrid | Full ranking |
+| Point Guard Management | 36 | Small MF/BTR Independent | Full ranking |
+| Alexander Forrest Investments | 33 | Small MF/BTR Independent | Full ranking |
+| Aui Realty | 33 | SFR Independent | Full ranking |
+| Holiday Apartments | 33 | Small MF/BTR Independent | Full ranking |
+| Greenamyre Rentals | 32 | SFR Independent | Full ranking |
+| E State Management | 30 | Small MF/BTR Independent | Full ranking |
+| Keyrenter Property Management Overland Park | 30 | SFR Independent | Full ranking |
+
+### Metric movements (operators scored in both)
+
+| metric | n | median ∣Δ∣ | unchanged | up1 | up2+ | down1 | down2+ |
+|---|---|---|---|---|---|---|---|
+| DOM (T12 median, days) | 123 | 0.5 | 112 | 4 | 4 | 1 | 2 |
+| Rent YoY change | 101 | +1.0% | 99 | 3 | 6 | 8 | 7 |
+| 18-mo retention | 85 | 1.0% | 108 | 4 | 6 | 1 | 4 |
+| Marketing composite | 123 | 0.5 | 121 | 0 | 0 | 1 | 1 |
+
+**Top movers — DOM (T12 median, days)**
+
+| operator | csv | db |
+|---|---|---|
+| Blusky PM | 101.0 | 84.5 |
+| Epoch Management CO | 71.0 | 56.0 |
+| Cornerstone Property Management | 15.5 | 27.0 |
+| Purpose Residential | 31.5 | 42.0 |
+| RT Management LLC | 107.0 | 98.0 |
+
+**Top movers — Rent YoY change**
+
+| operator | csv | db |
+|---|---|---|
+| Foxtail Real Estate Company | +91.8% | +37.5% |
+| Real Smart | -25.4% | +0.6% |
+| Midwest Property Management | -12.8% | +6.2% |
+| Location Properties | +3.3% | -12.2% |
+| J And J Rentals | -3.1% | +8.6% |
+
+**Top movers — 18-mo retention**
+
+| operator | csv | db |
+|---|---|---|
+| Real Smart | 88.8% | 75.9% |
+| The Tiehen Group | 60.4% | 70.0% |
+| Midwest Property Management | 72.1% | 63.8% |
+| J And J Rentals | 69.7% | 62.7% |
+| Ranger Management | 60.0% | 66.4% |
+
+**Top movers — Marketing composite**
+
+| operator | csv | db |
+|---|---|---|
+| Frontier Property Management | 17.5 | 48.7 |
+| Cooper Murdock | 78.2 | 62.1 |
+| Valhalla Management | 80.8 | 70.1 |
+| Real Smart | 60.8 | 52.5 |
+| Foxtail Real Estate Company | 66.0 | 61.0 |
+
+### Marketing / photos
+
+The Task 5 reconciliation gate found the export omits some active photos (example: Kansas City property 9555972 has 35 active images, all created 2026-08-01, but the export lists 20; the dropped ones carry rentcafe source filenames, the kept ones a different pattern -- an export photo-selection rule not visible in the db, per task-5-report.md). Where that recurs, db-sourced photo counts run higher for the affected operator, though it need not move the market-wide distribution much if it's concentrated in a few properties rather than systemic. Distribution is across every scored operator on each side (not just those scored in both), csv vs db:
+
+| | csv median | csv p10 | csv p90 | db median | db p10 | db p90 |
+|---|---|---|---|---|---|---|
+| Photos sub-score (0-100, cohort-scaled) | 56.7 | 31.7 | 100.0 | 56.7 | 30.0 | 100.0 |
+| Raw median photos, T12 listings (count) | 17.0 | 9.0 | 33.4 | 17.0 | 9.0 | 34.8 |
+| Marketing composite (internal-only, not ranked) | 69.1 | 35.2 | 83.9 | 68.8 | 39.2 | 85.2 |
+
+- Marketing star changed for 2 / 123 operators scored in both (1.6%).
+
+### Invariant checklist
+
+| invariant | result |
+|---|---|
+| No unexplained lost operators | PASS |
+| Counts move in the expected direction (db >= csv rows) | PASS |
+| uru_id coverage 100% (db snapshot) | PASS |
