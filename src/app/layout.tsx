@@ -88,6 +88,7 @@ export default function RootLayout({
       allowedRedirectOrigins={[
         "https://portfolio.iq.dwellsy.com",
         "https://evidence.iq.dwellsy.com",
+        "https://concessions.iq.dwellsy.com",
       ]}
     >
       <html
