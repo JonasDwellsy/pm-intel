@@ -158,6 +158,29 @@ class EnsureSnapshot(unittest.TestCase):
                 "14580", self.out_dir, "bozeman", snapshot_path=path, pull=self._fail_if_called,
             )
 
+    def test_a_truncated_snapshot_is_refused(self):
+        path = os.path.join(self.out_dir, "truncated.csv")
+        db_snapshot.write_snapshot(
+            [{"a": "1"}, {"a": "2"}, {"a": "3"}], path,
+            {"msa_code": "14580", "pulled_at": "x", "pulled_on_pacific": "2026-09-01"},
+        )
+        with open(path, "r+", encoding="utf-8") as fh:
+            fh.truncate(os.path.getsize(path) - 2)
+
+        with self.assertRaises(ValueError):
+            db_snapshot.ensure_snapshot(
+                "14580", self.out_dir, "bozeman", snapshot_path=path, pull=self._fail_if_called,
+            )
+
+    def test_meta_records_the_file_size_and_leaves_no_temp_files(self):
+        path = os.path.join(self.out_dir, "sized.csv")
+        meta = db_snapshot.write_snapshot(
+            [{"a": "1"}], path,
+            {"msa_code": "14580", "pulled_at": "x", "pulled_on_pacific": "2026-09-01"},
+        )
+        self.assertEqual(meta["size_bytes"], os.path.getsize(path))
+        self.assertEqual(sorted(os.listdir(self.out_dir)), ["sized.csv", "sized.csv.meta.json"])
+
 
 class DefaultSnapshotPath(unittest.TestCase):
     def test_format(self):

@@ -89,10 +89,22 @@ def write_snapshot(rows: Iterable[dict], path: str, meta: dict) -> dict:
 
     full_meta = dict(meta)
     full_meta["row_count"] = row_count
+    # Reuse checks the file against this size, so a snapshot truncated by an
+    # interrupted copy between machines is refused rather than silently read.
+    full_meta["size_bytes"] = os.path.getsize(path)
     full_meta["reader_stats"] = dict(dwellsy_source.LAST_RUN_STATS)
     full_meta.setdefault("source", "dwellsy_db")
-    with open(_meta_path(path), "w", encoding="utf-8") as fh:
-        json.dump(full_meta, fh, indent=2, sort_keys=True)
+    meta_path = _meta_path(path)
+    fd, tmp_meta = tempfile.mkstemp(
+        dir=out_dir, prefix=os.path.basename(meta_path) + ".", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(full_meta, fh, indent=2, sort_keys=True)
+    except BaseException:
+        os.remove(tmp_meta)
+        raise
+    os.replace(tmp_meta, meta_path)
     return full_meta
 
 
@@ -116,7 +128,8 @@ def ensure_snapshot(
       meta's msa_code against the one requested here, since a mismatch
       means this snapshot belongs to a different market entirely and
       silently proceeding would run the whole pipeline against the wrong
-      market's data.
+      market's data -- and against the meta's recorded size_bytes, so a
+      truncated copy is refused.
     - `snapshot_path` given but missing (or its meta is): pulled and written
       there.
     - `snapshot_path` omitted: pulled and written to
@@ -132,6 +145,15 @@ def ensure_snapshot(
                 f"existing snapshot at {snapshot_path!r} is for msa_code "
                 f"{existing_msa!r}, not the requested {msa_code!r} -- point "
                 f"--db-snapshot at the right file, or omit it to pull fresh"
+            )
+        expected_size = meta.get("size_bytes")
+        actual_size = os.path.getsize(snapshot_path)
+        if expected_size != actual_size:
+            raise ValueError(
+                f"snapshot at {snapshot_path!r} is {actual_size:,} bytes but its "
+                f"meta records {expected_size!r} -- the file is truncated, "
+                f"altered, or predates size tracking; delete it (and its "
+                f".meta.json) to pull fresh"
             )
         return snapshot_path, meta
 
