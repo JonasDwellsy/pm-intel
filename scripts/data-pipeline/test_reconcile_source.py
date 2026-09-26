@@ -403,6 +403,18 @@ class CompanyIdentityFields(unittest.TestCase):
         "parent_company_type",
     )
 
+    def test_reassigned_property_drifts_identity_fields(self):
+        # p.company_id changed A -> B: neither company row was touched, but
+        # the property row was, so the identity fields must count as drifted.
+        self.assertTrue(reconcile_source.company_row_drifted("B", {"B": False}, True))
+
+    def test_company_row_change_drifts_identity_fields(self):
+        self.assertTrue(reconcile_source.company_row_drifted("B", {"B": True}, False))
+
+    def test_untouched_company_and_property_is_not_drifted(self):
+        self.assertFalse(reconcile_source.company_row_drifted("B", {"B": False}, False))
+        self.assertFalse(reconcile_source.company_row_drifted("", {}, False))
+
     def test_not_yet_emitted_is_now_empty(self):
         self.assertEqual(reconcile_source.NOT_YET_EMITTED, ())
         for field in self.NEW_FIELDS:
@@ -915,51 +927,69 @@ class ComputeGateFailures(unittest.TestCase):
 
 
 class NonDriftedFloor(unittest.TestCase):
-    """Fix round 3, finding 2 (per-field vacuous pass): a field with too
-    few non-drifted rows to judge -- below MIN_NON_DRIFTED_ROWS (200) or
-    below MIN_NON_DRIFTED_SHARE (25%) of what was compared, whichever is
-    larger -- can no longer pass, even with perfect agreement on the rows
-    it does have."""
+    """A pass that relies on setting drifted rows aside needs enough
+    non-drifted evidence: at least MIN_NON_DRIFTED_ROWS (200) or
+    MIN_NON_DRIFTED_SHARE (25%) of what was compared, whichever is larger.
+    A field whose ALL-rows rate clears the threshold passes without it."""
 
     @staticmethod
-    def _matching_pairs(n):
-        return [(str(i), {"uru_id": "9"}, {"uru_id": "9"}) for i in range(n)]
+    def _pairs(n_matching_non_drifted, n_mismatching_drifted):
+        """Matching non-drifted rows plus mismatching drifted rows, so the
+        all-rows rate fails and only the non-drifted path can pass."""
+        pairs, drifted = [], {}
+        for i in range(n_matching_non_drifted):
+            pairs.append((f"m{i}", {"uru_id": "9"}, {"uru_id": "9"}))
+        for i in range(n_mismatching_drifted):
+            pairs.append((f"d{i}", {"uru_id": "9"}, {"uru_id": "MISMATCH"}))
+            drifted[f"d{i}"] = True
+        return pairs, {"uru_id": drifted}
 
     def test_199_non_drifted_rows_is_insufficient(self):
-        # compared=200 -> floor = max(200, 0.25*200=50) = 200; 199 < 200.
-        pairs = self._matching_pairs(200)
-        drift = {"uru_id": {"0": True}}  # marks one row drifted -> 199 non-drifted
+        # compared=249 -> floor = max(200, 62.25) = 200; 199 < 200.
+        pairs, drift = self._pairs(199, 50)
         report = reconcile_source.compare_matched_fields(pairs, drift=drift)
         self.assertEqual(report["uru_id"]["non_drifted"], 199)
         self.assertFalse(report["uru_id"]["ok"])
         self.assertEqual(report["uru_id"]["reason"], "insufficient_non_drifted")
 
     def test_200_non_drifted_rows_meets_the_floor(self):
-        pairs = self._matching_pairs(200)
-        report = reconcile_source.compare_matched_fields(pairs)
+        pairs, drift = self._pairs(200, 50)
+        report = reconcile_source.compare_matched_fields(pairs, drift=drift)
         self.assertEqual(report["uru_id"]["non_drifted"], 200)
         self.assertTrue(report["uru_id"]["ok"])
         self.assertIsNone(report["uru_id"]["reason"])
+        self.assertEqual(report["uru_id"]["passed_on"], "non_drifted")
 
     def test_24_percent_non_drifted_share_is_insufficient(self):
-        # compared=1000 -> floor = max(200, 0.25*1000=250) = 250; 240 < 250.
-        pairs = self._matching_pairs(1000)
-        drifted_ids = {str(i) for i in range(760)}  # 760 drifted -> 240 non-drifted
-        drift = {"uru_id": {lid: True for lid in drifted_ids}}
+        # compared=1000 -> floor = max(200, 250) = 250; 240 < 250.
+        pairs, drift = self._pairs(240, 760)
         report = reconcile_source.compare_matched_fields(pairs, drift=drift)
         self.assertEqual(report["uru_id"]["non_drifted"], 240)
         self.assertFalse(report["uru_id"]["ok"])
         self.assertEqual(report["uru_id"]["reason"], "insufficient_non_drifted")
 
     def test_26_percent_non_drifted_share_meets_the_floor(self):
-        # compared=1000 -> floor = 250; 260 >= 250.
-        pairs = self._matching_pairs(1000)
-        drifted_ids = {str(i) for i in range(740)}  # 740 drifted -> 260 non-drifted
-        drift = {"uru_id": {lid: True for lid in drifted_ids}}
+        pairs, drift = self._pairs(260, 740)
         report = reconcile_source.compare_matched_fields(pairs, drift=drift)
         self.assertEqual(report["uru_id"]["non_drifted"], 260)
         self.assertTrue(report["uru_id"]["ok"])
-        self.assertIsNone(report["uru_id"]["reason"])
+        self.assertEqual(report["uru_id"]["passed_on"], "non_drifted")
+
+    def test_all_rows_agreement_passes_despite_a_mostly_drifted_pool(self):
+        # Kansas City's identity fields: 100% agreement on every row, but a
+        # noisy drift signal flags ~82% of rows. Nothing needs excusing.
+        pairs = [(str(i), {"uru_id": "9"}, {"uru_id": "9"}) for i in range(1000)]
+        drift = {"uru_id": {str(i): True for i in range(820)}}
+        report = reconcile_source.compare_matched_fields(pairs, drift=drift)
+        self.assertTrue(report["uru_id"]["ok"])
+        self.assertEqual(report["uru_id"]["passed_on"], "all_rows")
+
+    def test_all_rows_path_still_needs_200_compared_rows(self):
+        pairs = [(str(i), {"uru_id": "9"}, {"uru_id": "9"}) for i in range(150)]
+        drift = {"uru_id": {str(i): True for i in range(100)}}
+        report = reconcile_source.compare_matched_fields(pairs, drift=drift)
+        self.assertFalse(report["uru_id"]["ok"])
+        self.assertEqual(report["uru_id"]["reason"], "insufficient_non_drifted")
 
     def test_zero_denominator_rate_is_none_not_a_fabricated_1_0(self):
         pairs = [("1", {"uru_id": "9"}, {"uru_id": "MISMATCH"})]

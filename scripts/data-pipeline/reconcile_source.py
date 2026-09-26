@@ -607,6 +607,18 @@ def fetch_company_drift(as_of: str, company_ids) -> dict:
     return result
 
 
+def company_row_drifted(
+    company_id: str, company_drift_by_company: dict, property_drifted: bool
+) -> bool:
+    """Identity fields change when the company's own row changes AND when the
+    property is reassigned to another company. A reassignment rewrites
+    p.company_id (bumping p.last_update_time, the property_address signal)
+    without touching either company's row, so both signals count."""
+    if property_drifted:
+        return True
+    return bool(company_drift_by_company.get(company_id, False)) if company_id else False
+
+
 def compute_drift(as_of: str, db_by_listing_id: dict, matched_ids) -> dict:
     """Runs every drift-group fetch and expands the result into
     {field_name: {listing_id: bool}}, one entry per FIELD_SPECS field, ready
@@ -648,7 +660,9 @@ def compute_drift(as_of: str, db_by_listing_id: dict, matched_ids) -> dict:
             bool(parent) and bool(photos_drift_by_id.get(parent, False))
         )
         cid = _norm_blank(db_by_listing_id[lid].get("company_id"))
-        company_drift[lid] = bool(company_drift_by_company.get(cid, False)) if cid else False
+        company_drift[lid] = company_row_drifted(
+            cid, company_drift_by_company, property_address_drift[lid]
+        )
 
     group_drift = {
         "listing": listing_drift,
@@ -775,23 +789,31 @@ def compare_matched_fields(
         )
         threshold = thresholds.get(field, 0.0)
 
-        # Fix round 3: the floor is checked BEFORE the threshold -- a field
-        # can fail for having too little non-drifted evidence even when the
-        # (fabricated-looking) rate on what little there is would clear the
-        # bar.
+        # A field passes on ALL rows when they clear the threshold without
+        # setting any drifted row aside: drift can only excuse mismatches, so
+        # when there are too few to matter it is irrelevant. This matters for
+        # fields whose drift signal is noisy (company_table.last_update_time
+        # is bumped by background jobs and flags ~80% of Kansas City rows).
+        # Only a pass that RELIES on excluding drifted rows needs the
+        # non-drifted evidence floor, so a near-empty non-drifted pool can
+        # never carry a pass on its own.
         min_non_drifted_required = max(
             MIN_NON_DRIFTED_ROWS, MIN_NON_DRIFTED_SHARE * compared
         )
         insufficient_non_drifted = non_drifted_count < min_non_drifted_required
-        if insufficient_non_drifted:
-            field_ok = False
-            reason = "insufficient_non_drifted"
+        passes_on_all_rows = (
+            compared >= MIN_NON_DRIFTED_ROWS
+            and rate_all is not None
+            and rate_all >= threshold
+        )
+        if passes_on_all_rows:
+            field_ok, reason, passed_on = True, None, "all_rows"
+        elif insufficient_non_drifted:
+            field_ok, reason, passed_on = False, "insufficient_non_drifted", None
         elif rate_non_drifted is not None and rate_non_drifted < threshold:
-            field_ok = False
-            reason = "below_threshold"
+            field_ok, reason, passed_on = False, "below_threshold", None
         else:
-            field_ok = True
-            reason = None
+            field_ok, reason, passed_on = True, None, "non_drifted"
 
         entry = {
             "compared": compared,
@@ -803,6 +825,7 @@ def compare_matched_fields(
             "min_non_drifted_required": min_non_drifted_required,
             "ok": field_ok,
             "reason": reason,
+            "passed_on": passed_on,
             "mismatch_samples_non_drifted": samples_non_drifted,
             "mismatch_samples_drifted": samples_drifted,
         }
@@ -1300,11 +1323,13 @@ def _print_summary(result: dict) -> None:
         f"company_in_export_share={do['other_company_in_export_share']}"
     )
 
-    print("  field agreement (threshold applies to non-drifted rate; tolerance rate where noted):")
+    print("  field agreement (passes on the all-rows rate, else on the non-drifted rate; tolerance rate where noted):")
     for field, r in result["fields"].items():
         flag = "OK" if r["ok"] else "FAIL"
         rate_label = "tolerance_non_drifted" if "exact_agreement_non_drifted" in r else "non_drifted"
         reason_suffix = f" reason={r['reason']}" if r.get("reason") else ""
+        if r.get("passed_on"):
+            reason_suffix += f" passed_on={r['passed_on']}"
         print(
             f"    {field:26s} {rate_label}={_fmt_rate(r['agreement_non_drifted'])} "
             f"(n={r['non_drifted']:,}) all={_fmt_rate(r['agreement_all'])} "
