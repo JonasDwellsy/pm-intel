@@ -91,6 +91,95 @@ def _values_match(comparator: str, export_val, db_val) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Tolerance comparators (Fix round 2)
+#
+# Controller ruling on the 3 fields still BLOCKED after Fix round 1
+# (latitude, longitude, top_down_community_count): round 1's diagnosis found
+# a real post-export value change with no tracking timestamp anywhere in the
+# schema (checked last_update_time, ss_update_time, ss_pro_update_time for
+# coordinates; last_update_time, significant_updates_time for the community
+# roster) -- so these fields switch from exact/drift-only to a comparator
+# that fits how each is actually used, on top of (not instead of) the
+# existing drift split. Thresholds are UNCHANGED (0.99 for both); they now
+# apply to the tolerance-agreement rate on non-drifted rows, and the exact
+# rate is still reported alongside every tolerance rate, never hidden.
+# ---------------------------------------------------------------------------
+
+LATLON_TOLERANCE_DEG = 0.001
+# ~111m of latitude, ~86m of longitude at Kansas City's 39 degrees N.
+# Coordinates are re-geocoded by a background process that updates no
+# timestamp we have access to (Fix round 1 checked property_table /
+# address_line1_table's last_update_time, ss_update_time and
+# ss_pro_update_time -- all stale on every non-drifted mismatch sample). The
+# pipeline uses these coordinates for maps and market geography, where a
+# ~100m difference is immaterial. Round 0's diagnosis already found 98.7% of
+# Kansas City's latitude mismatches were within 100m (median ~2m); this
+# tolerance formalizes that finding as the pass bar instead of exact
+# equality, rather than papering over it with a wider miss-rate threshold.
+
+
+def _community_count_tolerance(export_value: float) -> float:
+    """max(2, 10% of the export's count). top_down_community_count is a
+    community roster aggregate (address_community_table.count_top_down)
+    recomputed by some process that touches no timestamp we can see
+    (Fix round 1: last_update_time was years stale and significant_updates_time
+    was NULL on every non-drifted mismatch sample) -- it is current state by
+    construction, not a point-in-time snapshot. A flat absolute tolerance
+    would be too loose for a 4-unit building and too tight for a 400-unit
+    complex; a flat percentage would be too loose for tiny communities (10%
+    of 1 rounds to nothing). The floor of 2 and the 10%-of-export scale
+    exist for exactly those two ends of the size range."""
+    return max(2.0, 0.10 * export_value)
+
+
+TOLERANCE_FUNCS = {
+    "latitude": lambda export_value: LATLON_TOLERANCE_DEG,
+    "longitude": lambda export_value: LATLON_TOLERANCE_DEG,
+    "top_down_community_count": _community_count_tolerance,
+}
+
+
+def tolerance_match(field: str, export_val, db_val) -> tuple[bool, bool]:
+    """(exact_match, within_tolerance) for a field in TOLERANCE_FUNCS.
+    Blank/null on exactly one side is a mismatch on BOTH measures (a value
+    appearing or disappearing is never "within tolerance" of nothing);
+    blank on both sides matches on both (nothing to disagree about)."""
+    e = _to_number(export_val)
+    d = _to_number(db_val)
+    if e is None and d is None:
+        return True, True
+    if e is None or d is None:
+        return False, False
+    exact = e == d
+    within = exact or abs(e - d) <= TOLERANCE_FUNCS[field](e)
+    return exact, within
+
+
+COMMUNITY_COUNT_DIFF_BUCKETS = ("1", "2", "3-5", "6-10", "11-25", ">25", "negative")
+
+
+def community_count_diff_bucket(diff: int) -> str:
+    """Buckets a signed (db - export) top_down_community_count difference
+    for the diagnostic histogram -- not gated by tolerance, so it shows the
+    full shape of non-drifted disagreement (including differences small
+    enough to already pass tolerance) for judging whether any individual
+    jump looks anomalous."""
+    if diff < 0:
+        return "negative"
+    if diff == 1:
+        return "1"
+    if diff == 2:
+        return "2"
+    if 3 <= diff <= 5:
+        return "3-5"
+    if 6 <= diff <= 10:
+        return "6-10"
+    if 11 <= diff <= 25:
+        return "11-25"
+    return ">25"
+
+
+# ---------------------------------------------------------------------------
 # Field-level parity on matched rows
 #
 # field name -> (export column, reader-emitted key, comparator). Most fields
@@ -120,15 +209,15 @@ FIELD_SPECS: dict[str, tuple[str, str, str]] = {
     "address_city":               ("address_city",              "address_city",              "exact"),
     "address_type":               ("address_type",              "address_type",              "exact"),
     "bedrooms":                   ("bedrooms",                  "bedrooms",                  "numeric"),
-    "latitude":                   ("latitude",                  "latitude",                  "numeric"),
-    "longitude":                  ("longitude",                 "longitude",                 "numeric"),
+    "latitude":                   ("latitude",                  "latitude",                  "tolerance"),
+    "longitude":                  ("longitude",                 "longitude",                 "tolerance"),
     "company_id":                 ("child_company_id",          "company_id",                "exact"),
     "rent_amount":                ("rent_amount",               "rent_amount",               "numeric"),
     "description":                ("description",               "description",               "exact"),
     "creation_time":               ("creation_time",             "creation_time",             "exact"),
     "deactivation_time":           ("deactivation_time",         "deactivation_time",         "exact"),
     "property_listing_status":     ("property_listing_status",   "property_listing_status",   "exact"),
-    "top_down_community_count":    ("top_down_community_count",  "top_down_community_count",  "numeric"),
+    "top_down_community_count":    ("top_down_community_count",  "top_down_community_count",  "tolerance"),
     "amenities":                   ("amenities",                 "amenities",                 "count"),
     "amenities_string":            ("amenities",                 "amenities",                 "exact"),
     "photos":                      ("photos",                    "photos",                    "count"),
@@ -172,17 +261,24 @@ FIELD_THRESHOLDS: dict[str, float] = {
     "address_city": 0.99,               # measured 100.0% (1000/1000), applies to the non-drifted rate
     "address_type": 0.99,               # measured 100.0% (1000/1000), applies to the non-drifted rate
     "bedrooms": 0.99,                   # measured 100.0% (coalesce form, 1000/1000), applies to the non-drifted rate
-    "latitude": 0.99,                   # measured 100.0% (1000/1000), applies to the non-drifted rate --
-                                         # KC's sub-100m mismatches are routine re-geocoding of the
-                                         # property_table/address_line1_table row (drift), not a reader bug
-    "longitude": 0.99,                  # measured 100.0% (1000/1000), applies to the non-drifted rate (see latitude)
+    "latitude": 0.99,                   # measured 100.0% (1000/1000). Fix round 2: applies to the
+                                         # TOLERANCE-agreement rate (see LATLON_TOLERANCE_DEG) on
+                                         # non-drifted rows -- coordinates are re-geocoded by a process
+                                         # that updates no timestamp we have (round 1 checked
+                                         # last_update_time/ss_update_time/ss_pro_update_time), and the
+                                         # pipeline only needs ~100m precision for maps/market geography
+    "longitude": 0.99,                  # measured 100.0% (1000/1000). Fix round 2: same tolerance rate,
+                                         # same rationale as latitude (see LATLON_TOLERANCE_DEG)
     "company_id": 0.99,                 # measured 100.0% (child_company_id: 1000/1000 + 12,935/12,935 whole-export), non-drifted rate
     "rent_amount": 0.99,                # measured 99.9% (999/1000; the 1 miss was rewritten after the pull), non-drifted rate
     "creation_time": 0.99,               # measured 100.0% (1000/1000), applies to the non-drifted rate
-    "top_down_community_count": 0.99,   # measured 100.0% (1000/1000), applies to the non-drifted rate --
-                                         # KC's mismatches are address_community_table.count_top_down
-                                         # growing (99.5% db-higher, monotonic) between the export and the
-                                         # live read: drift, not a reader bug
+    "top_down_community_count": 0.99,   # measured 100.0% (1000/1000). Fix round 2: applies to the
+                                         # TOLERANCE-agreement rate (see _community_count_tolerance) on
+                                         # non-drifted rows -- this is a community roster aggregate
+                                         # recomputed by a process that updates no timestamp we have
+                                         # (round 1: last_update_time stale, significant_updates_time
+                                         # NULL), current state by construction, not a point-in-time
+                                         # snapshot
     "description": 0.98,                # measured 99.6% (996/1000), applies to the non-drifted rate
     "deactivation_time": 0.97,          # measured 99.2% (992/1000; misses are post-pull closures), non-drifted rate
     "property_listing_status": 0.97,    # measured 99.2% (992/1000; misses are post-pull state changes), non-drifted rate
@@ -499,28 +595,50 @@ def compare_matched_fields(
     `agreement_non_drifted` (what `ok`/threshold is judged against, per the
     controller's ruling), plus mismatch samples split drifted/non-drifted
     (a mismatch on a drifted row is not a failure signal; one on a
-    non-drifted row still is)."""
+    non-drifted row still is).
+
+    Fix round 2: for a "tolerance" field (latitude, longitude,
+    top_down_community_count -- see TOLERANCE_FUNCS), `agreement_all`/
+    `agreement_non_drifted` are the TOLERANCE rate (what `ok` is judged
+    against, per this round's ruling), and two more keys,
+    `exact_agreement_all`/`exact_agreement_non_drifted`, report the plain
+    numeric-equality rate alongside it -- never hidden, never gating.
+    top_down_community_count's entry also carries `diff_histogram`: a
+    signed (db - export) bucket count over non-drifted EXACT mismatches
+    (not gated by tolerance, so it shows the full shape of disagreement)."""
     thresholds = FIELD_THRESHOLDS if thresholds is None else thresholds
     drift = drift or {}
     pairs = list(pairs)
     report = {}
     for field, (export_col, reader_key, comparator) in FIELD_SPECS.items():
         field_drift = drift.get(field, {})
+        is_tolerance_field = comparator == "tolerance"
         compared = 0
         drifted_count = 0
         non_drifted_count = 0
         matches_all = 0
         matches_non_drifted = 0
+        exact_matches_all = 0
+        exact_matches_non_drifted = 0
         samples_drifted = []
         samples_non_drifted = []
+        diff_histogram = Counter() if field == "top_down_community_count" else None
         for listing_id, export_row, db_row in pairs:
             export_val = export_row.get(export_col, "")
             db_val = db_row.get(reader_key, "")
             compared += 1
-            is_match = _values_match(comparator, export_val, db_val)
             is_drifted = bool(field_drift.get(listing_id, False))
+
+            if is_tolerance_field:
+                exact_match, is_match = tolerance_match(field, export_val, db_val)
+            else:
+                is_match = exact_match = _values_match(comparator, export_val, db_val)
+
             if is_match:
                 matches_all += 1
+            if exact_match:
+                exact_matches_all += 1
+
             if is_drifted:
                 drifted_count += 1
                 if not is_match and len(samples_drifted) < max_samples:
@@ -535,12 +653,20 @@ def compare_matched_fields(
                     samples_non_drifted.append(
                         {"listing_id": listing_id, "export": export_val, "db": db_val}
                     )
+                if exact_match:
+                    exact_matches_non_drifted += 1
+                elif diff_histogram is not None:
+                    e_num = _to_number(export_val)
+                    d_num = _to_number(db_val)
+                    if e_num is not None and d_num is not None:
+                        diff_histogram[community_count_diff_bucket(int(d_num - e_num))] += 1
+
         rate_all = (matches_all / compared) if compared else 1.0
         rate_non_drifted = (
             (matches_non_drifted / non_drifted_count) if non_drifted_count else 1.0
         )
         threshold = thresholds.get(field, 0.0)
-        report[field] = {
+        entry = {
             "compared": compared,
             "drifted": drifted_count,
             "non_drifted": non_drifted_count,
@@ -551,6 +677,18 @@ def compare_matched_fields(
             "mismatch_samples_non_drifted": samples_non_drifted,
             "mismatch_samples_drifted": samples_drifted,
         }
+        if is_tolerance_field:
+            entry["exact_agreement_all"] = (
+                (exact_matches_all / compared) if compared else 1.0
+            )
+            entry["exact_agreement_non_drifted"] = (
+                (exact_matches_non_drifted / non_drifted_count)
+                if non_drifted_count
+                else 1.0
+            )
+        if diff_histogram is not None:
+            entry["diff_histogram"] = dict(diff_histogram)
+        report[field] = entry
     return report
 
 
@@ -926,15 +1064,26 @@ def _print_summary(result: dict) -> None:
         f"company_in_export_share={do['other_company_in_export_share']}"
     )
 
-    print("  field agreement (threshold applies to non-drifted rate):")
+    print("  field agreement (threshold applies to non-drifted rate; tolerance rate where noted):")
     for field, r in result["fields"].items():
         flag = "OK" if r["ok"] else "FAIL"
+        rate_label = "tolerance_non_drifted" if "exact_agreement_non_drifted" in r else "non_drifted"
         print(
-            f"    {field:26s} non_drifted={r['agreement_non_drifted']*100:6.2f}% "
+            f"    {field:26s} {rate_label}={r['agreement_non_drifted']*100:6.2f}% "
             f"(n={r['non_drifted']:,}) all={r['agreement_all']*100:6.2f}% "
             f"(n={r['compared']:,}, drifted={r['drifted']:,}) "
             f"threshold={r['threshold']*100:.0f}% [{flag}]"
         )
+        if "exact_agreement_non_drifted" in r:
+            print(
+                f"      {'':26s} exact_non_drifted={r['exact_agreement_non_drifted']*100:6.2f}% "
+                f"exact_all={r['exact_agreement_all']*100:6.2f}%"
+            )
+        if "diff_histogram" in r:
+            hist = ", ".join(
+                f"{b}:{r['diff_histogram'].get(b, 0):,}" for b in COMMUNITY_COUNT_DIFF_BUCKETS
+            )
+            print(f"      {'':26s} diff_histogram(db-export, non-drifted mismatches): {hist}")
         if not r["ok"]:
             for s in r["mismatch_samples_non_drifted"]:
                 print(

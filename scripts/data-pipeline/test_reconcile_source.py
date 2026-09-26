@@ -362,6 +362,182 @@ class FieldDriftGroupCoverage(unittest.TestCase):
                 self.assertTrue(t.startswith("dwellsy_prod."))
 
 
+class ToleranceMatch(unittest.TestCase):
+    """Fix round 2: latitude/longitude/top_down_community_count switch from
+    exact equality to a comparator that fits how each is actually used."""
+
+    def test_latlon_within_tolerance_passes(self):
+        # 0.0009 degrees apart -- inside LATLON_TOLERANCE_DEG (0.001).
+        exact, within = reconcile_source.tolerance_match(
+            "latitude", "39.000000", "39.000900"
+        )
+        self.assertFalse(exact)
+        self.assertTrue(within)
+
+    def test_latlon_beyond_tolerance_fails(self):
+        # 0.0011 degrees apart -- outside LATLON_TOLERANCE_DEG (0.001).
+        exact, within = reconcile_source.tolerance_match(
+            "latitude", "39.000000", "39.001100"
+        )
+        self.assertFalse(exact)
+        self.assertFalse(within)
+
+    def test_longitude_uses_the_same_tolerance(self):
+        exact, within = reconcile_source.tolerance_match(
+            "longitude", "-94.000000", "-94.000900"
+        )
+        self.assertTrue(within)
+        _, within2 = reconcile_source.tolerance_match(
+            "longitude", "-94.000000", "-94.001100"
+        )
+        self.assertFalse(within2)
+
+    def test_community_count_100_vs_109_passes(self):
+        # tolerance = max(2, 0.10*100) = 10; |109-100| = 9 <= 10.
+        _, within = reconcile_source.tolerance_match(
+            "top_down_community_count", "100", "109"
+        )
+        self.assertTrue(within)
+
+    def test_community_count_100_vs_111_fails(self):
+        # |111-100| = 11 > 10.
+        _, within = reconcile_source.tolerance_match(
+            "top_down_community_count", "100", "111"
+        )
+        self.assertFalse(within)
+
+    def test_community_count_1_vs_3_passes(self):
+        # tolerance = max(2, 0.10*1) = 2; |3-1| = 2 <= 2.
+        _, within = reconcile_source.tolerance_match(
+            "top_down_community_count", "1", "3"
+        )
+        self.assertTrue(within)
+
+    def test_community_count_1_vs_4_fails(self):
+        # |4-1| = 3 > 2.
+        _, within = reconcile_source.tolerance_match(
+            "top_down_community_count", "1", "4"
+        )
+        self.assertFalse(within)
+
+    def test_exact_equal_values_are_exact_and_within_tolerance(self):
+        exact, within = reconcile_source.tolerance_match(
+            "top_down_community_count", "50", "50"
+        )
+        self.assertTrue(exact)
+        self.assertTrue(within)
+
+    def test_blank_on_one_side_is_a_mismatch_on_both_measures(self):
+        exact, within = reconcile_source.tolerance_match("latitude", "", "39.0")
+        self.assertFalse(exact)
+        self.assertFalse(within)
+        exact2, within2 = reconcile_source.tolerance_match(
+            "top_down_community_count", "5", ""
+        )
+        self.assertFalse(exact2)
+        self.assertFalse(within2)
+        exact3, within3 = reconcile_source.tolerance_match(
+            "top_down_community_count", "null", "5"
+        )
+        self.assertFalse(exact3)
+        self.assertFalse(within3)
+
+    def test_blank_on_both_sides_matches_on_both_measures(self):
+        exact, within = reconcile_source.tolerance_match("latitude", "", "")
+        self.assertTrue(exact)
+        self.assertTrue(within)
+        exact2, within2 = reconcile_source.tolerance_match(
+            "top_down_community_count", "", "null"
+        )
+        self.assertTrue(exact2)
+        self.assertTrue(within2)
+
+
+class CommunityCountDiffBucket(unittest.TestCase):
+    def test_buckets(self):
+        cases = {
+            1: "1",
+            2: "2",
+            3: "3-5",
+            5: "3-5",
+            6: "6-10",
+            10: "6-10",
+            11: "11-25",
+            25: "11-25",
+            26: ">25",
+            100: ">25",
+            -1: "negative",
+            -50: "negative",
+        }
+        for diff, expected in cases.items():
+            self.assertEqual(
+                reconcile_source.community_count_diff_bucket(diff), expected, diff
+            )
+
+
+class CompareMatchedFieldsTolerance(unittest.TestCase):
+    """Integration of the tolerance comparator into compare_matched_fields:
+    both rates are reported, `ok` is judged on the tolerance rate, and
+    top_down_community_count also carries a diff_histogram."""
+
+    def test_tolerance_pass_but_not_exact_is_ok_and_reports_both_rates(self):
+        pairs = [
+            ("1", {"latitude": "39.000000"}, {"latitude": "39.000900"}),  # within tolerance, not exact
+        ]
+        report = reconcile_source.compare_matched_fields(pairs)
+        self.assertTrue(report["latitude"]["ok"])
+        self.assertEqual(report["latitude"]["agreement_non_drifted"], 1.0)
+        self.assertEqual(report["latitude"]["exact_agreement_non_drifted"], 0.0)
+
+    def test_beyond_tolerance_on_non_drifted_row_fails(self):
+        pairs = [
+            ("1", {"latitude": "39.000000"}, {"latitude": "39.001100"}),  # beyond tolerance
+        ]
+        report = reconcile_source.compare_matched_fields(pairs)
+        self.assertFalse(report["latitude"]["ok"])
+        self.assertEqual(report["latitude"]["agreement_non_drifted"], 0.0)
+        self.assertEqual(len(report["latitude"]["mismatch_samples_non_drifted"]), 1)
+
+    def test_beyond_tolerance_on_drifted_row_does_not_fail(self):
+        pairs = [
+            ("1", {"latitude": "39.000000"}, {"latitude": "39.001100"}),
+        ]
+        drift = {"latitude": {"1": True}}
+        report = reconcile_source.compare_matched_fields(pairs, drift=drift)
+        self.assertTrue(report["latitude"]["ok"])
+        self.assertEqual(report["latitude"]["non_drifted"], 0)
+
+    def test_community_count_histogram_over_non_drifted_exact_mismatches(self):
+        pairs = [
+            ("1", {"top_down_community_count": "100"}, {"top_down_community_count": "101"}),  # +1
+            ("2", {"top_down_community_count": "100"}, {"top_down_community_count": "102"}),  # +2
+            ("3", {"top_down_community_count": "10"}, {"top_down_community_count": "13"}),    # +3
+            ("4", {"top_down_community_count": "50"}, {"top_down_community_count": "49"}),    # -1 (negative)
+            ("5", {"top_down_community_count": "50"}, {"top_down_community_count": "50"}),    # exact, no entry
+        ]
+        report = reconcile_source.compare_matched_fields(pairs)
+        hist = report["top_down_community_count"]["diff_histogram"]
+        self.assertEqual(hist.get("1"), 1)
+        self.assertEqual(hist.get("2"), 1)
+        self.assertEqual(hist.get("3-5"), 1)
+        self.assertEqual(hist.get("negative"), 1)
+        self.assertNotIn(">25", hist)
+
+    def test_community_count_histogram_excludes_drifted_mismatches(self):
+        pairs = [
+            ("1", {"top_down_community_count": "100"}, {"top_down_community_count": "150"}),
+        ]
+        drift = {"top_down_community_count": {"1": True}}
+        report = reconcile_source.compare_matched_fields(pairs, drift=drift)
+        self.assertEqual(report["top_down_community_count"]["diff_histogram"], {})
+
+    def test_other_fields_do_not_carry_tolerance_or_histogram_keys(self):
+        pairs = [("1", {"uru_id": "9"}, {"uru_id": "9"})]
+        report = reconcile_source.compare_matched_fields(pairs)
+        self.assertNotIn("exact_agreement_all", report["uru_id"])
+        self.assertNotIn("diff_histogram", report["uru_id"])
+
+
 class ExportOnlySummary(unittest.TestCase):
     """The gate-level roll-up: not_in_db / in_population_but_missed fail
     the gate; excluded:* is reported but does not."""
