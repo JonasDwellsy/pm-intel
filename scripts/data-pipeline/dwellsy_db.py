@@ -23,14 +23,33 @@ def _dsn() -> str:
 def _scrub(msg: str) -> str:
     """Remove anything DSN-shaped from an error before it escapes."""
     msg = re.sub(r"postgres(?:ql)?://\S+", "<dsn redacted>", msg)
-    return re.sub(r"\S+:\S+@\S+", "<dsn redacted>", msg)
+    msg = re.sub(r"\S+:\S+@\S+", "<dsn redacted>", msg)
+    msg = re.sub(r'server at "[^"]*"(?: \([^)]*\))?', "server at <host redacted>", msg)
+    return re.sub(r'user "[^"]*"', "user <redacted>", msg)
+
+
+def _scrubbed(exc: Exception) -> Exception:
+    """A same-type copy of exc with DSN-shaped text removed.
+
+    Raise the result OUTSIDE the except block that caught exc: raising inside it
+    makes Python attach the original, unscrubbed exception as __context__.
+    """
+    msg = _scrub(str(exc))
+    try:
+        return type(exc)(msg)
+    except TypeError:
+        return RuntimeError(msg)
 
 
 def connect() -> psycopg.Connection:
     conn = psycopg.connect(_dsn(), row_factory=dict_row, autocommit=False)
-    with conn.cursor() as cur:
-        cur.execute("SET TRANSACTION READ ONLY")
-        cur.execute(f"SET statement_timeout = '{STATEMENT_TIMEOUT}'")
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SET TRANSACTION READ ONLY")
+            cur.execute(f"SET statement_timeout = '{STATEMENT_TIMEOUT}'")
+    except BaseException:
+        conn.close()
+        raise
     return conn
 
 
@@ -40,4 +59,5 @@ def query(sql: str, params: dict | None = None) -> list[dict]:
             cur.execute(sql, params or {})
             return list(cur.fetchall())
     except Exception as exc:
-        raise type(exc)(_scrub(str(exc))) from None
+        err = _scrubbed(exc)
+    raise err
