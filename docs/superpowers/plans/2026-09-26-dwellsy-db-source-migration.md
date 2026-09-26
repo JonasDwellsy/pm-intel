@@ -12,10 +12,18 @@
 
 - Connection string comes from `~/Documents/Dwellsy/secrets/db_connection.txt`. NEVER print, log, echo, commit, or include it in an error message.
 - Every database session MUST be read-only: `SET TRANSACTION READ ONLY` plus `statement_timeout`. Only `SELECT` and catalog reads. Never create, alter, insert, update, delete, grant, or call a mutating routine.
-- Qualify nothing with a hardcoded schema; the connection's `search_path` resolves `dwellsy_prod`.
+- Qualify every production relation as `dwellsy_prod.<table>` (the dwellsy-database skill governs; ruling 2026-09-26).
 - `organization_company_table` is a TRUE MANY-TO-MANY bridge (v1.13, EN-1963). A plain join through it multiplies rows. Use `EXISTS` for membership or a separately aggregated association set. NEVER pick the first organization arbitrarily.
 - New York (`msa_code = '35620'`) is OUT OF SCOPE. Exclude it from every reconciliation and validation set.
-- Do not change any metric definition. The only deliberate semantic change is operator identity (Task 6).
+- Do not change any metric definition. Operator identity is UNCHANGED (see decisions below); the only deliberate change is the population.
+
+## Decisions after Task 2 (Jonas, 2026-09-26) — these govern over task text below
+
+- **`field_mapping.md` governs every column expression.** Where a task's inline SQL disagrees with `scripts/data-pipeline/field_mapping.md` (bedrooms / latitude / longitude coalesces, timestamps, `msa_code::text`, `dwellsy_prod.` qualification), the mapping wins.
+- **Identity stays on the company hierarchy.** `parent_company_id = company_table.parent_company_id` (a company self-reference), child = `p.company_id`, names and types from `company_table` / `company_type_table` — the export's own rule, matched 12,935/12,935 on Bozeman. Organizations are NOT identity: in Kansas City they split Beacon Management into 11 per-property operators. `organization_id` is carried as an inert extra key only.
+- **Population = the data team's quality filters from `full_export_view`, minus its apartment-only clause and minus its date floor.** Rooms, out-of-range rents, blacklisted accounts, waitlist rows, sub-4-hour inactive listings, failed postal validation and inactive companies are excluded. Bozeman ≈ 18,670 rows (export 12,935, raw 21,863).
+- **Timestamps are emitted as America/Los_Angeles wall-clock** (`to_char(ts at time zone 'America/Los_Angeles', 'YYYY-MM-DD HH24:MI:SS')`) for parity with the export. Moving to true UTC is a separate, later change.
+- **Photos and amenities are current property state.** The DB has no usable history for them; this is accepted and noted in the restatement report.
 - `uru_id` coverage was measured at 100% in Bozeman and New York on 2026-09-26. If a market reports less, stop and report rather than filling nulls.
 - Target markets for validation: `14580` (Bozeman, reference case) and `28140` (Kansas City, mid-size).
 
@@ -577,108 +585,59 @@ git commit -m "test: superset reconciliation gate for the database source"
 
 ---
 
-### Task 6: Operator identity through the organization bridge
+### Task 6: Operator identity from the company hierarchy
 
-The one deliberate semantic change. Measured 2026-09-26 on Bozeman: 100% of rows carry `property_table.company_id`, 699 distinct companies, 684 (97.9%) with an `organization_company_table` row, resolving to 669 organizations — against 81.6% `parent_company_id` coverage in the export.
+Identity keeps the export's rule (decision 2026-09-26): child = `p.company_id`, parent = `company_table.parent_company_id`, names from `company_name_displayed`, types from `company_type_table.type`. `pipeline.effective_company_id` (parent when present, else child) is UNCHANGED. All four joins are to-one and already in the base FROM from `field_mapping.md` (`c`, `ct`, `pc`, `pct`). `organization_id` is attached as an inert extra key, never used for grouping.
 
 **Files:**
 - Modify: `scripts/data-pipeline/dwellsy_source.py`
 - Modify: `scripts/data-pipeline/test_dwellsy_source.py`
 
 **Interfaces:**
-- Consumes: `market_listings` from Tasks 3-4.
-- Produces: the same function with `company_name`, `child_company_id`, `child_company_type`, `parent_company_id`, `parent_company_name`, `parent_company_type` populated. `pipeline.effective_company_id` is UNCHANGED and still reads these keys.
+- Consumes: `market_listings` from Tasks 3-4 (base FROM already joins `c`, `ct`, `pc`, `pct`).
+- Produces: the same function with `company_name`, `child_company_id`, `child_company_type`, `parent_company_id`, `parent_company_name`, `parent_company_type` populated per `field_mapping.md`, plus an extra key `organization_id` (text, '' when none).
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing tests**
 
 ```python
     def test_identity_keys_are_populated(self):
         rows = list(dwellsy_source.market_listings(BOZEMAN))
         with_company = [r for r in rows if r["child_company_id"]]
-        # 100% measured 2026-09-26.
+        # p.company_id was 100% on Bozeman 2026-09-26.
         self.assertEqual(len(with_company), len(rows))
 
-    def test_the_bridge_does_not_multiply_rows(self):
-        # organization_company_table is many-to-many (v1.13 EN-1963). A plain
-        # join inflates every count. This is the single easiest way to get the
-        # migration wrong.
-        import dwellsy_db
-        base = dwellsy_db.query(
-            "select count(*) as n from property_listing_table pl "
-            "join property_table p on p.id = pl.property_id where p.msa_code = %(m)s",
-            {"m": BOZEMAN})[0]["n"]
-        self.assertEqual(len(list(dwellsy_source.market_listings(BOZEMAN))), base)
+    def test_company_fields_match_the_export(self):
+        # The export's rule, reproduced: compare per child company against the
+        # 2026-09-08 Bozeman export (skip if the file is absent on this machine).
+        ...  # for each child_company_id in both: company_name, child_company_type,
+             # parent_company_id, parent_company_name, parent_company_type equal
 
-    def test_multi_org_companies_resolve_deterministically(self):
-        # Same company must yield the same parent id on every row, or operator
-        # grouping becomes order-dependent.
+    def test_organization_does_not_multiply_rows(self):
+        # organization_company_table is many-to-many (v1.13 EN-1963); the
+        # organization must come from a pre-aggregated lookup, never a join.
+        rows = list(dwellsy_source.market_listings(BOZEMAN))
+        self.assertEqual(len(rows), len({r["listing_id"] for r in rows}))
+
+    def test_organization_is_deterministic_per_company(self):
         by_company = {}
         for r in dwellsy_source.market_listings(BOZEMAN):
-            cid = r["child_company_id"]
-            if not cid:
-                continue
-            by_company.setdefault(cid, set()).add(r["parent_company_id"])
-        unstable = {k: v for k, v in by_company.items() if len(v) > 1}
-        self.assertEqual(unstable, {}, f"company resolved to several parents: {list(unstable)[:3]}")
+            by_company.setdefault(r["child_company_id"], set()).add(r["organization_id"])
+        self.assertEqual({k: v for k, v in by_company.items() if len(v) > 1}, {})
 ```
 
-- [ ] **Step 2: Run and watch it fail**
+- [ ] **Step 2: Run and watch them fail** — `cd scripts/data-pipeline && python3 -m unittest test_dwellsy_source -v`
 
-Run: `cd scripts/data-pipeline && python3 -m unittest test_dwellsy_source -v`
-Expected: FAIL — `KeyError: 'child_company_id'`
+- [ ] **Step 3: Implement** — add the six identity columns to the SELECT from the existing to-one joins, and `organization_id` via a correlated `min(oc.organization_id)::text` subquery over `dwellsy_prod.organization_company_table` (deterministic; multiplicity measured 0 of 600,292 companies on 2026-09-26). Do NOT add the bridge to the FROM list.
 
-- [ ] **Step 3: Implement with a pre-aggregated association set**
+- [ ] **Step 4: Run the tests** — all pass.
 
-Do NOT add `organization_company_table` to `BASE_SQL`'s join list. Build a company->organization map once per market, then attach in Python:
-
-```python
-ORG_SQL = """
-select c.id::text                      as company_id,
-       c.name                          as company_name,
-       (select min(oc.organization_id)
-          from organization_company_table oc
-         where oc.company_id = c.id)    as organization_id,
-       (select count(*)
-          from organization_company_table oc
-         where oc.company_id = c.id)    as org_count
-from company_table c
-where exists (
-    select 1 from property_table p
-     where p.company_id = c.id and p.msa_code = %(msa_code)s
-)
-"""
-
-
-def _org_map(msa_code: str) -> dict:
-    """company_id -> {name, organization_id, org_count}.
-
-    min(organization_id) is a DETERMINISTIC choice, not a correct one, when a
-    company belongs to several organizations. org_count surfaces those rows so
-    they can be curated rather than silently collapsed.
-    """
-    return {r["company_id"]: r for r in dwellsy_db.query(ORG_SQL, {"msa_code": msa_code})}
-```
-
-In `market_listings`, look up `row["company_id"]` in that map and emit
-`child_company_id = company_id`, `parent_company_id = organization_id or company_id`,
-`parent_company_name = organization name`, `company_name = company name`.
-
-- [ ] **Step 4: Run the tests**
-
-Run: `cd scripts/data-pipeline && python3 -m unittest test_dwellsy_source -v`
-Expected: PASS, 10 tests
-
-- [ ] **Step 5: Report multi-org companies**
-
-Run: `python3 -c "import dwellsy_source as s; m=s._org_map('14580'); print(sum(1 for v in m.values() if v['org_count']>1), 'of', len(m), 'companies map to >1 organization')"`
-
-Record the number in the commit message. If it exceeds 5% of companies, raise it before cutover — `min()` is deterministic but arbitrary, and at that scale it is shaping operator identity.
+- [ ] **Step 5: Report org multiplicity** — count Bozeman and Kansas City companies with more than one organization; record in the commit message. If any exist, list them.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add scripts/data-pipeline/dwellsy_source.py scripts/data-pipeline/test_dwellsy_source.py
-git commit -m "feat: resolve operator identity through the organization bridge"
+git commit -m "feat: operator identity from the company hierarchy"
 ```
 
 ---

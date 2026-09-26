@@ -1,6 +1,9 @@
 # Operator IQ: read from the Dwellsy database instead of CSV exports
 
 **Status:** design, approved in outline 2026-09-26. Phase 1a only.
+**Amended 2026-09-26 after Task 2's field mapping (Jonas):** identity does NOT
+move to organizations, and the population applies the data team's quality
+filters. See "Amendments" at the end; they override the sections they name.
 **Scope:** replace the pipeline's data source. No metric definitions change
 except operator identity, which is called out explicitly below.
 
@@ -174,3 +177,33 @@ replica exists before the runtime moves to a cloud runner in Phase 1b.
 2. Is the 2020-09-16 floor deliberate, and is earlier history trustworthy?
 3. Is there a read replica for bulk extraction?
 4. Which listing text column backs the export's `description`?
+
+
+## Amendments (2026-09-26, after Task 2)
+
+Task 2 proved every consumed field against the Bozeman export
+(`scripts/data-pipeline/field_mapping.md`: 24 VERIFIED). Two findings reversed
+parts of this design.
+
+**Identity stays on the company hierarchy.** The export's parent is
+`company_table.parent_company_id`, a company self-reference, not an
+organization; it matches 12,935/12,935 rows, and with the child fallback it
+covers 100% of listings. The 81.6% figure above was parent coverage alone, not
+identity coverage. Organizations are the wrong grouping: in Kansas City they
+split Beacon Management into 11 per-property operators, Optimum Real Estate
+Management into 5 and The Tiehen Group into 6. Phase 1a therefore changes no
+identity, and "no operator identity collapses two organizations into one" is
+dropped as an invariant. `organization_id` is carried as an inert field.
+
+**Population applies the data team's quality filters.** Of Bozeman's 21,863
+listings, 3,193 fail `full_export_view`'s own filters (rooms, rents outside
+`greatest(bedrooms,1)*250 .. 20000`, blacklisted accounts, waitlist rows,
+sub-4-hour inactive listings, failed postal validation, inactive companies).
+The reader applies those filters, but not the view's apartment-only clause
+(the export keeps houses) and not its date floor. Bozeman ≈ 18,670 rows. The
+remaining 3,830 rows at 596 addresses that pass every filter yet are absent
+from the export stay an open question for the data team.
+
+**Timestamps** are Pacific wall-clock in the export, which `pipeline.parse_dt`
+labels UTC. The reader emits the same wall-clock for parity; moving to true
+UTC is a later, deliberate change.
