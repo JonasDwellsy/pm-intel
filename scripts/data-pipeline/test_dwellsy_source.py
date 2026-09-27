@@ -471,30 +471,60 @@ class MergePhotoIds(unittest.TestCase):
         self.assertEqual(dwellsy_source._merge_photo_ids([], []), "")
 
 
-class UruCoverageSql(unittest.TestCase):
-    """Pure string-building tests for _uru_coverage_sql -- no network. Must
-    be built from POPULATION_PREDICATES so it can't drift from WHERE_SQL:
-    every predicate except has_uru filters the rows counted, and has_uru
-    itself only appears in the `filter (where not (...))` clause."""
+class PropertyScanSql(unittest.TestCase):
+    """PROPERTY_SCAN_SQL is built from POPULATION_PREDICATES (so it can't
+    drift from WHERE_SQL) and must stream. No network."""
 
-    def test_has_uru_is_excluded_from_the_where_clause(self):
-        sql = dwellsy_source._uru_coverage_sql()
-        # has_uru appears ONLY inside the `filter (where not (...))` clause,
-        # never as its own `and (...)`-joined predicate.
+    def test_has_uru_is_a_flag_not_a_filter(self):
+        sql = dwellsy_source.PROPERTY_SCAN_SQL
         self.assertNotIn("and (p.uru_id is not null)", sql)
-        self.assertIn("not (p.uru_id is not null)", sql)
+        self.assertIn("coalesce((p.uru_id is not null), false) as has_uru", sql)
 
-    def test_every_other_predicate_is_in_the_where_clause(self):
-        sql = dwellsy_source._uru_coverage_sql()
+    def test_every_other_predicate_filters_the_scan(self):
+        sql = dwellsy_source.PROPERTY_SCAN_SQL
         for name, predicate_sql in dwellsy_source.POPULATION_PREDICATES:
             if name == "has_uru":
                 continue
             self.assertIn(f"({predicate_sql.strip()})", sql)
 
-    def test_has_uru_appears_in_the_filter_clause(self):
-        sql = dwellsy_source._uru_coverage_sql()
-        self.assertIn("rows_excluded_only_by_has_uru", sql)
-        self.assertIn("filter (where not (p.uru_id is not null))", sql)
+    def test_scan_has_no_blocking_operator(self):
+        # DISTINCT, GROUP BY and aggregates finish the whole market before
+        # the first FETCH; in Los Angeles that exceeded the statement timeout.
+        sql = dwellsy_source.PROPERTY_SCAN_SQL.lower()
+        for blocking in ("distinct", "group by", "count(", "order by"):
+            self.assertNotIn(blocking, sql)
+
+
+class ScanProperties(unittest.TestCase):
+    """_scan_properties dedupes ids and counts URU drops in Python. No
+    network: dwellsy_db.stream is replaced for the duration of each test."""
+
+    def _scan(self, rows):
+        original = dwellsy_source.dwellsy_db.stream
+        dwellsy_source.dwellsy_db.stream = lambda sql, params=None: iter(rows)
+        try:
+            return dwellsy_source._scan_properties("14580")
+        finally:
+            dwellsy_source.dwellsy_db.stream = original
+
+    def test_dedupes_properties_and_folds_in_parents(self):
+        ids, stats = self._scan([
+            {"id": 5, "parent_property_id": 9, "has_uru": True},
+            {"id": 5, "parent_property_id": 9, "has_uru": True},
+            {"id": 7, "parent_property_id": None, "has_uru": True},
+        ])
+        self.assertEqual(ids, [5, 7, 9])
+        self.assertEqual(stats, {"rows_passing_other_predicates": 3,
+                                 "rows_excluded_only_by_has_uru": 0})
+
+    def test_rows_without_a_uru_are_counted_not_looked_up(self):
+        ids, stats = self._scan([
+            {"id": 5, "parent_property_id": None, "has_uru": True},
+            {"id": 6, "parent_property_id": 8, "has_uru": False},
+        ])
+        self.assertEqual(ids, [5])
+        self.assertEqual(stats["rows_passing_other_predicates"], 2)
+        self.assertEqual(stats["rows_excluded_only_by_has_uru"], 1)
 
 
 class AttachAmenitiesAndPhotos(unittest.TestCase):

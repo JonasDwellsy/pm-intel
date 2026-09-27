@@ -15,11 +15,15 @@ listings share a property.
 
 A three-phase batched design replaces the correlated subqueries, computing
 each property's amenities/photos ONCE, not once per listing that shares it:
-  1. `_collect_property_ids` streams `select distinct p.id,
-     p.parent_property_id` over the SAME base FROM/WHERE the listing reader
-     uses (reusing BASE_FROM/WHERE_SQL verbatim, so the property population
-     can't drift from the listing population), and collects every p.id plus
-     every non-null p.parent_property_id (PHOTOS unions media from both).
+  1. `_scan_properties` streams `p.id, p.parent_property_id` plus a has_uru
+     flag over the SAME base FROM and every population predicate but has_uru
+     (built from POPULATION_PREDICATES, so the property population can't
+     drift from the listing population). It collects every p.id plus every
+     non-null p.parent_property_id of rows that pass has_uru (PHOTOS unions
+     media from both), and counts the rows dropped only for a missing URU.
+     The scan has no DISTINCT or aggregate, so it streams: a blocking query
+     has to finish the whole market before its first FETCH, and in Los
+     Angeles that runs past the per-statement timeout.
   2. `_batched_lookups` looks those ids up in chunks of LOOKUP_CHUNK via
      dwellsy_db.query() (not stream() -- each chunk is its own bounded
      statement): one grouped query for amenities-by-property, one for
@@ -76,7 +80,7 @@ import dwellsy_db
 # "Parent company vs organization"). Every SELECT column added against this
 # FROM (amenities/photos/address_type, the six company-identity fields)
 # reuses these same joins; none of them need a new one. Also reused verbatim
-# by PROPERTY_SET_SQL below so the property population can never drift from
+# by PROPERTY_SCAN_SQL below so the property population can never drift from
 # the listing population.
 BASE_FROM = """
 from dwellsy_prod.property_listing_table l
@@ -185,18 +189,6 @@ WHERE_SQL = "where " + "\n  and ".join(
     f"({sql.strip()})" for _, sql in POPULATION_PREDICATES
 )
 
-# Phase 1 (see module docstring): every property the listing population
-# touches, streamed once per market. `distinct` collapses the many listings
-# that share a property; Python then dedupes further when parent ids are
-# folded in (see _collect_property_ids).
-PROPERTY_SET_SQL = (
-    """
-select distinct p.id, p.parent_property_id
-"""
-    + BASE_FROM
-    + WHERE_SQL
-)
-
 # Phase 2 (see module docstring): chunked, grouped lookups replacing the
 # original per-row correlated subqueries. Semantics preserved verbatim from
 # field_mapping.md's AMENITIES/PHOTOS sections; see
@@ -297,36 +289,50 @@ LAST_RUN_STATS: dict[str, int] = {}
 # market_listings' own WHERE_SQL, so the READER'S OUTPUT has 100% uru_id
 # coverage by construction -- that can never fail, and isn't a meaningful
 # check. What can fail is how much of the population that would otherwise
-# qualify gets dropped for a missing URU. _uru_coverage_sql, built from
-# POPULATION_PREDICATES so it can't drift from WHERE_SQL, counts rows
-# passing every OTHER predicate, and of those, how many fail has_uru.
+# qualify gets dropped for a missing URU. PROPERTY_SCAN_SQL, built from
+# POPULATION_PREDICATES so it can't drift from WHERE_SQL, returns every row
+# passing every OTHER predicate with has_uru as a flag, and _scan_properties
+# counts both in Python.
 _OTHER_THAN_HAS_URU = [(name, sql) for name, sql in POPULATION_PREDICATES if name != "has_uru"]
 _HAS_URU_SQL = dict(POPULATION_PREDICATES)["has_uru"]
 _OTHER_WHERE_SQL = "where " + "\n  and ".join(
     f"({sql.strip()})" for _, sql in _OTHER_THAN_HAS_URU
 )
 
+# Phase 1 (see module docstring). Must stay free of DISTINCT, GROUP BY and
+# aggregates: those scan the whole market before the first FETCH returns, so
+# the server-side cursor's per-batch timeout no longer bounds them.
+PROPERTY_SCAN_SQL = (
+    "select p.id, p.parent_property_id,\n"
+    f"       coalesce(({_HAS_URU_SQL.strip()}), false) as has_uru\n"
+    + BASE_FROM
+    + _OTHER_WHERE_SQL
+)
 
-def _uru_coverage_sql() -> str:
-    return (
-        "select count(*) as rows_passing_other_predicates,\n"
-        f"       count(*) filter (where not ({_HAS_URU_SQL.strip()})) "
-        "as rows_excluded_only_by_has_uru\n"
-        + BASE_FROM
-        + _OTHER_WHERE_SQL
-    )
 
+def _scan_properties(msa_code: str) -> tuple[list[int], dict[str, int]]:
+    """Phase 1: (sorted property ids to look up, URU stats).
 
-def _compute_uru_coverage_stats(msa_code: str) -> dict[str, int]:
-    """One aggregate query (no rows fetched beyond the single summary row):
-    of the rows that pass every population predicate EXCEPT has_uru, how
-    many of them fail has_uru. Exposed on LAST_RUN_STATS so it reaches the
-    snapshot meta through db_snapshot.write_snapshot's reader_stats copy."""
-    row = dwellsy_db.query(_uru_coverage_sql(), {"msa_code": msa_code})[0]
-    return {
-        "rows_passing_other_predicates": row["rows_passing_other_predicates"],
-        "rows_excluded_only_by_has_uru": row["rows_excluded_only_by_has_uru"],
+    Ids are p.id plus each non-null p.parent_property_id of rows that pass
+    has_uru, i.e. exactly the listing population's properties. The stats
+    count rows passing every other predicate and, of those, rows failing
+    has_uru. They go on LAST_RUN_STATS, which reaches the snapshot meta."""
+    ids: set[int] = set()
+    passing = 0
+    no_uru = 0
+    for row in dwellsy_db.stream(PROPERTY_SCAN_SQL, {"msa_code": msa_code}):
+        passing += 1
+        if not row["has_uru"]:
+            no_uru += 1
+            continue
+        ids.add(row["id"])
+        if row["parent_property_id"] is not None:
+            ids.add(row["parent_property_id"])
+    stats = {
+        "rows_passing_other_predicates": passing,
+        "rows_excluded_only_by_has_uru": no_uru,
     }
+    return sorted(ids), stats
 
 
 def market_listings(msa_code: str, as_of: str | None = None) -> Iterator[dict]:
@@ -338,8 +344,8 @@ def market_listings(msa_code: str, as_of: str | None = None) -> Iterator[dict]:
     """
     LAST_RUN_STATS.clear()
     LAST_RUN_STATS["late_lookups"] = 0
-    LAST_RUN_STATS.update(_compute_uru_coverage_stats(msa_code))
-    property_ids = _collect_property_ids(msa_code)
+    property_ids, uru_stats = _scan_properties(msa_code)
+    LAST_RUN_STATS.update(uru_stats)
     looked_up_ids = set(property_ids)
     amenities_by_property, media_by_property = _batched_lookups(property_ids)
     for row in dwellsy_db.stream(BASE_SQL, {"msa_code": msa_code}):
@@ -347,18 +353,6 @@ def market_listings(msa_code: str, as_of: str | None = None) -> Iterator[dict]:
             row, amenities_by_property, media_by_property, looked_up_ids
         )
         yield _stringify(row)
-
-
-def _collect_property_ids(msa_code: str) -> list[int]:
-    """Phase 1: every property id the listing population touches (p.id plus
-    each non-null p.parent_property_id), streamed so memory stays bounded
-    even though the result is fully materialized into a set."""
-    ids: set[int] = set()
-    for row in dwellsy_db.stream(PROPERTY_SET_SQL, {"msa_code": msa_code}):
-        ids.add(row["id"])
-        if row["parent_property_id"] is not None:
-            ids.add(row["parent_property_id"])
-    return sorted(ids)
 
 
 def _batched_lookups(
