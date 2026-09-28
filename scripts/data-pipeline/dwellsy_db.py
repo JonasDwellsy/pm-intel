@@ -7,6 +7,7 @@ to run a mutating statement.
 """
 import os
 import re
+import time
 from typing import Iterator
 
 import psycopg
@@ -15,6 +16,12 @@ from psycopg.rows import dict_row
 SECRET_PATH = os.path.expanduser("~/Documents/Dwellsy/secrets/db_connection.txt")
 STATEMENT_TIMEOUT = "120s"
 STREAM_BATCH = 5000
+# Opening a connection is retried; queries never are. A market pull opens a
+# fresh connection per lookup batch (hundreds for Los Angeles), and a single
+# transient "could not receive data from server: Operation timed out" at
+# connect time would otherwise abort the whole pull. Retrying the connect is
+# safe because nothing has run yet, and every session is read-only anyway.
+CONNECT_RETRY_DELAYS = (2.0, 5.0)
 
 
 def _dsn() -> str:
@@ -48,6 +55,21 @@ def _scrubbed(exc: Exception) -> Exception:
         return RuntimeError(msg)
 
 
+def _open_with_retry() -> psycopg.Connection:
+    for delay in (*CONNECT_RETRY_DELAYS, None):
+        try:
+            return psycopg.connect(
+                _dsn(),
+                row_factory=dict_row,
+                autocommit=False,
+                options=f"-c default_transaction_read_only=on -c statement_timeout={STATEMENT_TIMEOUT}",
+            )
+        except psycopg.OperationalError:
+            if delay is None:
+                raise
+            time.sleep(delay)
+
+
 def connect() -> psycopg.Connection:
     # Session-level defaults set at connect time, on top of (not instead of)
     # the per-transaction SETs below: belt and suspenders. A libpq `options`
@@ -55,12 +77,7 @@ def connect() -> psycopg.Connection:
     # a caller that got a raw connection some other way still can't write or
     # run past the timeout even if the per-transaction SETs below were ever
     # skipped or reordered.
-    conn = psycopg.connect(
-        _dsn(),
-        row_factory=dict_row,
-        autocommit=False,
-        options=f"-c default_transaction_read_only=on -c statement_timeout={STATEMENT_TIMEOUT}",
-    )
+    conn = _open_with_retry()
     try:
         with conn.cursor() as cur:
             cur.execute("SET TRANSACTION READ ONLY")

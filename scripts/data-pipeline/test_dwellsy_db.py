@@ -110,5 +110,44 @@ class DwellsyDbScrub(unittest.TestCase):
         self.assertNotIn("hunter2", str(exc))
 
 
+class ConnectRetry(unittest.TestCase):
+    """Opening a connection is retried on OperationalError; nothing touches
+    the network (psycopg.connect, the secret read and sleep are replaced)."""
+
+    def setUp(self):
+        self._orig = (dwellsy_db.psycopg.connect, dwellsy_db._dsn, dwellsy_db.time.sleep)
+        dwellsy_db._dsn = lambda: "fake-dsn"
+        self.sleeps = []
+        dwellsy_db.time.sleep = self.sleeps.append
+
+    def tearDown(self):
+        dwellsy_db.psycopg.connect, dwellsy_db._dsn, dwellsy_db.time.sleep = self._orig
+
+    def _connect_failing(self, failures):
+        calls = {"n": 0}
+        sentinel = object()
+
+        def fake_connect(*args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] <= failures:
+                raise dwellsy_db.psycopg.OperationalError("could not receive data from server")
+            return sentinel
+
+        dwellsy_db.psycopg.connect = fake_connect
+        return calls, sentinel
+
+    def test_a_transient_failure_is_retried(self):
+        calls, sentinel = self._connect_failing(2)
+        self.assertIs(dwellsy_db._open_with_retry(), sentinel)
+        self.assertEqual(calls["n"], 3)
+        self.assertEqual(self.sleeps, list(dwellsy_db.CONNECT_RETRY_DELAYS))
+
+    def test_gives_up_after_the_last_retry(self):
+        calls, _ = self._connect_failing(99)
+        with self.assertRaises(dwellsy_db.psycopg.OperationalError):
+            dwellsy_db._open_with_retry()
+        self.assertEqual(calls["n"], len(dwellsy_db.CONNECT_RETRY_DELAYS) + 1)
+
+
 if __name__ == "__main__":
     unittest.main()
