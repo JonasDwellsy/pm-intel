@@ -89,6 +89,7 @@ export default function RootLayout({
         "https://portfolio.iq.dwellsy.com",
         "https://evidence.iq.dwellsy.com",
         "https://concessions.iq.dwellsy.com",
+        "https://dwellsy-iq-concessions.vercel.app",
       ]}
     >
       <html
