@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
 
-test("Clerk allows only the reviewed Portfolio, Evidence, and Concessions return origins", () => {
+test("Clerk allows only reviewed product origins and the exact temporary Concessions host", () => {
   const source = ts.createSourceFile(
     "layout.tsx",
     readFileSync(new URL("../../app/layout.tsx", import.meta.url), "utf8"),
@@ -36,5 +36,6 @@ test("Clerk allows only the reviewed Portfolio, Evidence, and Concessions return
     "https://portfolio.iq.dwellsy.com",
     "https://evidence.iq.dwellsy.com",
     "https://concessions.iq.dwellsy.com",
+    "https://dwellsy-iq-concessions.vercel.app",
   ]);
 });
