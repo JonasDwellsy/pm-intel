@@ -97,9 +97,29 @@ _parser.add_argument(
     help="Override the market's dataAsOf (YYYY-MM-DD). The entire pipeline "
          "is keyed off this date (T12/T24 windows, eligibility, cohorts), so "
          "a past date reconstructs the market as it stood then — the v0.22 "
-         "3b historical-trajectory backfill. Defaults to markets.json.",
+         "3b historical-trajectory backfill. Defaults to markets.json under "
+         "--source csv, or the db snapshot's pulled-on-Pacific date under "
+         "--source db.",
+)
+_parser.add_argument(
+    "--source", default="csv", choices=["csv", "db"],
+    help="Row source (default: csv). 'csv' reads --data-dir's per-market "
+         "export, unchanged. 'db' pulls the market once from the Dwellsy "
+         "database via dwellsy_source.market_listings, spools it to a "
+         "snapshot CSV (db_snapshot.py), and reads that -- so the "
+         "auto-merge pre-pass and the main pass see the same pull.",
+)
+_parser.add_argument(
+    "--db-snapshot", default=None,
+    help="Reuse a snapshot CSV (and its .meta.json) written by an earlier "
+         "--source db run instead of pulling again -- e.g. the trajectory "
+         "backfill sharing one pull across its many --market invocations. "
+         "Only valid with --source db.",
 )
 _args = _parser.parse_args()
+
+if _args.db_snapshot is not None and _args.source != "db":
+    sys.exit("[pipeline] --db-snapshot is only valid with --source db")
 
 # Resolve --data-dir: explicit CLI > env var > home-relative default.
 _DEFAULT_DATA_DIR = os.path.expanduser("~/Documents/Claude/Projects/Product Support")
@@ -140,7 +160,25 @@ CURATED_MAP = load_merge_decisions(os.path.join(_SCRIPT_DIR, "merge_decisions.js
 NATIONAL_LOOKUP = os.path.join(
     BASE, _cfg.get("nationalLookup", "Operator_National_Urus_v0.6.2.json")
 )
-CSV_PATH = os.path.join(BASE, _mkt["csvFile"])
+if _args.source == "db":
+    # Checked before the pull below, not just in the combined loop further
+    # down: a --source db run that's about to spend 1-2 minutes pulling a
+    # market shouldn't find out only afterward that the national lookup it
+    # needs later is missing. Same check, same message the combined loop
+    # already used -- csv mode is untouched, still checked only there.
+    if not os.path.isfile(NATIONAL_LOOKUP):
+        sys.exit(f"[pipeline] missing input (nationalLookup): {NATIONAL_LOOKUP}")
+    if _mkt["msaCode"] == "35620":
+        sys.exit(
+            "[pipeline] msa_code 35620 (New York) is out of scope for --source db"
+        )
+    import db_snapshot
+    CSV_PATH, DB_SNAPSHOT_META = db_snapshot.ensure_snapshot(
+        _mkt["msaCode"], OUT_DIR, _mkt["outputSlug"], snapshot_path=_args.db_snapshot,
+    )
+else:
+    CSV_PATH = os.path.join(BASE, _mkt["csvFile"])
+    DB_SNAPSHOT_META = None
 OUT_JSON = os.path.join(OUT_DIR, f"Scorecard_Data_v0.6.4_{_mkt['outputSlug']}.json")
 OUT_SUMMARY = os.path.join(OUT_DIR, f"Scorecard_Data_v0.6.4_{_mkt['outputSlug']}_Summary.md")
 # Phase 2 (individual-home export) — one JSONL extract per market run,
@@ -161,7 +199,21 @@ MARKET_ID = _mkt["id"]
 MARKET_STATE = _mkt["state"]
 PRIMARY_CITY_FOR_MARKET = _mkt["primaryCity"]
 
-DATA_AS_OF = _args.as_of or _mkt["dataAsOf"]
+if _args.source == "db":
+    if _args.as_of and _args.as_of > DB_SNAPSHOT_META["pulled_on_pacific"]:
+        sys.exit(
+            f"[pipeline] --as-of {_args.as_of} is later than the snapshot's "
+            f"pulled_on_pacific {DB_SNAPSHOT_META['pulled_on_pacific']!r} -- "
+            f"the snapshot holds no data through that date; pull a fresh "
+            f"snapshot or pass an earlier --as-of"
+        )
+    # markets.json's dataAsOf dates the CSV export, not this DB pull -- it
+    # would silently mis-window T12/T24 against data the pull never touched.
+    DATA_AS_OF = _args.as_of or DB_SNAPSHOT_META["pulled_on_pacific"]
+    _AS_OF_REASON = "--as-of override" if _args.as_of else "db snapshot pulled_on_pacific"
+else:
+    DATA_AS_OF = _args.as_of or _mkt["dataAsOf"]
+    _AS_OF_REASON = "--as-of override" if _args.as_of else "markets.json dataAsOf"
 NOW = datetime.strptime(DATA_AS_OF, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 T12_START = NOW - timedelta(days=365)
 T24_START = NOW - timedelta(days=730)
@@ -231,6 +283,9 @@ START_T = time.time()
 
 def log(msg):
     print(f"[{time.time()-START_T:6.1f}s] {msg}", flush=True)
+
+
+log(f"--source={_args.source}; DATA_AS_OF={DATA_AS_OF} ({_AS_OF_REASON})")
 
 
 def parse_dt(s):

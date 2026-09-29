@@ -52,6 +52,11 @@ src/data/.backups/
 # v0.22 3b — transient backfill scratch (pipeline outputs per quarter)
 .trajectory-backfill-tmp/
 
+# --source db pull snapshots (db_snapshot.py): CSV + meta sidecar, one per
+# pull, regenerated on demand -- never committed.
+db_snapshot_*.csv
+db_snapshot_*.csv.meta.json
+
 # brainstorming visual-companion scratch
 .superpowers/
 
