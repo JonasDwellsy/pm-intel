@@ -5,10 +5,9 @@ import psycopg
 
 import dwellsy_db
 
-SECRET = os.path.expanduser("~/Documents/Dwellsy/secrets/db_connection.txt")
 
 
-@unittest.skipUnless(os.path.isfile(SECRET), "no Dwellsy credentials on this machine")
+@unittest.skipUnless(dwellsy_db.has_credentials(), "no Dwellsy credentials on this machine")
 class DwellsyDbConnection(unittest.TestCase):
     def test_session_is_read_only(self):
         rows = dwellsy_db.query("select current_setting('transaction_read_only') as ro")
@@ -64,6 +63,10 @@ class DwellsyDbConnection(unittest.TestCase):
 class DwellsyDbScrub(unittest.TestCase):
     """Unit test for _scrub() directly. No network, no credentials required."""
 
+    def test_scrub_redacts_psycopg_host_resolution_errors(self):
+        msg = "failed to resolve host 'db-user-x': [Errno 8] nodename nor servname provided"
+        self.assertNotIn("db-user-x", dwellsy_db._scrub(msg))
+
     def test_scrub_redacts_dsn_shaped_text(self):
         synthetic = "could not connect: postgresql://user:hunter2@db.example.com:5432/x"
         scrubbed = dwellsy_db._scrub(synthetic)
@@ -98,12 +101,15 @@ class DwellsyDbScrub(unittest.TestCase):
     def test_query_error_carries_no_exception_chain(self):
         # Force a failure before any network I/O by pointing the secret at a missing file.
         original = dwellsy_db.SECRET_PATH
+        original_env = os.environ.pop(dwellsy_db.ENV_VAR, None)
         dwellsy_db.SECRET_PATH = "/nonexistent/postgresql://u:hunter2@db.example.com/x"
         try:
             with self.assertRaises(Exception) as ctx:
                 dwellsy_db.query("SELECT 1")
         finally:
             dwellsy_db.SECRET_PATH = original
+            if original_env is not None:
+                os.environ[dwellsy_db.ENV_VAR] = original_env
         exc = ctx.exception
         self.assertIsNone(exc.__context__)
         self.assertIsNone(exc.__cause__)
@@ -147,6 +153,55 @@ class ConnectRetry(unittest.TestCase):
         with self.assertRaises(dwellsy_db.psycopg.OperationalError):
             dwellsy_db._open_with_retry()
         self.assertEqual(calls["n"], len(dwellsy_db.CONNECT_RETRY_DELAYS) + 1)
+
+
+class ConnectionSource(unittest.TestCase):
+    """Where the connection string comes from. No network: only _dsn() and
+    has_credentials() run, against a temp file and a patched environment."""
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self._orig_path = dwellsy_db.SECRET_PATH
+        self._orig_env = os.environ.pop(dwellsy_db.ENV_VAR, None)
+        self.file = os.path.join(self._tmp.name, "operator_iq_db.txt")
+        dwellsy_db.SECRET_PATH = self.file
+
+    def tearDown(self):
+        dwellsy_db.SECRET_PATH = self._orig_path
+        os.environ.pop(dwellsy_db.ENV_VAR, None)
+        if self._orig_env is not None:
+            os.environ[dwellsy_db.ENV_VAR] = self._orig_env
+
+    def _write(self, text):
+        with open(self.file, "w") as fh:
+            fh.write(text)
+
+    def test_environment_variable_wins_over_the_file(self):
+        self._write("postgresql://from-file/x\n")
+        os.environ[dwellsy_db.ENV_VAR] = "postgresql://from-env/x"
+        self.assertEqual(dwellsy_db._dsn(), "postgresql://from-env/x")
+
+    def test_file_is_used_when_the_variable_is_unset(self):
+        self._write("postgresql://from-file/x\n")
+        self.assertEqual(dwellsy_db._dsn(), "postgresql://from-file/x")
+        self.assertTrue(dwellsy_db.has_credentials())
+
+    def test_neither_source_raises_a_clear_error(self):
+        self.assertFalse(dwellsy_db.has_credentials())
+        with self.assertRaises(dwellsy_db.MissingCredentials) as ctx:
+            dwellsy_db._dsn()
+        self.assertIn(dwellsy_db.ENV_VAR, str(ctx.exception))
+
+    def test_an_empty_file_is_not_a_connection(self):
+        self._write("\n")
+        with self.assertRaises(dwellsy_db.MissingCredentials):
+            dwellsy_db._dsn()
+
+    def test_default_file_is_the_dedicated_one_not_the_shared_one(self):
+        self.assertTrue(self._orig_path.endswith("operator_iq_db.txt"))
+        self.assertNotIn("db_connection.txt", self._orig_path)
 
 
 if __name__ == "__main__":
