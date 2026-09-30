@@ -12,7 +12,6 @@ import unittest
 import dwellsy_db
 import dwellsy_source
 
-SECRET = os.path.expanduser("~/Documents/Dwellsy/secrets/db_connection.txt")
 BOZEMAN = "14580"
 BOZEMAN_EXPORT = (
     "/Users/jonasbordo/Documents/Claude/Projects/Product Support/"
@@ -29,7 +28,7 @@ PASSTHROUGH_KEYS = (
 )
 
 
-@unittest.skipUnless(os.path.isfile(SECRET), "no Dwellsy credentials on this machine")
+@unittest.skipUnless(dwellsy_db.has_credentials(), "no Dwellsy credentials on this machine")
 class MarketListings(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

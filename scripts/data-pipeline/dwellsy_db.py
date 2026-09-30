@@ -1,9 +1,15 @@
 """Read-only access to the Dwellsy production database.
 
-The connection string lives in ~/Documents/Dwellsy/secrets/db_connection.txt and
-must never be printed, logged, or included in an exception message. Every
-session is opened READ ONLY with a statement timeout; this module offers no way
-to run a mutating statement.
+Operator IQ has its own database account, which lands on a read replica. The
+connection string comes from the DWELLSY_DB_URL environment variable (set from
+the cloud runner's secret store) or, on a workstation, from
+~/Documents/Dwellsy/secrets/operator_iq_db.txt (owner-only). It must never be
+printed, logged, or included in an exception message. There is deliberately no
+fallback to the shared db_connection.txt used for ad-hoc exploration, so the
+pipeline can't drift onto another account unnoticed.
+
+Every session is opened READ ONLY with a statement timeout; this module offers
+no way to run a mutating statement.
 """
 import os
 import re
@@ -13,7 +19,8 @@ from typing import Iterator
 import psycopg
 from psycopg.rows import dict_row
 
-SECRET_PATH = os.path.expanduser("~/Documents/Dwellsy/secrets/db_connection.txt")
+ENV_VAR = "DWELLSY_DB_URL"
+SECRET_PATH = os.path.expanduser("~/Documents/Dwellsy/secrets/operator_iq_db.txt")
 STATEMENT_TIMEOUT = "120s"
 STREAM_BATCH = 5000
 # Opening a connection is retried; queries never are. A market pull opens a
@@ -24,9 +31,27 @@ STREAM_BATCH = 5000
 CONNECT_RETRY_DELAYS = (2.0, 5.0)
 
 
+class MissingCredentials(RuntimeError):
+    pass
+
+
+def has_credentials() -> bool:
+    return bool(os.environ.get(ENV_VAR, "").strip()) or os.path.isfile(SECRET_PATH)
+
+
 def _dsn() -> str:
-    with open(SECRET_PATH) as fh:
-        return fh.read().strip()
+    from_env = os.environ.get(ENV_VAR, "").strip()
+    if from_env:
+        return from_env
+    if os.path.isfile(SECRET_PATH):
+        with open(SECRET_PATH) as fh:
+            dsn = fh.read().strip()
+        if dsn:
+            return dsn
+    raise MissingCredentials(
+        f"no Dwellsy database connection: set {ENV_VAR}, or save the "
+        f"connection string to {SECRET_PATH} (owner-only)"
+    )
 
 
 def _scrub(msg: str) -> str:
@@ -39,6 +64,8 @@ def _scrub(msg: str) -> str:
         'could not translate host name "<host redacted>"',
         msg,
     )
+    # psycopg resolves host names itself and reports them single-quoted.
+    msg = re.sub(r"host '[^']*'", "host '<redacted>'", msg)
     return re.sub(r'user "[^"]*"', "user <redacted>", msg)
 
 
