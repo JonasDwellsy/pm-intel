@@ -29,7 +29,7 @@ import { usePathname } from "next/navigation";
 // /report is the white-label consumer funnel — it renders its own
 // partner-branded chrome via ReportShell, so the B2B SiteHeader/SiteFooter are
 // stripped here (same "owns its own layout" rationale as the auth routes).
-const BARE_ROUTES = ["/sign-in", "/sign-up", "/report"];
+const BARE_ROUTES = ["/sign-in", "/sign-up", "/iq/sign-in", "/iq/sign-up", "/report"];
 
 export function ConditionalChrome({
   header,
