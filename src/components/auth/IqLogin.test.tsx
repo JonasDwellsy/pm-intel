@@ -27,6 +27,10 @@ test.each(["sign-in", "sign-up"] as const)("%s carries the same destination thro
   expect(props.forceRedirectUrl).toBe(destination);
   expect(props.path).toBe(`/iq/${mode}`);
   expect(props[mode === "sign-in" ? "signUpForceRedirectUrl" : "signInForceRedirectUrl"]).toBe(destination);
+  expect(props.appearance.elements).toEqual({ logoBox: "hidden", headerTitle: "hidden", headerSubtitle: "hidden" });
+  expect(screen.getByRole("heading").textContent).toBe(mode === "sign-in" ? "Sign in to Concessions" : "Create your account for Concessions");
+  expect(screen.getByText("Dwellsy IQ logo")).toBeTruthy();
+  expect(screen.getByText("We’ll return you to Concessions when you’re done. Product access requirements still apply.")).toBeTruthy();
 });
 test("untrusted returns never mount an auth form or redirect", async () => {
   render(await IqLogin({ mode: "sign-in", query: { redirect_url: "https://evil.example" } }));
