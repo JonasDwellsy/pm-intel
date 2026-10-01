@@ -497,6 +497,39 @@
       "primaryCity": "Atlanta",
       "csvFile": "merged_atlanta-sandy-springs-marietta-ga_20260908.csv",
       "dataAsOf": "2026-09-08"
+    },
+    {
+      "id": "tampa-st-petersburg-clearwater-fl",
+      "outputSlug": "tampa",
+      "msaCode": "45300",
+      "msaFullName": "Tampa-St. Petersburg-Clearwater, FL MSA",
+      "name": "Tampa",
+      "state": "FL",
+      "primaryCity": "Tampa",
+      "csvFile": "merged_tampa-st-petersburg-clearwater-fl_20260914.csv",
+      "dataAsOf": "2026-09-14"
+    },
+    {
+      "id": "philadelphia-camden-wilmington-pa-nj-de-md",
+      "outputSlug": "philadelphia",
+      "msaCode": "37980",
+      "msaFullName": "Philadelphia-Camden-Wilmington, PA-NJ-DE-MD MSA",
+      "name": "Philadelphia",
+      "state": "PA",
+      "primaryCity": "Philadelphia",
+      "csvFile": "merged_philadelphia-camden-wilmington-pa-nj-de-md_20260914.csv",
+      "dataAsOf": "2026-09-14"
+    },
+    {
+      "id": "new-york-northern-new-jersey-long-island-ny-nj-pa",
+      "outputSlug": "new-york",
+      "msaCode": "35620",
+      "msaFullName": "New York-Northern New Jersey-Long Island, NY-NJ-PA MSA",
+      "name": "New York",
+      "state": "NY",
+      "primaryCity": "New York",
+      "csvFile": "merged_new-york-northern-new-jersey-long-island-ny-nj-pa_20260914.csv",
+      "dataAsOf": "2026-09-14"
     }
   ]
 }

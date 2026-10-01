@@ -268,6 +268,9 @@ const MARKETS: Array<{
   { slug: "san-jose", id: "san-jose-sunnyvale-santa-clara-ca", city: "San Jose", state: "CA", stateSlug: "california", citySlug: "san-jose" },
   { slug: "bozeman", id: "bozeman-mt", city: "Bozeman", state: "MT", stateSlug: "montana", citySlug: "bozeman" },
   { slug: "atlanta", id: "atlanta-sandy-springs-marietta-ga", city: "Atlanta", state: "GA", stateSlug: "georgia", citySlug: "atlanta" },
+  { slug: "tampa", id: "tampa-st-petersburg-clearwater-fl", city: "Tampa", state: "FL", stateSlug: "florida", citySlug: "tampa" },
+  { slug: "philadelphia", id: "philadelphia-camden-wilmington-pa-nj-de-md", city: "Philadelphia", state: "PA", stateSlug: "pennsylvania", citySlug: "philadelphia" },
+  { slug: "new-york", id: "new-york-northern-new-jersey-long-island-ny-nj-pa", city: "New York", state: "NY", stateSlug: "new-york", citySlug: "new-york" },
 ];
 const MIN_T12 = 3;
 
