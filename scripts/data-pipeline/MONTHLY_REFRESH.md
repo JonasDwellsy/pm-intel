@@ -307,6 +307,47 @@ not a deployment side effect.
 before `build-operator-universe.ts`, review and commit the generated JSON, and
 never rely on a Vercel build's disposable filesystem to preserve its output.
 
+## Adding a market: enrichment and canonical proposals run AFTER the merge
+
+`enrich_company_websites.py` reads its operator list from the COMMITTED seed
+(`src/data/scorecard_data.json`, the `pms` array — see `SEED` at the top of the
+script). A new market's operators do not exist there until `merge.py --apply`
+has run, so calling it earlier reports `to fetch: 0` and fetches nothing. The
+same applies to `merge.py --propose-canonicals`, whose website evidence comes
+from that enrichment.
+
+Order for a market add:
+
+```
+pipeline.py (per new market)
+  -> normalize_pm_names.py
+  -> export_merge_decisions.ts        (BEFORE merge.py — see step 6)
+  -> merge.py --apply
+  -> enrich_company_websites.py       <-- needs the merged seed
+  -> merge.py --propose-canonicals    <-- needs the enrichment
+  -> curate -> apply_canonicals.py -> merge.py --apply again
+```
+
+On 2026-09-18 the pre-merge enrichment call found 0 operators to fetch; the
+identical call after the merge fetched 365 and found 134 websites, which turned
+34 of 61 blind name-matches into domain-backed decisions. Skipping this leaves a
+curator ruling on names alone.
+
+Three registries must all carry a new market, and only one of them errors if you
+forget:
+
+| file | what breaks if omitted |
+|---|---|
+| `scripts/data-pipeline/markets.json` | the pipeline has nothing to run |
+| `scripts/build-operator-universe.ts` (`MARKETS`) | that market's tracked tier silently empties to 0 |
+| `src/data/markets-with-coverage.json` | the map dot stays grey forever — the slug must EQUAL the market id; `markets-coverage.test.ts` now fails if it does not |
+
+The coverage file often already holds a prospect-era placeholder for the metro
+(`atlanta-ga`, `tampa-fl`, `new-york-ny`). Rename that entry's slug rather than
+adding a second one, and align its `name` with the seed — the placeholders carry
+a different census vintage (`-Alpharetta` vs `-Marietta`,
+`New York-Newark-Jersey City` vs `New York-Northern New Jersey-Long Island`).
+
 ## Individual-home extract → `PropertyHome` (owner-run, after the pipeline)
 
 The pipeline run (step 3) also emits a per-home extract per market —
