@@ -11,6 +11,7 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { ConditionalChrome } from "@/components/layout/ConditionalChrome";
 import { PostHogProvider } from "@/components/analytics/PostHogProvider";
 import { SearchOverlayProvider } from "@/components/search/SearchOverlay";
+import { IQ_SESSION_TASK_URLS } from "@/lib/auth/iq-session-tasks";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -91,6 +92,7 @@ export default function RootLayout({
         "https://concessions.iq.dwellsy.com",
         "https://dwellsy-iq-concessions.vercel.app",
       ]}
+      taskUrls={IQ_SESSION_TASK_URLS}
     >
       <html
         lang="en"

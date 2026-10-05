@@ -1,11 +1,13 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, expect, test, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), redirect: vi.fn() }));
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), cookies: vi.fn(), redirect: vi.fn() }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
+vi.mock("next/headers", () => ({ cookies: mocks.cookies }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("next/image", () => ({ default: () => <span>Dwellsy IQ logo</span> }));
 vi.mock("@clerk/nextjs", () => ({
+  RedirectToTasks: () => <output data-testid="session-tasks" />,
   SignIn: (props: Record<string, string>) => <output data-testid="login">{JSON.stringify(props)}</output>,
   SignUp: (props: Record<string, string>) => <output data-testid="signup">{JSON.stringify(props)}</output>,
 }));
@@ -14,6 +16,7 @@ const destination = "https://concessions.iq.dwellsy.com/app?__clerk_synced=false
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.auth.mockResolvedValue({ userId: null });
+  mocks.cookies.mockResolvedValue({ get: vi.fn(() => undefined) });
   mocks.redirect.mockImplementation(() => { throw new Error("redirect"); });
 });
 test("an existing IQ session returns to Concessions without another login or organization change", async () => {
@@ -27,8 +30,17 @@ test.each(["sign-in", "sign-up"] as const)("%s carries the same destination thro
   expect(props.forceRedirectUrl).toBe(destination);
   expect(props.path).toBe(`/iq/${mode}`);
   expect(props[mode === "sign-in" ? "signUpForceRedirectUrl" : "signInForceRedirectUrl"]).toBe(destination);
+  expect(screen.getByTestId("session-tasks")).toBeDefined();
+});
+test("a task route recovers the validated product destination from the short-lived cookie", async () => {
+  mocks.cookies.mockResolvedValue({ get: vi.fn(() => ({ value: destination })) });
+  render(await IqLogin({ mode: "sign-in", query: {} }));
+  const props = JSON.parse(screen.getByTestId("login").textContent!);
+  expect(props.forceRedirectUrl).toBe(destination);
+  expect(screen.getByTestId("session-tasks")).toBeDefined();
 });
 test("untrusted returns never mount an auth form or redirect", async () => {
+  mocks.cookies.mockResolvedValue({ get: vi.fn(() => ({ value: destination })) });
   render(await IqLogin({ mode: "sign-in", query: { redirect_url: "https://evil.example" } }));
   expect(screen.getByRole("heading").textContent).toBe("Open sign-in from your product");
   expect(screen.queryByTestId("login")).toBeNull();
