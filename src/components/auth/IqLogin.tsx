@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { iqLoginLink, iqLoginReturn, type LoginQuery } from "@/lib/auth/iq-login-return";
 import { IQ_LOGIN_RETURN_COOKIE, recoverIqLoginReturn } from "@/lib/auth/iq-session-tasks";
+import { concessionsActivationToken, concessionsBridgeEnabled } from "@/lib/auth/concessions-activation";
+import { ConcessionsActivation } from "./ConcessionsActivation";
 
 export async function IqLogin({ mode, query }: { mode: "sign-in" | "sign-up"; query: LoginQuery }) {
   const requestedDestination = iqLoginReturn(query);
@@ -17,6 +19,10 @@ export async function IqLogin({ mode, query }: { mode: "sign-in" | "sign-up"; qu
     ? null
     : recoverIqLoginReturn((await cookies()).get(IQ_LOGIN_RETURN_COOKIE)?.value);
   const destination = requestedDestination ?? rememberedDestination;
+  const invitationToken = concessionsActivationToken(destination);
+  if (invitationToken && concessionsBridgeEnabled() && (await auth({treatPendingAsSignedOut:false})).userId) {
+    return <main className="flex min-h-screen items-center justify-center bg-surface-soft px-6 py-12"><ConcessionsActivation token={invitationToken} mode={mode} destination={destination!} /></main>;
+  }
   if (destination && (await auth()).userId) redirect(destination);
   return <main className="flex min-h-screen items-center justify-center bg-surface-soft px-6 py-12">
     <section className="flex w-full max-w-[440px] flex-col items-center gap-6 text-center">

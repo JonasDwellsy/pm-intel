@@ -36,6 +36,7 @@ export function initAnalytics(): void {
   if (typeof window === "undefined") return;
   if (!KEY || initialized) return;
   posthog.init(KEY, {
+    before_send: event => window.location.pathname.startsWith("/iq/") ? null : event,
     api_host: HOST,
     capture_pageview: false, // we fire view events explicitly with extra props
 
