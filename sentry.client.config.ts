@@ -38,6 +38,8 @@ if (DSN) {
     // reports. Users are tagged by Clerk userId only (see the
     // server-side instrumentation file for the setUser call).
     sendDefaultPii: false,
+    beforeSend: event => window.location.pathname.startsWith("/iq/") ? null : event,
+    beforeSendTransaction: event => window.location.pathname.startsWith("/iq/") ? null : event,
     // v0.17.1 — Tag events with VERCEL_ENV so Sentry's environment
     // filter surfaces them. NEXT_PUBLIC_VERCEL_ENV is inlined into
     // the client bundle by Next.js when set on the deploy (Vercel

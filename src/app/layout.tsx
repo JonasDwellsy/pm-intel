@@ -3,8 +3,7 @@ import { siteRobotsMetadata } from "@/lib/seo";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { clerkAppearance } from "@/lib/clerk-appearance";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
+import { ProductTelemetry } from "@/components/analytics/ProductTelemetry";
 import "./globals.css";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -120,8 +119,7 @@ export default function RootLayout({
               up Vercel's edge endpoints. No env vars needed —
               detection is automatic when the deployment is on
               Vercel. In local dev they no-op silently. */}
-          <Analytics />
-          <SpeedInsights />
+          <ProductTelemetry />
         </body>
       </html>
     </ClerkProvider>
