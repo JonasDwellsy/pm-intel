@@ -10,6 +10,8 @@ test("Terms starts unchecked and activation requires affirmative choice",()=>{
   render(<ConcessionsActivation {...props}/>);
   expect(screen.getByRole("heading",{name:"Welcome to Concessions."})).toBeDefined();
   expect(screen.getByText("Your listing-partner benefit",{selector:"span"})).toBeDefined();
+  expect(screen.getByText("Your company is already approved.",{selector:"p"})).toBeDefined();
+  expect(screen.queryByText(/Keep listing with Dwellsy/)).toBeNull();
   const checkbox=screen.getByRole("checkbox") as HTMLInputElement;
   expect(checkbox.checked).toBe(false);
   expect((screen.getByRole("button",{name:"Open Concessions"}) as HTMLButtonElement).disabled).toBe(true);

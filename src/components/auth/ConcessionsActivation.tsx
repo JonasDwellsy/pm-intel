@@ -40,12 +40,11 @@ export function ConcessionsActivation({token,mode,destination}:{token:string;mod
         <p>Our thank-you to active listing partners: a view of nearby offers and monthly rent discounts, included at no additional cost.</p>
         <div className={styles.mapArt} aria-hidden="true"><span className={styles.river} /><span className={styles.street} /><i /><i /><i /><b>8% off</b><b>Waived fee</b><b>5% off</b></div>
         <span className={styles.caption}>Illustrative offers</span>
-        <div className={styles.benefit}><span aria-hidden="true">✓</span><p>Keep listing with Dwellsy.<br /><strong>Keep your team’s Concessions benefit.</strong></p></div>
       </aside>
       <div className={styles.content}>
         <span className={styles.confirmed}><span aria-hidden="true">✓</span> Invitation confirmed</span>
         <h1>Welcome to<br />Concessions.</h1>
-        <p>Your company is already approved. Agree to the Terms of Use, and we’ll open your Concessions workspace.</p>
+        <p>Your company is already approved.</p>
         <label className={styles.terms}><input type="checkbox" checked={accepted} disabled={busy} onChange={e=>setAccepted(e.target.checked)} /><span>I agree to the <a href="https://dwellsy.com/pages/terms-of-use" target="_blank" rel="noopener noreferrer">Dwellsy Terms of Use<span className="sr-only"> (opens in a new tab)</span></a>.</span></label>
         <button className={styles.primary} disabled={!accepted || busy || !clerk.loaded} onClick={()=>void activate()}>{busy ? "Checking your invitation…" : "Open Concessions"}<span aria-hidden="true">→</span></button>
         {message && <p className={styles.error} role="alert">{message}</p>}
