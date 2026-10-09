@@ -8,6 +8,8 @@ beforeEach(()=>{mocks.clerk.session.currentTask.key="choose-organization";vi.res
 const props={token:"a".repeat(64),mode:"sign-in" as const,destination:"https://concessions.iq.dwellsy.com/invitations/activate"};
 test("Terms starts unchecked and activation requires affirmative choice",()=>{
   render(<ConcessionsActivation {...props}/>);
+  expect(screen.getByRole("heading",{name:"Welcome to Concessions."})).toBeDefined();
+  expect(screen.getByText("Your listing-partner benefit",{selector:"span"})).toBeDefined();
   const checkbox=screen.getByRole("checkbox") as HTMLInputElement;
   expect(checkbox.checked).toBe(false);
   expect((screen.getByRole("button",{name:"Open Concessions"}) as HTMLButtonElement).disabled).toBe(true);
