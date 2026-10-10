@@ -13,6 +13,7 @@ test("Clerk allows only reviewed product origins and the exact temporary Concess
   );
   const origins: string[] = [];
   let providerCount = 0;
+  let taskUrlsExpression = "";
   function visit(node: ts.Node) {
     if (ts.isJsxOpeningElement(node) && node.tagName.getText(source) === "ClerkProvider") {
       providerCount += 1;
@@ -27,6 +28,12 @@ test("Clerk allows only reviewed product origins and the exact temporary Concess
         assert.ok(ts.isStringLiteral(element), "Keep the trusted origins explicit, without wildcards or request-derived values");
         origins.push(element.text);
       }
+      const taskUrls = node.attributes.properties.find(
+        (item) => ts.isJsxAttribute(item) && item.name.getText(source) === "taskUrls",
+      );
+      assert.ok(taskUrls && ts.isJsxAttribute(taskUrls));
+      assert.ok(taskUrls.initializer && ts.isJsxExpression(taskUrls.initializer));
+      taskUrlsExpression = taskUrls.initializer.expression?.getText(source) ?? "";
     }
     ts.forEachChild(node, visit);
   }
@@ -38,4 +45,5 @@ test("Clerk allows only reviewed product origins and the exact temporary Concess
     "https://concessions.iq.dwellsy.com",
     "https://dwellsy-iq-concessions.vercel.app",
   ]);
+  assert.equal(taskUrlsExpression, "IQ_SESSION_TASK_URLS");
 });

@@ -1,0 +1,47 @@
+.shell { width: 100%; max-width: 1180px; color: #172039; }
+.header { margin: 0 0 42px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.header img { width: 184px; height: auto; }
+.header > span { color: #707386; font-size: 13px; }
+.card { display: grid; grid-template-columns: .92fr 1.08fr; overflow: hidden; border: 1px solid #e5e3ec; border-radius: 24px; background: white; box-shadow: 0 20px 70px #281a4210; }
+.intro { padding: 46px 40px 34px; color: white; background: linear-gradient(145deg,#211238,#452450); }
+.eyebrow { color: #e1c9eb; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; }
+.intro h2 { margin: 20px 0 16px; font-size: clamp(28px,3vw,38px); font-weight: 650; letter-spacing: -.035em; line-height: 1.15; }
+.intro > p { max-width: 340px; color: #e1d5e8; font-size: 15px; line-height: 1.7; }
+.mapArt { position: relative; height: 186px; margin-top: 32px; overflow: hidden; border: 1px solid #ffffff25; border-radius: 16px; background: repeating-linear-gradient(25deg,transparent 0 43px,#ffffff0d 44px 47px,transparent 48px 75px),repeating-linear-gradient(115deg,#ffffff03 0 62px,#ffffff0d 63px 67px,transparent 68px 102px); }
+.river { position: absolute; width: 42px; height: 270px; top: -50px; left: 49%; background: #a39ad522; transform: rotate(35deg); }
+.street { position: absolute; width: 130%; height: 7px; top: 90px; left: -20px; background: #ffffff16; transform: rotate(-15deg); }
+.mapArt b { position: absolute; padding: 8px 11px; border: 2px solid #ffffffcc; border-radius: 9px; background: #96e4b0; box-shadow: 0 4px 12px #0003; color: #172039; font-size: 13px; }
+.mapArt b::after { content: ''; position: absolute; width: 9px; height: 9px; bottom: -6px; left: 44%; background: inherit; transform: rotate(45deg); }
+.mapArt b:nth-of-type(1) { top: 27px; left: 24px; }
+.mapArt b:nth-of-type(2) { top: 100px; left: 68px; background: #ffe375; }
+.mapArt b:nth-of-type(3) { top: 51px; right: 20px; background: #c8e591; }
+.mapArt i { position: absolute; width: 8px; height: 8px; top: 150px; left: 28px; border: 2px solid white; border-radius: 50%; background: #abbbd4; }
+.mapArt i:nth-of-type(2) { top: 35px; left: 55%; }
+.mapArt i:nth-of-type(3) { top: 139px; left: 82%; }
+.caption { display: block; margin-top: 8px; color: #c8b4d4; font-size: 10px; text-align: right; }
+.content { min-width: 0; align-self: center; padding: 48px; }
+.confirmed { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 99px; background: #edf7f0; color: #276346; font-size: 12px; font-weight: 650; }
+.content h1 { margin: 22px 0 18px; font-size: clamp(32px,3.7vw,46px); font-weight: 650; letter-spacing: -.04em; line-height: 1.08; }
+.content > p { margin-bottom: 16px; color: #697184; font-size: 15px; line-height: 1.7; }
+.terms { display: flex; align-items: flex-start; gap: 10px; margin: 24px 0; color: #4e5668; font-size: 13px; line-height: 1.65; }
+.terms input { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; accent-color: #5b3cff; }
+.terms a { color: #5b3cff; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.primary { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 20px; border-radius: 10px; background: #ffda32; color: #201933; font-size: 15px; font-weight: 750; }
+.primary:hover:not(:disabled) { background: #ffce13; }
+.primary:disabled { cursor: not-allowed; opacity: .55; }
+.secondary { display: block; margin: 24px auto 0; color: #787383; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.error { margin-top: 16px; color: #ab3030 !important; font-size: 13px !important; }
+.footnote { margin: 26px auto 0; color: #858191; font-size: 11px; line-height: 1.6; text-align: center; }
+.shell a:focus-visible,.shell button:focus-visible,.shell input:focus-visible { outline: 3px solid #7152ff; outline-offset: 4px; }
+@media (max-width: 760px) {
+  .header { margin-bottom: 28px; }
+  .header > span { display: none; }
+  .card { grid-template-columns: 1fr; }
+  .intro { padding: 28px; }
+  .intro h2 { margin-top: 12px; }
+  .intro > p { max-width: none; }
+  .mapArt,.caption { display: none; }
+  .content { padding: 30px 28px; }
+  .content h1 { font-size: 36px; }
+  .footnote { max-width: 290px; }
+}

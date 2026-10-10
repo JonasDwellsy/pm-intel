@@ -1,8 +1,12 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 import {
   PROTECTED_ROUTE_PATTERNS,
   PUBLIC_BUYBOX_PATTERNS,
 } from "@/lib/auth/protected-routes";
+import { iqLoginReturn } from "@/lib/auth/iq-login-return";
+import { IQ_LOGIN_RETURN_COOKIE, IQ_LOGIN_RETURN_MAX_AGE_SECONDS } from "@/lib/auth/iq-session-tasks";
+import { concessionsActivationToken } from "@/lib/auth/concessions-activation";
 
 // v0.21 — Clerk-only middleware.
 //
@@ -30,6 +34,33 @@ const isPublicWatchListRoute = createRouteMatcher([...PUBLIC_BUYBOX_PATTERNS]);
 export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req) && !isPublicWatchListRoute(req)) {
     await auth.protect();
+  }
+
+  if (/^\/iq\/sign-(in|up)(\/|$)/.test(req.nextUrl.pathname)) {
+    const destination = iqLoginReturn({
+      sign_in_force_redirect_url: req.nextUrl.searchParams.get("sign_in_force_redirect_url") ?? undefined,
+      sign_up_force_redirect_url: req.nextUrl.searchParams.get("sign_up_force_redirect_url") ?? undefined,
+      redirect_url: req.nextUrl.searchParams.get("redirect_url") ?? undefined,
+    });
+    // Move invitation capability out of the visible URL before rendering any
+    // client code. The existing short-lived HttpOnly return cookie carries it.
+    const clean = new URL(req.nextUrl.href);
+    for (const key of ["redirect_url", "sign_in_force_redirect_url", "sign_up_force_redirect_url"]) clean.searchParams.delete(key);
+    const response = concessionsActivationToken(destination) ? NextResponse.redirect(clean) : NextResponse.next();
+    response.headers.set("Referrer-Policy", "no-referrer");
+    response.headers.set("Cache-Control", "private, no-store");
+    if (destination) {
+      response.cookies.set({
+        name: IQ_LOGIN_RETURN_COOKIE,
+        value: destination,
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/iq",
+        maxAge: IQ_LOGIN_RETURN_MAX_AGE_SECONDS,
+      });
+    }
+    return response;
   }
 });
 
