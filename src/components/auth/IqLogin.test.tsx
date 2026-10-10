@@ -40,6 +40,8 @@ test.each(["sign-in", "sign-up"] as const)("%s carries the same destination thro
   expect(props.forceRedirectUrl).toBe(destination);
   expect(props.path).toBe(`/iq/${mode}`);
   expect(props[mode === "sign-in" ? "signUpForceRedirectUrl" : "signInForceRedirectUrl"]).toBe(destination);
+  expect(screen.queryByText("Dwellsy IQ logo")).toBeNull();
+  expect(screen.queryByRole("heading")).toBeNull();
   expect(screen.getByTestId("session-tasks")).toBeDefined();
 });
 test("a task route recovers the validated product destination from the short-lived cookie", async () => {
@@ -48,6 +50,8 @@ test("a task route recovers the validated product destination from the short-liv
   const props = JSON.parse(screen.getByTestId("login").textContent!);
   expect(props.forceRedirectUrl).toBe(destination);
   expect(screen.getByTestId("session-tasks")).toBeDefined();
+  expect(screen.queryByText("Dwellsy IQ logo")).toBeNull();
+  expect(screen.queryByRole("heading")).toBeNull();
 });
 test("untrusted returns never mount an auth form or redirect", async () => {
   mocks.cookies.mockResolvedValue({ get: vi.fn(() => ({ value: destination })) });
